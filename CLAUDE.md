@@ -756,12 +756,12 @@ Canonical project identity:
 
 * Project: Inventory AI
 * Owner: Jeffern
-* GitHub display name: Jeffernzxc
-* GitHub username: nreffejzxc
+* GitHub display name: Jeffernqwerty
+* GitHub username: jeffernqwerty
 * Git identity: jeffernzxc
-* Commit email: jefferndullamalinaozxc@gmail.com
+* Commit email: jeffernmalinaoqwe@gmail.com
 * Implementation: Jeffern
-* Attribution: Jeffern / Jeffernzxc only
+* Attribution: Jeffern / Jeffernqwerty only
 
 #### Git commit rules
 
@@ -789,8 +789,8 @@ instances. Any AI agent, coding tool, bot or automation is covered, and so is an
 
 5. Git author **and** committer identity must be the repository's configured Jeffern/jeffernzxc
    identity. Verify with `git config user.name` / `git config user.email` before creating a commit; the
-   two must be `jeffernzxc` and `jefferndullamalinaozxc@gmail.com`. If either differs, **report the
-   mismatch** — never silently change Git identity.
+   two must be `jeffernzxc` and the commit email above. If either differs, **report the mismatch** —
+   never silently change Git identity.
 
 6. Before creating any commit, read back what you are about to record —
    `git log -1 --format=%B` on the staged commit, or the message you are about to pass — and confirm it
