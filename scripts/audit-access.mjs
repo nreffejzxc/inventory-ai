@@ -1,32 +1,31 @@
 #!/usr/bin/env node
 /**
- * Access audit — checks that this repository is still private and owner-only.
+ * Access audit — checks the public repository's protection and access surface.
  *
  * WHY THIS EXISTS
- * The intended policy is: this repository stays **private**, the owner is the
- * **only human** with access, and no copy exists. Nothing enforces that policy on
- * this plan — branch protection and rulesets answer `403`, secret scanning is a
- * public-repository-only feature, and the daily `access-guard` workflow was removed
- * on 2026-10-09 to keep the workflow minimal. So this script IS the access check:
- * a credential that can read the `Administration`-level endpoints (collaborators,
- * invitations, deploy keys, webhooks) is required, which is why it runs against the
- * owner's own authenticated `gh` session instead of in CI, where `GITHUB_TOKEN`
- * answers 403 for all of them. Run it by hand — ideally before and after anything
+ * The intended policy is: this repository is **public** by the owner's decision, the
+ * default branch is **protected**, and only trusted accounts have write access. Branch
+ * protection now gates `main`, but nothing watches the visibility, the collaborator list,
+ * the deploy keys or the webhooks between manual runs. So this script IS that check: a
+ * credential that can read the `Administration`-level endpoints is required, which is why
+ * it runs against the owner's own authenticated `gh` session instead of in CI, where
+ * `GITHUB_TOKEN` answers 403 for them. Run it by hand — ideally before and after anything
  * that touches repository settings, and whenever access is on your mind.
  *
  * WHAT IT ASSERTS (exit 1 on any violation)
- *   * the repository is private
- *   * the only collaborator is the owner
+ *   * the repository is public
+ *   * the default branch is protected by the four required checks, strict up-to-date
+ *     enforcement, admin enforcement, a pull request, and blocked force pushes/deletions
+ *   * secret scanning and push protection are enabled
+ *   * private vulnerability reporting is enabled
+ *   * only the owner and explicitly trusted collaborators have access
  *   * there are no pending invitations
  *   * there are no deploy keys
  *   * there are no webhooks
- *   * it has no forks and no fork network
  *
  * WHAT IT ONLY REPORTS (never fails)
- * Things that are legitimate but worth seeing: Actions secrets, environments, the
- * Actions policy, and the private-repository sharing level. Also reported are the
- * settings this plan cannot provide at all — branch protection, repository
- * rulesets, secret scanning — so their absence is visible rather than forgotten.
+ * Things that are legitimate but worth seeing: forks (expected on a public repository),
+ * Actions secrets, environments, the Actions policy, rulesets and the sharing level.
  * Secret VALUES are never read or printed; only names.
  *
  * WHAT IT CANNOT DO
@@ -90,6 +89,9 @@ function repositorySlug() {
 const repo = repositorySlug();
 const owner = repo.split('/')[0];
 
+/** Accounts other than the owner that the owner has deliberately retained. */
+const TRUSTED_COLLABORATORS = new Set(['nreffejzxc']);
+
 function pass(label, detail) {
   console.log(`  PASS  ${label}${detail ? ` — ${detail}` : ''}`);
 }
@@ -117,25 +119,24 @@ if (meta.status !== 200 || !meta.data) {
   process.exit(2);
 }
 
-if (meta.data.private === true) {
-  pass('repository is private', `visibility=${meta.data.visibility}`);
+if (meta.data.private === false) {
+  pass('repository is public', `visibility=${meta.data.visibility}`);
 } else {
-  fail('repository is NOT private', `visibility=${meta.data.visibility} — the source is exposed`);
+  fail(
+    'repository is NOT public',
+    `visibility=${meta.data.visibility} — branch protection is unavailable on a private repository at this plan`,
+  );
 }
 
 const forks = meta.data.forks_count ?? 0;
 const network = meta.data.network_count ?? 0;
-if (forks === 0 && network === 0) {
-  pass('no forks and no fork network', 'forks_count=0, network_count=0');
-} else {
-  fail('a fork or fork network exists', `forks_count=${forks}, network_count=${network}`);
+info('forks', `forks_count=${forks}, network_count=${network} — a fork is outside this repository's controls`);
+if (forks > 0) {
+  info('forks exist', 'expected on a public repository; not a policy violation');
 }
 
 if (meta.data.allow_forking === true) {
-  info(
-    'allow_forking is on and cannot be turned off',
-    'the API answers 422 for personal private repositories; forking still requires read access',
-  );
+  info('allow_forking is on', 'public visibility permits forking');
 }
 if (meta.data.owner?.type === 'Organization') {
   info('owned by an organization', meta.data.owner.login);
@@ -147,12 +148,16 @@ console.log('\nHuman access');
 
 const collaborators = gh([`repos/${repo}/collaborators?affiliation=all&per_page=100`]);
 if (collaborators.status === 200 && Array.isArray(collaborators.data)) {
-  const others = collaborators.data.filter((entry) => entry.login !== owner);
+  const trusted = new Set([owner, ...TRUSTED_COLLABORATORS]);
+  const others = collaborators.data.filter((entry) => !trusted.has(entry.login));
   const ownerEntry = collaborators.data.find((entry) => entry.login === owner);
-  if (others.length === 0) {
-    pass('the owner is the only collaborator', `admin=${ownerEntry ? ownerEntry.permissions?.admin === true : 'unread'}`);
+  const names = collaborators.data.map((entry) => `${entry.login} (${entry.role_name ?? 'unknown'})`);
+  if (ownerEntry?.permissions?.admin !== true) {
+    fail('the owner does not have admin', names.join(', '));
+  } else if (others.length === 0) {
+    pass('only the owner and trusted collaborators have access', names.join(', '));
   } else {
-    fail('another account has access', others.map((entry) => `${entry.login} (${entry.role_name})`).join(', '));
+    fail('an untrusted account has access', others.map((entry) => `${entry.login} (${entry.role_name})`).join(', '));
   }
 } else {
   notVerifiable('collaborators', collaborators.status);
@@ -253,37 +258,101 @@ if (workflowDefault.status === 200 && workflowDefault.data) {
 const sharing = gh([`repos/${repo}/actions/permissions/access`]);
 if (sharing.status === 200 && sharing.data) {
   info('actions shared with other repositories', sharing.data.access_level);
+} else if (sharing.status === 422) {
+  info('Actions access scope', 'not applicable to a public repository');
 } else {
-  notVerifiable('private-repository sharing', sharing.status);
+  notVerifiable('Actions access scope', sharing.status);
 }
 
-// --- Protections this plan cannot provide ------------------------------------
+// --- Branch protection and scanning ------------------------------------------
 
-console.log('\nPlatform protections (measured, not assumed)');
+console.log('\nBranch protection and scanning (measured, not assumed)');
 
+const EXPECTED_CHECKS = ['server', 'secret-guard', 'attribution-guard', 'mobile'].sort();
 const protection = gh([`repos/${repo}/branches/${meta.data.default_branch}/protection`]);
-const rulesets = gh([`repos/${repo}/rulesets`]);
-const scanning = meta.data.security_and_analysis;
 
-for (const [label, result] of [
-  ['branch protection', protection],
-  ['repository rulesets', rulesets],
-]) {
-  if (result.status === 200) {
-    info(`${label} available`, 'GET succeeded');
-  } else if (result.status === 403) {
-    notes.push(`${label} is unavailable on this plan (403)`);
-    info(`${label} unavailable`, 'HTTP 403 — expected on this plan for a private repository');
+if (protection.status === 200 && protection.data) {
+  const checks = [...(protection.data.required_status_checks?.contexts ?? [])].sort();
+  const missing = EXPECTED_CHECKS.filter((check) => !checks.includes(check));
+  const extra = checks.filter((check) => !EXPECTED_CHECKS.includes(check));
+
+  if (protection.data.required_status_checks?.strict !== true) {
+    fail('required checks are not strict', 'a branch can merge without being up to date');
+  } else if (missing.length > 0 || extra.length > 0) {
+    fail('required checks do not match', `expected ${EXPECTED_CHECKS.join(', ')}; got ${checks.join(', ') || 'none'}`);
   } else {
-    notVerifiable(label, result.status);
+    pass('required checks', checks.join(', '));
   }
+
+  if (protection.data.enforce_admins?.enabled === true) {
+    pass('administrators are enforced');
+  } else {
+    fail('administrators can bypass the rule', 'enforce_admins is off');
+  }
+
+  if (protection.data.required_pull_request_reviews) {
+    pass(
+      'a pull request is required',
+      `${protection.data.required_pull_request_reviews.required_approving_review_count ?? 0} required approval(s)`,
+    );
+  } else {
+    fail('no pull request is required', 'direct pushes are still possible');
+  }
+
+  for (const [label, enabled] of [
+    ['force pushes are blocked', protection.data.allow_force_pushes?.enabled],
+    ['branch deletion is blocked', protection.data.allow_deletions?.enabled],
+  ]) {
+    if (enabled === true) {
+      fail(label.replace(' are blocked', ' are allowed').replace(' is blocked', ' is allowed'));
+    } else {
+      pass(label);
+    }
+  }
+
+  if (protection.data.required_conversation_resolution?.enabled === true) {
+    pass('conversation resolution is required');
+  } else {
+    info('conversation resolution is not required');
+  }
+} else if (protection.status === 404) {
+  fail('the default branch has no protection', `GET branches/${meta.data.default_branch}/protection -> 404`);
+} else {
+  notVerifiable('branch protection', protection.status);
 }
 
-if (scanning === null || scanning === undefined) {
-  notes.push('secret scanning and push protection are unavailable (public-repository-only features)');
-  info('secret scanning / push protection', 'unavailable on this plan — replaced by scripts/check-secrets.mjs');
+const rulesets = gh([`repos/${repo}/rulesets`]);
+if (rulesets.status === 200 && Array.isArray(rulesets.data)) {
+  info('repository rulesets', `${rulesets.data.length} configured`);
+} else if (rulesets.status === 404) {
+  info('repository rulesets', 'none');
 } else {
-  info('secret scanning', JSON.stringify(scanning));
+  notVerifiable('repository rulesets', rulesets.status);
+}
+
+const scanning = meta.data.security_and_analysis ?? {};
+const secretScanning = scanning.secret_scanning?.status;
+const pushProtection = scanning.secret_scanning_push_protection?.status;
+
+if (secretScanning === 'enabled') {
+  pass('secret scanning is enabled');
+} else {
+  fail('secret scanning is not enabled', secretScanning ?? 'absent');
+}
+
+if (pushProtection === 'enabled') {
+  pass('secret scanning push protection is enabled');
+} else {
+  fail('secret scanning push protection is not enabled', pushProtection ?? 'absent');
+}
+
+const pvr = gh([`repos/${repo}/private-vulnerability-reporting`]);
+if (pvr.status === 200 && pvr.data?.enabled === true) {
+  pass('private vulnerability reporting is enabled');
+} else if (pvr.status === 404) {
+  fail('private vulnerability reporting is unavailable');
+} else {
+  notVerifiable('private vulnerability reporting', pvr.status);
 }
 
 // --- Verdict -----------------------------------------------------------------

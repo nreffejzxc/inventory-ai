@@ -144,8 +144,8 @@ binary. Full procedure, rollback and troubleshooting:
   **instead of** `.gitignore`. Keep the two in step.
 - `mobile/android/` and `mobile/ios/` are not committed (Expo Continuous Native Generation).
 - `.freebuff/`, `.claude/settings.local.json`, `.smoke/` and `.scratch/` are local-only.
-- CI runs `scripts/check-secrets.mjs` on every change, because this repository is private and
-  GitHub's secret scanning is a public-repository feature.
+- CI runs `scripts/check-secrets.mjs` on every change; GitHub secret scanning and push protection
+  are also enabled on this public repository.
 - Two high advisories on `mobile/package-lock.json` have **no safe upgrade** — neither package reaches
   a shipped bundle and no patched release is reachable inside its consumer's range. `node
   scripts/check-upgrade-watches.mjs` is the read-only report that says whether a gate has opened since;

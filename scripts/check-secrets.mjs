@@ -3,10 +3,11 @@
  * Secret guard — fails when a credential-shaped string enters the tracked tree.
  *
  * WHY THIS EXISTS
- * GitHub's secret scanning and push protection are free only on **public** repositories;
- * this repository is **private**, where they need GitHub Secret Protection. Rather than
- * pay for them, the same job is done here, at the level that matters for this project:
- * a change that would commit a real credential fails CI instead of being noticed later.
+ * GitHub's secret scanning and push protection are enabled now that this repository is
+ * **public**, but they are pattern matching over the hosted history. The same job is also
+ * done here, at the level that matters for this project: a change that would commit a real
+ * credential fails CI instead of being noticed later, and the guard's controls run before
+ * every scan.
  *
  * WHAT IT IS NOT
  * It is pattern matching over tracked file contents. It cannot see a credential that is
