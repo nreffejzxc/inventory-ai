@@ -8,7 +8,7 @@ of truth for *what actually happened*, and it is why this file is long.
 
 **How to read it.** Do not read it top to bottom. Either find a record by number (§27FJ, §27DM — the
 numbers are cited from `CLAUDE.md` and from source comments), or use the index: `CLAUDE.md` §7 lists
-all **203** records by the title each gives itself.
+all **204** records by the title each gives itself.
 
 **Current state:** V1 complete and in production testing. The records that answer *where are we now*
 are §27FM (the V1 re-verification), §27FK (the runtime boundary and the blocked build), §27FJ (the two
@@ -23415,6 +23415,51 @@ The verifier keeps the duplicate check as a defensive read for a legacy tenant o
 fail the run and which are reported only. Guide 14 records the new line as covered by the three suites
 but **not yet observed against production data**; the production `Codes` evidence it already carried is
 unchanged. Nothing was committed or pushed.
+
+---
+
+# 27GX. The one Dependabot alert that could be closed, and the two that cannot (2026-10-30)
+
+**What was measured.** The public default branch carried **three** open Dependabot alerts on
+`mobile/package-lock.json`: **#10** `zod` GHSA-mrhx-c7xc-m3w5 (high), **#5** `node-forge`
+GHSA-86w9-cpqp-85rv (high), and **#13** `deepmerge` GHSA-gcqx-w48m-w2h4 (low). `npm audit` counted
+**17 entries** for the same tree, but only **two** distinct advisories — the rest are dependents. The
+three questions that decide a fix are separate, and were answered from the tree rather than the alert
+count: is there a patched release, does the consumer's own declared range admit it, and is the package
+reachable from shipped code.
+
+**The fix.** `node-forge` was the only yes. `1.4.2` had been published outside `<= 1.4.0`, and
+`@expo/code-signing-certificates@0.0.7` already declares `^1.4.0`, so a plain lockfile bump could take
+it with no override and no `package.json` change. `mobile/package-lock.json` moved from `1.4.0` to
+`1.4.2` in three lines. The package was never in a shipped bundle — its only importer is
+`@expo/code-signing-certificates/build/main.js`, reached from two `expo-updates` CLI scripts that do
+not run because code signing is not enabled (§27FN) — so the bump removes the alert without changing
+app behaviour.
+
+**What was refused, and why.** `zod` is patched only at `4.6.6+`, while `@expo/cli@58.1.15` declares
+`^3.25.76`; the vulnerable copy is nested for the CLI's DevTools-plugin schema, and the top-level
+`zod@4.6.7` is already outside the range. `deepmerge@4.3.1` is both the newest release and inside
+`>= 4.2.0 <= 4.3.1`, so **no patched release exists**; it is used by `@expo/config`'s build-time config
+loader and by `jest-config`. `npm audit fix` offers `expo@51.0.39`, a seven-major downgrade, and an
+`overrides` entry would force a version neither parent declared. Both remain accepted, reachable only
+from build/test tooling, and recorded in `docs/SECURITY_DEPENDENCY_DECISIONS.md`.
+
+**Guarded.** `scripts/check-upgrade-watches.mjs` now reads the **installed** version as well as the
+registry and the consumer range. A tree already outside the vulnerable range reports `CLOSED` instead
+of `READY`, so the next session is not sent to re-take a fix that is already in the lockfile. All
+three advisories are watched: the report reads `zod` `DEFERRED` (installed `3.25.76`), `deepmerge`
+`DEFERRED` (installed `4.3.1`) and `node-forge` `CLOSED` (installed `1.4.2`). Two new controls pin the
+`CLOSED` shape and the live `deepmerge` shape, and `--self-test` passes **25 controls** (4 must-fire,
+19 must-not-fire, 2 range).
+
+**Measured.** `cd mobile && npm run typecheck` → exit **0**. `npm test -- --runInBand` → **97 suites,
+1 172 tests, all pass**. `npm run lint` → exit **0**. `node scripts/check-upgrade-watches.mjs
+--self-test` → **25 passed**. No server source, route, model, workflow or mobile application file was
+changed.
+
+**Documented.** `docs/SECURITY_DEPENDENCY_DECISIONS.md` (D-9 and the updated D-4/D-7/D-8),
+`SECURITY.md`, `CLAUDE.md`'s open items and this record. The GitHub alert for `node-forge` closes when
+the lockfile change reaches the default branch.
 
 ---
 

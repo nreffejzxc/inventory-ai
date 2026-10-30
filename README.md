@@ -146,11 +146,13 @@ binary. Full procedure, rollback and troubleshooting:
 - `.freebuff/`, `.claude/settings.local.json`, `.smoke/` and `.scratch/` are local-only.
 - CI runs `scripts/check-secrets.mjs` on every change; GitHub secret scanning and push protection
   are also enabled on this public repository.
-- Two high advisories on `mobile/package-lock.json` have **no safe upgrade** — neither package reaches
-  a shipped bundle and no patched release is reachable inside its consumer's range. `node
-  scripts/check-upgrade-watches.mjs` is the read-only report that says whether a gate has opened since;
-  the reasoning is in [`docs/SECURITY_DEPENDENCY_DECISIONS.md`](docs/SECURITY_DEPENDENCY_DECISIONS.md).
-  Do not force versions with `overrides`.
+- Two Dependabot advisories remain on `mobile/package-lock.json` — `zod` (high) and `deepmerge`
+  (low) — and have **no safe upgrade**: neither reaches a shipped bundle and no patched release is
+  reachable inside its consumer's declared range. The third, `node-forge` (high), was fixed in the
+  lockfile on 2026-10-30 by an in-range bump to 1.4.2. `node scripts/check-upgrade-watches.mjs` is the
+  read-only report that says whether a gate has opened since; the reasoning is in
+  [`docs/SECURITY_DEPENDENCY_DECISIONS.md`](docs/SECURITY_DEPENDENCY_DECISIONS.md). Do not force
+  versions with `overrides`.
 
 ## Documentation
 
