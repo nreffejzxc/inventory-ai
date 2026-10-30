@@ -18,7 +18,7 @@ are kept as history in [`DEVELOPMENT_ROADMAP.md`](DEVELOPMENT_ROADMAP.md) §27AE
 | Branch protection | **Enabled on `main`** — required checks `server`, `secret-guard`, `attribution-guard`, `mobile`; strict up-to-date enforcement; administrators enforced; pull request required with **0** approvals; force pushes and deletions blocked; conversation resolution required |
 | Secret scanning | **Enabled**, including push protection |
 | Private vulnerability reporting | **Enabled** |
-| Human access | `jeffernqwerty` (owner, admin) and `nreffejzxc` (collaborator, write) |
+| Human access | `jeffernqwerty` (owner, admin); no other collaborators |
 | Deploy keys / webhooks / Actions secrets / environments | **None** — no credential exists inside GitHub for this repository |
 | Forks | **0** at publication; public forking is allowed |
 | Credentials in history | **None found** — no `.env`, keystore, `.pem`, `.p12`, `google-services.json` or service-account file was ever committed; the full 485-commit scan found only deliberate test fixtures |

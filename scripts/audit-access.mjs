@@ -89,8 +89,8 @@ function repositorySlug() {
 const repo = repositorySlug();
 const owner = repo.split('/')[0];
 
-/** Accounts other than the owner that the owner has deliberately retained. */
-const TRUSTED_COLLABORATORS = new Set(['nreffejzxc']);
+/** Accounts other than the owner that the owner has deliberately retained. None. */
+const TRUSTED_COLLABORATORS = new Set();
 
 function pass(label, detail) {
   console.log(`  PASS  ${label}${detail ? ` — ${detail}` : ''}`);
