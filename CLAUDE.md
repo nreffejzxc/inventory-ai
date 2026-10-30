@@ -303,13 +303,16 @@ below has the measurement.
   artifacts now answer 400. Record an id only after `eas build:view <id>` resolves, and treat a
   published AAB that is not downloaded and kept as gone. See §27FN.
 
-## Open items (2026-10-25)
+## Open items (2026-10-30)
 
-- **Two high Dependabot advisories on `mobile/package-lock.json`** (`zod` via `@expo/cli`,
-  `node-forge` via `@expo/code-signing-certificates`) have **no safe upgrade**: neither package reaches
-  a shipped bundle, no patched release is reachable inside the consumers' declared ranges, and an
-  override would be an unreviewed upgrade of build tooling. `scripts/check-upgrade-watches.mjs` watches
-  both and reports the gate. Do not "fix" them by forcing versions.
+- **Two Dependabot advisories remain on `mobile/package-lock.json`** — `zod` (high, via `@expo/cli`)
+  and `deepmerge` (low, via `@expo/config` and `jest-config`). Neither reaches a shipped bundle and
+  neither has a fix inside its consumer's declared range: zod is patched only at 4.6.6+ while the CLI
+  declares `^3.25.76`, and deepmerge 4.3.1 is both the newest release and inside the advisory range.
+  An override would be an unreviewed upgrade of build tooling; do not "fix" them by forcing versions.
+  The third alert, `node-forge`, was **fixed in the lockfile on 2026-10-30** by an in-range bump to
+  1.4.2 (§27GX); the GitHub alert closes when that change reaches the default branch.
+  `scripts/check-upgrade-watches.mjs` reports `zod` and `deepmerge` `DEFERRED`, `node-forge` `CLOSED`.
 - **L-17 is OPEN**: the Firebase console's password-reset *Customize action URL* must point at
   `https://ai-inventory-l1mi.onrender.com/auth/reset`. No code can set it, and it gates only the
   AUTH-05 hosted-link path.
@@ -532,6 +535,7 @@ anchor (`§27…`) in that file.
 - **§27GU** — The seed's SKU/barcode mode becomes verifiable — from the products, not the plan (2026-10-30)
 - **§27GV** — The empty-tenant CLI verdict becomes an executed test (2026-10-30)
 - **§27GW** — The barcode report checks the value, not just the field (2026-10-30)
+- **§27GX** — The one Dependabot alert that could be closed, and the two that cannot (2026-10-30)
 
 ---
 

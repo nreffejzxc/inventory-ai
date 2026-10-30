@@ -27,9 +27,13 @@
  *   4. `zod` (advisory)    — GHSA-mrhx-c7xc-m3w5 is inside the 3.x line `@expo/cli` declares and only
  *                             4.6.6+ is patched, so a fix is one Expo release away (§27FJ). `READY`
  *                             means a patched release the CLI's own range admits exists: a plain bump.
- *   5. `node-forge` (advisory) — GHSA-86w9-cpqp-85rv has **no patched release at all** — 1.4.0 is both
- *                             the newest and inside the range — so `READY` is the day one is published
- *                             and the code-signing consumer's range admits it (§27FJ).
+ *   5. `node-forge` (advisory) — GHSA-86w9-cpqp-85rv had **no patched release** until 1.4.2 was
+ *                             published outside the `<= 1.4.0` range and admitted by the code-signing
+ *                             consumer. That bump was taken on 2026-10-30 (mobile/package-lock.json),
+ *                             so this watch now reports `CLOSED` for the installed tree (§27GX).
+ *   6. `deepmerge` (advisory) — GHSA-gcqx-w48m-w2h4 has **no patched release**: 4.3.1 is both the
+ *                             newest and inside `>= 4.2.0 <= 4.3.1`, so this stays `DEFERRED` until
+ *                             one is published and `@expo/config`'s `^4.3.1` range admits it (§27GX).
  *
  * HOW TO RUN. `node scripts/check-upgrade-watches.mjs` (add `--json` for machine output, `--self-test`
  * to run the controls alone). It needs the network and is deliberately NOT part of CI: a pipeline that
@@ -373,8 +377,19 @@ function newestStableRelease(packument) {
  * as patched. READY needs the second half as well — a release the CONSUMER's own declared range
  * admits — because that is the half an override would have to fake.
  */
-function decideAdvisoryUpgrade({ newestPublished, firstPatchedVersion, vulnerableRange, consumerName, consumerRange }) {
+function decideAdvisoryUpgrade({ newestPublished, firstPatchedVersion, vulnerableRange, consumerName, consumerRange, installedVersion = null }) {
   if (!newestPublished) return { status: 'UNREADABLE', detail: 'no published release could be read' };
+
+  // The installed tree is the first thing that decides whether there is anything left to do. A gate
+  // that keeps saying READY after its bump landed would send the next session to re-take a fix that is
+  // already in the lockfile, so an installed release outside the vulnerable range reports CLOSED.
+  const installed = installedVersion && vulnerableRange ? vulnerableAdmits(vulnerableRange, installedVersion) : null;
+  if (installed?.known && installed.admitted === false) {
+    return {
+      status: 'CLOSED',
+      detail: `installed ${installedVersion} is already outside the vulnerable range (${vulnerableRange}) — no bump is needed`,
+    };
+  }
 
   const byRange = firstPatchedVersion ? null : vulnerableAdmits(vulnerableRange ?? '', newestPublished);
   if (!firstPatchedVersion && !byRange?.known) {
@@ -422,18 +437,28 @@ function decideAdvisoryUpgrade({ newestPublished, firstPatchedVersion, vulnerabl
 
 const ZOD_ADVISORY = 'GHSA-mrhx-c7xc-m3w5';
 const NODE_FORGE_ADVISORY = 'GHSA-86w9-cpqp-85rv';
+const DEEPMERGE_ADVISORY = 'GHSA-gcqx-w48m-w2h4';
 
 /**
  * Read the advisory and the registry, then judge against the range the INSTALLED consumer declares.
  * The first manifest that declares the package wins, so the answer describes the tree this workspace
  * would actually install.
  */
-async function readAdvisoryGate(packageName, advisoryId, consumerManifestPaths, consumerPackage) {
+async function readAdvisoryGate(packageName, advisoryId, consumerManifestPaths, consumerPackage, installedManifestPaths = []) {
   const advisory = await getJson(`https://api.github.com/advisories/${advisoryId}`);
   const npmEntry = (advisory.vulnerabilities ?? []).find(
     (v) => v.package?.ecosystem === 'npm' && v.package?.name === packageName
   );
   const newestPublished = newestStableRelease(await getJson(`${REGISTRY}/${scoped(packageName)}`));
+
+  let installedVersion = null;
+  for (const relativePath of installedManifestPaths) {
+    const manifest = readJsonIfPresent(join(REPO_ROOT, relativePath));
+    if (manifest?.version) {
+      installedVersion = manifest.version;
+      break;
+    }
+  }
 
   let consumerRange = null;
   let consumerName = consumerPackage;
@@ -455,10 +480,12 @@ async function readAdvisoryGate(packageName, advisoryId, consumerManifestPaths, 
     vulnerableRange,
     consumerName,
     consumerRange,
+    installedVersion,
   });
   return {
-    detail: `${detail} | advisory range: ${vulnerableRange ?? '(unreadable)'}, firstPatched: ${firstPatchedVersion ?? '(none published)'}`,
+    detail: `${detail} | advisory range: ${vulnerableRange ?? '(unreadable)'}, firstPatched: ${firstPatchedVersion ?? '(none published)'}, installed: ${installedVersion ?? '(unreadable)'}`,
     ready: status === 'READY',
+    closed: status === 'CLOSED',
     unparsed: status === 'UNREADABLE',
     unblocks: `closing ${advisoryId} in mobile/ without an override`,
   };
@@ -566,13 +593,17 @@ const WATCHES = [
           'mobile/node_modules/expo/node_modules/@expo/cli/package.json',
           'mobile/node_modules/@expo/cli/package.json',
         ],
-        '@expo/cli'
+        '@expo/cli',
+        [
+          'mobile/node_modules/expo/node_modules/zod/package.json',
+          'mobile/node_modules/zod/package.json',
+        ]
       );
     },
   },
   {
     name: 'node-forge (advisory)',
-    gate: `${NODE_FORGE_ADVISORY} — a patched release must be published (none is: 1.4.0 is both the newest and inside the range) AND admitted by the code-signing consumer`,
+    gate: `${NODE_FORGE_ADVISORY} — a release outside <= 1.4.0 must be published AND admitted by the code-signing consumer; taken on 2026-10-30 (1.4.2)`,
     async read() {
       return readAdvisoryGate(
         'node-forge',
@@ -581,7 +612,24 @@ const WATCHES = [
           'mobile/node_modules/@expo/code-signing-certificates/package.json',
           'mobile/node_modules/@expo/cli/package.json',
         ],
-        '@expo/code-signing-certificates'
+        '@expo/code-signing-certificates',
+        ['mobile/node_modules/node-forge/package.json']
+      );
+    },
+  },
+  {
+    name: 'deepmerge (advisory)',
+    gate: `${DEEPMERGE_ADVISORY} — a release outside >= 4.2.0 <= 4.3.1 AND admitted by the config or jest consumer; none is published`,
+    async read() {
+      return readAdvisoryGate(
+        'deepmerge',
+        DEEPMERGE_ADVISORY,
+        [
+          'mobile/node_modules/@expo/config/package.json',
+          'mobile/node_modules/jest-config/package.json',
+        ],
+        '@expo/config',
+        ['mobile/node_modules/deepmerge/package.json']
       );
     },
   },
@@ -832,6 +880,32 @@ const ADVISORY_CONTROLS = [
     expect: 'DEFERRED',
   },
   {
+    name: 'the post-fix node-forge shape — installed 1.4.2 is outside <= 1.4.0 (must report CLOSED)',
+    run: () =>
+      decideAdvisoryUpgrade({
+        newestPublished: '1.4.2',
+        firstPatchedVersion: null,
+        vulnerableRange: '<= 1.4.0',
+        consumerName: '@expo/code-signing-certificates@0.0.7',
+        consumerRange: '^1.4.0',
+        installedVersion: '1.4.2',
+      }),
+    expect: 'CLOSED',
+  },
+  {
+    name: 'the live deepmerge shape — 4.3.1 is the newest and inside the range (must not fire)',
+    run: () =>
+      decideAdvisoryUpgrade({
+        newestPublished: '4.3.1',
+        firstPatchedVersion: null,
+        vulnerableRange: '>= 4.2.0 <= 4.3.1',
+        consumerName: '@expo/config@58.0.8',
+        consumerRange: '^4.3.1',
+        installedVersion: '4.3.1',
+      }),
+    expect: 'DEFERRED',
+  },
+  {
     name: 'node-forge publishes 1.4.1 into the consumer range (must fire)',
     run: () =>
       decideAdvisoryUpgrade({
@@ -940,8 +1014,8 @@ const results = [];
 let failed = 0;
 for (const watch of WATCHES) {
   try {
-    const { detail, ready, unparsed, unblocks } = await watch.read();
-    results.push({ package: watch.name, gate: watch.gate, detail, status: unparsed ? 'UNPARSED' : ready ? 'READY' : 'DEFERRED', unblocks });
+    const { detail, ready, closed, unparsed, unblocks } = await watch.read();
+    results.push({ package: watch.name, gate: watch.gate, detail, status: unparsed ? 'UNPARSED' : closed ? 'CLOSED' : ready ? 'READY' : 'DEFERRED', unblocks });
     if (unparsed) failed += 1;
   } catch (error) {
     // A watch that cannot be read is reported as such, never as a pass.
@@ -962,10 +1036,13 @@ if (process.argv.includes('--json')) {
     console.log('');
   }
   const ready = results.filter((r) => r.status === 'READY');
+  const closed = results.filter((r) => r.status === 'CLOSED');
   console.log(
     ready.length
-      ? `[upgrade-watches] ${ready.length} gate(s) open: ${ready.map((r) => r.package).join(', ')}`
-      : '[upgrade-watches] every watch is still deferred — nothing to start today.'
+      ? `[upgrade-watches] ${ready.length} gate(s) open: ${ready.map((r) => r.package).join(', ')}${closed.length ? `; ${closed.length} already closed: ${closed.map((r) => r.package).join(', ')}` : ''}`
+      : closed.length
+        ? `[upgrade-watches] no gate is open; ${closed.length} already closed: ${closed.map((r) => r.package).join(', ')}`
+        : '[upgrade-watches] every watch is still deferred — nothing to start today.'
   );
   if (failed) console.log(`[upgrade-watches] ${failed} watch(es) could not be read — reported above, not counted as a pass.`);
 }
