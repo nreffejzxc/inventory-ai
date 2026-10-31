@@ -13,9 +13,9 @@ production change. Every action below still needs the owner's explicit approval.
 > **Restoration 2026-10-31.** The newer Gmail became unavailable, so the repository was moved back to
 the original account. GitHub had permanently retired `nreffejzxc/ai-inventory` after the earlier
 transfer, so the restored repository is named `inventory-ai`. History, branches, issues and pull
-requests moved intact. The newer account remains a write collaborator until the original account's
-CLI session is restored; branch protection and repository settings could not be re-read with that
-collaborator token and must be verified by the owner.
+requests moved intact. Branch protection survived (`protected: true`), but its exact rules and the
+admin-only repository settings could not be read with the newer account's write-collaborator token;
+the owner must verify them after signing in as `nreffejzxc`.
 
 No credential value — password, token, private key, service-account JSON, database URI, API key or
 recovery code — belongs in this file. Record names and locations, never values.
@@ -65,7 +65,7 @@ At the 2026-10-31 restoration:
 | Issues/pull requests | Issue #32 and PRs #97/#98/#104 open |
 | Push/pull | Fetch after transfer returned 23 branches; write and CI are verified by the restoration PR |
 | CI | Latest `main` run green; PR #104's four checks passed before the transfer |
-| Branch protection | **Unverified after transfer** — the collaborator token gets `404`; the owner must confirm or reapply it |
+| Branch protection | **Present (`protected: true`)** — the exact rules are unreadable with the collaborator token; the owner must verify them |
 | Collaborators | `nreffejzxc` (owner, admin); `jeffernqwerty` (write, temporary) |
 | Security scanning | **Unverified after transfer** — the owner must confirm |
 | Dependabot | 2 accepted advisories: `zod` high, `deepmerge` low |
@@ -85,9 +85,9 @@ only, so Render correctly did not redeploy.
    repository is `nreffejzxc/inventory-ai`. Do not try to recreate the retired path.
 3. **History and collaboration objects moved intact.** All 23 remote branches and all three open PRs
    are under the original owner. No tags existed. The transfer did not rewrite history.
-4. **Branch protection needs the owner.** The currently authenticated `jeffernqwerty` account is a
-   write collaborator, not an administrator, so the protection endpoint returns `404`. Re-run the read
-   after signing in as `nreffejzxc`; reapply the intended rules if absent.
+4. **Branch protection survived.** `GET /branches/main` reports `protected: true`. The exact required
+   checks and administrator settings are not readable with the write-collaborator token, so re-run the
+   protection read after signing in as `nreffejzxc`.
 5. **Remove the temporary collaborator.** `jeffernqwerty` remains a write collaborator solely so this
    rollback can be pushed. Once `nreffejzxc` can push, remove that collaborator and re-run
    `node scripts/audit-access.mjs`.
@@ -522,7 +522,7 @@ Do these after Render is stable, because both keys live in its environment.
 - [x] History, branches, tags, issues and pull requests preserved; no history rewrite.
 - [x] Local `origin`, `user.name` and `user.email` point at the original account.
 - [x] Current-state identity documentation reverted to the original account.
-- [ ] Branch protection and admin-only settings verified and reapplied by the owner.
+- [ ] Branch protection present (`protected: true`); exact rules and admin-only settings verified by the owner.
 - [ ] Temporary `jeffernqwerty` collaborator removed.
 - [ ] A push and a pull succeed with the original account's own credential.
 - [ ] CI runs green on a new commit under the original account.

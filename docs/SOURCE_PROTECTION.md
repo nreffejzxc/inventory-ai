@@ -17,7 +17,7 @@ measurements are kept as history in [`DEVELOPMENT_ROADMAP.md`](DEVELOPMENT_ROADM
 | --- | --- |
 | Visibility | **Public** — owner decision, 2026-10-30 |
 | Who can read it | Anyone, including anonymous visitors and search engines |
-| Branch protection | **Unverified after the 2026-10-31 ownership transfer** — the collaborator token gets `404` from the protection endpoint. The intended configuration remains `server`, `secret-guard`, `attribution-guard`, `mobile`; strict up-to-date enforcement; administrators enforced; pull request required with **0** approvals; force pushes and deletions blocked; conversation resolution required. The owner must confirm or reapply it. |
+| Branch protection | **Present (`protected: true`)** — the exact rules are unreadable with the collaborator token. The intended configuration remains `server`, `secret-guard`, `attribution-guard`, `mobile`; strict up-to-date enforcement; administrators enforced; pull request required with **0** approvals; force pushes and deletions blocked; conversation resolution required. The owner must confirm the rules. |
 | Secret scanning | **Unverified after the transfer** — confirm with the owner account |
 | Private vulnerability reporting | **Unverified after the transfer** — confirm with the owner account |
 | Human access | `nreffejzxc` (owner, admin); `jeffernqwerty` (collaborator, write — retained temporarily for the rollback) |
@@ -32,9 +32,10 @@ measurements are kept as history in [`DEVELOPMENT_ROADMAP.md`](DEVELOPMENT_ROADM
 
 The 2026-10-31 transfer restored `nreffejzxc` as owner and renamed the repository to
 `nreffejzxc/inventory-ai`; GitHub permanently retired the old `nreffejzxc/ai-inventory` path. History,
-branches, tags, issues and pull requests moved intact. Branch protection, secret scanning, private
-vulnerability reporting and the Actions policy require the owner's administrator token to read or
-reapply, so they are not claimed as verified here.
+branches, tags, issues and pull requests moved intact. Branch protection survived (`protected: true`),
+but its exact rules are unreadable with a write-collaborator token. Secret scanning, private
+vulnerability reporting and the Actions policy also require the owner's administrator token, so they
+are not claimed as verified here.
 
 ### Two things the API would not answer
 
