@@ -794,24 +794,33 @@ export const inventoryApi = {
   /** Inventory rows (paginated), each with authoritative quantity/available/status. */
   list: (token: string, params?: QueryParams): Promise<ApiResponse> => apiFetch('/api/inventory', { token, params }),
   get: (token: string, id: string): Promise<ApiResponse> => apiFetch(`/api/inventory/${id}`, { token }),
-  stockIn: (token: string, { productId, locationId, quantity, reason, reference }: MovementInput): Promise<ApiResponse> =>
+  /**
+   * Apply stock in. `idempotencyKey` names the operation attempt (see
+   * `lib/idempotency.ts`): a retried delivery carrying the same key returns the
+   * first delivery's answer instead of adding the stock twice.
+   */
+  stockIn: (token: string, { productId, locationId, quantity, reason, reference }: MovementInput, idempotencyKey?: string): Promise<ApiResponse> =>
     apiFetch('/api/inventory/stock-in', {
       token,
       method: 'POST',
       body: { productId, locationId, quantity, reason, reference },
+      idempotencyKey,
     }),
-  stockOut: (token: string, { productId, locationId, quantity, reason, reference }: MovementInput): Promise<ApiResponse> =>
+  /** Apply stock out. Same idempotency contract as `stockIn`. */
+  stockOut: (token: string, { productId, locationId, quantity, reason, reference }: MovementInput, idempotencyKey?: string): Promise<ApiResponse> =>
     apiFetch('/api/inventory/stock-out', {
       token,
       method: 'POST',
       body: { productId, locationId, quantity, reason, reference },
+      idempotencyKey,
     }),
   /** quantity here is the absolute target (may be 0). MANAGER+ only. */
-  adjust: (token: string, { productId, locationId, quantity, reason, reference }: MovementInput): Promise<ApiResponse> =>
+  adjust: (token: string, { productId, locationId, quantity, reason, reference }: MovementInput, idempotencyKey?: string): Promise<ApiResponse> =>
     apiFetch('/api/inventory/adjust', {
       token,
       method: 'POST',
       body: { productId, locationId, quantity, reason, reference },
+      idempotencyKey,
     }),
   /** Transaction history, newest first (filters: productId, locationId, type, from, to). */
   history: (token: string, params?: QueryParams): Promise<ApiResponse> => apiFetch('/api/inventory/history', { token, params }),
@@ -825,11 +834,13 @@ export const inventoryApi = {
   transfer: (
     token: string,
     { productId, fromLocationId, toLocationId, quantity, reason, reference }: TransferInput,
+    idempotencyKey?: string,
   ): Promise<ApiResponse> =>
     apiFetch('/api/inventory/transfer', {
       token,
       method: 'POST',
       body: { productId, fromLocationId, toLocationId, quantity, reason, reference },
+      idempotencyKey,
     }),
 };
 
@@ -873,8 +884,8 @@ export const purchaseOrdersApi = {
    * items: [{ productId, quantityOrdered, unitCost? }] }. 201 -> detail DTO.
    * 409 SUPPLIER_ARCHIVED / PO_NUMBER_CONFLICT; 400 field problems.
    */
-  create: (token: string, payload: PurchaseOrderInput): Promise<ApiResponse> =>
-    apiFetch('/api/purchase-orders', { token, method: 'POST', body: payload }),
+  create: (token: string, payload: PurchaseOrderInput, idempotencyKey?: string): Promise<ApiResponse> =>
+    apiFetch('/api/purchase-orders', { token, method: 'POST', body: payload, idempotencyKey }),
   /**
    * Edit a DRAFT only (PATCH). Any supplied reference is re-verified; a
    * supplied `items` array replaces the full line set. 409 PO_NOT_DRAFT /
@@ -892,11 +903,12 @@ export const purchaseOrdersApi = {
    * applied, po } (the fresh detail). 409 RECEIVE_CONFLICT carries `applied`
    * with the lines that landed — see ApiError.applied.
    */
-  receive: (token: string, id: string, { lines, reference }: ReceiveInput): Promise<ApiResponse> =>
+  receive: (token: string, id: string, { lines, reference }: ReceiveInput, idempotencyKey?: string): Promise<ApiResponse> =>
     apiFetch(`/api/purchase-orders/${id}/receive`, {
       token,
       method: 'POST',
       body: { lines, reference: reference?.trim() || undefined },
+      idempotencyKey,
     }),
 };
 

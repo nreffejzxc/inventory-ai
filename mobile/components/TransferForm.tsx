@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { router } from 'expo-router';
 import { StyleSheet, Text } from 'react-native';
 
@@ -12,6 +12,7 @@ import { CenterLoader } from './ListState';
 import StatCard from './StatCard';
 import { inventoryApi, locationsApi, productsApi } from '../lib/api';
 import { ApiError } from '../lib/client';
+import { endsOperation, newIdempotencyKey } from '../lib/idempotency';
 import { useSession } from '../lib/auth';
 import { alert } from '../lib/confirm';
 import { formatNumber } from '../lib/format';
@@ -69,6 +70,16 @@ export default function TransferForm({
   const [formError, setFormError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
+  // One name per operation attempt (see `lib/idempotency.ts`), kept across a retry
+  // of the same attempt and dropped when the form describes a different transfer.
+  const submitKey = useRef<string | null>(null);
+  const submitting = useRef(false);
+  useEffect(() => {
+    // NOT while a request is in flight — see MovementForm: an edit during a slow
+    // delivery must not rename an operation that may already have been applied.
+    if (!submitting.current) submitKey.current = null;
+  }, [productId, fromLocationId, toLocationId, quantity, reason, reference]);
+
   const { row: source, loading: loadingSource, loaded: loadedSource } = useInventoryRow(
     token,
     productId,
@@ -122,9 +133,12 @@ export default function TransferForm({
   );
 
   async function submit(): Promise<void> {
+    if (submitting.current) return;
+    submitting.current = true;
     setBusy(true);
     setFormError(null);
     setFieldErrors({});
+    const idempotencyKey = (submitKey.current ??= newIdempotencyKey());
     try {
       const res = await inventoryApi.transfer(token as string, {
         productId,
@@ -134,7 +148,7 @@ export default function TransferForm({
         quantity: qtyNum as number,
         reason: reason.trim() || undefined,
         reference: reference.trim() || undefined,
-      });
+      }, idempotencyKey);
       const from = fromLabel ?? 'source';
       const to = toLabel ?? 'destination';
       await alert(
@@ -145,10 +159,14 @@ export default function TransferForm({
       );
       router.back();
     } catch (err) {
+      // Only an answer that ENDS the operation mints a new key; a transport failure
+      // and a still-in-flight claim both keep it. See `lib/idempotency.ts`.
+      if (endsOperation(err)) submitKey.current = null;
       const fields = fieldMap(err);
       if (Object.keys(fields).length) setFieldErrors(fields);
       else setFormError((err as { message?: string } | null)?.message || 'The transfer could not be completed.');
     } finally {
+      submitting.current = false;
       setBusy(false);
     }
   }
