@@ -756,12 +756,12 @@ Canonical project identity:
 
 * Project: Inventory AI
 * Owner: Jeffern
-* GitHub display name: Jeffernqwerty
-* GitHub username: jeffernqwerty
+* GitHub display name: Jeffernzxc
+* GitHub username: nreffejzxc
 * Git identity: jeffernzxc
-* Commit email: jeffernmalinaoqwe@gmail.com
+* Commit email: jefferndullamalinaozxc@gmail.com
 * Implementation: Jeffern
-* Attribution: Jeffern / Jeffernqwerty only
+* Attribution: Jeffern / Jeffernzxc only
 
 #### Git commit rules
 

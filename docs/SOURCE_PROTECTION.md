@@ -4,8 +4,10 @@ How the Inventory AI source is protected, what that actually prevents, and what 
 "Nobody can copy my code" is not a state a software project reaches; the achievable goal is to raise
 the cost, narrow the audience, and make the remaining exposure visible rather than assumed.
 
-Measured against the live repository and the GitHub API on **2026-10-30**. The earlier measurements
-are kept as history in [`DEVELOPMENT_ROADMAP.md`](DEVELOPMENT_ROADMAP.md) §27AE and §27AF.
+Measured against the live repository and the GitHub API on **2026-10-31**, after the repository was
+restored to the original GitHub account. Settings that require an administrator token are marked
+**unverified** because the currently authenticated account is a write collaborator. The earlier
+measurements are kept as history in [`DEVELOPMENT_ROADMAP.md`](DEVELOPMENT_ROADMAP.md) §27AE and §27AF.
 
 ---
 
@@ -15,18 +17,24 @@ are kept as history in [`DEVELOPMENT_ROADMAP.md`](DEVELOPMENT_ROADMAP.md) §27AE
 | --- | --- |
 | Visibility | **Public** — owner decision, 2026-10-30 |
 | Who can read it | Anyone, including anonymous visitors and search engines |
-| Branch protection | **Enabled on `main`** — required checks `server`, `secret-guard`, `attribution-guard`, `mobile`; strict up-to-date enforcement; administrators enforced; pull request required with **0** approvals; force pushes and deletions blocked; conversation resolution required |
-| Secret scanning | **Enabled**, including push protection |
-| Private vulnerability reporting | **Enabled** |
-| Human access | `jeffernqwerty` (owner, admin); no other collaborators |
+| Branch protection | **Unverified after the 2026-10-31 ownership transfer** — the collaborator token gets `404` from the protection endpoint. The intended configuration remains `server`, `secret-guard`, `attribution-guard`, `mobile`; strict up-to-date enforcement; administrators enforced; pull request required with **0** approvals; force pushes and deletions blocked; conversation resolution required. The owner must confirm or reapply it. |
+| Secret scanning | **Unverified after the transfer** — confirm with the owner account |
+| Private vulnerability reporting | **Unverified after the transfer** — confirm with the owner account |
+| Human access | `nreffejzxc` (owner, admin); `jeffernqwerty` (collaborator, write — retained temporarily for the rollback) |
 | Deploy keys / webhooks / Actions secrets / environments | **None** — no credential exists inside GitHub for this repository |
 | Forks | **0** at publication; public forking is allowed |
 | Credentials in history | **None found** — no `.env`, keystore, `.pem`, `.p12`, `google-services.json` or service-account file was ever committed; the full 485-commit scan found only deliberate test fixtures |
 | Licence | Proprietary, all rights reserved ([`LICENSE`](../LICENSE)) |
-| Default `GITHUB_TOKEN` | Read-only; workflows cannot create or approve pull requests |
+| Default `GITHUB_TOKEN` | **Unverified after the transfer** — confirm the read-only policy with the owner account |
 | Actions | Pinned to full commit SHAs, so an upstream tag move cannot change what CI runs |
 
 `.env`, `server/.env` and `mobile/.env` hold real credentials and are all git-ignored and untracked.
+
+The 2026-10-31 transfer restored `nreffejzxc` as owner and renamed the repository to
+`nreffejzxc/inventory-ai`; GitHub permanently retired the old `nreffejzxc/ai-inventory` path. History,
+branches, tags, issues and pull requests moved intact. Branch protection, secret scanning, private
+vulnerability reporting and the Actions policy require the owner's administrator token to read or
+reapply, so they are not claimed as verified here.
 
 ### Two things the API would not answer
 

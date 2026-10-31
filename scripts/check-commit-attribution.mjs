@@ -65,7 +65,7 @@ const FORBIDDEN_LINES = [
 /** Lines that must NOT be treated as attribution. */
 const ALLOWED_LINES = [
   'Co-Authored-By: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>',
-  'Co-Authored-By: Jeffern <jeffernmalinaoqwe@gmail.com>',
+  'Co-Authored-By: Jeffern <jefferndullamalinaozxc@gmail.com>',
   'A sentence may discuss Generated with Codebuff without being a trailer.',
   'Body text mentioning Co-Authored-By: Codebuff as an example is not a trailer line.',
 ];
@@ -128,7 +128,7 @@ function selfTest() {
     controls.push([`must-fire identity: ${name} <${email}>`, forbiddenIdentity(name, email) !== null]);
   }
   for (const [name, email] of [
-    ['jeffernzxc', 'jeffernmalinaoqwe@gmail.com'],
+    ['jeffernzxc', 'jefferndullamalinaozxc@gmail.com'],
     ['dependabot[bot]', '49699333+dependabot[bot]@users.noreply.github.com'],
   ]) {
     controls.push([`must-not-fire identity: ${name}`, forbiddenIdentity(name, email) === null]);

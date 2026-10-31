@@ -1,12 +1,21 @@
 # Account Migration & Security Runbook
 
-**Status:** planning and verification record. This document does **not** authorize a transfer, a
-credential rotation, an account deletion, or a production change. Every action below still needs the
-owner's explicit approval.
+**Status:** **paused.** The repository was restored to the original GitHub account `nreffejzxc` on
+2026-10-31 after the newer Gmail became unavailable. This document records the partial migration and
+the future plan; it does **not** authorize a transfer, a credential rotation, an account deletion, or a
+production change. Every action below still needs the owner's explicit approval.
 
-**Last verified:** 2026-10-30
-**Owner:** Jeffern
-**Target primary identity:** `jeffernmalinaoqwe@gmail.com`
+**Last verified:** 2026-10-31
+**Current owner:** `nreffejzxc` (original GitHub account)
+**Current repository:** `nreffejzxc/inventory-ai`
+**Paused migration target:** `jeffernmalinaoqwe@gmail.com` / `jeffernqwerty`
+
+> **Restoration 2026-10-31.** The newer Gmail became unavailable, so the repository was moved back to
+the original account. GitHub had permanently retired `nreffejzxc/ai-inventory` after the earlier
+transfer, so the restored repository is named `inventory-ai`. History, branches, issues and pull
+requests moved intact. The newer account remains a write collaborator until the original account's
+CLI session is restored; branch protection and repository settings could not be re-read with that
+collaborator token and must be verified by the owner.
 
 No credential value — password, token, private key, service-account JSON, database URI, API key or
 recovery code — belongs in this file. Record names and locations, never values.
@@ -17,11 +26,11 @@ recovery code — belongs in this file. Record names and locations, never values
 
 This runbook covers:
 
-- the final verification of the GitHub repository migration;
-- making `jeffernmalinaoqwe@gmail.com` the primary owner identity;
+- the restored GitHub repository and the paused migration;
+- the future plan to make `jeffernmalinaoqwe@gmail.com` the primary owner identity;
 - the later handover of Firebase, MongoDB Atlas, Render and Expo/EAS;
 - the credentials that must be rotated or reconfigured;
-- the checks that must pass before the old accounts are removed.
+- the checks that must pass before any future account removal.
 
 The following rules apply throughout:
 
@@ -43,60 +52,62 @@ The following rules apply throughout:
 
 ## 2. Verified GitHub state
 
-At the 2026-10-30 review:
+At the 2026-10-31 restoration:
 
 | Check | State |
 | --- | --- |
-| Repository | `jeffernqwerty/ai-inventory` |
+| Repository | `nreffejzxc/inventory-ai` |
 | Visibility | Public; not a fork; default branch `main` |
-| History | 415 commits on `main`; 492 across all refs; 911 tracked files |
-| Integrity | `git fsck` reported no corruption; only unreachable dangling objects |
-| Remote branches | 20 |
+| History | 421 commits on `main`; 501 across all refs; 912 tracked files |
+| Integrity | Pre-transfer bundle verified with 45 refs; no history rewrite; working tree intact |
+| Remote branches | 23 |
 | Tags/releases | None existed, so none are missing |
-| Issues/pull requests | Issue #32 and PRs #97/#98 open; PR #101 merged |
-| Push/pull | Fetch returned `0 ahead / 0 behind`; a temporary verification ref was pushed and deleted |
-| CI | Latest `main` run green: `server`, `mobile`, `secret-guard`, `attribution-guard` |
-| Branch protection | Four required checks; strict up-to-date; administrators enforced; force pushes and deletions blocked; conversation resolution required; 0 required approvals |
-| Collaborators | `jeffernqwerty` only (admin); the old write collaborator was removed on 2026-10-30 |
-| Security scanning | Secret scanning enabled with 0 open alerts; push protection enabled |
+| Issues/pull requests | Issue #32 and PRs #97/#98/#104 open |
+| Push/pull | Fetch after transfer returned 23 branches; write and CI are verified by the restoration PR |
+| CI | Latest `main` run green; PR #104's four checks passed before the transfer |
+| Branch protection | **Unverified after transfer** — the collaborator token gets `404`; the owner must confirm or reapply it |
+| Collaborators | `nreffejzxc` (owner, admin); `jeffernqwerty` (write, temporary) |
+| Security scanning | **Unverified after transfer** — the owner must confirm |
 | Dependabot | 2 accepted advisories: `zod` high, `deepmerge` low |
-| Private vulnerability reporting | Enabled |
-| Actions secrets/variables/environments | None; this is intentional for this CI |
+| Private vulnerability reporting | **Unverified after transfer** — the owner must confirm |
+| Actions secrets/variables/environments | None |
 | Deploy keys/webhooks/Pages | None |
 | Production | `/api/health` 200, database connected, production posture, commit `98ba2bb` |
 
 Production `98ba2bb` is the latest commit that changed `server/`. The commits after it are docs/mobile
 only, so Render correctly did not redeploy.
 
-### 2.1 GitHub work and status
+### 2.1 Restoration work and status
 
-These are cleanup and security items, not a reason to transfer the repository again.
-
-1. **Verify the primary Gmail.** In GitHub **Settings → Emails**, confirm
-   `jeffernmalinaoqwe@gmail.com` is present, verified and primary for `jeffernqwerty`. The API could not
-   list account emails because the current token lacks the `user` scope. Web-merge commits already use
-   that address, which is strong evidence but not proof of verification.
-2. **Align the local Git identity.** The local configuration still uses the previous address. Future
-   local commits would carry the old identity until it is changed.
-3. **Current-state policy updated.** `CLAUDE.md`, `docs/SOURCE_PROTECTION.md` and
-   `scripts/audit-access.mjs` now name the new account and no longer retain the old collaborator.
-   Historical roadmap entries are records and remain unchanged.
-4. **Old account removed.** `nreffejzxc` was removed as a write collaborator on 2026-10-30, and its
-   local `gh` credential was removed. Only `jeffernqwerty` remains as admin. Review the old account's
-   server-side OAuth authorization and SSH keys separately.
-5. **Verify 2FA.** Account 2FA cannot be confirmed over the API. Check both accounts in
-   **Settings → Password and authentication**.
-6. **Close the red dependency PR.** PR #98 proposes `@react-native-firebase/app` 27.1.0 while the
-   frozen Phase 1 test expects 27.0.0. This is a Dependabot grouping problem, not a migration failure.
-7. **Decide what happens to local-only work.** The working tree has modified files and an untracked
-   plan; `backup/pre-amend-4af737b` is local-only, and `chore/docs-section-guard` is one commit ahead
-   of its remote counterpart. Commit and push only what the owner wants preserved.
+1. **Ownership restored.** On 2026-10-31 the repository was transferred back from `jeffernqwerty` to
+   `nreffejzxc`. GitHub accepted the transfer after the repository was renamed off the retired path.
+2. **The old path is retired.** GitHub permanently retired `nreffejzxc/ai-inventory`; the restored
+   repository is `nreffejzxc/inventory-ai`. Do not try to recreate the retired path.
+3. **History and collaboration objects moved intact.** All 23 remote branches and all three open PRs
+   are under the original owner. No tags existed. The transfer did not rewrite history.
+4. **Branch protection needs the owner.** The currently authenticated `jeffernqwerty` account is a
+   write collaborator, not an administrator, so the protection endpoint returns `404`. Re-run the read
+   after signing in as `nreffejzxc`; reapply the intended rules if absent.
+5. **Remove the temporary collaborator.** `jeffernqwerty` remains a write collaborator solely so this
+   rollback can be pushed. Once `nreffejzxc` can push, remove that collaborator and re-run
+   `node scripts/audit-access.mjs`.
+6. **Local identity restored.** Local `user.email` is `jefferndullamalinaozxc@gmail.com` and
+   `user.name` is `jeffernzxc`; `origin` points at `nreffejzxc/inventory-ai`.
+7. **Migration paused.** The newer Gmail and the other services were not changed. Do not resume the
+   account migration until the Gmail problem is resolved and the owner explicitly approves it.
+8. **2FA remains an owner-side check.** Check both accounts in **Settings → Password and
+   authentication**; the API cannot confirm it.
+9. **The dependency PR remains open.** PR #98 proposes `@react-native-firebase/app` 27.1.0 while the
+   frozen Phase 1 test expects 27.0.0. This is unrelated to the rollback.
+10. **Local-only work is untouched.** The working tree still has modified files and an untracked plan;
+    `backup/pre-amend-4af737b` is local-only, and `chore/docs-section-guard` is one commit ahead of its
+    remote counterpart. Commit and push only what the owner wants preserved.
 
 ### 2.2 Read-only verification commands
 
 ```bash
 # Repository identity and visibility
-gh repo view jeffernqwerty/ai-inventory \
+gh repo view nreffejzxc/inventory-ai \
   --json nameWithOwner,visibility,isPrivate,defaultBranchRef,isFork
 
 # Remote synchronization; expect "0 0"
@@ -107,9 +118,9 @@ git rev-list --left-right --count origin/main...HEAD
 node scripts/audit-access.mjs
 
 # Required checks and the latest run
-gh api repos/jeffernqwerty/ai-inventory/branches/main/protection \
+gh api repos/nreffejzxc/inventory-ai/branches/main/protection \
   --jq '.required_status_checks.contexts'
-gh run list --repo jeffernqwerty/ai-inventory --limit 5
+gh run list --repo nreffejzxc/inventory-ai --limit 5
 
 # Production build identity
 curl -sS --max-time 90 https://ai-inventory-l1mi.onrender.com/api/health
@@ -121,22 +132,24 @@ timeout as a failure.
 
 ---
 
-## 3. Single-email policy
+## 3. Single-email policy (paused)
 
-The target is one primary Gmail for service ownership, billing, recovery and administrative contact:
+**This policy applies only when the migration resumes.** The current GitHub owner remains
+`nreffejzxc` with `jefferndullamalinaozxc@gmail.com`. The target is one primary Gmail for service
+ownership, billing, recovery and administrative contact:
 
 ```text
 jeffernmalinaoqwe@gmail.com
 ```
 
-GitHub's login remains `jeffernqwerty`; the Gmail is the account's primary contact and recovery
-identity, not the login name. Other providers may use the Gmail as the account identifier or only as
-the billing/contact address; verify each one individually.
+When the migration resumes, GitHub's login would remain `jeffernqwerty`; the Gmail is the account's
+primary contact and recovery identity, not the login name. Other providers may use the Gmail as the
+account identifier or only as the billing/contact address; verify each one individually.
 
 ### 3.1 Rules that follow from using one address
 
 - **GitHub permits one account per email.** Do not add the new Gmail to the old `nreffejzxc` account.
-  Retire the old account instead.
+  If the migration resumes, move the repository to the new account instead of mixing identities.
 - **The Gmail is the root of every recovery path.** Compromise or loss of the Gmail is a compromise of
   every service.
 - **Public commit exposure.** The Gmail already appears in public merge-commit metadata. If that is not
@@ -163,9 +176,13 @@ Before moving any production ownership to the Gmail:
 
 ## 4. GitHub closeout
 
-Perform these steps only after approval.
+**Paused 2026-10-31.** The repository is back under the original account. The steps in 4.1 and 4.3–4.4
+were either reversed or must not be repeated until the migration resumes. They remain below as the
+future plan and as the record of what the earlier attempt did.
 
-### 4.1 Make the Gmail primary
+### 4.1 Make the Gmail primary (paused)
+
+These steps apply only when the migration resumes. The original account remains primary for now.
 
 1. Open GitHub **Settings → Emails** for `jeffernqwerty`.
 2. Add `jeffernmalinaoqwe@gmail.com` if it is not already listed.
@@ -174,41 +191,62 @@ Perform these steps only after approval.
 5. Keep the old address only if it is needed for recovery; otherwise remove it after the old account is
    retired.
 
-### 4.2 Choose the commit identity
+### 4.2 Commit identity — restored 2026-10-31
 
-Decide all three explicitly:
+The current identity is the original account. The 2026-10-30 change to the newer Gmail was reverted
+because that Gmail became unavailable.
 
-| Choice | Options | Consequence |
+| Choice | Current | Consequence |
 | --- | --- | --- |
-| Git author name | `jeffernzxc` or `Jeffernqwerty` | Appears in future commit metadata |
-| Commit email | Target Gmail or GitHub `noreply` | The Gmail is public if used directly |
-| Policy text | Update `CLAUDE.md` to match | Removes the current contradiction |
+| Git author name | `jeffernzxc` | Appears in future commit metadata |
+| Commit email | `jefferndullamalinaozxc@gmail.com` | The original account address |
+| Policy text | `CLAUDE.md` names the original email | Matches the current repository owner |
 
-Update the local configuration only after the owner chooses:
+The restored local configuration is:
 
 ```bash
-# Example only; do not run until the identity is approved.
-# git config user.email "jeffernmalinaoqwe@gmail.com"
-# git config user.name "jeffernzxc"
+git config --local user.email "jefferndullamalinaozxc@gmail.com"
+git config --local user.name "jeffernzxc"
 ```
 
-### 4.3 Old account removal — repository access completed 2026-10-30
+Existing commits were not rewritten. Changing the attribution of an existing commit would require an
+amend and a force push, which is a separate, explicitly approved history rewrite.
+
+### 4.3 Old account removal — completed 2026-10-30, reversed 2026-10-31
 
 1. Confirmed the new account can sign in and push.
 2. Removed `nreffejzxc` from the repository collaborators.
 3. Removed the old GitHub CLI credential from the local credential store and signed the CLI out of
    that account.
 4. Re-ran `node scripts/audit-access.mjs` and confirmed it passes.
-5. Still separately review the old account's server-side OAuth authorization and SSH keys; this
-   cleanup did not revoke them.
+5. The old account's OAuth apps, PATs and sessions were revoked. The owner confirmed completion on
+   2026-10-30; the old account's GitHub security log is the evidence. The log entries are not
+   reproduced or independently verified here because this workspace cannot read that account. The old
+   account publishes **no SSH keys** (`https://github.com/nreffejzxc.keys` returned none), so no
+   SSH-key removal was possible or needed.
+6. Repository-level path check on 2026-10-30: direct collaborator lookup 404; collaborator count 1
+   (owner); invitations 0; deploy keys 0; webhooks 0; Actions secrets 0; environments 0; forks 0;
+   rulesets 0; branch-protection bypass list null. **At that time** the old account retained only the
+   public `read` baseline that any GitHub visitor has; it had no `push`, `maintain`, `triage` or
+   `admin` permission.
+7. **Reversed 2026-10-31.** The newer Gmail became unavailable, so the repository was transferred back
+   to `nreffejzxc`. GitHub retired `nreffejzxc/ai-inventory`; the restored name is
+   `nreffejzxc/inventory-ai`.
+8. `nreffejzxc` is owner/admin again. `jeffernqwerty` is a write collaborator, retained temporarily so
+   the rollback can be pushed. The old account's OAuth, PAT and session revocation remains in force
+   until the owner signs in again. Branch protection and admin-only settings were not re-read.
 
 ### 4.4 Update current-state documentation
 
-The three current-state references below were updated on 2026-10-30:
+Restored on 2026-10-31:
 
-- `CLAUDE.md` — GitHub display name, username, attribution and commit email.
-- `docs/SOURCE_PROTECTION.md` — the human-access row.
-- `scripts/audit-access.mjs` — the trusted-collaborator set.
+- `CLAUDE.md` — GitHub display name, username, attribution and commit email are back to `Jeffernzxc`,
+  `nreffejzxc` and `jefferndullamalinaozxc@gmail.com`.
+- `docs/SOURCE_PROTECTION.md` — owner and human-access rows reflect `nreffejzxc`, the temporary
+  `jeffernqwerty` collaborator, and the unverified admin settings.
+- `scripts/check-commit-attribution.mjs` — the allowed identity examples use the original email.
+- `scripts/audit-access.mjs` derives the owner from `origin`; it needs no account-specific edit, and it
+  will report the missing protection and the temporary collaborator until both are resolved.
 
 Do not change the historical references in `docs/DEVELOPMENT_ROADMAP.md`; they record what was true at
 their dates.
@@ -226,7 +264,7 @@ deliberately reviewed update.
 
 The order minimizes identifier changes and avoids entering the same credentials twice.
 
-1. **GitHub closeout** — identity, access, documentation, 2FA.
+1. **GitHub closeout (paused)** — resume only after the Gmail is available; identity, access, documentation, 2FA.
 2. **Gmail hardening** — 2FA, recovery, password manager.
 3. **Firebase** — ownership, billing, service-account key.
 4. **MongoDB Atlas** — project move into the Gmail-owned organization.
@@ -367,7 +405,7 @@ mobile release.
 ### 8.3 GitHub integration
 
 GitHub Apps are not visible through the API. Verify in **GitHub → Settings → Applications** that the
-Render app still has access to `jeffernqwerty/ai-inventory`, and verify the repository configured on
+Render app still has access to `nreffejzxc/inventory-ai`, and verify the repository configured on
 the Render service. The old repository URL redirects, but redirects are not a substitute for a valid
 installation.
 
@@ -447,7 +485,9 @@ Do these after Render is stable, because both keys live in its environment.
 | Action | Approval needed | Reason |
 | --- | --- | --- |
 | Change GitHub primary email or local Git identity | Yes | Changes future commit metadata and account recovery |
-| Remove the old GitHub collaborator or revoke its local token | **Completed 2026-10-30** | Repository access and the local credential are removed; the server-side OAuth grant still needs separate review |
+| Remove the older account's GitHub access or revoke its local token | **Historical: completed 2026-10-30; reversed 2026-10-31** | The original account is owner again; its earlier OAuth, PAT and session revocation remains until the owner signs in |
+| Restore or verify branch protection and admin-only settings | Yes | The 2026-10-31 transfer left them unreadable to the collaborator token; the owner's admin session is required |
+| Remove the temporary `jeffernqwerty` collaborator | Yes | It is the remaining write path from the rollback |
 | Rotate the Firebase service-account key | Yes | Production environment change and backend restart |
 | Add a Firebase Owner or change billing | Yes | Production ownership and billing |
 | Move the Atlas project | Yes | Changes organization ownership and billing |
@@ -460,9 +500,12 @@ Do these after Render is stable, because both keys live in its environment.
 
 ## 12. Open questions
 
-- Is `jeffernmalinaoqwe@gmail.com` verified and primary on `jeffernqwerty`?
-- Should future commits use the Gmail directly or GitHub's `noreply` address?
-- Should the Git author name remain `jeffernzxc` or become `Jeffernqwerty`?
+- Is the newer Gmail still unavailable, and when can the migration resume?
+- Did branch protection survive the 2026-10-31 transfer, or must it be reapplied?
+- Has the temporary `jeffernqwerty` collaborator been removed?
+- Should the restored repository keep the name `inventory-ai`, since `ai-inventory` is retired?
+- Is the Render GitHub App still connected to `nreffejzxc/inventory-ai`?
+- Is 2FA enabled on both GitHub accounts?
 - Is the current Render workspace on Hobby or Pro, and will Render support a workspace handoff?
 - What is the destination Expo organization name?
 - Does an Atlas account already exist under the Gmail?
@@ -473,17 +516,28 @@ Do these after Render is stable, because both keys live in its environment.
 
 ## 13. Definition of done
 
-The migration is complete only when all of these are true:
+### Restoration (2026-10-31)
+
+- [x] Repository owned by `nreffejzxc` at `nreffejzxc/inventory-ai`.
+- [x] History, branches, tags, issues and pull requests preserved; no history rewrite.
+- [x] Local `origin`, `user.name` and `user.email` point at the original account.
+- [x] Current-state identity documentation reverted to the original account.
+- [ ] Branch protection and admin-only settings verified and reapplied by the owner.
+- [ ] Temporary `jeffernqwerty` collaborator removed.
+- [ ] A push and a pull succeed with the original account's own credential.
+- [ ] CI runs green on a new commit under the original account.
+
+### Migration (paused)
+
+The migration is complete only when all of these are true, and only after the owner resumes it:
 
 - [ ] `jeffernmalinaoqwe@gmail.com` is verified and primary on GitHub.
-- [ ] Local Git identity matches the approved policy.
-- [x] `CLAUDE.md`, `docs/SOURCE_PROTECTION.md` and `scripts/audit-access.mjs` no longer name the old
-      account as current access.
-- [x] The old GitHub collaborator is removed (2026-10-30).
-- [x] The old GitHub CLI credential is removed from this machine (2026-10-30).
-- [ ] The old account's server-side OAuth authorization and SSH keys are reviewed.
+- [ ] Local Git identity matches the resumed policy.
+- [ ] `CLAUDE.md`, `docs/SOURCE_PROTECTION.md` and `scripts/audit-access.mjs` name the new account.
+- [ ] The original GitHub account is removed after the replacement is verified.
+- [ ] The original GitHub CLI credential is removed again from this machine.
 - [ ] GitHub 2FA is verified; CI and branch protection still pass.
-- [ ] A real push and pull succeed after the changes.
+- [ ] A real push and pull succeed after the resumed changes.
 - [ ] Firebase is owned and billed under the Gmail; the new service-account key works.
 - [ ] Atlas is owned by the Gmail organization; the connection string and restore are verified.
 - [ ] Render ownership is settled; the production health check reports the expected commit.
