@@ -5,7 +5,7 @@
 the future plan; it does **not** authorize a transfer, a credential rotation, an account deletion, or a
 production change. Every action below still needs the owner's explicit approval.
 
-**Last verified:** 2026-10-31, with the owner/admin session
+**Last verified:** 2026-10-31, with the owner/admin session and the Phase 1 rewrite evidence
 **Current owner:** `nreffejzxc` (original GitHub account)
 **Current repository:** `nreffejzxc/inventory-ai`
 **Paused migration target:** `jeffernmalinaoqwe@gmail.com` / `jeffernqwerty`
@@ -15,7 +15,11 @@ the original account. GitHub had permanently retired `nreffejzxc/ai-inventory` a
 transfer, so the restored repository is named `inventory-ai`. History, branches, issues and pull
 requests moved intact. The owner/admin session then verified branch protection, secret scanning,
 private vulnerability reporting and the Actions policy; `jeffernqwerty` was removed as a collaborator,
-leaving `nreffejzxc` as the only human with access. The measurements are in §2.
+leaving `nreffejzxc` as the only human with access. The owner then deleted the stale
+`jeffernqwerty` keyring entry, revoked that account's GitHub CLI authorization, and removed the
+Railway App; 2FA remains deliberately deferred. A metadata-only history-attribution rewrite approved
+the same day replaced `main` at `93844e9` with `c9c9c1a`, removing `jeffernqwerty` from the commit
+authors while preserving every file and message. The measurements are in §2.
 
 No credential value — password, token, private key, service-account JSON, database URI, API key or
 recovery code — belongs in this file. Record names and locations, never values.
@@ -41,8 +45,12 @@ The following rules apply throughout:
    existing user records or the public API URL.
 3. **Do not delete the old account or the old service** until the replacement has been verified and a
    rollback window has passed.
-4. **Do not rewrite Git history.** Old commits keep their original metadata. A new identity applies to
-   new commits only.
+4. **Do not rewrite Git history without the owner's explicit, scoped approval.** The default is that
+   old commits keep their original metadata and a new identity applies to new commits only. The one
+   approved exception is the metadata-only rewrite of `0647187dc9..93844e9` on 2026-10-31
+   (`CLAUDE.md` §16 rules 9–10, as an owner-approved metadata-only exception), recorded in §2.1; it
+   preserved every tree and message and dropped seven web-flow signatures. No further rewrite is
+   authorized.
 5. **Never put a secret in a document, issue, pull request, terminal transcript or log.** Use the
    provider dashboard or the local environment file.
 6. **The repository is public.** The target Gmail already appears in public commit metadata. Treat its
@@ -52,23 +60,24 @@ The following rules apply throughout:
 
 ## 2. Verified GitHub state
 
-At the 2026-10-31 restoration:
+After the 2026-10-31 restoration and rewrite:
 
 | Check | State |
 | --- | --- |
 | Repository | `nreffejzxc/inventory-ai` |
 | Visibility | Public; not a fork; default branch `main` |
-| History | Full history preserved; 912 tracked files; the pre-transfer bundle verified 45 refs |
-| Integrity | No history rewrite; working tree intact |
-| Remote branches | The 23 pre-transfer branches all still exist; the restoration branch is also present |
+| History | 426 commits; 912 tracked files; the approved rewrite replaced the 17-commit range ending at `93844e9`; new `main` tip `c9c9c1a`; the old tip is in the backup bundle |
+| Integrity | **Approved metadata-only rewrite (2026-10-31)** — every tree and message byte-identical (tip tree `b88d175e`); 11 commits reattributed; seven web-flow signatures dropped; `git fsck --strict` clean |
+| Remote branches | 27 remote branches; seven still carry pre-rewrite commits (listed in §2.1); no branch was deleted |
 | Tags/releases | None existed, so none are missing |
 | Issues/pull requests | Issue #32; PRs #97/#98 remain open; #104 was closed as superseded by #105 |
-| Push/pull | Owner push and fetch verified on 2026-10-31; this documentation branch is pushed under the owner credential |
-| CI | Latest `main` run green; this branch is subject to the four required checks before merge |
+| Push/pull | Owner push and fetch verified; PR #107 merged on 2026-10-31; the rewrite was the only force push and used `--force-with-lease` |
+| CI | Post-rewrite `main` run `41176229274` green on `c9c9c1a`; `server`, `secret-guard`, `attribution-guard`, `mobile` all success; the guard rerun read all 17 rewritten commits |
 | Branch protection | **Verified** — required checks `server`, `secret-guard`, `attribution-guard`, `mobile`; strict; admins enforced; pull request required with 0 approvals; force pushes and deletions blocked; conversation resolution required |
 | Collaborators | `nreffejzxc` (owner, admin) only; no pending invitations |
-| Local GitHub CLI | `gh auth status` lists only `nreffejzxc`; the `jeffernqwerty` entry was logged out on 2026-10-31 |
-| GitHub Apps | **Not readable with a user token** — owner-side UI check pending |
+| Local GitHub CLI | `gh auth status` lists only `nreffejzxc`; the stale `jeffernqwerty` keyring entry was deleted and that account's GitHub CLI OAuth authorization was revoked on 2026-10-31 (owner-confirmed in the UI; not API-readable) |
+| GitHub Apps | Railway App **removed** on 2026-10-31 (owner-confirmed in the UI); no Codebuff or Render GitHub App is installed. The installation list is still UI-only. |
+| Account 2FA | **Disabled — deliberately deferred by the owner** until a reliable backup method and recovery-code storage are ready. |
 | Security scanning | Secret scanning **enabled**; push protection **enabled**; non-provider patterns and validity checks disabled |
 | Dependabot | 2 accepted advisories: `zod` high, `deepmerge` low |
 | Private vulnerability reporting | **Enabled** |
@@ -78,18 +87,72 @@ At the 2026-10-31 restoration:
 | Deploy keys/webhooks/Pages | None |
 | Production | `/api/health` 200, database connected, production posture, commit `98ba2bb` |
 
+### 2.1 The approved history-attribution rewrite (2026-10-31)
+
+`jeffernqwerty` was a historical commit author, not a collaborator: eight commits were authored under
+that account's email during the temporary migration, and 11 commits carried it in
+an author or committer field. The landing page's **Contributors** list is commit attribution; it is
+not an access list. The owner approved a **metadata-only** rewrite as an explicit exception to
+`CLAUDE.md` §16 rules 9–10, executed in a disposable clone and pushed once with `--force-with-lease`.
+
+| Item | Result |
+| --- | --- |
+| Old `main` tip | `93844e9224bcef8b3fe4573ef907e4117ecbd650` |
+| Earliest affected commit | `78c92472ce3f68b1759b673b33dc583e91b96419`; first parent `0647187dc9287e7990cdcc4131fccaed1b1299a4` |
+| Range | 17 commits; 16 new SHAs (`dcb0368a3e9780cdca78c08ce7e30f4a6c9038ce` unchanged) |
+| Metadata changed | 11 commits: 8 author fields, 5 committer fields, 2 commits carrying both |
+| Preserved | Every tree, blob, message, author date, committer date and parent order; tip tree `b88d175eb000e942f9f2049bbbd2b58568ec8c5b` equals the old tip's tree; `git diff 93844e9 c9c9c1a` is empty; `git fsck --strict` is clean |
+| Signatures | Seven GitHub web-flow `gpgsig` entries dropped on `78c9247`, `fdee8b54`, `4582bfd0`, `2694b857`, `eb92050`, `e99f0010` and `93844e9`; `required_signatures` remains `false` |
+| New `main` tip | `c9c9c1a6f162b9cd4b80e1b9bbfbedc882c855d0` |
+| Backup | `pre-rewrite-2026-10-31.bundle` outside the repository, plus `.git/pre-rewrite-backup.bundle`; both retained |
+
+**CI and protection.** Push run `41176229274` is green on `c9c9c1a`: `server`, `secret-guard`,
+`attribution-guard` and `mobile` all completed successfully. `attribution-guard` first failed because
+the force push had removed its base commit from the checkout; it refused to verify rather than pass.
+A temporary ref restored the base, the rerun read all 17 rewritten commits and passed, and the ref was
+deleted. Protection is back to the exact baseline: four required checks, strict up-to-date,
+administrators enforced, pull request required with 0 approvals, force pushes and deletions blocked,
+conversation resolution required, and `allow_force_pushes` **false**.
+
+**Contributors, measured.** A cache-busted `/graphs/contributors-data` request returns only
+`nreffejzxc` and `dependabot[bot]`; the REST contributors endpoint, refreshed after the rewrite,
+returns `nreffejzxc` (420) and `dependabot[bot]` (6). Neither `jeffernqwerty` nor `codebuff-team`
+appears in either. The landing-page **Contributors** sidebar is the last stale surface: at 07:10Z
+on 2026-10-31, roughly 50 minutes after the push, it still rendered all three names — in an
+anonymous browser session as well as a signed-in one, so the cache is GitHub’s, not the local
+browser’s. GitHub documents that contributor displays can take about 24 hours to refresh after a
+history rewrite. This is not an access problem: **Settings → Collaborators & teams** lists
+`nreffejzxc` only. It is also not a reason to rewrite more refs: GitHub documents that the
+contributors graph counts commits merged to the **default branch**, so the seven non-`main`
+branches cannot feed this list, and no endpoint or setting removes an entry — making the commits
+unreachable was the only available lever. If the sidebar is still stale after 24 hours, ask GitHub
+Support to refresh the contributor cache rather than rewriting history again.
+
+**Not rewritten.** Seven non-`main` remote branches still contain pre-rewrite commits:
+`docs/runbook-verification-updates` (`a7ff713`), `docs/restore-status-final` (`8e8a3e4`),
+`docs/restore-original-github-account` (`47cb1c1`), `docs/owner-access-verified` (`068ae51`),
+`dependabot/npm_and_yarn/mobile/mobile-minor-and-patch-4f21d3e467` (`153b9b3`),
+`docs/account-migration-runbook` (`eb92050`) and `chore/current-state-access-policy` (`3b0d910`).
+The eighth branch in the pre-push list, the server Dependabot branch, was rebased onto the new `main`
+during cleanup and no longer carries old-email commits. No branch was deleted. PR #97's branch was
+rebased and is `CLEAN` with all four checks green. PR #98 remains `CONFLICTING`, its `mobile` check
+fails on the pre-existing RNFirebase version mismatch, and it must not be merged. Merged PRs #99–#103
+and #105–#107 have merge commits in the rewritten range; their old merge SHAs are no longer on `main`,
+so a PR page may say the old commit is not on a branch. That is expected and is not edited.
+
 Production `98ba2bb` is the latest commit that changed `server/`. The commits after it are docs/mobile
 only, so Render correctly did not redeploy.
 
-### 2.1 Restoration work and status
+### 2.2 Restoration work and status
 
 1. **Ownership restored.** On 2026-10-31 the repository was transferred back from `jeffernqwerty` to
    `nreffejzxc`. GitHub accepted the transfer after the repository was renamed off the retired path.
 2. **The old path is retired.** GitHub permanently retired `nreffejzxc/ai-inventory`; the restored
    repository is `nreffejzxc/inventory-ai`. Do not try to recreate the retired path.
 3. **History and collaboration objects moved intact.** All 23 pre-transfer remote branches still
-   exist under the original owner; PRs #97/#98 remain open, #104 was closed as superseded, and #105
-   was merged. No tags existed. The transfer did not rewrite history.
+   exist under the original owner (four later branches bring the remote total to 27); PRs #97/#98
+   remain open, #104 was closed as superseded, and #105 was merged. No tags existed. The transfer
+   itself did not rewrite history; the separately approved metadata-only rewrite is §2.1.
 4. **Branch protection verified.** The owner/admin read returned `protected: true` with all four
    required checks, strict up-to-date enforcement, administrator enforcement, pull request required,
    force pushes and deletions blocked, and conversation resolution required.
@@ -100,15 +163,24 @@ only, so Render correctly did not redeploy.
    `user.name` is `jeffernzxc`; `origin` points at `nreffejzxc/inventory-ai`.
 7. **Migration paused.** The newer Gmail and the other services were not changed. Do not resume the
    account migration until the Gmail problem is resolved and the owner explicitly approves it.
-8. **2FA remains an owner-side check.** Check both accounts in **Settings → Password and
-   authentication**; the API cannot confirm it.
-9. **The dependency PR remains open.** PR #98 proposes `@react-native-firebase/app` 27.1.0 while the
-   frozen Phase 1 test expects 27.0.0. This is unrelated to the rollback.
-10. **Local-only work is untouched.** The working tree still has modified files and an untracked plan;
+8. **2FA is disabled and deliberately deferred.** The owner checked the original account on
+   2026-10-31 and deferred enabling it until a reliable backup method and offline recovery codes are
+   ready. The API cannot confirm the field.
+9. **Account cleanup is complete.** On 2026-10-31 the owner deleted the stale `jeffernqwerty` keyring
+   entry, revoked that account's GitHub CLI OAuth authorization (leaving its other OAuth apps alone),
+   and removed the Railway App. `gh auth status` lists only `nreffejzxc`. GitHub returns neither the
+   OAuth grants nor App installations through this token, so both are recorded as owner-confirmed UI
+   checks, not API measurements.
+10. **The rewrite is recorded in §2.1.** It was metadata-only and is the only authorized history
+    rewrite. The old commits remain in the backup bundle and on seven non-`main` branches.
+11. **The dependency PRs remain open.** PR #97 was rebased onto the new `main` and is `CLEAN`; PR #98
+    proposes `@react-native-firebase/app` 27.1.0 while the frozen Phase 1 test expects 27.0.0, is
+    `CONFLICTING`, and fails `mobile`. Do not merge #98 while that check fails.
+12. **Local-only work is untouched.** The working tree still has modified files and an untracked plan;
     `backup/pre-amend-4af737b` is local-only, and `chore/docs-section-guard` is one commit ahead of its
     remote counterpart. Commit and push only what the owner wants preserved.
 
-### 2.2 Read-only verification commands
+### 2.3 Read-only verification commands
 
 ```bash
 # Repository identity and visibility
@@ -214,8 +286,9 @@ git config --local user.email "jefferndullamalinaozxc@gmail.com"
 git config --local user.name "jeffernzxc"
 ```
 
-Existing commits were not rewritten. Changing the attribution of an existing commit would require an
-amend and a force push, which is a separate, explicitly approved history rewrite.
+Existing commits on `main` were rewritten once, metadata-only, on 2026-10-31 (§2.1). No further
+rewrite is authorized. The old commits remain in the backup bundle and on seven non-`main` branches;
+changing those would need a second explicit approval.
 
 ### 4.3 Old account removal — completed 2026-10-30, reversed 2026-10-31
 
@@ -239,10 +312,9 @@ amend and a force push, which is a separate, explicitly approved history rewrite
    `nreffejzxc/inventory-ai`.
 8. **Restored and verified 2026-10-31.** `nreffejzxc` is owner/admin again. The owner/admin session
    read branch protection and the security settings, re-enabled secret scanning and push protection,
-   and removed `jeffernqwerty` as a collaborator. The newer account reports `push: false`; its local
-   `gh` entry was logged out on 2026-10-31 and `gh auth status` lists only `nreffejzxc`. A stale
-   keyring token still resolves to `jeffernqwerty` with public read only, so it is not claimed erased.
-   No pending invitation remains.
+   and removed `jeffernqwerty` as a collaborator. The newer account reports `push: false`; its stale
+   local keyring entry was deleted, its GitHub CLI OAuth authorization was revoked, and
+   `gh auth status` lists only `nreffejzxc`. No pending invitation remains.
 
 ### 4.4 Update current-state documentation
 
@@ -255,8 +327,11 @@ Restored on 2026-10-31:
   read-only default `GITHUB_TOKEN`.
 - `scripts/check-commit-attribution.mjs` — the allowed identity examples use the original email.
 - `scripts/audit-access.mjs` derives the owner from `origin`; it needs no account-specific edit, and it
-  now passes with no access or protection violation. The remaining unverified field is account 2FA,
-  which the API returns as `null`; GitHub App installations also need an owner-side UI check.
+  passes with no access or protection violation. The remaining unverified field is account 2FA,
+  which the API returns as `null`; GitHub App installations also need an owner-side UI check and were
+  confirmed empty on 2026-10-31.
+- The history-attribution rewrite (§2.1) and the removal of the Railway App and the old GitHub CLI
+  authorization are recorded here and in `docs/SOURCE_PROTECTION.md`; no application code changed.
 
 Do not change the historical references in `docs/DEVELOPMENT_ROADMAP.md`; they record what was true at
 their dates.
@@ -414,10 +489,11 @@ mobile release.
 
 ### 8.3 GitHub integration
 
-GitHub Apps are not visible through the API. Verify in **GitHub → Settings → Applications** that the
-Render app still has access to `nreffejzxc/inventory-ai`, and verify the repository configured on
-the Render service. The old repository URL redirects, but redirects are not a substitute for a valid
-installation.
+GitHub Apps are not visible through the API. On 2026-10-31 the owner removed the Railway App and
+confirmed that no Codebuff or Render GitHub App was installed, so no App currently has repository
+access. Re-check **GitHub → Settings → Applications → Installed GitHub Apps** before connecting any
+future integration, and verify the repository configured on the Render service separately. The old
+repository URL redirects, but redirects are not a substitute for a valid installation.
 
 ### 8.4 Verification
 
@@ -497,6 +573,7 @@ Do these after Render is stable, because both keys live in its environment.
 | Change GitHub primary email or local Git identity | Yes | Changes future commit metadata and account recovery |
 | Remove the original account's GitHub access or revoke its local token | Separate explicit approval | It is the current owner; removal only after a future migration is verified |
 | Change branch protection, repository access or scanning | Yes | The current rules are verified; changing them is a separate security decision |
+| Rewrite Git history | Separate explicit approval; metadata-only, every tree and message preserved | Rule 9/10 exception; changes every descendant SHA |
 | Rotate the Firebase service-account key | Yes | Production environment change and backend restart |
 | Add a Firebase Owner or change billing | Yes | Production ownership and billing |
 | Move the Atlas project | Yes | Changes organization ownership and billing |
@@ -510,11 +587,14 @@ Do these after Render is stable, because both keys live in its environment.
 ## 12. Open questions
 
 - Is the newer Gmail still unavailable, and when can the migration resume?
-- Which GitHub Apps are installed on `nreffejzxc/inventory-ai`? The REST API cannot answer this with a
-  user token; check **Settings → Applications → Installed GitHub Apps**.
+- When will GitHub's contributors cache drop `jeffernqwerty` and `codebuff-team`? The live graph is
+  clean; the REST list and the landing-page sidebar may lag up to 24 hours.
 - Should the restored repository keep the name `inventory-ai`, since `ai-inventory` is retired?
-- Is the Render GitHub App still connected to `nreffejzxc/inventory-ai`?
-- Is 2FA enabled on the original GitHub account? The API returns `null`, so check **Settings → Password and authentication**.
+- Should the seven non-`main` branches be rewritten (Phase 2), or kept as historical refs? No Phase 2
+  without a second explicit approval.
+- How is Render connected to `nreffejzxc/inventory-ai` now that no GitHub App is installed?
+- When will 2FA be enabled? It is disabled by owner decision (2026-10-31), pending a reliable backup
+  method and offline recovery codes.
 - Is the current Render workspace on Hobby or Pro, and will Render support a workspace handoff?
 - What is the destination Expo organization name?
 - Does an Atlas account already exist under the Gmail?
@@ -528,18 +608,19 @@ Do these after Render is stable, because both keys live in its environment.
 ### Restoration (2026-10-31)
 
 - [x] Repository owned by `nreffejzxc` at `nreffejzxc/inventory-ai`.
-- [x] History, branches, tags, issues and pull requests preserved; no history rewrite.
+- [x] History, branches, tags, issues and pull requests preserved; the approved metadata-only rewrite is recorded in §2.1.
 - [x] Local `origin`, `user.name` and `user.email` point at the original account.
 - [x] Current-state identity documentation reverted to the original account.
 - [x] Branch protection verified: four required checks, strict, admins enforced, pull request required, force pushes/deletions blocked, conversation resolution required.
 - [x] `jeffernqwerty` collaborator removed; owner is the only human with access; pending invitations 0.
 - [x] Secret scanning and push protection enabled; private vulnerability reporting enabled.
-- [x] A push and a pull succeed with the original account's own credential.
-- [x] `gh auth status` lists only `nreffejzxc`; the `jeffernqwerty` entry was logged out.
-- [ ] CI runs green on a new commit under the original account.
-- [ ] GitHub App installations verified in **Settings → Applications** (not readable with a user token).
-- [ ] Account 2FA confirmed in **Settings → Password and authentication** (API returns `null`).
-- [ ] Stale `jeffernqwerty` keyring token erased (it now has public read only, `push: false`).
+- [x] A push and a pull succeed with the original account's own credential; the rewrite was the only force push and used `--force-with-lease`.
+- [x] `gh auth status` lists only `nreffejzxc`; the stale keyring entry was deleted and the old account's GitHub CLI authorization was revoked.
+- [x] CI runs green on the rewritten `main` (run `41176229274`; four required checks).
+- [x] GitHub App installations checked; Railway App removed and no Codebuff or Render App installed.
+- [x] Contributors graph no longer lists `jeffernqwerty`; REST and sidebar cache may lag up to 24 hours.
+- [x] Production `/api/health` 200 on commit `98ba2bb`; the rewritten tree is identical.
+- [ ] Account 2FA enabled; currently disabled and deliberately deferred by the owner.
 
 ### Migration (paused)
 
