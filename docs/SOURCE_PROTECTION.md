@@ -4,10 +4,10 @@ How the Inventory AI source is protected, what that actually prevents, and what 
 "Nobody can copy my code" is not a state a software project reaches; the achievable goal is to raise
 the cost, narrow the audience, and make the remaining exposure visible rather than assumed.
 
-Measured against the live repository and the GitHub API on **2026-10-31**, after the repository was
-restored to the original GitHub account. Settings that require an administrator token are marked
-**unverified** because the currently authenticated account is a write collaborator. The earlier
-measurements are kept as history in [`DEVELOPMENT_ROADMAP.md`](DEVELOPMENT_ROADMAP.md) §27AE and §27AF.
+Measured against the live repository and the GitHub API on **2026-10-31**, with the owner's
+administrator credential, after the repository was restored to the original GitHub account. The
+earlier measurements are kept as history in [`DEVELOPMENT_ROADMAP.md`](DEVELOPMENT_ROADMAP.md) §27AE
+and §27AF.
 
 ---
 
@@ -17,25 +17,28 @@ measurements are kept as history in [`DEVELOPMENT_ROADMAP.md`](DEVELOPMENT_ROADM
 | --- | --- |
 | Visibility | **Public** — owner decision, 2026-10-30 |
 | Who can read it | Anyone, including anonymous visitors and search engines |
-| Branch protection | **Present (`protected: true`)** — the exact rules are unreadable with the collaborator token. The intended configuration remains `server`, `secret-guard`, `attribution-guard`, `mobile`; strict up-to-date enforcement; administrators enforced; pull request required with **0** approvals; force pushes and deletions blocked; conversation resolution required. The owner must confirm the rules. |
-| Secret scanning | **Unverified after the transfer** — confirm with the owner account |
-| Private vulnerability reporting | **Unverified after the transfer** — confirm with the owner account |
-| Human access | `nreffejzxc` (owner, admin); `jeffernqwerty` (collaborator, write — retained temporarily for the rollback) |
+| Branch protection | **Verified** — required checks `server`, `secret-guard`, `attribution-guard`, `mobile`; strict up-to-date enforcement; administrators enforced; pull request required with **0** approvals; force pushes and deletions blocked; conversation resolution required |
+| Secret scanning | **Enabled**; push protection **enabled**. Non-provider patterns and validity checks are disabled. |
+| Private vulnerability reporting | **Enabled** |
+| Human access | `nreffejzxc` (owner, admin) — no collaborators and no pending invitations |
+| Local GitHub CLI | `gh auth status` lists only `nreffejzxc`; the `jeffernqwerty` entry was logged out on 2026-10-31, but a stale keyring token still resolves to public read only (`push: false`) |
+| GitHub App access | **Not verified by the API** — `GET /user/installations` needs an App token and `GET /repos/…/installation` needs an App JWT; read **Settings → Applications** |
+| Account 2FA | **Not confirmable by the API** — `two_factor_authentication` is `null`; read **Settings → Password and authentication** |
 | Deploy keys / webhooks / Actions secrets / environments | **None** — no credential exists inside GitHub for this repository |
 | Forks | **0** at publication; public forking is allowed |
 | Credentials in history | **None found** — no `.env`, keystore, `.pem`, `.p12`, `google-services.json` or service-account file was ever committed; the full 485-commit scan found only deliberate test fixtures |
 | Licence | Proprietary, all rights reserved ([`LICENSE`](../LICENSE)) |
-| Default `GITHUB_TOKEN` | **Unverified after the transfer** — confirm the read-only policy with the owner account |
-| Actions | Pinned to full commit SHAs, so an upstream tag move cannot change what CI runs |
+| Default `GITHUB_TOKEN` | **Read-only**; cannot approve pull request reviews |
+| Actions | All actions allowed; SHA pinning is not enforced, but every workflow pins its actions to full commit SHAs |
 
 `.env`, `server/.env` and `mobile/.env` hold real credentials and are all git-ignored and untracked.
 
-The 2026-10-31 transfer restored `nreffejzxc` as owner and renamed the repository to
-`nreffejzxc/inventory-ai`; GitHub permanently retired the old `nreffejzxc/ai-inventory` path. History,
-branches, tags, issues and pull requests moved intact. Branch protection survived (`protected: true`),
-but its exact rules are unreadable with a write-collaborator token. Secret scanning, private
-vulnerability reporting and the Actions policy also require the owner's administrator token, so they
-are not claimed as verified here.
+On 2026-10-31 the owner signed in as `nreffejzxc` and read the administrator-only settings. The
+transfer had disabled secret scanning and push protection; both were re-enabled the same day, and
+private vulnerability reporting is enabled. Branch protection survived with all four required checks
+and admin enforcement. `jeffernqwerty` was removed as a collaborator, so the owner is the only human
+with repository access. `node scripts/audit-access.mjs` now reports no violations. Account 2FA and the
+GitHub App installation list still need an owner-side UI check; both are described below.
 
 ### Two things the API would not answer
 
@@ -45,9 +48,10 @@ Both are owner-side, and both remain the weakest links until checked in the UI:
    token used, so it could not be confirmed. If 2FA is off, nothing else on this page matters — the
    account is the single door.
 2. **Which GitHub Apps can reach this repository.** `GET /user/installations` needs an App token
-   (`403`), and `GET /repos/…/installation` needs an App JWT. A hosting or CI app with this
-   repository selected holds its own credential and is not a collaborator. Read it in **Settings →
-   Applications**, and narrow the Render integration to the repositories it needs.
+   (`403`), and `GET /repos/…/installation` needs an App JWT (`401`). A hosting or CI app with this
+   repository selected holds its own credential and is not a collaborator. **This remains
+   unverified by the API** and must be read in **Settings → Applications → Installed GitHub Apps**;
+   narrow the Render integration to the repositories it needs and remove any app that does not.
 
 ### The audit is manual, by decision
 
