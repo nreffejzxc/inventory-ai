@@ -29,12 +29,19 @@ import { productService } from '../product.service.ts';
 import { categoryService, locationService } from '../reference.service.ts';
 import { transactionsService, TRANSACTION_TYPES } from '../transactions.service.ts';
 import { hasPermission, PERMISSIONS } from '../../constants/roles.ts';
+import { localDateTime } from '../../utils/timeZone.ts';
 
 /** The authenticated session context a tool runs under — always server-derived. */
 interface ToolContext {
   businessId: string;
   userId: string;
   role: string;
+  /**
+   * The member's IANA zone for THIS turn (already resolved by the service).
+   * Optional so a direct caller gets the pre-existing payload shape; every
+   * production path supplies it.
+   */
+  timeZone?: string;
 }
 
 /**
@@ -371,9 +378,25 @@ function page(count: number, items: unknown[], extra: Record<string, unknown> = 
  */
 type HistoryItemSource = Awaited<ReturnType<typeof transactionsService.list>>['items'][number];
 
-function historyItemForModel(item: HistoryItemSource) {
+/** `createdAt` as the member's local `YYYY-MM-DD HH:mm`, when it is a real instant. */
+function localTimeOf(value: unknown, timeZone?: string): string | undefined {
+  if (!timeZone) return undefined;
+  const instant = new Date(value as string | number | Date);
+  return Number.isNaN(instant.getTime()) ? undefined : localDateTime(instant, timeZone);
+}
+
+/**
+ * The movement as the model reads it, in the member's own clock.
+ *
+ * `createdAt` is kept (an instant is the unambiguous record), and `localTime`
+ * is added beside it because the model cannot be trusted to do arithmetic on a
+ * UTC string: asked to convert, it states the UTC time or invents an offset. The
+ * prompt points it at `localTime`, and the row itself is unambiguous.
+ */
+function historyItemForModel(item: HistoryItemSource, timeZone?: string) {
   const product = item.product as { id?: unknown; name?: unknown } | null | undefined;
   const location = item.location as { id?: unknown; name?: unknown } | null | undefined;
+  const local = localTimeOf(item.createdAt, timeZone);
   return {
     id: item.id,
     type: item.type,
@@ -385,6 +408,7 @@ function historyItemForModel(item: HistoryItemSource) {
     product: product ? { id: product.id, name: product.name } : null,
     location: location ? { id: location.id, name: location.name } : null,
     createdAt: item.createdAt,
+    ...(local ? { localTime: local } : {}),
   };
 }
 
@@ -600,7 +624,19 @@ const tools: Tool[] = [
     permission: PERMISSIONS.DASHBOARD_VIEW,
     parameters: { type: 'object', additionalProperties: false, properties: {} },
     async executor(ctx: ToolContext) {
-      return dashboardService.summary(ctx.businessId);
+      // AI-41 — the dashboard's recent activity carries the same instants as the
+      // history page, so it gets the same local rendering. The rest of the summary
+      // is returned untouched: this is a display field, not a new metric.
+      const summary = await dashboardService.summary(ctx.businessId);
+      const { timeZone } = ctx;
+      if (!timeZone) return summary;
+      return {
+        ...summary,
+        recentActivity: summary.recentActivity.map((item) => {
+          const local = localTimeOf(item.createdAt, timeZone);
+          return local ? { ...item, localTime: local } : item;
+        }),
+      };
     },
   },
 
@@ -667,7 +703,7 @@ const tools: Tool[] = [
         skip: 0,
         limit: Math.min(args.limit ?? 15, 50),
       });
-      return page(total, items.map(historyItemForModel), location.id ? { locationId: location.id } : {});
+      return page(total, items.map((item) => historyItemForModel(item, ctx.timeZone)), location.id ? { locationId: location.id } : {});
     },
   },
 
