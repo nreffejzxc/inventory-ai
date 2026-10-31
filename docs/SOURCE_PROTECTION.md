@@ -5,9 +5,9 @@ How the Inventory AI source is protected, what that actually prevents, and what 
 the cost, narrow the audience, and make the remaining exposure visible rather than assumed.
 
 Measured against the live repository and the GitHub API on **2026-10-31**, with the owner's
-administrator credential, after the repository was restored to the original GitHub account. The
-earlier measurements are kept as history in [`DEVELOPMENT_ROADMAP.md`](DEVELOPMENT_ROADMAP.md) §27AE
-and §27AF.
+administrator credential, after the repository was restored to the original GitHub account and its
+`main` history was rewritten metadata-only to remove an old commit identity. The earlier measurements
+are kept as history in [`DEVELOPMENT_ROADMAP.md`](DEVELOPMENT_ROADMAP.md) §27AE and §27AF.
 
 ---
 
@@ -21,9 +21,10 @@ and §27AF.
 | Secret scanning | **Enabled**; push protection **enabled**. Non-provider patterns and validity checks are disabled. |
 | Private vulnerability reporting | **Enabled** |
 | Human access | `nreffejzxc` (owner, admin) — no collaborators and no pending invitations |
-| Local GitHub CLI | `gh auth status` lists only `nreffejzxc`; the `jeffernqwerty` entry was logged out on 2026-10-31, but a stale keyring token still resolves to public read only (`push: false`) |
-| GitHub App access | **Not verified by the API** — `GET /user/installations` needs an App token and `GET /repos/…/installation` needs an App JWT; read **Settings → Applications** |
-| Account 2FA | **Not confirmable by the API** — `two_factor_authentication` is `null`; read **Settings → Password and authentication** |
+| Commit attribution | `main` rewritten metadata-only on 2026-10-31; the live contributors graph lists `nreffejzxc` and `dependabot[bot]` only; seven non-`main` branches still carry the old commits |
+| Local GitHub CLI | `gh auth status` lists only `nreffejzxc`; the stale `jeffernqwerty` keyring entry was deleted and that account's GitHub CLI OAuth authorization was revoked on 2026-10-31 (owner-confirmed in the UI; not API-readable) |
+| GitHub App access | Railway App **removed** on 2026-10-31 (owner-confirmed in the UI); no Codebuff or Render GitHub App is installed. The installation list is still UI-only (`GET /user/installations` needs an App token; `GET /repos/…/installation` needs an App JWT). |
+| Account 2FA | **Disabled — deliberately deferred by the owner on 2026-10-31** until a reliable backup method and recovery-code storage are ready. This is the largest remaining account risk. |
 | Deploy keys / webhooks / Actions secrets / environments | **None** — no credential exists inside GitHub for this repository |
 | Forks | **0** at publication; public forking is allowed |
 | Credentials in history | **None found** — no `.env`, keystore, `.pem`, `.p12`, `google-services.json` or service-account file was ever committed; the full 485-commit scan found only deliberate test fixtures |
@@ -31,27 +32,45 @@ and §27AF.
 | Default `GITHUB_TOKEN` | **Read-only**; cannot approve pull request reviews |
 | Actions | All actions allowed; SHA pinning is not enforced, but every workflow pins its actions to full commit SHAs |
 
+**The “Contributors” list is not an access list.** The repository landing page names commit authors
+and co-authors, including accounts that have no current collaborator role. The 2026-10-31
+metadata-only rewrite removed `jeffernqwerty` from `main`'s commit authors: the live
+`/graphs/contributors-data` now lists only `nreffejzxc` (396) and `dependabot[bot]` (6). The REST
+contributors endpoint and the landing-page sidebar were still serving the pre-rewrite cache on
+2026-10-31 (`jeffernqwerty`, 8; `codebuff-team`), and GitHub documents up to about 24 hours of lag.
+Seven non-`main` branches still carry the old commits, so the old account can remain visible from
+those refs until Phase 2, which has not been approved. `codebuff-team` is a separate cached
+co-author entry, absent from the live graph, and is not an access grant. Only **Settings →
+Collaborators & teams** grants access.
+
 `.env`, `server/.env` and `mobile/.env` hold real credentials and are all git-ignored and untracked.
 
 On 2026-10-31 the owner signed in as `nreffejzxc` and read the administrator-only settings. The
 transfer had disabled secret scanning and push protection; both were re-enabled the same day, and
 private vulnerability reporting is enabled. Branch protection survived with all four required checks
 and admin enforcement. `jeffernqwerty` was removed as a collaborator, so the owner is the only human
-with repository access. `node scripts/audit-access.mjs` now reports no violations. Account 2FA and the
-GitHub App installation list still need an owner-side UI check; both are described below.
+with repository access. `node scripts/audit-access.mjs` now reports no violations. The owner then
+revoked the old account's GitHub CLI authorization, removed the Railway App, and confirmed no other
+App has access; 2FA is disabled and deliberately deferred. The approved metadata-only rewrite of
+`main` removed the old account from the commit authors without changing a file; its old objects
+remain in the backup bundle and on seven non-`main` branches. The API-blind items are recorded below.
 
-### Two things the API would not answer
+### What the API could not answer
 
-Both are owner-side, and both remain the weakest links until checked in the UI:
+All three were checked in the owner's UI on 2026-10-31:
 
-1. **Two-factor authentication.** `GET /user` returned `two_factor_authentication: null` for the
-   token used, so it could not be confirmed. If 2FA is off, nothing else on this page matters — the
-   account is the single door.
-2. **Which GitHub Apps can reach this repository.** `GET /user/installations` needs an App token
-   (`403`), and `GET /repos/…/installation` needs an App JWT (`401`). A hosting or CI app with this
-   repository selected holds its own credential and is not a collaborator. **This remains
-   unverified by the API** and must be read in **Settings → Applications → Installed GitHub Apps**;
-   narrow the Render integration to the repositories it needs and remove any app that does not.
+1. **Two-factor authentication is disabled.** `GET /user` returns `two_factor_authentication: null`
+   for this token, and the settings page confirms 2FA is not enabled. The owner has deliberately
+   deferred it until a reliable backup method and offline recovery-code storage are ready. This is
+   the largest remaining account risk: the password alone controls the owner account.
+2. **The old GitHub CLI authorization is revoked.** The `jeffernqwerty` account's **Authorized OAuth
+   Apps** page listed GitHub CLI; it was revoked on 2026-10-31, and the local keyring entry had
+   already been deleted. `gh auth status` lists only `nreffejzxc`. The old account's other OAuth apps
+   (AgentRouter and opagent) were left alone.
+3. **The Railway App was removed.** The owner account's **Installed GitHub Apps** page listed Railway
+   App; it was uninstalled on 2026-10-31. No Codebuff or Render GitHub App is installed, so no App
+   currently has repository access. `GET /user/installations` needs an App token (`403`), and
+   `GET /repos/…/installation` needs an App JWT (`401`), so the UI remains the only reliable check.
 
 ### The audit is manual, by decision
 
@@ -82,6 +101,12 @@ source, history, branches, issues and pull requests. The repository was public f
 minutes on 2026-10-09 as well; the traffic API lags and a clone leaves no permanent record, so **it
 cannot be established that no copy was taken**. Publication is a business decision, not a technical
 control, and it cannot be recalled by switching back to private.
+
+**The metadata rewrite is attribution, not deletion.** The 2026-10-31 rewrite changed the author and
+committer name/email on 11 commits in `main`'s history so GitHub no longer attributes eight commits to
+`jeffernqwerty`. It preserved every tree, message and date. The old commits still exist in the backup
+bundle and on seven non-`main` branches, and the history was already public before the rewrite was
+proposed. It does not revoke a clone, a fork or a copy, and it is not a confidentiality control.
 
 **Before publication** the current tree, all reachable commits, every branch, every issue and pull
 request body, all issue comments and all commit messages were scanned for credential-shaped content.
@@ -140,8 +165,9 @@ account → new key → replace it in Render and `server/.env` → delete the ol
    personal-account repositories have a limited ability to restrict it.
 9. **Nothing notices on its own.** A changed visibility, a new collaborator, a deploy key or a
    webhook is discovered only when the audit is run.
-10. **GitHub Apps are outside every CLI check.** Reviewing that list in the UI is the single most
-    likely way access is granted without the audit noticing.
+10. **GitHub Apps are outside every CLI check.** Railway App was removed on 2026-10-31 and no
+    Codebuff or Render App is installed, but reviewing that list in the UI remains the single most
+    likely way a future integration grants access without the audit noticing.
 
 ---
 
@@ -151,7 +177,8 @@ account → new key → replace it in Render and `server/.env` → delete the ol
 
 1. **Turn on 2FA with a hardware key** for GitHub, Render, MongoDB Atlas, Firebase, Brevo and the app
    stores; keep recovery codes offline. This protects more than everything else here.
-2. **Review the Render and any CI integration's repository access** (§1).
+2. **Keep the installed GitHub Apps list empty** and review any future integration's repository
+   access (§1); Railway was removed on 2026-10-31 and the project uses Render.
 3. **Keep the four required checks and admin enforcement on `main`.** Do not relax a check to make a
    pull request merge; fix the check or the change.
 4. **Keep three backups that are not the same account**: the working clone, an encrypted offline
@@ -172,8 +199,8 @@ account → new key → replace it in Render and `server/.env` → delete the ol
 
 9. Keep the valuable logic server-side and the client a thin shell.
 10. Trademark the name; keep dated authorship evidence.
-11. Review access quarterly — `node scripts/audit-access.mjs`, plus the two things it cannot read
-    (GitHub Apps, account tokens and SSH keys) and the Dependabot queue.
+11. Review access quarterly — `node scripts/audit-access.mjs`, plus the settings it cannot read
+    (GitHub Apps, account 2FA, account tokens and SSH keys) and the Dependabot queue.
 12. Assume compromise and design for recovery: scheduled rotation, monitored audit trail, and the
     ability to rebuild without the original account.
 
