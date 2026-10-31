@@ -8,7 +8,7 @@ of truth for *what actually happened*, and it is why this file is long.
 
 **How to read it.** Do not read it top to bottom. Either find a record by number (§27FJ, §27DM — the
 numbers are cited from `CLAUDE.md` and from source comments), or use the index: `CLAUDE.md` §7 lists
-all **204** records by the title each gives itself.
+all **205** records by the title each gives itself.
 
 **Current state:** V1 complete and in production testing. The records that answer *where are we now*
 are §27FM (the V1 re-verification), §27FK (the runtime boundary and the blocked build), §27FJ (the two
@@ -23725,3 +23725,116 @@ The goal is to produce a:
 inventory management system.
 
 Every phase must leave the project in a better and verifiable state than before.
+
+# 27GZ. One operation, one movement — inventory writes deduplicated (2026-11-01)
+
+**The report.** The owner saw the dashboard's Recent Activity list the same stock-in,
+stock-out and purchase-order operation more than once, from a single tap. The first
+half of this record is what the investigation found; the second half is the fix.
+
+**Recent Activity is the ledger, one row per event.** `dashboardService.summary()`
+reads the newest `InventoryTransaction` rows and maps them to the list; its only
+transformation is `recentActivities()`, which merges a transfer's TWO legs into one
+event and leaves every other type as the single row it already is. The screen maps
+that array directly with a stable id. So a duplicate entry is a duplicate ledger row —
+never a rendering artifact and never an activity log of its own.
+
+**PO creation writes no ledger row at all.** It cannot produce a Recent Activity entry;
+what appears for a purchase order is its RECEIPT (each line becomes one `STOCK_IN`).
+A duplicated PO create therefore shows as two DRAFTs in the PO list, and duplicate
+receipt rows show as two stock-ins. Both are covered by the same key.
+
+**Nothing in the services was duplicating.** Each movement writes exactly one ledger
+row: `recordMovement` creates one `InventoryTransaction` and one audit row, and a
+transfer writes its two legs and a single audit. `stockIn`, `stockOut`, `adjust` and
+`transfer` each issue one guarded inventory update; `receive` stock-ins once per line,
+after winning that line's claim. So a duplicate on screen could only be the same
+operation being DELIVERED twice — applied once per delivery rather than once per
+operation. No duplicate was found in the query, the grouping or the rendering.
+
+**Three delivery paths were unguarded, and one was left open by the first pass.**
+(a) A second press can reach the handler before the `busy` state is rendered as a
+disabled button, because `busy` is a rendered signal rather than a guard on the handler.
+(b) The client's request budget can expire while the server is still working: the form
+is told the movement failed, the member submits again, and the first delivery lands
+after all — this is the path that matches "I only did it once". (c) The transport's own
+AUTH-03 recovery retry dropped the `Idempotency-Key` header, so the one automatic retry
+in the app re-sent a movement as a NEW operation. None of these is proved to be the
+instance the owner saw (no production request log naming it), but each produces exactly
+the reported symptom, and all three are now closed.
+
+**A fourth hole was in the first pass's own rule.** A purchase-order receive that loses
+its last line answers 409 `RECEIVE_CONFLICT` carrying the `applied` lines. Treating every
+4xx as "nothing happened" released the claim, so a duplicate delivery of that same
+request could re-run the batch and apply a PARTIAL line twice (a full line is stopped by
+the remaining-quantity bound; a partial one is not). That answer is now recorded as an
+outcome and replayed.
+
+**The fix is a transport concern, not a domain one.** `inventory.service.ts`,
+`transactions.service.ts` and `purchase-orders.service.ts` are unchanged, so none of
+their compensation paths moved.
+
+* `middlewares/idempotency.ts` + `models/idempotencyRecord.model.ts`: a request that
+  carries `Idempotency-Key` claims `{ businessId, key }` (unique index, 24 h TTL). A
+  claimed key that is still running answers 409 with `Retry-After`; a completed key
+  replays the stored status and body; a completed key with a DIFFERENT body fingerprint
+  (SHA-256 of method, path and body) is refused as 422 `IDEMPOTENCY_KEY_REUSED` and
+  applies nothing; no header leaves the request untouched, which is what keeps an older
+  installed build working. A 4xx/5xx that applied nothing releases the claim; one that
+  reports `applied` lines is recorded (`appliedWork()`) and replayed. A replayable
+  outcome is written BEFORE its answer is sent, so a duplicate cannot arrive in a gap
+  where the answer exists but is not yet recorded. A claim older than 60 s is taken over
+  atomically, so a dead request cannot block its own retry until the TTL expires.
+* Mounted on the four movement routes (`stock-in`, `stock-out`, `adjust`, `transfer`) and
+  on purchase-order `create` and `receive`.
+* `mobile/lib/idempotency.ts` mints one key per operation ATTEMPT and exports
+  `endsOperation()`: a transport failure (status 0) and a 409
+  `IDEMPOTENT_REQUEST_IN_PROGRESS` keep the key, because neither is a final answer to
+  this operation; every other answer ends it. The movement, transfer, PO-create and
+  receive forms reset the key when their inputs change — but NOT while a request is in
+  flight, since an edit during a slow delivery must not rename an attempt that may
+  already have landed — and each gained an in-flight ref guard. A deliberate, identical
+  repeat is therefore two operations and two keys, never swallowed as a duplicate.
+
+**Operations covered, by their own test.** Stock in, stock out, adjustment, transfer and
+PO receipt each deliver the same request twice and assert one ledger row, the correct
+quantity, and exactly one Recent Activity entry for the returned transaction id. PO
+creation asserts one DRAFT; the receipt case deliberately uses 3 of 10 units, because a
+second application of that line still fits the remaining bound — the case the service's
+own guard cannot catch.
+
+**Verification.** `server/test/INVENTORY-IDEMPOTENCY.test.mjs` — **10 DB-backed cases,
+all passing** (6 before this pass): same key twice writes one row and replays the first
+response; a different key applies in full; a reused key with a changed body is 422 with
+no row; no key behaves as before (two rows, the pre-fix reproduction); a duplicated PO
+create leaves one DRAFT; a duplicated transfer leaves two legs and one activity; plus
+the three new operation cases and the `applied`-refusal replay. Two controls were
+watched fail before the code was trusted: removing `idempotent()` from the stock-out
+route fails that case with two different transaction ids, and removing the key from the
+AUTH retry fails the header case with `undefined`.
+
+`mobile/__tests__/inventory-submit-once.test.tsx` — **3 cases**: a transport failure
+keeps the key, a 409 in-flight keeps the key, an answered refusal mints a new one.
+`mobile/__tests__/phaseAUTH03-client-renewal.test.ts` gained the header-across-retry
+case. `phase04-inventory`, `phase13-purchase-orders`, `phase13-receiving`,
+`phase-index-integrity` and `phase23-authorization-contract` pass (**59 pass, 0 fail, 1
+intentional skip**); both `tsc` runs and both linters are clean. `phase-index-integrity`
+iterates the model barrel and compares declarations with the connected database, so it
+proved the unique claim index and the TTL index exist in `inventoryai_test_db`.
+
+**Not verified here:** no production database was written — there is no production
+credential on the development host, and the owner's other users share that database, so
+the controlled tests ran against the isolated `inventoryai_test_db` only. The production
+ledger was not re-scanned for historical duplicate rows, so this record claims the
+mechanism and the prevention, not a count of past rows. Any rows written before this
+increment stand as they are, and rectifying them would need an owner-authorised
+reconciliation, not a bulk delete.
+
+**Deployment note.** The unique `{ businessId, key }` index is what makes two concurrent
+deliveries unable to both own a key; it is declared in the model and is built by
+Mongoose's default `autoIndex` at connect time. Before relying on the guarantee in
+production, run `npm run audit:indexes` against it — that is the read-only check that
+asks the database whether the claim index and the TTL index were built, and this record
+did not run it (no production credential here).
+
+---
