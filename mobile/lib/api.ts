@@ -939,6 +939,23 @@ export const dashboardApi = {
 // (AI_NOT_CONFIGURED) when the backend has no provider enabled — the UI maps
 // that onto a friendly "ask an administrator" message.
 
+/**
+ * The phone's IANA time zone, if the runtime can name one.
+ *
+ * WHY IT IS SENT. The assistant has no device to format with, so without this the
+ * server answers in UTC: a member in Manila asking at 07:00 about "today" gets the
+ * previous UTC day, and every quoted time is eight hours wrong. The server treats
+ * it as a display hint only (unknown -> UTC), so a missing or odd value cannot
+ * fail the turn.
+ */
+function deviceTimeZone(): string | undefined {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 export const aiApi = {
   /** The user's conversations, newest first (paginated). */
   conversations: (token: string, params?: QueryParams): Promise<ApiResponse> => apiFetch('/api/ai/conversations', { token, params }),
@@ -973,7 +990,7 @@ export const aiApi = {
     apiFetch('/api/ai/chat', {
       token,
       method: 'POST',
-      body: { conversationId, message },
+      body: { conversationId, message, timeZone: deviceTimeZone() },
       timeoutMs: AI_REQUEST_TIMEOUT_MS,
       signal: options.signal,
     }),
@@ -1037,7 +1054,7 @@ export const aiApi = {
           accept: 'text/event-stream',
           authorization: `Bearer ${effectiveToken ?? ''}`,
         },
-        body: JSON.stringify({ conversationId, message }),
+        body: JSON.stringify({ conversationId, message, timeZone: deviceTimeZone() }),
         signal: controller.signal,
       });
 
