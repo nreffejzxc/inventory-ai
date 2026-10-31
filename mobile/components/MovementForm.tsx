@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { router } from 'expo-router';
 import { StyleSheet, Text } from 'react-native';
 
@@ -14,6 +14,7 @@ import StatCard from './StatCard';
 import { inventoryApi, locationsApi, productsApi } from '../lib/api';
 import type { ApiResponse, MovementInput } from '../lib/api';
 import { ApiError } from '../lib/client';
+import { endsOperation, newIdempotencyKey } from '../lib/idempotency';
 import { useSession } from '../lib/auth';
 import { alert } from '../lib/confirm';
 import { formatNumber } from '../lib/format';
@@ -117,6 +118,20 @@ export default function MovementForm({
   const [formError, setFormError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
+  // The operation's name on the wire (see `lib/idempotency.ts`). It survives a
+  // failed delivery — a timeout is not an answer, so the retry must be the SAME
+  // operation — and is dropped as soon as the form describes a different one.
+  const submitKey = useRef<string | null>(null);
+  // A second press that lands before React has committed `busy` would otherwise
+  // start a second request. `busy` is the UI's signal; this is the guard.
+  const submitting = useRef(false);
+  useEffect(() => {
+    // NOT while a request is in flight: an edit made during a slow delivery would
+    // drop the name of an operation that may already have been applied, and the
+    // retry would then be a second, unguarded movement.
+    if (!submitting.current) submitKey.current = null;
+  }, [productId, locationId, quantity, reason, reference]);
+
   const { row: current, loading: loadingCurrent, loaded: loadedCurrent } = useInventoryRow(
     token,
     cfg.showAvailable ? productId : null,
@@ -167,9 +182,12 @@ export default function MovementForm({
   const shownValue = kind === 'adjust' ? onHandQty : availableQty;
 
   async function submit(): Promise<void> {
+    if (submitting.current) return;
+    submitting.current = true;
     setBusy(true);
     setFormError(null);
     setFieldErrors({});
+    const idempotencyKey = (submitKey.current ??= newIdempotencyKey());
     const payload: MovementInput = {
       productId,
       locationId,
@@ -179,9 +197,9 @@ export default function MovementForm({
       reference: reference.trim() || undefined,
     };
     const actions: Record<string, () => Promise<ApiResponse>> = {
-      'stock-in': () => inventoryApi.stockIn(token as string, payload),
-      'stock-out': () => inventoryApi.stockOut(token as string, payload),
-      adjust: () => inventoryApi.adjust(token as string, payload),
+      'stock-in': () => inventoryApi.stockIn(token as string, payload, idempotencyKey),
+      'stock-out': () => inventoryApi.stockOut(token as string, payload, idempotencyKey),
+      adjust: () => inventoryApi.adjust(token as string, payload, idempotencyKey),
     };
     const perform = actions[kind];
     try {
@@ -191,10 +209,14 @@ export default function MovementForm({
       await alert(cfg.title, `Done. ${at}: ${formatNumber(previousQuantity)} → ${formatNumber(newQuantity)}`);
       router.back();
     } catch (err) {
+      // Only an answer that ENDS the operation mints a new key; a transport failure
+      // and a still-in-flight claim both keep it. See `lib/idempotency.ts`.
+      if (endsOperation(err)) submitKey.current = null;
       const fields = fieldMap(err);
       if (Object.keys(fields).length) setFieldErrors(fields);
       else setFormError((err as { message?: string } | null)?.message || 'The movement could not be completed.');
     } finally {
+      submitting.current = false;
       setBusy(false);
     }
   }

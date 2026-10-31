@@ -13,6 +13,7 @@ import Product from './product.model.ts';
 import Inventory from './inventory.model.ts';
 import InventoryTransaction from './inventoryTransaction.model.ts';
 import AuditLog from './auditLog.model.ts';
+import IdempotencyRecord from './idempotencyRecord.model.ts';
 import AIConversation from './aiConversation.model.ts';
 import AIMessage from './aiMessage.model.ts';
 
@@ -32,6 +33,7 @@ export {
   Inventory,
   InventoryTransaction,
   AuditLog,
+  IdempotencyRecord,
   AIConversation,
   AIMessage,
 };
@@ -53,6 +55,7 @@ export const models = [
   Inventory,
   InventoryTransaction,
   AuditLog,
+  IdempotencyRecord,
   AIConversation,
   AIMessage,
 ];
