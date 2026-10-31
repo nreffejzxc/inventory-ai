@@ -5,7 +5,7 @@
 the future plan; it does **not** authorize a transfer, a credential rotation, an account deletion, or a
 production change. Every action below still needs the owner's explicit approval.
 
-**Last verified:** 2026-10-31
+**Last verified:** 2026-10-31, with the owner/admin session
 **Current owner:** `nreffejzxc` (original GitHub account)
 **Current repository:** `nreffejzxc/inventory-ai`
 **Paused migration target:** `jeffernmalinaoqwe@gmail.com` / `jeffernqwerty`
@@ -13,9 +13,9 @@ production change. Every action below still needs the owner's explicit approval.
 > **Restoration 2026-10-31.** The newer Gmail became unavailable, so the repository was moved back to
 the original account. GitHub had permanently retired `nreffejzxc/ai-inventory` after the earlier
 transfer, so the restored repository is named `inventory-ai`. History, branches, issues and pull
-requests moved intact. Branch protection survived (`protected: true`), but its exact rules and the
-admin-only repository settings could not be read with the newer account's write-collaborator token;
-the owner must verify them after signing in as `nreffejzxc`.
+requests moved intact. The owner/admin session then verified branch protection, secret scanning,
+private vulnerability reporting and the Actions policy; `jeffernqwerty` was removed as a collaborator,
+leaving `nreffejzxc` as the only human with access. The measurements are in §2.
 
 No credential value — password, token, private key, service-account JSON, database URI, API key or
 recovery code — belongs in this file. Record names and locations, never values.
@@ -63,13 +63,17 @@ At the 2026-10-31 restoration:
 | Remote branches | The 23 pre-transfer branches all still exist; the restoration branch is also present |
 | Tags/releases | None existed, so none are missing |
 | Issues/pull requests | Issue #32; PRs #97/#98 remain open; #104 was closed as superseded by #105 |
-| Push/pull | Fetch after transfer returned 23 branches; write and CI are verified by the restoration PR |
-| CI | Latest `main` run green; PR #104's four checks passed before the transfer |
-| Branch protection | **Present (`protected: true`)** — the exact rules are unreadable with the collaborator token; the owner must verify them |
-| Collaborators | `nreffejzxc` (owner, admin); `jeffernqwerty` (write, temporary) |
-| Security scanning | **Unverified after transfer** — the owner must confirm |
+| Push/pull | Owner push and fetch verified on 2026-10-31; this documentation branch is pushed under the owner credential |
+| CI | Latest `main` run green; this branch is subject to the four required checks before merge |
+| Branch protection | **Verified** — required checks `server`, `secret-guard`, `attribution-guard`, `mobile`; strict; admins enforced; pull request required with 0 approvals; force pushes and deletions blocked; conversation resolution required |
+| Collaborators | `nreffejzxc` (owner, admin) only; no pending invitations |
+| Local GitHub CLI | `gh auth status` lists only `nreffejzxc`; the `jeffernqwerty` entry was logged out on 2026-10-31 |
+| GitHub Apps | **Not readable with a user token** — owner-side UI check pending |
+| Security scanning | Secret scanning **enabled**; push protection **enabled**; non-provider patterns and validity checks disabled |
 | Dependabot | 2 accepted advisories: `zod` high, `deepmerge` low |
-| Private vulnerability reporting | **Unverified after transfer** — the owner must confirm |
+| Private vulnerability reporting | **Enabled** |
+| Default `GITHUB_TOKEN` | Read-only; cannot approve pull request reviews |
+| Actions | All actions allowed; SHA pinning is not enforced, but workflows pin to full commit SHAs |
 | Actions secrets/variables/environments | None |
 | Deploy keys/webhooks/Pages | None |
 | Production | `/api/health` 200, database connected, production posture, commit `98ba2bb` |
@@ -86,12 +90,12 @@ only, so Render correctly did not redeploy.
 3. **History and collaboration objects moved intact.** All 23 pre-transfer remote branches still
    exist under the original owner; PRs #97/#98 remain open, #104 was closed as superseded, and #105
    was merged. No tags existed. The transfer did not rewrite history.
-4. **Branch protection survived.** `GET /branches/main` reports `protected: true`. The exact required
-   checks and administrator settings are not readable with the write-collaborator token, so re-run the
-   protection read after signing in as `nreffejzxc`.
-5. **Remove the temporary collaborator.** `jeffernqwerty` remains a write collaborator solely so this
-   rollback can be pushed. Once `nreffejzxc` can push, remove that collaborator and re-run
-   `node scripts/audit-access.mjs`.
+4. **Branch protection verified.** The owner/admin read returned `protected: true` with all four
+   required checks, strict up-to-date enforcement, administrator enforcement, pull request required,
+   force pushes and deletions blocked, and conversation resolution required.
+5. **Rollback collaborator removed.** `jeffernqwerty` was removed on 2026-10-31 after the owner
+   session could push. The collaborator endpoint now returns only `nreffejzxc` (admin), and pending
+   invitations are empty. `node scripts/audit-access.mjs` reports no violations.
 6. **Local identity restored.** Local `user.email` is `jefferndullamalinaozxc@gmail.com` and
    `user.name` is `jeffernzxc`; `origin` points at `nreffejzxc/inventory-ai`.
 7. **Migration paused.** The newer Gmail and the other services were not changed. Do not resume the
@@ -233,9 +237,12 @@ amend and a force push, which is a separate, explicitly approved history rewrite
 7. **Reversed 2026-10-31.** The newer Gmail became unavailable, so the repository was transferred back
    to `nreffejzxc`. GitHub retired `nreffejzxc/ai-inventory`; the restored name is
    `nreffejzxc/inventory-ai`.
-8. `nreffejzxc` is owner/admin again. `jeffernqwerty` is a write collaborator, retained temporarily so
-   the rollback can be pushed. The old account's OAuth, PAT and session revocation remains in force
-   until the owner signs in again. Branch protection and admin-only settings were not re-read.
+8. **Restored and verified 2026-10-31.** `nreffejzxc` is owner/admin again. The owner/admin session
+   read branch protection and the security settings, re-enabled secret scanning and push protection,
+   and removed `jeffernqwerty` as a collaborator. The newer account reports `push: false`; its local
+   `gh` entry was logged out on 2026-10-31 and `gh auth status` lists only `nreffejzxc`. A stale
+   keyring token still resolves to `jeffernqwerty` with public read only, so it is not claimed erased.
+   No pending invitation remains.
 
 ### 4.4 Update current-state documentation
 
@@ -243,11 +250,13 @@ Restored on 2026-10-31:
 
 - `CLAUDE.md` — GitHub display name, username, attribution and commit email are back to `Jeffernzxc`,
   `nreffejzxc` and `jefferndullamalinaozxc@gmail.com`.
-- `docs/SOURCE_PROTECTION.md` — owner and human-access rows reflect `nreffejzxc`, the temporary
-  `jeffernqwerty` collaborator, and the unverified admin settings.
+- `docs/SOURCE_PROTECTION.md` — owner and human-access rows reflect `nreffejzxc` only, with verified
+  branch protection, secret scanning, push protection, private vulnerability reporting and the
+  read-only default `GITHUB_TOKEN`.
 - `scripts/check-commit-attribution.mjs` — the allowed identity examples use the original email.
 - `scripts/audit-access.mjs` derives the owner from `origin`; it needs no account-specific edit, and it
-  will report the missing protection and the temporary collaborator until both are resolved.
+  now passes with no access or protection violation. The remaining unverified field is account 2FA,
+  which the API returns as `null`; GitHub App installations also need an owner-side UI check.
 
 Do not change the historical references in `docs/DEVELOPMENT_ROADMAP.md`; they record what was true at
 their dates.
@@ -486,9 +495,8 @@ Do these after Render is stable, because both keys live in its environment.
 | Action | Approval needed | Reason |
 | --- | --- | --- |
 | Change GitHub primary email or local Git identity | Yes | Changes future commit metadata and account recovery |
-| Remove the older account's GitHub access or revoke its local token | **Historical: completed 2026-10-30; reversed 2026-10-31** | The original account is owner again; its earlier OAuth, PAT and session revocation remains until the owner signs in |
-| Restore or verify branch protection and admin-only settings | Yes | The 2026-10-31 transfer left them unreadable to the collaborator token; the owner's admin session is required |
-| Remove the temporary `jeffernqwerty` collaborator | Yes | It is the remaining write path from the rollback |
+| Remove the original account's GitHub access or revoke its local token | Separate explicit approval | It is the current owner; removal only after a future migration is verified |
+| Change branch protection, repository access or scanning | Yes | The current rules are verified; changing them is a separate security decision |
 | Rotate the Firebase service-account key | Yes | Production environment change and backend restart |
 | Add a Firebase Owner or change billing | Yes | Production ownership and billing |
 | Move the Atlas project | Yes | Changes organization ownership and billing |
@@ -502,11 +510,11 @@ Do these after Render is stable, because both keys live in its environment.
 ## 12. Open questions
 
 - Is the newer Gmail still unavailable, and when can the migration resume?
-- Did branch protection survive the 2026-10-31 transfer, or must it be reapplied?
-- Has the temporary `jeffernqwerty` collaborator been removed?
+- Which GitHub Apps are installed on `nreffejzxc/inventory-ai`? The REST API cannot answer this with a
+  user token; check **Settings → Applications → Installed GitHub Apps**.
 - Should the restored repository keep the name `inventory-ai`, since `ai-inventory` is retired?
 - Is the Render GitHub App still connected to `nreffejzxc/inventory-ai`?
-- Is 2FA enabled on both GitHub accounts?
+- Is 2FA enabled on the original GitHub account? The API returns `null`, so check **Settings → Password and authentication**.
 - Is the current Render workspace on Hobby or Pro, and will Render support a workspace handoff?
 - What is the destination Expo organization name?
 - Does an Atlas account already exist under the Gmail?
@@ -523,10 +531,15 @@ Do these after Render is stable, because both keys live in its environment.
 - [x] History, branches, tags, issues and pull requests preserved; no history rewrite.
 - [x] Local `origin`, `user.name` and `user.email` point at the original account.
 - [x] Current-state identity documentation reverted to the original account.
-- [ ] Branch protection present (`protected: true`); exact rules and admin-only settings verified by the owner.
-- [ ] Temporary `jeffernqwerty` collaborator removed.
-- [ ] A push and a pull succeed with the original account's own credential.
+- [x] Branch protection verified: four required checks, strict, admins enforced, pull request required, force pushes/deletions blocked, conversation resolution required.
+- [x] `jeffernqwerty` collaborator removed; owner is the only human with access; pending invitations 0.
+- [x] Secret scanning and push protection enabled; private vulnerability reporting enabled.
+- [x] A push and a pull succeed with the original account's own credential.
+- [x] `gh auth status` lists only `nreffejzxc`; the `jeffernqwerty` entry was logged out.
 - [ ] CI runs green on a new commit under the original account.
+- [ ] GitHub App installations verified in **Settings → Applications** (not readable with a user token).
+- [ ] Account 2FA confirmed in **Settings → Password and authentication** (API returns `null`).
+- [ ] Stale `jeffernqwerty` keyring token erased (it now has public read only, `push: false`).
 
 ### Migration (paused)
 
