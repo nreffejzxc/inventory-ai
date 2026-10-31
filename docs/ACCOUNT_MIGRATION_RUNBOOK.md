@@ -114,13 +114,19 @@ deleted. Protection is back to the exact baseline: four required checks, strict 
 administrators enforced, pull request required with 0 approvals, force pushes and deletions blocked,
 conversation resolution required, and `allow_force_pushes` **false**.
 
-**Contributors, measured.** `/graphs/contributors-data` returns only `nreffejzxc` (396) and
-`dependabot[bot]` (6); `jeffernqwerty` and `codebuff-team` are absent. The REST contributors endpoint
-and the repository sidebar still served their pre-rewrite cache on 2026-10-31 (`jeffernqwerty`, 8;
-`codebuff-team`), and GitHub documents up to about 24 hours of cache lag. This is not an access
-problem: **Settings → Collaborators & teams** still lists `nreffejzxc` only. Do not start Phase 2
-(rewriting the non-`main` branches) before that window passes; if the sidebar is still stale after 24
-hours, report it to GitHub Support rather than rewriting more refs.
+**Contributors, measured.** A cache-busted `/graphs/contributors-data` request returns only
+`nreffejzxc` and `dependabot[bot]`; the REST contributors endpoint, refreshed after the rewrite,
+returns `nreffejzxc` (420) and `dependabot[bot]` (6). Neither `jeffernqwerty` nor `codebuff-team`
+appears in either. The landing-page **Contributors** sidebar is the last stale surface: at 07:10Z
+on 2026-10-31, roughly 50 minutes after the push, it still rendered all three names — in an
+anonymous browser session as well as a signed-in one, so the cache is GitHub’s, not the local
+browser’s. GitHub documents that contributor displays can take about 24 hours to refresh after a
+history rewrite. This is not an access problem: **Settings → Collaborators & teams** lists
+`nreffejzxc` only. It is also not a reason to rewrite more refs: GitHub documents that the
+contributors graph counts commits merged to the **default branch**, so the seven non-`main`
+branches cannot feed this list, and no endpoint or setting removes an entry — making the commits
+unreachable was the only available lever. If the sidebar is still stale after 24 hours, ask GitHub
+Support to refresh the contributor cache rather than rewriting history again.
 
 **Not rewritten.** Seven non-`main` remote branches still contain pre-rewrite commits:
 `docs/runbook-verification-updates` (`a7ff713`), `docs/restore-status-final` (`8e8a3e4`),

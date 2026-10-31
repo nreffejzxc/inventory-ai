@@ -34,14 +34,15 @@ are kept as history in [`DEVELOPMENT_ROADMAP.md`](DEVELOPMENT_ROADMAP.md) §27AE
 
 **The “Contributors” list is not an access list.** The repository landing page names commit authors
 and co-authors, including accounts that have no current collaborator role. The 2026-10-31
-metadata-only rewrite removed `jeffernqwerty` from `main`'s commit authors: the live
-`/graphs/contributors-data` now lists only `nreffejzxc` (396) and `dependabot[bot]` (6). The REST
-contributors endpoint and the landing-page sidebar were still serving the pre-rewrite cache on
-2026-10-31 (`jeffernqwerty`, 8; `codebuff-team`), and GitHub documents up to about 24 hours of lag.
-Seven non-`main` branches still carry the old commits, so the old account can remain visible from
-those refs until Phase 2, which has not been approved. `codebuff-team` is a separate cached
-co-author entry, absent from the live graph, and is not an access grant. Only **Settings →
-Collaborators & teams** grants access.
+metadata-only rewrite removed `jeffernqwerty` and the `codebuff-team` co-author trailer from
+`main`: `/graphs/contributors-data` and the REST contributors endpoint now return only
+`nreffejzxc` and `dependabot[bot]`. The landing-page sidebar alone was still serving the
+pre-rewrite cache about 50 minutes after the push — in an anonymous session too, so the cache is
+GitHub’s — and GitHub documents up to about 24 hours of lag before a rewrite is reflected there.
+The seven non-`main` branches that still carry the old commits do not feed this list: GitHub
+counts only commits merged to the default branch. No setting or API removes a contributor; after
+the 24-hour window, a still-stale sidebar is a GitHub Support cache refresh, not a reason to
+rewrite more refs. Only **Settings → Collaborators & teams** grants access.
 
 `.env`, `server/.env` and `mobile/.env` hold real credentials and are all git-ignored and untracked.
 
