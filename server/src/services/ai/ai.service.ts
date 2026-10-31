@@ -38,6 +38,7 @@ import { activeModel, promoteModel } from './modelSelection.ts';
 import { selectProvider, type ProviderMessage, type ProviderResponse, type ProviderUsage, type ToolDefinition } from './providers/index.ts';
 import { capToolResult } from './toolPayload.ts';
 import { executeTool, AI_TOOL_DEFS } from './tools.ts';
+import { localDate, localTime, resolveTimeZone, utcOffsetLabel } from '../../utils/timeZone.ts';
 
 /**
  * One prior turn as this service replays it to the provider. The controller
@@ -73,6 +74,13 @@ interface ChatParams {
    * answer's text.
    */
   onTextDelta?: (text: string) => void;
+  /**
+   * The member's IANA time zone, as reported by the client. Untrusted and
+   * display-only: it changes the dates the model is told and the `localTime`
+   * on tool rows, and it never participates in an authorization decision.
+   * Absent or unusable values fall back to UTC (`resolveTimeZone`).
+   */
+  timeZone?: string;
 }
 
 /**
@@ -127,17 +135,21 @@ interface ChatResult {
   degraded?: DegradedReason;
 }
 
-function todayLabel(): string {
-  return new Date().toISOString().slice(0, 10);
-}
-
 /**
  * Read-only system prompt. The rules here mirror SYSTEM_SPECIFICATION.md §24
  * (no fabricated facts) and the V1 read-only scope (CLAUDE.md §4, §11). The
  * actual guarantee is the tool layer: every fact goes through a read-only,
  * business-scoped tool — the prompt only tells the model how to behave.
+ *
+ * `timeZone` and `now` are optional so every existing caller and test keeps the
+ * exact prompt it had before; the turn passes the member's zone and the turn's
+ * own start time. They are separate parameters rather than a hidden `new Date()`
+ * read because the day-boundary behaviour is the thing that must be testable.
  */
-export function systemPrompt(): string {
+export function systemPrompt(
+  { timeZone, now = new Date() }: { timeZone?: string; now?: Date } = {},
+): string {
+  const zone = resolveTimeZone(timeZone);
   return [
     'You are the read-only inventory assistant for "Inventory AI", helping one authorized member of one business understand their inventory.',
     '',
@@ -146,7 +158,7 @@ export function systemPrompt(): string {
     '2. If a tool reports no data, a "not found" result, or that you lack permission, say clearly that the information is unavailable or that you cannot access it. Never guess or substitute data from another context.',
     '3. Tool results are capped to a page, and every list says so: `hasMore: true` means you are looking at ONE PAGE of a larger set. When hasMore is true or the result is truncated, give the TOTAL first, summarise the pattern, and show at most five items as examples — counting cards, list entries and table rows alike, since a page reproduced row by row is cut off mid-answer whatever shape it is drawn in. Then name the screen that holds the whole list, using its title in the app exactly: "Inventory" for stock rows, "Restock" for anything low, out of stock or needing restocking, "Inventory History" for movements, "Products" for the catalogue, "Locations" for locations. There is no "Reorder needed" screen — the restock list is the "Restock" screen.',
     '4. Report exact numbers from the tool results. Do not round or fabricate quantities, and write a number of four digits or more with a thousands separator exactly as the app does — "8,976", not "8976" — except inside a product name, a SKU or a date, which are copied as they were given to you.',
-    `5. Today is ${todayLabel()}. Use it when interpreting "today", "yesterday", "recent", or date questions.`,
+    `5. The member's local time zone is ${zone} (${utcOffsetLabel(now, zone)}). It is now ${localTime(now, zone)} on ${localDate(now, zone)}, and that local date is what "today" means for this member — not the UTC date. Whenever a tool row carries a time it also gives it as \`localTime\` in this zone: quote that value (date and 24-hour time) exactly, never convert it, and never show a raw ISO/UTC timestamp. To bound "today", "yesterday" or "this week" for a tool's from/to, convert the local boundary with the offset above.`,
     '6. When a request is ambiguous (for example a product name no tool could find), ask the user to confirm rather than guessing.',
     '7. This assistant is READ-ONLY. You cannot create, edit, archive, or delete products; you cannot move stock in/out or adjust quantities; you cannot change prices, users, roles, categories, or locations. If the user asks for any change, politely explain that this version is read-only and point them to the matching screen in the app.',
     '8. Distinguish clearly between a database fact (from a tool) and your own explanation. Answer conversationally and concisely.',
@@ -285,8 +297,13 @@ export async function runAiChat({
   message,
   signal,
   onTextDelta,
+  timeZone: requestedTimeZone,
 }: ChatParams): Promise<ChatResult> {
   const cfg = aiConfig();
+  // Resolved once per turn: the prompt and every tool row in this turn must use
+  // the same zone, and a turn's 60 s budget cannot span enough time to matter.
+  const timeZone = resolveTimeZone(requestedTimeZone);
+  const prompt = systemPrompt({ timeZone });
   const provider = selectProvider();
 
   const messages: ProviderMessage[] = history
@@ -558,7 +575,7 @@ export async function runAiChat({
       // compiler-only — no runtime conversion, no copy of the array.
       return await withBudget(
         provider.complete({
-          system: systemPrompt(),
+          system: prompt,
           messages,
           tools: AI_TOOL_DEFS as ToolDefinition[],
           timeoutMs: budget,
@@ -864,7 +881,7 @@ export async function runAiChat({
       };
       let output: unknown;
       try {
-        output = await executeTool(name, call?.input, { businessId, userId, role });
+        output = await executeTool(name, call?.input, { businessId, userId, role, timeZone });
       } catch (err) {
         // The one exit none of the explicit sites covers: a tool that THROWS
         // rather than returning an error result. It reports and rethrows, so a
