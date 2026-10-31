@@ -71,6 +71,32 @@ describe('AUTH-03 — classification is by application code', () => {
   });
 });
 
+const idempotencyHeaderOf = (callIndex: number): string | undefined =>
+  (fetchMock.mock.calls[callIndex]?.[1] as { headers?: Record<string, string> } | undefined)?.headers?.[
+    'Idempotency-Key'
+  ];
+
+describe('AUTH-03 — the retried delivery is the same operation', () => {
+  it('carries the Idempotency-Key across the recovery retry', async () => {
+    setSessionRecoveryHandler(async () => 'new-token');
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse(401, { code: 'SESSION_EXPIRED' }))
+      .mockResolvedValueOnce(jsonResponse(201, { ok: true }));
+
+    await apiFetch('/api/inventory/stock-in', {
+      token: 'old-token',
+      method: 'POST',
+      body: { quantity: 5 },
+      idempotencyKey: 'op-retry-12345678',
+    });
+
+    // Dropping the key on the retry would let a movement that outlived its token be
+    // applied a second time by the retried delivery.
+    expect(idempotencyHeaderOf(0)).toBe('op-retry-12345678');
+    expect(idempotencyHeaderOf(1)).toBe('op-retry-12345678');
+  });
+});
+
 describe('AUTH-03 — recovery and exactly-one retry', () => {
   it('recovers a SESSION_EXPIRED, retries once, and uses the recovered token', async () => {
     const recovery = jest.fn(async () => 'new-token');

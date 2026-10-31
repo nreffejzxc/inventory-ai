@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { router, useLocalSearchParams } from 'expo-router';
 import { StyleSheet, Text, View } from 'react-native';
 
@@ -16,6 +16,7 @@ import AccessDenied from '../../../../components/AccessDenied';
 import { purchaseOrdersApi } from '../../../../lib/api';
 import type { ApiResponse } from '../../../../lib/api';
 import { ApiError } from '../../../../lib/client';
+import { endsOperation, newIdempotencyKey } from '../../../../lib/idempotency';
 import { isSessionError, useSession } from '../../../../lib/auth';
 import { alert } from '../../../../lib/confirm';
 import { formatNumber } from '../../../../lib/format';
@@ -113,6 +114,17 @@ function ReceiveStockForm() {
   const [partial, setPartial] = useState<{ message: string } | null>(null); // { message } when a 409 landed some lines
   const [busy, setBusy] = useState(false);
 
+  // One name per receive attempt (see `lib/idempotency.ts`): a receipt whose answer
+  // was lost must not be applied twice on retry. It is dropped when the quantities
+  // or reference change, because that is a different batch of stock.
+  const submitKey = useRef<string | null>(null);
+  const submitting = useRef(false);
+  useEffect(() => {
+    // NOT while a request is in flight — see MovementForm: an edit during a slow
+    // delivery must not rename an operation that may already have been applied.
+    if (!submitting.current) submitKey.current = null;
+  }, [quantities, reference]);
+
   const load = useCallback(async (): Promise<void> => {
     if (!token || !poId) return;
     setLoading(true);
@@ -205,15 +217,18 @@ function ReceiveStockForm() {
   }
 
   async function submit(): Promise<void> {
+    if (submitting.current) return;
+    submitting.current = true;
     setBusy(true);
     setFormError(null);
     setPartial(null);
+    const idempotencyKey = (submitKey.current ??= newIdempotencyKey());
     try {
       const linesPayload = ok.map((e) => ({ productId: e.line.productId, quantity: e.n }));
       const res = await purchaseOrdersApi.receive(token as string, poId, {
         lines: linesPayload,
         reference: reference.trim() || undefined,
-      });
+      }, idempotencyKey);
       const summary = `Received ${formatNumber(units)} unit(s) across ${ok.length} line${ok.length === 1 ? '' : 's'}.`;
       const done = res?.allReceived ? `${summary}\n\nThis order is now fully received.` : summary;
       await alert('Receive Stock', done);
@@ -223,6 +238,9 @@ function ReceiveStockForm() {
         // Some lines landed before the batch was rejected. Tell the operator,
         // then refetch the order so the applied lines drop out of the editors
         // and the user can immediately receive the rest.
+        // The batch is answered: the remaining lines are a NEW operation, so the
+        // next press must not replay this 409.
+        submitKey.current = null;
         const applied = err.applied ?? [];
         const landed = applied.reduce((sum, a) => sum + (a.quantity || 0), 0);
         setPartial({
@@ -233,11 +251,15 @@ function ReceiveStockForm() {
         });
         await load();
       } else {
+        // Only an answer that ENDS the operation mints a new key; a transport failure
+        // and a still-in-flight claim both keep it. See `lib/idempotency.ts`.
+        if (endsOperation(err)) submitKey.current = null;
         const e = err as { code?: string | null; message?: string } | null;
         const code = e?.code;
         setFormError((CODE_MESSAGES[code ?? ''] ?? e?.message) || 'The receive could not be completed.');
       }
     } finally {
+      submitting.current = false;
       setBusy(false);
     }
   }
