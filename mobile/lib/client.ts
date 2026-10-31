@@ -147,6 +147,18 @@ export interface ApiFetchOptions {
    * existing caller that passes nothing keeps the behaviour it had.
    */
   signal?: AbortSignal;
+  /**
+   * The operation's own name, sent as `Idempotency-Key` (inventory duplicate
+   * writes). The server remembers the answer it gave for this key and replays it
+   * when the same key arrives again, so a request the client gave up on can be
+   * retried without applying the movement twice.
+   *
+   * The caller owns the key's lifetime: one key per operation ATTEMPT, re-used
+   * while that same attempt is retried and dropped once its outcome is known.
+   * No header is sent when this is absent, which keeps every other request
+   * exactly as it was.
+   */
+  idempotencyKey?: string;
 }
 
 function toQuery(params?: QueryParams | null): string {
@@ -440,7 +452,7 @@ export async function apiFetch<T = unknown>(path: string, options: ApiFetchOptio
 
 async function apiFetchAttempt<T = unknown>(
   path: string,
-  { method = 'GET', token, body, params, temporarySession = false, timeoutMs, signal }: ApiFetchOptions,
+  { method = 'GET', token, body, params, temporarySession = false, timeoutMs, signal, idempotencyKey }: ApiFetchOptions,
   isRetry: boolean,
 ): Promise<T> {
   let effectiveToken = token ?? null;
@@ -452,6 +464,7 @@ async function apiFetchAttempt<T = unknown>(
   const headers: Record<string, string> = { Accept: 'application/json' };
   if (body !== undefined) headers['Content-Type'] = 'application/json';
   if (effectiveToken) headers.Authorization = `Bearer ${effectiveToken}`;
+  if (idempotencyKey) headers['Idempotency-Key'] = idempotencyKey;
 
   // AI-1 — the caller's own budget when it stated one. DEP-2 — otherwise the
   // budget for the state this client is in: the ordinary 15 s once the server has
@@ -570,7 +583,10 @@ async function apiFetchAttempt<T = unknown>(
         // the same budget its caller asked for, not silently revert to 15 s.
         // `signal` is carried for the same reason in the other direction: a
         // retried request must still be stoppable by the caller who asked for it.
-        { method, token: refreshed, body, params, temporarySession, timeoutMs, signal },
+        // `idempotencyKey` is carried for a THIRD: the retry is the same operation,
+        // and dropping the key would let a movement that outlived its token be
+        // applied a second time by the retried delivery.
+        { method, token: refreshed, body, params, temporarySession, timeoutMs, signal, idempotencyKey },
         true,
       );
     }
