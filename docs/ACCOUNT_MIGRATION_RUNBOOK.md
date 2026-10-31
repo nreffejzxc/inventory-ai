@@ -58,11 +58,11 @@ At the 2026-10-31 restoration:
 | --- | --- |
 | Repository | `nreffejzxc/inventory-ai` |
 | Visibility | Public; not a fork; default branch `main` |
-| History | 421 commits on `main`; 501 across all refs; 912 tracked files |
-| Integrity | Pre-transfer bundle verified with 45 refs; no history rewrite; working tree intact |
-| Remote branches | 23 |
+| History | Full history preserved; 912 tracked files; the pre-transfer bundle verified 45 refs |
+| Integrity | No history rewrite; working tree intact |
+| Remote branches | The 23 pre-transfer branches all still exist; the restoration branch is also present |
 | Tags/releases | None existed, so none are missing |
-| Issues/pull requests | Issue #32 and PRs #97/#98/#104 open |
+| Issues/pull requests | Issue #32; PRs #97/#98 remain open; #104 was closed as superseded by #105 |
 | Push/pull | Fetch after transfer returned 23 branches; write and CI are verified by the restoration PR |
 | CI | Latest `main` run green; PR #104's four checks passed before the transfer |
 | Branch protection | **Present (`protected: true`)** — the exact rules are unreadable with the collaborator token; the owner must verify them |
@@ -83,8 +83,9 @@ only, so Render correctly did not redeploy.
    `nreffejzxc`. GitHub accepted the transfer after the repository was renamed off the retired path.
 2. **The old path is retired.** GitHub permanently retired `nreffejzxc/ai-inventory`; the restored
    repository is `nreffejzxc/inventory-ai`. Do not try to recreate the retired path.
-3. **History and collaboration objects moved intact.** All 23 remote branches and all three open PRs
-   are under the original owner. No tags existed. The transfer did not rewrite history.
+3. **History and collaboration objects moved intact.** All 23 pre-transfer remote branches still
+   exist under the original owner; PRs #97/#98 remain open, #104 was closed as superseded, and #105
+   was merged. No tags existed. The transfer did not rewrite history.
 4. **Branch protection survived.** `GET /branches/main` reports `protected: true`. The exact required
    checks and administrator settings are not readable with the write-collaborator token, so re-run the
    protection read after signing in as `nreffejzxc`.
