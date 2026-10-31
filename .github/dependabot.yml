@@ -106,13 +106,21 @@ updates:
       # dependency when the app gained its update runtime. The SDK pins it like the rest, so the pin
       # guard compared it and failed until it was listed here — the same guard doing the same job.
       #
-      # THE FOUR THAT STAY OPEN: `@react-native-firebase/app`, `@react-native-firebase/auth`,
-      # `@react-native-google-signin/google-signin` and `expo` itself are not pinned this way — the
-      # first three are version choices this project makes and Dependabot may still propose them.
-      # (`expo` IS listed below: the SDK package carries the upgrade, so it is taken deliberately.)
+      # WHAT IS NOT SDK-PINNED: `@react-native-google-signin/google-signin` is a version choice this
+      # project makes, so Dependabot may still propose it. (`expo` IS listed below: the SDK package
+      # carries the upgrade, so it is taken deliberately.)
+      #
+      # WHY THE FIREBASE PAIR WAS ADDED (2026-10-31). `@react-native-firebase/app` and
+      # `@react-native-firebase/auth` are not Expo-pinned, but the project freezes them as an exact
+      # pair: `__tests__/phase1-rnfirebase-foundation.test.ts` requires both at `27.0.0`, because
+      # `auth` peer-depends on one exact `app` version and a range would let the pair drift apart.
+      # PR #98 proposed 27.1.0 and failed that guard by design. The pair moves with a deliberate
+      # native upgrade and on-device verification, not as a minor-and-patch dependency update.
       #
       # Security updates remain unaffected by every rule in this list (see the header).
       - dependency-name: "@expo/vector-icons"
+      - dependency-name: "@react-native-firebase/app"
+      - dependency-name: "@react-native-firebase/auth"
       - dependency-name: eslint-config-expo
       - dependency-name: expo
       - dependency-name: expo-build-properties
