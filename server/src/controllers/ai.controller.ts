@@ -189,6 +189,11 @@ interface PreparedTurn {
   history: ChatTurn[];
   /** The member's clock time for the question, taken before the model is called (AI-24). */
   askedAt: Date;
+  /**
+   * The member's IANA time zone, straight from the request body (AI-41).
+   * Untrusted and display-only; the service validates it and falls back to UTC.
+   */
+  timeZone?: string;
   clientGone: AbortController;
   onResponseClose: () => void;
 }
@@ -268,7 +273,13 @@ async function prepareTurn(req: AuthenticatedRequest, res: Response): Promise<Pr
   // needed and none was made.
   const askedAt = new Date();
 
-  return { cfg, message, conversation, history, askedAt, clientGone, onResponseClose };
+  // AI-41 — the member's clock. Deliberately NOT validated into a 400: an old
+  // client omits it and a broken one sends nonsense, and neither may turn a
+  // question the assistant can answer into a validation failure. The service
+  // resolves it (unknown -> UTC) and it only ever changes displayed dates.
+  const timeZone = typeof req.body?.timeZone === 'string' ? req.body.timeZone : undefined;
+
+  return { cfg, message, conversation, history, askedAt, timeZone, clientGone, onResponseClose };
 }
 
 /** The three documents one successful turn writes. */
@@ -429,6 +440,7 @@ async function sendStreamedTurn(req: AuthenticatedRequest, res: Response): Promi
       history: turn.history,
       message: turn.message,
       signal: turn.clientGone.signal,
+      timeZone: turn.timeZone,
       onTextDelta: (text) => write('delta', { text }),
     });
     const saved = await persistTurn({
@@ -537,6 +549,7 @@ const aiController = {
         history: turn.history,
         message: turn.message,
         signal: turn.clientGone.signal,
+        timeZone: turn.timeZone,
       });
     } catch (err) {
       // Nothing was persisted yet, so a failed request leaves no trace and a
