@@ -41,8 +41,8 @@ Node.js **24** (pinned by `.nvmrc` and `engines.node`) · Express · TypeScript 
 TypeScript-first, **no build step**: the server runs its `.ts` sources through Node's native type
 stripping (`npm start` is `node src/index.ts`), so an older runtime cannot start it. `tsconfig.json`
 sets `noEmit` and `erasableSyntaxOnly`, so `tsc` is purely a checker and non-strippable syntax is a
-compile error rather than a runtime failure. `server/src` is **160** `.ts` modules (re-counted
-2026-10-25) and exactly one intentionally deferred `.js` module,
+compile error rather than a runtime failure. `server/src` is **162** `.ts` modules (re-counted
+2026-11-01) and exactly one intentionally deferred `.js` module,
 `server/src/services/entitlement.service.js`; `docs/TS-MIGRATION-MANIFEST.md` records the migration
 campaign.
 
@@ -536,6 +536,7 @@ anchor (`§27…`) in that file.
 - **§27GV** — The empty-tenant CLI verdict becomes an executed test (2026-10-30)
 - **§27GW** — The barcode report checks the value, not just the field (2026-10-30)
 - **§27GX** — The one Dependabot alert that could be closed, and the two that cannot (2026-10-30)
+- **§27GZ** — One operation, one movement — inventory writes deduplicated (2026-11-01)
 
 ---
 
