@@ -117,7 +117,7 @@ Known limits, checked before spending one of them:
 | Guard | `stock-in-deep-link.test.tsx` now types a quantity, presses **Add stock**, and asserts the request payload carries `productId: 'p1'`; the second case chooses a different product first and asserts the link cannot replace it. |
 | The guard can fail | With `HEAD`'s `MovementForm.tsx` restored, the adopt-and-submit case failed with **0** calls and the other five passed. The fixed file was restored and all six passed. |
 | Checks | Deep-link suite **6/6**; the four movement suites together **17/17**; `tsc --noEmit` clean; ESLint clean on both changed files. |
-| Record | Roadmap §27HG; `CLAUDE.md` index updated. |
+| Record | Roadmap §27HG; record count **212 → 213**; `CLAUDE.md` index updated. The dated **Open items** snapshot was corrected from the 2026-10-30 state: five advisories remain, `zod` is closed, and the stale `zod`/`deepmerge` sentence was replaced. |
 
 ### Not completed
 

@@ -8,12 +8,12 @@ of truth for *what actually happened*, and it is why this file is long.
 
 **How to read it.** Do not read it top to bottom. Either find a record by number (§27FJ, §27DM — the
 numbers are cited from `CLAUDE.md` and from source comments), or use the index: `CLAUDE.md` §7 lists
-all **212** records by the title each gives itself.
+all **213** records by the title each gives itself.
 
 **Current state:** V1 complete and in production testing. The records that answer *where are we now*
-are §27HF (the single-location default's timing), §27HE (the stock-in link's location), §27HD (the
-movement fixes and the production device pass), §27HC (the assistant's local-time answers), §27FM (the
-V1 re-verification) and §27FJ (the two open advisories).
+are §27HG (the stock-in link's product), §27HF (the single-location default's timing), §27HE (the
+stock-in link's location), §27HD (the movement fixes and the production device pass), §27HC (the
+assistant's local-time answers), §27FM (the V1 re-verification) and §27FJ (the two open advisories).
 
 ---
 
