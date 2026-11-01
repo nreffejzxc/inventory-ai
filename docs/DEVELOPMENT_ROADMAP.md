@@ -24264,9 +24264,10 @@ pays no tokens for the instruction.
 both ledger rows; the dashboard's logical grouping is untouched. This is a model-facing annotation
 beside the rows, not a second grouping layer that could disagree with the ledger.
 
-**Verified.** `server/test/AI42-transfer-event.test.mjs` **2/2**: a transfer page returns two rows
-with the shared reference **and** the one-event note; a `STOCK_IN`-only page returns no `note` key.
-The test was written first and failed on the missing note. The neighbouring suites — AI-18 paged
+**Verified.** `server/test/AI42-transfer-event.test.mjs` **3/3**: a transfer page returns two rows
+with the shared reference **and** the one-event note; a `STOCK_IN`-only page returns no `note` key;
+and a location-filtered page carrying one leg also returns no note, because there is nothing to
+merge. The first case was written first and failed on the missing note. The neighbouring suites — AI-18 paged
 results, AI-19 history shape, phase19 transfers and phase06 AI tools — **54/54**, including
 phase19's explicit *"history still shows BOTH ledger rows"* case. `tsc --noEmit` clean; ESLint clean
 on the changed source, test and runner classification. The new file is registered in

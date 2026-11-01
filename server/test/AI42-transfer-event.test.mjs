@@ -34,6 +34,7 @@ async function ok(name, args, ctx) {
 dbSuite('AI-42 a transfer is one event to the assistant', dbOk, () => {
   let A;
   let productId;
+  let fromLocationId;
   let reference;
 
   before(async () => {
@@ -43,6 +44,7 @@ dbSuite('AI-42 a transfer is one event to the assistant', dbOk, () => {
       body: { name: uniqueName('A42From') },
     });
     assert.equal(from.status, 201, JSON.stringify(from.json));
+    fromLocationId = from.json.id;
     const to = await api('POST', '/api/locations', {
       token: A.token,
       body: { name: uniqueName('A42To') },
@@ -92,5 +94,15 @@ dbSuite('AI-42 a transfer is one event to the assistant', dbOk, () => {
     assert.equal(result.items.length, 1);
     assert.equal(result.items[0].type, 'STOCK_IN');
     assert.equal('note' in result, false, 'a stock-in page must not pay for a transfer instruction');
+  });
+
+  it('a single transfer leg carries no note', async () => {
+    // A location filter returns only the leg at that location; there is nothing to
+    // merge, so the one-event instruction would be false advice.
+    const result = await ok('getInventoryHistory', { productId, locationId: fromLocationId }, ctxOf(A));
+    const legs = result.items.filter((item) => item.type === 'TRANSFER');
+
+    assert.equal(legs.length, 1);
+    assert.equal('note' in result, false);
   });
 });
