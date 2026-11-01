@@ -64,6 +64,8 @@ Store release is being prepared.
 | Play release | Not started, deliberately | V1 testing first |
 | L-17 password-reset action URL | Open, console-only | Cannot be set from code |
 | iOS device acceptance | External verification required | No macOS on the development host |
+| GitHub contributor residue | Open, external | The default branch is clean, but the contributors API still reports **435 / 12 / 7** because the old commits remain reachable through `refs/pull/110`–`118` and three merged branches; PRs #99–#106 still show the retired account as author. Removing those names requires deleting merged PRs/branches or GitHub support, which was not approved. |
+| Current branch identity | Resolved 2026-11-01 | The three local commits were replayed onto `5d74f8e`; replayed head `ee7e710`, **3 ahead / 0 behind**, no retired email. The documentation commit follows on top and the branch is delivered through its PR. |
 
 ### Resource budgets
 
@@ -102,6 +104,74 @@ Known limits, checked before spending one of them:
 
 ---
 
+## 2026-11-01 — GitHub identity cleanup: `main` rewritten to `5d74f8e`
+
+### Completed and verified
+
+| Item | Evidence |
+| --- | --- |
+| Targeted metadata rewrite | 454 commits: **433 unchanged**, **21 rebuilt**, **12** author/committer emails changed, **9** merge commits above them. No tree, message, name, date or parent-count changes; HEAD tree `1373a117f890386f8765b331fd6bd873e153f356`. |
+| Signature cost | 50 signed commits before, 41 after: only the 9 rebuilt GitHub merge commits lost their web-flow signatures, which could not remain valid after their parents changed. |
+| Force-push and CI | `git push --force-with-lease` moved `main` `e687184` → `5d74f8e`; run [41296545346](https://github.com/nreffejzxc/inventory-ai/actions/runs/41296545346) is **success** for `secret-guard`, `attribution-guard`, `server` and `mobile`. |
+| Protection restored | Temporary `allow_force_pushes=true` / `enforce_admins=false`; the restore PUT verified against the saved original: force pushes **disabled**, admins **enforced**, four required checks, PR required. |
+| Attribution at the commit API | `11fcefad15` (one of the 12) now reports `author.login = nreffejzxc`; the new `main` tree matches the pre-rewrite tree. |
+| Backup | Verified bundle at `.tmp-attribution-rewrite-2026-11-01/pre-rewrite-main.bundle`; temporary branch `backup/main-before-attribution-rewrite-2026-11-01` was deleted after CI. |
+| Contributor residue | After the 60-second cache window the contributors API still reports `nreffejzxc 435`, `jeffernqwerty 12`, `dependabot[bot] 7`. The 12 old commits remain reachable through `refs/pull/110`–`118` and the merged branches `docs/one-location-tenant-record`, `fix/stock-in-deep-link` and `test/single-location-default`; PRs #99–#106 still name the retired account as author. |
+| Reconciliation branch | Replayed the three local commits onto `5d74f8e`; new head `ee7e710`. Both retired email fields changed; trees, messages, names and dates are identical to the backed-up branch; **3 ahead / 0 behind before this documentation commit**. The full map is in `.tmp-attribution-rewrite-2026-11-01/branch-splice-map.txt`. |
+| Delivery | The three replayed commits plus this documentation commit are delivered through the branch PR; CI is the gate. |
+
+### Not completed
+
+- The contributor-list residue cannot be removed by rewriting the default branch alone. It needs the merged PR refs/branches deleted, or a GitHub support action; neither was approved.
+- The reconciliation branch is delivered through its PR; the contributor-list residue remains open.
+
+### Next priority
+
+- Review and push the reconciliation branch through the normal PR and CI path, then decide whether the old merged branches and PRs should be deleted or retained as history.
+
+## 2026-11-01 — Repository identity aligned to the restored account
+
+### Planned
+
+- Resolve the mismatch between the repository-local Git email and the account restored on 2026-10-31.
+- Align `CLAUDE.md` and the attribution guard to the chosen account without rewriting history.
+
+### Completed and verified
+
+| Item | Evidence |
+| --- | --- |
+| Chosen account read from the live session. | `gh auth status` lists only `nreffejzxc`; `git remote -v` is `nreffejzxc/inventory-ai`; the runbook and the `CLAUDE.md` identity block agree. |
+| Repository-local Git identity. | `user.name` is `jeffernzxc`; `user.email` is now `jefferndullamalinaozxc@gmail.com` (was the retired `jeffernmalinaoqwe@gmail.com`). |
+| `CLAUDE.md` §20. | The stale Git-identity line now names the restored email; the canonical identity block already did. |
+| Attribution guard. | No edit was needed: `ALLOWED_LINES` and the self-test already name the restored email. `BASE_SHA=origin/main node scripts/check-commit-attribution.mjs` reads both commits, self-test **17/17**, exit 0. |
+| Existing commits. | `8aae1b3` and `f93327d` still carry the retired email. They were not rewritten: rule 9 requires an explicit request for a history rewrite. |
+
+### Not completed
+
+- Rewriting the two local commits' author and committer fields. They are unpushed; this needs explicit approval.
+- Nothing was pushed.
+
+### Findings
+
+- `main` itself carries both identities: direct commits use the retired email and merge commits use `nreffejzxc`'s GitHub noreply address. The branch's two local commits add to that mix; they will carry the restored identity only after an approved rewrite.
+
+### Attribution audit (Git and GitHub)
+
+| Item | Result |
+| --- | --- |
+| GitHub access | `nreffejzxc` is the only owner and collaborator; no pending invitations; no other human PR author, reviewer or commenter. |
+| Contributors API | 435 `nreffejzxc`, 12 `jeffernqwerty`, 7 `dependabot[bot]`; no unlinked authors. The 12 are the 1 November direct commits using the retired email. |
+| Public commit trailers | None on `origin/main`: no AI co-author or generated-by line. The only trailers are 7 Dependabot lines. |
+| Retired-account PRs | 8 PRs (#99–#106; seven merged, #104 closed unmerged) and one comment on #104 still display `jeffernqwerty`. GitHub does not allow a PR author to be changed. |
+| Local-only attribution | 7 Codebuff co-author trailers in two backup refs; `.git/pre-rewrite-backup.bundle` (3.9 MB) holds 91 Claude Code and 5 Codebuff trailers. None is on a remote. |
+| Rewrite gate | The 12 commits plus 9 merge commits (21 total) would get new SHAs. Branch protection forbids force pushes even for admins, so a metadata rewrite needs a temporary protection change and explicit approval. |
+| Not done | No history rewrite, force-push, settings change, PR/comment deletion or backup deletion. |
+
+### Next priority
+
+- Decide the missing-`zod` gate, then push the reconciled branch through the normal PR and CI path; rewrite the two local commits first if that is wanted.
+- Decide whether to approve the 21-commit metadata rewrite; the current branch's two retired-email commits must be rewritten before it is pushed.
+
 ## 2026-11-01 — The reconciliation: work `main` documented but did not contain
 
 ### Planned
@@ -126,7 +196,7 @@ Known limits, checked before spending one of them:
 ### Not completed
 
 - The full server and mobile suites were not re-run. No application source, dependency or lockfile was carried, so the recovered scripts are the only executable change.
-- The identity block in this checkout's `CLAUDE.md` was **not** carried: it names `jeffernqwerty` / `jeffernmalinaoqwe@gmail.com`, while `main`'s 2026-10-31 restoration record names `nreffejzxc` / `jefferndullamalinaozxc@gmail.com`. This needs the owner's decision.
+- The identity question raised here was resolved later on 2026-11-01 in favor of the restored account; see the entry above. The two reconciliation commits still carry the retired email because they predate the fix.
 - Nothing was pushed; the commit is local.
 - Four registered `.tmp-*` worktrees and several untracked scratch files remain. They were left untouched because they may hold pending work; their copies of that comment are what the main-checkout guard reads.
 
@@ -137,7 +207,7 @@ Known limits, checked before spending one of them:
 
 ### Next priority
 
-- Decide the identity mismatch and the missing-`zod` gate, then push the reconciled branch through the normal PR and CI path.
+- Decide the missing-`zod` gate, then push the reconciled branch through the normal PR and CI path.
 
 ## 2026-11-01 — minimatch/glob advisories: no safe in-range fix, deferred with evidence
 

@@ -968,7 +968,7 @@ after the work that the log records.
 - Fix what is safe, test it, and report the rest. Never print a secret value.
 - Without explicit approval: do not rotate production credentials, change ownership or access,
   delete branches, discard unmerged work, close pull requests or force-push.
-- Git identity stays `jeffernzxc` / `jeffernmalinaoqwe@gmail.com`. If either differs, report the
+- Git identity stays `jeffernzxc` / `jefferndullamalinaozxc@gmail.com`. If either differs, report the
   mismatch; never silently change it.
 
 ## Priority order
