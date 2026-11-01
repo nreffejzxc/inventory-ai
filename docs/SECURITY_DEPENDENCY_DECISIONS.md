@@ -130,7 +130,7 @@ true; rows 1–3 and 12–16 were re-run on 2026-11-01.
 | 4 | Source grep of `app/`, `lib/`, `components/`, `hooks/` | no import of `zod`, `node-forge` or `deepmerge` |
 | 5 | `grep -rln node-forge node_modules/@expo/code-signing-certificates/build node_modules/expo-updates/build` | one file, `@expo/code-signing-certificates/build/main.js` — a build-time consumer |
 | 6 | `grep -rln deepmerge node_modules/@expo/config/build node_modules/jest-config/build` | `Config.js` and `index.js` — build and test tooling only |
-| 7 | `node scripts/check-upgrade-watches.mjs` | `zod` `DEFERRED` at `3.25.76`; `deepmerge` `DEFERRED` at `4.3.1`; `node-forge` `CLOSED` at `1.4.2` |
+| 7 | `node scripts/check-upgrade-watches.mjs` (2026-11-01) | `zod` `UNPARSED` — latest `expo` 58.0.22 admits `@expo/cli` 58.1.18, whose manifest declares no `zod`; the installed tree still resolves `3.25.76`. `deepmerge` `DEFERRED` at `4.3.1`; `node-forge` `CLOSED` at `1.4.2`. |
 | 8 | `npm view <pkg> version` for `@expo/cli`, `deepmerge`, `zod`, `node-forge` | `58.1.15`, `4.3.1`, `4.6.7`, `1.4.2` — the zod patch exists but is outside the CLI's 3.x range; deepmerge has no patched release |
 | 9 | `cd mobile && npm install` after `node-forge` 1.4.2 was published | only `mobile/package-lock.json` changed, three lines for `node-forge` |
 | 10 | `cd mobile && npm run typecheck` | exit **0** |
