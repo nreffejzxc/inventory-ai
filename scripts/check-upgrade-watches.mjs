@@ -26,7 +26,11 @@
  *                             read `>=4.8.4 <6.1.0`, so no published 9.x admits 7 on either path.
  *   4. `zod` (advisory)    — GHSA-mrhx-c7xc-m3w5 is inside the 3.x line `@expo/cli` declares and only
  *                             4.6.6+ is patched, so a fix is one Expo release away (§27FJ). `READY`
- *                             means a patched release the CLI's own range admits exists: a plain bump.
+ *                             means the newest `@expo/cli` the latest `expo` admits declares a range
+ *                             admitting 4.6.6+ — the pre-upgrade gate that used to be two manual
+ *                             `npm view` commands. The installed tree's own range is reported
+ *                             beside it, and `CLOSED` still means this workspace already resolved out
+ *                             of the vulnerable range.
  *   5. `node-forge` (advisory) — GHSA-86w9-cpqp-85rv had **no patched release** until 1.4.2 was
  *                             published outside the `<= 1.4.0` range and admitted by the code-signing
  *                             consumer. That bump was taken on 2026-10-30 (mobile/package-lock.json),
@@ -435,6 +439,81 @@ function decideAdvisoryUpgrade({ newestPublished, firstPatchedVersion, vulnerabl
   };
 }
 
+/**
+ * The pre-upgrade half of the zod gate: can a published `expo` install a published `@expo/cli` whose own
+ * `zod` range admits the patched floor? As a pure function so the controls can drive both halves
+ * without the network.
+ *
+ * READY requires BOTH facts. A patched CLI the latest `expo` does not admit is not actionable — npm
+ * will not install it into this tree — and an admitted CLI that still declares zod 3 closes nothing.
+ * The old watch answered neither question before the upgrade because it read only the installed CLI.
+ */
+const ZOD_PATCHED_FLOOR = '4.6.6';
+
+function decidePublishedCliZodGate({
+  latestExpo,
+  expoCliRange,
+  admittedCli,
+  admittedCliZodRange,
+  latestCli,
+  latestCliZodRange,
+}) {
+  const detail = `latest expo ${latestExpo ?? '(unreadable)'} declares @expo/cli ${expoCliRange ?? '(missing)'}; newest CLI it admits is ${admittedCli ?? '(none)'} with zod ${admittedCliZodRange ?? '(missing)'}; latest CLI is ${latestCli ?? '(unreadable)'} with zod ${latestCliZodRange ?? '(missing)'}`;
+  if (!latestExpo || !expoCliRange || !admittedCli || !admittedCliZodRange) {
+    return { status: 'UNREADABLE', detail: `${detail} — an input could not be read` };
+  }
+
+  const zodVerdict = rangeAdmits(admittedCliZodRange, ZOD_PATCHED_FLOOR);
+  if (zodVerdict.unparsed) {
+    return { status: 'UNREADABLE', detail: `${detail} — an unparsed zod range on the admitted CLI` };
+  }
+  if (zodVerdict.ok) {
+    return {
+      status: 'READY',
+      detail: `${detail} — the newest CLI this expo can install admits zod ${ZOD_PATCHED_FLOOR}+, so a plain upgrade closes the alert`,
+    };
+  }
+
+  const latestVerdict = latestCli && latestCli !== admittedCli && latestCliZodRange
+    ? rangeAdmits(latestCliZodRange, ZOD_PATCHED_FLOOR)
+    : null;
+  if (latestVerdict?.ok) {
+    return {
+      status: 'DEFERRED',
+      detail: `${detail} — the latest CLI is patched but expo ${latestExpo} does not admit it; a newer expo release or a backport into ${expoCliRange} is required`,
+    };
+  }
+  return {
+    status: 'DEFERRED',
+    detail: `${detail} — the newest CLI this expo can install still declares a zod range below ${ZOD_PATCHED_FLOOR}`,
+  };
+}
+
+async function readPublishedExpoCliGate() {
+  const [expoManifest, cliPackument] = await Promise.all([
+    getJson(`${REGISTRY}/expo/latest`),
+    getJson(`${REGISTRY}/${scoped('@expo/cli')}`),
+  ]);
+  const expoCliRange = expoManifest?.dependencies?.['@expo/cli'] ?? null;
+  const versions = Object.keys(cliPackument?.versions ?? {}).filter((version) => /^\d+\.\d+\.\d+$/.test(version));
+  const admittedCli = expoCliRange ? newestSatisfying(versions, expoCliRange) : null;
+  const latestCli = cliPackument?.['dist-tags']?.latest ?? null;
+
+  const admittedManifest = admittedCli ? await getJson(`${REGISTRY}/${scoped('@expo/cli')}/${admittedCli}`) : null;
+  const latestManifest = latestCli && latestCli !== admittedCli
+    ? await getJson(`${REGISTRY}/${scoped('@expo/cli')}/${latestCli}`)
+    : admittedManifest;
+
+  return decidePublishedCliZodGate({
+    latestExpo: expoManifest?.version ?? null,
+    expoCliRange,
+    admittedCli,
+    admittedCliZodRange: admittedManifest?.dependencies?.zod ?? null,
+    latestCli,
+    latestCliZodRange: latestManifest?.dependencies?.zod ?? null,
+  });
+}
+
 const ZOD_ADVISORY = 'GHSA-mrhx-c7xc-m3w5';
 const NODE_FORGE_ADVISORY = 'GHSA-86w9-cpqp-85rv';
 const DEEPMERGE_ADVISORY = 'GHSA-gcqx-w48m-w2h4';
@@ -584,9 +663,10 @@ const WATCHES = [
   },
   {
     name: 'zod (advisory)',
-    gate: `${ZOD_ADVISORY} — a release outside the vulnerable range that @expo/cli itself admits; only 4.6.6+ is patched and the CLI declares ^3.25.76`,
+    gate: `${ZOD_ADVISORY} — a published @expo/cli whose zod range admits 4.6.6+, AND a latest expo that admits that CLI; the installed tree must also leave zod 3`,
     async read() {
-      return readAdvisoryGate(
+      const published = await readPublishedExpoCliGate();
+      const installed = await readAdvisoryGate(
         'zod',
         ZOD_ADVISORY,
         [
@@ -599,6 +679,14 @@ const WATCHES = [
           'mobile/node_modules/zod/package.json',
         ]
       );
+      return {
+        ...installed,
+        detail: `${installed.detail} | upstream gate: ${published.detail}`,
+        ready: published.status === 'READY' || installed.ready,
+        // An already-closed tree needs no upstream answer, so a failed upstream read must not turn a
+        // CLOSED install into an UNPARSED report. In every other state, an unreadable half is not a pass.
+        unparsed: installed.closed ? false : published.status === 'UNREADABLE' || installed.unparsed,
+      };
     },
   },
   {
@@ -967,8 +1055,107 @@ const ADVISORY_CONTROLS = [
   },
 ];
 
+/**
+ * The published-CLI gate's controls. This is the pre-upgrade question the installed-tree advisory gate
+ * cannot answer: a patched CLI may be published while the latest `expo` still does not admit it, and
+ * calling that READY would send a session to a version npm will not install.
+ */
+const PUBLISHED_CLI_CONTROLS = [
+  {
+    name: 'the newest CLI the latest expo admits is patched (must fire)',
+    run: () =>
+      decidePublishedCliZodGate({
+        latestExpo: '58.0.22',
+        expoCliRange: '^58.1.18',
+        admittedCli: '58.1.18',
+        admittedCliZodRange: '^4.6.6',
+        latestCli: '58.1.18',
+        latestCliZodRange: '^4.6.6',
+      }),
+    expect: 'READY',
+  },
+  {
+    name: 'the live shape — the admitted CLI still declares zod 3 (must not fire)',
+    run: () =>
+      decidePublishedCliZodGate({
+        latestExpo: '58.0.21',
+        expoCliRange: '^58.1.17',
+        admittedCli: '58.1.17',
+        admittedCliZodRange: '^3.25.76',
+        latestCli: '58.1.17',
+        latestCliZodRange: '^3.25.76',
+      }),
+    expect: 'DEFERRED',
+  },
+  {
+    name: 'a patched CLI exists on an unreachable newer major (must not fire)',
+    run: () =>
+      decidePublishedCliZodGate({
+        latestExpo: '58.0.21',
+        expoCliRange: '^58.1.17',
+        admittedCli: '58.1.17',
+        admittedCliZodRange: '^3.25.76',
+        latestCli: '59.0.0',
+        latestCliZodRange: '^4.6.6',
+      }),
+    expect: 'DEFERRED',
+  },
+  {
+    name: 'a patched backport is admitted even though the latest major is not (must fire)',
+    run: () =>
+      decidePublishedCliZodGate({
+        latestExpo: '58.0.22',
+        expoCliRange: '^58.1.18',
+        admittedCli: '58.1.18',
+        admittedCliZodRange: '^4.6.6',
+        latestCli: '59.0.0',
+        latestCliZodRange: '^3.25.76',
+      }),
+    expect: 'READY',
+  },
+  {
+    name: 'an unparsed admitted zod range is reported, never passed',
+    run: () =>
+      decidePublishedCliZodGate({
+        latestExpo: '58.0.22',
+        expoCliRange: '^58.1.18',
+        admittedCli: '58.1.18',
+        admittedCliZodRange: 'workspace:*',
+        latestCli: '58.1.18',
+        latestCliZodRange: 'workspace:*',
+      }),
+    expect: 'UNREADABLE',
+  },
+  {
+    name: 'a missing expo CLI range is reported, never passed',
+    run: () =>
+      decidePublishedCliZodGate({
+        latestExpo: '58.0.22',
+        expoCliRange: null,
+        admittedCli: null,
+        admittedCliZodRange: null,
+        latestCli: '58.1.18',
+        latestCliZodRange: '^4.6.6',
+      }),
+    expect: 'UNREADABLE',
+  },
+  {
+    name: 'no CLI the latest expo admits is reported, never passed',
+    run: () =>
+      decidePublishedCliZodGate({
+        latestExpo: '58.0.22',
+        expoCliRange: '^99.0.0',
+        admittedCli: null,
+        admittedCliZodRange: null,
+        latestCli: '58.1.18',
+        latestCliZodRange: '^4.6.6',
+      }),
+    expect: 'UNREADABLE',
+  },
+];
+
 /** Everything the controls assert, in one list, so the summary counts are read from one place. */
-const ALL_STATE_CONTROLS = [...CONTROLS, ...TYPESCRIPT7_CONTROLS, ...ADVISORY_CONTROLS];
+const ALL_STATE_CONTROLS = [...CONTROLS, ...TYPESCRIPT7_CONTROLS, ...ADVISORY_CONTROLS, ...PUBLISHED_CLI_CONTROLS];
 
 const render = (value) => (value === null ? 'null' : JSON.stringify(value));
 
