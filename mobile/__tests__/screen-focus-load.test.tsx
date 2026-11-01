@@ -166,6 +166,24 @@ describe('inventory record', () => {
 
     expect(inventoryGet).toHaveBeenCalledTimes(2);
   });
+
+  it('offers a transfer from the row itself, not only from the dashboard', async () => {
+    const view = await mountAt('/inventory/p1');
+
+    expect(view.getByText('Transfer to another location')).toBeTruthy();
+  });
+
+  it('does not offer a transfer to a role that cannot transfer', async () => {
+    mockedUseSession.mockReturnValue({
+      user: { id: 'u2', name: 'Staff User', role: ROLES.STAFF },
+      token: 'token-1',
+      signOut: mockSignOut,
+    });
+
+    const view = await mountAt('/inventory/p1');
+
+    expect(view.queryByText('Transfer to another location')).toBeNull();
+  });
 });
 
 describe('purchase order detail', () => {
