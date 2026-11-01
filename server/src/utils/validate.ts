@@ -1042,7 +1042,10 @@ const REFERENCE_MAX = 200;
  * in/out (must be > 0) and the target on-hand quantity for adjustment
  * (may be 0). `fieldName` is what the client sent (always "quantity").
  */
-export function validateStockMovement(body: Body, { allowZero = false }: { allowZero?: boolean } = {}) {
+export function validateStockMovement(
+  body: Body,
+  { allowZero = false, requireReason = false }: { allowZero?: boolean; requireReason?: boolean } = {}
+) {
   const problems = [];
 
   const productId = optionalObjectId(body?.productId, 'productId');
@@ -1056,7 +1059,12 @@ export function validateStockMovement(body: Body, { allowZero = false }: { allow
   });
   problems.push(...quantity.problems);
 
-  const reason = optionalString(body?.reason, 'reason', REASON_MAX);
+  // An adjustment is the one movement that changes stock with no counterpart in
+  // the real world — a stock-in has a delivery, a stock-out has a sale. Without a
+  // reason it is an unexplained number change, so the caller can demand one.
+  const reason = requireReason
+    ? requiredString(body?.reason, 'reason', REASON_MAX)
+    : optionalString(body?.reason, 'reason', REASON_MAX);
   problems.push(...reason.problems);
   const reference = optionalString(body?.reference, 'reference', REFERENCE_MAX);
   problems.push(...reference.problems);
