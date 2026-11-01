@@ -412,6 +412,33 @@ function historyItemForModel(item: HistoryItemSource, timeZone?: string) {
   };
 }
 
+/**
+ * AI-42 — the one sentence a history page needs when it holds both legs of a transfer.
+ *
+ * WHY THIS IS ON THE RESULT. A transfer is one business event and two immutable ledger
+ * rows, and `transactionsService.list` is deliberately shared with the Inventory History
+ * screen, which keeps both rows (phase19's history case). The assistant reads the
+ * rows, not the dashboard's grouped activity, so a page containing a paired transfer is
+ * the only place the model can be told that the two rows are one event. Putting the rule
+ * beside the rows is cheaper and more reliable than another system-prompt rule, and it
+ * costs nothing on a page that contains no pair.
+ *
+ * A single leg — a location-filtered page, or a pair split by the page boundary — gets no
+ * note: there is nothing to merge, and the row still describes a real transfer leg.
+ */
+function transferEventNote(items: ReturnType<typeof historyItemForModel>[]): string | undefined {
+  const seen = new Set<string>();
+  for (const item of items) {
+    if (item.type !== 'TRANSFER' || item.reference == null || item.reference === '') continue;
+    const reference = String(item.reference);
+    if (seen.has(reference)) {
+      return 'Two TRANSFER rows with the same reference are the two legs of ONE stock transfer. Report it once with the source and destination; do not count it as two movements.';
+    }
+    seen.add(reference);
+  }
+  return undefined;
+}
+
 function rowResult(r: InventoryRow) {
   return {
     id: r.id,
@@ -669,7 +696,7 @@ const tools: Tool[] = [
   {
     name: 'getInventoryHistory',
     description:
-      'Recent stock movements (newest first). Optionally filter by product, location, movement type, and a createdAt range. A location may be given as `locationId` or as the exact `location` name. Returns the current page of transactions.',
+      'Recent stock movements (newest first). Optionally filter by product, location, movement type, and a createdAt range. A location may be given as `locationId` or as the exact `location` name. Returns the current page of transactions. A stock transfer is recorded as TWO rows sharing one `reference` (one leg leaving, one entering); when both are on the page they are ONE event, not two movements.',
     permission: PERMISSIONS.INVENTORY_HISTORY_VIEW,
     defaultLimit: 15,
     parameters: {
@@ -703,7 +730,12 @@ const tools: Tool[] = [
         skip: 0,
         limit: Math.min(args.limit ?? 15, 50),
       });
-      return page(total, items.map((item) => historyItemForModel(item, ctx.timeZone)), location.id ? { locationId: location.id } : {});
+      const rows = items.map((item) => historyItemForModel(item, ctx.timeZone));
+      const note = transferEventNote(rows);
+      return page(total, rows, {
+        ...(location.id ? { locationId: location.id } : {}),
+        ...(note ? { note } : {}),
+      });
     },
   },
 

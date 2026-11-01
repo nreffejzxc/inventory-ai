@@ -8,10 +8,10 @@ of truth for *what actually happened*, and it is why this file is long.
 
 **How to read it.** Do not read it top to bottom. Either find a record by number (§27FJ, §27DM — the
 numbers are cited from `CLAUDE.md` and from source comments), or use the index: `CLAUDE.md` §7 lists
-all **213** records by the title each gives itself.
+all **214** records by the title each gives itself.
 
 **Current state:** V1 complete and in production testing. The records that answer *where are we now*
-are §27HG (the stock-in link's product), §27HF (the single-location default's timing), §27HE (the
+are §27HH (a transfer as one event to the assistant), §27HG (the stock-in link's product), §27HF (the single-location default's timing), §27HE (the
 stock-in link's location), §27HD (the movement fixes and the production device pass), §27HC (the
 assistant's local-time answers), §27FM (the V1 re-verification) and §27FJ (the two open advisories).
 
@@ -24242,3 +24242,37 @@ failure, on the adopt-and-submit case, then the fixed file was restored and all 
 change, and no build or OTA was spent for it. The mechanism is covered by the payload-level test.
 
 **No EAS build, no OTA, no deploy.** Ships with the next build or OTA that is separately authorized.
+
+---
+
+# 27HH. A transfer is one event to the assistant (2026-11-02)
+
+**Why.** A production answer counted one stock transfer as two movements. The ledger is right to
+keep two immutable rows sharing one `reference` — phase19 pins that the History screen shows both —
+and the dashboard is right to merge them into one activity. The assistant reads the **history** tool,
+which returned the two ledger rows with the shared reference but no statement that they are one
+event, so the model had no reason not to enumerate both.
+
+**What shipped.** `getInventoryHistory` now appends a `note` to its page **only when both legs of a
+transfer are present**: *"Two TRANSFER rows with the same reference are the two legs of ONE stock
+transfer. Report it once with the source and destination; do not count it as two movements."* The tool
+description states the same rule. A single leg — a location-filtered page, or a pair split by the
+page boundary — gets no note because there is nothing to merge. A page of stock-ins gets no note and
+pays no tokens for the instruction.
+
+**What deliberately did not change.** `transactionsService.list` and the History screen still return
+both ledger rows; the dashboard's logical grouping is untouched. This is a model-facing annotation
+beside the rows, not a second grouping layer that could disagree with the ledger.
+
+**Verified.** `server/test/AI42-transfer-event.test.mjs` **3/3**: a transfer page returns two rows
+with the shared reference **and** the one-event note; a `STOCK_IN`-only page returns no `note` key;
+and a location-filtered page carrying one leg also returns no note, because there is nothing to
+merge. The first case was written first and failed on the missing note. The neighbouring suites — AI-18 paged
+results, AI-19 history shape, phase19 transfers and phase06 AI tools — **54/54**, including
+phase19's explicit *"history still shows BOTH ledger rows"* case. `tsc --noEmit` clean; ESLint clean
+on the changed source, test and runner classification. The new file is registered in
+`scripts/run-tests.mjs`'s DB-backed list, so the full suite actually runs it.
+
+**Not verified.** Not observed on hardware: model compliance is not deterministic, and no turn was
+spent on the installed preview APK. The next device pass should ask *"What moved recently?"* on a
+tenant with a transfer and confirm the answer reports it once. No EAS build, OTA or deploy.
