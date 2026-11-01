@@ -46,10 +46,10 @@ Store release is being prepared.
 
 | | |
 | --- | --- |
-| **Working now** | GitHub contributor cleanup is exhausted on the Git side — the default branch and merged branch are clean, the contributor list is 2, the three stale remote branches are retired, and the local branch/worktree cleanup is complete: 16 identity-carrying branches were backed up and deleted, and no local branch now carries either retired identity. The one-location production tenant remains ready for the phone check. |
-| **Just verified** | Contributors API: **nreffejzxc 452**, **dependabot[bot] 7**; the stale sidebar refreshed to **2** after the default-branch toggle. `main` (`afd7088`) and the merged `chore/reconcile-main-2026-11-01` (`cb1a52d`) contain no retired email and no Codebuff trailer. Local `main` now equals `origin/main` (`afd7088`). Backup refs cover all **17** deleted tips and **4** worktree/WIP snapshots; the **15** remaining local branches scan **0/0** for both identities, and the complete bundle verifies. The one-location tenant (`6ae6f1d8baa72cee39730240`) still holds 11 products and one ACTIVE location. |
-| **Blocked** | Historical PR author and Codebuff co-author displays cannot be rewritten by Git; GitHub Support closed ticket #4936796 without action because this account only has self-service resources. The phone check still needs the owner at the device. |
-| **Next after this** | Do not resubmit the support request unless the account's support tier changes; sign in on the phone and confirm a movement opens with Main Warehouse chosen. |
+| **Working now** | GitHub contributor cleanup is exhausted on the Git side — the default branch and merged branch are clean, the contributor list is 2, the three stale remote branches are retired, and the local branch/worktree cleanup is complete: 16 identity-carrying branches were backed up and deleted, and no local branch now carries either retired identity. The 13 stale clean-identity branches were retired on 2026-11-02 after merged/ancestor/superseded checks; 4 local branches remain, including the Expo patch branch behind PR #121. The five merge subjects that still named the old login were rewritten on 2026-11-02; the final rewrite rebuilt only the 50 commits from #99 onward, preserved 38 of 42 commit signatures, and kept all 409 earlier commits unchanged. The Expo 58.0.22 patch is applied, the mobile audit now has **0 high** entries, and a preview APK (`5500e6be`, versionCode 8) is installed on the CPH1969: dashboard, products, inventory and the stored AI answer render live data. The OTA native runtime record now covers the installed preview build (`5500e6be`), and `check-ota-publish` is **ready** on both `preview` and `production`. The one-location production tenant remains ready for the movement check. |
+| **Just verified** | Contributors API: **nreffejzxc 452**, **dependabot[bot] 7**. `main` is now `d6bdbc35`; its five 2026-11-02 merge subjects name `nreffejzxc`, not `jeffernqwerty`. Tree sequence, identities, dates and parent counts are identical to `afd7088`; the content diff is empty and all four required checks are green. The surgical rewrite preserved **38** of **42** signatures; **4** signed descendants were rebuilt. Branch protection is restored (force pushes off, admins enforced). `main` (`d6bdbc35`) and the merged `chore/reconcile-main-2026-11-01` (`cb1a52d`) contain no retired email and no Codebuff trailer. PR #120 carries the contributor cleanup and this log update; PR #121 is `0bfce90`, two commits ahead, with the native-runtime record and all four checks green. Backup refs cover the rewritten `main`, all **17** earlier deleted tips, the **4** worktree/WIP snapshots, and the **13** newly retired tips; the **4** remaining local branches are `main`, `docs/contributor-cleanup-2026-11-02`, `chore/expo-58.0.22-zod-patch` (PR #121) and `wip/backup-working-tree`; **3** worktrees are registered, two of them temporary. Mobile: Expo 58.0.22, **47 audit entries / 0 high**, typecheck **0**, **101 suites / 1 191 tests** pass, `zod` watch `CLOSED`. The one-location tenant (`6ae6f1d8baa72cee39730240`) still holds 11 products and one ACTIVE location. |
+| **Blocked** | Historical PR author and Codebuff co-author displays cannot be rewritten by Git; GitHub Support closed ticket #4936796 without action because this account only has self-service resources. The camera preview was not exercised (the Scan screen stopped at the permission request), and the one-location movement check still needs the owner at the device. |
+| **Next after this** | Review and merge PR #120 and PR #121; do not resubmit the support request unless the account's support tier changes; sign in on the phone and confirm a movement opens with Main Warehouse chosen. |
 
 ### Open items carried forward
 
@@ -59,25 +59,28 @@ Store release is being prepared.
 | Late product param on a cold link | Known, same class as §27HE | `initialProductId` is still seeded once at mount; a link whose product param resolves after the first render would leave the product unset. The location now arrives; the product picker is visible and required, so it is recorded rather than changed |
 | A transfer is two movements to the assistant | Known representation | The AI lists both ledger legs; Recent Activity renders one card. Decide whether the assistant should group legs in future |
 | `glob` and `minimatch` advisories | Deferred, D-10 | Patched `14.0.2` / `11.0.1` are majors outside every consumer's range; re-check the gates in `SECURITY_DEPENDENCY_DECISIONS.md` §4 |
-| Two mobile Dependabot advisories (`zod`, `deepmerge`) | Deferred | No fix inside the consumer's declared range; do not force versions |
+| `zod` high advisory | Resolved 2026-11-02 | Cleared by `expo@58.0.22`; the nested `zod@3.25.76` is gone and the mobile audit reports **0 high** |
+| `deepmerge` low advisory | Deferred | No fix inside the consumer's declared range; do not force versions |
 | OTA code signing | Blocked by EAS plan | Free plan only; a signed binary would reject unsigned publishes |
 | Play release | Not started, deliberately | V1 testing first |
 | L-17 password-reset action URL | Open, console-only | Cannot be set from code |
 | iOS device acceptance | External verification required | No macOS on the development host |
-| GitHub contributor residue | Default branch clean; historical refs remain | The contributors API now returns exactly **nreffejzxc 452** and **dependabot[bot] 7**; `main` (`afd7088`) and the merged branch (`cb1a52d`) carry neither the retired email nor a Codebuff trailer. PRs #99–#106 still show `jeffernqwerty` as author, and 18 Codebuff commits remain in 44 old PR refs; Git cannot rewrite either. Ticket #4936796 was closed without action because this account only has self-service resources. Local `main` now matches `origin/main` (`afd7088`); the old tip `28ca110` is preserved in `refs/backup/local-main-28ca110`. The 16 identity-carrying local branches and four linked worktrees were retired after their tips and dirty states were saved under `refs/backup/local-branches-2026-11-02` and `refs/backup/worktree-wip-2026-11-02`; 15 clean local branches remain. |
-| Current branch identity | Resolved 2026-11-01 | The three local commits were replayed onto `5d74f8e`; replayed head `ee7e710`, **3 ahead / 0 behind**, no retired email. The documentation commit follows on top, the branch was delivered through PR #119, and its local ref was retired on 2026-11-02 after backup. |
+| GitHub contributor residue | Default branch clean; historical refs remain | The contributors API returns exactly **nreffejzxc 452** and **dependabot[bot] 7**. `main` is now `d6bdbc35`; its five merge subjects were rewritten to `nreffejzxc`, and no merge subject names `jeffernqwerty`. Two non-merge documentation commit messages still quote the old login as historical context. PRs #99–#106 still show `jeffernqwerty` as author, and 18 Codebuff commits remain in 44 old PR refs; Git cannot rewrite either. The surgical rewrite preserved **38** of **42** commit signatures; **4** signed descendants lost theirs. Ticket #4936796 was closed without action because this account only has self-service resources. Local `main` matches `origin/main` (`d6bdbc35`); the old tip `afd7088` is preserved at `refs/backup/main-before-merge-subject-rewrite-afd7088` and in a verified bundle. The superseded `af44b60` pass is preserved at `refs/backup/main-before-signature-preserving-rewrite-af44b60` and in `main-af44b60.bundle`. The 16 identity-carrying local branches and four linked worktrees were retired after their tips and dirty states were saved under `refs/backup/local-branches-2026-11-02` and `refs/backup/worktree-wip-2026-11-02`. The 13 stale clean-identity branches were retired on 2026-11-02 after merged/ancestor/superseded checks, with each tip saved under `refs/backup/local-branches-retired-2026-11-02`; **4** local branches remain: `main`, `docs/contributor-cleanup-2026-11-02`, `chore/expo-58.0.22-zod-patch` (PR #121) and `wip/backup-working-tree`. |
+| Current branch identity | Resolved 2026-11-01; PR #120 repaired 2026-11-02 | The three local commits were replayed onto `5d74f8e`; replayed head `ee7e710`, **3 ahead / 0 behind**, no retired email. The documentation commit follows on top, the branch was delivered through PR #119, and its local ref was retired on 2026-11-02 after backup. PR #120 now carries docs commit `d347b70`, replayed directly onto new `main`; its tree matches `ddc1474`, it is one commit ahead, and the branch no longer contains the old `main` ancestry. |
 
 ### Resource budgets
 
 Known limits, checked before spending one of them:
 
 - **EAS builds** — free plan: **15 Android + 15 iOS per monthly cycle** (30 total). Read with
-  `eas account:usage jeffernqwes-team --non-interactive` on 2026-11-01: **Android 2/15, iOS 0/15,
-  2 of 30 total, overage $0**; the cycle is **2026-11-01 → 2026-12-01 UTC**, with 30 days remaining.
+  `eas account:usage jeffernqwes-team --non-interactive` on 2026-11-02: **Android 3/15, iOS 0/15,
+  3 of 30 total, overage $0**; the cycle is **2026-11-01 → 2026-12-01 UTC**, with 30 days remaining.
   The October quota was exhausted; the reset was used for **one** build on 2026-11-01 (`64958ea2`,
   versionCode 7), which carried AI-41 and the Sprint 1 mobile fixes together on purpose. The attempt
   the quota refused still incremented `versionCode` 5 → 6 without producing an artifact; the
-  successful build took it to 7. Do not retry a build while the quota message is present, and prefer
+  successful build took it to 7. The 2026-11-02 preview build (`5500e6be`, versionCode 8) took the
+  cycle to **3/15 Android, 3/30 total**. Do not retry a build while the quota message is present,
+  and prefer
   an OTA when the change is JavaScript-only *and* `mobile/scripts/check-ota-publish.mjs` passes.
 - **EAS Update allowance** — free plan: **100 GiB bandwidth** and **1 000 unique updaters** per
   monthly cycle. Read with the same command on 2026-11-01: **3,069 bytes (0.00 MiB) of 100 GiB
@@ -103,6 +106,111 @@ Known limits, checked before spending one of them:
   bulk; a delivery failure is not a code regression until the provider log says so.
 
 ---
+
+## 2026-11-02 — Expo 58.0.22 preview APK built and exercised on the CPH1969
+
+### Completed and verified
+
+| Item | Evidence |
+| --- | --- |
+| Build | `eas build --profile preview --platform android`; build **`5500e6be-bc45-46f9-a334-f738f4bd1bea`**, status **FINISHED**; channel `preview`; runtime `1.0.1`; versionCode **8**; commit `6631d37`. |
+| Artifact | 112 MB APK; SHA-256 `0e19095be18748f379347694bda217876b83ff2167f0536e7efe92c90c612486`; saved locally as `.tmp-expo-58.0.22-preview.apk` (untracked). |
+| Quota | Free plan after the build: **Android 3/15**, iOS 0/15, **3/30 total**, $0 overage; cycle 2026-11-01 → 2026-12-01 UTC. |
+| Install | `adb install -r` → **Success**; versionCode **7 → 8**; versionName `1.0.1`; `firstInstallTime` stayed 2026-10-17, so app data and session survived. |
+| APK metadata | `aapt dump badging`: `com.inventoryai.app`, versionCode **8**, versionName **1.0.1**, minSdk **24**, targetSdk **36**, compileSdk **37**; native code `arm64-v8a`, `armeabi-v7a`, `x86`, `x86_64`. Device ABI is `arm64-v8a`. |
+| Device | OPPO CPH1969, serial `PV4DDMIZZLTCIVSK`, USB. |
+| Mirror | `scrcpy 4.1 -s PV4DDMIZZLTCIVSK -m 1024 --no-audio`; `Texture: 472x1024`; window kept open for the run (process 18700). |
+| Launch | `com.inventoryai.app/.MainActivity` resumed, PID 13731; `ReactNativeJS: Running "main"`; no `FATAL EXCEPTION`, ANR, `Unable to load script`, `TypeError` or `ReferenceError`. |
+| Screens | Dashboard: 835 in stock, 166 low, 58 out, 1,001 active products, 233,451 on-hand. Products: live rows including `ZZ Sprint1 Verify` and `Deluxe Tape 10999`. Product detail: stock at Shop Front and Main Warehouse. Inventory: live stock rows. AI assistant: 6 stored conversations; stored answer rendered “We hold 233,451 units of stock across 1,001 active products.” Scan: permission-request screen rendered. |
+| OTA | None published. `mobile/ota-native-runtime.json` now records build `5500e6be` (expo 58.0.22, expo-modules-core 58.0.29, React Native 0.88.1); `check-ota-publish --channel preview` and `--channel production` both exit **0** and report **ready**, with only branch/unpushed warnings. |
+
+### Not completed
+
+- Camera preview was not exercised: the Scan screen rendered **“Camera access needed”** and the permission was not granted.
+- The one-location movement check on the production tenant still needs the owner at the device.
+- The APK is a temporary local artifact; it is not committed.
+
+### Next priority
+
+- Review and merge PR #120 and PR #121; then run the one-location movement check on the phone.
+
+---
+
+## 2026-11-02 — Thirteen stale local branches retired
+
+### Completed and verified
+
+| Item | Evidence |
+| --- | --- |
+| Candidates | 13 local branches, each scanned **0** retired-identity author/committer hits and **0** Codebuff trailers. |
+| Merged work | 9 branches map to merged PRs **#74, #77, #78, #82, #83, #84, #85, #86, #87**. |
+| Already in `main` | `chore/expo-sdk-58`, `fix/auth03-renewal-pacing` and `fix/script-environment-guards` are ancestors of `main`. |
+| Superseded | `chore/server-dependency-minor-bumps` is closed PR **#75**; PR **#76** merged the same five server bumps and §27CB, and `main` contains the replacement work. |
+| Backups | Every tip was written to `refs/backup/local-branches-retired-2026-11-02/<branch>` and asserted equal before deletion; all 13 refs verify. |
+| Retired set | `chore/docs-section-guard`, `chore/expo-sdk-58`, `chore/server-dependency-minor-bumps`, `docs/ai27-request-count`, `docs/device-measurements-2026-10-15`, `feature/ai1-ai4-assistant-reliability-and-rendering`, `feature/ai10-output-limit-and-upgrade-watch`, `feature/ai27-allowance-preflight`, `fix/ai-turn-probe-ground-truth`, `fix/auth03-renewal-pacing`, `fix/dep-2-cold-start-budget`, `fix/dependabot-mobile-transitive`, `fix/script-environment-guards`. |
+| Result | **3** local branches remain: `main`, `docs/contributor-cleanup-2026-11-02` and `wip/backup-working-tree`. The WIP branch was deliberately kept because it has one unique commit (`d94bec2`, "not for merge"). |
+| Worktree | The current branch and its uncommitted log/Expo changes were untouched; no remote branch was deleted. |
+
+### Not completed
+
+- `wip/backup-working-tree` still holds its one unique WIP commit. It is intentionally not merged or deleted.
+- The 13 retired tips are preserved locally only; they are not remote branches.
+
+### Next priority
+
+- Merge PR #120 (all four checks green), then confirm `main` and branch protection remain clean.
+
+## 2026-11-02 — Five merge subjects rewritten; 38 signatures preserved
+
+### Completed and verified
+
+| Item | Evidence |
+| --- | --- |
+| Scope | The five merge commits `#99`–`#103` on `main` replaced `jeffernqwerty` with the canonical `nreffejzxc` in their subjects. No other commit message was changed. |
+| Method | A separate clone rebuilt the range `0647187d..main` (50 commits) with `filter-branch`; the 409 earlier commits were untouched, including their signatures. Only merge subjects containing the retired login changed. An initial filter-repo pass that rebuilt all 459 commits was superseded because it dropped all 42 signatures. |
+| Content parity | 459 commits before and after. The tree sequence, author/committer names, emails, raw dates and parent-count sequence are identical; `git diff afd7088 main` is empty. The 409 earlier commits kept their original IDs; the 50 rebuilt commits keep every tree. |
+| Message result | `main` `d6bdbc35`: **0** merge subjects and **0** commit subjects name the old login. Two non-merge documentation commit messages still quote it (`7` occurrences before, `2` after; both are historical prose, not subjects). |
+| Signatures | **42** signature-bearing commits before (**7** merges, **35** non-merges): **38 preserved** on the untouched ancestors, **4 lost** on rebuilt descendants. The five rewritten merge commits were not signed. The 4 signed descendants could not keep signatures once their parent changed; they cannot be restored locally. |
+| Backup | `refs/backup/main-before-merge-subject-rewrite-afd7088` and `.tmp-merge-subject-rewrite-2026-11-02/main-before.bundle`; the bundle verifies. The superseded `af44b60` pass is at `refs/backup/main-before-signature-preserving-rewrite-af44b60` and in `main-af44b60.bundle` (also verified). |
+| Guarded push | Branch protection was temporarily set to `allow_force_pushes=true` / `enforce_admins=false`. The first push (`afd7088`→`af44b60`) and the corrected push (`af44b60`→`d6bdbc35`) were both dry-run and `--force-with-lease` guarded; the corrected push is the final history. |
+| Protection restored | `gh api` after the corrected push matches the saved original exactly: force pushes **off**, admins **enforced**, strict checks `secret-guard`, `attribution-guard`, `server`, `mobile`, PR review settings, conversation resolution and restrictions unchanged. |
+| CI | The final `main` commit `d6bdbc35` has all four required checks green; PR #120 `d347b70` has all four green and `mergeStateStatus` **CLEAN**. |
+| Deployment | `GET /api/health` reports commit `d6bdbc35`; the tree is identical to `afd7088`, so no application code changed. |
+| PR #120 repair | The force update made the docs branch conflict on an add/add in `docs/DEVELOPMENT_LOG.md`. A first merge-based repair was discarded because it retained the old `main` ancestry and all five old subjects. The branch now replays `ddc1474` directly onto the final `main` as `d347b70`; the tree matches exactly (`git diff ddc1474 d347b70` empty), it is one commit ahead, the old ancestry is gone, and PR #120 is mergeable with all four checks green (`mergeStateStatus` **CLEAN**). |
+| Contributor count | `GET /contributors` still returns exactly **nreffejzxc 452** and **dependabot[bot] 7**. |
+
+### Not completed
+
+- PRs #99–#106 still show `jeffernqwerty` as their author, and 18 Codebuff trailers remain reachable from 44 old PR refs. Those are GitHub metadata and immutable refs, not `main` history.
+- The two non-merge documentation commit messages that mention the old login were left intact because the request scoped the rewrite to the five merge subjects.
+
+### Next priority
+
+- Merge PR #120 (all four checks green). Do not rewrite the remaining two historical prose references unless explicitly asked.
+
+## 2026-11-02 — Expo 58.0.22 patch clears the zod high advisory
+
+### Completed and verified
+
+| Item | Evidence |
+| --- | --- |
+| Expo patch | `mobile/package.json` moves `expo` `~58.0.19 → ~58.0.22`. The install resolves `expo@58.0.22` and nested `@expo/cli@58.1.18`, which declares no `zod`. |
+| Managed pins | The 58.0.22 SDK table moved 14 pins. `npx expo install --fix` aligned 12; the remaining three (`expo-constants ~58.0.14`, `expo-font ~58.0.11`, `jest-expo ~58.0.13`) were set to the table exactly. `npx expo install --check` now says "Dependencies are up to date." |
+| Audit | `npm audit --json` in `mobile/`: `{low:1, moderate:46, high:0, critical:0, total:47}`. `zod` is absent; `@expo/cli` remains moderate via `glob`. The only `zod` is `4.6.7` via `eslint-config-expo → eslint-plugin-react-hooks → zod-validation-error`. |
+| Watch | `node scripts/check-upgrade-watches.mjs`: `zod` **CLOSED**, `node-forge` **CLOSED**, `deepmerge` **DEFERRED**, `expo` and `jest-expo` **READY**. |
+| Typecheck | `cd mobile && npm run typecheck` — exit **0**. |
+| Tests | First run after the Expo bump: **1 suite / 3 tests failed** in `expo-sdk-pins.test.ts` because the SDK table had moved. After aligning all 14 pins: **101 suites, 1 191 tests, all pass**. |
+| Decision record | `docs/SECURITY_DEPENDENCY_DECISIONS.md` marks the zod advisory **CLEARED 2026-11-02** (D-11), records the 0-high audit, and leaves `deepmerge` (D-4) plus `glob`/`minimatch` (D-10) as the accepted mobile advisories. |
+
+### Not completed
+
+- `expo install --fix` printed a dynamic-config warning for `expo-sharing`; the plugin's defaults are both disabled (`ios.enabled` and `android.enabled` are false), so no `app.config.js` change was made. The existing sharing behaviour is unchanged.
+- No OTA publication was made. The patch is committed as `6631d37` on `chore/expo-58.0.22-zod-patch` and opened as PR #121, whose four checks are green; the separate contributor-cleanup documentation changes remain uncommitted.
+
+### Next priority
+
+- Review and merge PR #121. A native build is required before relying on the new managed native versions; do not publish an OTA across that native change.
+- Re-run the mobile audit and tests after any further Expo-managed pin movement.
 
 ## 2026-11-02 — Contributor cache refreshed; historical PR refs remain immutable
 
