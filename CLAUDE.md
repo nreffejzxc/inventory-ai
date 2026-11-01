@@ -550,6 +550,7 @@ anchor (`§27…`) in that file.
 - **§27HC** — AI-41 — the assistant answers in the member's local time zone (2026-11-01)
 - **§27HD** — Sprint 1 — a confirmed adjustment and a transfer from the row (2026-11-01)
 - **§27HE** — The stock-in link keeps its location (2026-11-01)
+- **§27HF** — The single-location default, at the timing a phone produces (2026-11-01)
 
 ---
 
