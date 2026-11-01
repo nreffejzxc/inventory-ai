@@ -46,17 +46,17 @@ Store release is being prepared.
 
 | | |
 | --- | --- |
-| **Working now** | Nothing is in flight. The phone build, the workflow fixes, the AI-41 verification and the `minimatch`/`glob` triage are complete; the next work is the follow-ups below |
-| **Just verified** | `1.0.1` APK `64958ea2` installed over `1.0.0`; adjustment cancel/confirm, row-level transfer and the local-time answer measured on the phone; PR #112 merged as `ad8426e`; four medium Dependabot alerts triaged and deferred with evidence (D-10) |
-| **Blocked** | Nothing this session. The next EAS build is subject to the monthly cap (one used today) |
-| **Next after this** | Fix the stock-in deep link that ignored its `locationId`; check the single-location default on a one-location tenant; re-check `glob`/`minimatch` when a parent widens |
+| **Working now** | Nothing is in flight. The stock-in link fix is written and verified; the next work is the follow-ups below |
+| **Just verified** | `stock-in-deep-link` **4/4**, including the late-param case that failed before the change; the neighbouring movement suites **16/16**; `tsc` and ESLint clean. Earlier today: `1.0.1` APK `64958ea2` on the phone, PR #112 as `ad8426e`, and the `minimatch`/`glob` triage (D-10) |
+| **Blocked** | Nothing this session. The next EAS build is subject to the monthly cap (one used today); no build was spent for this JavaScript-only fix |
+| **Next after this** | Check the single-location default on a one-location tenant; decide whether the assistant should group a transfer's two legs; re-check `glob`/`minimatch` when a parent widens |
 
 ### Open items carried forward
 
 | Item | State | Why it is open |
 | --- | --- | --- |
 | Single-location default, on a real device | Jest only | The production test tenant has two locations; the behaviour is covered by `movement-workflow-guards` but has not been seen on hardware |
-| Stock-in deep link with `locationId` | New finding, not fixed | Opening `/stock-in` from a row or a link showed "Choose a location…" even with `locationId` in the params; the transfer entry point did prefill its source. Recorded in the entry below |
+| Late product param on a cold link | Known, same class as §27HE | `initialProductId` is still seeded once at mount; a link whose product param resolves after the first render would leave the product unset. The location now arrives; the product picker is visible and required, so it is recorded rather than changed |
 | A transfer is two movements to the assistant | Known representation | The AI lists both ledger legs; Recent Activity renders one card. Decide whether the assistant should group legs in future |
 | `glob` and `minimatch` advisories | Deferred, D-10 | Patched `14.0.2` / `11.0.1` are majors outside every consumer's range; re-check the gates in `SECURITY_DEPENDENCY_DECISIONS.md` §4 |
 | Two mobile Dependabot advisories (`zod`, `deepmerge`) | Deferred | No fix inside the consumer's declared range; do not force versions |
@@ -141,6 +141,59 @@ Known limits, checked before spending one of them:
    both alerts.
 
 **Resource use:** no EAS build, no OTA, one CI run.
+
+---
+
+## 2026-11-01 — The stock-in link keeps its location
+
+### Planned
+
+1. Reproduce the stock-in entry that opened on "Choose a location…" while carrying `locationId`.
+2. Fix the cause in the shared movement form, not the screen's presentation.
+3. Cover the prefill through the screen with a test that fails before the change.
+4. Record it without spending a build, an OTA or a deploy.
+
+### Completed and verified
+
+| Item | Evidence |
+| --- | --- |
+| Reproduced through the screen, so the param plumbing is under test. | `mobile/__tests__/stock-in-deep-link.test.tsx` mounts `StockInScreen` with `useLocalSearchParams` mocked |
+| The first theory was half wrong, and the test said so. | Immediate params already prefilled: named-before-list and id-only both passed on `main`. The only failing case was a param that resolves **after** mount |
+| The cause: state seeded once. | `MovementForm` copied `initialLocationId` into `useState`; a late or changed param never reached the field, which kept the placeholder while the payload named the location |
+| The fix. | `MovementForm` adopts a supplied location that arrives or changes, unless the member has chosen one on this screen (`locationTouched`); the single-location default and caller precedence are unchanged |
+| The regression suite. | `stock-in-deep-link` **4/4**: named prefill before the list answers, id-only resolution, late-param adoption (failed before the fix), and a manual choice that survives a changed link |
+| Neighbouring movement behaviour. | `movement-workflow-guards`, `inventory-submit-once`, `screen-focus-load` **16/16** |
+| Static checks. | `tsc --noEmit` clean; ESLint clean on `components/MovementForm.tsx` and the new test |
+| Recorded. | Roadmap §27HE; the roadmap's record count moved 210 → 211; `CLAUDE.md` index updated |
+
+### Not completed
+
+| Item | Reason |
+| --- | --- |
+| Re-run on the phone | The installed `1.0.1` predates the change and a JavaScript-only fix does not justify spending the build cap; the failing mechanism is covered by a test, not re-observed on hardware |
+| The late product param | `initialProductId` still seeds once; the same class, but the product picker is visible and required, so it is recorded instead of bundled into this fix |
+
+### Bugs and findings
+
+- **"From a row" could not have been the failing path.** A push from a stock row sends `locationId`
+  synchronously and the test proves that case already worked. The entry point that legitimately asks
+  is the product screen's Stock In, which names no location because a product can sit at several; a
+  late-resolving deep link is the other way to see the symptom. §27HD's note is narrowed, not edited.
+- **A shown placeholder can hide a set value.** `SelectField` renders "Choose a location…" whenever no
+  option matches the value, even if the value is non-empty, so the form can look unset while it would
+  submit a location. The adoption fix removes the case seen here; an id that matches no location still
+  reads as unset, which is a presentation question rather than this defect.
+
+### Blockers
+
+- None.
+
+### Next priority
+
+1. Verify the single-location default on a one-location tenant (focused test or a device run).
+2. Decide whether the assistant should group the two ledger legs of one transfer.
+3. Re-check `glob`/`minimatch` when a parent widens its range (D-10 §4 gates).
+4. Ship this fix with the next authorized build or OTA, together with anything else pending.
 
 ---
 
