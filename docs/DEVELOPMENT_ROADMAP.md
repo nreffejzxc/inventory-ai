@@ -8,12 +8,12 @@ of truth for *what actually happened*, and it is why this file is long.
 
 **How to read it.** Do not read it top to bottom. Either find a record by number (§27FJ, §27DM — the
 numbers are cited from `CLAUDE.md` and from source comments), or use the index: `CLAUDE.md` §7 lists
-all **211** records by the title each gives itself.
+all **212** records by the title each gives itself.
 
 **Current state:** V1 complete and in production testing. The records that answer *where are we now*
-are §27HE (the stock-in link's location), §27HD (the movement fixes and the production device pass),
-§27HC (the assistant's local-time answers), §27FM (the V1 re-verification) and §27FJ (the two open
-advisories).
+are §27HF (the single-location default's timing), §27HE (the stock-in link's location), §27HD (the
+movement fixes and the production device pass), §27HC (the assistant's local-time answers), §27FM (the
+V1 re-verification) and §27FJ (the two open advisories).
 
 ---
 
@@ -24168,3 +24168,41 @@ changed here, because the product picker is visible, required and validated by t
 
 **No OTA, no build, no deploy.** The change is mobile JavaScript; it ships with the next build or OTA
 that is separately authorized, not on its own.
+
+---
+
+# 27HF. The single-location default, at the timing a phone produces (2026-11-01)
+
+**Why.** §27HD shipped the default and recorded it as *not verified*: the production test tenant has
+two locations, so the only proof was Jest. That proof had a gap of its own. `movement-workflow-guards`
+hands the form a reference list that is **already loaded**, while a phone mounts the form first and
+receives the list a moment later. The default is applied by an effect that runs when `loading` flips,
+so the tested render and the real one were different code paths. The stock-in kind was covered; stock
+out and adjust — which share the form — were not.
+
+**What was pinned.** A new suite mounts the form with `loading: true, items: []`, then re-renders with
+the list loaded, and asserts the behaviour a member can actually see and the payload the server
+actually receives:
+
+* **Stock In, Stock Out and Adjust** each fill the only location when it arrives after mount, and each
+  submits that location's id. The field shows the location's name, not "Choose a location…": a member
+  who cannot see the location cannot catch the wrong one.
+* **A two-location business is still asked.** The control leaves the field on the placeholder, keeps
+  submit disabled after a quantity is entered, and sends nothing. The rule is "the only location", not
+  "any location".
+
+**The guard was proved able to fail.** With the single default line commented out, the three
+one-location tests failed and the two-location control still passed; the file was restored and the
+suite returned green. A test that cannot distinguish the defect from the fix is not evidence.
+
+**Verified.** `mobile/__tests__/single-location-default.test.tsx` **4/4**; the movement group together —
+this suite, `movement-workflow-guards`, `inventory-submit-once` and `stock-in-deep-link` — **15/15**;
+`tsc --noEmit` clean; ESLint clean on the new file. No source file changed, so there is nothing to
+deploy and no behaviour to regress.
+
+**Not verified.** Still not observed on hardware, and this run deliberately did not change that: no
+build was spent, no OTA was published, and no one-location tenant was created in production. A device
+check needs one of those, and the phone would still need a business with exactly one location to show
+anything. The automated half of the request is what is now complete.
+
+**No EAS build, no OTA, no deploy.** A test-only increment.

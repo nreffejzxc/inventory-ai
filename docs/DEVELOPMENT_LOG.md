@@ -46,16 +46,16 @@ Store release is being prepared.
 
 | | |
 | --- | --- |
-| **Working now** | Nothing is in flight. The stock-in link fix is written and verified; the next work is the follow-ups below |
-| **Just verified** | `stock-in-deep-link` **4/4**, including the late-param case that failed before the change; the neighbouring movement suites **16/16**; `tsc` and ESLint clean. Earlier today: `1.0.1` APK `64958ea2` on the phone, PR #112 as `ad8426e`, and the `minimatch`/`glob` triage (D-10) |
-| **Blocked** | Nothing this session. The next EAS build is subject to the monthly cap (one used today); no build was spent for this JavaScript-only fix |
-| **Next after this** | Check the single-location default on a one-location tenant; decide whether the assistant should group a transfer's two legs; re-check `glob`/`minimatch` when a parent widens |
+| **Working now** | Nothing is in flight. The stock-in link fix and the single-location timing guard are written and verified; the next work is the follow-ups below |
+| **Just verified** | `single-location-default` **4/4** with a mutation check (three one-location tests failed without the default, the two-location control stayed green); the movement group together **15/15**; `tsc` and ESLint clean. Earlier today: `stock-in-deep-link` **4/4**, the `1.0.1` APK `64958ea2` on the phone, PR #112 as `ad8426e`, and the `minimatch`/`glob` triage (D-10) |
+| **Blocked** | Nothing this session. The next EAS build is subject to the monthly cap (one used today); no build or OTA was spent for either JavaScript-only increment |
+| **Next after this** | Decide whether the assistant should group a transfer's two legs; re-check `glob`/`minimatch` when a parent widens; ship §27HE and §27HF with the next authorized OTA or build |
 
 ### Open items carried forward
 
 | Item | State | Why it is open |
 | --- | --- | --- |
-| Single-location default, on a real device | Jest only | The production test tenant has two locations; the behaviour is covered by `movement-workflow-guards` but has not been seen on hardware |
+| Single-location default, on a real device | Automated coverage complete | §27HF pins the late-arriving list for stock-in, out and adjust, with a two-location control; it has still not been seen on hardware because the production test tenant has two locations and no build or OTA was spent |
 | Late product param on a cold link | Known, same class as §27HE | `initialProductId` is still seeded once at mount; a link whose product param resolves after the first render would leave the product unset. The location now arrives; the product picker is visible and required, so it is recorded rather than changed |
 | A transfer is two movements to the assistant | Known representation | The AI lists both ledger legs; Recent Activity renders one card. Decide whether the assistant should group legs in future |
 | `glob` and `minimatch` advisories | Deferred, D-10 | Patched `14.0.2` / `11.0.1` are majors outside every consumer's range; re-check the gates in `SECURITY_DEPENDENCY_DECISIONS.md` §4 |
@@ -141,6 +141,56 @@ Known limits, checked before spending one of them:
    both alerts.
 
 **Resource use:** no EAS build, no OTA, one CI run.
+
+---
+
+## 2026-11-01 — The single-location default, timed the way a phone loads it
+
+### Planned
+
+1. Choose between a device run and a focused test, and spend the cheaper honest one.
+2. Test the default at the timing a phone produces: list in flight at mount, arriving after.
+3. Cover all three movement kinds, plus the two-location control.
+4. Prove the guard can fail before trusting its green.
+
+### Completed and verified
+
+| Item | Evidence |
+| --- | --- |
+| Chose the test, not a build. | No one-location tenant exists in production, and the logic is JavaScript; the EAS cap stayed untouched |
+| Found the gap in the existing proof. | `movement-workflow-guards` hands the form a **loaded** list; the default is applied by an effect on the `loading → loaded` transition, which no test exercised |
+| New focused suite. | `single-location-default` **4/4**: stock-in, stock-out and adjust each fill the only location when it arrives after mount |
+| Visibility, not just payload. | Each kind shows the location's name and no placeholder; the submitted payload carries the same id |
+| The control. | With two locations the field stays on "Choose a location…", submit stays disabled after a quantity, and nothing is sent |
+| The guard can fail. | With the default line commented out, the three one-location tests failed and the control passed; file restored, suite green again |
+| The movement group. | `single-location-default`, `movement-workflow-guards`, `inventory-submit-once`, `stock-in-deep-link` **15/15** |
+| Static checks. | `tsc --noEmit` clean; ESLint clean on the new file |
+| Recorded. | Roadmap §27HF; record count 211 → 212; `CLAUDE.md` index updated |
+
+### Not completed
+
+| Item | Reason |
+| --- | --- |
+| The same check on hardware | The production test tenant has two locations, so a device would show the two-location control; a one-location tenant would have to be created, and neither a build nor an OTA was spent |
+| An OTA carrying §27HE | Not published: production publishing needs authorization, a clean tree and the `check:ota` preflight, none of which this verification session had |
+
+### Bugs and findings
+
+- **"Covered by Jest" was narrower than it read.** The guard mounted the form with the reference list
+  already resolved, so the effect that applies the default on a phone never ran in it. A test can exist,
+  pass, and still miss the timing that matters.
+- **A test-only increment still costs a CI run.** It was sent as one purpose-built pull request rather
+  than appended to an unrelated push later.
+
+### Blockers
+
+- None.
+
+### Next priority
+
+1. Decide whether the assistant should group a transfer's two ledger legs.
+2. Ship §27HE and §27HF with the next authorized OTA or build, together with anything else pending.
+3. Re-check `glob`/`minimatch` when a parent widens (D-10 §4 gates).
 
 ---
 
