@@ -8,11 +8,11 @@ of truth for *what actually happened*, and it is why this file is long.
 
 **How to read it.** Do not read it top to bottom. Either find a record by number (§27FJ, §27DM — the
 numbers are cited from `CLAUDE.md` and from source comments), or use the index: `CLAUDE.md` §7 lists
-all **205** records by the title each gives itself.
+all **210** records by the title each gives itself.
 
 **Current state:** V1 complete and in production testing. The records that answer *where are we now*
-are §27FM (the V1 re-verification), §27FK (the runtime boundary and the blocked build), §27FJ (the two
-open advisories) and §27FL (the session cap).
+are §27HD (the movement fixes and the production device pass), §27HC (the assistant's local-time
+answers), §27FM (the V1 re-verification) and §27FJ (the two open advisories).
 
 ---
 
@@ -23463,6 +23463,45 @@ the lockfile change reaches the default branch.
 
 ---
 
+# 27GY. The zod gate is read from the published CLI, not the installed one (2026-10-30)
+
+**The gap.** The upgrade watch's `zod (advisory)` row asked the registry whether a patched release
+*existed*, then compared it with the range the **installed** `@expo/cli` declared. That answers "can this
+tree take the fix?" and cannot answer "has Expo published the fix yet?": the installed CLI stays at
+`^3.25.76` until after an upgrade, so the row reported `DEFERRED` even on the morning a patched CLI
+appeared. The pre-upgrade question was two manual commands — read `@expo/cli@latest`'s zod range, then
+check that `expo@latest` admits that CLI — exactly the kind of prose gate §27AU and §27GX had already
+taught this file to replace with a measurement.
+
+**The change.** `scripts/check-upgrade-watches.mjs` now reads the published `expo@latest` manifest,
+resolves the newest stable `@expo/cli` its declared range admits, and inspects that CLI's own `zod`
+range. `READY` requires that admitted CLI to declare a range admitting `4.6.6+`; the registry's
+absolute latest CLI is printed beside it but does not decide, because a patched CLI on an unreachable
+new major is not installable and a patched backport inside the expo range is. The existing installed-
+tree advisory still decides `CLOSED`, so a landed lockfile fix is not re-reported as open. An
+unreadable range, a missing expo range, or no admitted stable CLI answers `UNREADABLE`, never a pass.
+
+**Guarded.** Seven controls were added before the function existed, and four of them were watched
+fail on the old signature. They pin both directions of the version-skew defect: a patched CLI on an
+unreachable newer major must **DEFER**, and a patched backport the latest expo admits must turn
+**READY** even when the absolute latest major is not patched. The other controls cover the live zod-3
+shape, an unparsed admitted zod range, a missing expo range, and no admitted CLI. `--self-test` now
+passes **32 controls** (6 must-fire, 24 must-not-fire, 2 range).
+
+**Measured.** `node scripts/check-upgrade-watches.mjs --self-test` → **32 passed**, exit **0**. The
+live report reads: latest `expo` **58.0.21** declares `@expo/cli ^58.1.17`; the newest CLI it admits is
+**58.1.17**, which declares `zod ^3.25.76`; the installed tree is `@expo/cli@58.1.15` with
+`zod@3.25.76`; therefore `zod` remains **DEFERRED**. `node-forge` remains **CLOSED** and `deepmerge`
+remains **DEFERRED**; no dependency, lockfile, application or server source was changed.
+
+**Documented.** `docs/SECURITY_DEPENDENCY_DECISIONS.md` (D-7, D-8 and evidence rows 7–8),
+`SECURITY.md`, and the upgrade plan at
+`docs/superpowers/plans/2026-10-30-expo-cli-zod4.md`, whose former manual Gate Z is now the watch's
+published-CLI gate. The GitHub alert for `zod` stays open until the CLI change is installed and the
+lockfile no longer resolves `3.25.76`; this record does not close it. Nothing was committed or pushed.
+
+---
+
 # 28. Phase Gate System
 
 Claude Code must NOT automatically move to the next phase after completing a phase.
@@ -23726,6 +23765,8 @@ inventory management system.
 
 Every phase must leave the project in a better and verifiable state than before.
 
+---
+
 # 27GZ. One operation, one movement — inventory writes deduplicated (2026-11-01)
 
 **The report.** The owner saw the dashboard's Recent Activity list the same stock-in,
@@ -23838,3 +23879,246 @@ asks the database whether the claim index and the TTL index were built, and this
 did not run it (no production credential here).
 
 ---
+
+# 27HA. The ledger's past duplicates, read and not touched (2026-11-01)
+
+**Why.** §27GZ closed the way a duplicate was CREATED — one operation delivered twice,
+now de-duplicated by `Idempotency-Key` — but it deliberately did not touch rows written
+before that fix, and the owner's next question was whether any exist. The ledger cannot
+prove intent, so the answer is a report for a human, not a repair.
+
+**What it is.** `npm run audit:duplicates` (`scripts/audit-duplicate-ledger.mjs` +
+`scripts/lib/duplicate-ledger.mjs`): read-only, per tenant. The only calls it makes are
+`connect`, `countDocuments`, `aggregate`, `find` and `disconnect`.
+
+**The signal is the request, not the row.** The second row of a real duplicate does NOT
+carry the same before/after quantities — it carries the quantity the first row produced —
+so an “identical rows” search finds nothing. The rows that do match share every field the
+client sent: type, product, location, quantity, user, reason and reference. The scan
+groups on exactly those plus the clock hour, and reports a group with more than one row
+whose span is inside `--window-seconds` (default 120). (The clock-hour bucket in this
+first version was removed the same day — see §27HB.)
+
+**It says “suspected”, because it is.** A deliberate identical repeat inside the window
+looks the same, and a “PO receipt” pair can be two legitimate partial receipts of equal
+quantity; the report names that case and tells the reader to check the PO's own receipts.
+There is no repair flag, no `--database=` and no bulk action.
+
+**Database choice and exit codes.** Development by default, production *instead* with
+`--with-production`; the test database is refused because `npm test` owns it. `0` = ran,
+no suspect; `1` = ran, at least one suspect; `2` = NOT CHECKED (bad arguments, no
+connection string, test database, unreachable) — never a finding.
+
+**The clock-hour limit in this first version was closed the same day.** A pair straddling
+a boundary (10:59:59.900 and 11:00:00.100) was split between two groups and never
+reported, and a third repeat later in the bucket could hide an adjacent pair by
+stretching the span. §27HB replaces the bucket with an exact predecessor comparison; no
+such limit remains in the shipped tool.
+
+**Verified.** `server/test/audit-duplicate-ledger.test.mjs`, **27 cases passing**: 21 pure
+(every argument and refusal, the signature/window/hour rule, the per-tenant arithmetic,
+the text report with findings and with none, and a source scan proving both files contain
+no write call, `syncIndexes` or index creation — with a planted control so the scan can
+fail) and 6 DB cases over a seeded
+ledger: a duplicate pair is found; a legitimate identical repeat outside the window, two
+members doing the same movement and an ordinary transfer pair are not; the hour-boundary
+pair was not found by this version's bucket, which §27HB fixes; the tenant and cut-off
+filters work. The command was also run against the development
+database (read-only, `--days=all`): **5 487 ledger rows scanned, 0 suspected, exit 0**;
+`--format=json` returned the same verdict; the test database refused with exit 2; a bad
+`--window-seconds` exited 2. Both `tsc` runs and both linters are clean, and
+`phase-docs-section-integrity` passes.
+
+**Not verified.** Production was not read: no production credential exists on this host,
+and this is the tool an operator with that credential should run. No row was modified
+anywhere — that is the tool's contract, not a result of this run. One unrelated failure is
+present in `npm run test:unit`: the issue-record guard walks the whole workspace and finds
+`ISS-99` inside the untracked `.tmp-*` scratch copies of the repository left by earlier
+history work, not in any tracked file. Those directories were not deleted here.
+
+---
+
+# 27HB. The duplicate ledger audit, exact across the clock hour (2026-11-01)
+
+**Why.** §27HA shipped `npm run audit:duplicates` with one documented blind spot: it
+grouped candidate rows by request signature AND the clock hour, so a pair at 10:59:59.900
+and 11:00:00.100 — 200 ms apart — landed in two groups and was never compared. The hour
+was only ever an approximation of “these rows are close together”. The owner asked for
+the scan to be exact.
+
+**A second defect the bucket hid.** Even inside one hour the test was a span over all
+rows of the signature (`last - first`). A signature with rows at t, t+2 s and t+40 min
+therefore measured 40 minutes, failed the window, and reported NOTHING — hiding the
+2-second pair. Bucketing did not only miss boundary pairs; it could suppress a pair in
+the middle of a bucket.
+
+**The scan is now a predecessor comparison, with no bucket at all.**
+`buildScanPipeline()` keeps its leading `$match` for tenant and cut-off, then:
+
+* `$setWindowFields` partitions by the request signature — type, product, location,
+  quantity, user, `reason ?? ''`, `reference ?? ''` — and sorts by `{ createdAt, _id }`
+  (`_id` makes same-millisecond rows deterministic);
+* `$shift` gives each row the row immediately before it in that partition (id, time,
+  before/after quantities);
+* `gapMs` is `createdAt - previous.at`; a row is reported when it has a predecessor and
+  `gapMs <= windowSeconds * 1000`;
+* `$project` emits the pair: both rows, the gap as `spanMs`, and the shared signature as
+  `_id`. Every finding is exactly two rows.
+
+The pair, not a cluster, is deliberate. A cluster needs a rule for how far a chain may
+reach, and any span over it recreates the second defect above. Adjacency is exact,
+bounded, and proportional to the ledger rather than to a bucket. A signature applied
+three times in a row yields two adjacent pairs (the middle row appears in both), and
+`extraRows` is still the number of rows beyond one operation.
+
+**What the operator sees.** The text report says `pair(s)` and `2 rows · 0.2s apart`;
+the scope line says each row is within the window of the previous row of that signature.
+The JSON replaced `scope.sameClockHour` with `scope.exactTimeAdjacency: true`, so a
+consumer cannot read the new payload as the old approximation. Exit codes, database
+choice, the read-only contract and every refusal are unchanged.
+
+**Verified.** `server/test/audit-duplicate-ledger.test.mjs` — **30 cases, all passing**
+(23 pure, 7 against MongoDB; 27 before). The database fixture now pins three findings and
+three non-findings:
+
+* the 2.5 s pair is reported with both rows and their before/after quantities;
+* a pair at 10:59:59.900 / 11:00:00.100 is reported with `spanMs: 200` — the exact case
+  §27HA could not see;
+* a signature with rows at t, t+2 s and t+40 min reports the 2-second pair only; the
+  40-minute repeat is not part of it — the case the old span rule hid;
+* a 2-second window includes a 2.000 s gap and excludes 2.500 s, so the `$lte` boundary
+  is pinned;
+* the 30-minute legitimate repeat, two members doing the same movement, a normal transfer
+  pair, a second tenant and a cut-off that severs a partner are still not reported.
+
+The pipeline assertions also pin the absence of `$group` and `$dateTrunc`, the composite
+partition (with the `$ifNull` normalisation), the `{ createdAt, _id }` sort, `$shift` by
+-1, the inclusive millisecond bound and the two-row projection. The command was run
+against the development database (read-only, `--days=all`): **5,487 rows scanned, 0
+suspected, exit 0**; `--format=json` returned `exactTimeAdjacency: true` and the same
+verdict. `tsc`, `eslint`, the module-graph checks and `phase-docs-section-integrity` are
+clean.
+
+**Production, read on 2026-11-01.** `--with-production --days=all` scanned the whole
+production ledger: **7,545 rows across four tenants (2,058 / 1,829 / 1,829 / 1,829),
+0 suspected pairs, exit 0**. The per-tenant counts were read separately in the same run
+and sum to the scanned total, so the absence is coverage, not an empty database. The same
+scan at a 600 s window and at the 3,600 s maximum returned 0 pairs over the same 7,545
+rows, so the result does not depend on the default 120 s. Nothing was written, deleted or
+repaired.
+
+**Not verified.** No production-sized timing: the largest tenant holds 2,058 ledger rows,
+so the exact scan's spill behaviour on a much larger ledger is untested here. The widest
+pass covered a one-hour window, so only a retry more than an hour after the first delivery
+would be invisible to it. The production database holds test data only, and a seed or
+cleanup could have removed the rows the original report described, so this is a statement
+about the current ledger, not about what the owner saw.
+
+---
+
+# 27HC. AI-41 — the assistant answers in the member's local time zone (2026-11-01)
+
+**Why.** Every timestamp Inventory AI stores is an instant, and the API returns ISO UTC. The apps
+format those instants on the device, but the assistant has no device: it was told `Today is <UTC
+date>` and handed raw ISO strings. On a phone in `Asia/Manila` at 07:29 on 1 November, "what moved
+today?" was answered for **31 October**, and a movement made at 06:17 local was quoted as
+`2026-10-31 22:17` under the label "Local time" — the UTC instant, eight hours wrong, with no sign
+that it was wrong.
+
+**The change is a per-turn display hint, not a timezone-aware database.**
+
+* The client sends the phone's IANA zone (`Intl.DateTimeFormat().resolvedOptions().timeZone`) as
+  `timeZone` on both chat paths, streamed and buffered.
+* The server validates it in `src/utils/timeZone.ts` with `Intl.DateTimeFormat` itself — no
+  maintained list to drift from. Absent, unknown, over-long or malformed values fall back to **UTC**
+  and never produce a `400`: an old client must keep working, and a display hint may not fail a turn
+  the assistant can answer.
+* The system prompt states the resolved zone, its current UTC offset, the local time and the local
+  date, and says that local date is what "today" means. It also points the model at `localTime` and
+  forbids quoting a raw ISO/UTC timestamp.
+* History rows and the dashboard summary's recent activity gain `localTime` (`YYYY-MM-DD HH:mm`)
+  beside the untouched `createdAt`. The row keeps the unambiguous instant; the model is not asked to
+  do offset arithmetic it demonstrably gets wrong.
+* With no zone, the payloads keep their old shape and the prompt falls back to UTC. Nothing else in
+  authorization, tool scoping or business isolation reads the field.
+
+**Contract note.** `timeZone` is optional in `POST /api/ai/chat` and the SSE chat route. It is
+untrusted, display-only, length-capped and validated; it never participates in an authorization or
+tenancy decision.
+
+**Verified.** `server/test/AI41-local-time.test.mjs`, **8/8**: the zone validator (valid, absent,
+malformed, over-long), a zone ahead of UTC crossing the day forward rather than backward, the stable
+date-then-24-hour format, the UTC fallback, the prompt naming `localTime` and forbidding UTC, and both
+tool payloads (history and dashboard activity) carrying the local rendering — plus a no-zone control
+proving the old shape. `tsc`, ESLint and the full CI gate passed on PR #111; merged as `28840f9` and
+deployed (production `/api/health` reported that commit).
+
+**Measured on the phone, before and after.** The installed `1.0.0` (runtime `1.0.0`) answered
+"15 movements recorded today (**2026-10-31**)" and quoted `2026-10-31 22:17` for the 06:17 local
+movement. A production-channel `1.0.1` build (`64958ea2`, runtime `1.0.1`, commit `452c329`) answered
+"Four stock movements were recorded today (**2026-11-01**)" at `08:47`, `08:47`, `08:45` and `08:42` —
+matching the phone clock and the ledger's Manila instants exactly. Screenshots and the ledger readings
+are in `docs/evidence/production-device-2026-11-01/`.
+
+**Not verified.** Only `Asia/Manila` (UTC+8) was exercised on hardware; other zones and a DST
+transition are covered by the pure formatter tests, not by a device. The model's prose is not
+deterministic — the check pins the local date and the quoted times, not a fixed sentence. The
+`1.0.1` APK also carried the Sprint 1 fixes in §27HD because one build carried both; that does not
+change what the clock check measured.
+
+---
+
+# 27HD. Sprint 1 — a confirmed adjustment and a transfer from the row (2026-11-01)
+
+**Why.** Production testing of the movement screens found two workflows that made a routine action
+slower and less safe than it should be. An adjustment could be submitted with no reason, leaving an
+unexplained number change in the ledger, and the target was committed the moment the button was
+pressed — no before/after, no chance to notice a mistyped quantity. A transfer could only be started
+from the dashboard, so moving the row on screen meant leaving it and finding the product again. A
+business with one location was still asked to choose it on every movement.
+
+**What shipped.**
+
+* **A reason is required for an adjustment, at both boundaries.** `validateStockMovement` gained a
+  `requireReason` option and the adjust controller uses it, so an `ADJUSTMENT` with no reason or
+  whitespace is `400` with a field error naming `reason`, even from an older client. The form marks
+  the field required, disables submit until it is present, and shows a confirmation naming the
+  product, location, current → target quantity, signed delta and reason. Cancelling closes the sheet
+  and sends nothing — no request, no idempotency key minted. Submit also waits for the current
+  on-hand value, because the confirmation must not state a quantity it does not know.
+* **Transfer is reachable from the inventory row.** A role-gated (`inventory.manage`) button on the
+  row opens the existing transfer form with the product and source location filled in; the form still
+  requires a different destination and respects available stock.
+* **Single-location default.** A movement form preselects the only location once the reference list
+  loads. A location supplied by the caller (scan or deep link) always wins, and a later manual choice
+  is never overwritten. It is scoped to movement forms; purchase-order receiving and transfer keep
+  their explicit pickers.
+
+**Two requested items needed no code.** Client idempotency (one key per attempt, retained across a
+transport failure or an in-flight `409`) and dashboard refetch on focus (via `useRefetchOnFocus`)
+were already on `main`; this increment added assertions that they stay there rather than a second
+implementation.
+
+**Verified.** `server/test/phase04-inventory.test.mjs` **20/20**, including the new refusal: a
+reasonless adjustment returns `400`, names the field, changes no stock and writes no ledger row;
+whitespace is refused; the same request with a reason succeeds. Mobile Jest
+`movement-workflow-guards`, `inventory-submit-once` and `screen-focus-load` **16/16**, including role
+gating for the new transfer button and the reason/confirmation rules. Both `tsc` runs, ESLint and the
+CI gate passed on PR #112 (`5ac95e1`, merged `ad8426e`); production `/api/health` moved to that
+commit, so the server gate is live.
+
+**Measured on the production phone.** A production-channel `1.0.1` APK (`64958ea2`, versionCode 7) was
+installed over the existing `1.0.0` with data preserved. On a labelled test product in the
+royal-kludge tenant:
+
+* stock-in 10 → one `STOCK_IN` row, 08:42 local;
+* adjust 10 → 7, first press cancelled → **no row, still 10**; second press confirmed → exactly one
+  `ADJUSTMENT`, previous 10, new 7, reason recorded, 08:45;
+* transfer 2 from the row, source prefilled → one operation, two ledger legs under one reference,
+  Main Warehouse 7 → 5, Shop Front 0 → 2, 08:47;
+* Recent Activity showed **three** entries (transfer once, adjustment once, stock-in once), not four.
+
+**Not verified.** The single-location default was not observed on hardware: the test tenant has two
+locations. It is covered by the Jest suite only. The server-side reason gate is deployed but was not
+exercised with a raw production request; the phone enforced it in the form, and the refusal is proven
+in the test database. The test tenant keeps the product and the four ledger rows on purpose.
