@@ -8,11 +8,12 @@ of truth for *what actually happened*, and it is why this file is long.
 
 **How to read it.** Do not read it top to bottom. Either find a record by number (§27FJ, §27DM — the
 numbers are cited from `CLAUDE.md` and from source comments), or use the index: `CLAUDE.md` §7 lists
-all **210** records by the title each gives itself.
+all **211** records by the title each gives itself.
 
 **Current state:** V1 complete and in production testing. The records that answer *where are we now*
-are §27HD (the movement fixes and the production device pass), §27HC (the assistant's local-time
-answers), §27FM (the V1 re-verification) and §27FJ (the two open advisories).
+are §27HE (the stock-in link's location), §27HD (the movement fixes and the production device pass),
+§27HC (the assistant's local-time answers), §27FM (the V1 re-verification) and §27FJ (the two open
+advisories).
 
 ---
 
@@ -24121,3 +24122,49 @@ royal-kludge tenant:
 locations. It is covered by the Jest suite only. The server-side reason gate is deployed but was not
 exercised with a raw production request; the phone enforced it in the form, and the refusal is proven
 in the test database. The test tenant keeps the product and the four ledger rows on purpose.
+
+---
+
+# 27HE. The stock-in link keeps its location (2026-11-01)
+
+**Why.** §27HD's phone pass recorded a stock-in entry that opened on "Choose a location…" although
+the address carried `locationId`, while the transfer form prefilled its source from the same params.
+A form that says "not chosen" about a location it will still submit is worse than a missing default:
+the member cannot see where the stock is going, and the movement is aimed by an id they never saw.
+
+**What the reproduction showed — including where the first theory was wrong.** The screen was mounted
+directly, with `useLocalSearchParams` mocked, so the param plumbing was under test rather than the form
+alone. Two cases already passed on `main`: a link carrying `locationId` and `locationName` drew the name
+before the reference list answered, and an id-only link resolved the name against the loaded list. What
+failed was the case the seed-once theory predicted: `MovementForm` copied `initialLocationId` into
+`useState` at mount, so a param that resolved **after** the first render — a cold or warm deep link, or
+a screen handed a different location — never reached the field. The state stayed `''` and the
+placeholder stayed on screen while the payload still carried the supplied id.
+
+That also narrows §27HD rather than contradicting it. An in-app push from a stock row sends its params
+synchronously, so that path was already covered by the passing case; the entry point that legitimately
+cannot prefill is the **product** screen's Stock In, which names no location because a product can sit
+at several.
+
+**What shipped.** `MovementForm` now tracks the supplied location in a ref and adopts a param that
+arrives or changes, for as long as the member has not chosen a location on that screen. A manual choice
+marks the form touched and is never overwritten, so a later re-render or a changed link cannot undo it.
+The single-location default is unchanged, and a caller-supplied location still outranks it. The fix is
+in the shared form, so Stock In, Stock Out and Adjust all inherit it; the test drives the Stock In
+screen because that is the route the defect was seen on.
+
+**Verified.** `mobile/__tests__/stock-in-deep-link.test.tsx`, **4/4**: the link's name is shown before
+the reference list answers; an id-only link resolves against the loaded locations; a param that resolves
+after the first render is adopted — the case that failed before the change (the test was run against
+`main` first and failed only here); and a param that changes after a manual choice leaves that choice
+alone. `movement-workflow-guards`, `inventory-submit-once` and `screen-focus-load` **16/16**;
+`tsc --noEmit` clean; ESLint clean on both changed files. No server, database or contract change.
+
+**Not verified.** Not re-run on hardware: the installed `1.0.1` predates this change and no build was
+spent for a JavaScript-only fix, so the failing mechanism is covered by a test, not re-observed on the
+phone. The same seed-once pattern still applies to `initialProductId`: a cold link whose product param
+resolves late would leave the product unset even though the location now arrives. Recorded rather than
+changed here, because the product picker is visible, required and validated by the same form.
+
+**No OTA, no build, no deploy.** The change is mobile JavaScript; it ships with the next build or OTA
+that is separately authorized, not on its own.
