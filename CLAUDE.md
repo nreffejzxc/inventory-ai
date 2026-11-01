@@ -212,6 +212,10 @@ The project is built in phases: one phase, one purpose, one verification record.
 - Record the phase in `docs/DEVELOPMENT_ROADMAP.md` with a number in the `27…` series, and cite that
   number from here. The numbering is guarded: no record may claim a number twice, every `§27…`
   citation must resolve, and every declared record must be reachable from this file.
+- End every session by updating `docs/DEVELOPMENT_LOG.md`: what was completed and how it was verified,
+  what is still in progress, what is blocked, and the next priority. The roadmap records what shipped;
+  the log records what is true today. Never mark an item complete there because code was written or a
+  commit exists — only because the check was run and its result seen.
 
 ## Phase overview
 
@@ -304,6 +308,9 @@ below has the measurement.
   published AAB that is not downloaded and kept as gone. See §27FN.
 
 ## Open items (2026-10-30)
+
+This is a dated snapshot of the project's open work. The **living** version — updated every session,
+with what is in progress, verified or blocked — is [`docs/DEVELOPMENT_LOG.md`](docs/DEVELOPMENT_LOG.md).
 
 - **Two Dependabot advisories remain on `mobile/package-lock.json`** — `zod` (high, via `@expo/cli`)
   and `deepmerge` (low, via `@expo/config` and `jest-config`). Neither reaches a shipped bundle and
@@ -536,7 +543,12 @@ anchor (`§27…`) in that file.
 - **§27GV** — The empty-tenant CLI verdict becomes an executed test (2026-10-30)
 - **§27GW** — The barcode report checks the value, not just the field (2026-10-30)
 - **§27GX** — The one Dependabot alert that could be closed, and the two that cannot (2026-10-30)
+- **§27GY** — The zod gate is read from the published CLI, not the installed one (2026-10-30)
 - **§27GZ** — One operation, one movement — inventory writes deduplicated (2026-11-01)
+- **§27HA** — The ledger's past duplicates, read and not touched (2026-11-01)
+- **§27HB** — The duplicate ledger audit, exact across the clock hour (2026-11-01)
+- **§27HC** — AI-41 — the assistant answers in the member's local time zone (2026-11-01)
+- **§27HD** — Sprint 1 — a confirmed adjustment and a transfer from the row (2026-11-01)
 
 ---
 
