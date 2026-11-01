@@ -64,17 +64,27 @@ Store release is being prepared.
 | Play release | Not started, deliberately | V1 testing first |
 | L-17 password-reset action URL | Open, console-only | Cannot be set from code |
 | iOS device acceptance | External verification required | No macOS on the development host |
+| GitHub contributor residue | Open, external | The default branch is clean, but the contributors API still reports **435 / 12 / 7** because the old commits remain reachable through `refs/pull/110`–`118` and three merged branches; PRs #99–#106 still show the retired account as author. Removing those names requires deleting merged PRs/branches or GitHub support, which was not approved. |
+| Current branch identity | Resolved 2026-11-01 | The three local commits were replayed onto `5d74f8e`; replayed head `ee7e710`, **3 ahead / 0 behind**, no retired email. The documentation commit follows on top and the branch is delivered through its PR. |
 
 ### Resource budgets
 
 Known limits, checked before spending one of them:
 
-- **EAS Android builds** — free plan, monthly cap. The October quota was exhausted; the reset was
-  used for **one** build on 2026-11-01 (`64958ea2`, versionCode 7), which carried AI-41 and the
-  Sprint 1 mobile fixes together on purpose. The attempt the quota refused still incremented
-  `versionCode` 5 → 6 without producing an artifact; the successful build took it to 7. Do not retry
-  a build while the quota message is present, and prefer an OTA when the change is JavaScript-only *and*
-  `mobile/scripts/check-ota-publish.mjs` passes.
+- **EAS builds** — free plan: **15 Android + 15 iOS per monthly cycle** (30 total). Read with
+  `eas account:usage jeffernqwes-team --non-interactive` on 2026-11-01: **Android 2/15, iOS 0/15,
+  2 of 30 total, overage $0**; the cycle is **2026-11-01 → 2026-12-01 UTC**, with 30 days remaining.
+  The October quota was exhausted; the reset was used for **one** build on 2026-11-01 (`64958ea2`,
+  versionCode 7), which carried AI-41 and the Sprint 1 mobile fixes together on purpose. The attempt
+  the quota refused still incremented `versionCode` 5 → 6 without producing an artifact; the
+  successful build took it to 7. Do not retry a build while the quota message is present, and prefer
+  an OTA when the change is JavaScript-only *and* `mobile/scripts/check-ota-publish.mjs` passes.
+- **EAS Update allowance** — free plan: **100 GiB bandwidth** and **1 000 unique updaters** per
+  monthly cycle. Read with the same command on 2026-11-01: **3,069 bytes (0.00 MiB) of 100 GiB
+  used** and **0 of 1 000 updaters**, with **$0 overage**; the cycle is the same 2026-11-01 →
+  2026-12-01 UTC window as the build quota. A publication itself is free — bandwidth is counted
+  when a device downloads a bundle, and unique updaters counts distinct devices that download an
+  update.
 - **OTA updates** — free, but not unconditional. Runtime is `appVersion`; a native dependency or
   config that moved after the installed binary makes an OTA unsafe even when the change is JS-only.
   `check-ota-publish.mjs` is the gate; `--allow-native-change` is for a declared emergency only.
@@ -93,6 +103,111 @@ Known limits, checked before spending one of them:
   bulk; a delivery failure is not a code regression until the provider log says so.
 
 ---
+
+## 2026-11-01 — GitHub identity cleanup: `main` rewritten to `5d74f8e`
+
+### Completed and verified
+
+| Item | Evidence |
+| --- | --- |
+| Targeted metadata rewrite | 454 commits: **433 unchanged**, **21 rebuilt**, **12** author/committer emails changed, **9** merge commits above them. No tree, message, name, date or parent-count changes; HEAD tree `1373a117f890386f8765b331fd6bd873e153f356`. |
+| Signature cost | 50 signed commits before, 41 after: only the 9 rebuilt GitHub merge commits lost their web-flow signatures, which could not remain valid after their parents changed. |
+| Force-push and CI | `git push --force-with-lease` moved `main` `e687184` → `5d74f8e`; run [41296545346](https://github.com/nreffejzxc/inventory-ai/actions/runs/41296545346) is **success** for `secret-guard`, `attribution-guard`, `server` and `mobile`. |
+| Protection restored | Temporary `allow_force_pushes=true` / `enforce_admins=false`; the restore PUT verified against the saved original: force pushes **disabled**, admins **enforced**, four required checks, PR required. |
+| Attribution at the commit API | `11fcefad15` (one of the 12) now reports `author.login = nreffejzxc`; the new `main` tree matches the pre-rewrite tree. |
+| Backup | Verified bundle at `.tmp-attribution-rewrite-2026-11-01/pre-rewrite-main.bundle`; temporary branch `backup/main-before-attribution-rewrite-2026-11-01` was deleted after CI. |
+| Contributor residue | After the 60-second cache window the contributors API still reports `nreffejzxc 435`, `jeffernqwerty 12`, `dependabot[bot] 7`. The 12 old commits remain reachable through `refs/pull/110`–`118` and the merged branches `docs/one-location-tenant-record`, `fix/stock-in-deep-link` and `test/single-location-default`; PRs #99–#106 still name the retired account as author. |
+| Reconciliation branch | Replayed the three local commits onto `5d74f8e`; new head `ee7e710`. Both retired email fields changed; trees, messages, names and dates are identical to the backed-up branch; **3 ahead / 0 behind before this documentation commit**. The full map is in `.tmp-attribution-rewrite-2026-11-01/branch-splice-map.txt`. |
+| Delivery | The three replayed commits plus this documentation commit are delivered through the branch PR; CI is the gate. |
+
+### Not completed
+
+- The contributor-list residue cannot be removed by rewriting the default branch alone. It needs the merged PR refs/branches deleted, or a GitHub support action; neither was approved.
+- The reconciliation branch is delivered through its PR; the contributor-list residue remains open.
+
+### Next priority
+
+- Review and push the reconciliation branch through the normal PR and CI path, then decide whether the old merged branches and PRs should be deleted or retained as history.
+
+## 2026-11-01 — Repository identity aligned to the restored account
+
+### Planned
+
+- Resolve the mismatch between the repository-local Git email and the account restored on 2026-10-31.
+- Align `CLAUDE.md` and the attribution guard to the chosen account without rewriting history.
+
+### Completed and verified
+
+| Item | Evidence |
+| --- | --- |
+| Chosen account read from the live session. | `gh auth status` lists only `nreffejzxc`; `git remote -v` is `nreffejzxc/inventory-ai`; the runbook and the `CLAUDE.md` identity block agree. |
+| Repository-local Git identity. | `user.name` is `jeffernzxc`; `user.email` is now `jefferndullamalinaozxc@gmail.com` (was the retired `jeffernmalinaoqwe@gmail.com`). |
+| `CLAUDE.md` §20. | The stale Git-identity line now names the restored email; the canonical identity block already did. |
+| Attribution guard. | No edit was needed: `ALLOWED_LINES` and the self-test already name the restored email. `BASE_SHA=origin/main node scripts/check-commit-attribution.mjs` reads both commits, self-test **17/17**, exit 0. |
+| Existing commits. | `8aae1b3` and `f93327d` still carry the retired email. They were not rewritten: rule 9 requires an explicit request for a history rewrite. |
+
+### Not completed
+
+- Rewriting the two local commits' author and committer fields. They are unpushed; this needs explicit approval.
+- Nothing was pushed.
+
+### Findings
+
+- `main` itself carries both identities: direct commits use the retired email and merge commits use `nreffejzxc`'s GitHub noreply address. The branch's two local commits add to that mix; they will carry the restored identity only after an approved rewrite.
+
+### Attribution audit (Git and GitHub)
+
+| Item | Result |
+| --- | --- |
+| GitHub access | `nreffejzxc` is the only owner and collaborator; no pending invitations; no other human PR author, reviewer or commenter. |
+| Contributors API | 435 `nreffejzxc`, 12 `jeffernqwerty`, 7 `dependabot[bot]`; no unlinked authors. The 12 are the 1 November direct commits using the retired email. |
+| Public commit trailers | None on `origin/main`: no AI co-author or generated-by line. The only trailers are 7 Dependabot lines. |
+| Retired-account PRs | 8 PRs (#99–#106; seven merged, #104 closed unmerged) and one comment on #104 still display `jeffernqwerty`. GitHub does not allow a PR author to be changed. |
+| Local-only attribution | 7 Codebuff co-author trailers in two backup refs; `.git/pre-rewrite-backup.bundle` (3.9 MB) holds 91 Claude Code and 5 Codebuff trailers. None is on a remote. |
+| Rewrite gate | The 12 commits plus 9 merge commits (21 total) would get new SHAs. Branch protection forbids force pushes even for admins, so a metadata rewrite needs a temporary protection change and explicit approval. |
+| Not done | No history rewrite, force-push, settings change, PR/comment deletion or backup deletion. |
+
+### Next priority
+
+- Decide the missing-`zod` gate, then push the reconciled branch through the normal PR and CI path; rewrite the two local commits first if that is wanted.
+- Decide whether to approve the 21-commit metadata rewrite; the current branch's two retired-email commits must be rewritten before it is pushed.
+
+## 2026-11-01 — The reconciliation: work `main` documented but did not contain
+
+### Planned
+
+- Reconcile the pre-rewrite checkout with `origin/main` without losing unique work, then retire the old branch.
+- Recover §27HA and §27GY, which `main`'s roadmap and policy documents describe as shipped but whose code was absent from its tree.
+
+### Completed and verified
+
+| Item | Evidence |
+| --- | --- |
+| Checkout preserved before any reset. | `archive/runbook-verification-updates-2026-11-01` points at the old HEAD `a7ff713`; `.tmp-reconcile-backup/` holds the tracked patch and every untracked file. |
+| Unique work identified, not guessed. | The pre-rewrite tree was compared file by file with `origin/main`: the duplicate audit, its test, the npm script, the test registration, the zod published-CLI gate and the implementation plan §27GY cites were the only missing pieces. Older dependency versions and superseded documents were not carried. |
+| Recovered files. | `8aae1b3`: `server/scripts/audit-duplicate-ledger.mjs`, `server/scripts/lib/duplicate-ledger.mjs`, `server/test/audit-duplicate-ledger.test.mjs`, `audit:duplicates` in `server/package.json`, the MIXED registration in `server/scripts/run-tests.mjs`, `scripts/check-upgrade-watches.mjs`, and matching `SECURITY.md` / `docs/SECURITY_DEPENDENCY_DECISIONS.md` text. |
+| §27GY's cited plan. | `docs/superpowers/plans/2026-10-30-expo-cli-zod4.md` is restored so the roadmap's link resolves; its Gate Z describes the same published-CLI gate the watch now measures. |
+| Duplicate audit tested against MongoDB. | `TEST_MODE=full node --test test/audit-duplicate-ledger.test.mjs` → **30/30 pass, 0 fail**, including the real-MongoDB pairs, the hour-boundary case and the planted-write control. |
+| Zod gate controls. | `node scripts/check-upgrade-watches.mjs --self-test` → **32 controls passed** (6 must-fire, 24 must-not-fire, 2 range), exit 0. |
+| Live watch. | `node scripts/check-upgrade-watches.mjs` exits 0. `node-forge` **CLOSED**, `deepmerge` **DEFERRED**, `zod` **UNPARSED**: latest `expo` 58.0.22 admits `@expo/cli` 58.1.18, whose manifest declares no `zod`; the installed tree still resolves 3.25.76. |
+| Old branch retired. | `chore/reconcile-main-2026-11-01` is based directly on `origin/main`; the old branch is deleted and retained only as the archive ref. |
+| Documentation guards. | The four doc suites pass **28/28** in a clean worktree at this commit. In the main checkout the issue-record scan also reads the stale `.tmp-*` worktrees and reports the fabricated identifier in the guard's own comment, so that reading is environmental, not a record. |
+
+### Not completed
+
+- The full server and mobile suites were not re-run. No application source, dependency or lockfile was carried, so the recovered scripts are the only executable change.
+- The identity question raised here was resolved later on 2026-11-01 in favor of the restored account; see the entry above. The two reconciliation commits still carry the retired email because they predate the fix.
+- Nothing was pushed; the commit is local.
+- Four registered `.tmp-*` worktrees and several untracked scratch files remain. They were left untouched because they may hold pending work; their copies of that comment are what the main-checkout guard reads.
+
+### Findings
+
+- The `zod` watch returns `UNPARSED` rather than a pass because the admitted CLI's `zod` dependency is absent, not because the registry was unreachable. The conservative rule treats a missing range as unreadable. Whether an absent dependency should mean the advisory is closed by removal is a decision for the next session.
+- The verification ran on Node **26.10.0**, while the repository pins **24** in `.nvmrc`. The suite passed, but the runtime is outside the pin.
+
+### Next priority
+
+- Decide the missing-`zod` gate, then push the reconciled branch through the normal PR and CI path.
 
 ## 2026-11-01 — minimatch/glob advisories: no safe in-range fix, deferred with evidence
 

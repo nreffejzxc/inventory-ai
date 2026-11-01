@@ -21,6 +21,7 @@
     "cleanup": "node scripts/cleanup.mjs",
     "cleanup:test-firebase": "node scripts/cleanup-test-firebase.mjs",
     "audit:indexes": "node scripts/audit-indexes.mjs",
+    "audit:duplicates": "node scripts/audit-duplicate-ledger.mjs",
     "backup:db": "node scripts/backup-db.mjs",
     "restore:db": "node scripts/restore-db.mjs",
     "seed": "node scripts/seed.mjs",
