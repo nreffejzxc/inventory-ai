@@ -549,6 +549,7 @@ anchor (`§27…`) in that file.
 - **§27HB** — The duplicate ledger audit, exact across the clock hour (2026-11-01)
 - **§27HC** — AI-41 — the assistant answers in the member's local time zone (2026-11-01)
 - **§27HD** — Sprint 1 — a confirmed adjustment and a transfer from the row (2026-11-01)
+- **§27HE** — The stock-in link keeps its location (2026-11-01)
 
 ---
 
