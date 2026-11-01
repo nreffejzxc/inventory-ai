@@ -30,6 +30,11 @@ at the end of every development session, newest entry first.
 6. **Link evidence** to the roadmap record, test file, commit or evidence directory rather than
    pasting long output.
 7. **No secrets, no credentials, no personal data.** Environment variable *names* only.
+8. **Start the next session here.** Read *Current position*, the newest entry and the newest roadmap
+   record before choosing work. Continue unfinished work unless a higher-priority issue is found.
+9. **Record resource use in the entry** — EAS builds, OTA publications, noteworthy CI runs and
+   deploys — and update *Resource budgets* when a limit or reset changes. The full operating rules
+   are `CLAUDE.md` §20.
 
 ---
 
@@ -75,8 +80,9 @@ Known limits, checked before spending one of them:
   On 2026-11-01 it correctly refused an OTA to the installed `1.0.0`, which is why a build was spent.
 - **GitHub Actions** — free minutes. CI runs per pull request and on `main`. Batch small changes
   into one push rather than re-running the suite for each tweak.
-- **Render** — one production service; every push to `main` redeploys. Verify the serving commit at
-  `GET /api/health` (`commit` field) instead of assuming a deploy landed.
+- **Render** — one production service; it deploys only when `server/` changes. A docs or mobile
+  merge will not move the serving commit, so verify at `GET /api/health` (`commit` field) instead of
+  expecting every push to redeploy.
 - **MongoDB Atlas** — the free tier has a storage and connection ceiling (measured at 512 MB,
   §27GE). Seeding and cleanup follow the phrase-gated commands in
   [`guides/9-seeding-development.md`](guides/9-seeding-development.md) and
@@ -119,6 +125,11 @@ Known limits, checked before spending one of them:
 | Sprint 1 merged and deployed. | PR #112 (`5ac95e1`, merged **`ad8426e`**); CI green (server, mobile, secret and attribution guards); production `/api/health` moved to `ad8426e`, so the server-side reason gate is live. |
 | Both increments recorded. | Roadmap §27HC and §27HD; `CLAUDE.md` index updated to 210 records; evidence in [`evidence/production-device-2026-11-01/`](evidence/production-device-2026-11-01/README.md). |
 | Fresh local runs of the affected suites. | `phase04-inventory` **20/20**; mobile `movement-workflow-guards`, `inventory-submit-once`, `screen-focus-load` **16/16**; documentation guards **14/14**. |
+| Permanent operating rules recorded, without a second document. | `CLAUDE.md` §20: session protocol, EAS/OTA conservation, Actions and Render facts, GitHub security and repository health, priority order. The log gained a session-start checklist and a resource-use rule; the dated roadmap remains the evidence. The Render bullet here was corrected: a docs-only merge does not move the production commit. |
+
+**Resource use this session:** one EAS Android build (`64958ea2`); four CI runs — PR #112 once,
+PR #113 three times, two of them failing on the scratch-copy identifier before the wording fix; one
+Render deploy (the server merge `ad8426e`); zero OTA publications.
 
 ### Not completed
 
