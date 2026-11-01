@@ -65,9 +65,9 @@ Known limits, checked before spending one of them:
 
 - **EAS Android builds** — free plan, monthly cap. The October quota was exhausted; the reset was
   used for **one** build on 2026-11-01 (`64958ea2`, versionCode 7), which carried AI-41 and the
-  Sprint 1 mobile fixes together on purpose. Two earlier refused attempts still incremented
-  `versionCode` (5 → 6, then 6 → 7) without producing an artifact. Do not retry a build while the
-  quota message is present, and prefer an OTA when the change is JavaScript-only *and*
+  Sprint 1 mobile fixes together on purpose. The attempt the quota refused still incremented
+  `versionCode` 5 → 6 without producing an artifact; the successful build took it to 7. Do not retry
+  a build while the quota message is present, and prefer an OTA when the change is JavaScript-only *and*
   `mobile/scripts/check-ota-publish.mjs` passes.
 - **OTA updates** — free, but not unconditional. Runtime is `appVersion`; a native dependency or
   config that moved after the installed binary makes an OTA unsafe even when the change is JS-only.
@@ -132,8 +132,9 @@ Known limits, checked before spending one of them:
 
 - **The defect was bigger than a date.** The old answer rendered the UTC instant under the label
   "Local time", so a member could not tell it was eight hours off without checking the clock.
-- **A refused EAS build is not free.** Two attempts incremented `versionCode` 5 → 6 → 7 before the
-  quota check failed. The successful build therefore reports versionCode 7, not 6.
+- **A refused EAS build is not free.** The attempt refused by the quota incremented `versionCode`
+  5 → 6 before failing; the successful build then took it to 7. The installed APK therefore reports
+  versionCode 7.
 - **Installing over the app restored a different session than expected.** The phone was signed in as
   `jeffy inplay` before the install and `jaffy royal kludge` after it. Data and session survived, but
   the "after" half ran in a clean tenant with no movements that day; the test records were created
