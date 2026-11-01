@@ -51,6 +51,7 @@ const mockUseSession = useSession as jest.Mock;
 const mockUseActiveRef = useActiveRef as jest.Mock;
 const mockUseInventoryRow = useInventoryRow as jest.Mock;
 const productsApi = jest.requireMock('../lib/api').productsApi;
+const inventoryApi = jest.requireMock('../lib/api').inventoryApi;
 
 const MAIN = { id: 'l1', name: 'Main Warehouse' };
 
@@ -171,5 +172,87 @@ describe('a stock-in deep link shows the location it names', () => {
     );
     expect(view.getByText('Shop Front')).toBeTruthy();
     expect(view.queryByText('Overflow')).toBeNull();
+  });
+});
+
+describe('a stock-in deep link shows the product it names', () => {
+  it('adopts and submits a product whose params resolve after the first render', async () => {
+    inventoryApi.stockIn.mockResolvedValue({ previousQuantity: 0, newQuantity: 5 });
+    mockUseLocalSearchParams.mockReturnValue({});
+    const view = await mounted();
+    expect(view.getByText('Choose a product…')).toBeTruthy();
+
+    // The product id and name arrive after the form has mounted, which is the
+    // cold-link timing that left the field empty while the payload named p1.
+    mockUseLocalSearchParams.mockReturnValue({
+      productId: 'p1',
+      productName: 'Compact Kettle',
+      lock: '1',
+    });
+    view.rerender(
+      <ThemeProvider>
+        <StockInScreen />
+      </ThemeProvider>
+    );
+
+    await waitFor(() => expect(view.getByText('Compact Kettle')).toBeTruthy());
+    expect(view.queryByText('Choose a product…')).toBeNull();
+
+    // The card naming the product is not enough: the form must actually be
+    // able to submit it. On the old code the card appeared while `productId`
+    // stayed empty, so the button remained disabled.
+    await fireEvent.changeText(view.getByPlaceholderText('How many are you adding?'), '5');
+    await fireEvent.press(view.getByRole('button', { name: 'Add stock' }));
+    await waitFor(() => expect(inventoryApi.stockIn).toHaveBeenCalledTimes(1));
+    expect(inventoryApi.stockIn.mock.calls[0][1]).toMatchObject({
+      productId: 'p1',
+      locationId: MAIN.id,
+      quantity: 5,
+    });
+  });
+
+  it('never replaces the product the member chose', async () => {
+    inventoryApi.stockIn.mockResolvedValue({ previousQuantity: 0, newQuantity: 3 });
+    mockUseActiveRef.mockImplementation((_token: string, api: unknown) =>
+      api === productsApi
+        ? {
+            items: [
+              { id: 'p1', name: 'Compact Kettle' },
+              { id: 'p2', name: 'Rice' },
+            ],
+            loading: false,
+            reload: jest.fn(),
+          }
+        : { items: [MAIN], loading: false, reload: jest.fn() }
+    );
+    mockUseLocalSearchParams.mockReturnValue({});
+    const view = await mounted();
+
+    fireEvent.press(view.getByText('Choose a product…'));
+    await waitFor(() => expect(view.getByText('Rice')).toBeTruthy());
+    fireEvent.press(view.getByText('Rice'));
+    await waitFor(() => expect(view.getByText('Rice')).toBeTruthy());
+
+    // A product param that resolves after the member chose must not undo that choice.
+    mockUseLocalSearchParams.mockReturnValue({
+      productId: 'p1',
+      productName: 'Compact Kettle',
+    });
+    view.rerender(
+      <ThemeProvider>
+        <StockInScreen />
+      </ThemeProvider>
+    );
+    expect(view.getByText('Rice')).toBeTruthy();
+    expect(view.queryByText('Compact Kettle')).toBeNull();
+
+    await fireEvent.changeText(view.getByPlaceholderText('How many are you adding?'), '3');
+    await fireEvent.press(view.getByRole('button', { name: 'Add stock' }));
+    await waitFor(() => expect(inventoryApi.stockIn).toHaveBeenCalledTimes(1));
+    expect(inventoryApi.stockIn.mock.calls[0][1]).toMatchObject({
+      productId: 'p2',
+      locationId: MAIN.id,
+      quantity: 3,
+    });
   });
 });

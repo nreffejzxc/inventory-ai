@@ -46,7 +46,7 @@ Store release is being prepared.
 
 | | |
 | --- | --- |
-| **Working now** | GitHub contributor cleanup is exhausted on the Git side — the default branch and merged branch are clean, the contributor list is 2, the three stale remote branches are retired, and the local branch/worktree cleanup is complete: 16 identity-carrying branches were backed up and deleted, and no local branch now carries either retired identity. The 13 stale clean-identity branches were retired on 2026-11-02 after merged/ancestor/superseded checks; 6 local branches remain, including the merged work branches (PRs #120–#122), the current docs branch and the backup. The five merge subjects that still named the old login were rewritten on 2026-11-02; the final rewrite rebuilt only the 50 commits from #99 onward, preserved 38 of 42 commit signatures, and kept all 409 earlier commits unchanged. The Expo 58.0.22 patch is merged on `main` as `dd397d6`; the mobile audit has **0 high** entries, the `zod` alert is closed and five Dependabot alerts remain. A preview APK (`5500e6be`, versionCode 8) is installed on the CPH1969: dashboard, products, inventory and the stored AI answer render live data. The OTA native runtime record now covers the installed preview build (`5500e6be`), and `check-ota-publish` is **ready** on both `preview` and `production`. No other open PRs remain, and issue #32 now tracks only TypeScript 7. The Scan screen's camera permission, live preview and EAN-13 decode are now verified on the phone. The one-location production tenant remains ready for the movement check. |
+| **Working now** | GitHub contributor cleanup is exhausted on the Git side — the default branch and merged branch are clean, the contributor list is 2, the three stale remote branches are retired, and the local branch/worktree cleanup is complete: 16 identity-carrying branches were backed up and deleted, and no local branch now carries either retired identity. The 13 stale clean-identity branches were retired on 2026-11-02 after merged/ancestor/superseded checks; 6 local branches remain, including the merged work branches (PRs #120–#122), the current docs branch and the backup. The five merge subjects that still named the old login were rewritten on 2026-11-02; the final rewrite rebuilt only the 50 commits from #99 onward, preserved 38 of 42 commit signatures, and kept all 409 earlier commits unchanged. The Expo 58.0.22 patch is merged on `main` as `dd397d6`; the mobile audit has **0 high** entries, the `zod` alert is closed and five Dependabot alerts remain. A preview APK (`5500e6be`, versionCode 8) is installed on the CPH1969: dashboard, products, inventory and the stored AI answer render live data. The OTA native runtime record now covers the installed preview build (`5500e6be`), and `check-ota-publish` is **ready** on both `preview` and `production`. No other open PRs remain, and issue #32 now tracks only TypeScript 7. The Scan screen's camera permission, live preview and EAN-13 decode are now verified on the phone. The cold-link product parameter now follows its location (§27HG): a product that resolves after the form's first render is adopted, and a product the member chose is never overwritten. The one-location production tenant remains ready for the movement check. |
 | **Just verified** | Contributors API: **nreffejzxc 452**, **dependabot[bot] 7**. The contributor rewrite landed as `d6bdbc35`; after #121 and #120, `main` was `43e0e98`, and the five 2026-11-02 merge subjects name `nreffejzxc`, not `jeffernqwerty`. Tree sequence, identities, dates and parent counts are identical to `afd7088`; the content diff is empty and all four required checks are green. The surgical rewrite preserved **38** of **42** signatures; **4** signed descendants were rebuilt. Branch protection is restored (force pushes off, admins enforced). The rewritten `main` (`d6bdbc35`) and the merged `chore/reconcile-main-2026-11-01` (`cb1a52d`) contain no retired email and no Codebuff trailer. PR #121 merged as `dd397d6` with the native-runtime record, and PR #120 merged as `43e0e98` with the contributor and session records; both had all four checks green before merge. Backup refs cover the rewritten `main`, all **17** earlier deleted tips, the **4** worktree/WIP snapshots, and the **13** newly retired tips; the **6** local branches are `main`, `docs/contributor-cleanup-2026-11-02`, `docs/post-merge-status-2026-11-02`, `chore/expo-58.0.22-zod-patch` (PR #121), `docs/camera-scan-verified-2026-11-02` and `wip/backup-working-tree`; **3** worktrees are registered, two of them temporary. Mobile: Expo 58.0.22, **47 audit entries / 0 high**, typecheck **0**, **101 suites / 1 191 tests** pass, `zod` watch `CLOSED`. The one-location tenant (`6ae6f1d8baa72cee39730240`) still holds 11 products and one ACTIVE location. |
 | **Blocked** | Historical PR author and Codebuff co-author displays cannot be rewritten by Git; GitHub Support closed ticket #4936796 without action because this account only has self-service resources. The one-location movement check still needs the owner at the device. |
 | **Next after this** | After this documentation merge, fast-forward local `main` to `origin/main` and run the one-location movement check on the phone. TypeScript 7 remains issue #32; do not resubmit the support request unless the account's support tier changes. |
@@ -56,7 +56,6 @@ Store release is being prepared.
 | Item | State | Why it is open |
 | --- | --- | --- |
 | Single-location default, on a real device | Ready, phone pending | The production tenant `6ae6f1d8baa72cee39730240` now has exactly one ACTIVE location, and §27HF pins the late-arriving list for all three kinds; the visual check needs the owner to sign in on the phone |
-| Late product param on a cold link | Known, same class as §27HE | `initialProductId` is still seeded once at mount; a link whose product param resolves after the first render would leave the product unset. The location now arrives; the product picker is visible and required, so it is recorded rather than changed |
 | A transfer is two movements to the assistant | Known representation | The AI lists both ledger legs; Recent Activity renders one card. Decide whether the assistant should group legs in future |
 | `glob` and `minimatch` advisories | Deferred, D-10 | Patched `14.0.2` / `11.0.1` are majors outside every consumer's range; re-check the gates in `SECURITY_DEPENDENCY_DECISIONS.md` §4 |
 | `zod` high advisory | Resolved 2026-11-02 | Cleared by `expo@58.0.22`; the nested `zod@3.25.76` is gone and the mobile audit reports **0 high** |
@@ -104,6 +103,30 @@ Known limits, checked before spending one of them:
   space that a backup or an index change would explain.
 - **Brevo** — used for verification codes, reset codes and invitations. Do not send test mail in
   bulk; a delivery failure is not a code regression until the provider log says so.
+
+---
+
+## 2026-11-02 — The stock-in link keeps its product
+
+### Completed and verified
+
+| Item | Evidence |
+| --- | --- |
+| Defect | `MovementForm` seeded `initialProductId` once at mount. A cold link whose product params resolved after the first render left `productId` empty; the locked card drew the name from the prop, so the screen looked correct while the submit button stayed disabled. |
+| Fix | The product now uses the same ref-tracked adoption as the location: a param that arrives or changes is adopted, and a manual choice is marked touched and never overwritten. Shared by Stock In, Stock Out and Adjust. |
+| Guard | `stock-in-deep-link.test.tsx` now types a quantity, presses **Add stock**, and asserts the request payload carries `productId: 'p1'`; the second case chooses a different product first and asserts the link cannot replace it. |
+| The guard can fail | With `HEAD`'s `MovementForm.tsx` restored, the adopt-and-submit case failed with **0** calls and the other five passed. The fixed file was restored and all six passed. |
+| Checks | Deep-link suite **6/6**; the four movement suites together **17/17**; `tsc --noEmit` clean; ESLint clean on both changed files. |
+| Record | Roadmap §27HG; record count **212 → 213**; `CLAUDE.md` index updated. The dated **Open items** snapshot was corrected from the 2026-10-30 state: five advisories remain, `zod` is closed, and the stale `zod`/`deepmerge` sentence was replaced. |
+
+### Not completed
+
+- Not observed on hardware: the installed preview APK predates this JavaScript-only change, and no build or OTA was spent for it.
+- The one-location movement check on the production tenant still needs the owner at the device.
+
+### Next priority
+
+- Open the PR, let the four required checks run, merge, and confirm `main`.
 
 ---
 

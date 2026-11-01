@@ -8,12 +8,12 @@ of truth for *what actually happened*, and it is why this file is long.
 
 **How to read it.** Do not read it top to bottom. Either find a record by number (§27FJ, §27DM — the
 numbers are cited from `CLAUDE.md` and from source comments), or use the index: `CLAUDE.md` §7 lists
-all **212** records by the title each gives itself.
+all **213** records by the title each gives itself.
 
 **Current state:** V1 complete and in production testing. The records that answer *where are we now*
-are §27HF (the single-location default's timing), §27HE (the stock-in link's location), §27HD (the
-movement fixes and the production device pass), §27HC (the assistant's local-time answers), §27FM (the
-V1 re-verification) and §27FJ (the two open advisories).
+are §27HG (the stock-in link's product), §27HF (the single-location default's timing), §27HE (the
+stock-in link's location), §27HD (the movement fixes and the production device pass), §27HC (the
+assistant's local-time answers), §27FM (the V1 re-verification) and §27FJ (the two open advisories).
 
 ---
 
@@ -24206,3 +24206,39 @@ check needs one of those, and the phone would still need a business with exactly
 anything. The automated half of the request is what is now complete.
 
 **No EAS build, no OTA, no deploy.** A test-only increment.
+
+---
+
+# 27HG. The stock-in link keeps its product (2026-11-02)
+
+**Why.** §27HE fixed the location half of the same defect and recorded the product half rather than
+changing it. `MovementForm` still copied `initialProductId` into `useState` once at mount, so a cold
+link whose product params resolved after the first render left `productId` empty. The locked-product
+card nevertheless drew the name from the prop, which made the screen look correct while the submit
+button stayed disabled — a worse state than a visible empty picker, because the form said the product
+was known when it could not be submitted.
+
+**What shipped.** The product now has the same ref-tracked adoption as the location: a param that
+arrives or changes is adopted while the member has not chosen a product on that screen, and a manual
+choice is marked touched and never overwritten. The shared form carries the fix, so Stock In, Stock
+Out and Adjust inherit it. No server, database or API contract changed.
+
+**The first guard was blind, and the control caught it.** The initial test asserted the product card
+showed the linked name and that the picker placeholder was gone. Both passed against `main`, because
+the card is rendered from `initialProductName` whether or not the state was seeded — a test that
+could not distinguish the defect from the fix. The test was rewritten to type a quantity, press the
+real button, and assert the request payload. Against the old form that test fails with **0** calls
+(the button is disabled); against the fix it sends `{ productId: 'p1', locationId: 'l1', quantity: 5 }`.
+The second case selects a different product first, then delivers the link's product, and asserts the
+payload still carries the member's choice.
+
+**Verified.** `mobile/__tests__/stock-in-deep-link.test.tsx` **6/6**, including the two product cases;
+the four movement suites together — this file, `movement-workflow-guards`, `single-location-default`
+and `inventory-submit-once` — **17/17**; `tsc --noEmit` clean; ESLint clean on both changed files.
+The failing control was run by restoring `HEAD`'s `MovementForm.tsx` and re-running the suite: one
+failure, on the adopt-and-submit case, then the fixed file was restored and all six passed.
+
+**Not verified.** Not observed on hardware. The installed preview APK predates this JavaScript-only
+change, and no build or OTA was spent for it. The mechanism is covered by the payload-level test.
+
+**No EAS build, no OTA, no deploy.** Ships with the next build or OTA that is separately authorized.

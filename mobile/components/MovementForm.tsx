@@ -192,6 +192,25 @@ export default function MovementForm({
     setLocationId(id);
   }
 
+  // The product param has the same cold-link timing as the location. A link can
+  // resolve its product after the first render, and a reused screen can be handed
+  // a different one. Adopt a product that arrives or changes — unless the member
+  // has chosen a product on this screen, which is never overwritten.
+  const productTouched = useRef(false);
+  const suppliedProduct = useRef(initialProductId ?? '');
+  useEffect(() => {
+    const next = initialProductId ?? '';
+    if (next === suppliedProduct.current) return;
+    suppliedProduct.current = next;
+    if (!next || productTouched.current) return;
+    setProductId(next);
+  }, [initialProductId]);
+
+  function chooseProduct(id: string): void {
+    productTouched.current = true;
+    setProductId(id);
+  }
+
   const selectedProduct = productOptions.find((o) => o.value === productId);
   const selectedLocation = locationOptions.find((o) => o.value === locationId);
 
@@ -335,7 +354,7 @@ export default function MovementForm({
           placeholder="Choose a product…"
           options={productOptions}
           value={productId}
-          onChange={setProductId}
+          onChange={chooseProduct}
           error={fieldErrors.productId}
           required
           searchable
