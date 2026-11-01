@@ -40,16 +40,16 @@ at the end of every development session, newest entry first.
 
 ## Current position
 
-**Updated:** 2026-11-01
+**Updated:** 2026-11-02
 **Goal:** finish and harden Inventory AI **V1** through production testing. No Play Store or App
 Store release is being prepared.
 
 | | |
 | --- | --- |
-| **Working now** | A one-location tenant exists in production, ready to be signed into on the phone; the default itself has not yet been seen there |
-| **Just verified** | The tenant (`6ae6f1d8baa72cee39730240`) holds 11 products and exactly one ACTIVE location (`Main Warehouse`); the app's own `status=ACTIVE` query returns 1; the seeded login completed Firebase sign-in and the exchange. Earlier today: `single-location-default` **4/4** with a mutation check, the movement group **15/15**, and the stock-in link fix **4/4** |
-| **Blocked** | Nothing. The phone check needs the owner at the device, because switching accounts signs out the current session |
-| **Next after this** | Sign in on the phone as the seeded login and confirm a movement opens with Main Warehouse chosen; remove the tenant afterwards or keep it as a demo; decide the assistant's transfer grouping |
+| **Working now** | GitHub contributor cleanup is exhausted on the Git side — the default branch and merged branch are clean, the contributor list is 2, the three stale remote branches are retired, and the local branch/worktree cleanup is complete: 16 identity-carrying branches were backed up and deleted, and no local branch now carries either retired identity. The one-location production tenant remains ready for the phone check. |
+| **Just verified** | Contributors API: **nreffejzxc 452**, **dependabot[bot] 7**; the stale sidebar refreshed to **2** after the default-branch toggle. `main` (`afd7088`) and the merged `chore/reconcile-main-2026-11-01` (`cb1a52d`) contain no retired email and no Codebuff trailer. Local `main` now equals `origin/main` (`afd7088`). Backup refs cover all **17** deleted tips and **4** worktree/WIP snapshots; the **15** remaining local branches scan **0/0** for both identities, and the complete bundle verifies. The one-location tenant (`6ae6f1d8baa72cee39730240`) still holds 11 products and one ACTIVE location. |
+| **Blocked** | Historical PR author and Codebuff co-author displays cannot be rewritten by Git; GitHub Support closed ticket #4936796 without action because this account only has self-service resources. The phone check still needs the owner at the device. |
+| **Next after this** | Do not resubmit the support request unless the account's support tier changes; sign in on the phone and confirm a movement opens with Main Warehouse chosen. |
 
 ### Open items carried forward
 
@@ -64,8 +64,8 @@ Store release is being prepared.
 | Play release | Not started, deliberately | V1 testing first |
 | L-17 password-reset action URL | Open, console-only | Cannot be set from code |
 | iOS device acceptance | External verification required | No macOS on the development host |
-| GitHub contributor residue | Open, external | The default branch is clean, but the contributors API still reports **435 / 12 / 7** because the old commits remain reachable through `refs/pull/110`–`118` and three merged branches; PRs #99–#106 still show the retired account as author. Removing those names requires deleting merged PRs/branches or GitHub support, which was not approved. |
-| Current branch identity | Resolved 2026-11-01 | The three local commits were replayed onto `5d74f8e`; replayed head `ee7e710`, **3 ahead / 0 behind**, no retired email. The documentation commit follows on top and the branch is delivered through its PR. |
+| GitHub contributor residue | Default branch clean; historical refs remain | The contributors API now returns exactly **nreffejzxc 452** and **dependabot[bot] 7**; `main` (`afd7088`) and the merged branch (`cb1a52d`) carry neither the retired email nor a Codebuff trailer. PRs #99–#106 still show `jeffernqwerty` as author, and 18 Codebuff commits remain in 44 old PR refs; Git cannot rewrite either. Ticket #4936796 was closed without action because this account only has self-service resources. Local `main` now matches `origin/main` (`afd7088`); the old tip `28ca110` is preserved in `refs/backup/local-main-28ca110`. The 16 identity-carrying local branches and four linked worktrees were retired after their tips and dirty states were saved under `refs/backup/local-branches-2026-11-02` and `refs/backup/worktree-wip-2026-11-02`; 15 clean local branches remain. |
+| Current branch identity | Resolved 2026-11-01 | The three local commits were replayed onto `5d74f8e`; replayed head `ee7e710`, **3 ahead / 0 behind**, no retired email. The documentation commit follows on top, the branch was delivered through PR #119, and its local ref was retired on 2026-11-02 after backup. |
 
 ### Resource budgets
 
@@ -103,6 +103,69 @@ Known limits, checked before spending one of them:
   bulk; a delivery failure is not a code regression until the provider log says so.
 
 ---
+
+## 2026-11-02 — Contributor cache refreshed; historical PR refs remain immutable
+
+### Completed and verified
+
+| Item | Evidence |
+| --- | --- |
+| Stale contributor sidebar | The web sidebar still reported **4** contributors after the default branch was rewritten, while `GET /repos/nreffejzxc/inventory-ai/contributors` returned **2**. Switching the default branch to `chore/reconcile-main-2026-11-01` and back to `main` forced the refresh; signed-in and logged-out incognito loads both then showed **2**. |
+| Current contributor list | `nreffejzxc` **452** and `dependabot[bot]` **7**. Neither `jeffernqwerty` nor `codebuff-team` is listed. |
+| Default branch | `origin/main` `afd7088`: **0** commits with the retired email, **0** `Co-Authored-By: Codebuff` trailers. No branch-protection change was made in this session. |
+| Merged branch | `chore/reconcile-main-2026-11-01` `cb1a52d` and PR #119 `refs/pull/119/head` are clean on both counts; PR #119 author is `nreffejzxc`; merge commit `afd7088`. |
+| What still exposes the retired identity | PRs **#99–#106** were opened by `jeffernqwerty`; **18** distinct Codebuff-trailer commits remain reachable from **44** PR refs (**#7–#31**, **#33–#51**); **18** PR refs still contain the retired email (**#98**, **#100–#107**, **#110–#118**). These are immutable `refs/pull/*` objects and PR author metadata. |
+| Stale remote branches retired | **Retired 2026-11-02.** `docs/one-location-tenant-record` (12 old-email commits), `fix/stock-in-deep-link` (10), `test/single-location-default` (11) were deleted from origin after tree- and patch-equivalence checks. Their exact tips remain at `refs/pull/116/head`, `refs/pull/117/head` and `refs/pull/118/head`, and in the local branches. |
+| Local `main` aligned | Local `main` now points at `origin/main` (`afd7088`), **0 ahead / 0 behind**, with **0** retired-identity commits and **0** Codebuff trailers. The old tip `28ca110` is preserved in `refs/backup/local-main-28ca110` and a verified bundle at `.tmp-main-alignment-2026-11-02/local-main-28ca110.bundle`. |
+| Support request | Submitted **2026-11-02 01:44 GMT+8** as ticket **#4936796**; GitHub Support closed it at **01:45** because the account's available resources are Community Discussions, Docs and Skills (self-service). No redaction was performed. The prepared wording remains at [`support/github-attribution-redaction-request.md`](support/github-attribution-redaction-request.md). |
+
+### Support ticket
+
+Ticket **#4936796** was opened on 2026-11-02 at 01:44 GMT+8 and closed at 01:45. GitHub Support (Ivy) replied that the account's available resources are GitHub Community Discussions, GitHub Docs and GitHub Skills. Because those are self-service resources, the ticket was closed. No redaction was performed, so the historical PR and commit attributions remain.
+
+### Not completed
+
+- The historical PR author and Codebuff co-author displays were not removed. GitHub pull refs are read-only and commit metadata is part of the object; no Git-side operation can change them.
+- GitHub Support closed the request without action; no GitHub settings were changed.
+- The local branch and worktree copies were retired on 2026-11-02 after backup; only the remote PR metadata remains outside Git's reach.
+
+### Findings
+
+- The contributor sidebar is a cached view. The REST API was already correct at 2 before the web view changed; the default-branch toggle invalidated the cache.
+- PR #104 is the one closed-unmerged old PR; the other seven in #99–#106 were merged. Their PR pages still name the old author even though `main` no longer contains their commits.
+- Counting identities across `--all` over-matches merge subjects such as `Merge pull request #101 from jeffernqwerty/...`; only the author/committer fields should be counted. The precise count is 30 commit objects with the retired email across all local refs; 11 were on the old local `main` before alignment and remain in the backup ref.
+- This supersedes the 2026-11-01 contributor-residue measurement: the API now reports **2**, not **435 / 12 / 7**. The older entry is left unchanged as the record of what was observed before the cache refresh.
+
+### Stale branch review
+
+| Branch | Tip | Landed as | Tree parity | Decision |
+| --- | --- | --- | --- | --- |
+| `docs/one-location-tenant-record` | `48a4fe2` | `5d74f8e` (#118) | `git diff --quiet` equal | Retire |
+| `fix/stock-in-deep-link` | `092c79a` | `a3b0240` (#116) | `git diff --quiet` equal | Retire |
+| `test/single-location-default` | `143fa5c` | `95ae43b` (#117) | `git diff --quiet` equal | Retire |
+
+All branch-only commits are patch-equivalent on `main` (`git cherry` all `-`); the three tip patches have the same patch IDs as `95e41da`, `68aa210` and `cdc9f0d`. The exact old commits remain at `refs/pull/116/head`, `refs/pull/117/head` and `refs/pull/118/head`, so deletion loses no work. Rewriting would only create new SHAs for already-merged history; retire instead. All three were deleted on 2026-11-02; `git ls-remote` confirmed the branch refs are gone, `git fetch --prune` removed the tracking refs, and the PR refs still resolve to `092c79a`, `143fa5c` and `48a4fe2`. The local copies were retired in the same cleanup; their tips, and the four worktree snapshots, are preserved under `refs/backup/`.
+
+### Local branch and worktree cleanup
+
+The 16 local branches whose reachable history contained the retired email or a Codebuff trailer were deleted after every tip was asserted equal to its `refs/backup/local-branches-2026-11-02/<branch>` ref; the merged `chore/reconcile-main-2026-11-01` (`cb1a52d`) was deleted with them. The four linked worktrees were removed only after their uncommitted states matched the `refs/backup/worktree-wip-2026-11-02/*` snapshots exactly; `.tmp-owner-access` was clean. `git worktree list` now names only the main checkout.
+
+| Check | Result |
+| --- | --- |
+| Deleted branches | **17** — 16 identity-carrying plus the merged reconciliation branch |
+| Worktrees | **4** removed; no linked worktree remains |
+| Backup refs | **17** tips under `refs/backup/local-branches-2026-11-02`; **4** WIP snapshots under `refs/backup/worktree-wip-2026-11-02` |
+| Bundle | `local-cleanup-complete-2026-11-02.bundle`; `git bundle verify` reports "records a complete history"; **22** backup refs in the bundle |
+| Remaining local branches | **15**, all scanning **0/0** for the retired email and Codebuff trailers; 13 stale clean-identity branches and `wip/backup-working-tree` are left alone |
+| PR refs | **118** remote `refs/pull/*/head` on `origin`; the 12 spot-checked (#99–#106 and #116–#119) all resolve. The local repository holds no `refs/pull/*`, so none were deleted locally. |
+
+The uncommitted documentation edits (this log and `docs/support/github-attribution-redaction-request.md`) remain in the working tree on `main`; the exact state is also preserved at `refs/backup/worktree-wip-2026-11-02/main-docs` (`5b61f76`).
+
+### Next priority
+
+- Do not resubmit the support request unless the account's support tier changes; ticket #4936796 confirmed the historical metadata is not actionable through support.
+- Keep local `main` pinned to `origin/main`; the stale tip is preserved only in the local backup ref.
+- The remote and local branch retirement is complete. Keep the backup refs and bundle until the old PR metadata is no longer needed; do not re-create a branch from them.
 
 ## 2026-11-01 — GitHub identity cleanup: `main` rewritten to `5d74f8e`
 
