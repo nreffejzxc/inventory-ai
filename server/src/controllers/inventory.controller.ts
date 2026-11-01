@@ -89,8 +89,11 @@ function parseQueryList(req: AuthenticatedRequest) {
  * the definedness of three others — not something a type can express — and the
  * assertions are erased at runtime.
  */
-function parseMovementInput(req: AuthenticatedRequest, { allowZero = false } = {}) {
-  const v = validateStockMovement(req.body ?? {}, { allowZero });
+function parseMovementInput(
+  req: AuthenticatedRequest,
+  { allowZero = false, requireReason = false }: { allowZero?: boolean; requireReason?: boolean } = {}
+) {
+  const v = validateStockMovement(req.body ?? {}, { allowZero, requireReason });
   const problems = [...v.problems];
   if (!v.productId) problems.push({ field: 'productId', message: 'productId is required' });
   if (!v.locationId) problems.push({ field: 'locationId', message: 'locationId is required' });
@@ -171,7 +174,10 @@ const inventoryController = {
   },
 
   async adjust(req: AuthenticatedRequest, res: Response) {
-    const input = parseMovementInput(req, { allowZero: true });
+    // An adjustment is the only movement with no external document behind it, so
+    // the reason is what makes the row explicable later. Required here, not just
+    // in the form: an older client cannot skip the audit trail either.
+    const input = parseMovementInput(req, { allowZero: true, requireReason: true });
     const out = await inventoryService.adjust(req.user!.businessId, req.user!.id, input);
     res.json({
       transaction: out.transaction,

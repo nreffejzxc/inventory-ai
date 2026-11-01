@@ -14,7 +14,7 @@ import { inventoryApi } from '../../../lib/api';
 import type { ApiResponse } from '../../../lib/api';
 import { isSessionError, useSession } from '../../../lib/auth';
 import { formatDateTime, formatNumber } from '../../../lib/format';
-import { canAdjustStock } from '../../../lib/permissions';
+import { canAdjustStock, canTransferStock } from '../../../lib/permissions';
 import useRefetchOnFocus from '../../../hooks/useRefetchOnFocus';
 import { radius, spacing, type } from '../../../lib/theme';
 import type { Palette } from '../../../lib/theme';
@@ -40,6 +40,7 @@ export default function InventoryRowScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { user, token, signOut } = useSession();
   const canAdjust = canAdjustStock(user);
+  const canTransfer = canTransferStock(user);
 
   const [row, setRow] = useState<ApiResponse>(null);
   const [loading, setLoading] = useState(true);
@@ -133,6 +134,20 @@ export default function InventoryRowScreen() {
               <Button title="Adjust" variant="secondary" style={styles.flexBtn} onPress={() => router.push({ pathname: '/adjust', params: moveParams })} />
             ) : null}
           </View>
+          {/* Transfer used to be reachable only from the dashboard, so moving the
+              row you are looking at meant leaving it and finding the product again.
+              The source location travels with the params; the form still enforces
+              that the destination differs. */}
+          {canTransfer ? (
+            <Button
+              title="Transfer to another location"
+              icon="transfer"
+              variant="secondary"
+              onPress={() => router.push({ pathname: '/transfer', params: moveParams })}
+              style={styles.transferBtn}
+              full
+            />
+          ) : null}
         </>
       ) : (
         <View style={styles.archivedNote}>
@@ -158,6 +173,7 @@ const createStyles = (colors: Palette) => StyleSheet.create({
   statCell: { flexGrow: 1, flexBasis: '46%', minWidth: '46%' },
   actions: { flexDirection: 'row', gap: spacing.sm },
   flexBtn: { flex: 1 },
+  transferBtn: { marginTop: spacing.sm },
   archivedNote: {
     marginTop: spacing.xxl,
     backgroundColor: colors.warningSoft,
