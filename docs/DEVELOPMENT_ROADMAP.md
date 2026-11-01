@@ -8,7 +8,7 @@ of truth for *what actually happened*, and it is why this file is long.
 
 **How to read it.** Do not read it top to bottom. Either find a record by number (§27FJ, §27DM — the
 numbers are cited from `CLAUDE.md` and from source comments), or use the index: `CLAUDE.md` §7 lists
-all **214** records by the title each gives itself.
+all **215** records by the title each gives itself.
 
 **Current state:** V1 complete and in production testing. The records that answer *where are we now*
 are §27HH (a transfer as one event to the assistant), §27HG (the stock-in link's product), §27HF (the single-location default's timing), §27HE (the
@@ -24276,3 +24276,59 @@ on the changed source, test and runner classification. The new file is registere
 **Not verified.** Not observed on hardware: model compliance is not deterministic, and no turn was
 spent on the installed preview APK. The next device pass should ask *"What moved recently?"* on a
 tenant with a transfer and confirm the answer reports it once. No EAS build, OTA or deploy.
+
+---
+
+# 27HI. The transfer's direction, from the ledger itself (2026-11-02)
+
+**Why.** §27HH shipped a note beside the two ledger rows, and the first post-deploy phone answer
+showed why a note was not enough. The answer reported the transfer once — the counting half worked —
+but it said **From: Shop Front** and omitted the destination. A ledger leg carries only its own
+location and its own before/after quantity; nothing in either row says which location sent stock and
+which received it. The model was reconstructing the direction from row order, and guessed wrong.
+The dashboard's own activity row states the ground truth for that movement: **Main Warehouse → Shop
+Front**, 2 units, 2026-11-01 08:47.
+
+**What shipped.** The assistant's page now delivers a **complete transfer pair as one event**. Each
+TRANSFER leg is classified by its own ledger effect — `direction: out` when the location's quantity
+fell, `in` when it rose — and two legs that share a `reference` and disagree in direction are folded
+into one object with explicit `from`, `to`, `reference`, `quantity`, product and time. A lone leg —
+a location-filtered page, or a pair split across the page boundary — stays a leg and keeps its
+`direction`, because that is the one fact it can state alone. The tool description now describes
+logical events rather than raw rows.
+
+**The count follows the filtered set, not the page.** Folding the page alone would under-count when a
+transfer's legs straddle the page edge. `transactionsService.transferStats` counts transfer rows and
+distinct transfer references over the **same `$match`** as the page — the match is now one
+`historyMatch` function shared by `list` and the statistics, so the two cannot describe different
+sets — and the logical total is `rows - transferRows + transferReferences`. The History screen still
+receives the raw total and both rows; only the assistant asks for the statistics.
+
+**The read-only guard caught the new call, which is the guard working.** CI failed on
+`AI2-ai-readonly-tools` because `transactionsService.transferStats` was not on the explicit
+read-only allow-list, and its positive control then listed the new call beside an injected write.
+It was added to the allow-list with its reason — an aggregate read over the same history rows — after
+which the guard passed 10/10. A new service call cannot reach the tool table silently.
+
+**Verified.** `server/test/AI42-transfer-event.test.mjs` **3/3**: the pair folds into one event with
+`from` and `to`, quantity 4 and a logical count of 2 (one stock-in plus one transfer); a
+location-filtered page keeps one leg with `direction: out` on the source and `in` on the destination;
+a stock-in page is unchanged and carries no transfer fields. The neighbouring suites — AI-18 paged
+results, AI-19 history shape, phase19 transfers and phase06 AI tools — **55/55**, including
+phase19's *"history still shows BOTH ledger rows"* case. `tsc --noEmit` clean; ESLint clean on the
+changed source, the two tests and the allow-list. All four required checks passed on PR #130, which
+merged as **`1c1734b`**; production `/api/health` reports that commit, database `connected` and **0**
+server errors. The device showed the dashboard's **Main Warehouse → Shop Front** row, which is the
+direction the assistant had reported backwards.
+
+**Verified on the device, after the provider key was reset.** The owner account's daily AI allowance
+was already spent when the deploy landed, so the first attempt was refused with the allowance
+message. When the provider key was replaced, the same question was asked on the phone against
+`1c1734b`: *"The most recent transfer was: From: Main Warehouse; To: Shop Front. The move was 2 units
+of the product ZZ Sprint1 Verify, logged at 2026-11-01 08:47 local time."* That matches the
+dashboard's **Main Warehouse → Shop Front** row exactly, names the destination the earlier answer
+omitted, and reports the movement once. Screenshot and context: [the evidence
+record](../evidence/ai42-transfer-2026-11-02/README.md) and [`answer.png`](../evidence/ai42-transfer-2026-11-02/answer.png).
+
+**No EAS build, no OTA.** A server deploy only; the installed preview build already points at
+production.
