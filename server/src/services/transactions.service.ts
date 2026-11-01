@@ -21,6 +21,27 @@ type HistoryFilters = {
 const { ObjectId } = mongoose.Types;
 const oid = (id: string | mongoose.Types.ObjectId) => new ObjectId(id);
 
+/** The filters that identify a history set, before the page window is applied. */
+type HistoryFilterInput = Omit<HistoryFilters, 'skip' | 'limit'>;
+
+/**
+ * One definition of what a history query selects, shared by the page and by the
+ * transfer statistics. Keeping them together is what stops the logical count from
+ * describing a different set of rows than the page it is attached to.
+ */
+function historyMatch(businessId: string, { productId, locationId, type, from, to }: HistoryFilterInput): TransactionFilter {
+  const match: TransactionFilter = { businessId: oid(businessId) };
+  if (productId) match.productId = oid(productId);
+  if (locationId) match.locationId = oid(locationId);
+  if (type) match.type = type;
+
+  const created: { $gte?: Date; $lte?: Date } = {};
+  if (from) created.$gte = new Date(from);
+  if (to) created.$lte = new Date(to);
+  if (created.$gte || created.$lte) match.createdAt = created;
+  return match;
+}
+
 export const TRANSACTION_TYPES = Object.freeze(['STOCK_IN', 'STOCK_OUT', 'ADJUSTMENT', 'TRANSFER']);
 
 /** The `$lookup`-joined product/location document, read only for `_id`/`name`. */
@@ -59,15 +80,9 @@ export function historyItemPublic(item: HistoryRow) {
 export const transactionsService = {
   async list(businessId: string, { productId, locationId, type, from, to, skip, limit }: HistoryFilters) {
     const bizOid = oid(businessId);
-    const match: TransactionFilter = { businessId: bizOid };
-    if (productId) match.productId = oid(productId);
-    if (locationId) match.locationId = oid(locationId);
-    if (type) match.type = type;
+    const match = historyMatch(businessId, { productId, locationId, type, from, to });
 
-    const created: { $gte?: Date; $lte?: Date } = {};
-    if (from) created.$gte = new Date(from);
-    if (to) created.$lte = new Date(to);
-    if (created.$gte || created.$lte) match.createdAt = created;    // The page is selected BEFORE the joins, not after them.
+    // The page is selected BEFORE the joins, not after them.
     //
     // Measured 2026-10-13 against a synthetic 10 000-product tenant (20 105
     // inventory rows, 19 944 transactions): the two `$lookup` stages below ran once
@@ -138,6 +153,26 @@ export const transactionsService = {
     const items = rows.map(historyItemPublic);
     const total = counted[0]?.total ?? 0;
     return { items, total };
+  },
+
+  /**
+   * The transfer rows and distinct transfer references in the SAME history set.
+   *
+   * A transfer is one event and two ledger rows, so the assistant's logical count is
+   * `rows - transferRows + transferReferences`: every non-transfer row is one event, and
+   * every reference is one event however many of its legs match the filter. A location
+   * filter leaves one leg per reference, which is still one event at that location.
+   *
+   * The History screen keeps the raw `total`; only the assistant asks for this.
+   */
+  async transferStats(businessId: string, filters: HistoryFilterInput) {
+    const match = historyMatch(businessId, filters);
+    const [stats] = await InventoryTransaction.aggregate([
+      { $match: { ...match, type: 'TRANSFER', reference: { $ne: null } } },
+      { $group: { _id: '$reference', legs: { $sum: 1 } } },
+      { $group: { _id: null, rows: { $sum: '$legs' }, events: { $sum: 1 } } },
+    ]);
+    return { rows: stats?.rows ?? 0, events: stats?.events ?? 0 };
   },
 };
 

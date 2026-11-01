@@ -393,10 +393,18 @@ function localTimeOf(value: unknown, timeZone?: string): string | undefined {
  * UTC string: asked to convert, it states the UTC time or invents an offset. The
  * prompt points it at `localTime`, and the row itself is unambiguous.
  */
+function transferDirectionOf(previousQuantity: number, newQuantity: number): 'out' | 'in' | undefined {
+  if (newQuantity < previousQuantity) return 'out';
+  if (newQuantity > previousQuantity) return 'in';
+  return undefined;
+}
+
 function historyItemForModel(item: HistoryItemSource, timeZone?: string) {
   const product = item.product as { id?: unknown; name?: unknown } | null | undefined;
   const location = item.location as { id?: unknown; name?: unknown } | null | undefined;
   const local = localTimeOf(item.createdAt, timeZone);
+  const direction =
+    item.type === 'TRANSFER' ? transferDirectionOf(Number(item.previousQuantity), Number(item.newQuantity)) : undefined;
   return {
     id: item.id,
     type: item.type,
@@ -409,34 +417,69 @@ function historyItemForModel(item: HistoryItemSource, timeZone?: string) {
     location: location ? { id: location.id, name: location.name } : null,
     createdAt: item.createdAt,
     ...(local ? { localTime: local } : {}),
+    ...(direction ? { direction } : {}),
   };
 }
 
+type HistoryItem = ReturnType<typeof historyItemForModel>;
+
 /**
- * AI-42 — the one sentence a history page needs when it holds both legs of a transfer.
+ * AI-42 — a complete transfer pair as ONE model-facing event.
  *
- * WHY THIS IS ON THE RESULT. A transfer is one business event and two immutable ledger
- * rows, and `transactionsService.list` is deliberately shared with the Inventory History
- * screen, which keeps both rows (phase19's history case). The assistant reads the
- * rows, not the dashboard's grouped activity, so a page containing a paired transfer is
- * the only place the model can be told that the two rows are one event. Putting the rule
- * beside the rows is cheaper and more reliable than another system-prompt rule, and it
- * costs nothing on a page that contains no pair.
+ * WHY THE LEGS ARE FOLDED HERE. A transfer is one business event and two immutable
+ * ledger rows, and `transactionsService.list` is deliberately shared with the Inventory
+ * History screen, which keeps both rows (phase19's history case). The assistant reads the
+ * rows, not the dashboard's grouped activity, so an ungrouped page let an answer count one
+ * transfer twice — and a phone answer also put the source on the wrong side, because a
+ * single leg carries only its own location. Folding the pair here gives the model `from`,
+ * `to` and one event without changing what the History screen shows.
  *
- * A single leg — a location-filtered page, or a pair split by the page boundary — gets no
- * note: there is nothing to merge, and the row still describes a real transfer leg.
+ * A single leg — a location-filtered page, or a pair split by the page boundary — stays a
+ * leg and carries `direction`, which is the one fact a leg can state on its own.
  */
-function transferEventNote(items: ReturnType<typeof historyItemForModel>[]): string | undefined {
-  const seen = new Set<string>();
-  for (const item of items) {
-    if (item.type !== 'TRANSFER' || item.reference == null || item.reference === '') continue;
-    const reference = String(item.reference);
-    if (seen.has(reference)) {
-      return 'Two TRANSFER rows with the same reference are the two legs of ONE stock transfer. Report it once with the source and destination; do not count it as two movements.';
-    }
-    seen.add(reference);
+function foldTransferEvents(rows: HistoryItem[]) {
+  const legsByReference = new Map<string, HistoryItem[]>();
+  for (const row of rows) {
+    if (row.type !== 'TRANSFER' || row.reference == null || row.reference === '') continue;
+    const key = String(row.reference);
+    const legs = legsByReference.get(key);
+    if (legs) legs.push(row);
+    else legsByReference.set(key, [row]);
   }
-  return undefined;
+
+  const complete = new Map<string, { source: HistoryItem; destination: HistoryItem }>();
+  for (const [key, legs] of legsByReference) {
+    if (legs.length !== 2) continue;
+    const source = legs.find((leg) => leg.direction === 'out');
+    const destination = legs.find((leg) => leg.direction === 'in');
+    if (source && destination) complete.set(key, { source, destination });
+  }
+  if (complete.size === 0) return { items: rows, pairs: 0 };
+
+  const emitted = new Set<string>();
+  const items: (HistoryItem | Record<string, unknown>)[] = [];
+  for (const row of rows) {
+    const key = row.type === 'TRANSFER' && row.reference != null ? String(row.reference) : '';
+    const pair = key ? complete.get(key) : undefined;
+    if (!pair) {
+      items.push(row);
+      continue;
+    }
+    if (emitted.has(key)) continue;
+    emitted.add(key);
+    items.push({
+      id: key,
+      type: 'TRANSFER',
+      quantity: pair.source.quantity,
+      product: pair.source.product,
+      from: pair.source.location,
+      to: pair.destination.location,
+      reference: pair.source.reference,
+      createdAt: row.createdAt,
+      ...(row.localTime ? { localTime: row.localTime } : {}),
+    });
+  }
+  return { items, pairs: complete.size };
 }
 
 function rowResult(r: InventoryRow) {
@@ -696,7 +739,7 @@ const tools: Tool[] = [
   {
     name: 'getInventoryHistory',
     description:
-      'Recent stock movements (newest first). Optionally filter by product, location, movement type, and a createdAt range. A location may be given as `locationId` or as the exact `location` name. Returns the current page of transactions. A stock transfer is recorded as TWO rows sharing one `reference` (one leg leaving, one entering); when both are on the page they are ONE event, not two movements.',
+      'Recent stock movements (newest first). Optionally filter by product, location, movement type, and a createdAt range. A location may be given as `locationId` or as the exact `location` name. Returns the current page of logical events. A complete stock transfer is ONE event with `from` and `to` even though the ledger keeps two rows; a location-filtered page may return one leg, whose `direction` is `out` or `in`.',
     permission: PERMISSIONS.INVENTORY_HISTORY_VIEW,
     defaultLimit: 15,
     parameters: {
@@ -730,12 +773,23 @@ const tools: Tool[] = [
         skip: 0,
         limit: Math.min(args.limit ?? 15, 50),
       });
-      const rows = items.map((item) => historyItemForModel(item, ctx.timeZone));
-      const note = transferEventNote(rows);
-      return page(total, rows, {
-        ...(location.id ? { locationId: location.id } : {}),
-        ...(note ? { note } : {}),
-      });
+      const mapped = items.map((item) => historyItemForModel(item, ctx.timeZone));
+      const folded = foldTransferEvents(mapped);
+      // `transferStats` counts the filtered set, not this page, so the total stays logical
+      // even when a pair sits beyond the page boundary. No transfer filter can contribute
+      // to a non-TRANSFER type, so the extra aggregation is skipped for those pages.
+      let logicalTotal = total;
+      if (!args.type || args.type === 'TRANSFER') {
+        const stats = await transactionsService.transferStats(ctx.businessId, {
+          productId: args.productId,
+          locationId: location.id,
+          type: args.type,
+          from: args.from,
+          to: args.to,
+        });
+        logicalTotal = total - stats.rows + stats.events;
+      }
+      return page(logicalTotal, folded.items, location.id ? { locationId: location.id } : {});
     },
   },
 

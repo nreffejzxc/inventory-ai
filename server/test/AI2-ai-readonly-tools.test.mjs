@@ -64,6 +64,9 @@ const READ_ONLY_SERVICE_CALLS = new Set([
   'inventoryService.locationBreakdown',
   'dashboardService.summary',
   'transactionsService.list',
+  // AI-42: the transfer statistics are one aggregate read over the same history rows —
+  // it exists so the assistant's count stays logical when a pair spans the page edge.
+  'transactionsService.transferStats',
   // AI-14: reference lists. `list()` is the only read the factory pair exposes here —
   // `create`/`update`/`setStatus` on the same services are writes and stay OFF this list,
   // which is what keeps the allow-list meaningful: it names methods, not services.
