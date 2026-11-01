@@ -24321,8 +24321,14 @@ merged as **`1c1734b`**; production `/api/health` reports that commit, database 
 server errors. The device showed the dashboard's **Main Warehouse → Shop Front** row, which is the
 direction the assistant had reported backwards.
 
-**Not verified — the live answer.** The owner account's daily AI allowance was already spent when the
-deploy landed (the app: *"The assistant has used today's request allowance. It resets at midnight UTC
-(8AM in Manila)"*), so no assistant turn could be observed against `1c1734b` on the phone. The
-mechanism is pinned by the tool-level tests; the model-facing confirmation was still pending at the
-time of writing and is recorded in the development log. No EAS build, no OTA. A server deploy only.
+**Verified on the device, after the provider key was reset.** The owner account's daily AI allowance
+was already spent when the deploy landed, so the first attempt was refused with the allowance
+message. When the provider key was replaced, the same question was asked on the phone against
+`1c1734b`: *"The most recent transfer was: From: Main Warehouse; To: Shop Front. The move was 2 units
+of the product ZZ Sprint1 Verify, logged at 2026-11-01 08:47 local time."* That matches the
+dashboard's **Main Warehouse → Shop Front** row exactly, names the destination the earlier answer
+omitted, and reports the movement once. Screenshot and context: [the evidence
+record](../evidence/ai42-transfer-2026-11-02/README.md) and [`answer.png`](../evidence/ai42-transfer-2026-11-02/answer.png).
+
+**No EAS build, no OTA.** A server deploy only; the installed preview build already points at
+production.
