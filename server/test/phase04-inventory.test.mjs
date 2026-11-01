@@ -70,7 +70,9 @@ async function stockOut(business, productId, locationId, quantity, over = {}) {
 async function adjust(business, productId, locationId, quantity, over = {}) {
   return api('POST', '/api/inventory/adjust', {
     token: business.token,
-    body: { productId, locationId, quantity, ...over },
+    // A reason is mandatory on this endpoint; callers that are not testing that
+    // rule get a default so the quantity semantics stay the subject of the test.
+    body: { productId, locationId, quantity, reason: 'test adjustment', ...over },
   });
 }
 
@@ -253,6 +255,35 @@ dbSuite('Phase 04 — inventory core + dashboard', dbOk, () => {
 
     const blocked = await stockOut(owner, p, l, 1);
     assert.equal(blocked.status, 409);
+  });
+
+  it('refuses an adjustment with no reason, and changes nothing', async () => {
+    const p = await newProduct(owner);
+    const l = await newLocation(owner);
+    await stockIn(owner, p, l, 10);
+
+    const missing = await api('POST', '/api/inventory/adjust', {
+      token: owner.token,
+      body: { productId: p, locationId: l, quantity: 4 },
+    });
+    assert.equal(missing.status, 400, JSON.stringify(missing.json));
+    assert.ok(
+      (missing.json.fields ?? []).some((f) => f.field === 'reason'),
+      'the refusal must name the reason field'
+    );
+    assert.equal((await row(p, l, owner.businessId)).quantity, 10, 'a refused adjustment changed stock');
+    assert.equal(await txnCount(owner.businessId, p, l, 'ADJUSTMENT'), 0, 'a refused adjustment wrote a ledger row');
+
+    // Whitespace is not a reason.
+    const blank = await api('POST', '/api/inventory/adjust', {
+      token: owner.token,
+      body: { productId: p, locationId: l, quantity: 4, reason: '   ' },
+    });
+    assert.equal(blank.status, 400, JSON.stringify(blank.json));
+
+    const withReason = await adjust(owner, p, l, 4, { reason: 'cycle count' });
+    assert.equal(withReason.status, 200, JSON.stringify(withReason.json));
+    assert.equal((await row(p, l, owner.businessId)).quantity, 4);
   });
 
   it('rejects movements against archived products and locations', async () => {
