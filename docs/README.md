@@ -1,11 +1,13 @@
 # The `docs/` folder
 
-Three kinds of writing live here. Knowing which is which saves time:
+Four kinds of writing live here. Knowing which is which saves time:
 
 - **Guides** — written to be *followed*. They say what to type and what you should see.
 - **Reference** — written to be *consulted*. They state what the system is and must stay true.
 - **Records** — written *once*, dated, with evidence. They say what happened. They are long on
   purpose, and **you never need to read them to use or change the project.**
+- **Status** — written to be *current*. It says what is being worked on, what is half-done, and
+  what comes next. It is the one document here that is edited every session.
 
 ---
 
@@ -64,6 +66,17 @@ date they were written. **Read them for an audit, not for orientation.**
 
 At the repository root: [`../SECURITY.md`](../SECURITY.md) — how to report a vulnerability and what is
 in scope.
+
+## 4. Where we are now — the living log
+
+| Document | Answers |
+| --- | --- |
+| [`DEVELOPMENT_LOG.md`](DEVELOPMENT_LOG.md) | What is being worked on now, what each session finished and verified, what is blocked, what is next — plus the resource budgets (EAS builds, OTA, CI minutes) |
+
+It is newest-first and is updated at the end of every development session. It does **not** replace
+the roadmap: the roadmap records what shipped, with measurements; the log records what is true
+today. When the two disagree, the roadmap's newest record is the evidence and the log is corrected
+in a new entry.
 
 ---
 
