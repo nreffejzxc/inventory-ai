@@ -908,7 +908,83 @@ Keep reports concise and factual.
 
 ---
 
-# 20. Final Rule
+# 20. Resource Conservation and Repository Health
+
+These are permanent operating rules, not a one-off checklist. The daily evidence lives in
+[`docs/DEVELOPMENT_LOG.md`](docs/DEVELOPMENT_LOG.md); this section says what must be true before and
+after the work that the log records.
+
+## Session protocol
+
+- **Start** by reading the log's *Current position*, its newest entry and the newest roadmap record.
+  Continue unfinished work before starting something new unless a higher-priority issue is found.
+- Do not redo anything the roadmap records as verified. If it must be re-checked, say why.
+- **During** the session, note decisions, discoveries and failures as they happen. A later reader
+  must be able to tell an assumption from a measurement.
+- **End** by updating the log: what was completed and how it was verified, what is in progress, what
+  was not done and why, findings, blockers, resource use and the next priority. Update the roadmap
+  when a status, priority or milestone changes. Never record "complete" because code was written, a
+  commit exists or a deploy was triggered — only because the check was run and its result seen.
+
+## Expo EAS builds — one allowance, spent deliberately
+
+- **No build merely because code changed.** First ask: can the installed build test this? can an
+  OTA carry it? does it touch native dependencies, native config, permissions or assets that need a
+  binary? what does the current allowance say?
+- If a build is genuinely needed, include every pending compatible change, run the reviews,
+  typechecks, tests and config checks first, and confirm the profile, channel, environment and
+  runtime. A build that has to be repeated the next day is the expensive option.
+- A refused build can still consume a `versionCode`. Do not retry into an exhausted quota; wait for
+  the reset or find another verification path, and say which one you chose.
+- `mobile/scripts/check-ota-publish.mjs` is the gate. `--allow-native-change` is for a declared
+  emergency, never for convenience.
+- Do not delay a critical security or inventory-integrity fix to save a build. State why the build
+  is necessary and spend the allowance.
+
+## OTA updates
+
+- JavaScript and assets only, and only to a runtime the installed binary actually has. Check the
+  channel, branch, environment and runtime before publishing.
+- Run the relevant tests and confirm the update cannot break installed builds.
+- No repeated or speculative publications, and **no production OTA without the owner's
+  authorisation**.
+
+## GitHub Actions and Render
+
+- CI runs per pull request and on `main`; batch small commits rather than pushing a cosmetic
+  follow-up that reruns the whole suite. Do not add workflows, schedules or triggers without a need.
+- Render deploys only when `server/` changes. A docs or mobile merge will not move the production
+  commit — do not read that as a failed deploy. Verify with `GET /api/health` (`commit`).
+- Report Actions minutes and build/OTA use when the APIs expose them; if a figure cannot be read,
+  say so rather than guessing.
+
+## GitHub security and repository health
+
+- Periodically inspect Dependabot, code scanning, secret scanning, workflow permissions,
+  collaborators, and stale branches or pull requests. For each finding: severity, real impact,
+  whether a safe fix exists, and what needs approval.
+- Fix what is safe, test it, and report the rest. Never print a secret value.
+- Without explicit approval: do not rotate production credentials, change ownership or access,
+  delete branches, discard unmerged work, close pull requests or force-push.
+- Git identity stays `jeffernzxc` / `jeffernmalinaoqwe@gmail.com`. If either differs, report the
+  mismatch; never silently change it.
+
+## Priority order
+
+1. Critical security vulnerabilities and data-integrity risks.
+2. Bugs that can corrupt inventory or create duplicate transactions.
+3. Broken production features and availability.
+4. Reliability and performance.
+5. Missing V1 functionality.
+6. UX and operational workflows.
+7. Maintenance and optional enhancements.
+
+Weigh impact, risk, testing cost and resource use before choosing. Do not add unrelated features or
+optional work that the request did not ask for.
+
+---
+
+# 21. Final Rule
 
 When uncertain about implementation details, prioritize:
 
