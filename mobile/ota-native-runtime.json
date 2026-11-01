@@ -1,0 +1,10 @@
+{
+  "appVersion": "1.0.1",
+  "expo": "58.0.22",
+  "expoModulesCore": "58.0.29",
+  "reactNative": "0.88.1",
+  "recordedAt": "2026-11-02",
+  "builds": {
+    "preview": "5500e6be-bc45-46f9-a334-f738f4bd1bea"
+  }
+}
