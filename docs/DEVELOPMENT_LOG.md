@@ -46,10 +46,10 @@ Store release is being prepared.
 
 | | |
 | --- | --- |
-| **Working now** | Nothing is in flight. The phone build, the two workflow fixes and the AI-41 verification are complete; what remains is cleanup and the follow-ups below |
-| **Just verified** | `1.0.1` APK `64958ea2` installed over `1.0.0`; adjustment cancel/confirm, row-level transfer and the local-time answer all measured on the phone; PR #112 merged as `ad8426e` and serving in production |
+| **Working now** | Nothing is in flight. The phone build, the workflow fixes, the AI-41 verification and the `minimatch`/`glob` triage are complete; the next work is the follow-ups below |
+| **Just verified** | `1.0.1` APK `64958ea2` installed over `1.0.0`; adjustment cancel/confirm, row-level transfer and the local-time answer measured on the phone; PR #112 merged as `ad8426e`; four medium Dependabot alerts triaged and deferred with evidence (D-10) |
 | **Blocked** | Nothing this session. The next EAS build is subject to the monthly cap (one used today) |
-| **Next after this** | Remove the temporary worktrees; investigate the stock-in deep link that ignored its `locationId`; check the single-location default on a one-location tenant |
+| **Next after this** | Fix the stock-in deep link that ignored its `locationId`; check the single-location default on a one-location tenant; re-check `glob`/`minimatch` when a parent widens |
 
 ### Open items carried forward
 
@@ -58,6 +58,7 @@ Store release is being prepared.
 | Single-location default, on a real device | Jest only | The production test tenant has two locations; the behaviour is covered by `movement-workflow-guards` but has not been seen on hardware |
 | Stock-in deep link with `locationId` | New finding, not fixed | Opening `/stock-in` from a row or a link showed "Choose a location…" even with `locationId` in the params; the transfer entry point did prefill its source. Recorded in the entry below |
 | A transfer is two movements to the assistant | Known representation | The AI lists both ledger legs; Recent Activity renders one card. Decide whether the assistant should group legs in future |
+| `glob` and `minimatch` advisories | Deferred, D-10 | Patched `14.0.2` / `11.0.1` are majors outside every consumer's range; re-check the gates in `SECURITY_DEPENDENCY_DECISIONS.md` §4 |
 | Two mobile Dependabot advisories (`zod`, `deepmerge`) | Deferred | No fix inside the consumer's declared range; do not force versions |
 | OTA code signing | Blocked by EAS plan | Free plan only; a signed binary would reject unsigned publishes |
 | Play release | Not started, deliberately | V1 testing first |
@@ -90,6 +91,56 @@ Known limits, checked before spending one of them:
   space that a backup or an index change would explain.
 - **Brevo** — used for verification codes, reset codes and invitations. Do not send test mail in
   bulk; a delivery failure is not a code regression until the provider log says so.
+
+---
+
+## 2026-11-01 — minimatch/glob advisories: no safe in-range fix, deferred with evidence
+
+### Planned
+
+- Triage the four medium Dependabot alerts: two advisories (`minimatch`, `glob`) across the server and
+  mobile lockfiles.
+- Fix them if a safe in-range release exists; otherwise record the disposition and the exact gate.
+
+### Completed and verified
+
+| Item | Evidence |
+| --- | --- |
+| Advisory records read. | `minimatch` GHSA-g3hv-75wg-m249, `< 11.0.1`; `glob` GHSA-3g3m-2fjr-6pw4, `>= 9.0.0 <= 14.0.1`; both medium, DoS/traversal class. |
+| Dependency paths traced in both trees. | Server: `firebase-admin → google-gax → rimraf → glob@10.5.0 → minimatch@9.0.9` in production, plus `eslint`/`typescript-eslint` `minimatch@10.2.6` in development. Mobile: `glob@13.0.6` through Expo CLI/config/Metro/Jest, `glob@10.5.0` through `test-exclude`, and `minimatch@10.2.6 / 9.0.9 / 3.1.5` through ESLint and the same chains. |
+| Patch floors measured against every consumer. | `glob` consumers declare `^7`, `^10` or `^13`; `minimatch` consumers declare `^3` or `^10`. The patched releases are `14.0.2+` and `11.0.1+` — majors no parent admits. `npm view` confirms the newest are `14.0.3` and `11.0.3`. |
+| The "fix" was checked rather than assumed. | `npm audit fix --dry-run` on the server changes 14 packages including a `google-gax` **downgrade** `5.0.8 → 5.0.4` and still leaves the `glob` advisory. `--force` proposes `eslint@4.0.0` or `expo-updates@0.27.5`. Not taken. |
+| Reachability measured, not inferred. | No `glob`/`minimatch` import in `server/src`, `mobile/app`, `mobile/lib`, `mobile/components` or `mobile/hooks`. Server path is google-gax/rimraf temp-file cleanup; mobile path is build/test tooling. Neither is in a shipped bundle. |
+| Disposition recorded. | `docs/SECURITY_DEPENDENCY_DECISIONS.md` D-10: accepted and documented, no override, no forced audit fix; §4 lists the gates that end it. |
+| Documentation guards. | `phase-docs-section-integrity` + `phase-docs-fact-drift` **14/14** on the clean tree. |
+
+### Not completed
+
+- No dependency was changed. There is no patched release inside any consumer's declared range, and an
+  override would be an unreviewed major upgrade of build tooling for a non-reachable advisory.
+
+### Findings
+
+- `npm audit` counts dependents: the server's 16 entries are 2 distinct advisories; mobile's 48 are 4.
+- Dependabot's six open alerts are four advisories across two manifests, not six separate defects.
+- The existing upgrade-watch script cannot model these two: each has several consumers with different
+  ranges, so a single-consumer watch would report `READY` when only one parent had widened. The gates
+  are therefore explicit prose in the decision record, not a misleading machine status.
+
+### Blockers
+
+- Upstream only: `glob`/`minimatch` need a release inside `^7`/`^10`/`^13` and `^3`/`^10`, or the
+  parents (`expo-updates`, `@expo/cli`, `rimraf`, `test-exclude`, `eslint`, `@typescript-eslint`) must
+  widen. Nothing in this repository can close them without an override.
+
+### Next priority
+
+1. The stock-in deep-link bug that ignored `locationId`.
+2. The single-location default on a real one-location tenant.
+3. Re-run this triage when a parent widens or `firebase-admin` moves; then a normal bump should close
+   both alerts.
+
+**Resource use:** no EAS build, no OTA, one CI run.
 
 ---
 
