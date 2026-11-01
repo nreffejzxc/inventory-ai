@@ -23931,9 +23931,8 @@ database (read-only, `--days=all`): **5 487 ledger rows scanned, 0 suspected, ex
 
 **Not verified.** Production was not read: no production credential exists on this host,
 and this is the tool an operator with that credential should run. No row was modified
-anywhere — that is the tool's contract, not a result of this run. One unrelated failure is
-present in `npm run test:unit`: the issue-record guard walks the whole workspace and finds
-`ISS-99` inside the untracked `.tmp-*` scratch copies of the repository left by earlier
+anywhere — that is the tool's contract, not a result of this run.One unrelated failure is present in `npm run test:unit`: the issue-record guard walks the whole workspace and finds
+an issue identifier inside the untracked `.tmp-*` scratch copies of the repository left by earlier
 history work, not in any tracked file. Those directories were not deleted here.
 
 ---
