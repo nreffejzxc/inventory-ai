@@ -46,16 +46,16 @@ Store release is being prepared.
 
 | | |
 | --- | --- |
-| **Working now** | Nothing is in flight. The stock-in link fix and the single-location timing guard are written and verified; the next work is the follow-ups below |
-| **Just verified** | `single-location-default` **4/4** with a mutation check (three one-location tests failed without the default, the two-location control stayed green); the movement group together **15/15**; `tsc` and ESLint clean. Earlier today: `stock-in-deep-link` **4/4**, the `1.0.1` APK `64958ea2` on the phone, PR #112 as `ad8426e`, and the `minimatch`/`glob` triage (D-10) |
-| **Blocked** | Nothing this session. The next EAS build is subject to the monthly cap (one used today); no build or OTA was spent for either JavaScript-only increment |
-| **Next after this** | Decide whether the assistant should group a transfer's two legs; re-check `glob`/`minimatch` when a parent widens; ship §27HE and §27HF with the next authorized OTA or build |
+| **Working now** | A one-location tenant exists in production, ready to be signed into on the phone; the default itself has not yet been seen there |
+| **Just verified** | The tenant (`6ae6f1d8baa72cee39730240`) holds 11 products and exactly one ACTIVE location (`Main Warehouse`); the app's own `status=ACTIVE` query returns 1; the seeded login completed Firebase sign-in and the exchange. Earlier today: `single-location-default` **4/4** with a mutation check, the movement group **15/15**, and the stock-in link fix **4/4** |
+| **Blocked** | Nothing. The phone check needs the owner at the device, because switching accounts signs out the current session |
+| **Next after this** | Sign in on the phone as the seeded login and confirm a movement opens with Main Warehouse chosen; remove the tenant afterwards or keep it as a demo; decide the assistant's transfer grouping |
 
 ### Open items carried forward
 
 | Item | State | Why it is open |
 | --- | --- | --- |
-| Single-location default, on a real device | Automated coverage complete | §27HF pins the late-arriving list for stock-in, out and adjust, with a two-location control; it has still not been seen on hardware because the production test tenant has two locations and no build or OTA was spent |
+| Single-location default, on a real device | Ready, phone pending | The production tenant `6ae6f1d8baa72cee39730240` now has exactly one ACTIVE location, and §27HF pins the late-arriving list for all three kinds; the visual check needs the owner to sign in on the phone |
 | Late product param on a cold link | Known, same class as §27HE | `initialProductId` is still seeded once at mount; a link whose product param resolves after the first render would leave the product unset. The location now arrives; the product picker is visible and required, so it is recorded rather than changed |
 | A transfer is two movements to the assistant | Known representation | The AI lists both ledger legs; Recent Activity renders one card. Decide whether the assistant should group legs in future |
 | `glob` and `minimatch` advisories | Deferred, D-10 | Patched `14.0.2` / `11.0.1` are majors outside every consumer's range; re-check the gates in `SECURITY_DEPENDENCY_DECISIONS.md` §4 |
@@ -141,6 +141,59 @@ Known limits, checked before spending one of them:
    both alerts.
 
 **Resource use:** no EAS build, no OTA, one CI run.
+
+---
+
+## 2026-11-01 — A one-location tenant in production, for the default to be seen
+
+### Planned
+
+1. Check whether production already holds a one-location tenant.
+2. If not, create one through the sanctioned seeder rather than a hand-written record.
+3. Leave exactly one ACTIVE location through the app's own audited route.
+4. Record the login, the ids and how to remove it.
+
+### Completed and verified
+
+| Item | Evidence |
+| --- | --- |
+| The three real test tenants were read only. | `check:accounts --with-production` → **3/3 READY**; each holds a multi-location seeded business |
+| The seeder's plan was checked before writing. | `seed:perf-tenant --size=50 --dry-run` → "would be CREATED (no seed tenant exists yet)", so no existing tenant would be replaced |
+| A new tenant was created. | `seed:perf-tenant --size=50` → business `6ae6f1d8baa72cee39730240`, login `perf-seed-ai@example.invalid`, **11 products / 2 locations / 19 inventory rows / 12 ledger movements**; the seeder re-counted every collection and checked all 12 movements |
+| Exactly one location is left. | `Main Warehouse` (`6ae6f1d9baa72cee39730246`) **ACTIVE**; `Shop Front` (`…247`) **ARCHIVED** — through `POST /api/locations/:id/archive` as the tenant's OWNER, which writes an audit row |
+| The app's own query returns one. | `GET /api/locations?status=ACTIVE&page=1&limit=100`, the exact query `useActiveRef` sends → **1 — Main Warehouse** |
+| The login works through the production path. | Firebase REST password sign-in → `POST /api/auth/firebase/exchange` both succeeded; the script prints no token |
+| No build, OTA or deploy. | The installed `1.0.1` already carries the default; switching tenants needs no new binary |
+
+### Not completed
+
+| Item | Reason |
+| --- | --- |
+| Signed in on the phone | The app is still in `jaffy royal kludge`; switching accounts signs that session out, so the owner has to do it at the device. The generated password is in `.tmp-demo-tenant/password`, deliberately untracked |
+| A presentable tenant name | The seeder fixes it as "PERF SEED — AI assistant stress test (do not use)"; there is no business-rename route, and a raw database rename was not taken |
+
+### Bugs and findings
+
+- **"One location" is not a seeder option.** The generator always makes 2–6
+  (`scale(0.0001, 2, 6)`), so a one-location tenant is reached by archiving the extras through the
+  location lifecycle, not by a seed flag.
+- **Archiving keeps the inventory rows.** `Shop Front` still holds its stock but disappears from every
+  picker, because the pickers read `status=ACTIVE`. For a default-to-one demo that is the intended
+  effect; it is not a data deletion.
+- **The tenant's name is a fixture name.** A demo-shaped seeder (name, location count) would need code
+  and tests; it was not built for this check.
+
+### Blockers
+
+- None. The remaining step needs the phone and the owner's sign-in.
+
+### Next priority
+
+1. Sign in on the phone as `perf-seed-ai@example.invalid` and open Stock In: the location should
+   already read **Main Warehouse**, with no picker interaction.
+2. Remove the tenant with `cleanup:perf-tenant` once the check is done (three phrases in production),
+   or keep it as a standing one-location demo.
+3. Decide whether a demo-specific tenant shape deserves a seeder flag.
 
 ---
 
