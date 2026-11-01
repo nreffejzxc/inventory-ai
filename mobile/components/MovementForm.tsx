@@ -16,7 +16,7 @@ import type { ApiResponse, MovementInput } from '../lib/api';
 import { ApiError } from '../lib/client';
 import { endsOperation, newIdempotencyKey } from '../lib/idempotency';
 import { useSession } from '../lib/auth';
-import { alert } from '../lib/confirm';
+import { alert, confirm } from '../lib/confirm';
 import { formatNumber } from '../lib/format';
 import { useActiveRef } from '../hooks/useReferences';
 import useInventoryRow from '../hooks/useInventoryRow';
@@ -154,6 +154,23 @@ export default function MovementForm({
     return list;
   }, [locations.items, initialLocationId, initialLocationName]);
 
+  // A business with one location was still asked to pick it on every movement.
+  // Preselect it once the list has loaded; a location the caller supplied (a
+  // scanned row, a deep link) always wins, and a later edit is never overwritten.
+  const autoLocationDone = useRef(false);
+  useEffect(() => {
+    if (autoLocationDone.current) return;
+    if (locationId) {
+      autoLocationDone.current = true;
+      return;
+    }
+    if (!locations.loading && locations.items.length === 1) {
+      autoLocationDone.current = true;
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time default after the reference list loads; there is no render-time value to derive it from.
+      setLocationId(locations.items[0].id);
+    }
+  }, [locationId, locations.loading, locations.items]);
+
   const selectedProduct = productOptions.find((o) => o.value === productId);
   const selectedLocation = locationOptions.find((o) => o.value === locationId);
 
@@ -168,6 +185,11 @@ export default function MovementForm({
 
   const qtyNum = quantity.trim() === '' ? null : Number(quantity);
   const qtyOk = cfg.allowZero ? qtyNum != null && qtyNum >= 0 && Number.isInteger(qtyNum) : qtyNum != null && qtyNum >= 1 && Number.isInteger(qtyNum);
+  // An adjustment is the only movement with no external document behind it, so
+  // the server requires the reason; the button must not let a member discover
+  // that only after the target has been typed.
+  const reasonRequired = kind === 'adjust';
+  const reasonOk = !reasonRequired || reason.trim().length > 0;
 
   // `qtyNum != null` is implied by `qtyOk` (which is a ternary, so TS cannot
   // alias-narrow through it); it is stated explicitly for that reason only and
@@ -176,14 +198,51 @@ export default function MovementForm({
     kind === 'stock-out' && availState === 'ready' && qtyOk && availableQty != null && qtyNum != null && qtyNum > availableQty;
   const warnNoChange = kind === 'adjust' && availState === 'ready' && qtyOk && onHandQty != null && qtyNum === onHandQty;
   const canSubmit = Boolean(
-    productId && locationId && qtyOk && !busy && !warnOver && !warnNoChange && availState !== 'missing'
+    productId &&
+      locationId &&
+      qtyOk &&
+      reasonOk &&
+      !busy &&
+      !warnOver &&
+      !warnNoChange &&
+      availState !== 'missing' &&
+      // The adjustment confirmation states the CURRENT quantity, so it must not
+      // be offered while that quantity is still unknown.
+      (kind !== 'adjust' || availState === 'ready')
   );
 
   const shownValue = kind === 'adjust' ? onHandQty : availableQty;
 
   async function submit(): Promise<void> {
     if (submitting.current) return;
+    if (reasonRequired && !reason.trim()) {
+      setFieldErrors({ reason: 'A reason is required for an adjustment.' });
+      return;
+    }
     submitting.current = true;
+
+    // An adjustment overwrites the recorded quantity rather than adding to it,
+    // so show the member the exact before/after they are about to commit. The
+    // press is not a send: cancelling here leaves the operation unstarted and
+    // mints no key.
+    if (kind === 'adjust') {
+      const product = selectedProduct?.label ?? 'this product';
+      const at = selectedLocation?.label ?? 'this location';
+      const from = onHandQty != null ? formatNumber(onHandQty) : 'no stock';
+      const to = qtyNum != null ? formatNumber(qtyNum) : '?';
+      const delta = onHandQty != null && qtyNum != null ? qtyNum - onHandQty : null;
+      const change = delta != null ? ` (${delta > 0 ? '+' : ''}${formatNumber(delta)})` : '';
+      const ok = await confirm(
+        'Adjust stock?',
+        `Set ${product} at ${at} from ${from} to ${to}${change}.\nReason: ${reason.trim()}`,
+        { confirmText: 'Adjust', destructive: true }
+      );
+      if (!ok) {
+        submitting.current = false;
+        return;
+      }
+    }
+
     setBusy(true);
     setFormError(null);
     setFieldErrors({});
@@ -287,7 +346,17 @@ export default function MovementForm({
         helper={kind === 'adjust' ? 'You can set stock to 0.' : 'Must be a whole number of 1 or more.'}
         required
       />
-      <Input name="reason" label="Reason (optional)" value={reason} onChangeText={setReason} placeholder="e.g. supplier delivery, damaged, recount" maxLength={500} />
+      <Input
+        name="reason"
+        label={reasonRequired ? 'Reason' : 'Reason (optional)'}
+        value={reason}
+        onChangeText={setReason}
+        placeholder="e.g. supplier delivery, damaged, recount"
+        maxLength={500}
+        error={fieldErrors.reason}
+        helper={reasonRequired ? 'Recorded with the adjustment — say why the count is changing.' : undefined}
+        required={reasonRequired}
+      />
       <Input name="reference" label="Reference (optional)" value={reference} onChangeText={setReference} placeholder="e.g. PO-1234, invoice #" maxLength={200} autoCapitalize="none" />
 
       <Button
