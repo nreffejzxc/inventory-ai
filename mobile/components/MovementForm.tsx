@@ -171,6 +171,27 @@ export default function MovementForm({
     }
   }, [locationId, locations.loading, locations.items]);
 
+  // The route's params are not guaranteed on the first render: a cold deep link
+  // can resolve them afterwards, and a reused screen can be handed a different
+  // location. Seeding the state once left the field reading "Choose a location…"
+  // while the movement still named one, so the member could not see where the
+  // stock would land. Adopt a param that arrives or changes — unless the member
+  // has chosen a location on this screen, which is never overwritten.
+  const locationTouched = useRef(false);
+  const suppliedLocation = useRef(initialLocationId ?? '');
+  useEffect(() => {
+    const next = initialLocationId ?? '';
+    if (next === suppliedLocation.current) return;
+    suppliedLocation.current = next;
+    if (!next || locationTouched.current) return;
+    setLocationId(next);
+  }, [initialLocationId]);
+
+  function chooseLocation(id: string): void {
+    locationTouched.current = true;
+    setLocationId(id);
+  }
+
   const selectedProduct = productOptions.find((o) => o.value === productId);
   const selectedLocation = locationOptions.find((o) => o.value === locationId);
 
@@ -325,7 +346,7 @@ export default function MovementForm({
         placeholder="Choose a location…"
         options={locationOptions}
         value={locationId}
-        onChange={setLocationId}
+        onChange={chooseLocation}
         error={fieldErrors.locationId}
         required
         searchable
