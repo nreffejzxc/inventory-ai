@@ -69,12 +69,20 @@ Store release is being prepared.
 
 Known limits, checked before spending one of them:
 
-- **EAS Android builds** — free plan, monthly cap. The October quota was exhausted; the reset was
-  used for **one** build on 2026-11-01 (`64958ea2`, versionCode 7), which carried AI-41 and the
-  Sprint 1 mobile fixes together on purpose. The attempt the quota refused still incremented
-  `versionCode` 5 → 6 without producing an artifact; the successful build took it to 7. Do not retry
-  a build while the quota message is present, and prefer an OTA when the change is JavaScript-only *and*
-  `mobile/scripts/check-ota-publish.mjs` passes.
+- **EAS builds** — free plan: **15 Android + 15 iOS per monthly cycle** (30 total). Read with
+  `eas account:usage jeffernqwes-team --non-interactive` on 2026-11-01: **Android 2/15, iOS 0/15,
+  2 of 30 total, overage $0**; the cycle is **2026-11-01 → 2026-12-01 UTC**, with 30 days remaining.
+  The October quota was exhausted; the reset was used for **one** build on 2026-11-01 (`64958ea2`,
+  versionCode 7), which carried AI-41 and the Sprint 1 mobile fixes together on purpose. The attempt
+  the quota refused still incremented `versionCode` 5 → 6 without producing an artifact; the
+  successful build took it to 7. Do not retry a build while the quota message is present, and prefer
+  an OTA when the change is JavaScript-only *and* `mobile/scripts/check-ota-publish.mjs` passes.
+- **EAS Update allowance** — free plan: **100 GiB bandwidth** and **1 000 unique updaters** per
+  monthly cycle. Read with the same command on 2026-11-01: **3,069 bytes (0.00 MiB) of 100 GiB
+  used** and **0 of 1 000 updaters**, with **$0 overage**; the cycle is the same 2026-11-01 →
+  2026-12-01 UTC window as the build quota. A publication itself is free — bandwidth is counted
+  when a device downloads a bundle, and unique updaters counts distinct devices that download an
+  update.
 - **OTA updates** — free, but not unconditional. Runtime is `appVersion`; a native dependency or
   config that moved after the installed binary makes an OTA unsafe even when the change is JS-only.
   `check-ota-publish.mjs` is the gate; `--allow-native-change` is for a declared emergency only.
