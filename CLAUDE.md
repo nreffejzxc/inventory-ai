@@ -555,6 +555,7 @@ anchor (`§27…`) in that file.
 - **§27HH** — A transfer is one event to the assistant (2026-11-02)
 - **§27HI** — The transfer's direction, from the ledger itself (2026-11-02)
 - **§27HJ** — A recommendation may rest only on catalogue facts (2026-11-03)
+- **§27HK** — Recorded brands, and the question they answer (2026-11-03)
 
 ---
 
