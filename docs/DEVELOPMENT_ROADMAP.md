@@ -8,7 +8,7 @@ of truth for *what actually happened*, and it is why this file is long.
 
 **How to read it.** Do not read it top to bottom. Either find a record by number (§27FJ, §27DM — the
 numbers are cited from `CLAUDE.md` and from source comments), or use the index: `CLAUDE.md` §7 lists
-all **216** records by the title each gives itself.
+all **217** records by the title each gives itself.
 
 **Current state:** V1 complete and in production testing. The records that answer *where are we now*
 are §27HH (a transfer as one event to the assistant), §27HG (the stock-in link's product), §27HF (the single-location default's timing), §27HE (the
@@ -24397,3 +24397,54 @@ but one phone pass cannot prove every future answer. The tenant still has no bra
 field, so it cannot receive ranked brand recommendations from any assistant until the product model
 records them. No EAS build or OTA: this is a server change, and the installed preview build already
 points at production.
+
+---
+
+# 27HK. Recorded brands, and the question they answer (2026-11-03)
+
+**Why.** §27HJ made the assistant honest about a gap: the product model had no brand,
+model, specification, rating or review field, so a brand question could only be answered
+from the catalogue's actual fields. The next request asked for brand checking and useful
+recommendations. A prompt cannot invent a field; this record is the schema, API, mobile and
+assistant change that §27HJ deferred.
+
+**What shipped.** Product gains an optional `brand` string, trimmed and capped at 80
+characters, through the Mongoose model, the DTO, validation, the create/update API, the
+mobile product form, the product detail and the product list. The existing product search
+`q` now matches brand as well as name, SKU and barcode. A new read-only tool, `listBrands`,
+aggregates ACTIVE products by recorded brand and returns the product count, the categories
+and at most three sample product names; it accepts an optional exact category name/id and
+an optional brand substring. It deliberately does **not** join stock: a brand's on-hand
+quantity is a second question, answered by `searchProducts`/`getProduct`/`getInventory`.
+
+**The distinction the assistant must keep.** Brand is optional. `null` means no brand is
+recorded, not that the product has no brand and never that the business does not stock the
+brand. Prompt rule 16 now says this explicitly and still forbids inferring a brand or
+quality from a name; rule 18 sends brand questions to `listBrands` and says an empty result
+means no brand is recorded for that filter. The AI-43 grounding note was updated in the same
+way: the catalogue now has a brand field, a description remains free text rather than a
+specification field, and a name adjective is still not evidence.
+
+**Verified.** `server/test/AI44-brand-lookup.test.mjs` **7/7** (2 unit + 5 DB): search
+matches a recorded brand and returns it; `listBrands` aggregates two products under one
+brand with its category and samples; the exact category-name filter returns both brands;
+a no-match page says no brand is recorded; `getProduct` returns a recorded brand and `null`
+for an unbranded product. AI-43 remains **10/10**, the AI-2 read-only table guard passes,
+and the OpenRouter all-tools turn executes all **13** tools including `listBrands`. Server
+`tsc --noEmit`, ESLint, mobile typecheck and mobile lint are clean. PR #136 merged as
+**`a99aed7`** with all four required checks green; production `/api/health` reports
+`a99aed7`, database `connected` and **0** server errors.
+
+**Device evidence.** Preview OTA `ecff412c-1312-4901-9686-7cc8d397b7c7` (runtime `1.0.1`)
+was published to the installed preview build; `check-ota-publish --channel preview` was
+ready first and no build was spent. In a new chat the phone was asked *"What brands do we
+carry?"* and answered *"No brands are currently recorded for the active products in your
+inventory — brand is an optional field…"* with provenance **Read: Brands**. That is the
+correct answer for the 1,001 seeded products, none of which carry a brand value.
+
+**What this does not prove.** This tenant has no brand values, so the phone verifies the
+honest empty state, not a positive brand summary; the positive aggregation is covered by
+the DB fixture and the UI field has shipped. `listBrands` reports brand presence and
+product counts, not stock. Brand is optional, and the product list has no dedicated brand
+filter yet — search matches brand text. Evidence:
+[`docs/evidence/ai44-brand-lookup-2026-11-03/`](../evidence/ai44-brand-lookup-2026-11-03/README.md).
