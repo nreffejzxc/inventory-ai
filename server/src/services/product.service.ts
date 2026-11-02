@@ -73,11 +73,15 @@ type ProductWritePayload = {
  */
 type ProductListFilters = {
   q?: string;
+  terms?: string[];
+  includeDescription?: boolean;
   status?: string;
   categoryId?: string;
   locationId?: string;
   lowStock?: boolean;
   outOfStock?: boolean;
+  inStockOnly?: boolean;
+  withStock?: boolean;
   skip: number;
   limit: number;
 };
@@ -99,6 +103,30 @@ type BrandSummaryFilters = {
 
 const { ObjectId } = mongoose.Types;
 const escapeRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+/**
+ * One OR clause for the everyday search. `q` keeps the existing exact-substring
+ * contract; `terms` is the natural-search list and may look in `description` as
+ * well. Each term is matched independently, so "engine oil, motor oil, 10W-40"
+ * finds a row whose recorded facts use only one of those phrases.
+ */
+function textSearchOr({
+  q,
+  terms,
+  includeDescription,
+}: Pick<ProductListFilters, 'q' | 'terms' | 'includeDescription'>) {
+  const values = [q, ...(terms ?? [])]
+    .map((value) => value?.trim())
+    .filter((value): value is string => Boolean(value));
+  if (values.length === 0) return null;
+  const fields = includeDescription
+    ? (['name', 'brand', 'description', 'sku', 'barcode'] as const)
+    : (['name', 'brand', 'sku', 'barcode'] as const);
+  return values.flatMap((value) => {
+    const re = { $regex: escapeRegExp(value), $options: 'i' };
+    return fields.map((field) => ({ [field]: re }));
+  });
+}
 
 function duplicateError(payload: { sku?: unknown; barcode?: unknown }) {
   const { sku, barcode } = payload;
@@ -646,14 +674,15 @@ export const productService = {
   },
 
   /** Plain catalog list + search (name/sku/barcode) + category/status filters. */
-  async listSimple(businessId: IdLike, { q, status, categoryId, skip, limit }: ProductListFilters) {
+  async listSimple(
+    businessId: IdLike,
+    { q, terms, includeDescription, status, categoryId, skip, limit }: ProductListFilters
+  ) {
     const filter: Record<string, unknown> = { businessId };
     if (status === 'ACTIVE' || status === 'ARCHIVED') filter.status = status;
     if (categoryId) filter.categoryId = new ObjectId(categoryId);
-    if (q) {
-      const re = { $regex: escapeRegExp(q), $options: 'i' };
-      filter.$or = [{ name: re }, { brand: re }, { sku: re }, { barcode: re }];
-    }
+    const textOr = textSearchOr({ q, terms, includeDescription });
+    if (textOr) filter.$or = textOr;
     const total = await Product.countDocuments(filter);
     const docs = await Product.find(filter)
       .populate('categoryId', 'name status')
@@ -676,17 +705,27 @@ export const productService = {
    */
   async listWithStock(
     businessId: IdLike,
-    { q, status, categoryId, locationId, lowStock, outOfStock, skip, limit }: ProductListFilters
+    {
+      q,
+      terms,
+      includeDescription,
+      status,
+      categoryId,
+      locationId,
+      lowStock,
+      outOfStock,
+      inStockOnly,
+      skip,
+      limit,
+    }: ProductListFilters
   ) {
     const bizOid = new ObjectId(businessId);
     // Loose filter document: keys are added conditionally below.
     const match: Record<string, unknown> = { businessId: bizOid };
     if (status === 'ACTIVE' || status === 'ARCHIVED') match.status = status;
     if (categoryId) match.categoryId = new ObjectId(categoryId);
-    if (q) {
-      const re = { $regex: escapeRegExp(q), $options: 'i' };
-      match.$or = [{ name: re }, { brand: re }, { sku: re }, { barcode: re }];
-    }
+    const textOr = textSearchOr({ q, terms, includeDescription });
+    if (textOr) match.$or = textOr;
 
     const pipeline: PipelineStage[] = [
       { $match: match },
@@ -714,6 +753,9 @@ export const productService = {
     // whether any inventory row contributed.
     if (locationId) {
       pipeline.push({ $match: { hasRow: true } });
+    }
+    if (inStockOnly) {
+      pipeline.push({ $match: { $expr: { $gt: ['$available', 0] } } });
     }
     if (outOfStock) {
       pipeline.push({ $match: { $expr: { $lte: ['$available', 0] } } });
@@ -881,12 +923,37 @@ export const productService = {
 
   /** Chooses the right listing strategy depending on whether stock filters are used. */
   async list(businessId: IdLike, query: ProductListFilters) {
-    const { q, status, categoryId, locationId, lowStock, outOfStock, skip, limit } = query;
-    const needsStock = Boolean(locationId || lowStock || outOfStock);
+    const {
+      q,
+      terms,
+      includeDescription,
+      status,
+      categoryId,
+      locationId,
+      lowStock,
+      outOfStock,
+      inStockOnly,
+      withStock,
+      skip,
+      limit,
+    } = query;
+    const needsStock = Boolean(locationId || lowStock || outOfStock || inStockOnly || withStock);
     if (needsStock) {
-      return this.listWithStock(businessId, { q, status, categoryId, locationId, lowStock, outOfStock, skip, limit });
+      return this.listWithStock(businessId, {
+        q,
+        terms,
+        includeDescription,
+        status,
+        categoryId,
+        locationId,
+        lowStock,
+        outOfStock,
+        inStockOnly,
+        skip,
+        limit,
+      });
     }
-    return this.listSimple(businessId, { q, status, categoryId, skip, limit });
+    return this.listSimple(businessId, { q, terms, includeDescription, status, categoryId, skip, limit });
   },
 };
 

@@ -31,6 +31,7 @@ jest.mock('expo-router', () => ({
 
 const TOOL_NAMES = [
   'searchProducts',
+  'findProducts',
   'getProduct',
   'getInventory',
   'getLowStockProducts',
