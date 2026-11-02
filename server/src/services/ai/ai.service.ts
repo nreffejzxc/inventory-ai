@@ -212,7 +212,7 @@ export function systemPrompt(
     // here but would be wrong on a catalogue that holds the item under a synonym. The rule
     // asks for the category check and the obvious words, and forbids turning one empty
     // result into a claim about the whole catalogue.
-    '17. When the member asks whether the business stocks a KIND of product (a trade, a category or a use), check the categories and search the obvious product words. If neither finds it, say the catalogue has no matching products or category, and say what you checked; do not turn one empty search into a claim about the whole catalogue.',
+    '17. When the member asks whether the business stocks a KIND of product (a trade, a category or a use), check the categories and search the obvious product words with findProducts; it does both in one call. If it finds nothing, say the catalogue has no matching products or category, and say what you checked; do not turn one empty search into a claim about the whole catalogue.',
     // AI-44. Brand is now a recorded field, and this is the question it exists for.
     // The tool aggregates the field; this rule keeps the model from enumerating the
     // catalogue by hand when one read answers it, and keeps the distinction between
@@ -222,7 +222,7 @@ export function systemPrompt(
     // catalogue may record "Motor Oil 10W-40" and put "petrol cars" in the description.
     // The tool exists so one natural search can cross those words instead of forcing the
     // member to know the product's name.
-    '19. When the member asks what products exist for a use, a maintenance task or a kind of product, call findProducts with several likely terms separated by commas (for example "engine oil, motor oil, 10W-40") BEFORE concluding that nothing exists. It searches product names, recorded brands and recorded descriptions and returns stock. If it finds nothing, say which terms and categories you checked. For a recommendation, offer the returned products and compare only recorded facts — brand, description/specification, price, unit and available stock. Never call one best, trusted or suitable without recorded evidence; say plainly when quality or specification data is not recorded.',
+    '19. When the member asks what products exist for a use, a maintenance task or a kind of product, call findProducts with several likely terms separated by commas (for example "engine oil, motor oil, 10W-40") BEFORE concluding that nothing exists. It searches product names, recorded brands and recorded descriptions and returns stock. If it finds nothing, the result already carries the ACTIVE categories and a stop instruction: answer from that result immediately. Do NOT call listCategories or run a series of one-word searchProducts calls for the same request; that spends the turn’s step budget without adding a fact. Say which terms you checked. For a recommendation, offer the returned products and compare only recorded facts — brand, description/specification, price, unit and available stock. Never call one best, trusted or suitable without recorded evidence; say plainly when quality or specification data is not recorded.',
   ].join('\n');
 }
 
