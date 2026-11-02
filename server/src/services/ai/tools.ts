@@ -587,7 +587,7 @@ const tools: Tool[] = [
   {
     name: 'findProducts',
     description:
-      'Find products for an everyday use, maintenance task or kind of product. Pass several likely words or phrases separated by commas — for example "engine oil, motor oil, 10W-40" — because the recorded name, brand or description may use a different one. It searches name, recorded brand, recorded description, SKU and barcode, returns available stock, and can filter to an exact category or to items currently in stock. Use this BEFORE concluding the catalogue has nothing for a request. This is discovery, not a quality ranking: never call a result best or trusted unless its recorded data says so.',
+      'Find products for an everyday use, maintenance task or kind of product. Pass several likely words or phrases separated by commas — for example "engine oil, motor oil, 10W-40" — because the recorded name, brand or description may use a different one. It searches name, recorded brand, recorded description, SKU and barcode, returns available stock, and can filter to an exact category or to items currently in stock. Use this BEFORE concluding the catalogue has nothing for a request. When nothing matches, the result carries the ACTIVE categories and a stop instruction: answer from that result, do not run another search. This is discovery, not a quality ranking: never call a result best or trusted unless its recorded data says so.',
     permission: PERMISSIONS.PRODUCTS_VIEW,
     defaultLimit: 15,
     parameters: {
@@ -639,7 +639,25 @@ const tools: Tool[] = [
         skip: 0,
         limit: Math.min(args.limit ?? 15, 25),
       });
-      return page(total, items.map(stockCard), { note: FIND_NOTE, terms });
+      // A no-match result is the END of this search, not an invitation to try
+      // one-word variants until the six-step budget dies. Return the catalogue’s
+      // actual categories in the same payload, so the model can say what does
+      // exist without another tool call, and state the stop in the data it reads.
+      const categories =
+        total === 0
+          ? await categoryService.list(ctx.businessId, { status: 'ACTIVE', skip: 0, limit: 50 })
+          : null;
+      return page(total, items.map(stockCard), {
+        note: FIND_NOTE,
+        terms,
+        ...(categories
+          ? {
+              categories: categories.items.map(referenceItem),
+              guidance:
+                'No product matched these terms. Do not call another search for this question; answer now using this empty result and the categories below. Say which terms you checked, and never infer a brand or quality.',
+            }
+          : {}),
+      });
     },
   },
 

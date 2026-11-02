@@ -54,6 +54,8 @@ unitSuite('AI-45 everyday discovery is bounded by recorded facts', () => {
     assert.ok(tool, 'findProducts is missing from the tool table');
     assert.match(tool.description, /recorded description/i);
     assert.match(tool.description, /returns available stock/i);
+    assert.match(tool.description, /carries the ACTIVE categories/i);
+    assert.match(tool.description, /do not run another search/i);
     assert.match(tool.description, /not a quality ranking/i);
     assert.equal(tool.permission, 'products.view');
   });
@@ -185,6 +187,9 @@ dbSuite('AI-45 natural product discovery', dbOk, () => {
     assert.equal(result.count, 0);
     assert.equal(result.items.length, 0);
     assert.match(result.note, /No match means none of these terms are recorded/i);
+    assert.ok(Array.isArray(result.categories), 'a no-match page must carry the categories it checked');
+    assert.ok(result.categories.some((category) => category.name.startsWith('Automotive')));
+    assert.match(result.guidance, /Do not call another search for this question/i);
   });
 
   it('★ category filtering uses the same exact-name resolution', async () => {
