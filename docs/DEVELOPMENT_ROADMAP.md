@@ -24332,3 +24332,68 @@ record](../evidence/ai42-transfer-2026-11-02/README.md) and [`answer.png`](../ev
 
 **No EAS build, no OTA.** A server deploy only; the installed preview build already points at
 production.
+
+---
+
+# 27HJ. A recommendation may rest only on catalogue facts (2026-11-03)
+
+**Why.** The sample questions asked for **trusted brands**, **good-quality products** and a
+comparison of engine-oil brands. The production tenant holds 1,001 active products in four
+categories — Personal Care, Household, Snacks and Beverages — and its product model has no brand,
+model, specification, rating or review field. Product names are an adjective plus a noun
+("Ultra Detergent 10990", "Premium Battery 10957"). The first phone pass answered the questions
+honestly: no engine oil, only the four real categories, brand names not stored. But that was model
+compliance on one model on one day, not a boundary. A name adjective can be read as a quality claim,
+and a brand question can be answered from famous brands the business does not stock.
+
+There was also a concrete data gap: `searchProducts` and `getProduct` omitted `description`, the
+only free text in which a real tenant can record a brand or a specification. The assistant said the
+catalogue stored no brand names, which was true of the fields it could see, but it could not see
+the one field that might carry one.
+
+**What shipped.** A product row now carries its recorded `description` — shortened to 160
+characters in a list so long text cannot push rows out through the tool-result cap, and kept in full
+(up to 500) in `getProduct`. `searchProducts` and `getProduct` attach a **catalogue-grounding note**
+beside the rows: the fields are name, category, unit, price, stock and a free-text description;
+there is no separate brand, model, specification, rating or review field; recommend only products
+returned by the tool; and never infer a brand or quality from a product name or from words such as
+"Premium", "Pro" or "Ultra". The search tool description also states that search covers name, SKU
+and barcode only, not description text.
+
+**The prompt now carries the same boundary.** Rule 16 requires a stock call before saying a product
+is available or in stock; forbids calling a product best, highest-quality, trusted or suitable
+unless the tool data states it; requires the honest gap statement when brand, specification or
+quality evidence is not recorded; and forbids filling that gap with a brand or product from outside
+the business. Rule 17 handles a "kind of product" question — check the categories and the obvious
+product words, say what was checked, and do not turn one empty search into a claim about the whole
+catalogue.
+
+**What the boundary deliberately does not do.** It does not deny that a `description` can name a
+brand or a specification. It says a fact is known only when a description states it. It also does
+not add a brand or specification field to the product model: that would be a schema, API and mobile
+change, and the existing data has no values to fill it. The assistant can now use such a fact when a
+tenant records one; until then it says the data is absent.
+
+**Verified.** `server/test/AI43-recommendation-grounding.test.mjs` **10/10**: the prompt rules and
+tool descriptions; a search result carrying a shortened description and the note; a zero-match page
+still carrying the note; `getProduct` carrying the whole description; and the positive controls.
+The neighbouring AI-42, AI-2, AI-16 and phase06 AI-tool suites are **45/45**. `tsc --noEmit` clean;
+ESLint clean on the changed source, test and runner. PR #134 merged as **`94ebe80`**; production
+`/api/health` reports `94ebe80`, database `connected` and **0** server errors.
+
+**Verified on the phone, after the deploy.** Three questions were asked in a new chat against
+`94ebe80`. The vehicle-repairs answer found no engine-oil or automotive-repair products, named the
+four real categories, and said the system does not store brand names, technical specifications or
+ratings. The cleaning-products answer listed Household items whose names suggest cleaning use and
+said *"Because brand data is not available, I cannot recommend specific 'effective or trusted'
+brands from the catalogue."* The detergent comparison said the catalogue stores no brand names,
+model numbers, specifications, ratings or quality labels, and named the fields that do exist. No
+invented brand or product appeared. The quoted **Ultra Detergent 10990** fields match the Products
+screen exactly (Household, box, ₱43.80, minimum 91). Evidence:
+[`docs/evidence/ai43-recommendations-2026-11-03/`](../evidence/ai43-recommendations-2026-11-03/README.md).
+
+**What this does not prove.** Model compliance is not deterministic; the tool boundary is pinned,
+but one phone pass cannot prove every future answer. The tenant still has no brand or specification
+field, so it cannot receive ranked brand recommendations from any assistant until the product model
+records them. No EAS build or OTA: this is a server change, and the installed preview build already
+points at production.

@@ -554,6 +554,7 @@ anchor (`§27…`) in that file.
 - **§27HG** — The stock-in link keeps its product (2026-11-02)
 - **§27HH** — A transfer is one event to the assistant (2026-11-02)
 - **§27HI** — The transfer's direction, from the ledger itself (2026-11-02)
+- **§27HJ** — A recommendation may rest only on catalogue facts (2026-11-03)
 
 ---
 
