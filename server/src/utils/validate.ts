@@ -986,6 +986,7 @@ export function validateSupplier(body: Body, { partial = false }: PartialOption 
 }
 
 const PRODUCT_NAME_MAX = 120;
+const PRODUCT_BRAND_MAX = 80;
 const PRODUCT_DESCRIPTION_MAX = 1000;
 /** Shared SKU / barcode length cap (products, and the barcode lookup query). */
 export const CODE_MAX = 100;
@@ -999,6 +1000,8 @@ export function validateProduct(body: Body, { partial = false }: PartialOption =
     : requiredString(body?.name, 'name', PRODUCT_NAME_MAX);
   problems.push(...name.problems);
 
+  const brand = optionalString(body?.brand, 'brand', PRODUCT_BRAND_MAX);
+  problems.push(...brand.problems);
   const sku = optionalString(body?.sku, 'sku', CODE_MAX);
   problems.push(...sku.problems);
   const barcode = optionalString(body?.barcode, 'barcode', CODE_MAX);
@@ -1022,6 +1025,7 @@ export function validateProduct(body: Body, { partial = false }: PartialOption =
   return {
     problems,
     name: name.value,
+    brand: brand.value,
     sku: sku.value,
     barcode: barcode.value,
     description: description.value,

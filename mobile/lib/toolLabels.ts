@@ -35,6 +35,7 @@ const TOOL_LABELS: Record<string, string> = {
   getProduct: 'Product details',
   listLocations: 'Locations',
   listCategories: 'Categories',
+  listBrands: 'Brands',
   // AI-23's one read. Named here rather than left to the humanising fallback: a label is a
   // deliberate word, and the parity test fails when a read is added to the server without
   // a decision made here.

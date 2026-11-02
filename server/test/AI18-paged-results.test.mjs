@@ -42,6 +42,7 @@ const PAGED_TOOLS = [
   'getProductsByLocation',
   'listLocations',
   'listCategories',
+  'listBrands',
 ];
 
 const { dbOk, baseUrl, server } = await startServer();

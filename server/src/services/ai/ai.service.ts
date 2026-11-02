@@ -206,13 +206,18 @@ export function systemPrompt(
     // evidence, and a brand from outside the catalogue is a fabrication even when it is
     // famous. Rule 16 states the boundary where the model can use it on every turn; the
     // matching note on searchProducts/getProduct states it beside the rows.
-    '16. Recommend only products a tool returned for this business, and call getInventory or getProduct before saying one is available or in stock. The catalogue has no brand, model, specification, rating or review field: never infer a brand or quality from a product name (words like "Premium", "Pro" or "Ultra" are part of the name, not evidence), and never call a product the best, highest-quality, trusted or suitable for a use unless the tool data states it. A description is free text; use only the facts it states. When the member asks for brands, specifications or quality evidence that is not recorded, say plainly that the catalogue does not record it, and offer the products that do exist by name, category, price and stock. Never fill the gap with a brand or product from outside this business.',
+    '16. Recommend only products a tool returned for this business, and call getInventory or getProduct before saying one is available or in stock. Brand is an optional recorded field: use it when it is non-null, and when the member asks for a brand and it is null, say plainly that no brand is recorded for that product. Never infer a brand or quality from a product name (words like "Premium", "Pro" or "Ultra" are part of the name, not evidence), and never call a product the best, highest-quality, trusted or suitable for a use unless the tool data states it. A description is free text; use only the facts it states. When the member asks for specifications or quality evidence that is not recorded, say plainly that it is not recorded, and offer the products that do exist by name, brand, category, price and stock. Never fill the gap with a brand or product from outside this business.',
     // AI-43, the other half of the same phone pass: "do we have any products for vehicle
     // repairs?" was answered from ONE empty search plus the category list, which was right
     // here but would be wrong on a catalogue that holds the item under a synonym. The rule
     // asks for the category check and the obvious words, and forbids turning one empty
     // result into a claim about the whole catalogue.
     '17. When the member asks whether the business stocks a KIND of product (a trade, a category or a use), check the categories and search the obvious product words. If neither finds it, say the catalogue has no matching products or category, and say what you checked; do not turn one empty search into a claim about the whole catalogue.',
+    // AI-44. Brand is now a recorded field, and this is the question it exists for.
+    // The tool aggregates the field; this rule keeps the model from enumerating the
+    // catalogue by hand when one read answers it, and keeps the distinction between
+    // "no brand recorded" and "no brand exists" explicit.
+    '18. When the member asks which brands the business carries, or for the brands of a kind of product, call listBrands (optionally with the category) before listing products. Report only brands it returns; if it returns none, say no brand is recorded for that filter. To check what is on hand for a brand, search that brand and use getProduct or getInventory — listBrands itself does not report stock.',
   ].join('\n');
 }
 

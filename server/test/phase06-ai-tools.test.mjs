@@ -352,7 +352,7 @@ dbSuite('Phase 06 — AI tools', dbOk, () => {
     assert.equal(res.code, 'TOOL_ERROR');
   });
 
-  it('the tool catalog is strictly read-only (12 tools, no write verbs)', async () => {
+  it('the tool catalog is strictly read-only (13 tools, no write verbs)', async () => {
     const names = AI_TOOL_DEFS.map((t) => t.name).sort();
     assert.deepEqual(names, [
       'getInventory',
@@ -367,6 +367,8 @@ dbSuite('Phase 06 — AI tools', dbOk, () => {
       'getReorderNeededProducts',
       // AI-14: reference lookups — read-only, and the only way to turn a location or
       // category NAME into the id the tools above filter by.
+      // AI-44: recorded brands, one read for the brand question.
+      'listBrands',
       'listCategories',
       'listLocations',
       'searchProducts',

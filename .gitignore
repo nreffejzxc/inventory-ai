@@ -54,3 +54,7 @@ Desktop.ini
 # helper scripts) — never commit. Same category as .smoke/, kept separate so a
 # verification run can be reviewed before it is thrown away.
 .scratch/
+
+# Imported chat attachments and one-off device-test captures — never commit.
+.cloud-attachments/
+.tmp-*

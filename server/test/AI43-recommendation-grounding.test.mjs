@@ -58,14 +58,14 @@ unitSuite('AI-43 the prompt states the recommendation boundary', () => {
 
   it('★ forbids inferring a brand or quality from a product name', () => {
     const prompt = systemPrompt();
-    assert.match(prompt, /no brand, model, specification, rating or review field/i);
+    assert.match(prompt, /Brand is an optional recorded field/i);
     assert.match(prompt, /never infer a brand or quality from a product name/i);
     assert.match(prompt, /"Premium", "Pro" or "Ultra"/);
   });
 
   it('★ requires the honest gap statement, and forbids outside brands', () => {
     const prompt = systemPrompt();
-    assert.match(prompt, /say plainly that the catalogue does not record it/i);
+    assert.match(prompt, /When the member asks for specifications or quality evidence that is not recorded, say plainly that it is not recorded/i);
     assert.match(prompt, /Never fill the gap with a brand or product from outside this business/i);
   });
 
@@ -87,7 +87,7 @@ unitSuite('AI-43 the prompt states the recommendation boundary', () => {
 
   it('the tool descriptions tell the model what a search does and does not read', () => {
     const search = aiToolsById.get('searchProducts').description;
-    assert.match(search, /including any recorded description/i);
+    assert.match(search, /including the recorded brand and any recorded description/i);
     assert.match(search, /does not cover description text/i);
 
     const detail = aiToolsById.get('getProduct').description;
@@ -145,7 +145,7 @@ dbSuite('AI-43 a catalogue row carries its description and the boundary', dbOk, 
     assert.equal(row.description.length, 160, 'a list description must be bounded');
     assert.match(row.description, /…$/, 'the truncation must be visible');
 
-    assert.match(result.note, /no separate brand, model, specification, rating or review field/i);
+    assert.match(result.note, /Brand is an optional recorded field/i);
     assert.match(result.note, /never infer a brand or quality from a product name/i);
     assert.match(result.note, /Recommend only products returned here/i);
   });
@@ -155,7 +155,7 @@ dbSuite('AI-43 a catalogue row carries its description and the boundary', dbOk, 
 
     assert.equal(result.found, true);
     assert.equal(result.product.description, longDescription);
-    assert.match(result.note, /no separate brand, model, specification, rating or review field/i);
+    assert.match(result.note, /Brand is an optional recorded field/i);
   });
 
   it('★ a zero-match page still carries the boundary', async () => {
@@ -163,6 +163,6 @@ dbSuite('AI-43 a catalogue row carries its description and the boundary', dbOk, 
 
     assert.equal(result.count, 0);
     assert.equal(result.items.length, 0);
-    assert.match(result.note, /no separate brand/i);
+    assert.match(result.note, /Brand is an optional recorded field/i);
   });
 });

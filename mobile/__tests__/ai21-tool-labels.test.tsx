@@ -41,6 +41,7 @@ const TOOL_NAMES = [
   'getProductsByLocation',
   'listLocations',
   'listCategories',
+  'listBrands',
   // AI-23's read. Added when it shipped: the mirror is checked by hand, and a name missing
   // from it is exactly how an identifier would reach the screen unnoticed.
   'getLocationBreakdown',

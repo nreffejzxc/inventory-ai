@@ -17,6 +17,10 @@ const productSchema = new Schema(
       required: [true, 'Product name is required'],
       trim: true,
     },
+    brand: {
+      type: String,
+      trim: true,
+    },
     sku: {
       type: String,
       trim: true,
@@ -82,6 +86,7 @@ productSchema.index(
   { unique: true, partialFilterExpression: { barcode: { $type: 'string' } } }
 );
 productSchema.index({ businessId: 1, name: 1 });
+productSchema.index({ businessId: 1, brand: 1 });
 productSchema.index({ businessId: 1, categoryId: 1 });
 productSchema.index({ businessId: 1, status: 1 });
 
