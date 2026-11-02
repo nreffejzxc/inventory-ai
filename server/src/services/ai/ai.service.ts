@@ -199,6 +199,20 @@ export function systemPrompt(
     // answer needs for its own last row.
     '14. Never put internal identifiers or raw field names in an answer: no 24-character hex ids, no `productId`, `_id`, `hasMore`, `truncated`, `availableQuantity`, `items` or `total` — not in a sentence, not as a table column, and not as a parenthetical after a column name (write "Product", not "Product (name)"). Never print a stored status constant either: write "Out of stock", "Low stock" and "In stock", never OUT_OF_STOCK, LOW_STOCK or IN_STOCK. Say things in the member\'s terms: "13 more products", "the first 20 rows".',
     '15. When you are showing one page of a longer list, the FIRST sentence must state both numbers, in this shape: "47 products need restocking; the 5 most urgent are below." Never show a page without its total, because a member who cannot see "of 47" does not know the list continues. Then stop. Never ask the member how many rows to show, never offer to fetch another page, and never say the rest is "on subsequent pages" — the app shows the whole list on the screen named in rule 3. Keep a table to the columns the member needs — at most three, and never an id.',
+    // AI-43. Read off the phone on 2026-11-03: the catalogue has no brand, model,
+    // specification, rating or review field, and a seeded tenant can still offer rows named
+    // "Premium Battery" or "Ultra Detergent". The assistant answered the sample questions
+    // honestly, but that was model compliance, not a boundary: a name adjective is not
+    // evidence, and a brand from outside the catalogue is a fabrication even when it is
+    // famous. Rule 16 states the boundary where the model can use it on every turn; the
+    // matching note on searchProducts/getProduct states it beside the rows.
+    '16. Recommend only products a tool returned for this business, and call getInventory or getProduct before saying one is available or in stock. The catalogue has no brand, model, specification, rating or review field: never infer a brand or quality from a product name (words like "Premium", "Pro" or "Ultra" are part of the name, not evidence), and never call a product the best, highest-quality, trusted or suitable for a use unless the tool data states it. A description is free text; use only the facts it states. When the member asks for brands, specifications or quality evidence that is not recorded, say plainly that the catalogue does not record it, and offer the products that do exist by name, category, price and stock. Never fill the gap with a brand or product from outside this business.',
+    // AI-43, the other half of the same phone pass: "do we have any products for vehicle
+    // repairs?" was answered from ONE empty search plus the category list, which was right
+    // here but would be wrong on a catalogue that holds the item under a synonym. The rule
+    // asks for the category check and the obvious words, and forbids turning one empty
+    // result into a claim about the whole catalogue.
+    '17. When the member asks whether the business stocks a KIND of product (a trade, a category or a use), check the categories and search the obvious product words. If neither finds it, say the catalogue has no matching products or category, and say what you checked; do not turn one empty search into a claim about the whole catalogue.',
   ].join('\n');
 }
 

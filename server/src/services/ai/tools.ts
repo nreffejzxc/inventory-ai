@@ -166,19 +166,56 @@ const objectId = { type: 'string', pattern: '^[0-9a-fA-F]{24}$' };
 const statusEnum = { type: 'string', enum: ['ACTIVE', 'ARCHIVED'] };
 const limitParam = (def: number, max: number) => ({ type: 'integer', minimum: 1, maximum: max, description: `Maximum rows (default ${def}, up to ${max}).` });
 
-function productCore(doc: ProductDTOSource) {
+/**
+ * AI-43 — the catalogue facts a recommendation may rest on.
+ *
+ * The product model has NO brand, model, specification, rating or review field. When a
+ * member asks for the "best brands", the only way a model can comply from a row like
+ * "Ultra Detergent 10990" is to treat the name's adjective as a quality claim or to fill
+ * the gap from outside knowledge. Both are fabrication. This note travels with the rows so
+ * the boundary is stated where the model reads it, not only in a system rule it may skim.
+ *
+ * `description` is free text and CAN name a brand or a specification. The note therefore
+ * says a fact is known only when the description states it; it does not deny that a
+ * description can carry one. The field is shortened in a list so a page of long
+ * descriptions cannot push rows out through the tool-result cap; getProduct, which reads
+ * one product, keeps the whole value.
+ */
+const CATALOG_GROUNDING_NOTE =
+  'Catalogue facts are limited to the fields on these rows. A description is free text and may name a brand or specification, but there is no separate brand, model, specification, rating or review field. Recommend only products returned here, and never infer a brand or quality from a product name or from words such as "Premium", "Pro" or "Ultra".';
+const LIST_DESCRIPTION_MAX = 160;
+const DETAIL_DESCRIPTION_MAX = 500;
+
+function catalogDescription(description: string | null | undefined, max: number) {
+  if (!description) return null;
+  return description.length > max ? `${description.slice(0, max - 1)}…` : description;
+}
+
+function productCoreWithDescription(doc: ProductDTOSource, descriptionMax: number) {
   const dto = productService.toProductDTO(doc);
   return {
     id: dto.id,
     name: dto.name,
     sku: dto.sku,
     barcode: dto.barcode,
+    description: catalogDescription(dto.description, descriptionMax),
     unit: dto.unit,
     status: dto.status,
     minimumStock: dto.minimumStock,
     category: dto.category,
     sellingPrice: dto.sellingPrice,
   };
+}
+
+// No second parameter on either wrapper: `items.map(productCore)` passes the array index as
+// the second argument, and an index read as a description limit would quietly change every
+// row after the first.
+function productCore(doc: ProductDTOSource) {
+  return productCoreWithDescription(doc, LIST_DESCRIPTION_MAX);
+}
+
+function productDetailCore(doc: ProductDTOSource) {
+  return productCoreWithDescription(doc, DETAIL_DESCRIPTION_MAX);
 }
 
 function stockCard(doc: StockCardSource) {
@@ -499,7 +536,7 @@ const tools: Tool[] = [
   {
     name: 'searchProducts',
     description:
-      'Search the product catalog by name, SKU, or barcode (partial match, case-insensitive). Use this first when the user names a product and you need its id. A category may be given as `categoryId` or as the exact `category` name (an ACTIVE category of this business). Returns catalog fields only — use getProduct or getInventory for stock levels.',
+      'Search the product catalog by name, SKU, or barcode (partial match, case-insensitive). Use this first when the user names a product and you need its id. A category may be given as `categoryId` or as the exact `category` name (an ACTIVE category of this business). Returns catalog fields only, including any recorded description — use getProduct or getInventory for stock levels. Search does not cover description text.',
     permission: PERMISSIONS.PRODUCTS_VIEW,
     defaultLimit: 15,
     parameters: {
@@ -527,14 +564,14 @@ const tools: Tool[] = [
         skip: 0,
         limit: Math.min(args.limit ?? 15, 25),
       });
-      return page(total, items.map(productCore));
+      return page(total, items.map(productCore), { note: CATALOG_GROUNDING_NOTE });
     },
   },
 
   {
     name: 'getProduct',
     description:
-      'Get one product (by id, SKU, or barcode) with its current stock per location. Returns found:false when the product does not exist in this business.',
+      'Get one product (by id, SKU, or barcode) with its current stock per location and its full recorded description, when there is one. Returns found:false when the product does not exist in this business.',
     permission: PERMISSIONS.PRODUCTS_VIEW,
     parameters: {
       type: 'object',
@@ -563,7 +600,12 @@ const tools: Tool[] = [
       });
       return {
         found: true,
-        product: { ...productCore(doc), stock: rows.items.map(rowResult), stockRows: rows.total },
+        note: CATALOG_GROUNDING_NOTE,
+        product: {
+          ...productDetailCore(doc),
+          stock: rows.items.map(rowResult),
+          stockRows: rows.total,
+        },
       };
     },
   },
