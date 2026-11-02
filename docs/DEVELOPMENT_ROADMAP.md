@@ -8,7 +8,7 @@ of truth for *what actually happened*, and it is why this file is long.
 
 **How to read it.** Do not read it top to bottom. Either find a record by number (§27FJ, §27DM — the
 numbers are cited from `CLAUDE.md` and from source comments), or use the index: `CLAUDE.md` §7 lists
-all **217** records by the title each gives itself.
+all **218** records by the title each gives itself.
 
 **Current state:** V1 complete and in production testing. The records that answer *where are we now*
 are §27HH (a transfer as one event to the assistant), §27HG (the stock-in link's product), §27HF (the single-location default's timing), §27HE (the
@@ -24448,3 +24448,58 @@ the DB fixture and the UI field has shipped. `listBrands` reports brand presence
 product counts, not stock. Brand is optional, and the product list has no dedicated brand
 filter yet — search matches brand text. Evidence:
 [`docs/evidence/ai44-brand-lookup-2026-11-03/`](../evidence/ai44-brand-lookup-2026-11-03/README.md).
+
+---
+
+# 27HL. A natural product question finishes (2026-11-03)
+
+**Why.** The owner asked for an assistant that answers everyday inventory questions the way
+an experienced manager would — *"Do we have engine oils suitable for cars and motorcycles?
+Recommend the best brands currently available."* The catalogue had the fields to answer
+honestly but no tool that accepted a manager's words. §27HJ and §27HK made the answer honest;
+they did not make it easy to reach.
+
+**What shipped.** `findProducts` accepts several comma-separated everyday terms and matches
+them across product name, recorded brand, recorded description, SKU and barcode. It returns
+available stock, supports an exact category and an in-stock filter, and returns at most 25
+rows. It is discovery, not a quality ranking: a result may compare only recorded brand,
+description, price, unit and availability. Prompt rules 17 and 19 send a use, maintenance task
+or kind-of-product question there before absence, and forbid calling an item best, trusted or
+suitable without recorded evidence. The mobile tool label is **Product discovery**.
+
+**The first phone attempt found a turn defect.** On `aae32ea` the model called `findProducts`,
+then `listCategories`, then repeated one-word product searches. It exhausted the six-step tool
+budget and returned *"I could not finish that request within the allowed number of steps."*
+The data was right — this tenant has no automotive products — but the member never received
+the answer. The failure is recorded as
+[`first-loop-failure.png`](../evidence/ai45-natural-search-2026-11-03/first-loop-failure.png).
+
+**Fix.** PR #139 makes a no-match `findProducts` result self-contained: it carries the ACTIVE
+categories and an explicit stop instruction saying not to run another search for the question.
+Rules 17 and 19 state that the no-match result is terminal. The iteration cap was not raised;
+the turn now finishes in fewer calls.
+
+**Verified.** `server/test/AI45-natural-product-search.test.mjs` **8/8** (3 unit + 5 DB): a
+synonym the product name does not use (`engine oil` finds `Motor Oil 10W-40`); a term recorded
+only in the description (`petrol cars`); several terms as alternatives with `inStockOnly`; a
+no-match page carrying the categories and stop guidance; and exact-name category filtering.
+AI-43 and AI-2 guards pass; AI-18's page guard passes; `npx tsc --noEmit` is clean. PR #138
+merged as **`aae32ea`**; PR #139 merged as **`e1af99c`**; all four checks were green on both.
+
+**Verified on the phone, after the fix.** On `e1af99c` the same question answered: it searched
+*engine oil* and *motor oil*, found no matching products, listed **Personal Care, Household,
+Snacks, Beverages**, and said it could not recommend brands or report stock for a product type
+the records do not contain. Provenance: **Product discovery**. This is natural, grounded and
+correct for the tenant. Screenshot:
+[`natural-answer.png`](../evidence/ai45-natural-search-2026-11-03/natural-answer.png).
+Production `/api/health` reports `e1af99c`, database `connected`, **0** server errors. Preview
+OTA `5d89b55b` carries the label.
+
+**What this does not prove.** This tenant has 1,001 products in only Personal Care, Household,
+Snacks and Beverages, with no automotive/electronics/construction categories and no brand
+values. The phone therefore proves honest absence; the positive engine-oil path is covered by
+the DB fixture, not live stock. Recommendations still compare only recorded fields, and the
+tenant records no specifications or quality ratings. Model compliance is not deterministic;
+the tool payload and prompt boundary are pinned, but one phone pass is not every future answer.
+
+**Evidence.** [`docs/evidence/ai45-natural-search-2026-11-03/`](../evidence/ai45-natural-search-2026-11-03/README.md).
