@@ -26,7 +26,7 @@ import { useTheme } from '../../../lib/theme-context';
 
 /** "SKU x · Category · Barcode" — only the parts this product actually has. */
 function productMeta(item: ApiResponse): string {
-  return [item.sku ? `SKU ${item.sku}` : null, item.category?.name, item.barcode ? `Barcode ${item.barcode}` : null]
+  return [item.brand, item.sku ? `SKU ${item.sku}` : null, item.category?.name, item.barcode ? `Barcode ${item.barcode}` : null]
     .filter(Boolean)
     .join(' · ');
 }
@@ -84,7 +84,7 @@ export default function ProductsScreen() {
       <SearchField
         value={q}
         onChangeText={setQ}
-        placeholder="Search by name, SKU or barcode…"
+        placeholder="Search by name, brand, SKU or barcode…"
         style={styles.search}
       />
       <View style={styles.filterRow}>

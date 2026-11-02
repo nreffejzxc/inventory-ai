@@ -732,6 +732,7 @@ export const suppliersApi = referenceGroup('/api/suppliers', {
  */
 export interface ProductInput {
   name?: string;
+  brand?: string;
   sku?: string;
   barcode?: string;
   categoryId?: string;

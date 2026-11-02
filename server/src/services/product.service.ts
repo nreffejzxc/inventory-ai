@@ -29,6 +29,7 @@ type ProductDTOsource = {
   _id?: unknown;
   businessId?: unknown;
   name?: unknown;
+  brand?: string | null;
   sku?: string | null;
   barcode?: string | null;
   description?: string | null;
@@ -52,6 +53,7 @@ type ReorderItemSource = ProductDTOsource & { available?: number | null };
 /** The create/update payload the products controller has already validated. */
 type ProductWritePayload = {
   name?: string;
+  brand?: string;
   sku?: string;
   barcode?: string;
   description?: string;
@@ -87,6 +89,12 @@ type ProductReorderFilters = {
   categoryId?: string;
   skip?: number;
   limit?: number;
+};
+
+type BrandSummaryFilters = {
+  q?: string;
+  categoryId?: string;
+  limit: number;
 };
 
 const { ObjectId } = mongoose.Types;
@@ -142,6 +150,7 @@ function toProductDTO(doc: ProductDTOsource) {
     id: String(doc._id),
     businessId: String(doc.businessId),
     name: doc.name,
+    brand: doc.brand || null,
     sku: doc.sku ?? null,
     barcode: doc.barcode ?? null,
     description: doc.description ?? null,
@@ -388,6 +397,7 @@ export const productService = {
     const data = {
       businessId,
       name: payload.name,
+      brand: payload.brand,
       sku: payload.sku,
       barcode: payload.barcode,
       description: payload.description,
@@ -489,6 +499,7 @@ export const productService = {
     };
 
     apply('name', payload.name);
+    apply('brand', payload.brand);
     apply('sku', payload.sku);
     apply('barcode', payload.barcode);
     apply('description', payload.description);
@@ -641,7 +652,7 @@ export const productService = {
     if (categoryId) filter.categoryId = new ObjectId(categoryId);
     if (q) {
       const re = { $regex: escapeRegExp(q), $options: 'i' };
-      filter.$or = [{ name: re }, { sku: re }, { barcode: re }];
+      filter.$or = [{ name: re }, { brand: re }, { sku: re }, { barcode: re }];
     }
     const total = await Product.countDocuments(filter);
     const docs = await Product.find(filter)
@@ -674,7 +685,7 @@ export const productService = {
     if (categoryId) match.categoryId = new ObjectId(categoryId);
     if (q) {
       const re = { $regex: escapeRegExp(q), $options: 'i' };
-      match.$or = [{ name: re }, { sku: re }, { barcode: re }];
+      match.$or = [{ name: re }, { brand: re }, { sku: re }, { barcode: re }];
     }
 
     const pipeline: PipelineStage[] = [
@@ -755,7 +766,7 @@ export const productService = {
     if (categoryId) match.categoryId = new ObjectId(categoryId);
     if (q) {
       const re = { $regex: escapeRegExp(q), $options: 'i' };
-      match.$or = [{ name: re }, { sku: re }, { barcode: re }];
+      match.$or = [{ name: re }, { brand: re }, { sku: re }, { barcode: re }];
     }
 
     const pipeline: PipelineStage[] = [
@@ -786,6 +797,86 @@ export const productService = {
     const items = await hydrateStockPage(bizOid, result?.data ?? []);
     const total = result?.metadata?.[0]?.total ?? 0;
     return { items, total };
+  },
+
+  /**
+   * Recorded brands, with the active products that carry them. Brand is optional:
+   * a missing or blank value is not a brand, so it is excluded rather than grouped
+   * under an empty name. Stock is deliberately not joined here; the assistant can
+   * check one brand's products with searchProducts/getProduct/getInventory.
+   */
+  async brandSummary(businessId: IdLike, { q, categoryId, limit }: BrandSummaryFilters) {
+    const bizOid = new ObjectId(businessId);
+    const brand: Record<string, unknown> = { $type: 'string', $ne: '' };
+    if (q) {
+      brand.$regex = escapeRegExp(q);
+      brand.$options = 'i';
+    }
+    const match: Record<string, unknown> = { businessId: bizOid, status: 'ACTIVE', brand };
+    if (categoryId) match.categoryId = new ObjectId(categoryId);
+
+    const [result] = await Product.aggregate([
+      { $match: match },
+      {
+        $group: {
+          _id: '$brand',
+          productCount: { $sum: 1 },
+          categoryIds: { $addToSet: '$categoryId' },
+          sampleProducts: {
+            $push: { id: '$_id', name: '$name', unit: '$unit', sellingPrice: '$sellingPrice' },
+          },
+        },
+      },
+      {
+        $facet: {
+          metadata: [{ $count: 'total' }],
+          data: [
+            { $sort: { productCount: -1, _id: 1 } },
+            { $limit: limit },
+            {
+              $project: {
+                brand: '$_id',
+                productCount: 1,
+                categoryIds: 1,
+                sampleProducts: { $slice: ['$sampleProducts', 3] },
+              },
+            },
+          ],
+        },
+      },
+    ]);
+
+    const rows = (result?.data ?? []) as Array<{
+      brand?: unknown;
+      productCount?: unknown;
+      categoryIds?: unknown[];
+      sampleProducts?: Array<{ id?: unknown; name?: unknown; unit?: unknown; sellingPrice?: unknown }>;
+    }>;
+    const categoryIds = rows
+      .flatMap((row) => row.categoryIds ?? [])
+      .filter(Boolean)
+      .map((id) => String(id));
+    const categoryDocs = categoryIds.length
+      ? await Category.find({ _id: { $in: categoryIds }, businessId: bizOid }).lean()
+      : [];
+    const categoryNames = new Map(categoryDocs.map((cat) => [String(cat._id), String(cat.name)]));
+
+    return {
+      total: Number(result?.metadata?.[0]?.total ?? 0),
+      items: rows.map((row) => ({
+        brand: String(row.brand),
+        productCount: Number(row.productCount ?? 0),
+        categories: (row.categoryIds ?? [])
+          .map((id) => categoryNames.get(String(id)))
+          .filter((name): name is string => Boolean(name)),
+        sampleProducts: (row.sampleProducts ?? []).map((product) => ({
+          id: String(product.id),
+          name: String(product.name),
+          unit: product.unit ?? null,
+          sellingPrice: product.sellingPrice ?? 0,
+        })),
+      })),
+    };
   },
 
   /** Chooses the right listing strategy depending on whether stock filters are used. */

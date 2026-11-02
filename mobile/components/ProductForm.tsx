@@ -54,6 +54,7 @@ export default function ProductForm({ initial }: { initial?: ApiResponse }) {
   const categories = useActiveRef(token, categoriesApi);
 
   const [name, setName] = useState<string>(initial?.name ?? '');
+  const [brand, setBrand] = useState<string>(initial?.brand ?? '');
   const [sku, setSku] = useState<string>(initial?.sku ?? '');
   const [barcode, setBarcode] = useState<string>(initial?.barcode ?? '');
   const [categoryId, setCategoryId] = useState<string>(initial?.category?.id ?? '');
@@ -102,6 +103,7 @@ export default function ProductForm({ initial }: { initial?: ApiResponse }) {
     setFieldErrors({});
     const payload: ProductInput = {
       name: name.trim(),
+      brand: brand.trim() || undefined,
       sku: sku.trim() || undefined,
       barcode: barcode.trim() || undefined,
       categoryId: categoryId || undefined,
@@ -129,6 +131,7 @@ export default function ProductForm({ initial }: { initial?: ApiResponse }) {
     <Screen scroll contentStyle={styles.content}>
       <Banner type="error" text={formError} />
       <Input name="name" label="Product name" value={name} onChangeText={setName} error={fieldErrors.name} required autoCapitalize="words" />
+      <Input name="brand" label="Brand" value={brand} onChangeText={setBrand} error={fieldErrors.brand} placeholder="Optional — e.g. Nestlé, Samsung" autoCapitalize="words" />
       <Input name="sku" label="SKU" value={sku} onChangeText={setSku} error={fieldErrors.sku} placeholder="Optional — unique per business" autoCapitalize="characters" />
       <Input name="barcode" label="Barcode" value={barcode} onChangeText={setBarcode} error={fieldErrors.barcode} placeholder="Optional — unique per business" autoCapitalize="characters" />
       <SelectField

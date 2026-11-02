@@ -243,6 +243,7 @@ export default function ProductDetailScreen() {
         <View style={styles.divider} />
         <Field label="SKU" value={product.sku} mono />
         <Field label="Barcode" value={product.barcode} mono />
+        <Field label="Brand" value={product.brand} />
         <Field label="Category" value={product.category?.name} />
         <Field label="Unit" value={product.unit} />
         <Field label="Cost price" value={product.costPrice != null ? formatMoney(product.costPrice) : null} mono />

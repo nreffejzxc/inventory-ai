@@ -126,6 +126,7 @@ const productsController = {
     if (v.problems.length) throwValidation(v.problems);
     const doc = await productService.create(req.user!.businessId, req.user!.id, {
       name: v.name,
+      brand: v.brand,
       sku: v.sku,
       barcode: v.barcode,
       description: v.description,
@@ -145,6 +146,7 @@ const productsController = {
     if (v.problems.length) throwValidation(v.problems);
     const doc = await productService.update(req.user!.businessId, id, req.user!.id, {
       name: v.name,
+      brand: v.brand,
       sku: v.sku,
       barcode: v.barcode,
       description: v.description,

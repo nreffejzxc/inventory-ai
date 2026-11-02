@@ -58,6 +58,8 @@ const EXPECTED_TOOLS = [
   // AI-14: the two reference lists the id-taking tools needed to be usable.
   'listLocations',
   'listCategories',
+  // AI-44: recorded brands, one read for "what brands do we carry".
+  'listBrands',
   // AI-23: the per-location breakdown, so a comparison is one lookup rather than one per
   // shelf. Listed here because this array is the wire-level statement of what ships.
   'getLocationBreakdown',
@@ -879,6 +881,8 @@ dbSuite('OpenRouter provider — real full-catalogue workload', dbOk, () => {
       // AI-23: takes no arguments by design, which is also why it is the safest entry in
       // this all-tools case — there is nothing for a model to get wrong.
       { id: 't12', name: 'getLocationBreakdown', input: {} },
+      // AI-44: the brand read is part of the shipped catalogue.
+      { id: 't13', name: 'listBrands', input: {} },
     ];
   }
 

@@ -130,6 +130,11 @@ interface ReorderArgs extends ToolArguments, CategoryRef {
   limit?: number;
 }
 
+interface BrandSummaryArgs extends ToolArguments, CategoryRef {
+  q?: string;
+  limit?: number;
+}
+
 interface HistoryArgs extends ToolArguments, LocationRef {
   productId?: string;
   type?: string;
@@ -182,7 +187,9 @@ const limitParam = (def: number, max: number) => ({ type: 'integer', minimum: 1,
  * one product, keeps the whole value.
  */
 const CATALOG_GROUNDING_NOTE =
-  'Catalogue facts are limited to the fields on these rows. A description is free text and may name a brand or specification, but there is no separate brand, model, specification, rating or review field. Recommend only products returned here, and never infer a brand or quality from a product name or from words such as "Premium", "Pro" or "Ultra".';
+  'Catalogue facts are limited to the fields on these rows. Brand is an optional recorded field: null means no brand is recorded, not that the product has no brand. A description is free text and may name a brand or specification, but it is not a separate specification field. Recommend only products returned here, and never infer a brand or quality from a product name or from words such as "Premium", "Pro" or "Ultra".';
+const BRAND_NOTE =
+  'Brand is an optional recorded field. A product with no brand recorded is not counted here; no result means no brand is recorded for this filter, not that no brand exists. This page covers ACTIVE products only and does not include stock levels — use searchProducts, getProduct or getInventory to check what is on hand. Never infer a brand from a product name or a description.';
 const LIST_DESCRIPTION_MAX = 160;
 const DETAIL_DESCRIPTION_MAX = 500;
 
@@ -196,6 +203,7 @@ function productCoreWithDescription(doc: ProductDTOSource, descriptionMax: numbe
   return {
     id: dto.id,
     name: dto.name,
+    brand: dto.brand,
     sku: dto.sku,
     barcode: dto.barcode,
     description: catalogDescription(dto.description, descriptionMax),
@@ -536,14 +544,14 @@ const tools: Tool[] = [
   {
     name: 'searchProducts',
     description:
-      'Search the product catalog by name, SKU, or barcode (partial match, case-insensitive). Use this first when the user names a product and you need its id. A category may be given as `categoryId` or as the exact `category` name (an ACTIVE category of this business). Returns catalog fields only, including any recorded description — use getProduct or getInventory for stock levels. Search does not cover description text.',
+      'Search the product catalog by name, recorded brand, SKU, or barcode (partial match, case-insensitive). Use this first when the user names a product and you need its id. A category may be given as `categoryId` or as the exact `category` name (an ACTIVE category of this business). Returns catalog fields only, including the recorded brand and any recorded description — use getProduct or getInventory for stock levels. Search does not cover description text.',
     permission: PERMISSIONS.PRODUCTS_VIEW,
     defaultLimit: 15,
     parameters: {
       type: 'object',
       additionalProperties: false,
       properties: {
-        q: { type: 'string', maxLength: 100, description: 'Search text (product name, SKU, or barcode).' },
+        q: { type: 'string', maxLength: 100, description: 'Search text (product name, brand, SKU, or barcode).' },
         status: statusEnum,
         categoryId: objectId,
         category: {
@@ -571,7 +579,7 @@ const tools: Tool[] = [
   {
     name: 'getProduct',
     description:
-      'Get one product (by id, SKU, or barcode) with its current stock per location and its full recorded description, when there is one. Returns found:false when the product does not exist in this business.',
+      'Get one product (by id, SKU, or barcode) with its recorded brand, current stock per location, and its full recorded description, when there is one. Brand is null when no brand is recorded. Returns found:false when the product does not exist in this business.',
     permission: PERMISSIONS.PRODUCTS_VIEW,
     parameters: {
       type: 'object',
@@ -943,6 +951,41 @@ const tools: Tool[] = [
         limit: Math.min(args.limit ?? 25, 50),
       });
       return page(total, items.map(referenceItem), { status });
+    },
+  },
+
+  {
+    name: 'listBrands',
+    description:
+      'List the brands recorded on ACTIVE products, with how many products carry each brand, its categories, and a few product names. Use for "what brands do we carry", "which detergent brands do we have", or "is brand X available". Brand is optional: a product with no recorded brand is not counted, and an empty result means no brand is recorded for that filter, not that the business stocks no brands. Stock is not included; use searchProducts and getProduct or getInventory to check a brand’s stock levels.',
+    permission: PERMISSIONS.PRODUCTS_VIEW,
+    defaultLimit: 20,
+    parameters: {
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        q: { type: 'string', maxLength: 80, description: 'Search recorded brand text (partial match, case-insensitive).' },
+        categoryId: objectId,
+        category: {
+          type: 'string',
+          maxLength: 100,
+          description: 'Exact name of an ACTIVE category, e.g. "Household". Use instead of categoryId when no id is known.',
+        },
+        limit: limitParam(20, 50),
+      },
+    },
+    async executor(ctx: ToolContext, args: BrandSummaryArgs) {
+      const category = await resolveCategory(ctx, args);
+      if (!category.ok) return category.result;
+      const { items, total } = await productService.brandSummary(ctx.businessId, {
+        q: args.q,
+        categoryId: category.id,
+        limit: Math.min(args.limit ?? 20, 50),
+      });
+      return page(total, items, {
+        note: BRAND_NOTE,
+        ...(category.id ? { categoryId: category.id } : {}),
+      });
     },
   },
 ];
