@@ -218,6 +218,11 @@ export function systemPrompt(
     // catalogue by hand when one read answers it, and keeps the distinction between
     // "no brand recorded" and "no brand exists" explicit.
     '18. When the member asks which brands the business carries, or for the brands of a kind of product, call listBrands (optionally with the category) before listing products. Report only brands it returns; if it returns none, say no brand is recorded for that filter. To check what is on hand for a brand, search that brand and use getProduct or getInventory — listBrands itself does not report stock.',
+    // AI-45. A manager says "engine oil" or "something for vehicle maintenance"; the
+    // catalogue may record "Motor Oil 10W-40" and put "petrol cars" in the description.
+    // The tool exists so one natural search can cross those words instead of forcing the
+    // member to know the product's name.
+    '19. When the member asks what products exist for a use, a maintenance task or a kind of product, call findProducts with several likely terms separated by commas (for example "engine oil, motor oil, 10W-40") BEFORE concluding that nothing exists. It searches product names, recorded brands and recorded descriptions and returns stock. If it finds nothing, say which terms and categories you checked. For a recommendation, offer the returned products and compare only recorded facts — brand, description/specification, price, unit and available stock. Never call one best, trusted or suitable without recorded evidence; say plainly when quality or specification data is not recorded.',
   ].join('\n');
 }
 

@@ -96,6 +96,12 @@ interface SearchProductsArgs extends ToolArguments, CategoryRef {
   limit?: number;
 }
 
+interface FindProductsArgs extends ToolArguments, CategoryRef {
+  keywords?: string;
+  inStockOnly?: boolean;
+  limit?: number;
+}
+
 interface GetProductArgs extends ToolArguments {
   id?: string;
   sku?: string;
@@ -190,6 +196,8 @@ const CATALOG_GROUNDING_NOTE =
   'Catalogue facts are limited to the fields on these rows. Brand is an optional recorded field: null means no brand is recorded, not that the product has no brand. A description is free text and may name a brand or specification, but it is not a separate specification field. Recommend only products returned here, and never infer a brand or quality from a product name or from words such as "Premium", "Pro" or "Ultra".';
 const BRAND_NOTE =
   'Brand is an optional recorded field. A product with no brand recorded is not counted here; no result means no brand is recorded for this filter, not that no brand exists. This page covers ACTIVE products only and does not include stock levels — use searchProducts, getProduct or getInventory to check what is on hand. Never infer a brand from a product name or a description.';
+const FIND_NOTE =
+  'This is a discovery search, not a quality ranking. It matches the supplied terms against product name, recorded brand, recorded description, SKU and barcode, and returns available stock. Compare only the recorded brand, description, price, unit and availability; never call an item best, trusted or suitable for a use unless the row states it. No match means none of these terms are recorded, not that the business cannot stock such a product.';
 const LIST_DESCRIPTION_MAX = 160;
 const DETAIL_DESCRIPTION_MAX = 500;
 
@@ -573,6 +581,65 @@ const tools: Tool[] = [
         limit: Math.min(args.limit ?? 15, 25),
       });
       return page(total, items.map(productCore), { note: CATALOG_GROUNDING_NOTE });
+    },
+  },
+
+  {
+    name: 'findProducts',
+    description:
+      'Find products for an everyday use, maintenance task or kind of product. Pass several likely words or phrases separated by commas — for example "engine oil, motor oil, 10W-40" — because the recorded name, brand or description may use a different one. It searches name, recorded brand, recorded description, SKU and barcode, returns available stock, and can filter to an exact category or to items currently in stock. Use this BEFORE concluding the catalogue has nothing for a request. This is discovery, not a quality ranking: never call a result best or trusted unless its recorded data says so.',
+    permission: PERMISSIONS.PRODUCTS_VIEW,
+    defaultLimit: 15,
+    parameters: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['keywords'],
+      properties: {
+        keywords: {
+          type: 'string',
+          maxLength: 200,
+          description: 'Comma-separated everyday search terms, e.g. "engine oil, motor oil, 10W-40". At least one non-empty term.',
+        },
+        categoryId: objectId,
+        category: {
+          type: 'string',
+          maxLength: 100,
+          description: 'Exact name of an ACTIVE category, e.g. "Automotive". Use instead of categoryId when no id is known.',
+        },
+        inStockOnly: { type: 'boolean', description: 'When true, return only products with available stock above zero.' },
+        limit: limitParam(15, 25),
+      },
+    },
+    async executor(ctx: ToolContext, args: FindProductsArgs) {
+      const category = await resolveCategory(ctx, args);
+      if (!category.ok) return category.result;
+      const terms = String(args.keywords ?? '')
+        .split(/[,;|]+/)
+        .map((term) => term.trim())
+        .filter(Boolean)
+        .slice(0, 8);
+      if (terms.length === 0) {
+        const empty = {
+          count: 0,
+          returned: 0,
+          hasMore: false,
+          items: [],
+          note: FIND_NOTE,
+          error: 'Pass at least one search term in keywords.',
+        };
+        return empty;
+      }
+      const { items, total } = await productService.list(ctx.businessId, {
+        terms,
+        includeDescription: true,
+        status: 'ACTIVE',
+        categoryId: category.id,
+        inStockOnly: args.inStockOnly,
+        withStock: true,
+        skip: 0,
+        limit: Math.min(args.limit ?? 15, 25),
+      });
+      return page(total, items.map(stockCard), { note: FIND_NOTE, terms });
     },
   },
 

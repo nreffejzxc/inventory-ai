@@ -32,6 +32,7 @@ const TOOL_LABELS: Record<string, string> = {
   getOutOfStockProducts: 'Out-of-stock products',
   getReorderNeededProducts: 'Restock list',
   searchProducts: 'Product search',
+  findProducts: 'Product discovery',
   getProduct: 'Product details',
   listLocations: 'Locations',
   listCategories: 'Categories',

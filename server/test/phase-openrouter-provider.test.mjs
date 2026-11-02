@@ -47,6 +47,8 @@ const MODEL = 'test-vendor/tool-capable-model';
 /** The shipped read-only catalogue, pinned by name so a rename cannot slip by. */
 const EXPECTED_TOOLS = [
   'searchProducts',
+  // AI-45: everyday discovery across name, brand and description.
+  'findProducts',
   'getProduct',
   'getInventory',
   'getLowStockProducts',
@@ -883,6 +885,8 @@ dbSuite('OpenRouter provider — real full-catalogue workload', dbOk, () => {
       { id: 't12', name: 'getLocationBreakdown', input: {} },
       // AI-44: the brand read is part of the shipped catalogue.
       { id: 't13', name: 'listBrands', input: {} },
+      // AI-45: the natural search is part of the shipped catalogue.
+      { id: 't14', name: 'findProducts', input: { keywords: 'OpenRouter' } },
     ];
   }
 

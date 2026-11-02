@@ -43,6 +43,7 @@ const PAGED_TOOLS = [
   'listLocations',
   'listCategories',
   'listBrands',
+  'findProducts',
 ];
 
 const { dbOk, baseUrl, server } = await startServer();
@@ -187,6 +188,7 @@ dbSuite('AI-18 a page of a larger set says so', dbOk, () => {
       getProductsByLocation: { location: 'Main Warehouse' },
       listLocations: {},
       listCategories: {},
+      findProducts: { keywords: 'Widget' },
     };
     for (const [name, args] of Object.entries(calls)) {
       const result = await ok(name, args, ctxOf(A));
