@@ -47,6 +47,8 @@ export interface ResearchFinding {
 export interface ResearchSource {
   title: string;
   url: string;
+  /** A short search-result extract, when the provider supplied one. */
+  snippet?: string;
 }
 
 export type ResearchFailureReason =
@@ -72,7 +74,7 @@ export interface ResearchResult {
 
 /** What the tool tells the final model about every result, sourced or not. */
 export const WEB_RESEARCH_NOTE =
-  'Web findings are external evidence, not inventory records. Recommend only the products and brands listed in `subjects`; never add a brand or product that appears only in a source. Cite the returned source URLs so the member can review them. A product with no recorded brand still has no recorded brand after research, and an unavailable research result is not evidence either way.';
+  'Web findings are external evidence, not inventory records. Recommend only the products and brands listed in `subjects`; never add a brand or product that appears only in a source. Cite the returned source URLs so the member can review them. Some findings summarize search-result snippets rather than a full review; say when the evidence is only a snippet. A product with no recorded brand still has no recorded brand after research, and an unavailable research result is not evidence either way.';
 
 const MAX_SUBJECTS = 8;
 const MAX_GROUPS = 6;
@@ -81,12 +83,18 @@ const SOURCES_PER_GROUP = 3;
 const MAX_FINDINGS = 8;
 const MAX_FINDING_CHARS = 600;
 const MAX_SOURCE_TITLE_CHARS = 180;
+const MAX_SOURCE_SNIPPET_CHARS = 320;
 const REQUEST_TIMEOUT_MS = 20_000;
+const FALLBACK_TIMEOUT_MS = 9_000;
 const MAX_OUTPUT_TOKENS = 1800;
 // The configured assistant model can spend the whole research budget on internal
 // reasoning and return `finish_reason: length` with no visible JSON. This model
 // produced a citation-backed finding for one recorded brand in the live probe.
 const DEFAULT_RESEARCH_MODEL = 'liquid/lfm-2.5-2.6b:free';
+// No-key fallback used only after the configured research model is refused or
+// returns no usable finding. It returns result titles, snippets and public URLs;
+// the final assistant still has to stay inside the inventory allow-list.
+const DEFAULT_SEARCH_FALLBACK_URL = 'https://html.duckduckgo.com/html/';
 
 const FOCUS_INSTRUCTION: Record<ResearchFocus, string> = {
   overall: 'quality, reliability, and affordability',
@@ -225,9 +233,91 @@ function parseJsonObject(text: string): Record<string, unknown> | null {
   }
 }
 
+function decodeSearchEntities(value: string) {
+  return value.replace(/&(#x?[0-9a-f]+|[a-z]+);/gi, (whole, entity: string) => {
+    const key = entity.toLowerCase();
+    if (key === 'amp') return '&';
+    if (key === 'lt') return '<';
+    if (key === 'gt') return '>';
+    if (key === 'quot') return '"';
+    if (key === 'apos') return "'";
+    if (key === 'nbsp') return ' ';
+    if (key.startsWith('#x')) {
+      const code = Number.parseInt(key.slice(2), 16);
+      return Number.isFinite(code) ? String.fromCodePoint(code) : whole;
+    }
+    if (key.startsWith('#')) {
+      const code = Number.parseInt(key.slice(1), 10);
+      return Number.isFinite(code) ? String.fromCodePoint(code) : whole;
+    }
+    return whole;
+  });
+}
+
+function cleanSearchText(value: string) {
+  return decodeSearchEntities(
+    value
+      .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+      .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+      .replace(/<[^>]*>/g, ' '),
+  )
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 function titleFor(url: URL, rawTitle: unknown) {
-  const title = typeof rawTitle === 'string' ? rawTitle.replace(/\s+/g, ' ').trim() : '';
+  const title = typeof rawTitle === 'string' ? cleanSearchText(rawTitle) : '';
   return title ? title.slice(0, MAX_SOURCE_TITLE_CHARS) : url.hostname;
+}
+
+/**
+ * Convert a DuckDuckGo HTML result page into bounded public sources.
+ *
+ * This is the no-key fallback, used only when the configured research model is
+ * refused. It deliberately reads the result list, not the result pages: the
+ * assistant gets a title, a short snippet and a URL to cite, and never a page
+ * body that could smuggle an outside brand into the answer.
+ */
+export function parseSearchResults(html: string): ResearchSource[] {
+  const sources: ResearchSource[] = [];
+  const seen = new Set<string>();
+  const link = /<a\b[^>]*class="[^"]*\bresult__a\b[^"]*"[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi;
+  let match: RegExpExecArray | null;
+  while ((match = link.exec(html))) {
+    const afterLink = html.slice(link.lastIndex, link.lastIndex + 2500);
+    const snippetMatch = /<(?:a|div)\b[^>]*class="[^"]*\bresult__snippet\b[^"]*"[^>]*>([\s\S]*?)<\/(?:a|div)>/i.exec(
+      afterLink,
+    );
+    const rawHref = (match[1] ?? '').replace(/&amp;/g, '&');
+    let parsed: URL;
+    try {
+      parsed = new URL(rawHref, 'https://html.duckduckgo.com');
+    } catch {
+      continue;
+    }
+    if (/(^|\.)duckduckgo\.com$/i.test(parsed.hostname)) {
+      const target = parsed.searchParams.get('uddg');
+      if (!target) continue;
+      try {
+        parsed = new URL(target);
+      } catch {
+        continue;
+      }
+    }
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') continue;
+    if (parsed.username || parsed.password) continue;
+    if (/(^|\.)duckduckgo\.com$/i.test(parsed.hostname)) continue;
+    parsed.hash = '';
+    const url = parsed.toString();
+    if (seen.has(url)) continue;
+    const title = cleanSearchText(match[2] ?? '');
+    if (!title) continue;
+    seen.add(url);
+    const snippet = snippetMatch ? cleanSearchText(snippetMatch[1] ?? '').slice(0, MAX_SOURCE_SNIPPET_CHARS) : '';
+    sources.push({ title: title.slice(0, MAX_SOURCE_TITLE_CHARS), url, ...(snippet ? { snippet } : {}) });
+    if (sources.length >= SOURCES_PER_GROUP) break;
+  }
+  return sources;
 }
 
 /** Keep only public HTTP(S) URLs, de-duplicated, with a title worth showing. */
@@ -255,7 +345,11 @@ export function validSources(annotations: unknown): ResearchSource[] {
     const url = parsed.toString();
     if (seen.has(url)) continue;
     seen.add(url);
-    sources.push({ title: titleFor(parsed, citation.title), url });
+    const snippet = cleanSearchText(typeof citation.content === 'string' ? citation.content : '').slice(
+      0,
+      MAX_SOURCE_SNIPPET_CHARS,
+    );
+    sources.push({ title: titleFor(parsed, citation.title), url, ...(snippet ? { snippet } : {}) });
     if (sources.length >= MAX_SOURCES) break;
   }
   return sources;
@@ -377,6 +471,104 @@ function groupName(group: ResearchGroup) {
   return group.brand ?? group.subjects.map((subject) => subject.name).join(', ');
 }
 
+function clipFinding(value: string) {
+  return value.length > MAX_FINDING_CHARS ? `${value.slice(0, MAX_FINDING_CHARS - 1)}…` : value;
+}
+
+/**
+ * Turn a search-result page into an honest, attributable finding.
+ *
+ * A snippet is not a review conclusion. The wording says so, and the source URL
+ * travels beside it so the final assistant can cite what it used. For a brand
+ * group one finding covers the brand; for an unbranded group each product gets
+ * the same digest, because the finding must still be keyed to a recorded name.
+ */
+function findingsFromSources(group: ResearchGroup, sources: ResearchSource[]): ResearchFinding[] {
+  if (sources.length === 0) return [];
+  const evidence = sources
+    .map((source, index) => `${index + 1}. ${source.title}${source.snippet ? `: ${source.snippet}` : ''}`)
+    .join(' ');
+  const finding = clipFinding(
+    `Search-result evidence for ${groupName(group)} (source snippets, not independently verified): ${evidence}`,
+  );
+  if (group.brand) return [{ name: group.brand, kind: 'brand', finding }];
+  return group.subjects.slice(0, 2).map((subject) => ({ name: subject.name, kind: 'product' as const, finding }));
+}
+
+function fallbackQuery(group: ResearchGroup, focus: ResearchFocus) {
+  const names = group.subjects.slice(0, 2).map((subject) => subject.name);
+  const lens =
+    focus === 'affordability'
+      ? 'price value review'
+      : focus === 'quality'
+        ? 'quality review'
+        : focus === 'reliability'
+          ? 'reliability durability review'
+          : 'review';
+  return [group.brand ? `"${group.brand}"` : names[0], ...(group.brand ? names : []), lens]
+    .filter(Boolean)
+    .join(' ');
+}
+
+/**
+ * No-key search fallback for a refused or unusable research-model call.
+ *
+ * DuckDuckGo's HTML endpoint supplies titles, snippets and public result URLs.
+ * It is not asked to judge the brand; it only supplies evidence for the final
+ * inventory-grounded answer. The endpoint is configurable so tests can stub it
+ * and an operator can replace it without a code change.
+ */
+async function searchFallback({
+  group,
+  focus,
+}: {
+  group: ResearchGroup;
+  focus: ResearchFocus;
+}): Promise<GroupResult> {
+  const rawBase = (process.env.AI_WEB_SEARCH_URL || DEFAULT_SEARCH_FALLBACK_URL).trim();
+  if (!rawBase) return { findings: [], sources: [], reason: 'SEARCH_UNAVAILABLE' };
+  let endpoint: URL;
+  try {
+    endpoint = new URL(rawBase);
+    endpoint.searchParams.set('q', fallbackQuery(group, focus));
+  } catch {
+    return { findings: [], sources: [], reason: 'SEARCH_UNAVAILABLE' };
+  }
+
+  let response: Response;
+  try {
+    response = await fetch(endpoint, {
+      headers: {
+        accept: 'text/html,application/xhtml+xml',
+        'accept-language': 'en-US,en;q=0.9',
+        'user-agent':
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124 Safari/537.36',
+      },
+      signal: AbortSignal.timeout(FALLBACK_TIMEOUT_MS),
+    });
+  } catch (err) {
+    const name = (err as { name?: unknown } | null)?.name;
+    return {
+      findings: [],
+      sources: [],
+      reason: name === 'TimeoutError' || name === 'AbortError' ? 'SEARCH_TIMEOUT' : 'SEARCH_UNAVAILABLE',
+    };
+  }
+  if (!response.ok) return { findings: [], sources: [], reason: 'SEARCH_UNAVAILABLE' };
+
+  let html: string;
+  try {
+    html = await response.text();
+  } catch {
+    return { findings: [], sources: [], reason: 'SEARCH_UNAVAILABLE' };
+  }
+  const sources = parseSearchResults(html);
+  if (sources.length === 0) return { findings: [], sources: [], reason: 'NO_SOURCES' };
+  const findings = findingsFromSources(group, sources);
+  if (findings.length === 0) return { findings: [], sources, reason: 'NO_USABLE_FINDINGS' };
+  return { findings, sources };
+}
+
 async function searchGroup({
   group,
   focus,
@@ -415,21 +607,26 @@ async function searchGroup({
     });
   } catch (err) {
     const name = (err as { name?: unknown } | null)?.name;
-    return { findings: [], sources: [], reason: name === 'TimeoutError' || name === 'AbortError' ? 'SEARCH_TIMEOUT' : 'SEARCH_UNAVAILABLE' };
+    if (name === 'TimeoutError' || name === 'AbortError') {
+      return { findings: [], sources: [], reason: 'SEARCH_TIMEOUT' };
+    }
+    return searchFallback({ group, focus });
   }
 
-  if (response.status === 402 || response.status === 429) return { findings: [], sources: [], reason: 'SEARCH_QUOTA' };
-  if (!response.ok) return { findings: [], sources: [], reason: 'SEARCH_UNAVAILABLE' };
+  // The free allowance is shared by every research model. Do not spend three
+  // refusals in a row; go straight to the no-key result list for this group.
+  if (response.status === 402 || response.status === 429) return searchFallback({ group, focus });
+  if (!response.ok) return searchFallback({ group, focus });
 
   let body: Record<string, unknown>;
   try {
     const parsed: unknown = await response.json();
     if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-      return { findings: [], sources: [], reason: 'SEARCH_UNAVAILABLE' };
+      return searchFallback({ group, focus });
     }
     body = parsed as Record<string, unknown>;
   } catch {
-    return { findings: [], sources: [], reason: 'SEARCH_UNAVAILABLE' };
+    return searchFallback({ group, focus });
   }
 
   const choices = Array.isArray(body.choices) ? body.choices : [];
@@ -438,13 +635,27 @@ async function searchGroup({
     first && typeof first === 'object' && (first as { message?: unknown }).message
       ? ((first as { message: unknown }).message as Record<string, unknown>)
       : null;
-  if (!message) return { findings: [], sources: [], reason: 'SEARCH_UNAVAILABLE' };
+  if (!message) return searchFallback({ group, focus });
 
   const sources = validSources(message.annotations).slice(0, SOURCES_PER_GROUP);
-  if (sources.length === 0) return { findings: [], sources: [], reason: 'NO_SOURCES' };
+  if (sources.length === 0) return searchFallback({ group, focus });
 
-  const findings = filterFindings(parseJsonObject(textContent(message.content)), group.subjects);
-  if (findings.length === 0) return { findings: [], sources, reason: 'NO_USABLE_FINDINGS' };
+  const parsed = parseJsonObject(textContent(message.content));
+  const findings = filterFindings(parsed, group.subjects);
+  if (findings.length === 0) {
+    // A parsed findings array that named only outside subjects is a boundary
+    // failure, not an empty search. Do not recycle its sources into a different
+    // recorded product; leave the group unresearched instead.
+    if (parsed && Array.isArray(parsed.findings) && parsed.findings.length > 0) {
+      return { findings: [], sources, reason: 'NO_USABLE_FINDINGS' };
+    }
+    // The plugin searched and returned citations but the small model did not
+    // produce a finding structure. The citations themselves are still evidence;
+    // give the final answer their titles/snippets rather than discarding them.
+    const digest = findingsFromSources(group, sources);
+    if (digest.length > 0) return { findings: digest, sources };
+    return searchFallback({ group, focus });
+  }
   return { findings, sources };
 }
 
@@ -481,18 +692,22 @@ export async function researchInventoryWeb({
   const apiKey = (process.env.OPENROUTER_API_KEY || '').trim();
   const baseUrl = aiConfig().openrouterBaseUrl;
   const model = (process.env.AI_WEB_RESEARCH_MODEL || DEFAULT_RESEARCH_MODEL).trim();
-  if (!apiKey || !baseUrl || !model) return failure('NOT_CONFIGURED', safeSubjects);
+  const canUseResearchModel = Boolean(apiKey && baseUrl && model);
 
   const { groups, omittedBrands } = groupSubjects(safeSubjects);
   if (groups.length === 0) return failure('NO_USABLE_FINDINGS', safeSubjects, { omittedBrands });
 
   // Sequential, not parallel: the free search allowance is per account, and three
-  // simultaneous plugin calls can turn a usable comparison into a 429 storm. Three
-  // small calls still finish inside one tool timeout; a refused group leaves the
-  // others intact and is named in `unresearched`.
+  // simultaneous plugin calls can turn a usable comparison into a 429 storm. A
+  // refused group falls back to the no-key result list; a group with no result is
+  // named in `unresearched` rather than silently disappearing.
   const results: GroupResult[] = [];
   for (const group of groups) {
-    results.push(await searchGroup({ group, focus, apiKey, baseUrl, model }));
+    results.push(
+      canUseResearchModel
+        ? await searchGroup({ group, focus, apiKey, baseUrl, model })
+        : await searchFallback({ group, focus }),
+    );
   }
 
   const findings: ResearchFinding[] = [];
@@ -535,4 +750,12 @@ export async function researchInventoryWeb({
   };
 }
 
-export default { researchInventoryWeb, chatCompletionsUrlFromBase, validSources, filterFindings, researchPrompt, WEB_RESEARCH_NOTE };
+export default {
+  researchInventoryWeb,
+  chatCompletionsUrlFromBase,
+  validSources,
+  parseSearchResults,
+  filterFindings,
+  researchPrompt,
+  WEB_RESEARCH_NOTE,
+};
