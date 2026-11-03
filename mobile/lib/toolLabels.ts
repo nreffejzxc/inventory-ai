@@ -34,6 +34,7 @@ const TOOL_LABELS: Record<string, string> = {
   searchProducts: 'Product search',
   findProducts: 'Product discovery',
   getCatalogOverview: 'Catalogue overview',
+  researchInventoryProducts: 'Web research',
   getProduct: 'Product details',
   listLocations: 'Locations',
   listCategories: 'Categories',

@@ -28,6 +28,7 @@ import { inventoryService } from '../inventory.service.ts';
 import { productService } from '../product.service.ts';
 import { categoryService, locationService } from '../reference.service.ts';
 import { transactionsService, TRANSACTION_TYPES } from '../transactions.service.ts';
+import { researchInventoryWeb, WEB_RESEARCH_NOTE, type ResearchFocus, type ResearchSubject } from './webResearch.ts';
 import { hasPermission, PERMISSIONS } from '../../constants/roles.ts';
 import { localDateTime } from '../../utils/timeZone.ts';
 
@@ -139,6 +140,11 @@ interface ReorderArgs extends ToolArguments, CategoryRef {
 interface BrandSummaryArgs extends ToolArguments, CategoryRef {
   q?: string;
   limit?: number;
+}
+
+interface ResearchProductsArgs extends ToolArguments {
+  productIds?: string;
+  focus?: string;
 }
 
 interface HistoryArgs extends ToolArguments, LocationRef {
@@ -1082,6 +1088,98 @@ const tools: Tool[] = [
         note: BRAND_NOTE,
         ...(category.id ? { categoryId: category.id } : {}),
       });
+    },
+  },
+
+  // ---------------------------------------------------------------------------
+  // AI-47 — RESEARCH, BOUND TO THE ROWS THE BUSINESS ACTUALLY HAS.
+  //
+  // The model supplies product IDs, never brand names. The executor loads those
+  // rows through the same business-scoped product read as getProduct, so a brand
+  // that is not recorded in this tenant cannot enter the web query. The research
+  // client then drops any finding keyed to a name outside this list; the prompt
+  // rule tells the final answer to recommend only these subjects.
+  //
+  // This is still a read: no stock, price, product or brand is written. Research
+  // evidence is returned beside the recorded rows, never in place of them.
+  // ---------------------------------------------------------------------------
+  {
+    name: 'researchInventoryProducts',
+    description:
+      'Research live web sources about products already recorded in this business. Pass one to eight product ids returned by findProducts or searchProducts — the tool loads those rows itself and searches only their recorded names and brands, so it cannot research a brand the business does not have. Use this AFTER finding the inventory products, when the member asks for quality, reliability, affordability, reviews or a brand recommendation. Returns sourced findings and source URLs. Research is external evidence, not inventory data: recommend only the subjects listed, cite the returned sources, and never add a product or brand that appears only in a source. It does not check or change stock. If it reports available:false, answer from inventory facts only and say the web evidence was unavailable.',
+    permission: PERMISSIONS.PRODUCTS_VIEW,
+    parameters: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['productIds'],
+      properties: {
+        productIds: {
+          type: 'string',
+          maxLength: 220,
+          description: 'Comma-separated product ids from findProducts or searchProducts (1 to 8). The tool resolves each id in this business and refuses missing or archived products.',
+        },
+        focus: {
+          type: 'string',
+          enum: ['overall', 'quality', 'affordability', 'reliability'],
+          description: 'What to research. Defaults to overall.',
+        },
+      },
+    },
+    async executor(ctx: ToolContext, args: ResearchProductsArgs) {
+      const ids = [
+        ...new Set(
+          String(args.productIds ?? '')
+            .split(',')
+            .map((id) => id.trim())
+            .filter(Boolean),
+        ),
+      ];
+      const unavailable = (message: string) => ({
+        available: false,
+        reason: 'PRODUCTS_NOT_AVAILABLE',
+        message,
+        findings: [],
+        sources: [],
+        subjects: [],
+        brandsRecorded: [],
+        note: WEB_RESEARCH_NOTE,
+      });
+
+      if (ids.length === 0 || ids.length > 8) {
+        return unavailable('Pass between one and eight product ids returned by findProducts.');
+      }
+      if (!ids.every((id) => /^[0-9a-fA-F]{24}$/.test(id))) {
+        return unavailable('One or more product ids are not valid. Use ids returned by findProducts.');
+      }
+
+      const docs = await Promise.all(
+        ids.map((id) => productService.getByIdentifier(ctx.businessId, { id })),
+      );
+      if (docs.some((doc) => !doc || doc.status !== 'ACTIVE')) {
+        return unavailable(
+          'One or more selected products are missing, archived, or belong to another business. Use findProducts again and select ACTIVE products from its results.',
+        );
+      }
+
+      const subjects: ResearchSubject[] = docs.map((doc) => {
+        const dto = productService.toProductDTO(doc!);
+        return {
+          id: dto.id,
+          name: String(dto.name),
+          brand: dto.brand,
+          category:
+            dto.category && typeof dto.category.name === 'string' ? dto.category.name : null,
+          sellingPrice: typeof dto.sellingPrice === 'number' ? dto.sellingPrice : null,
+          unit: dto.unit,
+        };
+      });
+      const focus =
+        args.focus === 'quality' || args.focus === 'affordability' || args.focus === 'reliability'
+          ? args.focus
+          : ('overall' as ResearchFocus);
+
+      const research = await researchInventoryWeb({ subjects, focus });
+      return { ...research, subjects };
     },
   },
 ];

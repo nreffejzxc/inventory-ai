@@ -51,6 +51,8 @@ const EXPECTED_TOOLS = [
   'findProducts',
   // AI-46: catalogue contents and recorded-data coverage.
   'getCatalogOverview',
+  // AI-47: web research, reachable only through product ids owned by the tenant.
+  'researchInventoryProducts',
   'getProduct',
   'getInventory',
   'getLowStockProducts',
@@ -891,6 +893,10 @@ dbSuite('OpenRouter provider — real full-catalogue workload', dbOk, () => {
       { id: 't14', name: 'findProducts', input: { keywords: 'OpenRouter' } },
       // AI-46: the no-argument catalogue coverage read.
       { id: 't15', name: 'getCatalogOverview', input: {} },
+      // AI-47: a valid-shaped id that is not a product in this tenant makes the tool
+      // answer a soft result without calling the web stub, so the all-tools workload
+      // still feeds one result per advertised capability.
+      { id: 't16', name: 'researchInventoryProducts', input: { productIds: '000000000000000000000000' } },
     ];
   }
 

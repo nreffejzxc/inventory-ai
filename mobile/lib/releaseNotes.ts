@@ -45,6 +45,18 @@ export interface ReleaseNote {
  */
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    id: '2026-11-03-web-research',
+    date: '2026-11-03',
+    kind: 'feature',
+    title: 'Research brands without leaving your inventory',
+    summary: 'Ask for quality, reliability, or value advice and Inventory AI can check the web while keeping its recommendations to products you actually stock.',
+    points: [
+      'It researches only the products and brands it found in your inventory.',
+      'Answers include source links so you can check the evidence yourself.',
+      'If no brand is recorded or no source is found, it says so instead of guessing.',
+    ],
+  },
+  {
     id: '2026-11-03-catalogue-overview',
     date: '2026-11-03',
     kind: 'feature',
