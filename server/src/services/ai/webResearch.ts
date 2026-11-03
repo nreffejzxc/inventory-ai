@@ -495,8 +495,9 @@ function findingsFromSources(group: ResearchGroup, sources: ResearchSource[]): R
   return group.subjects.slice(0, 2).map((subject) => ({ name: subject.name, kind: 'product' as const, finding }));
 }
 
-function fallbackQuery(group: ResearchGroup, focus: ResearchFocus) {
+function fallbackQuery(group: ResearchGroup, focus: ResearchFocus, simple = false) {
   const names = group.subjects.slice(0, 2).map((subject) => subject.name);
+  if (simple) return [group.brand ? `"${group.brand}"` : names[0], 'review'].filter(Boolean).join(' ');
   const lens =
     focus === 'affordability'
       ? 'price value review'
@@ -535,34 +536,45 @@ async function searchFallback({
     return { findings: [], sources: [], reason: 'SEARCH_UNAVAILABLE' };
   }
 
-  let response: Response;
-  try {
-    response = await fetch(endpoint, {
-      headers: {
-        accept: 'text/html,application/xhtml+xml',
-        'accept-language': 'en-US,en;q=0.9',
-        'user-agent':
-          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124 Safari/537.36',
-      },
-      signal: AbortSignal.timeout(FALLBACK_TIMEOUT_MS),
-    });
-  } catch (err) {
-    const name = (err as { name?: unknown } | null)?.name;
-    return {
-      findings: [],
-      sources: [],
-      reason: name === 'TimeoutError' || name === 'AbortError' ? 'SEARCH_TIMEOUT' : 'SEARCH_UNAVAILABLE',
-    };
-  }
-  if (!response.ok) return { findings: [], sources: [], reason: 'SEARCH_UNAVAILABLE' };
+  const fetchPage = async (
+    target: URL,
+  ): Promise<{ html: string } | { reason: ResearchFailureReason }> => {
+    let response: Response;
+    try {
+      response = await fetch(target, {
+        headers: {
+          accept: 'text/html,application/xhtml+xml',
+          'accept-language': 'en-US,en;q=0.9',
+          'user-agent':
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124 Safari/537.36',
+        },
+        signal: AbortSignal.timeout(FALLBACK_TIMEOUT_MS),
+      });
+    } catch (err) {
+      const name = (err as { name?: unknown } | null)?.name;
+      return { reason: name === 'TimeoutError' || name === 'AbortError' ? 'SEARCH_TIMEOUT' : 'SEARCH_UNAVAILABLE' };
+    }
+    if (!response.ok) return { reason: 'SEARCH_UNAVAILABLE' };
+    try {
+      return { html: await response.text() };
+    } catch {
+      return { reason: 'SEARCH_UNAVAILABLE' };
+    }
+  };
 
-  let html: string;
-  try {
-    html = await response.text();
-  } catch {
-    return { findings: [], sources: [], reason: 'SEARCH_UNAVAILABLE' };
+  const first = await fetchPage(endpoint);
+  if (!('html' in first)) return { findings: [], sources: [], reason: first.reason };
+  let sources = parseSearchResults(first.html);
+  if (sources.length === 0) {
+    // A long product-name query can miss a small brand. Retry once with just
+    // the recorded brand before declaring it unresearched; the retry is bounded
+    // and still supplies only public result snippets.
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    endpoint.searchParams.set('q', fallbackQuery(group, focus, true));
+    const second = await fetchPage(endpoint);
+    if (!('html' in second)) return { findings: [], sources: [], reason: second.reason };
+    sources = parseSearchResults(second.html);
   }
-  const sources = parseSearchResults(html);
   if (sources.length === 0) return { findings: [], sources: [], reason: 'NO_SOURCES' };
   const findings = findingsFromSources(group, sources);
   if (findings.length === 0) return { findings: [], sources, reason: 'NO_USABLE_FINDINGS' };
@@ -750,11 +762,28 @@ export async function researchInventoryWeb({
   };
 }
 
+/**
+ * Guarantee the final answer carries the URLs the model was given.
+ *
+ * A model that names a source without linking it is not enough: the member cannot
+ * review the claim. The server appends only URLs the answer does not already
+ * contain, so a model that cites correctly is left untouched and a model that
+ * only names the publication still produces a clickable, reviewable list.
+ */
+export function appendMissingSourceUrls(text: string, sources: ResearchSource[]) {
+  const missing = sources.filter((source) => source.url && !text.includes(source.url));
+  if (missing.length === 0) return text;
+  const lines = ['', 'Source URLs:'];
+  for (const source of missing.slice(0, MAX_SOURCES)) lines.push(`- ${source.title}: ${source.url}`);
+  return `${text}\n${lines.join('\n')}`;
+}
+
 export default {
   researchInventoryWeb,
   chatCompletionsUrlFromBase,
   validSources,
   parseSearchResults,
+  appendMissingSourceUrls,
   filterFindings,
   researchPrompt,
   WEB_RESEARCH_NOTE,

@@ -38,6 +38,7 @@ import { activeModel, promoteModel } from './modelSelection.ts';
 import { selectProvider, type ProviderMessage, type ProviderResponse, type ProviderUsage, type ToolDefinition } from './providers/index.ts';
 import { capToolResult } from './toolPayload.ts';
 import { executeTool, AI_TOOL_DEFS } from './tools.ts';
+import { appendMissingSourceUrls, type ResearchSource } from './webResearch.ts';
 import { localDate, localTime, resolveTimeZone, utcOffsetLabel } from '../../utils/timeZone.ts';
 
 /**
@@ -343,6 +344,10 @@ export async function runAiChat({
 
   let finalText: string | null = null;
   const toolsUsed = new Set<string>();
+  // Research URLs are collected from successful tool results and appended after
+  // the model's answer, so a model that names a publication without linking it
+  // cannot leave the member unable to review the claim.
+  const researchSources: ResearchSource[] = [];
   // AI-28 — seeded from the provider's CONFIGURED model, so a turn whose every call failed still
   // names what it was trying. Before this, a provider-side 404 (a withdrawn or broken model,
   // 2026-10-21) produced `model=unknown` on the one line an operator reads to find out which model
@@ -922,6 +927,29 @@ export async function runAiChat({
         throw err;
       }
       countTool();
+      if (name === 'researchInventoryProducts') {
+        const research = (output as { result?: unknown }).result;
+        if (research && typeof research === 'object') {
+          const result = research as { available?: unknown; sources?: unknown };
+          if (result.available === true && Array.isArray(result.sources)) {
+            for (const raw of result.sources) {
+              if (!raw || typeof raw !== 'object') continue;
+              const source = raw as { title?: unknown; url?: unknown };
+              if (typeof source.url !== 'string' || !/^https?:\/\//i.test(source.url)) continue;
+              if (researchSources.some((existing) => existing.url === source.url)) continue;
+              let title = typeof source.title === 'string' ? source.title.trim() : '';
+              if (!title) {
+                try {
+                  title = new URL(source.url).hostname;
+                } catch {
+                  continue;
+                }
+              }
+              researchSources.push({ title, url: source.url });
+            }
+          }
+        }
+      }
       // AI-13: cap the PAYLOAD the model reads, never the JSON text. A raw string cut
       // leaves invalid JSON, so the model would read a broken document instead of a
       // shortened one — and the tool result then says "truncated" in a way it can use.
@@ -958,6 +986,15 @@ export async function runAiChat({
   // above, so a degraded turn stays countable exactly as it was).
   reportTurn(degraded ? 'degraded' : 'ok');
   finalText = truncate(finalText, cfg.maxMessageChars);
+  if (!degraded && researchSources.length > 0) {
+    const withSources = appendMissingSourceUrls(finalText, researchSources);
+    if (withSources !== finalText) {
+      // Streaming clients need the appended URLs too; non-streaming clients use
+      // the complete `content` below.
+      emitText(withSources.slice(finalText.length));
+      finalText = withSources;
+    }
+  }
 
   return {
     content: finalText,
