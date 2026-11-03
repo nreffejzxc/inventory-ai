@@ -10,14 +10,15 @@
 - how many products have a recorded brand and how many do not;
 - how many products have a recorded description and how many do not.
 
-It deliberately has no stock, price or quality field. `listBrands` now also carries each
-sample product's recorded description and the brand's recorded selling-price range, so a
-brand comparison can use facts the business entered. The price range is not a value or
-quality rating.
+It deliberately has no stock, price or quality field. `listBrands` also carries each sample
+product's recorded description and the brand's recorded selling-price range, so a brand
+comparison can use facts the business entered. The price range is not a value or quality
+rating.
 
 Prompt rule 20 sends "what do we carry / how complete is our data" to the overview once;
-rule 18 uses the brand descriptions and price range only as recorded facts. The mobile
-label is **Catalogue overview**. The catalogue is now 15 read-only tools.
+rule 18 uses the brand descriptions and price range only as recorded facts. The catalogue is
+now 15 read-only tools. The app's explicit label is **Catalogue overview**; the installed
+build showed the humanised fallback **Catalog overview**.
 
 ## Verification
 
@@ -34,15 +35,41 @@ The first full-suite run found two integration mirrors that the focused tests di
 a stray prompt comma, and the OpenRouter all-tools list missing `getCatalogOverview`.
 Both were fixed before the green run.
 
-## Phone verification — not completed
+## Phone verification — completed
 
-After the runner restart, `adb devices` returned no device, Windows did not enumerate the
-phone, and scrcpy was not running. No phone screenshot or UI result is claimed. The preview
-OTA is published; reconnect/unlock the phone and re-run the catalogue question.
+After the phone reconnected and the owner signed in, this question was asked in a new chat:
+
+> What does our catalogue contain, and how complete is the brand data?
+
+The answer on the installed preview build:
+
+> Your active catalogue holds **1 004 products** spread across **5 categories**:
+>
+> - Household — 252 products
+> - Personal Care — 251 products
+> - Beverages — 250 products
+> - Snacks — 250 products
+> - Uncategorised — 1 product
+>
+> **Brand data:** **3 distinct brands** are recorded across the whole catalogue. Only **3
+> products** have a brand assigned; the remaining **1 001 products** have no brand on file.
+>
+> **Description coverage:** **1 000 products** have a recorded description; **4** do not.
+>
+> So the catalogue is large, but brand information is sparse — just three brands for a
+> small subset of items, and most products lack a brand entirely.
+
+Provenance: **Catalog overview**. It used one read, reported no invented products, brands or
+stock, and made no quality claim. Screenshots:
+[`catalog-question.png`](catalog-question.png) and [`catalog-answer.png`](catalog-answer.png).
+
+The exact counts are the production data at the time of the test; they can move as products
+are added or edited. The category list includes one uncategorised product, which is why the
+tool reports five category rows although four named categories were expected.
 
 ## What this does not prove
 
-This tenant has no recorded brands and no automotive products. The overview can report that
-gap, but a positive brand recommendation cannot be demonstrated against this live catalogue.
-The DB fixture proves the counts and comparison fields. A count is not evidence of quality,
-and the overview does not say what is in stock.
+The tenant records only three brand values and no automotive products. The overview can
+report that gap, but a positive brand recommendation cannot be demonstrated against this
+live catalogue; the DB fixture proves the comparison fields. A count is not evidence of
+quality, and the overview does not say what is in stock.
