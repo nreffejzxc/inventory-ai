@@ -352,11 +352,13 @@ dbSuite('Phase 06 — AI tools', dbOk, () => {
     assert.equal(res.code, 'TOOL_ERROR');
   });
 
-  it('the tool catalog is strictly read-only (14 tools, no write verbs)', async () => {
+  it('the tool catalog is strictly read-only (15 tools, no write verbs)', async () => {
     const names = AI_TOOL_DEFS.map((t) => t.name).sort();
     assert.deepEqual(names, [
       // AI-45: everyday discovery across name, brand and description, with stock.
       'findProducts',
+      // AI-46: one read for catalogue contents and brand/description coverage.
+      'getCatalogOverview',
       'getInventory',
       'getInventoryHistory',
       'getInventorySummary',

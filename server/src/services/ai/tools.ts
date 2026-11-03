@@ -195,7 +195,7 @@ const limitParam = (def: number, max: number) => ({ type: 'integer', minimum: 1,
 const CATALOG_GROUNDING_NOTE =
   'Catalogue facts are limited to the fields on these rows. Brand is an optional recorded field: null means no brand is recorded, not that the product has no brand. A description is free text and may name a brand or specification, but it is not a separate specification field. Recommend only products returned here, and never infer a brand or quality from a product name or from words such as "Premium", "Pro" or "Ultra".';
 const BRAND_NOTE =
-  'Brand is an optional recorded field. A product with no brand recorded is not counted here; no result means no brand is recorded for this filter, not that no brand exists. This page covers ACTIVE products only and does not include stock levels — use searchProducts, getProduct or getInventory to check what is on hand. Never infer a brand from a product name or a description.';
+  'Brand is an optional recorded field. A product with no brand recorded is not counted here; no result means no brand is recorded for this filter, not that no brand exists. This page covers ACTIVE products only and does not include stock levels — use searchProducts, getProduct or getInventory to check what is on hand. The price range is the recorded selling price, not a quality or value rating; descriptions are free text, so compare only what they state. Never infer a brand from a product name or a description.';
 const FIND_NOTE =
   'This is a discovery search, not a quality ranking. It matches the supplied terms against product name, recorded brand, recorded description, SKU and barcode, and returns available stock. Compare only the recorded brand, description, price, unit and availability; never call an item best, trusted or suitable for a use unless the row states it. No match means none of these terms are recorded, not that the business cannot stock such a product.';
 const LIST_DESCRIPTION_MAX = 160;
@@ -819,6 +819,17 @@ const tools: Tool[] = [
         limit: Math.min(args.limit ?? 20, 50),
       });
       return page(total, items.map(productService.reorderItemPublic));
+    },
+  },
+
+  {
+    name: 'getCatalogOverview',
+    description:
+      'One-call overview of what the ACTIVE catalogue contains: total active products, per-category product counts, how many distinct brands are recorded, and how many products have a recorded brand or description. Use for "what do we carry", "what categories do we have", "how complete is our brand data" and to frame a recommendation before a narrower search. This read has no stock, price or quality data and no product names; use findProducts, listBrands, getProduct or getInventory for those. A count is not a quality claim, and "no brand recorded" is not "no brand exists".',
+    permission: PERMISSIONS.PRODUCTS_VIEW,
+    parameters: { type: 'object', additionalProperties: false, properties: {} },
+    async executor(ctx: ToolContext) {
+      return productService.catalogOverview(ctx.businessId);
     },
   },
 

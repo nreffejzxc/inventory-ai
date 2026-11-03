@@ -49,6 +49,8 @@ const EXPECTED_TOOLS = [
   'searchProducts',
   // AI-45: everyday discovery across name, brand and description.
   'findProducts',
+  // AI-46: catalogue contents and recorded-data coverage.
+  'getCatalogOverview',
   'getProduct',
   'getInventory',
   'getLowStockProducts',

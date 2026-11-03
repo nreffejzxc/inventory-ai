@@ -33,6 +33,7 @@ const TOOL_LABELS: Record<string, string> = {
   getReorderNeededProducts: 'Restock list',
   searchProducts: 'Product search',
   findProducts: 'Product discovery',
+  getCatalogOverview: 'Catalogue overview',
   getProduct: 'Product details',
   listLocations: 'Locations',
   listCategories: 'Categories',
