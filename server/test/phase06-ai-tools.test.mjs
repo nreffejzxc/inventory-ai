@@ -352,7 +352,7 @@ dbSuite('Phase 06 — AI tools', dbOk, () => {
     assert.equal(res.code, 'TOOL_ERROR');
   });
 
-  it('the tool catalog is strictly read-only (15 tools, no write verbs)', async () => {
+  it('the tool catalog is strictly read-only (16 tools, no write verbs)', async () => {
     const names = AI_TOOL_DEFS.map((t) => t.name).sort();
     assert.deepEqual(names, [
       // AI-45: everyday discovery across name, brand and description, with stock.
@@ -375,6 +375,8 @@ dbSuite('Phase 06 — AI tools', dbOk, () => {
       'listBrands',
       'listCategories',
       'listLocations',
+      // AI-47: web research is bounded to product ids this tenant owns.
+      'researchInventoryProducts',
       'searchProducts',
     ]);
     for (const def of AI_TOOL_DEFS) {
