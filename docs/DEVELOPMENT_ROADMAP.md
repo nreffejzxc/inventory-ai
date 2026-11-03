@@ -24534,10 +24534,16 @@ the green run. PR #141 merged as **`96bc659`** with all four checks green.
 **Production.** `/api/health` reports `96bc659`, database `connected`, **0** server errors.
 Preview OTA `12c6435d` is published.
 
-**Phone verification — not completed.** After the runner restart, `adb devices` returned
-no device, Windows did not enumerate the phone, and scrcpy was not running. No screenshot or
-UI claim is made. The preview OTA is ready; reconnect/unlock the phone and re-run the
-catalogue question. The existing tenant also has no brands or automotive products, so a
-positive recommendation remains a data gap rather than a tool gap.
+**Verified on the phone.** After the phone reconnected and the owner signed in, a new chat
+asked *"What does our catalogue contain, and how complete is the brand data?"*. The answer
+reported **1,004 active products** across five category rows — Household 252, Personal Care
+251, Beverages 250, Snacks 250, Uncategorised 1 — **3 distinct recorded brands** on 3
+products with 1,001 unrecorded, and 1,000 recorded descriptions with 4 missing. Provenance
+was **Catalog overview** (the installed build's humanised fallback; the explicit **Catalogue
+overview** label is in the published OTA). It used one read and invented nothing. Screenshots:
+[`catalog-question.png`](../evidence/ai46-catalog-overview-2026-11-03/catalog-question.png)
+and [`catalog-answer.png`](../evidence/ai46-catalog-overview-2026-11-03/catalog-answer.png).
+The tenant still records only three brand values and no automotive products, so a positive
+recommendation remains a data gap rather than a tool gap.
 
 **Evidence.** [`docs/evidence/ai46-catalog-overview-2026-11-03/`](../evidence/ai46-catalog-overview-2026-11-03/README.md).
