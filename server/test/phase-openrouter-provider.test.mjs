@@ -889,6 +889,8 @@ dbSuite('OpenRouter provider — real full-catalogue workload', dbOk, () => {
       { id: 't13', name: 'listBrands', input: {} },
       // AI-45: the natural search is part of the shipped catalogue.
       { id: 't14', name: 'findProducts', input: { keywords: 'OpenRouter' } },
+      // AI-46: the no-argument catalogue coverage read.
+      { id: 't15', name: 'getCatalogOverview', input: {} },
     ];
   }
 
