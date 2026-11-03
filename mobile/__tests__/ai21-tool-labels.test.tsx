@@ -26,12 +26,13 @@ jest.mock('expo-router', () => ({
  * The tool list below mirrors `server/src/services/ai/tools.ts` by hand. It is a mirror and
  * not a source of truth on purpose: a client test cannot import server TypeScript, and the
  * fallback is what makes a drifting mirror a cosmetic issue rather than a leak — but the
- * case fails if any of these eleven ever renders raw, which is the cheap half to check.
+ * case fails if any of these fifteen ever renders raw, which is the cheap half to check.
  */
 
 const TOOL_NAMES = [
   'searchProducts',
   'findProducts',
+  'getCatalogOverview',
   'getProduct',
   'getInventory',
   'getLowStockProducts',
@@ -76,6 +77,7 @@ describe('AI-21 tool names never reach the screen', () => {
     expect(toolLabel('getInventoryHistory')).toBe('Stock movements');
     expect(toolLabel('getReorderNeededProducts')).toBe('Restock list');
     expect(toolLabel('listCategories')).toBe('Categories');
+    expect(toolLabel('getCatalogOverview')).toBe('Catalogue overview');
   });
 
   it('★ two labels are never the same, so a chip cannot be ambiguous', () => {

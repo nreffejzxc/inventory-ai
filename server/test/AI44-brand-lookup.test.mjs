@@ -145,8 +145,10 @@ dbSuite('AI-44 recorded brands are searchable and summarised', dbOk, () => {
     assert.equal(row.brand, 'ZZ Oil');
     assert.equal(row.productCount, 2);
     assert.deepEqual(row.categories, [categoryName]);
+    assert.deepEqual(row.priceRange, { min: 8, max: 12.5 });
     assert.equal(row.sampleProducts.length, 2);
     assert.ok(row.sampleProducts.every((product) => product.name));
+    assert.ok(row.sampleProducts.some((product) => /API SN 10W-40/.test(product.description)));
     assert.match(result.note, /does not include stock levels/i);
     assert.match(result.note, /no brand is recorded/i);
   });

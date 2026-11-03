@@ -103,6 +103,7 @@ type BrandSummaryFilters = {
 
 const { ObjectId } = mongoose.Types;
 const escapeRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const BRAND_DESCRIPTION_MAX = 160;
 
 /**
  * One OR clause for the everyday search. `q` keeps the existing exact-substring
@@ -842,6 +843,90 @@ export const productService = {
   },
 
   /**
+   * One read for "what does the catalogue contain?": active-product and category
+   * counts, plus how much of the optional brand/description data is actually
+   * recorded. It deliberately returns no stock, price or quality field — those
+   * belong to the inventory/product reads, and a count is not evidence of quality.
+   * The assistant uses this to explain the catalogue and its gaps without probing
+   * category by category, and without turning an empty field into a claim.
+   */
+  async catalogOverview(businessId: IdLike) {
+    const bizOid = new ObjectId(businessId);
+    const brandRecorded = { $and: [{ $eq: [{ $type: '$brand' }, 'string'] }, { $ne: ['$brand', ''] }] };
+    const descriptionRecorded = {
+      $and: [{ $eq: [{ $type: '$description' }, 'string'] }, { $ne: ['$description', ''] }],
+    };
+
+    const [result] = await Product.aggregate([
+      { $match: { businessId: bizOid, status: 'ACTIVE' } },
+      {
+        $facet: {
+          totals: [
+            {
+              $group: {
+                _id: null,
+                total: { $sum: 1 },
+                withBrand: { $sum: { $cond: [brandRecorded, 1, 0] } },
+                withDescription: { $sum: { $cond: [descriptionRecorded, 1, 0] } },
+              },
+            },
+          ],
+          categories: [
+            {
+              $group: {
+                _id: '$categoryId',
+                productCount: { $sum: 1 },
+                withBrand: { $sum: { $cond: [brandRecorded, 1, 0] } },
+                withDescription: { $sum: { $cond: [descriptionRecorded, 1, 0] } },
+              },
+            },
+            { $sort: { productCount: -1, _id: 1 } },
+          ],
+          brands: [
+            { $match: { brand: { $type: 'string', $ne: '' } } },
+            { $group: { _id: '$brand' } },
+            { $count: 'total' },
+          ],
+        },
+      },
+    ]);
+
+    const totals = result?.totals?.[0] ?? {};
+    const totalActiveProducts = Number(totals.total ?? 0);
+    const productsWithBrand = Number(totals.withBrand ?? 0);
+    const productsWithDescription = Number(totals.withDescription ?? 0);
+    const categoryRows = (result?.categories ?? []) as Array<{
+      _id?: unknown;
+      productCount?: unknown;
+      withBrand?: unknown;
+      withDescription?: unknown;
+    }>;
+    const categoryIds = categoryRows.map((row) => row._id).filter(Boolean).map((id) => String(id));
+    const categoryDocs = categoryIds.length
+      ? await Category.find({ _id: { $in: categoryIds }, businessId: bizOid }).lean()
+      : [];
+    const categoryNames = new Map(categoryDocs.map((cat) => [String(cat._id), String(cat.name)]));
+
+    return {
+      totalActiveProducts,
+      categoryCount: categoryRows.length,
+      categories: categoryRows.map((row) => ({
+        id: row._id ? String(row._id) : null,
+        name: row._id ? categoryNames.get(String(row._id)) ?? 'Unnamed category' : 'Uncategorised',
+        productCount: Number(row.productCount ?? 0),
+        productsWithBrand: Number(row.withBrand ?? 0),
+        productsWithDescription: Number(row.withDescription ?? 0),
+      })),
+      recordedBrands: Number(result?.brands?.[0]?.total ?? 0),
+      productsWithBrand,
+      productsWithoutBrand: totalActiveProducts - productsWithBrand,
+      productsWithDescription,
+      productsWithoutDescription: totalActiveProducts - productsWithDescription,
+      note: 'Counts cover ACTIVE products only. Brand is optional: no brand recorded is not the same as no brand existing, and a blank is not a brand. A description is free text, not a specification field. This read has no stock, price or quality data — use findProducts, getProduct or getInventory for those, and never infer quality from a count.',
+    };
+  },
+
+  /**
    * Recorded brands, with the active products that carry them. Brand is optional:
    * a missing or blank value is not a brand, so it is excluded rather than grouped
    * under an empty name. Stock is deliberately not joined here; the assistant can
@@ -864,8 +949,16 @@ export const productService = {
           _id: '$brand',
           productCount: { $sum: 1 },
           categoryIds: { $addToSet: '$categoryId' },
+          minPrice: { $min: '$sellingPrice' },
+          maxPrice: { $max: '$sellingPrice' },
           sampleProducts: {
-            $push: { id: '$_id', name: '$name', unit: '$unit', sellingPrice: '$sellingPrice' },
+            $push: {
+              id: '$_id',
+              name: '$name',
+              unit: '$unit',
+              sellingPrice: '$sellingPrice',
+              description: '$description',
+            },
           },
         },
       },
@@ -880,6 +973,8 @@ export const productService = {
                 brand: '$_id',
                 productCount: 1,
                 categoryIds: 1,
+                minPrice: 1,
+                maxPrice: 1,
                 sampleProducts: { $slice: ['$sampleProducts', 3] },
               },
             },
@@ -892,7 +987,15 @@ export const productService = {
       brand?: unknown;
       productCount?: unknown;
       categoryIds?: unknown[];
-      sampleProducts?: Array<{ id?: unknown; name?: unknown; unit?: unknown; sellingPrice?: unknown }>;
+      minPrice?: unknown;
+      maxPrice?: unknown;
+      sampleProducts?: Array<{
+        id?: unknown;
+        name?: unknown;
+        unit?: unknown;
+        sellingPrice?: unknown;
+        description?: unknown;
+      }>;
     }>;
     const categoryIds = rows
       .flatMap((row) => row.categoryIds ?? [])
@@ -911,12 +1014,26 @@ export const productService = {
         categories: (row.categoryIds ?? [])
           .map((id) => categoryNames.get(String(id)))
           .filter((name): name is string => Boolean(name)),
-        sampleProducts: (row.sampleProducts ?? []).map((product) => ({
-          id: String(product.id),
-          name: String(product.name),
-          unit: product.unit ?? null,
-          sellingPrice: product.sellingPrice ?? 0,
-        })),
+        priceRange: {
+          min: typeof row.minPrice === 'number' ? row.minPrice : null,
+          max: typeof row.maxPrice === 'number' ? row.maxPrice : null,
+        },
+        sampleProducts: (row.sampleProducts ?? []).map((product) => {
+          const description = typeof product.description === 'string' ? product.description : null;
+          return {
+            id: String(product.id),
+            name: String(product.name),
+            unit: product.unit ?? null,
+            sellingPrice: product.sellingPrice ?? 0,
+            // A brand page is a comparison page, so the recorded description travels
+            // with each sample. Shortened for the same reason list rows are: three
+            // descriptions must not push the brand rows out through the tool cap.
+            description:
+              description && description.length > BRAND_DESCRIPTION_MAX
+                ? `${description.slice(0, BRAND_DESCRIPTION_MAX - 1)}…`
+                : description,
+          };
+        }),
       })),
     };
   },

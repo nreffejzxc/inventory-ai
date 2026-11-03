@@ -59,6 +59,8 @@ const READ_ONLY_SERVICE_CALLS = new Set([
   'productService.reorderItemPublic',
   // AI-44: one aggregate read over the brand field, no write path.
   'productService.brandSummary',
+  // AI-46: one aggregate read for catalogue contents and coverage, no write path.
+  'productService.catalogOverview',
   'inventoryService.listRows',
   // AI-23: the per-location breakdown is one aggregate read over inventory rows — the same
   // class as the dashboard summary above, and named here explicitly so adding it was a
