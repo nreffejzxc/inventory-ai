@@ -33,6 +33,7 @@ import { ROLES } from '../src/constants/roles.ts';
 import { aiToolsById, executeTool, validateToolArgs } from '../src/services/ai/tools.ts';
 import { systemPrompt } from '../src/services/ai/ai.service.ts';
 import {
+  appendMissingSourceUrls,
   chatCompletionsUrlFromBase,
   filterFindings,
   parseSearchResults,
@@ -297,6 +298,19 @@ unitSuite('AI-47 research is inventory-bound and source-backed', () => {
         snippet: 'Useful budget evidence.',
       },
     ]);
+  });
+
+  it('★ appends every source URL the model omitted, once', () => {
+    const sources = [
+      { title: 'ROG guide', url: 'https://example.com/rog' },
+      { title: 'Already cited', url: 'https://example.com/already' },
+    ];
+    const text = 'The model cited Already cited: https://example.com/already';
+    const withUrls = appendMissingSourceUrls(text, sources);
+    assert.match(withUrls, /Source URLs:/);
+    assert.match(withUrls, /ROG guide: https:\/\/example\.com\/rog/);
+    assert.equal((withUrls.match(/https:\/\/example\.com\/already/g) ?? []).length, 1);
+    assert.equal(appendMissingSourceUrls(withUrls, sources), withUrls);
   });
 
   it('★ source and finding filters are independently provable', () => {
