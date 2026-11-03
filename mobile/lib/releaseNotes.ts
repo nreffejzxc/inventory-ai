@@ -45,6 +45,42 @@ export interface ReleaseNote {
  */
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    id: '2026-11-03-catalogue-overview',
+    date: '2026-11-03',
+    kind: 'feature',
+    title: 'See what your catalogue contains',
+    summary: 'Ask for a quick picture of your active products, categories, and how much brand and description information is recorded.',
+    points: [
+      'The answer can show product counts by category and how many brands are on file.',
+      'Brand comparisons use recorded descriptions and price ranges, not guesses.',
+      'Stock is still checked separately; a product count is not a quality rating.',
+    ],
+  },
+  {
+    id: '2026-11-03-natural-product-questions',
+    date: '2026-11-03',
+    kind: 'feature',
+    title: 'Ask for products the way you would ask a manager',
+    summary: 'Describe the job or kind of product and let Inventory AI find the matching items in your catalogue.',
+    points: [
+      'You do not need the exact product name; it searches names, recorded brands, and descriptions.',
+      'It shows what is available and says plainly when nothing matches.',
+      'It will not invent a brand or call something best without recorded evidence.',
+    ],
+  },
+  {
+    id: '2026-11-03-product-brands',
+    date: '2026-11-03',
+    kind: 'improvement',
+    title: 'Record the brand on a product',
+    summary: 'Add the brand when you create or edit a product so it can be found and compared accurately.',
+    points: [
+      'Brand is optional and appears on the product detail screen.',
+      'Search and the assistant can use a recorded brand when you ask for it.',
+      'If no brand is recorded, the app says so instead of guessing.',
+    ],
+  },
+  {
     id: '2026-10-25-whats-new',
     date: '2026-10-25',
     kind: 'feature',
