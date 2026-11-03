@@ -557,6 +557,7 @@ anchor (`§27…`) in that file.
 - **§27HJ** — A recommendation may rest only on catalogue facts (2026-11-03)
 - **§27HK** — Recorded brands, and the question they answer (2026-11-03)
 - **§27HL** — A natural product question finishes (2026-11-03)
+- **§27HM** — What the catalogue contains, in one read (2026-11-03)
 
 ---
 

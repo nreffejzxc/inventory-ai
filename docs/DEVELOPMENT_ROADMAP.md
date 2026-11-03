@@ -8,7 +8,7 @@ of truth for *what actually happened*, and it is why this file is long.
 
 **How to read it.** Do not read it top to bottom. Either find a record by number (§27FJ, §27DM — the
 numbers are cited from `CLAUDE.md` and from source comments), or use the index: `CLAUDE.md` §7 lists
-all **218** records by the title each gives itself.
+all **219** records by the title each gives itself.
 
 **Current state:** V1 complete and in production testing. The records that answer *where are we now*
 are §27HH (a transfer as one event to the assistant), §27HG (the stock-in link's product), §27HF (the single-location default's timing), §27HE (the
@@ -24503,3 +24503,41 @@ tenant records no specifications or quality ratings. Model compliance is not det
 the tool payload and prompt boundary are pinned, but one phone pass is not every future answer.
 
 **Evidence.** [`docs/evidence/ai45-natural-search-2026-11-03/`](../evidence/ai45-natural-search-2026-11-03/README.md).
+
+---
+
+# 27HM. What the catalogue contains, in one read (2026-11-03)
+
+**Why.** The phone could say "no engine oils" honestly, but explaining what the catalogue
+did contain took several category and brand reads. Brand rows also lacked the recorded
+descriptions and price range needed for a factual comparison, so "how do these brands
+differ?" had little evidence to stand on.
+
+**What shipped.** `getCatalogOverview` is the 15th read-only tool. For the session's ACTIVE
+products it returns total products, per-category counts, distinct recorded brands, and how
+many products have a recorded brand or description. It has no stock, price or quality field:
+a count is not a quality ranking, and a brand status is not an endorsement. `listBrands`
+now carries each sample product's recorded description and the brand's recorded
+selling-price range, both facts for comparison rather than a value rating. Prompt rule 20
+sends "what do we carry / how complete is our data" to the overview once; rule 18 uses the
+brand descriptions and price range without turning either into a quality claim. The mobile
+label is **Catalogue overview**.
+
+**Tests.** AI-46 **4/4** (2 unit + 2 DB), including the category breakdown, brand and
+description coverage, sample descriptions and price range. AI-44 **7/7**, AI-45 **8/8**,
+phase06 **18/18**, AI-2 and AI-18 guards, and the OpenRouter full-catalogue turn with all
+**15** tools pass. Server and mobile `tsc --noEmit` are clean; the mobile label suite is
+**8/8**. The first full-suite run caught two integration mirrors — a stray prompt comma and
+the missing `getCatalogOverview` entry in the OpenRouter all-tools list — both fixed before
+the green run. PR #141 merged as **`96bc659`** with all four checks green.
+
+**Production.** `/api/health` reports `96bc659`, database `connected`, **0** server errors.
+Preview OTA `12c6435d` is published.
+
+**Phone verification — not completed.** After the runner restart, `adb devices` returned
+no device, Windows did not enumerate the phone, and scrcpy was not running. No screenshot or
+UI claim is made. The preview OTA is ready; reconnect/unlock the phone and re-run the
+catalogue question. The existing tenant also has no brands or automotive products, so a
+positive recommendation remains a data gap rather than a tool gap.
+
+**Evidence.** [`docs/evidence/ai46-catalog-overview-2026-11-03/`](../evidence/ai46-catalog-overview-2026-11-03/README.md).
