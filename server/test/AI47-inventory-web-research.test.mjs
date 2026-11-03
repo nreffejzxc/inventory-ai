@@ -35,6 +35,7 @@ import { systemPrompt } from '../src/services/ai/ai.service.ts';
 import {
   chatCompletionsUrlFromBase,
   filterFindings,
+  parseSearchResults,
   researchInventoryWeb,
   validSources,
 } from '../src/services/ai/webResearch.ts';
@@ -46,6 +47,7 @@ const tracker = createTracker(dbOk);
 let stub;
 let stubPort;
 let requests = [];
+let fallbackHtml = '';
 let responder = () => ({ status: 200, json: {} });
 const pendingRestores = [];
 
@@ -65,6 +67,7 @@ function useResearch(overrides = {}) {
     withEnv('OPENROUTER_BASE_URL', `http://127.0.0.1:${stubPort}/api`),
     withEnv('AI_MODEL_OPENROUTER', overrides.model ?? 'stub/tool-model'),
     withEnv('AI_WEB_RESEARCH_MODEL', overrides.researchModel ?? 'stub/research-model'),
+    withEnv('AI_WEB_SEARCH_URL', `http://127.0.0.1:${stubPort}/ddg`),
   );
 }
 
@@ -111,6 +114,11 @@ before(async () => {
     let raw = '';
     req.on('data', (chunk) => (raw += chunk));
     req.on('end', () => {
+      if (req.url.startsWith('/ddg')) {
+        res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
+        res.end(fallbackHtml);
+        return;
+      }
       let body;
       try {
         body = raw ? JSON.parse(raw) : null;
@@ -136,6 +144,7 @@ after(async () => {
 
 beforeEach(() => {
   requests = [];
+  fallbackHtml = '';
   responder = () => allowedResponse([], []);
   pendingRestores.length = 0;
 });
@@ -260,12 +269,34 @@ unitSuite('AI-47 research is inventory-bound and source-backed', () => {
     assert.deepEqual(result.findings, []);
   });
 
-  it('★ a spent search allowance is reported, not scraped into a guess', async () => {
+  it('★ a spent search allowance falls back to sourced snippets, never a guess', async () => {
     useResearch();
     responder = () => ({ status: 402, json: { error: { message: 'credits' } } });
+    fallbackHtml = [
+      '<a rel="nofollow" class="result__a" href="//duckduckgo.com/l/?uddg=https%3A%2F%2Fexample.com%2Ffield-review&amp;rut=x">Ridgeline field review</a>',
+      '<a class="result__snippet" href="#">Owners report a durable switch and a fair price.</a>',
+    ].join('');
     const result = await researchInventoryWeb({ subjects });
-    assert.equal(result.available, false);
-    assert.equal(result.reason, 'SEARCH_QUOTA');
+    assert.equal(result.available, true);
+    assert.equal(result.findings[0].name, 'Ridgeline');
+    assert.equal(result.sources[0].url, 'https://example.com/field-review');
+    assert.match(result.sources[0].snippet, /durable switch and a fair price/i);
+    assert.match(result.findings[0].finding, /source snippets, not independently verified/i);
+  });
+
+  it('★ parses only public result links and keeps their snippets', () => {
+    const parsed = parseSearchResults([
+      '<a rel="nofollow" class="result__a" href="//duckduckgo.com/l/?uddg=https%3A%2F%2Fexample.com%2Freview&amp;rut=x">A &amp; B review</a>',
+      '<a class="result__snippet" href="#">Useful <b>budget</b> evidence.</a>',
+      '<a class="result__a" href="//duckduckgo.com/l/?uddg=javascript%3Aalert(1)">Unsafe</a>',
+    ].join(''));
+    assert.deepEqual(parsed, [
+      {
+        title: 'A & B review',
+        url: 'https://example.com/review',
+        snippet: 'Useful budget evidence.',
+      },
+    ]);
   });
 
   it('★ source and finding filters are independently provable', () => {
