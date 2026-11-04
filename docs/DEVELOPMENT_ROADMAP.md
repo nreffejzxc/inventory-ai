@@ -24596,7 +24596,7 @@ to a streaming client. A fallback query that returns no result is retried once w
 brand alone, targeting a long product name that misses a small brand such as Royal Kludge. The
 model is no longer solely responsible for remembering its links.
 
-**Verified.** `server/test/AI47-inventory-web-research.test.mjs` is **11 unit + 3 DB** passing. The
+**Verified.** `server/test/AI47-inventory-web-research.test.mjs` is **12 unit + 3 DB** passing. The
 unit half pins the recorded-names-only prompt, per-brand searches, citation requirement, public-URL
 parser, snippet retention, URL append-once behavior, prompt boundary and read-only tool; the DB
 half proves cross-tenant, archived and malformed IDs are refused before any web call. Server

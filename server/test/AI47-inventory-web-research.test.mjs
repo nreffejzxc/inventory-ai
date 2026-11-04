@@ -49,6 +49,8 @@ let stub;
 let stubPort;
 let requests = [];
 let fallbackHtml = '';
+let fallbackForQuery = () => fallbackHtml;
+let fallbackRequests = [];
 let responder = () => ({ status: 200, json: {} });
 const pendingRestores = [];
 
@@ -116,8 +118,10 @@ before(async () => {
     req.on('data', (chunk) => (raw += chunk));
     req.on('end', () => {
       if (req.url.startsWith('/ddg')) {
+        const query = new URL(req.url, 'http://127.0.0.1').searchParams.get('q') ?? '';
+        fallbackRequests.push(query);
         res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
-        res.end(fallbackHtml);
+        res.end(fallbackForQuery(query, fallbackRequests.length));
         return;
       }
       let body;
@@ -146,6 +150,8 @@ after(async () => {
 beforeEach(() => {
   requests = [];
   fallbackHtml = '';
+  fallbackForQuery = () => fallbackHtml;
+  fallbackRequests = [];
   responder = () => allowedResponse([], []);
   pendingRestores.length = 0;
 });
@@ -283,6 +289,25 @@ unitSuite('AI-47 research is inventory-bound and source-backed', () => {
     assert.equal(result.sources[0].url, 'https://example.com/field-review');
     assert.match(result.sources[0].snippet, /durable switch and a fair price/i);
     assert.match(result.findings[0].finding, /source snippets, not independently verified/i);
+  });
+
+  it('★ a no-result fallback retries with the recorded brand alone', async () => {
+    useResearch();
+    responder = () => ({ status: 402, json: { error: { message: 'credits' } } });
+    fallbackForQuery = (_query, count) =>
+      count === 1
+        ? ''
+        : '<a class="result__a" href="//duckduckgo.com/l/?uddg=https%3A%2F%2Fexample.com%2Frk-review">Royal Kludge review</a>';
+    const branded = [{ ...subjects[0], name: 'Royal Kludge RK61 Plus', brand: 'Royal Kludge' }];
+
+    const result = await researchInventoryWeb({ subjects: branded, focus: 'quality' });
+
+    assert.equal(fallbackRequests.length, 2, 'one empty result and one simplified retry');
+    assert.match(fallbackRequests[0], /Royal Kludge RK61 Plus/);
+    assert.equal(fallbackRequests[1], '"Royal Kludge" review');
+    assert.equal(result.available, true);
+    assert.equal(result.findings[0].name, 'Royal Kludge');
+    assert.equal(result.sources[0].url, 'https://example.com/rk-review');
   });
 
   it('★ parses only public result links and keeps their snippets', () => {

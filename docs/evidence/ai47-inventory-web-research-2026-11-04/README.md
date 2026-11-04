@@ -30,7 +30,7 @@ The mobile provenance label is **Web research**, and the release note
 
 ## Server verification
 
-- `server/test/AI47-inventory-web-research.test.mjs` — **11 unit + 3 DB** pass.
+- `server/test/AI47-inventory-web-research.test.mjs` — **12 unit + 3 DB** pass.
   The unit half sends only recorded names, searches each brand separately, rejects an answer with
   no valid citation, parses only public result links, keeps snippets, appends a missing URL once,
   and pins the prompt and read-only tool boundary. The DB half proves cross-tenant, archived and
