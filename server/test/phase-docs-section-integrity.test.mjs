@@ -69,7 +69,16 @@ const repoRoot = path.resolve(here, '..', '..');
 const ROADMAP_PATH = path.join(repoRoot, 'docs', 'DEVELOPMENT_ROADMAP.md');
 
 /** Directories holding generated, vendored or tool-owned content, never evidence. */
-const SKIP_DIRS = new Set(['node_modules', '.git', '.expo', 'dist', 'build', 'coverage']);
+const SKIP_DIRS = new Set([
+  'node_modules',
+  '.git',
+  '.expo',
+  'dist',
+  'build',
+  'coverage',
+  // Imported chat attachments are agent-owned working data, not project text.
+  '.cloud-attachments',
+]);
 
 /** The file types the project writes its own text into. */
 const TEXT_EXT = new Set([
