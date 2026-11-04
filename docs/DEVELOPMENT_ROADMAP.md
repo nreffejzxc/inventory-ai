@@ -8,10 +8,10 @@ of truth for *what actually happened*, and it is why this file is long.
 
 **How to read it.** Do not read it top to bottom. Either find a record by number (§27FJ, §27DM — the
 numbers are cited from `CLAUDE.md` and from source comments), or use the index: `CLAUDE.md` §7 lists
-all **219** records by the title each gives itself.
+all **220** records by the title each gives itself.
 
 **Current state:** V1 complete and in production testing. The records that answer *where are we now*
-are §27HH (a transfer as one event to the assistant), §27HG (the stock-in link's product), §27HF (the single-location default's timing), §27HE (the
+are §27HN (inventory-only web research), §27HH (a transfer as one event to the assistant), §27HG (the stock-in link's product), §27HF (the single-location default's timing), §27HE (the
 stock-in link's location), §27HD (the movement fixes and the production device pass), §27HC (the
 assistant's local-time answers), §27FM (the V1 re-verification) and §27FJ (the two open advisories).
 
@@ -24547,3 +24547,79 @@ The tenant still records only three brand values and no automotive products, so 
 recommendation remains a data gap rather than a tool gap.
 
 **Evidence.** [`docs/evidence/ai46-catalog-overview-2026-11-03/`](../evidence/ai46-catalog-overview-2026-11-03/README.md).
+
+---
+
+# 27HN. Research the web, recommend only what the business stocks (2026-11-04)
+
+**Why.** The catalogue can say what is recorded, but it has no rating, review or specification
+field. A question about reliability or value therefore had only names, descriptions and recorded
+prices to stand on. The next request asked the assistant to research brands and still recommend
+only inventory products. A free-text web search would have broken that boundary: the model could
+put a famous outside brand into the query, and a search result could become a recommendation for
+something the business does not stock.
+
+**What shipped.** `researchInventoryProducts` is the 16th read-only tool. It accepts up to eight
+product IDs, resolves them inside the authenticated business, and refuses missing, archived or
+cross-tenant IDs before it makes a web call. The server supplies the recorded name, brand,
+category and selling price; the model cannot pass a free-text brand or question into the research
+client. Subjects are grouped by recorded brand, up to six groups, and each group is searched
+separately so one brand's evidence cannot stand in for another.
+
+Research uses the existing OpenRouter key and its web plugin and returns only findings keyed back
+to the exact recorded subjects. `filterFindings` drops a name outside the allow-list. A result with
+findings but no valid public `http(s)` citation is treated as unavailable, not as evidence. The
+prompt says web findings are external evidence, never inventory records; the final answer may
+recommend only names in the tool's `subjects`, must keep recorded stock and price facts separate,
+and must describe a search-result snippet as a snippet.
+
+A free-tier allowance can run out. On OpenRouter 402/429, or an unusable research response, the
+server searches the keyless DuckDuckGo HTML result list for that group and returns bounded titles,
+short snippets and public URLs. It reads the result list, not the result pages, so page prose
+cannot import an outside brand. `AI_WEB_SEARCH_URL` selects the endpoint; no second search key is
+required.
+
+**The live test found two defects.** Preview OTA `1ac39b80-1b9b-44cc-86d7-2cea4ba80bf5` (update
+`01a1a37d-7a5b-7f6d-a457-02673b8fdb5b`, runtime `1.0.1`, commit `178cbe6`) was published to the
+installed preview build. The phone was asked *"Research reliable brands for our keyboards and
+peripherals"*. The answer stayed within the three recorded brands and their products: ROG had
+durability and quality-control evidence, RAK Gears showed possible quality problems, and Royal
+Kludge had no available evidence. It also said it could recommend only what the business actually
+carries. But it named *ROG Product Guide* and *ASUS ROG Strix Flare II review* without their URLs,
+and Royal Kludge had no source. The last screenshot still showed the old humanised label **Research
+inventory products**; the OTA carries **Web research**, and the label needed a second launch to
+apply.
+
+**Fix.** PR #147 makes reviewability deterministic: after a successful research turn the server
+appends every source URL the answer does not already contain, once, and streams the appended text
+to a streaming client. A fallback query that returns no result is retried once with the recorded
+brand alone, targeting a long product name that misses a small brand such as Royal Kludge. The
+model is no longer solely responsible for remembering its links.
+
+**Verified.** `server/test/AI47-inventory-web-research.test.mjs` is **11 unit + 3 DB** passing. The
+unit half pins the recorded-names-only prompt, per-brand searches, citation requirement, public-URL
+parser, snippet retention, URL append-once behavior, prompt boundary and read-only tool; the DB
+half proves cross-tenant, archived and malformed IDs are refused before any web call. Server
+`tsc --noEmit` and ESLint are clean. PR #145 merged as **`0278c28`**, PR #146 as **`178cbe6`**, and
+PR #147 as **`f0eefb5`**; all four required checks were green on each, including run
+[41730904633](https://github.com/nreffejzxc/inventory-ai/actions/runs/41730904633). Production
+`/api/health` reports `f0eefb5`, database `connected`, **0** server errors.
+
+**Device evidence and the remaining gap.** The phone run above is real device evidence for the
+inventory boundary and for sourced snippets. It is not evidence for the URL list or the new label:
+on 2026-11-04 the phone was absent from `adb devices`, Windows enumerated no Android USB device,
+and ADB's mDNS list was empty; restarting the ADB server did not bring it back. The URL append is
+server-side and unit-tested, but **the final on-device link check has not been observed**. Finishing
+it needs the phone reconnected, the OTA applied by a second launch, and the same question repeated.
+Screenshots: [`question.png`](../evidence/ai47-inventory-web-research-2026-11-04/question.png),
+[`answer-top.png`](../evidence/ai47-inventory-web-research-2026-11-04/answer-top.png) and
+[`answer-bottom.png`](../evidence/ai47-inventory-web-research-2026-11-04/answer-bottom.png).
+
+**What this does not prove.** The OpenRouter account is free-tier and the research model's daily
+allowance was exhausted during the live test; the observed answer came from the DuckDuckGo
+fallback. That fallback returns search-result snippets, not full reviews, and can be rate-limited
+or change its markup. A source supports a claim; it does not prove a product is reliable. Web
+findings are never inventory records, and this tenant has only three recorded brands and no
+specification/rating field, so it cannot demonstrate a broad comparison from its own data.
+
+**Evidence.** [`docs/evidence/ai47-inventory-web-research-2026-11-04/`](../evidence/ai47-inventory-web-research-2026-11-04/README.md).
