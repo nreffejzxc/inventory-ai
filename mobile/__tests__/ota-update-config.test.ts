@@ -92,8 +92,14 @@ describe('the OTA runtime contract', () => {
 describe('every build listens to exactly one channel', () => {
   const names = Object.keys(profiles);
 
-  it('finds the four profiles it is meant to guard (positive control)', () => {
-    expect(names.sort()).toEqual(['development', 'ios-simulator', 'preview', 'production']);
+  it('finds the five profiles it is meant to guard (positive control)', () => {
+    expect(names.sort()).toEqual([
+      'development',
+      'ios-simulator',
+      'preview',
+      'production',
+      'production-apk',
+    ]);
   });
 
   it('gives every profile a channel, inherited where the profile extends another', () => {
@@ -125,6 +131,12 @@ describe('every build listens to exactly one channel', () => {
     expect(resolveChannel('preview')).not.toBe(resolveChannel('production'));
   });
 
+  it('packages the production release as an APK on the same channel, deliberately', () => {
+    // Same release, different container: an APK for the phone and an AAB for Play. They must
+    // receive the same OTA updates, so the shared channel is the contract, not a collision.
+    expect(resolveChannel('production-apk')).toBe('production');
+  });
+
   it('keeps the development client on its own channel too', () => {
     expect(resolveChannel('development')).toBe('development');
     expect(resolveChannel('ios-simulator')).toBe('development');
@@ -141,7 +153,7 @@ describe('every build listens to exactly one channel', () => {
     expect(Object.fromEntries(byChannel)).toEqual({
       development: ['development', 'ios-simulator'],
       preview: ['preview'],
-      production: ['production'],
+      production: ['production', 'production-apk'],
     });
   });
 });
