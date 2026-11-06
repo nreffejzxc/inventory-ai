@@ -8,9 +8,9 @@ of truth for *what actually happened*, and it is why this file is long.
 
 **How to read it.** Do not read it top to bottom. Either find a record by number (§27FJ, §27DM — the
 numbers are cited from `CLAUDE.md` and from source comments), or use the index: `CLAUDE.md` §7 lists
-all **222** records by the title each gives itself.
+all **223** records by the title each gives itself.
 
-**Current state:** V1 complete and in production testing. The records that answer *where are we now*are §27HP (market prices from cited pages), §27HO (recorded specifications and the real seed catalogue), §27HN (inventory-only web research), §27HH (a transfer as one event to the assistant), §27HG (the stock-in link's product), §27HF (the single-location default's timing), §27HE (the stock-in link's location), §27HD (the movement fixes and the production device pass), §27HC (the assistant's local-time answers), §27FM (the V1 re-verification) and §27FJ (the two open advisories).
+**Current state:** V1 complete and in production testing. The records that answer *where are we now*are §27HQ (grounded answers and scoped stock reads), §27HP (market prices from cited pages), §27HO (recorded specifications and the real seed catalogue), §27HN (inventory-only web research), §27HH (a transfer as one event to the assistant), §27HG (the stock-in link's product), §27HF (the single-location default's timing), §27HE (the stock-in link's location), §27HD (the movement fixes and the production device pass), §27HC (the assistant's local-time answers), §27FM (the V1 re-verification) and §27FJ (the two open advisories).
 
 ---
 
@@ -24774,3 +24774,54 @@ prices. The durable fix is a recorded currency, not a stronger prompt. The 60 s/
 default cannot fit the research-heavy turns measured here; the evaluation overrides were process-local.
 
 **Evidence.** [`docs/evidence/ai49-market-price-research-2026-11-04/`](evidence/ai49-market-price-research-2026-11-04/README.md).
+
+---
+
+# 27HQ. Grounded answers, scoped stock reads, and the member's language (2026-11-06)
+
+**Why.** The AI-48–AI-84 device battery exposed failures a confident prompt could not hide. A
+recorded price was quoted with a currency the catalogue had never stored; the tool loop repeated
+the same search until it returned a canned limit sentence; stock-value and low-stock answers were
+summed across locations; a fabricated revenue figure read as fact; dead-stock wording could route
+to low stock; and only 4 of 14 Bisaya/Tagalog questions were answered in the member's language.
+This change makes a numeric claim traceable to a tool read or a recorded field, and makes the
+boundary explicit when the data cannot support the claim.
+
+**Recorded data and scope.** Products gained an optional `specifications` field (max 1,000) and an
+optional ISO-4217 currency; `findProducts` and `getProduct` search and return the recorded
+specifications, and a price answer stays symbol-free when the currency is absent. `getStockValue`
+values stock at the recorded selling price, rejects a smuggled `businessId`, does not count
+unpriced products as zero, and accepts optional location/category scope. Inventory rows carry the
+recorded price and currency. Low/out-of-stock lists accept an optional location and judge each
+product against that place; history totals begin with the scoped `$match`; never-sold stock is read
+from the whole ledger; a wide read narrated as a dropped location is relabelled; and dead-stock
+wording rewrites a low-stock call before it runs, preserving the requested scope.
+
+**Grounded completion and language.** The final tool round withholds tools and asks the model to
+answer from what it already has; a repeated call carries a `repeatNotice`. Answer completion catches
+ungrounded money, count, quantity and threshold claims, including the phone-measured fabricated
+answers; the revenue qualification is appended by the server after the cap so it cannot be cut off;
+HTML markup is normalised into readable text; reasoning is disabled by default so it cannot consume
+the answer budget; and the prompt requires the member's language, treating Bisaya/Cebuano and
+Tagalog/Filipino as distinct even when tool output is English.
+
+**Research.** The keyless path now falls back between DuckDuckGo and Bing, ignores refusal pages that
+merely contain result-count text, filters a batch that is unrelated to the recorded product, anchors
+fallback queries with the recorded category, reads structured price metadata, and rejects
+instalments, loyalty points and cash-back as prices. It still requires the recorded product name on
+the page and returns the exact price text beside its marketplace, URL and retrieval time.
+
+**Tests.** The named AI-48 through AI-84 suites cover the recorded fields, grounding, scope,
+completion, research, revenue, dead stock and language rules. The full unit suite is **1,832 pass, 0
+fail, 61 skipped**; mobile Jest is **101 suites / 1,203 tests**; documentation guards are **39/39**.
+CI on PR #151 at `da2ea80` passes `server`, `mobile`, `secret-guard` and `attribution-guard`.
+
+**What this does not prove.** The branch has not run in production or on a phone. A cited page can be
+blocked or stale; there is still no recorded sale price, invoice or customer, so revenue remains an
+estimate; and a prompt plus tool guard is not a proof that every model obeys. The deployed 60 s
+budget has not been re-measured against this branch's research turns.
+
+**Evidence.** [AI-48 specifications](evidence/ai48-product-specifications-2026-11-04/README.md),
+[AI-49 market prices](evidence/ai49-market-price-research-2026-11-04/README.md), the
+[AI-54–AI-60 grounded-answer battery](evidence/ai54-60-grounded-answers-2026-11-05/README.md), and
+the [AI-61 tool audit](evidence/ai61-tool-audit-2026-11-05/README.md).

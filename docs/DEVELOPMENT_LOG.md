@@ -46,14 +46,14 @@ Store release is being prepared.
 
 **Docs maintenance:** On 2026-11-06 the active guide set was consolidated, the device reference and
 the specification's obsolete planning tail were trimmed, and a documentation-link guard was added;
-see the documentation entries below. The functional work described in this position is unchanged.
+see the documentation entries below. The AI-48–AI-84 work is recorded in §27HQ and the newest entry.
 
 | | |
 | --- | --- |
-| **Working now** | AI-49 is implemented locally: a read-only **researchMarketPrices** tool quotes only exact prices visible in cited page text, with marketplace, URL and retrieval time; prompt rules 23–24 cover price comparisons and broad value questions; research fan-out is bounded at three brand groups and two price products. The full unit suite passes **1,676** with **60** skips. OpenRouter Logs show **15 paid web-search rows at $0.007 ($0.105)**, all on free models; both research tools now use a keyless free path, and a live free price lookup found Keychron PH at **₱6,000.00**. `AI_ALLOW_PAID_WEB_SEARCH` now defaults false. No commit or deployment has been made. |
-| **Just verified** | AI-49 **13 unit + 2 DB**, AI-47 **13 unit + 3 DB**, focused docs/AI-49 checks **30 pass / 1 skip**; server `tsc`/ESLint clean. Live Q4 cited K8 Pro **₱5,195–₱5,895** and RK61 **₱1,995–₱2,369** in **59.8 s**, and stated no verified Shopee/Lazada/Amazon price; Q4 later fell to **47.5 s** after the payload trim; Q3 measured **60.0–67.1 s**, Q6 **49.1 s**. The installed phone preview lacks the new JS; Expo Go is blocked by native Firebase. |
-| **Blocked** | The deployed 60 s/1,200-token budget does not fit research-heavy turns (Q3 60.7 s, Q5 76.3 s); a second Q5 run hit the 120 s evaluation deadline after repeated research calls. Direct Shopee/Lazada/Amazon prices were not verifiable (Shopee 403/anti-bot, Lazada JSON-LD without price, Amazon price block empty). |
-| **Next after this** | Decide the operator turn budget/model for research turns; add a recorded currency field before treating recorded prices as a currency; then deploy only with authorization. |
+| **Working now** | AI-48–AI-84 is implemented and documented on `wip/ai-hardening-2026-11-06` (`da2ea80`). The assistant now grounds numeric claims in tool reads, records currency, scopes stock and value reads to a location or the whole business, catches ungrounded figures, routes dead-stock questions, qualifies revenue estimates, and answers in the member's language. Mobile carries matching markdown, streaming and specification surfaces. PR #151 is the review gate; production verification is still pending. |
+| **Just verified** | Server unit **1,832 pass, 0 fail, 61 skipped**; mobile **101 suites / 1,203 tests**; documentation guards **39/39**; CI on PR #151 **all four checks pass** at `da2ea80`. |
+| **Blocked** | None for review. Production and phone observation have not been performed, and research-heavy turns still need a production-budget check. |
+| **Next after this** | After the merge, verify `/api/health` and the assistant on the phone, then decide whether the 60 s research budget needs an operator change. |
 
 ### Open items carried forward
 
@@ -61,7 +61,7 @@ see the documentation entries below. The functional work described in this posit
 | --- | --- | --- |
 | Single-location default, on a real device | Ready, phone pending | The production tenant `6ae6f1d8baa72cee39730240` now has exactly one ACTIVE location, and §27HF pins the late-arriving list for all three kinds; the visual check needs the owner to sign in on the phone |
 | AI-42 live answer | Resolved 2026-11-02 | `getInventoryHistory` folds a transfer into one `from`/`to` event; the server reports `1c1734b` and the phone answered **From: Main Warehouse, To: Shop Front**, 2 units, once — [evidence](evidence/ai42-transfer-2026-11-02/README.md) |
-| Brand and specification fields | Resolved locally; not deployed | The product records an optional `brand` (max 80) and, since AI-48, an optional `specifications` string (max 1,000). Both seeders write real sourced rows; the assistant searches and researches specifications. Production still runs the pre-AI-48 schema until this change is deployed, and there is still no rating or review field. |
+| Brand and specification fields | Committed on PR #151; not deployed | The product records an optional `brand` (max 80) and, since AI-48, an optional `specifications` string (max 1,000). Both seeders write real sourced rows; the assistant searches and researches specifications. Production still runs the pre-AI-48 schema until this branch is deployed, and there is still no rating or review field. |
 | `glob` and `minimatch` advisories | Deferred, D-10 | Patched `14.0.2` / `11.0.1` are majors outside every consumer's range; re-check the gates in `SECURITY_DEPENDENCY_DECISIONS.md` §4 |
 | `zod` high advisory | Resolved 2026-11-02 | Cleared by `expo@58.0.22`; the nested `zod@3.25.76` is gone and the mobile audit reports **0 high** |
 | `deepmerge` low advisory | Deferred | No fix inside the consumer's declared range; do not force versions |
@@ -108,6 +108,18 @@ Known limits, checked before spending one of them:
   space that a backup or an index change would explain.
 - **Brevo** — used for verification codes, reset codes and invitations. Do not send test mail in
   bulk; a delivery failure is not a code regression until the provider log says so.
+
+---
+
+## 2026-11-06 — AI-48–AI-84 recorded and delivered for review
+
+| Item | Evidence |
+| --- | --- |
+| **Why** | The AI work existed only as uncommitted files; the log still described AI-49 as local, and the roadmap stopped at §27HP. A reviewer could not tell what the branch changed or what had been measured. |
+| **Committed** | 88 files on `wip/ai-hardening-2026-11-06`, commit `da2ea80`. The change covers recorded specifications and currency, grounded answer completion, scoped stock/value/history reads, keyless research fallbacks, dead-stock routing, revenue qualification, and the member-language policy; the mobile branch carries the matching markdown, streaming, price and specification surfaces. |
+| **Tests** | Server unit **1,832 pass, 0 fail, 61 skipped**; mobile **101 suites / 1,203 tests**; documentation guards **39/39**; `git diff --check` clean. CI on PR #151 at `da2ea80`: `server`, `mobile`, `secret-guard` and `attribution-guard` all pass. |
+| **Documented** | Roadmap §27HQ; record count 222 → 223; `CLAUDE.md` index updated. PR [#151](https://github.com/nreffejzxc/inventory-ai/pull/151) is the review gate. |
+| **Not done** | No deployment, EAS build, OTA or phone observation of this branch in this session. This entry records the branch, not a production result. |
 
 ---
 

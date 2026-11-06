@@ -561,6 +561,7 @@ anchor (`§27…`) in that file.
 - **§27HN** — Research the web, recommend only what the business stocks (2026-11-04)
 - **§27HO** — Recorded specifications, and a seed catalogue worth asking about (2026-11-04)
 - **§27HP** — Market prices from cited pages, and a faster research fan-out (2026-11-04)
+- **§27HQ** — Grounded answers, scoped stock reads, and the member's language (2026-11-06)
 
 ---
 
