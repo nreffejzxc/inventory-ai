@@ -50,10 +50,10 @@ see the documentation entries below. The AI-48–AI-84 work is recorded in §27H
 
 | | |
 | --- | --- |
-| **Working now** | AI-48–AI-84 is implemented and documented on `wip/ai-hardening-2026-11-06` (`da2ea80`). The assistant now grounds numeric claims in tool reads, records currency, scopes stock and value reads to a location or the whole business, catches ungrounded figures, routes dead-stock questions, qualifies revenue estimates, and answers in the member's language. Mobile carries matching markdown, streaming and specification surfaces. PR #151 is the review gate; production verification is still pending. |
-| **Just verified** | Server unit **1,832 pass, 0 fail, 61 skipped**; mobile **101 suites / 1,203 tests**; documentation guards **39/39**; CI on PR #151 **all four checks pass** at `da2ea80`. |
-| **Blocked** | None for review. Production and phone observation have not been performed, and research-heavy turns still need a production-budget check. |
-| **Next after this** | After the merge, verify `/api/health` and the assistant on the phone, then decide whether the 60 s research budget needs an operator change. |
+| **Working now** | AI-48–AI-84 is merged to `main` (`98a4282`) and deployed: production `/api/health` reports `98a4282`. The change delivered grounded answers, recorded currency and specifications, scoped stock/value/history reads, dead-stock routing, revenue qualification, keyless research, and the member-language policy. Phone verification is still pending. |
+| **Just verified** | PR #151's four required checks passed before merge; the post-merge `main` CI run `42277471424` passed all four jobs; `/api/health` returned `status: ok`, `db: connected`, `commit: 98a4282`; documentation guards **39/39**. |
+| **Blocked** | Phone observation of the deployed AI behavior and the 60 s research-budget check remain; no EAS build or OTA was spent. |
+| **Next after this** | Exercise the assistant on the phone against the deployed commit, then decide whether the research budget needs an operator change. |
 
 ### Open items carried forward
 
@@ -61,7 +61,7 @@ see the documentation entries below. The AI-48–AI-84 work is recorded in §27H
 | --- | --- | --- |
 | Single-location default, on a real device | Ready, phone pending | The production tenant `6ae6f1d8baa72cee39730240` now has exactly one ACTIVE location, and §27HF pins the late-arriving list for all three kinds; the visual check needs the owner to sign in on the phone |
 | AI-42 live answer | Resolved 2026-11-02 | `getInventoryHistory` folds a transfer into one `from`/`to` event; the server reports `1c1734b` and the phone answered **From: Main Warehouse, To: Shop Front**, 2 units, once — [evidence](evidence/ai42-transfer-2026-11-02/README.md) |
-| Brand and specification fields | Committed on PR #151; not deployed | The product records an optional `brand` (max 80) and, since AI-48, an optional `specifications` string (max 1,000). Both seeders write real sourced rows; the assistant searches and researches specifications. Production still runs the pre-AI-48 schema until this branch is deployed, and there is still no rating or review field. |
+| Brand and specification fields | Deployed; phone verification pending | The product records an optional `brand` (max 80) and, since AI-48, an optional `specifications` string (max 1,000). Both seeders write real sourced rows; the assistant searches and researches specifications. Production now runs the post-AI-48 schema; the phone check is still pending, and there is still no rating or review field. |
 | `glob` and `minimatch` advisories | Deferred, D-10 | Patched `14.0.2` / `11.0.1` are majors outside every consumer's range; re-check the gates in `SECURITY_DEPENDENCY_DECISIONS.md` §4 |
 | `zod` high advisory | Resolved 2026-11-02 | Cleared by `expo@58.0.22`; the nested `zod@3.25.76` is gone and the mobile audit reports **0 high** |
 | `deepmerge` low advisory | Deferred | No fix inside the consumer's declared range; do not force versions |
@@ -108,6 +108,18 @@ Known limits, checked before spending one of them:
   space that a backup or an index change would explain.
 - **Brevo** — used for verification codes, reset codes and invitations. Do not send test mail in
   bulk; a delivery failure is not a code regression until the provider log says so.
+
+---
+
+## 2026-11-06 — AI-48–AI-84 merged and deployed
+
+| Item | Evidence |
+| --- | --- |
+| **Merged** | PR #151 squash-merged as `98a4282`; 90 files, 12,543 insertions and 376 deletions. |
+| **CI** | The PR's four required checks passed; the post-merge `main` CI run `42277471424` also passed all four jobs. |
+| **Deployed** | Production `/api/health` reports `commit: 98a4282`, `status: ok`, `db: connected` (2026-11-06T19:16:04Z). |
+| **Not done** | No EAS build, OTA or phone observation; the 60 s research budget and the phone behavior are still unverified. |
+| **Recorded** | Roadmap §27HR; record count 223 → 224; `CLAUDE.md` index updated. |
 
 ---
 
