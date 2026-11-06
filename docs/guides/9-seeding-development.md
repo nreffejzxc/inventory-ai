@@ -43,16 +43,7 @@ commands with their own terms.
 
 ### The phrase each command uses
 
-| Command | `SEED_CONFIRM` |
-|---|---|
-| `seed -- --plan=demo` | `seed-demo-account` |
-| `seed:three` | `seed-three-accounts` |
-| `seed:accounts`, `seed -- --plan=accounts` | `seed-accounts` |
-| `seed -- --plan=roles`, `seed:roles` | `seed-roles` |
-| `seed:perf-tenant` | `seed:perf-tenant` |
-| `seed:demo-tenant` | `seed-demo-tenant` (one phrase, its own guard) |
-| `seed:perf` | `seed-perf-ai` (its own guard) |
-
+Each command's own phrase is in the one [phrase and safety matrix](10-seeding-production.md#phrase-and-safety-matrix).
 A phrase that belongs to a different command is refused, so `SEED_CONFIRM=seed-roles` cannot seed the demo
 plan.
 
@@ -104,9 +95,8 @@ is in the next section.
 | `jefferndullamalinao@gmail.com` | 50 000 | 222 222 |
 | `jeffernmalinaoqwe@gmail.com` | 90 000 | 400 000 |
 
-That is the **preset** `seed:three` writes in development. Production refuses the preset, so there the
-sizes are chosen per run; the tenants held 5 000 / 10 000 / 15 000 on 2026-10-29
-([Guide 10](10-seeding-production.md)). The addresses and preset sizes live together in
+That is the **preset** `seed:three` writes in development. Production refuses the preset, so the sizes
+are chosen per run ([Guide 10](10-seeding-production.md)). The addresses and preset sizes live together in
 `server/scripts/seed/lib.mjs`, and `check:accounts` and `cleanup:three` read the same list — so all
 three commands describe the same three addresses.
 
@@ -144,11 +134,10 @@ SEED_CONFIRM=seed-accounts SEED_DB_CONFIRM=inventoryai_dev_db \
   tenant is refused rather than replaced by a generated one. A preview opens no connection, so it
   cannot check an id — the run does, before its first write. `--seed=N` changes the generated data and
   defaults to `1`, so two runs at the same size describe the same tenant.
-- **The document figure is an estimate, and the command now says so.** Ordinary runs match it exactly
-  (1 000 products → 4 444 documents, measured 2026-10-29), but the generator also writes fixed
-  per-collection minimums (4 categories, 2 locations, 5 suppliers, 5 purchase orders). At the smallest
-  size, 5 products plan 22 documents and write 34. The summary line was always labelled *estimated*;
-  the per-entry and write lines now say it too.
+- **The document figure is an estimate, and the command now says so.** The generator also writes fixed
+  per-collection minimums (4 categories, 2 locations, 5 suppliers, 5 purchase orders), so a small plan
+  can write more than its estimate. At the smallest size, 5 products plan 22 documents and write 34.
+  The summary line was always labelled *estimated*; the per-entry and write lines now say it too.
 - **An address that already has a verified identity needs no `DEMO_ACCOUNT_PASSWORD`.** That variable
   exists only to create an identity that does not exist yet. An account registered in the app is reused as
   it is — the run reads its `uid` from Firebase and writes nothing back, so a Google-only login seeds
@@ -292,9 +281,6 @@ DEMO_ACCOUNT_PASSWORD='choose-a-password' SEED_CONFIRM=seed:perf-tenant \
 - Re-counts every collection, re-checks every movement's arithmetic and requires its anchor before saying
   `OK`.
 - Its teardown is `cleanup:perf-tenant` ([Guide 11](11-deleting-development.md)); it keeps the identity.
-
-Measured on production 2026-10-25: `--size=60000` → 13 500 products, 27 200 inventory rows, 17 836 movements,
-1 200 purchase orders in **110 s**.
 
 ### `seed:perf` — no login, development only
 
@@ -463,7 +449,7 @@ measurements.
 ### If an account is stranded
 
 That last message is a **data state**, not a command mistake: the database row carries a `firebaseUid` that
-no longer exists in Firebase. Measured on 2026-10-26, all three development accounts were in it. Such a row
+no longer exists in Firebase. Such a row
 can neither sign in (the exchange resolves by `firebaseUid` only) nor register again (`409 EMAIL_IN_USE`),
 and re-pointing an identity link is an identity operation — deliberately not something a data seeder
 performs as a side effect.

@@ -47,9 +47,10 @@ Store release is being prepared.
 **Docs maintenance:** On 2026-11-06 the active guide set was consolidated, the device reference and
 the specification's obsolete planning tail were trimmed, and a documentation-link guard was added;
 see the documentation entries below. The auth checklist and account runbook now state current
-decisions; Guides 11 and 13 defer shared proof and phrase rules to the guide that owns them; the auth
-architecture and checklist keep one invariant register and one status owner. The AI-48–AI-84 work is
-recorded in §27HQ and §27HS, and the newest entry.
+decisions; Guides 9, 11, 12 and 13 keep their commands and safety rules, with the phrase matrix owned
+by Guide 10 and dated measurements removed; the auth architecture and checklist keep one invariant
+register and one status owner. The AI-48–AI-84 work is recorded in §27HQ and §27HS, and the newest
+entry.
 
 | | |
 | --- | --- |
@@ -149,6 +150,20 @@ Known limits, checked before spending one of them:
 | **Index** | `docs/README.md` now describes the runbook as current owner state, the paused decision, anchors, checks and gates, not a handover plan. |
 | **Verified** | Documentation guards **39/39** pass; `git diff --check` clean. No code, test or configuration change. |
 | **Not done** | No account, credential, repository-permission or history change; no deployment. A docs-only merge does not redeploy the server. |
+
+---
+
+## 2026-11-06 — Guides 9, 11, 12 and 13 stop repeating phrases and dated measurements
+
+| Item | Evidence |
+| --- | --- |
+| **Why** | Guides 9, 11 and 12 repeated command-to-confirmation-phrase tables that Guide 10 already owns as the one phrase and safety matrix. Guides 9, 12 and 13 also carried dated measurements that no longer help an operator. |
+| **Phrase tables** | Guide 9 **481 → 467** lines, Guide 11 **218 → 207**, Guide 12 **278 → 260**. Each now points to Guide 10's [phrase and safety matrix](guides/10-seeding-production.md#phrase-and-safety-matrix); the command tables, code blocks and refusal rows stay. Guide 11's refusal row points at the same matrix instead of “the table above”. |
+| **Guide 12 measurements** | Removed the 2026-10-25 80,006-document result and the 2026-10-27 index-space figures. Kept the rule that a delete frees documents but not index allocation, the `dropIndexes()` / `syncIndexes()` rebuild and `audit:indexes`. |
+| **Guide 13 measurement** | Removed the 2026-10-26 stale-uid measurement; the both-link check and the refusal table stay. |
+| **Guide 10** | Its matrix footer now names Guide 11 for development cleanup, so the one table points at the right owner. |
+| **Verified** | Documentation guards **39/39**; `git diff --check` clean. No code, test, prompt, configuration or deployment change. |
+| **Not done** | No deployment; a docs-only merge does not redeploy the server. |
 
 ---
 

@@ -35,18 +35,9 @@ command also has a `--dry-run`, and the preview counts through the same plan the
 - **Nothing here deletes a login.** `--target=firebase` is a separate, deliberate operation, and it refuses
   while any database row still owns the address ([Guide 13](13-firebase-identities.md)).
 
-The phrase each command uses in production:
-
-| Command | `CLEANUP_CONFIRM` |
-|---|---|
-| `cleanup -- --target=database` | `cleanup:database` |
-| `cleanup:account` | `cleanup-account-data` |
-| `cleanup:demo` | `cleanup:demo-account` |
-| `cleanup:perf-tenant` | `cleanup:perf-tenant` |
-| `cleanup:demo-tenant` | `cleanup:demo-tenant` |
-| `cleanup:roles` | `cleanup:roles` |
-| `cleanup:three` | **refused in production** — name the tenants instead |
-| `cleanup:perf` | development only; its own guard refuses production |
+Each command's own phrase is in the one [phrase and safety matrix](10-seeding-production.md#phrase-and-safety-matrix).
+`cleanup:three` is refused in production and `cleanup:perf` is development-only; the full invocations
+below carry the production phrases.
 
 ---
 
@@ -138,9 +129,6 @@ Both identifiers are required and must **agree** — the email and the business 
 the same tenant. The id above is the one `check:accounts --with-production` prints for that account; a
 stale id is refused. A real run re-reads afterwards and prints `verification found 0 remaining`.
 
-Measured on production 2026-10-25: **80 006 documents removed**, 0 remaining, and the login and business
-row still signed in.
-
 ---
 
 ## The measurement tenant (`cleanup:perf-tenant`)
@@ -211,25 +199,19 @@ NODE_ENV=production MONGODB_DB_NAME=inventoryai_prod_db \
 
 ## The space a delete does not give back
 
-A cleanup removes documents, not the space their **indexes** were allocated. Measured 2026-10-27 on the
-512 MB Atlas M0 cluster: after removing 755 555 documents the counted figure fell only from 337 MB to
-214 MB, and those 214 MB were three *empty* collections' index allocation — `inventory` 94.8 MB,
-`inventory_transactions` 77.3 MB, `products` 39.9 MB. Atlas counts **data plus indexes**, so that residue is
-why a re-seed can still be refused as too large.
+A cleanup removes documents, not the space their **indexes** were allocated. Atlas counts **data plus
+indexes**, so a re-seed can still be refused as too large after every document is gone.
 
 **The cleanup is still complete** — every document is gone and the run printed `0 remaining`; only the
 allocation stays. To reclaim it, rebuild those three indexes on the empty collections and prove the
 declaration came back:
 
 - drop them, then rebuild from the models' own declarations (`dropIndexes()` followed by `syncIndexes()` on
-  `Product`, `Inventory` and `InventoryTransaction`, against the database being reclaimed) — measured
-  effect: 39.8 / 94.6 / 77.3 MB → 7.2 / 13.2 / 9.2 MB;
+  `Product`, `Inventory` and `InventoryTransaction`, against the database being reclaimed);
 - `npm run audit:indexes` — expect `0 disagreements`, `every declared index matches the database`.
 
 The declaration is the source of truth, so a rebuild cannot invent or lose an index; that check is what
-proves it. Do it before a large re-seed, not after the cluster refuses the write. Measured 2026-10-27, the
-same reclaim took the cluster from 226.5 MB to **44.9 MB**, which is what made the full production re-seed
-fit.
+proves it. Do it before a large re-seed, not after the cluster refuses the write.
 
 ---
 
