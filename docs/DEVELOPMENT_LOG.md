@@ -49,8 +49,8 @@ the specification's obsolete planning tail were trimmed, and a documentation-lin
 see the documentation entries below. The auth checklist and account runbook now state current
 decisions; Guides 9, 11, 12 and 13 keep their commands and safety rules, with the phrase matrix owned
 by Guide 10 and dated measurements removed; the auth architecture and checklist keep one invariant
-register and one status owner. The AI-48–AI-84 work is recorded in §27HQ and §27HS, and the newest
-entry.
+register and one status owner, with overlapping client-authority and email clauses narrowed to one row
+each. The AI-48–AI-84 work is recorded in §27HQ and §27HS, and the newest entry.
 
 | | |
 | --- | --- |
@@ -150,6 +150,18 @@ Known limits, checked before spending one of them:
 | **Index** | `docs/README.md` now describes the runbook as current owner state, the paused decision, anchors, checks and gates, not a handover plan. |
 | **Verified** | Documentation guards **39/39** pass; `git diff --check` clean. No code, test or configuration change. |
 | **Not done** | No account, credential, repository-permission or history change; no deployment. A docs-only merge does not redeploy the server. |
+
+---
+
+## 2026-11-06 — Auth invariants narrowed to one owner each
+
+| Item | Evidence |
+| --- | --- |
+| **Why** | PR #155 made checklist §1 the single register, but I-5 still repeated I-4's business/role/status rule, I-14 repeated I-7's email rule, and architecture §8 repeated the checklist's dead `assertBusinessAccess` note. |
+| **Consolidated** | I-4 owns server-derived request identity; I-5 now covers Firebase-linkage choice only. I-14 no longer restates the email rule. Architecture §8 points to I-19 instead of repeating the exception. |
+| **Unchanged** | All 30 invariant IDs, control status, decisions, gates, production posture and protected paths. |
+| **Verified** | Documentation guards **39/39**; `git diff --check` clean. |
+| **Not done** | No code, test, prompt, configuration or deployment change. |
 
 ---
 
