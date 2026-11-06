@@ -168,6 +168,13 @@ unitSuite('AI-26 the stored status constant never reaches the screen', () => {
     assert.equal(humaniseStatusConstants(once), once);
     assert.equal(humaniseStatusConstants(''), '');
   });
+
+  it('★ AI-62 rewrites the movement types too, in the labels the app shows', () => {
+    // Device, 2026-11-05 5:19 PM: "there were 538 STOCK_OUT events". These four are the
+    // TypeBadge labels on the History screen, so the answer and the screen agree.
+    const out = humaniseStatusConstants('538 STOCK_OUT, 12 STOCK_IN, 1 TRANSFER, 1 ADJUSTMENT');
+    assert.equal(out, '538 Stock out, 12 Stock in, 1 Transfer, 1 Adjustment');
+  });
 });
 
 unitSuite('AI-26 the turn returns and reports the completed answer', () => {

@@ -275,7 +275,10 @@ export async function seedDemoTenant() {
     DEMO_PRODUCTS.map((p) => ({
       businessId,
       name: p.name,
+      brand: p.brand,
       sku: p.sku,
+      description: p.description,
+      specifications: p.specifications,
       categoryId: categoryId.get(p.category),
       costPrice: p.costPrice,
       sellingPrice: p.sellingPrice,
@@ -347,7 +350,10 @@ export async function verifyDemoTenant(businessId) {
   const [categories, locations, products, inventory, movements] = await Promise.all([
     Category.countDocuments({ businessId: oid }),
     Location.find({ businessId: oid }).select('_id name').sort({ name: 1 }).lean(),
-    Product.find({ businessId: oid, status: 'ACTIVE' }).select('_id name minimumStock').sort({ name: 1 }).lean(),
+    Product.find({ businessId: oid, status: 'ACTIVE' })
+      .select('_id name brand description specifications minimumStock')
+      .sort({ name: 1 })
+      .lean(),
     Inventory.find({ businessId: oid }).select('productId locationId quantity').lean(),
     InventoryTransaction.find({ businessId: oid }).select('type quantity previousQuantity newQuantity').lean(),
   ]);
@@ -393,6 +399,18 @@ export async function verifyDemoTenant(businessId) {
     { name: 'categories', ok: categories === DEMO_CATEGORIES.length, actual: categories, expected: DEMO_CATEGORIES.length },
     { name: 'locations', ok: locations.length === DEMO_LOCATIONS.length, actual: locations.length, expected: DEMO_LOCATIONS.length },
     { name: 'active products', ok: products.length === expected.totalProducts, actual: products.length, expected: expected.totalProducts },
+    {
+      name: 'recorded brands',
+      ok: products.filter((p) => p.brand).length === expected.totalProducts,
+      actual: products.filter((p) => p.brand).length,
+      expected: expected.totalProducts,
+    },
+    {
+      name: 'recorded specifications',
+      ok: products.filter((p) => p.specifications).length === expected.totalProducts,
+      actual: products.filter((p) => p.specifications).length,
+      expected: expected.totalProducts,
+    },
     { name: 'on-hand units', ok: totalUnits === expected.totalInventoryQuantity, actual: totalUnits, expected: expected.totalInventoryQuantity },
     { name: 'stacked products', ok: stocked.size === expectedBreakdown.totals.products, actual: stocked.size, expected: expectedBreakdown.totals.products },
     { name: 'low-stock products', ok: lowNames.length === expected.lowStockProducts, actual: lowNames, expected: expected.lowStockProducts },

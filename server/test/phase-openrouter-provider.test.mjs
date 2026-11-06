@@ -51,8 +51,12 @@ const EXPECTED_TOOLS = [
   'findProducts',
   // AI-46: catalogue contents and recorded-data coverage.
   'getCatalogOverview',
+  // AI-57: stock value at the recorded selling price.
+  'getStockValue',
   // AI-47: web research, reachable only through product ids owned by the tenant.
   'researchInventoryProducts',
+  // AI-49: cited current prices for at most three recorded products.
+  'researchMarketPrices',
   'getProduct',
   'getInventory',
   'getLowStockProducts',
@@ -61,6 +65,8 @@ const EXPECTED_TOOLS = [
   'getInventoryHistory',
   'getProductsByLocation',
   'getReorderNeededProducts',
+  // AI-71: dead stock — ACTIVE products with no stock-out on record at all.
+  'getProductsNeverSold',
   // AI-14: the two reference lists the id-taking tools needed to be usable.
   'listLocations',
   'listCategories',
@@ -897,6 +903,13 @@ dbSuite('OpenRouter provider — real full-catalogue workload', dbOk, () => {
       // answer a soft result without calling the web stub, so the all-tools workload
       // still feeds one result per advertised capability.
       { id: 't16', name: 'researchInventoryProducts', input: { productIds: '000000000000000000000000' } },
+      // AI-57: stock value at the recorded selling price.
+      { id: 't17', name: 'getStockValue', input: {} },
+      // AI-71: dead stock — ACTIVE products with no stock-out on record at all.
+      { id: 't18', name: 'getProductsNeverSold', input: {} },
+      // AI-49: a valid-shaped id that is not in this tenant makes the tool answer a
+      // soft result without any market search, so the workload needs no web stub.
+      { id: 't19', name: 'researchMarketPrices', input: { productIds: '000000000000000000000000' } },
     ];
   }
 

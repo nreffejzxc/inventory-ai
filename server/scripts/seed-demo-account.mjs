@@ -1,4 +1,5 @@
 // `npm run seed:demo -- --email=<you@example.com> [--total=80000] [--seed=1]`
+//   [--codes=both|none|sku|barcode]`
 // `npm run seed:demo -- --database=<name> --business=<id> --email=<you@example.com>`
 //
 // Give ONE real account a large, realistic inventory dataset so the AI assistant
@@ -45,6 +46,11 @@
 // DETERMINISTIC: a seeded PRNG (`--seed`, default 1) means the same dataset every
 // run, so two measurements describe the same tenant.
 //
+// PRODUCT CODES. `--codes=both|none|sku|barcode` selects the fields on every seeded product,
+// through the same parser `seed:accounts` uses. This command has always written both, so its
+// default stays `both`; `none` leaves the app's own barcode generation to assign the first
+// code, `sku` writes only the SKU, and `barcode` writes only a valid, unique EAN-13.
+//
 // Teardown: re-running the script resets the tenant, which is the documented way
 // back; `clearTenantData` is exported from ./perf/lib.mjs for a targeted removal.
 // The performance tenant (Part 3G) has its own `cleanup:perf-tenant`.
@@ -85,6 +91,7 @@ import {
   assertRequestedTenantKnown,
   assertRequestedTenantMatches,
   assertTenantNamedForReset,
+  codeFields,
   countDisagreements,
   ensureTenantForIdentity,
   isEmailAddress,
@@ -92,6 +99,7 @@ import {
   normaliseBusinessId,
   normaliseEmail,
   parseCount,
+  parseRunwideCodes,
   readBusinessAssociations,
   readIdentity,
   readTenantCounts,
@@ -231,6 +239,11 @@ async function main() {
   const requestedBusiness = normaliseBusinessId(rawBusiness);
   const dryRun = process.argv.includes('--dry-run');
 
+  // Same four choices as seed:accounts, but this command's existing default is both. The parser
+  // also refuses the removed --include-sku before any connection or identity lookup.
+  const codes = parseRunwideCodes(process.argv, { defaultMode: 'both' });
+  const { includeSku, includeBarcode } = codeFields(codes);
+
   // The unified guard: `--database=` must equal the resolved database, and the
   // target class decides the phrase count — two for development, three for
   // production. It runs before any connection, identity lookup or write, on a dry
@@ -262,6 +275,7 @@ async function main() {
   console.log(`[${COMMAND}] account  : ${email}`);
   console.log(`[${COMMAND}] target   : ~${total.toLocaleString()} documents across 7 collections`);
   console.log(`[${COMMAND}] PRNG seed: ${seed} (the dataset is reproducible)`);
+  console.log(`[${COMMAND}] SKU/barcode: ${codes} (--codes=both|none|sku|barcode; default both)`);
 
   if (dryRun) {
     console.log('');
@@ -412,8 +426,8 @@ async function main() {
     userId: tenant.userId,
     total,
     rand: makeRandom(seed),
-    includeSku: true,
-    includeBarcode: true,
+    includeSku,
+    includeBarcode,
     label: 'DEMO',
   });
 

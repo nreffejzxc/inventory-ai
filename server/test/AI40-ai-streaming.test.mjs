@@ -348,28 +348,56 @@ unitSuite('AI-40 the provider assembles a stream into the same response the JSON
 });
 
 unitSuite('AI-40 the turn loop streams text and behaves as before without it (DB-free)', () => {
-  const ask = (onTextDelta) =>
+  const ask = (onTextDelta, onTextReset) =>
     runAiChat({
       businessId: 'b-dummy',
       userId: 'u-dummy',
       role: ROLES.OWNER,
-      message: 'how much stock do we hold?',
+      // Not a recorded-data question: the AI-60 guard would otherwise re-ask a zero-tool
+      // figure-stating answer, and this suite is about the transport, not that guard.
+      message: 'say hello in one sentence',
       ...(onTextDelta ? { onTextDelta } : {}),
+      ...(onTextReset ? { onTextReset } : {}),
     });
 
   it('forwards deltas in arrival order and still returns the complete answer', async () => {
     let sawStream = null;
     setFakeScenario(async (ctx) => {
       sawStream = { stream: ctx.stream, hasCallback: typeof ctx.onTextDelta === 'function' };
-      ctx.onTextDelta?.('You hold ');
-      ctx.onTextDelta?.('112 units.');
-      return fakeText('You hold 112 units.');
+      ctx.onTextDelta?.('hello ');
+      ctx.onTextDelta?.('there.');
+      return fakeText('hello there.');
     });
     const deltas = [];
     const result = await ask((text) => deltas.push(text));
     assert.deepEqual(sawStream, { stream: true, hasCallback: true });
-    assert.deepEqual(deltas, ['You hold ', '112 units.']);
-    assert.equal(result.content, 'You hold 112 units.');
+    assert.deepEqual(deltas, ['hello ', 'there.']);
+    assert.equal(result.content, 'hello there.');
+  });
+
+  it('clears the shown draft when the stored answer differs from it (AI-74)', async () => {
+    // The model's raw token is replaced by the stored vocabulary before the answer is stored.
+    // Until AI-74 the client kept the raw version on screen until `done` arrived; the reset
+    // tells it to discard that copy, and the stored answer is replayed in its place.
+    setFakeScenario((ctx) => {
+      ctx.onTextDelta?.('Draft: OUT_OF_STOCK');
+      return fakeText('Draft: OUT_OF_STOCK');
+    });
+
+    const deltas = [];
+    const resets = [];
+    const result = await ask(
+      (text) => deltas.push(text),
+      () => resets.push(1),
+    );
+
+    assert.equal(resets.length, 1, 'the replaced text must be cleared exactly once');
+    assert.equal(result.content, 'Draft: Out of stock');
+    assert.deepEqual(
+      deltas,
+      ['Draft: OUT_OF_STOCK', 'Draft: Out of stock'],
+      'the stored answer is sent after the reset, so the bubble is never left blank',
+    );
   });
 
   it('asks for nothing when nobody is listening — the request is unchanged', async () => {
@@ -461,13 +489,12 @@ dbSuite('AI-40 the streamed turn reaches the phone as it is written', dbOk, () =
   it('answers 200 text/event-stream with deltas and one authoritative done event', async () => {
     const owner = await registerOwner(api, tracker);
     setFakeScenario((ctx) => {
-      ctx.onTextDelta?.('You ');
-      ctx.onTextDelta?.('hold ');
-      ctx.onTextDelta?.('112 units.');
-      return fakeText('You hold 112 units.');
+      ctx.onTextDelta?.('Hello ');
+      ctx.onTextDelta?.('there.');
+      return fakeText('Hello there.');
     });
 
-    const res = await postStream(owner.token, { message: 'how much stock do we hold?' });
+    const res = await postStream(owner.token, { message: 'say hello in one sentence' });
     assert.equal(res.status, 200);
     assert.match(res.headers.get('content-type') ?? '', /text\/event-stream/);
     assert.match(res.headers.get('cache-control') ?? '', /no-transform/);
@@ -477,11 +504,11 @@ dbSuite('AI-40 the streamed turn reaches the phone as it is written', dbOk, () =
     const deltas = events.filter((event) => event.event === 'delta');
     assert.deepEqual(
       deltas.map((event) => event.data.text),
-      ['You ', 'hold ', '112 units.'],
+      ['Hello ', 'there.'],
     );
     const done = events.filter((event) => event.event === 'done');
     assert.equal(done.length, 1, 'the stream must end with exactly one done event');
-    assert.equal(done[0].data.assistantMessage.content, 'You hold 112 units.');
+    assert.equal(done[0].data.assistantMessage.content, 'Hello there.');
     assert.ok(done[0].data.conversation.id, 'the conversation is created and named');
     assert.ok(done[0].data.userMessage.id, 'the question is stored and returned');
 
@@ -494,8 +521,32 @@ dbSuite('AI-40 the streamed turn reaches the phone as it is written', dbOk, () =
     assert.equal(messages.json.total, 2);
     assert.deepEqual(
       messages.json.items.map((m) => m.content),
-      ['how much stock do we hold?', 'You hold 112 units.'],
+      ['say hello in one sentence', 'Hello there.'],
     );
+  });
+
+  it('sends a reset before the stored answer when a guard rewrote the streamed copy (AI-74)', async () => {
+    const owner = await registerOwner(api, tracker);
+    const draft = 'Hello — everything is OUT_OF_STOCK today.';
+    setFakeScenario((ctx) => {
+      ctx.onTextDelta?.(draft);
+      return fakeText(draft);
+    });
+
+    const res = await postStream(owner.token, { message: 'Say hello in one sentence.' });
+    const events = parseEvents(await res.text());
+    const done = events.find((event) => event.event === 'done');
+    assert.ok(done, 'the turn still completes');
+    assert.notEqual(done.data.assistantMessage.content, draft, 'the stored answer is the humanised one');
+
+    const resets = events.filter((event) => event.event === 'reset');
+    assert.equal(resets.length, 1, 'the replaced copy is cleared exactly once');
+    assert.equal(events.at(-1).event, 'done', 'the reset never outlives the answer');
+
+    // The replacement is delivered before `done`, so the member never watches a blank bubble.
+    const deltas = events.filter((event) => event.event === 'delta');
+    assert.equal(deltas.at(-1).data.text, done.data.assistantMessage.content);
+    assert.equal(deltas.map((event) => event.data.text).join(''), draft + done.data.assistantMessage.content);
   });
 
   it('leaves the JSON response exactly as it was for a client that did not ask to stream', async () => {

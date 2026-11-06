@@ -21,6 +21,7 @@ import type {
   AIProvider,
   ProviderMessage,
   ProviderResponse,
+  ProviderThinkingBlock,
   ProviderUsage,
   ToolCall,
   ToolDefinition,
@@ -52,6 +53,25 @@ export function toAnthropicMessages(messages: ProviderMessage[]) {
       out.push({ role: 'user', content: m.content });
     } else if (m.role === 'assistant') {
       const content: unknown[] = [];
+      // A mandatory-reasoning model binds its tool calls to the reasoning that produced them.
+      // Replay those blocks, in order, before the text and tool calls they belong to.
+      //
+      // OpenRouter emits UNSIGNED thinking blocks for non-Anthropic models, and an unsigned
+      // block is rejected on replay (`invalid_union` / `expected string`). There is no signature
+      // to reconstruct, so only signed blocks can travel back; the unsigned trace is dropped
+      // rather than being turned into visible assistant text.
+      for (const thinking of m.thinking || []) {
+        if (
+          thinking.type === 'thinking' &&
+          typeof thinking.thinking === 'string' &&
+          typeof thinking.signature === 'string' &&
+          thinking.signature.trim()
+        ) {
+          content.push({ type: 'thinking', thinking: thinking.thinking, signature: thinking.signature });
+        } else if (thinking.type === 'redacted_thinking' && typeof thinking.data === 'string' && thinking.data) {
+          content.push({ type: 'redacted_thinking', data: thinking.data });
+        }
+      }
       if (m.content) content.push({ type: 'text', text: m.content });
       for (const call of m.toolCalls || []) {
         content.push({ type: 'tool_use', id: String(call.id), name: String(call.name), input: call.input ?? {} });
@@ -166,11 +186,20 @@ export function parseAnthropicResponse(data: AnthropicResponse, requestedModel =
   const content: unknown[] = Array.isArray(data.content) ? data.content : [];
   let text = '';
   const toolCalls: ToolCall[] = [];
+  const thinking: ProviderThinkingBlock[] = [];
   for (const block of content as UpstreamJsonBody[]) {
     if (block?.type === 'text' && typeof block.text === 'string') text += block.text;
     else if (block?.type === 'tool_use') {
       const input = block.input && typeof block.input === 'object' && !Array.isArray(block.input) ? block.input as UpstreamJsonBody : {} as UpstreamJsonBody;
       toolCalls.push({ id: String(block.id), name: String(block.name), input });
+    } else if (block?.type === 'thinking' && typeof block.thinking === 'string') {
+      thinking.push({
+        type: 'thinking',
+        thinking: block.thinking,
+        ...(typeof block.signature === 'string' ? { signature: block.signature } : {}),
+      });
+    } else if (block?.type === 'redacted_thinking' && typeof block.data === 'string') {
+      thinking.push({ type: 'redacted_thinking', data: block.data });
     }
   }
   const usage = data.usage
@@ -202,6 +231,7 @@ export function parseAnthropicResponse(data: AnthropicResponse, requestedModel =
     model: data.model as string ?? requestedModel,
     text,
     toolCalls,
+    ...(thinking.length > 0 ? { thinking } : {}),
     usage,
     truncated: data.stop_reason === 'max_tokens',
   };
@@ -244,7 +274,9 @@ interface StreamTarget {
 
 type StreamBlock =
   | { type: 'text'; text: string }
-  | { type: 'tool_use'; id: string; name: string; json: string };
+  | { type: 'tool_use'; id: string; name: string; json: string }
+  | { type: 'thinking'; thinking: string; signature: string }
+  | { type: 'redacted_thinking'; data: string };
 
 /** Tool arguments that arrived in pieces; an unparseable set is empty, never a thrown turn. */
 function parseToolInput(raw: string): UpstreamJsonBody {
@@ -293,6 +325,14 @@ async function readAnthropicStream(
       const block = payload.content_block && typeof payload.content_block === 'object' ? (payload.content_block as UpstreamJsonBody) : {};
       if (block.type === 'tool_use') {
         blocks.set(index, { type: 'tool_use', id: String(block.id ?? ''), name: String(block.name ?? ''), json: '' });
+      } else if (block.type === 'thinking') {
+        blocks.set(index, {
+          type: 'thinking',
+          thinking: typeof block.thinking === 'string' ? block.thinking : '',
+          signature: typeof block.signature === 'string' ? block.signature : '',
+        });
+      } else if (block.type === 'redacted_thinking') {
+        blocks.set(index, { type: 'redacted_thinking', data: typeof block.data === 'string' ? block.data : '' });
       } else {
         const initial = typeof block.text === 'string' ? block.text : '';
         blocks.set(index, { type: 'text', text: initial });
@@ -318,6 +358,14 @@ async function readAnthropicStream(
       }
       if (delta.type === 'input_json_delta' && block && block.type === 'tool_use') {
         block.json += typeof delta.partial_json === 'string' ? delta.partial_json : '';
+        return;
+      }
+      if (delta.type === 'thinking_delta' && block && block.type === 'thinking') {
+        block.thinking += typeof delta.thinking === 'string' ? delta.thinking : '';
+        return;
+      }
+      if (delta.type === 'signature_delta' && block && block.type === 'thinking') {
+        block.signature += typeof delta.signature === 'string' ? delta.signature : '';
       }
       return;
     }
@@ -351,11 +399,18 @@ async function readAnthropicStream(
 
   const content = [...blocks.entries()]
     .sort((a, b) => a[0] - b[0])
-    .map(([, block]) =>
-      block.type === 'text'
-        ? { type: 'text', text: block.text }
-        : { type: 'tool_use', id: block.id, name: block.name, input: parseToolInput(block.json) },
-    );
+    .map(([, block]) => {
+      if (block.type === 'text') return { type: 'text', text: block.text };
+      if (block.type === 'tool_use') {
+        return { type: 'tool_use', id: block.id, name: block.name, input: parseToolInput(block.json) };
+      }
+      if (block.type === 'redacted_thinking') return { type: 'redacted_thinking', data: block.data };
+      return {
+        type: 'thinking',
+        thinking: block.thinking,
+        ...(block.signature ? { signature: block.signature } : {}),
+      };
+    });
 
   const data = {
     model: reportedModel,
@@ -474,7 +529,15 @@ export function createAnthropicCompatibleProvider(opts: AnthropicCompatibleOptio
         max_tokens: cfg.maxOutputTokens,
         system,
         messages: toAnthropicMessages(messages),
-        tools: toAnthropicTools(tools),
+        // AI-50 — a turn's answer round passes no tools, and an empty `tools: []` is not the
+        // same request as none: the key is omitted entirely when there is nothing to offer.
+        ...(tools && tools.length > 0 ? { tools: toAnthropicTools(tools) } : {}),
+        // AI-54 — reasoning shares `max_tokens` with the answer on this gateway, and the
+        // measured model spent the ENTIRE budget on `thinking` blocks (400/400, no text),
+        // so the assistant asks for it to be off. The reason, the measurements and the
+        // escape hatch live in `aiConfig().thinkingDisabled`; nothing about the neutral
+        // response contract changes, because a disabled model simply returns text.
+        ...(cfg.thinkingDisabled ? { thinking: { type: 'disabled' } } : {}),
       };
       const requestHeaders = { ...(authHeaders ? authHeaders(apiKey) : {}), ...extraHeaders };
 

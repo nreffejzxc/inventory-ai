@@ -49,6 +49,16 @@ export interface InlineSpan {
   bold?: boolean;
   italic?: boolean;
   code?: boolean;
+  /**
+   * The address this run links to, when the answer carried one.
+   *
+   * Research answers quote their sources, so they arrive with `[Keychron PH](https://…)` and, from some
+   * models, the bare autolink `<https://…>`. Before this the bubble showed both forms literally, brackets
+   * and angle brackets included — measured on the phone 2026-11-04 while re-testing `researchMarketPrices`,
+   * whose whole value is that a member can open the listing the price came from. Only `http(s)` is ever a
+   * link, so a stray `[see note]` or `< 5 units` stays ordinary text.
+   */
+  href?: string;
 }
 
 /** One item of a bullet or numbered list. */
@@ -254,6 +264,11 @@ export function stripMarkdown(raw: string): string {
   return stripLatex(raw)
     // Fenced code: keep the content, drop the fence and any language tag.
     .replace(/```[a-zA-Z0-9]*\r?\n?([\s\S]*?)```/g, (_match, body: string) => String(body).trim())
+    // A backslash-escaped marker (`\*`, `\_`, `\``, `\~`) is the model asking for a
+    // literal character: Markdown renders it as the bare character, so the backslash
+    // must not reach the screen. Each escaped character is parked behind a private-use
+    // placeholder so no emphasis rule below can match it, then restored at the end.
+    .replace(/\\([*_`~\\[\]])/g, (_m, ch: string) => `\uE000${ch.charCodeAt(0)}\uE001`)
     // Bold runs first: `**x**` must not be read as an italic wrapping `*x*`.
     // The boundary is `(^|[^A-Za-z0-9])` / `(?![A-Za-z0-9])` rather than a
     // lookbehind, which older Hermes builds do not all support.
@@ -272,7 +287,9 @@ export function stripMarkdown(raw: string): string {
     // Last, because it asks whether a closer exists at all — and by now every real
     // pair has been consumed. See DANGLING_MARKER for the two stored answers that
     // motivated it and for why the three conditions cannot fire on ordinary markup.
-    .replace(DANGLING_MARKER, '$1');
+    .replace(DANGLING_MARKER, '$1')
+    // Restore the escaped characters parked above.
+    .replace(/\uE000(\d+)\uE001/g, (_m, code: string) => String.fromCharCode(Number(code)));
 }
 
 /**
@@ -315,6 +332,32 @@ export function parseInline(raw: string): InlineSpan[] {
         flush();
         spans.push({ text: src.slice(i + 1, end), code: true });
         i = end + 1;
+        continue;
+      }
+    }
+
+    // An inline link, `[label](https://…)`, or a bare autolink, `<https://…>`.
+    // Handled before the emphasis rules so a label containing `*` cannot swallow the brackets, and after
+    // inline code so a URL the model put in backticks is still shown as data.
+    if (ch === '[') {
+      const close = src.indexOf(']', i + 1);
+      if (close > i + 1 && src[close + 1] === '(') {
+        const end = src.indexOf(')', close + 2);
+        const href = end > close + 2 ? src.slice(close + 2, end).trim() : '';
+        if (/^https?:\/\//i.test(href)) {
+          flush();
+          spans.push({ text: stripMarkdown(src.slice(i + 1, close)), href });
+          i = end + 1;
+          continue;
+        }
+      }
+    }
+    if (ch === '<') {
+      const auto = /^<((?:https?:\/\/)[^\s<>]+)>/.exec(src.slice(i));
+      if (auto) {
+        flush();
+        spans.push({ text: auto[1], href: auto[1] });
+        i += auto[0].length;
         continue;
       }
     }

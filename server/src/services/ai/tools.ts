@@ -29,6 +29,7 @@ import { productService } from '../product.service.ts';
 import { categoryService, locationService } from '../reference.service.ts';
 import { transactionsService, TRANSACTION_TYPES } from '../transactions.service.ts';
 import { researchInventoryWeb, WEB_RESEARCH_NOTE, type ResearchFocus, type ResearchSubject } from './webResearch.ts';
+import { MARKET_PRICE_NOTE, researchMarketPrices, type PriceSubject } from './marketPrices.ts';
 import { hasPermission, PERMISSIONS } from '../../constants/roles.ts';
 import { localDateTime } from '../../utils/timeZone.ts';
 
@@ -128,12 +129,24 @@ interface GetInventoryArgs extends ToolArguments, LocationRef {
   limit?: number;
 }
 
-interface LimitArgs extends ToolArguments {
+/** AI-61 — a stock list that can be narrowed to one place ("what's low at the counter?"). */
+interface LocationLimitArgs extends ToolArguments, LocationRef {
+  limit?: number;
+}
+
+/** AI-71 — dead stock, optionally since a date and optionally on one shelf. */
+interface NeverSoldArgs extends ToolArguments, LocationRef {
+  from?: string;
   limit?: number;
 }
 
 interface ReorderArgs extends ToolArguments, CategoryRef {
   q?: string;
+  limit?: number;
+}
+
+/** AI-59 — the valuation read is optional-filtered by place and by kind of product. */
+interface StockValueArgs extends ToolArguments, LocationRef, CategoryRef {
   limit?: number;
 }
 
@@ -145,6 +158,11 @@ interface BrandSummaryArgs extends ToolArguments, CategoryRef {
 interface ResearchProductsArgs extends ToolArguments {
   productIds?: string;
   focus?: string;
+}
+
+interface ResearchPricesArgs extends ToolArguments {
+  productIds?: string;
+  stores?: string;
 }
 
 interface HistoryArgs extends ToolArguments, LocationRef {
@@ -199,20 +217,28 @@ const limitParam = (def: number, max: number) => ({ type: 'integer', minimum: 1,
  * one product, keeps the whole value.
  */
 const CATALOG_GROUNDING_NOTE =
-  'Catalogue facts are limited to the fields on these rows. Brand is an optional recorded field: null means no brand is recorded, not that the product has no brand. A description is free text and may name a brand or specification, but it is not a separate specification field. Recommend only products returned here, and never infer a brand or quality from a product name or from words such as "Premium", "Pro" or "Ultra".';
+  'Catalogue facts are limited to the fields on these rows. Brand and specifications are optional recorded fields: null means none is recorded, not that the product has no brand or specifications. A description is free text and may add context, but never treat it as a specification that the specifications field does not state. Compare only against recorded specifications; if one product has no such fact, say it is not recorded and do not infer it. Recommend only products returned here, and never infer a brand or quality from a product name or from words such as "Premium", "Pro" or "Ultra".';
 const BRAND_NOTE =
-  'Brand is an optional recorded field. A product with no brand recorded is not counted here; no result means no brand is recorded for this filter, not that no brand exists. This page covers ACTIVE products only and does not include stock levels — use searchProducts, getProduct or getInventory to check what is on hand. The price range is the recorded selling price, not a quality or value rating; descriptions are free text, so compare only what they state. Never infer a brand from a product name or a description.';
+  'Brand is an optional recorded field. A product with no brand recorded is not counted here; no result means no brand is recorded for this filter, not that no brand exists. This page covers ACTIVE products only and does not include stock levels — use searchProducts, getProduct or getInventory to check what is on hand. The price range is the recorded selling price, not a quality or value rating; it carries the `currency` code when one is recorded on those products and `currency: null` when none is. When a brand has products in more than one currency the row sets `mixedCurrency: true`, `priceRange` min/max are null, and `priceRanges` holds one range per currency — compare only within the same currency and never add or convert them. Descriptions are free text, so compare only what they state. Never infer a brand from a product name or a description.';
+const SEARCH_DESCRIPTION_NOTE =
+  'No product name, recorded brand, SKU or barcode matched the query, so these rows are the ones whose recorded description or specifications contain its words. They are possible matches, not confirmed ones: name the match you relied on and ask before changing stock or price. If the member expected a different item, run findProducts with everyday synonyms before saying the catalogue has nothing.';
 const FIND_NOTE =
-  'This is a discovery search, not a quality ranking. It matches the supplied terms against product name, recorded brand, recorded description, SKU and barcode, and returns available stock. Compare only the recorded brand, description, price, unit and availability; never call an item best, trusted or suitable for a use unless the row states it. No match means none of these terms are recorded, not that the business cannot stock such a product.';
+  'This is a discovery search, not a quality ranking. It matches the supplied terms against product name, recorded brand, recorded description, recorded specifications, SKU and barcode, and returns available stock. Compare only the recorded brand, specifications, description, price, unit and availability; never call an item best, trusted or suitable for a use unless the row states it. No match means none of these terms are recorded, not that the business cannot stock such a product.';
 const LIST_DESCRIPTION_MAX = 160;
 const DETAIL_DESCRIPTION_MAX = 500;
+const LIST_SPECIFICATIONS_MAX = 300;
+const DETAIL_SPECIFICATIONS_MAX = 1000;
 
-function catalogDescription(description: string | null | undefined, max: number) {
-  if (!description) return null;
-  return description.length > max ? `${description.slice(0, max - 1)}…` : description;
+function catalogText(value: string | null | undefined, max: number) {
+  if (!value) return null;
+  return value.length > max ? `${value.slice(0, max - 1)}…` : value;
 }
 
-function productCoreWithDescription(doc: ProductDTOSource, descriptionMax: number) {
+function productCoreWithDescription(
+  doc: ProductDTOSource,
+  descriptionMax: number,
+  specificationsMax: number,
+) {
   const dto = productService.toProductDTO(doc);
   return {
     id: dto.id,
@@ -220,12 +246,15 @@ function productCoreWithDescription(doc: ProductDTOSource, descriptionMax: numbe
     brand: dto.brand,
     sku: dto.sku,
     barcode: dto.barcode,
-    description: catalogDescription(dto.description, descriptionMax),
+    description: catalogText(dto.description, descriptionMax),
+    specifications: catalogText(dto.specifications, specificationsMax),
     unit: dto.unit,
     status: dto.status,
     minimumStock: dto.minimumStock,
     category: dto.category,
     sellingPrice: dto.sellingPrice,
+    // The ISO code the price was recorded in, or null. The assistant must not guess one.
+    currency: dto.currency ?? null,
   };
 }
 
@@ -233,11 +262,11 @@ function productCoreWithDescription(doc: ProductDTOSource, descriptionMax: numbe
 // the second argument, and an index read as a description limit would quietly change every
 // row after the first.
 function productCore(doc: ProductDTOSource) {
-  return productCoreWithDescription(doc, LIST_DESCRIPTION_MAX);
+  return productCoreWithDescription(doc, LIST_DESCRIPTION_MAX, LIST_SPECIFICATIONS_MAX);
 }
 
 function productDetailCore(doc: ProductDTOSource) {
-  return productCoreWithDescription(doc, DETAIL_DESCRIPTION_MAX);
+  return productCoreWithDescription(doc, DETAIL_DESCRIPTION_MAX, DETAIL_SPECIFICATIONS_MAX);
 }
 
 function stockCard(doc: StockCardSource) {
@@ -558,7 +587,7 @@ const tools: Tool[] = [
   {
     name: 'searchProducts',
     description:
-      'Search the product catalog by name, recorded brand, SKU, or barcode (partial match, case-insensitive). Use this first when the user names a product and you need its id. A category may be given as `categoryId` or as the exact `category` name (an ACTIVE category of this business). Returns catalog fields only, including the recorded brand and any recorded description — use getProduct or getInventory for stock levels. Search does not cover description text.',
+      'Search the product catalog by name, recorded brand, SKU, or barcode (partial match, case-insensitive). Use this first when the user names a product and you need its id. A category may be given as `categoryId` or as the exact `category` name (an ACTIVE category of this business). Returns catalog fields only, including the recorded brand, description and specifications — use getProduct or getInventory for stock levels. When no name, brand, SKU or barcode matches, it retries the same words against the recorded descriptions and specifications and marks those rows with `matchedOn`, so an everyday word that appears only in a description still finds the product. For a broad discovery search across several synonyms, use findProducts.',
     permission: PERMISSIONS.PRODUCTS_VIEW,
     defaultLimit: 15,
     parameters: {
@@ -579,21 +608,55 @@ const tools: Tool[] = [
     async executor(ctx: ToolContext, args: SearchProductsArgs) {
       const category = await resolveCategory(ctx, args);
       if (!category.ok) return category.result;
-      const { items, total } = await productService.list(ctx.businessId, {
+      const limit = Math.min(args.limit ?? 15, 25);
+      let { items, total } = await productService.list(ctx.businessId, {
         q: args.q,
         status: args.status,
         categoryId: category.id,
         skip: 0,
-        limit: Math.min(args.limit ?? 15, 25),
+        limit,
       });
-      return page(total, items.map(productCore), { note: CATALOG_GROUNDING_NOTE });
+      let matchedDescriptions = false;
+      if (total === 0 && args.q?.trim()) {
+        // A catalog name rarely repeats the everyday word the member used: "keyboard"
+        // lives in the description of a `Keychron K8 Pro`, so a name-only search says
+        // "nothing here". Retrying the same word against description and
+        // specifications is the difference between a dead end and a usable answer.
+        const terms = args.q
+          .split(/[^a-z0-9]+/i)
+          .map((term) => term.trim())
+          .filter((term) => term.length >= 2)
+          .slice(0, 4);
+        if (terms.length > 0) {
+          const deeper = await productService.list(ctx.businessId, {
+            terms,
+            includeDescription: true,
+            status: args.status,
+            categoryId: category.id,
+            skip: 0,
+            limit,
+          });
+          if (deeper.total > 0) {
+            items = deeper.items;
+            total = deeper.total;
+            matchedDescriptions = true;
+          }
+        }
+      }
+      return page(
+        total,
+        items.map(productCore),
+        matchedDescriptions
+          ? { note: SEARCH_DESCRIPTION_NOTE, matchedOn: ['description', 'specifications'] }
+          : { note: CATALOG_GROUNDING_NOTE },
+      );
     },
   },
 
   {
     name: 'findProducts',
     description:
-      'Find products for an everyday use, maintenance task or kind of product. Pass several likely words or phrases separated by commas — for example "engine oil, motor oil, 10W-40" — because the recorded name, brand or description may use a different one. It searches name, recorded brand, recorded description, SKU and barcode, returns available stock, and can filter to an exact category or to items currently in stock. Use this BEFORE concluding the catalogue has nothing for a request. When nothing matches, the result carries the ACTIVE categories and a stop instruction: answer from that result, do not run another search. This is discovery, not a quality ranking: never call a result best or trusted unless its recorded data says so.',
+      'Find products for an everyday use, maintenance task or kind of product. Pass several likely words or phrases separated by commas — for example "engine oil, motor oil, 10W-40" — because the recorded name, brand, description or specifications may use a different one. It searches name, recorded brand, recorded description, recorded specifications, SKU and barcode, returns available stock, and can filter to an exact category or to items currently in stock. Use this BEFORE concluding the catalogue has nothing for a request. When nothing matches, the result carries the ACTIVE categories and a stop instruction: answer from that result, do not run another search. This is discovery, not a quality ranking: never call a result best or trusted unless its recorded data says so.',
     permission: PERMISSIONS.PRODUCTS_VIEW,
     defaultLimit: 15,
     parameters: {
@@ -619,12 +682,46 @@ const tools: Tool[] = [
     async executor(ctx: ToolContext, args: FindProductsArgs) {
       const category = await resolveCategory(ctx, args);
       if (!category.ok) return category.result;
-      const terms = String(args.keywords ?? '')
+      const rawKeywords = String(args.keywords ?? '').trim();
+      // "products under 5,000" is a price request, not a product called "under 5,000".
+      // The ceiling is applied in the database before paging, so a bounded page still
+      // contains every qualifying row the answer may need.
+      const priceLimit = rawKeywords.match(
+        /\b(?:less than|under|below|cheaper than|up to|within)\s+(?:php|p|\u20b1)?\s*([\d,]+(?:\.\d+)?)\s*(k)?\b/i,
+      );
+      const maxSellingPrice = priceLimit
+        ? Number((priceLimit[1] ?? '').replace(/,/g, '')) * (priceLimit[2] ? 1000 : 1)
+        : undefined;
+      const withoutPrice = priceLimit
+        ? rawKeywords.replace(priceLimit[0], ' ')
+        : rawKeywords;
+      const cleaned = withoutPrice
+        .replace(
+          /\b(?:products?|items?|things?|anything|something|show|me|which|what|are|is|cost|costs|costing|priced|price|prices|budget|php|pesos?)\b/gi,
+          ' ',
+        )
+        .replace(/\s+/g, ' ')
+        .trim();
+      const requestedTerms = cleaned
         .split(/[,;|]+/)
         .map((term) => term.trim())
         .filter(Boolean)
         .slice(0, 8);
-      if (terms.length === 0) {
+      // A headset is a headphone with a microphone. The catalogue records Sony as
+      // headphones and SteelSeries as a headset, so a literal "headset" query hid the
+      // Sony row from the office-calls question. These are search synonyms, not a claim
+      // that both products have the same features.
+      const terms = [
+        ...new Set(
+          requestedTerms.flatMap((term) => {
+            const key = term.toLowerCase().replace(/s$/, '');
+            return key === 'headset' || key === 'headphone'
+              ? [term, 'headset', 'headphones', 'headphone']
+              : [term];
+          }),
+        ),
+      ].slice(0, 8);
+      if (terms.length === 0 && maxSellingPrice === undefined) {
         const empty = {
           count: 0,
           returned: 0,
@@ -635,16 +732,51 @@ const tools: Tool[] = [
         };
         return empty;
       }
-      const { items, total } = await productService.list(ctx.businessId, {
-        terms,
-        includeDescription: true,
-        status: 'ACTIVE',
-        categoryId: category.id,
-        inStockOnly: args.inStockOnly,
-        withStock: true,
-        skip: 0,
-        limit: Math.min(args.limit ?? 15, 25),
-      });
+      const pageLimit = Math.min(args.limit ?? 15, 25);
+      const search = (searchTerms: string[]) =>
+        productService.list(ctx.businessId, {
+          terms: searchTerms,
+          includeDescription: true,
+          status: 'ACTIVE',
+          categoryId: category.id,
+          maxSellingPrice,
+          inStockOnly: args.inStockOnly,
+          withStock: true,
+          skip: 0,
+          limit: pageLimit,
+        });
+      let result = await search(terms);
+      let searchedTerms = terms;
+      let expandedTerms = false;
+      // A phrase from the member's own sentence ("portable SSD travel") is one literal
+      // substring, but a row may record those words separately. Only after the exact
+      // phrase finds nothing, retry its significant words independently. This is a
+      // discovery widening, not a claim that every word describes one product.
+      if (
+        result.total === 0 &&
+        requestedTerms.some((term) => /\s/.test(term)) &&
+        maxSellingPrice === undefined
+      ) {
+        const words = [
+          ...new Set(
+            requestedTerms.flatMap((term) =>
+              term
+                .toLowerCase()
+                .split(/[^a-z0-9]+/)
+                .filter((word) => word.length >= 3),
+            ),
+          ),
+        ].slice(0, 8);
+        if (words.length > 1) {
+          const widened = await search(words);
+          if (widened.total > 0) {
+            result = widened;
+            searchedTerms = words;
+            expandedTerms = true;
+          }
+        }
+      }
+      const { items, total } = result;
       // A no-match result is the END of this search, not an invitation to try
       // one-word variants until the six-step budget dies. Return the catalogue’s
       // actual categories in the same payload, so the model can say what does
@@ -655,7 +787,9 @@ const tools: Tool[] = [
           : null;
       return page(total, items.map(stockCard), {
         note: FIND_NOTE,
-        terms,
+        terms: searchedTerms,
+        ...(expandedTerms ? { expandedTerms: true } : {}),
+        ...(maxSellingPrice !== undefined ? { maxSellingPrice } : {}),
         ...(categories
           ? {
               categories: categories.items.map(referenceItem),
@@ -670,7 +804,7 @@ const tools: Tool[] = [
   {
     name: 'getProduct',
     description:
-      'Get one product (by id, SKU, or barcode) with its recorded brand, current stock per location, and its full recorded description, when there is one. Brand is null when no brand is recorded. Returns found:false when the product does not exist in this business.',
+      'Get one product (by id, SKU, or barcode) with its recorded brand, recorded specifications, current stock per location, and its full recorded description, when there is one. Brand or specifications are null when not recorded. Compare only the facts recorded here; do not infer a missing specification. Returns found:false when the product does not exist in this business.',
     permission: PERMISSIONS.PRODUCTS_VIEW,
     parameters: {
       type: 'object',
@@ -697,13 +831,17 @@ const tools: Tool[] = [
         skip: 0,
         limit: 20,
       });
+      const noStockRows = rows.total === 0;
       return {
         found: true,
-        note: CATALOG_GROUNDING_NOTE,
+        note: noStockRows
+          ? `${CATALOG_GROUNDING_NOTE} This product has no inventory rows at all: on-hand quantity is 0 and it is out of stock. Report that, not an unreadable quantity.`
+          : CATALOG_GROUNDING_NOTE,
         product: {
           ...productDetailCore(doc),
           stock: rows.items.map(rowResult),
           stockRows: rows.total,
+          ...(noStockRows ? { quantityOnHand: 0, stockStatus: 'OUT_OF_STOCK' } : {}),
         },
       };
     },
@@ -712,7 +850,7 @@ const tools: Tool[] = [
   {
     name: 'getInventory',
     description:
-      'Inventory rows (a product at a location) with on-hand quantity, reserved quantity, and available quantity. Filter by product, location, product search text, product status, low stock, or out of stock. A location may be given as `locationId` or as the exact `location` name (an ACTIVE location of this business).',
+      'Inventory rows (a product at a location) with on-hand quantity, reserved quantity, and available quantity. Filter by product, location, product search text, product status, low stock, or out of stock. A location may be given as `locationId` or as the exact `location` name (an ACTIVE location of this business). When the member names a product and asks where it is, pass `q` (the product name) so the rows come back for EVERY location — an unfiltered page is sorted arbitrarily and can cut off exactly the rows that answer the question. Every row also carries product.sellingPrice and product.currency — the recorded price and its ISO code — so a value question can be answered by multiplying the recorded price by availableQuantity; both are null when the price was never recorded, and that is what to report instead of an estimate.',
     permission: PERMISSIONS.INVENTORY_VIEW,
     defaultLimit: 15,
     parameters: {
@@ -746,52 +884,196 @@ const tools: Tool[] = [
         skip: 0,
         limit: Math.min(args.limit ?? 15, 25),
       });
+      // A product with no inventory rows is genuinely out of stock, not unreadable. Without
+      // this, a valid product lookup returned an empty page and the model told the member the
+      // quantity "could not be read" (measured on the ASUS ROG Strix Flare II, 2026-11-05).
+      // Only resolve that product when the request names one and no location/stock filter is
+      // narrowing the page, so an empty filtered page is never mistaken for zero global stock.
+      const exactProductRequest =
+        !location.id &&
+        !args.status &&
+        args.lowStock === undefined &&
+        args.outOfStock === undefined &&
+        Boolean(args.productId || args.q?.trim());
+      if (total === 0 && exactProductRequest) {
+        const productDoc = args.productId
+          ? await productService.getByIdentifier(ctx.businessId, { id: args.productId })
+          : await productService
+              .list(ctx.businessId, { q: args.q, skip: 0, limit: 2 })
+              .then((matches) => (matches.total === 1 ? matches.items[0] : null));
+        if (productDoc) {
+          return page(0, [], {
+            noInventoryRows: true,
+            product: productCore(productDoc),
+            note:
+              `No inventory rows exist for ${productDoc.name}: on-hand quantity is 0 and it is ` +
+              'out of stock. Report 0 units and out of stock; do not say the quantity could not be read.',
+          });
+        }
+      }
       // The resolved id travels with the page for the same reason AI-15 gave it to
       // `getProductsByLocation`: it is what makes the answer checkable ("is this page really
       // Main Warehouse?") without spending another call. Absent when no location was given.
-      return page(total, items.map(rowResult), location.id ? { locationId: location.id } : {});
+      //
+      // AI-67 — and when this is only a page, the result says so in words, because `hasMore`
+      // alone was read past: measured on the phone 2026-11-05 5:58 PM, a page of 15 of 17 rows
+      // became "No other location shows stock for this product" while the Store Room held 25.
+      return page(total, items.map(rowResult), {
+        ...(location.id ? { locationId: location.id } : {}),
+        ...(total > items.length
+          ? {
+              note:
+                `This is only ${items.length} of ${total} inventory rows. Other locations or products ` +
+                'may be in the part you did not receive: call getInventory again with `q` set to the ' +
+                'product name (and no location) to see every location that holds it before saying ' +
+                'where it is or that somewhere else has none.',
+            }
+          : {}),
+      });
     },
   },
 
   {
     name: 'getLowStockProducts',
     description:
-      'Products whose available quantity is at or below their configured minimum stock (availability summed across all locations), including products with nothing available. Returns the current page of matching products. For a restock list that flags each item as out-of-stock or low-stock, prefer getReorderNeededProducts.',
+      'Products whose available quantity is at or below their configured minimum stock (availability summed across all locations by default), including products with nothing available. Pass `location`/`locationId` to judge each product against what ONE place holds — use that whenever the member asks what is low AT a named place, because a full store room otherwise hides a selling shelf that has run down. Returns the current page of matching products. For a restock list that flags each item as out-of-stock or low-stock, prefer getReorderNeededProducts.',
     permission: PERMISSIONS.INVENTORY_VIEW,
     defaultLimit: 20,
     parameters: {
       type: 'object',
       additionalProperties: false,
-      properties: { limit: limitParam(20, 50) },
+      properties: {
+        locationId: objectId,
+        location: {
+          type: 'string',
+          maxLength: 100,
+          description: 'Exact name of an ACTIVE location, e.g. "Main Warehouse". Use instead of locationId when no id is known.',
+        },
+        limit: limitParam(20, 50),
+      },
     },
-    async executor(ctx: ToolContext, args: LimitArgs) {
+    async executor(ctx: ToolContext, args: LocationLimitArgs) {
+      const location = await resolveLocation(ctx, args, { required: false });
+      if (!location.ok) return location.result;
       const { items, total } = await productService.list(ctx.businessId, {
         lowStock: true,
+        locationId: location.id,
         skip: 0,
         limit: Math.min(args.limit ?? 20, 50),
       });
-      return page(total, items.map(stockCard));
+      return page(total, items.map(stockCard), location.id ? { locationId: location.id } : {});
     },
   },
 
   {
     name: 'getOutOfStockProducts',
     description:
-      'Products with no available stock (available quantity zero or below, summed across all locations). Returns the current page of matching products. Use for "what products are out of stock". For a restock list that also includes low-stock items, prefer getReorderNeededProducts.',
+      'Products with no available stock (available quantity zero or below, summed across all locations by default). Pass `location`/`locationId` for what is sold out AT one place, which is a different question from what the business has run out of overall. Returns the current page of matching products. Use for "what products are out of stock". For a restock list that also includes low-stock items, prefer getReorderNeededProducts.',
     permission: PERMISSIONS.INVENTORY_VIEW,
     defaultLimit: 20,
     parameters: {
       type: 'object',
       additionalProperties: false,
-      properties: { limit: limitParam(20, 50) },
+      properties: {
+        locationId: objectId,
+        location: {
+          type: 'string',
+          maxLength: 100,
+          description: 'Exact name of an ACTIVE location, e.g. "Main Warehouse". Use instead of locationId when no id is known.',
+        },
+        limit: limitParam(20, 50),
+      },
     },
-    async executor(ctx: ToolContext, args: LimitArgs) {
+    async executor(ctx: ToolContext, args: LocationLimitArgs) {
+      const location = await resolveLocation(ctx, args, { required: false });
+      if (!location.ok) return location.result;
       const { items, total } = await productService.list(ctx.businessId, {
         outOfStock: true,
+        locationId: location.id,
         skip: 0,
         limit: Math.min(args.limit ?? 20, 50),
       });
-      return page(total, items.map(stockCard));
+      return page(total, items.map(stockCard), location.id ? { locationId: location.id } : {});
+    },
+  },
+
+  {
+    name: 'getProductsNeverSold',
+    description:
+      'ACTIVE products with no stock-out on record at all — the dead-stock question. Reach for this on "dead stock", "what is not selling", "what has never sold", "what has not moved", "unsold", "stale stock", "zero sales" or "sitting on the shelf", NOT for low stock or out of stock: those products may be selling fine, and a full shelf is not a slow one. It is answered by comparing the whole catalogue against the whole ledger instead of asking the model to read one list against another. Optionally scoped to one location ("what has never moved from the sidewalk shelf?"), which also reports availability AT that location. A stock-out is stock LEAVING a location: usually a sale, but it can be usage, damage or a write-off, so this answers "has anything ever left the shelf for this product" and must never be reported as proof of a sale. Pass `from` when the member asks about a period ("nothing has moved since June"). Each row carries availableQuantity across all locations, and the result adds `soldProductCount` so "how many products have sold at all" needs no page counting.',
+    permission: PERMISSIONS.INVENTORY_VIEW,
+    defaultLimit: 15,
+    parameters: {
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        from: {
+          type: 'string',
+          format: 'date-time',
+          maxLength: 40,
+          description: 'ISO date; only stock-outs created at or after this count as movement.',
+        },
+        locationId: objectId,
+        location: {
+          type: 'string',
+          maxLength: 100,
+          description: 'Exact name of an ACTIVE location, e.g. "Front Counter". Scope the answer to products stocked there.',
+        },
+        limit: limitParam(15, 25),
+      },
+    },
+    async executor(ctx: ToolContext, args: NeverSoldArgs) {
+      const location = await resolveLocation(ctx, args, { required: false });
+      if (!location.ok) return location.result;
+      // The exclusion set is every product the ledger says something LEFT for. `totals` is the
+      // same counted read AI-68 added, so this cannot disagree with "what sold the most".
+      const totals = await transactionsService.totals(ctx.businessId, {
+        type: 'STOCK_OUT',
+        from: args.from,
+        locationId: location.id,
+      });
+      const soldIds = totals.products.filter((p) => p.unitsOut > 0).map((p) => p.productId);
+      const { items, total } = await productService.list(ctx.businessId, {
+        status: 'ACTIVE',
+        excludeIds: soldIds,
+        withStock: true,
+        // With a location, listWithStock returns only products STOCKED there and reports
+        // availability at that location — a shelf question, not a business-wide one.
+        locationId: location.id,
+        skip: 0,
+        limit: Math.min(args.limit ?? 15, 25),
+      });
+      // `resolveLocation` hands back an id only, so the human-readable place is whatever the
+      // model named; a bare id still reads correctly as "the chosen location".
+      const place = location.id ? ` at ${args.location?.trim() || 'the chosen location'}` : '';
+      // "at Front Counter at some point" reads badly, and the sentence that follows already
+      // says "since the ledger began", so the trailing clause is only needed without a place.
+      const when = args.from ? ` since ${args.from}` : place ? '' : ' at some point';
+      // An EMPTY list is the trap. On the phone 2026-11-05 the member asked what had never
+      // sold at the Front Counter; every product stocked there had moved, so the page was
+      // empty, and the answer came back as "No products at the Front Counter have a recorded
+      // stock-out" — the exact opposite of the truth. `count: 0` alone is ambiguous between
+      // "nothing to report" and "no data", so the empty case states its own meaning.
+      const emptyNote =
+        `The list is EMPTY because every ACTIVE product${place ? ` stocked at ${args.location?.trim() || 'that location'}` : ''}` +
+        ` already has at least one stock-out on record${args.from ? ` since ${args.from}` : ' since the ledger began'}` +
+        '. That means there is NO dead stock in this scope — it does not mean data is missing or that nothing has sold. ' +
+        'Say that plainly and do not list products.';
+      return page(total, items.map(stockCard), {
+        soldProductCount: soldIds.length,
+        ...(args.from ? { countedFrom: args.from } : {}),
+        ...(location.id ? { locationId: location.id } : {}),
+        ...(total === 0 ? { emptyReason: 'everyProductHasMoved' } : {}),
+        note:
+          total === 0
+            ? emptyNote
+            : `${soldIds.length} products have at least one stock-out on record${place}${when}` +
+              ' and are NOT in this list. Every row here has none, so nothing has left' +
+              (place ? ' that shelf' : ' the shelf') +
+              (args.from ? ' in that period' : ' since the ledger began') +
+              '. A stock-out can be usage, damage or a write-off rather than a sale, so say "no ' +
+              'stock-out recorded" and offer the detail (its stock, its price) instead of calling it "unsold" as a fact about customers.',
+      });
     },
   },
 
@@ -825,6 +1107,46 @@ const tools: Tool[] = [
         limit: Math.min(args.limit ?? 20, 50),
       });
       return page(total, items.map(productService.reorderItemPublic));
+    },
+  },
+
+  {
+    name: 'getStockValue',
+    description:
+      'What the stock is WORTH at the recorded selling price: total value of on-hand stock (available quantity times sellingPrice, summed across locations) across ACTIVE products, the number of products and units counted, and the products with the highest value. Products with no recorded price are reported apart (unpricedProducts, unpricedUnits) and are NOT counted as zero value — say so when they exist. Use for "what is my stock worth", "what is my most valuable stock", "what is tied up in inventory". Narrow it with `location`/`locationId` for one place ("what is Main Warehouse worth", "how much is tied up in the storeroom") or `category`/`categoryId` for one kind of product ("what are our keyboards worth") — the tool then computes that subset itself, so never add up row prices yourself. `scope` echoes the filter that was applied and is null for the whole business. A location-scoped total counts only products actually holding stock there. The value is at the recorded price only, not at cost or market price, and the app records no cost basis or sale revenue.',
+    permission: PERMISSIONS.INVENTORY_VIEW,
+    defaultLimit: 10,
+    parameters: {
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        limit: limitParam(10, 25),
+        locationId: objectId,
+        location: {
+          type: 'string',
+          maxLength: 100,
+          description: 'Exact name of an ACTIVE location, e.g. "Main Warehouse". Use instead of locationId when no id is known.',
+        },
+        categoryId: objectId,
+        category: {
+          type: 'string',
+          maxLength: 100,
+          description: 'Exact name of an ACTIVE category, e.g. "Keyboards". Use instead of categoryId when no id is known.',
+        },
+      },
+    },
+    async executor(ctx: ToolContext, args: StockValueArgs) {
+      // Both are optional here: no location or category means the whole business, which is
+      // this tool's documented default and the answer it gave before AI-59.
+      const location = await resolveLocation(ctx, args, { required: false });
+      if (!location.ok) return location.result;
+      const category = await resolveCategory(ctx, args);
+      if (!category.ok) return category.result;
+      return productService.stockValue(ctx.businessId, {
+        limit: Math.min(args.limit ?? 10, 25),
+        ...(location.id ? { locationId: location.id } : {}),
+        ...(category.id ? { categoryId: category.id } : {}),
+      });
     },
   },
 
@@ -891,7 +1213,7 @@ const tools: Tool[] = [
   {
     name: 'getInventoryHistory',
     description:
-      'Recent stock movements (newest first). Optionally filter by product, location, movement type, and a createdAt range. A location may be given as `locationId` or as the exact `location` name. Returns the current page of logical events. A complete stock transfer is ONE event with `from` and `to` even though the ledger keeps two rows; a location-filtered page may return one leg, whose `direction` is `out` or `in`.',
+      'Recent stock movements (newest first) — what came in, what went out, adjustments and transfers. Stock that was sold or used is recorded as a STOCK_OUT movement, so this is also the tool for "what sold", "what moved" and recent activity; it does not hold sale prices or invoices. Optionally filter by product, location, movement type, and a createdAt range; when a range finds nothing it returns `windowEmpty` with the newest movements that DO match the other filters from before it, in `mostRecentOutsideWindow`. "What moved out of X" means anything leaving X — a STOCK_OUT or the out leg of a TRANSFER — so do not narrow it to one type unless the member did. A location may be given as `locationId` or as the exact `location` name. Returns the current page of logical events, plus totals for the WHOLE matched set: `unitsSold`, `unitsReceived`, `stockOutMovements` (the number of STOCK_OUT ledger movements, distinct from all movement types) and `topOut` (the five products with the most units out), so ranking and counting questions read a computed figure instead of adding page rows. A complete stock transfer is ONE event with `from` and `to` even though the ledger keeps two rows; a location-filtered page may return one leg, whose `direction` is `out` or `in`. Transfer legs are movement, never sales.',
     permission: PERMISSIONS.INVENTORY_HISTORY_VIEW,
     defaultLimit: 15,
     parameters: {
@@ -941,7 +1263,104 @@ const tools: Tool[] = [
         });
         logicalTotal = total - stats.rows + stats.events;
       }
-      return page(logicalTotal, folded.items, location.id ? { locationId: location.id } : {});
+      // AI-68 — the totals for the WHOLE matched set, because "which sold the most" and
+      // "how many units did we sell" are rankings and sums over every row, not over the page.
+      // Measured on the phone 2026-11-05: asked for a count, the model added page rows itself
+      // and said 9 for a movement of 8. So the ranking arrives already computed, and `topOut`
+      // is the only thing it has to read.
+      const totals = await transactionsService.totals(ctx.businessId, {
+        productId: args.productId,
+        locationId: location.id,
+        type: args.type,
+        from: args.from,
+        to: args.to,
+      });
+      const topOut = totals.products
+        .filter((p) => p.unitsOut > 0)
+        .sort((a, b) => b.unitsOut - a.unitsOut || String(a.name ?? '').localeCompare(String(b.name ?? '')))
+        .slice(0, 5)
+        .map((p) => ({ product: p.name, productId: p.productId, unitsOut: p.unitsOut }));
+      const stockOutMovements = totals.byType.STOCK_OUT?.rows ?? 0;
+      const soldSummary =
+        topOut.length > 0
+          ? {
+              ...(totals.byType.STOCK_OUT ? { unitsSold: totals.byType.STOCK_OUT.units, sales: totals.byType.STOCK_OUT.rows } : {}),
+              ...(totals.byType.STOCK_IN ? { unitsReceived: totals.byType.STOCK_IN.units, deliveries: totals.byType.STOCK_IN.rows } : {}),
+              ...(totals.byType.TRANSFER ? { transferLegs: totals.byType.TRANSFER.rows } : {}),
+              stockOutMovements,
+              topOut,
+              totalsNote:
+                'topOut is computed over EVERY row matching the filters, not just this page, ' +
+                'so it is the answer to "which sold the most" and to "how many units sold": read ' +
+                'the figure, do not add the rows up yourself. unitsSold counts STOCK_OUT units ' +
+                'only; transferLegs is movement between locations and is NOT part of sales.',
+            }
+          : {};
+
+      // AI-65 — an empty window is an answer, but a dead-end one.
+      //
+      // Measured on the phone 2026-11-05 5:38 PM: *"What moved out of the Store Room
+      // recently"* was answered, correctly and uselessly, "No stock-out movements were
+      // recorded for the Store Room in the last 7 days … nothing left the Store Room during
+      // that window." The Store Room had 13 movements, the newest eleven days earlier, and the
+      // member was left with nothing to act on. The window was empty; the question was not.
+      //
+      // So when a from/to filter finds nothing, the newest matching rows OUTSIDE it are
+      // attached with a sentence saying exactly what they are. The filters the member asked
+      // about (product, location, type) are kept, so "nothing sold this week" can still be
+      // followed by "the last sale was on 24 October" rather than an unrelated delivery.
+      // It costs one extra read only on a turn that would otherwise have nothing to say.
+      const windowEmpty = logicalTotal === 0 && (args.from != null || args.to != null);
+      const recentWithoutWindow = async (type?: string) =>
+        foldTransferEvents(
+          (
+            await transactionsService.list(ctx.businessId, {
+              productId: args.productId,
+              locationId: location.id,
+              type: type as HistoryArgs['type'],
+              skip: 0,
+              limit: 3,
+            })
+          ).items.map((item) => historyItemForModel(item, ctx.timeZone)),
+        ).items;
+      const recentOutsideWindow = windowEmpty ? await recentWithoutWindow(args.type) : [];
+      // The member's word is not the ledger's type: "what moved out of the Store Room" was
+      // asked as a STOCK_OUT read on 2026-11-05 and found zero, because moving stock between
+      // locations is recorded as a TRANSFER leg, not a stock-out — the room had 13 movements,
+      // 8 of them transfers. So a type-filtered window that comes back empty also reports the
+      // newest rows for the same product and location with the type filter dropped, and the
+      // note says so plainly. Nothing is relabelled: each row keeps its own type and, for a
+      // transfer leg, its direction.
+      const recentIgnoringType =
+        windowEmpty && args.type != null && (recentOutsideWindow as unknown[]).length === 0
+          ? await recentWithoutWindow(undefined)
+          : [];
+      return page(logicalTotal, folded.items, {
+        ...(location.id ? { locationId: location.id } : {}),
+        stockOutMovements,
+        ...soldSummary,
+        ...(windowEmpty
+          ? {
+              windowEmpty: true,
+              ...(recentIgnoringType.length > 0
+                ? {
+                    mostRecentIgnoringType: recentIgnoringType,
+                    note:
+                      'Nothing matched inside the requested window, and nothing matches that type at all for this product/location. mostRecentIgnoringType holds the newest movements there with the TYPE filter dropped (each row keeps its real type, and a transfer leg carries direction) — say the window is empty, then name the latest of these and its localTime, and do not call a transfer a stock-out.',
+                  }
+                : recentOutsideWindow.length > 0
+                  ? {
+                      mostRecentOutsideWindow: recentOutsideWindow,
+                      note:
+                        'Nothing matched inside the requested window. mostRecentOutsideWindow holds the newest movements that DO match the product/location/type filter, from before it — say that the window is empty, then name the latest one and its localTime so the member is not left without an answer.',
+                    }
+                  : {
+                      note:
+                        'Nothing matched inside the requested window, and nothing matches that filter at all. Say so plainly in movement terms.',
+                    }),
+            }
+          : {}),
+      });
     },
   },
 
@@ -1059,7 +1478,7 @@ const tools: Tool[] = [
   {
     name: 'listBrands',
     description:
-      'List the brands recorded on ACTIVE products, with how many products carry each brand, its categories, and a few product names. Use for "what brands do we carry", "which detergent brands do we have", or "is brand X available". Brand is optional: a product with no recorded brand is not counted, and an empty result means no brand is recorded for that filter, not that the business stocks no brands. Stock is not included; use searchProducts and getProduct or getInventory to check a brand’s stock levels.',
+      'List the brands recorded on ACTIVE products, with how many products carry each brand, its categories, and a few product names. Use for "what brands do we carry", "which detergent brands do we have", or "is brand X available". When asked what brands the business carries, report every brand in `items`; do not omit one because it has few products. Brand is optional: a product with no recorded brand is not counted, and an empty result means no brand is recorded for that filter, not that the business stocks no brands. Stock is not included; use searchProducts and getProduct or getInventory to check a brand’s stock levels.',
     permission: PERMISSIONS.PRODUCTS_VIEW,
     defaultLimit: 20,
     parameters: {
@@ -1106,7 +1525,7 @@ const tools: Tool[] = [
   {
     name: 'researchInventoryProducts',
     description:
-      'Research live web sources about products already recorded in this business. Pass one to eight product ids returned by findProducts or searchProducts — the tool loads those rows itself and searches only their recorded names and brands, so it cannot research a brand the business does not have. Use this AFTER finding the inventory products, when the member asks for quality, reliability, affordability, reviews or a brand recommendation. Returns sourced findings and source URLs; a finding may summarize search-result snippets when a full review summary was unavailable, so say when the evidence is only a snippet. Research is external evidence, not inventory data: recommend only the subjects listed, cite the returned sources, and never add a product or brand that appears only in a source. It does not check or change stock. If it reports available:false, answer from inventory facts only and say the web evidence was unavailable.',
+      'Research live web sources about products already recorded in this business. Pass one to eight product ids returned by findProducts or searchProducts — the tool loads those rows itself and searches only their recorded names and brands, so it cannot research a brand the business does not have. Use this AFTER finding the inventory products, when the member asks for quality, reliability, affordability, reviews, a brand recommendation, the specifications of a recorded product, or whether a newer model, generation or replacement exists and what changed (use focus "specifications" for that last group — it searches the manufacturer’s own pages first). Returns sourced findings and source URLs; a finding may summarize search-result snippets when a full review summary was unavailable, so say when the evidence is only a snippet. Research is external evidence, not inventory data: recommend only the subjects listed, cite the returned sources, and never add a product or brand that appears only in a source. A subject with no finding means no evidence was found, not that the thing does not exist — say which. It does not check or change stock. If it reports available:false, answer from inventory facts only and say the web evidence was unavailable.',
     permission: PERMISSIONS.PRODUCTS_VIEW,
     parameters: {
       type: 'object',
@@ -1120,8 +1539,9 @@ const tools: Tool[] = [
         },
         focus: {
           type: 'string',
-          enum: ['overall', 'quality', 'affordability', 'reliability'],
-          description: 'What to research. Defaults to overall.',
+          enum: ['overall', 'quality', 'affordability', 'reliability', 'specifications'],
+          description:
+            'What to research. "specifications" covers recorded specs, the newest model or generation of the line, and what changed — use it when the member is updating a product record. Defaults to overall.',
         },
       },
     },
@@ -1170,15 +1590,112 @@ const tools: Tool[] = [
           category:
             dto.category && typeof dto.category.name === 'string' ? dto.category.name : null,
           sellingPrice: typeof dto.sellingPrice === 'number' ? dto.sellingPrice : null,
+          currency: dto.currency ?? null,
           unit: dto.unit,
+          specifications: dto.specifications,
         };
       });
       const focus =
-        args.focus === 'quality' || args.focus === 'affordability' || args.focus === 'reliability'
+        args.focus === 'quality' ||
+        args.focus === 'affordability' ||
+        args.focus === 'reliability' ||
+        args.focus === 'specifications'
           ? args.focus
           : ('overall' as ResearchFocus);
 
       const research = await researchInventoryWeb({ subjects, focus });
+      return { ...research, subjects };
+    },
+  },
+
+  // ---------------------------------------------------------------------------
+  // AI-49 — MARKET PRICES, WITH THE CITATION AS THE ONLY SOURCE OF A NUMBER.
+  //
+  // The review tool asks a model to summarise quality. A price cannot be accepted
+  // that way: a model can write a plausible number that no page showed. This tool
+  // ignores the model's prose and reads the cited page text, so every returned
+  // price is a string the source displayed. It also takes product IDs only, which
+  // keeps an outside model or brand out of the search and out of the answer.
+  // ---------------------------------------------------------------------------
+  {
+    name: 'researchMarketPrices',
+    description:
+      'Compare current online retail prices for up to three products already recorded in this business. Pass product ids returned by findProducts or searchProducts; the tool loads those rows itself, so it cannot price a product the business does not have. It uses free keyless public search and public result pages by default, with no OpenRouter search spend, and reads retailers such as Shopee, Lazada, Amazon, official brand stores and local shops whenever they appear in the results. It returns only prices visible on a cited page or in a search-result snippet: each listing carries the exact price text, marketplace, source URL, retrieval time, evidence kind and a short snippet. `searchedQueries` shows the exact queries that ran and `checkedMarketplaces` shows only the retailers actually present in the sources, so describe the search from those fields rather than assuming a marketplace was covered. When the member names a shop or site ("check rkgamingstore.com", "what does Shopee charge?"), pass it in `stores` — each named store is then asked directly, and `storeChecks` reports per store whether its pages were reached and whether any of them showed a price. The recorded selling price remains separate in `subjects`. Online prices are external evidence, not inventory prices; it does not change stock or prices, convert currency or add shipping. If no price is verified, it reports available:false with the reason and the names of the products it could not price, instead of estimating.',
+    permission: PERMISSIONS.PRODUCTS_VIEW,
+    parameters: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['productIds'],
+      properties: {
+        productIds: {
+          type: 'string',
+          maxLength: 120,
+          description: 'Comma-separated product ids from findProducts or searchProducts (1 to 3). The tool resolves each id in this business and refuses missing or archived products.',
+        },
+        stores: {
+          type: 'string',
+          maxLength: 160,
+          description:
+            'Comma-separated shops the member named, 1 to 3, as a domain (rkgamingstore.com) or a name (Shopee). Only add what the member actually named, never a shop you chose yourself. Omit it for an open "what do stores charge" question.',
+        },
+      },
+    },
+    async executor(ctx: ToolContext, args: ResearchPricesArgs) {
+      const ids = [
+        ...new Set(
+          String(args.productIds ?? '')
+            .split(',')
+            .map((id) => id.trim())
+            .filter(Boolean),
+        ),
+      ];
+      const unavailable = (message: string) => ({
+        available: false,
+        reason: 'PRODUCTS_NOT_AVAILABLE',
+        message,
+        listings: [],
+        sources: [],
+        subjects: [],
+        checkedMarketplaces: [],
+        searchedQueries: [],
+        targetedMarketplaces: [],
+        retrievedAt: new Date().toISOString(),
+        note: MARKET_PRICE_NOTE,
+      });
+
+      if (ids.length === 0 || ids.length > 3) {
+        return unavailable('Pass between one and three product ids returned by findProducts.');
+      }
+      if (!ids.every((id) => /^[0-9a-fA-F]{24}$/.test(id))) {
+        return unavailable('One or more product ids are not valid. Use ids returned by findProducts.');
+      }
+
+      const docs = await Promise.all(
+        ids.map((id) => productService.getByIdentifier(ctx.businessId, { id })),
+      );
+      if (docs.some((doc) => !doc || doc.status !== 'ACTIVE')) {
+        return unavailable(
+          'One or more selected products are missing, archived, or belong to another business. Use findProducts again and select ACTIVE products from its results.',
+        );
+      }
+
+      const subjects: PriceSubject[] = docs.map((doc) => {
+        const dto = productService.toProductDTO(doc!);
+        return {
+          id: dto.id,
+          name: String(dto.name),
+          brand: dto.brand,
+          sellingPrice: typeof dto.sellingPrice === 'number' ? dto.sellingPrice : null,
+          currency: dto.currency ?? null,
+          unit: dto.unit,
+        };
+      });
+      const stores = String(args.stores ?? '')
+        .split(',')
+        .map((store) => store.trim())
+        .filter(Boolean)
+        .slice(0, 3);
+      const research = await researchMarketPrices({ subjects, stores });
       return { ...research, subjects };
     },
   },

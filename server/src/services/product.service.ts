@@ -33,9 +33,11 @@ type ProductDTOsource = {
   sku?: string | null;
   barcode?: string | null;
   description?: string | null;
+  specifications?: string | null;
   categoryId?: unknown;
   costPrice?: number | null;
   sellingPrice?: number | null;
+  currency?: string | null;
   unit?: string | null;
   minimumStock?: number | null;
   imageUrl?: string | null;
@@ -57,9 +59,11 @@ type ProductWritePayload = {
   sku?: string;
   barcode?: string;
   description?: string;
+  specifications?: string;
   categoryId?: string;
   costPrice?: number;
   sellingPrice?: number;
+  currency?: string;
   unit?: string;
   minimumStock?: number;
   imageUrl?: string;
@@ -77,11 +81,15 @@ type ProductListFilters = {
   includeDescription?: boolean;
   status?: string;
   categoryId?: string;
+  /** Catalogue discovery price ceiling: only products priced BELOW this amount. */
+  maxSellingPrice?: number;
   locationId?: string;
   lowStock?: boolean;
   outOfStock?: boolean;
   inStockOnly?: boolean;
   withStock?: boolean;
+  /** AI-71 — product ids to leave out, so a dead-stock read can filter in the database. */
+  excludeIds?: string[];
   skip: number;
   limit: number;
 };
@@ -121,7 +129,7 @@ function textSearchOr({
     .filter((value): value is string => Boolean(value));
   if (values.length === 0) return null;
   const fields = includeDescription
-    ? (['name', 'brand', 'description', 'sku', 'barcode'] as const)
+    ? (['name', 'brand', 'description', 'specifications', 'sku', 'barcode'] as const)
     : (['name', 'brand', 'sku', 'barcode'] as const);
   return values.flatMap((value) => {
     const re = { $regex: escapeRegExp(value), $options: 'i' };
@@ -183,9 +191,11 @@ function toProductDTO(doc: ProductDTOsource) {
     sku: doc.sku ?? null,
     barcode: doc.barcode ?? null,
     description: doc.description ?? null,
+    specifications: doc.specifications ?? null,
     category,
     costPrice: doc.costPrice ?? 0,
     sellingPrice: doc.sellingPrice ?? 0,
+    currency: doc.currency ?? null,
     unit: doc.unit ?? null,
     minimumStock: doc.minimumStock ?? 0,
     imageUrl: doc.imageUrl ?? null,
@@ -430,9 +440,11 @@ export const productService = {
       sku: payload.sku,
       barcode: payload.barcode,
       description: payload.description,
+      specifications: payload.specifications,
       categoryId: payload.categoryId,
       costPrice: payload.costPrice ?? 0,
       sellingPrice: payload.sellingPrice ?? 0,
+      currency: payload.currency,
       unit: payload.unit,
       minimumStock: payload.minimumStock ?? 0,
       imageUrl: payload.imageUrl,
@@ -532,8 +544,10 @@ export const productService = {
     apply('sku', payload.sku);
     apply('barcode', payload.barcode);
     apply('description', payload.description);
+    apply('specifications', payload.specifications);
     apply('costPrice', payload.costPrice);
     apply('sellingPrice', payload.sellingPrice);
+    apply('currency', payload.currency);
     apply('unit', payload.unit);
     apply('minimumStock', payload.minimumStock);
     apply('imageUrl', payload.imageUrl);
@@ -677,11 +691,25 @@ export const productService = {
   /** Plain catalog list + search (name/sku/barcode) + category/status filters. */
   async listSimple(
     businessId: IdLike,
-    { q, terms, includeDescription, status, categoryId, skip, limit }: ProductListFilters
+    {
+      q,
+      terms,
+      includeDescription,
+      status,
+      categoryId,
+      maxSellingPrice,
+      excludeIds,
+      skip,
+      limit,
+    }: ProductListFilters
   ) {
     const filter: Record<string, unknown> = { businessId };
     if (status === 'ACTIVE' || status === 'ARCHIVED') filter.status = status;
     if (categoryId) filter.categoryId = new ObjectId(categoryId);
+    if (maxSellingPrice !== undefined) filter.sellingPrice = { $lt: maxSellingPrice };
+    // AI-71 — "which products never sold" must be answered by the database, not by a page
+    // compared against another page: the exclusion set is every product that HAS moved.
+    if (excludeIds?.length) filter._id = { $nin: excludeIds.map((id) => new ObjectId(id)) };
     const textOr = textSearchOr({ q, terms, includeDescription });
     if (textOr) filter.$or = textOr;
     const total = await Product.countDocuments(filter);
@@ -712,10 +740,12 @@ export const productService = {
       includeDescription,
       status,
       categoryId,
+      maxSellingPrice,
       locationId,
       lowStock,
       outOfStock,
       inStockOnly,
+      excludeIds,
       skip,
       limit,
     }: ProductListFilters
@@ -725,6 +755,10 @@ export const productService = {
     const match: Record<string, unknown> = { businessId: bizOid };
     if (status === 'ACTIVE' || status === 'ARCHIVED') match.status = status;
     if (categoryId) match.categoryId = new ObjectId(categoryId);
+    if (maxSellingPrice !== undefined) match.sellingPrice = { $lt: maxSellingPrice };
+    // AI-71 — same exclusion as `listSimple`, applied before the stock merge so the page
+    // window only ever counts products that have not moved.
+    if (excludeIds?.length) match._id = { $nin: excludeIds.map((id) => new ObjectId(id)) };
     const textOr = textSearchOr({ q, terms, includeDescription });
     if (textOr) match.$or = textOr;
 
@@ -843,6 +877,92 @@ export const productService = {
   },
 
   /**
+   * Stock value at the RECORDED selling price: for each active product, its available
+   * quantity (summed across locations, the same figure every stock read uses) times its
+   * sellingPrice. Products with no recorded price are counted apart rather than valued
+   * at zero, so a missing price cannot make a product look worthless. Ranked by value.
+   *
+   * AI-59: `locationId` narrows both the quantity and the product set to one location, and
+   * `categoryId` narrows the catalogue side, so "what is this shelf worth" or "what are our
+   * keyboards worth" is one computed figure instead of arithmetic the model performs on rows.
+   */
+  async stockValue(
+    businessId: IdLike,
+    {
+      limit = 10,
+      locationId,
+      categoryId,
+    }: { limit?: number; locationId?: string; categoryId?: string } = {}
+  ) {
+    const bizOid = new ObjectId(businessId);
+    // AI-59 — the same valuation, narrowed to one location or one category. Both sides of
+    // the read take the same filter, so the quantity and the price are always describing
+    // the same set of products.
+    const productMatch: Record<string, unknown> = { businessId: bizOid, status: 'ACTIVE' };
+    if (categoryId) productMatch.categoryId = new ObjectId(categoryId);
+    // The availability merge carries only identity and stock scalars, so the price,
+    // name and SKU are read from the catalogue itself. Both reads are business-scoped.
+    const [stock, products] = await Promise.all([
+      Product.aggregate(
+        [{ $match: productMatch }, ...availabilityIdStages(bizOid, locationId)],
+        { allowDiskUse: true }
+      ),
+      Product.find(productMatch).select({ name: 1, sku: 1, sellingPrice: 1 }).lean(),
+    ]);
+    const byId = new Map(products.map((doc) => [String(doc._id), doc as Record<string, unknown>]));
+
+    let totalValue = 0;
+    let unitsOnHand = 0;
+    let productsCounted = 0;
+    let unpricedProducts = 0;
+    let unpricedUnits = 0;
+    const valued: Array<{ id: string; name: unknown; sku: unknown; sellingPrice: number; availableQuantity: number; value: number }> = [];
+    for (const row of stock) {
+      const doc = byId.get(String(row._id));
+      if (!doc) continue;
+      const units = Math.max(Number(row.available) || 0, 0);
+      const price = typeof doc.sellingPrice === 'number' ? doc.sellingPrice : 0;
+      // AI-59 — a location-scoped read is about what that place holds, so a product with
+      // nothing there is not "counted". The merge returns every ACTIVE product for the
+      // location (zero when it has no row there), and counting those would report a shelf
+      // as holding the whole catalogue. Business-wide keeps the original meaning: every
+      // active product is counted, which is the figure the member was shown before.
+      if (locationId && units <= 0) continue;
+      productsCounted += 1;
+      unitsOnHand += units;
+      if (price > 0) {
+        const value = price * units;
+        totalValue += value;
+        if (units > 0) {
+          valued.push({
+            id: String(row._id),
+            name: doc.name,
+            sku: doc.sku ?? null,
+            sellingPrice: price,
+            availableQuantity: units,
+            value,
+          });
+        }
+      } else {
+        unpricedProducts += 1;
+        unpricedUnits += units;
+      }
+    }
+    valued.sort((a, b) => b.value - a.value || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+
+    return {
+      totalValue,
+      productsCounted,
+      unitsOnHand,
+      unpricedProducts,
+      unpricedUnits,
+      topByValue: valued.slice(0, limit),
+      // Echoed so an answer can say exactly what it is describing ("at Main Warehouse").
+      scope: locationId || categoryId ? { locationId: locationId ?? null, categoryId: categoryId ?? null } : null,
+    };
+  },
+
+  /**
    * One read for "what does the catalogue contain?": active-product and category
    * counts, plus how much of the optional brand/description data is actually
    * recorded. It deliberately returns no stock, price or quality field — those
@@ -951,12 +1071,14 @@ export const productService = {
           categoryIds: { $addToSet: '$categoryId' },
           minPrice: { $min: '$sellingPrice' },
           maxPrice: { $max: '$sellingPrice' },
+          currencies: { $addToSet: '$currency' },
           sampleProducts: {
             $push: {
               id: '$_id',
               name: '$name',
               unit: '$unit',
               sellingPrice: '$sellingPrice',
+              currency: '$currency',
               description: '$description',
             },
           },
@@ -975,6 +1097,7 @@ export const productService = {
                 categoryIds: 1,
                 minPrice: 1,
                 maxPrice: 1,
+                currencies: 1,
                 sampleProducts: { $slice: ['$sampleProducts', 3] },
               },
             },
@@ -989,14 +1112,69 @@ export const productService = {
       categoryIds?: unknown[];
       minPrice?: unknown;
       maxPrice?: unknown;
+      currencies?: unknown[];
       sampleProducts?: Array<{
         id?: unknown;
         name?: unknown;
         unit?: unknown;
         sellingPrice?: unknown;
+        currency?: unknown;
         description?: unknown;
       }>;
     }>;
+
+    /**
+     * A brand can hold products in several currencies once `currency` is recorded,
+     * and a single min/max across them would state a price range in no currency at
+     * all. Mixed brands get one range per currency instead.
+     */
+    const currenciesOf = (row: (typeof rows)[number]) =>
+      new Set(
+        (row.currencies ?? []).filter(
+          (code): code is string => typeof code === 'string' && /^[A-Z]{3}$/.test(code),
+        ),
+      );
+    const mixedBrands = rows
+      .filter((row) => currenciesOf(row).size > 1)
+      .map((row) => String(row.brand));
+    const rangesByBrand = new Map<string, Array<{ currency: string; min: number | null; max: number | null }>>();
+    if (mixedBrands.length > 0) {
+      const perCurrency = await Product.aggregate([
+        {
+          $match: {
+            businessId: bizOid,
+            status: 'ACTIVE',
+            brand: { $in: mixedBrands },
+          },
+        },
+        {
+          $group: {
+            _id: { brand: '$brand', currency: '$currency' },
+            min: { $min: '$sellingPrice' },
+            max: { $max: '$sellingPrice' },
+          },
+        },
+        { $sort: { '_id.currency': 1 } },
+      ]);
+      for (const row of perCurrency as Array<{
+        _id?: { brand?: unknown; currency?: unknown };
+        min?: unknown;
+        max?: unknown;
+      }>) {
+        const brand = String(row._id?.brand ?? '');
+        if (!brand) continue;
+        const bucket = rangesByBrand.get(brand) ?? [];
+        bucket.push({
+          currency:
+            typeof row._id?.currency === 'string' && /^[A-Z]{3}$/.test(row._id.currency)
+              ? row._id.currency
+              : 'UNRECORDED',
+          min: typeof row.min === 'number' ? row.min : null,
+          max: typeof row.max === 'number' ? row.max : null,
+        });
+        rangesByBrand.set(brand, bucket);
+      }
+    }
     const categoryIds = rows
       .flatMap((row) => row.categoryIds ?? [])
       .filter(Boolean)
@@ -1008,33 +1186,45 @@ export const productService = {
 
     return {
       total: Number(result?.metadata?.[0]?.total ?? 0),
-      items: rows.map((row) => ({
-        brand: String(row.brand),
-        productCount: Number(row.productCount ?? 0),
-        categories: (row.categoryIds ?? [])
-          .map((id) => categoryNames.get(String(id)))
-          .filter((name): name is string => Boolean(name)),
-        priceRange: {
-          min: typeof row.minPrice === 'number' ? row.minPrice : null,
-          max: typeof row.maxPrice === 'number' ? row.maxPrice : null,
-        },
-        sampleProducts: (row.sampleProducts ?? []).map((product) => {
-          const description = typeof product.description === 'string' ? product.description : null;
-          return {
-            id: String(product.id),
-            name: String(product.name),
-            unit: product.unit ?? null,
-            sellingPrice: product.sellingPrice ?? 0,
+      items: rows.map((row) => {
+        const brand = String(row.brand);
+        const currencies = currenciesOf(row);
+        const mixed = currencies.size > 1;
+        return {
+          brand,
+          productCount: Number(row.productCount ?? 0),
+          categories: (row.categoryIds ?? [])
+            .map((id) => categoryNames.get(String(id)))
+            .filter((name): name is string => Boolean(name)),
+          priceRange: {
+            min: mixed ? null : typeof row.minPrice === 'number' ? row.minPrice : null,
+            max: mixed ? null : typeof row.maxPrice === 'number' ? row.maxPrice : null,
+            currency: mixed ? null : ([...currencies][0] ?? null),
+            ...(mixed ? { mixedCurrency: true } : {}),
+          },
+          ...(mixed ? { priceRanges: rangesByBrand.get(brand) ?? [] } : {}),
+          sampleProducts: (row.sampleProducts ?? []).map((product) => {
+            const description = typeof product.description === 'string' ? product.description : null;
+            return {
+              id: String(product.id),
+              name: String(product.name),
+              unit: product.unit ?? null,
+              sellingPrice: product.sellingPrice ?? 0,
+              currency:
+                typeof product.currency === 'string' && /^[A-Z]{3}$/.test(product.currency)
+                  ? product.currency
+                  : null,
             // A brand page is a comparison page, so the recorded description travels
             // with each sample. Shortened for the same reason list rows are: three
             // descriptions must not push the brand rows out through the tool cap.
-            description:
-              description && description.length > BRAND_DESCRIPTION_MAX
-                ? `${description.slice(0, BRAND_DESCRIPTION_MAX - 1)}…`
-                : description,
-          };
-        }),
-      })),
+              description:
+                description && description.length > BRAND_DESCRIPTION_MAX
+                  ? `${description.slice(0, BRAND_DESCRIPTION_MAX - 1)}…`
+                  : description,
+            };
+          }),
+        };
+      }),
     };
   },
 
@@ -1046,11 +1236,13 @@ export const productService = {
       includeDescription,
       status,
       categoryId,
+      maxSellingPrice,
       locationId,
       lowStock,
       outOfStock,
       inStockOnly,
       withStock,
+      excludeIds,
       skip,
       limit,
     } = query;
@@ -1062,15 +1254,27 @@ export const productService = {
         includeDescription,
         status,
         categoryId,
+        maxSellingPrice,
         locationId,
         lowStock,
         outOfStock,
         inStockOnly,
+        excludeIds,
         skip,
         limit,
       });
     }
-    return this.listSimple(businessId, { q, terms, includeDescription, status, categoryId, skip, limit });
+    return this.listSimple(businessId, {
+      q,
+      terms,
+      includeDescription,
+      status,
+      categoryId,
+      maxSellingPrice,
+      excludeIds,
+      skip,
+      limit,
+    });
   },
 };
 

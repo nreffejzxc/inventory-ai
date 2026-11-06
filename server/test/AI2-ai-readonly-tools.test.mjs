@@ -61,6 +61,8 @@ const READ_ONLY_SERVICE_CALLS = new Set([
   'productService.brandSummary',
   // AI-46: one aggregate read for catalogue contents and coverage, no write path.
   'productService.catalogOverview',
+  // AI-57: stock value at the recorded selling price — one aggregate read.
+  'productService.stockValue',
   'inventoryService.listRows',
   // AI-23: the per-location breakdown is one aggregate read over inventory rows — the same
   // class as the dashboard summary above, and named here explicitly so adding it was a
@@ -68,6 +70,8 @@ const READ_ONLY_SERVICE_CALLS = new Set([
   'inventoryService.locationBreakdown',
   'dashboardService.summary',
   'transactionsService.list',
+  // AI-68: the scoped totals aggregation behind "sold this week" counts.
+  'transactionsService.totals',
   // AI-42: the transfer statistics are one aggregate read over the same history rows —
   // it exists so the assistant's count stays logical when a pair spans the page edge.
   'transactionsService.transferStats',

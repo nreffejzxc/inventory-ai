@@ -117,7 +117,7 @@ async function turnCapturingLogs(scenario, { fallback = FALLBACK, deadlineMs, en
       businessId: 'b-dummy',
       userId: 'u-dummy',
       role: ROLES.OWNER,
-      message: 'how much stock do we hold?',
+      message: 'say hello in one sentence',
     });
   } catch (err) {
     error = err;
@@ -173,11 +173,11 @@ unitSuite('AI-29 model failover (DB-free)', () => {
     const { result, error, costLines, failoverLines } = await turnCapturingLogs((ctx) => {
       seen.push(ctx.model);
       if (seen.length === 1) throw upstream(404);
-      return fakeText('Recovered: 200 products, 32 low.');
+      return fakeText('Recovered from the fallback.');
     });
 
     assert.equal(error, null, 'a broken primary must not fail the turn');
-    assert.equal(result.content, 'Recovered: 200 products, 32 low.');
+    assert.equal(result.content, 'Recovered from the fallback.');
     // The FIRST call carries NO override: the provider's configured model is the source of
     // truth and an override would be a second place a model is chosen. The RETRY is the one
     // request that names a model explicitly, because it is the one request that must not use
@@ -345,13 +345,13 @@ unitSuite('AI-29 model failover (DB-free)', () => {
       (ctx) => {
         seen.push(ctx.model);
         if (seen.length < 3) throw upstream(404);
-        return fakeText('Third model answered: 200 products.');
+        return fakeText('Third model answered.');
       },
       { fallback: `${FALLBACK},${FALLBACK_2}` },
     );
 
     assert.equal(error, null);
-    assert.equal(result.content, 'Third model answered: 200 products.');
+    assert.equal(result.content, 'Third model answered.');
     assert.deepEqual(seen, [undefined, FALLBACK, FALLBACK_2], 'candidates are tried in the configured order');
     assert.equal(failoverLines.length, 2, 'one line per attempt, so the walk is readable afterwards');
     // Each line names the model the attempt came FROM. The second line must name the
@@ -730,16 +730,16 @@ dbSuite('AI-29 failover over the real route', dbOk, () => {
     setFakeScenario(() => {
       calls += 1;
       if (calls === 1) throw upstream(404);
-      return fakeText('You have 12 products.');
+      return fakeText('You are welcome.');
     });
 
     try {
       const res = await api('POST', '/api/ai/chat', {
         token: owner.token,
-        body: { message: 'how many products do we have?' },
+        body: { message: 'say hello in one sentence' },
       });
       assert.equal(res.status, 201, 'the member sees an ordinary answer, not an outage');
-      assert.equal(res.json.assistantMessage.content, 'You have 12 products.');
+      assert.equal(res.json.assistantMessage.content, 'You are welcome.');
       assert.equal(calls, 2);
     } finally {
       delete process.env.AI_FALLBACK_MODELS_OPENROUTER;
@@ -758,7 +758,7 @@ dbSuite('AI-29 failover over the real route', dbOk, () => {
     try {
       const res = await api('POST', '/api/ai/chat', {
         token: owner.token,
-        body: { message: 'how many products do we have?' },
+        body: { message: 'say hello in one sentence' },
       });
       assert.equal(res.status, 429);
       assert.equal(res.json.code, 'AI_QUOTA_EXCEEDED');

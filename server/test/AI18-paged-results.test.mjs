@@ -40,6 +40,7 @@ const PAGED_TOOLS = [
   'getReorderNeededProducts',
   'getInventoryHistory',
   'getProductsByLocation',
+  'getProductsNeverSold',
   'listLocations',
   'listCategories',
   'listBrands',
@@ -79,7 +80,9 @@ unitSuite('AI-18 the page marker cannot be dropped, and the prompt explains it',
     // Nine lists, nine `page(` calls. A new list tool added without one fails here rather
     // than on the next device run.
     const calls = TOOLS_SOURCE.match(/return page\(/g) ?? [];
-    assert.equal(calls.length, PAGED_TOOLS.length, `expected ${PAGED_TOOLS.length} paged returns, found ${calls.length}`);
+    // getInventory has two page paths (a catalogue search and a product's stock rows), so
+    // the source has one more paged return than there are distinct list tools.
+    assert.equal(calls.length, PAGED_TOOLS.length + 1, `expected ${PAGED_TOOLS.length + 1} paged returns, found ${calls.length}`);
     for (const name of PAGED_TOOLS) {
       assert.ok(aiToolsById.has(name), `${name} is no longer in the tool table`);
     }

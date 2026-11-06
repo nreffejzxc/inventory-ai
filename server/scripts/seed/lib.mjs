@@ -27,25 +27,22 @@ import Supplier from '../../src/models/supplier.model.ts';
 import User from '../../src/models/user.model.ts';
 import { MAX_BARCODE_ATTEMPTS, internalEan13Candidates } from '../../src/utils/internalBarcode.ts';
 import { SeedSafetyError } from '../perf/lib.mjs';
+import { CATALOG_CATEGORIES, catalogProductAt } from './catalog.mjs';
 import { assertSeedFirebaseProject } from './guard.mjs';
 
 const LOCATION_NAMES = [
   'Main Warehouse', 'Shop Front', 'Overflow Store', 'Cold Room', 'Returns Bay', 'Transit Hub',
 ];
 const CATEGORY_NAMES = [
+  ...CATALOG_CATEGORIES.map((category) => category.name),
   'Beverages', 'Snacks', 'Household', 'Personal Care', 'Stationery', 'Hardware',
   'Electrical', 'Kitchen', 'Pet Supplies', 'Toys', 'Clothing', 'Garden',
   'Automotive', 'Baby', 'Sports', 'Office', 'Cleaning', 'Seasonal',
   'Bakery', 'Frozen', 'Dairy', 'Produce', 'Butcher', 'Deli',
 ];
-const UNITS = ['pcs', 'box', 'pack', 'kg', 'L'];
 const ADJECTIVES = [
   'Premium', 'Classic', 'Compact', 'Heavy Duty', 'Everyday', 'Deluxe', 'Eco',
   'Professional', 'Mini', 'Ultra', 'Value', 'Pro',
-];
-const NOUNS = [
-  'Kettle', 'Notebook', 'Detergent', 'Torch', 'Cable', 'Mug', 'Tape', 'Battery',
-  'Brush', 'Gloves', 'Lamp', 'Bottle', 'Padlock', 'Sponge', 'Clips', 'Towel',
 ];
 const SUPPLIER_SUFFIX = ['Supplies', 'Trading', 'Distributors', 'Wholesale', 'Industries'];
 const PO_STATUSES = ['DRAFT', 'OPEN', 'RECEIVED', 'CANCELED'];
@@ -477,9 +474,20 @@ export function codeFields(mode) {
  * `--codes=` is also the only way to reach the `seed:three` preset: it has no entry list, so it
  * cannot say `codes=` per account, and before this the boolean was the only lever it had.
  *
+ * `defaultMode` preserves a command's own existing default. `seed:accounts` uses `none`, while
+ * `seed --plan=demo` has always written both fields and keeps `both`; the flag itself means the
+ * same four choices in both commands. The value is validated here so an internal typo cannot
+ * quietly select an unsupported mode.
+ *
  * Pure and throwing, like the entry parser, so every refusal is assertable without a process.
  */
-export function parseRunwideCodes(argv = [], { flag = '--codes' } = {}) {
+export function parseRunwideCodes(argv = [], { flag = '--codes', defaultMode = 'none' } = {}) {
+  if (!CODE_MODES.includes(defaultMode)) {
+    throw new SeedSafetyError(
+      `the internal default for ${flag} is "${String(defaultMode)}", not one of ` +
+        `${CODE_MODES.join(', ')}. Nothing was written.`,
+    );
+  }
   if (argv.includes('--include-sku')) {
     throw new SeedSafetyError(
       '--include-sku is gone. Pass --codes=both for the same thing, or --codes=sku / ' +
@@ -500,7 +508,7 @@ export function parseRunwideCodes(argv = [], { flag = '--codes' } = {}) {
           'Nothing was written.',
       );
     }
-    return 'none';
+    return defaultMode;
   }
 
   const written = hits[0].slice(prefix.length).trim();
@@ -1033,17 +1041,26 @@ export async function seedTenant({
     const available = low
       ? (rand() < 0.4 ? 0 : intBetween(rand, 1, minimumStock))
       : Math.round(minimumStock * (1.5 + rand() * 8));
+    // A curated real product, not an adjective + noun + index. Large runs cycle
+    // the catalogue because their purpose is scale; every row still has a real
+    // brand, description and specification for the assistant to read.
+    const template = catalogProductAt(i);
+    const categoryIndex = CATEGORY_NAMES.indexOf(
+      CATALOG_CATEGORIES.find((category) => category.key === template.category)?.name ?? '',
+    );
     const doc = {
       // Pre-generated so the EAN-13 barcode can be derived from the product's own id, exactly
       // as `POST /api/products/:id/generate-barcode` derives it.
       _id: new mongoose.Types.ObjectId(),
       businessId: business,
-      name: `${pick(rand, ADJECTIVES)} ${pick(rand, NOUNS)} ${10000 + i}`,
-      description: `Seeded row ${i} for AI scale testing`,
-      categoryId: categories[i % categories.length]._id,
-      costPrice: Number((1 + rand() * 40).toFixed(2)),
-      sellingPrice: Number((2 + rand() * 80).toFixed(2)),
-      unit: pick(rand, UNITS),
+      name: template.name,
+      brand: template.brand,
+      description: template.description,
+      specifications: template.specifications,
+      categoryId: categories[(categoryIndex >= 0 ? categoryIndex : i) % categories.length]._id,
+      costPrice: template.costPrice,
+      sellingPrice: template.sellingPrice,
+      unit: template.unit,
       minimumStock,
       status: 'ACTIVE',
       _availableTotal: available,

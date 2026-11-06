@@ -40,9 +40,10 @@ async function ok(name, args, ctx) {
 unitSuite('AI-44 brands are a recorded field', () => {
   it('★ the prompt sends brand questions to listBrands and distinguishes a missing brand', () => {
     const prompt = systemPrompt();
-    assert.match(prompt, /Brand is an optional recorded field/i);
-    assert.match(prompt, /when the member asks for a brand and it is null, say plainly that no brand is recorded for that product/i);
+    assert.match(prompt, /Brand and specifications are optional recorded fields/i);
+    assert.match(prompt, /when the member asks for a fact and it is null, say plainly that it is not recorded for that product/i);
     assert.match(prompt, /call listBrands/i);
+    assert.match(prompt, /name EVERY brand in the result/i);
     assert.match(prompt, /no brand is recorded for that filter/i);
   });
 
@@ -50,6 +51,7 @@ unitSuite('AI-44 brands are a recorded field', () => {
     const tool = aiToolsById.get('listBrands');
     assert.ok(tool, 'listBrands is missing from the tool table');
     assert.match(tool.description, /recorded on ACTIVE products/i);
+    assert.match(tool.description, /report every brand in `items`/i);
     assert.match(tool.description, /an empty result means no brand is recorded/i);
     assert.match(tool.description, /Stock is not included/i);
     assert.equal(tool.permission, 'products.view');
@@ -134,7 +136,7 @@ dbSuite('AI-44 recorded brands are searchable and summarised', dbOk, () => {
       [oilId, filterId].sort()
     );
     assert.ok(result.items.every((row) => row.brand === 'ZZ Oil'));
-    assert.match(result.note, /Brand is an optional recorded field/i);
+    assert.match(result.note, /Brand and specifications are optional recorded fields/i);
   });
 
   it('★ listBrands aggregates the brand, its products and its category', async () => {
@@ -145,7 +147,7 @@ dbSuite('AI-44 recorded brands are searchable and summarised', dbOk, () => {
     assert.equal(row.brand, 'ZZ Oil');
     assert.equal(row.productCount, 2);
     assert.deepEqual(row.categories, [categoryName]);
-    assert.deepEqual(row.priceRange, { min: 8, max: 12.5 });
+    assert.deepEqual(row.priceRange, { min: 8, max: 12.5, currency: null });
     assert.equal(row.sampleProducts.length, 2);
     assert.ok(row.sampleProducts.every((product) => product.name));
     assert.ok(row.sampleProducts.some((product) => /API SN 10W-40/.test(product.description)));

@@ -71,6 +71,7 @@ function useResearch(overrides = {}) {
     withEnv('AI_MODEL_OPENROUTER', overrides.model ?? 'stub/tool-model'),
     withEnv('AI_WEB_RESEARCH_MODEL', overrides.researchModel ?? 'stub/research-model'),
     withEnv('AI_WEB_SEARCH_URL', `http://127.0.0.1:${stubPort}/ddg`),
+    withEnv('AI_ALLOW_PAID_WEB_SEARCH', 'true'),
   );
 }
 
@@ -276,6 +277,24 @@ unitSuite('AI-47 research is inventory-bound and source-backed', () => {
     assert.deepEqual(result.findings, []);
   });
 
+  it('★ paid search disabled uses the free result fallback without a provider call', async () => {
+    useResearch();
+    pendingRestores.push(withEnv('AI_ALLOW_PAID_WEB_SEARCH', 'false'));
+    // AI-52 — the fallback only keeps results that name the recorded subject, so the
+    // fixture title is what a real result list returns for this query rather than
+    // 'Free review', which names nothing and is now dropped as unrelated.
+    fallbackHtml =
+      '<a rel="nofollow" class="result__a" href="//duckduckgo.com/l/?uddg=https%3A%2F%2Fexample.com%2Ffree-review&amp;rut=x">Ridgeline Trail Lamp review</a>';
+
+    const oneBrand = [{ ...subjects[0], id: 'free-only', name: 'Ridgeline Trail Lamp', brand: 'Ridgeline' }];
+    const result = await researchInventoryWeb({ subjects: oneBrand });
+
+    assert.equal(requests.length, 0, 'the paid OpenRouter plugin must not be called');
+    assert.equal(fallbackRequests.length, 1, 'the free result-list fallback is used');
+    assert.equal(result.available, true);
+    assert.equal(result.sources[0].url, 'https://example.com/free-review');
+  });
+
   it('★ a spent search allowance falls back to sourced snippets, never a guess', async () => {
     useResearch();
     responder = () => ({ status: 402, json: { error: { message: 'credits' } } });
@@ -285,7 +304,10 @@ unitSuite('AI-47 research is inventory-bound and source-backed', () => {
     ].join('');
     const result = await researchInventoryWeb({ subjects });
     assert.equal(result.available, true);
-    assert.equal(result.findings[0].name, 'Ridgeline');
+    // AI-51: a group holding one recorded product is keyed to that product, so a
+    // brand-level snippet can never be read as evidence for a sibling model.
+    assert.equal(result.findings[0].name, 'Ridgeline Trail Lamp');
+    assert.equal(result.findings[0].kind, 'product');
     assert.equal(result.sources[0].url, 'https://example.com/field-review');
     assert.match(result.sources[0].snippet, /durable switch and a fair price/i);
     assert.match(result.findings[0].finding, /source snippets, not independently verified/i);

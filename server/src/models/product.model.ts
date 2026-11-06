@@ -33,6 +33,10 @@ const productSchema = new Schema(
       type: String,
       trim: true,
     },
+    specifications: {
+      type: String,
+      trim: true,
+    },
     categoryId: {
       type: Schema.Types.ObjectId,
       ref: 'Category',
@@ -46,6 +50,15 @@ const productSchema = new Schema(
       type: Number,
       min: [0, 'sellingPrice cannot be negative'],
       default: 0,
+    },
+    // ISO-4217 code of the prices above (e.g. PHP, USD). Null means the currency was never
+    // recorded, which is different from a currency the assistant may guess at.
+    currency: {
+      type: String,
+      trim: true,
+      uppercase: true,
+      match: [/^[A-Z]{3}$/, 'currency must be a 3-letter ISO code'],
+      default: null,
     },
     unit: {
       type: String,

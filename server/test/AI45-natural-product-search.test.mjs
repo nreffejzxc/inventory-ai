@@ -71,6 +71,8 @@ dbSuite('AI-45 natural product discovery', dbOk, () => {
   let oilId;
   let brakeId;
   let coolantId;
+  let ssdId;
+  let exactCeilingId;
 
   before(async () => {
     A = await registerOwner(api, tracker);
@@ -126,9 +128,32 @@ dbSuite('AI-45 natural product discovery', dbOk, () => {
     });
     coolantId = coolant.id;
 
+    const ssd = await makeProduct({
+      name: uniqueName('Samsung Portable SSD T7 Shield 1TB'),
+      brand: 'Samsung',
+      categoryId: category.json.id,
+      description: 'Portable SSD for travel and fieldwork',
+      sellingPrice: 6990,
+      unit: 'pcs',
+      minimumStock: 1,
+    });
+    ssdId = ssd.id;
+
+    const exactCeiling = await makeProduct({
+      name: uniqueName('Acme Service Kit'),
+      brand: 'Acme',
+      categoryId: category.json.id,
+      description: 'Workshop service consumables',
+      sellingPrice: 5000,
+      unit: 'kit',
+      minimumStock: 1,
+    });
+    exactCeilingId = exactCeiling.id;
+
     for (const [productId, quantity] of [
       [oilId, 10],
       [coolantId, 5],
+      [ssdId, 1],
     ]) {
       const stocked = await api('POST', '/api/inventory/stock-in', {
         token: A.token,
@@ -180,6 +205,22 @@ dbSuite('AI-45 natural product discovery', dbOk, () => {
     );
     assert.equal(stocked.count, 1);
     assert.equal(stocked.items[0].id, coolantId);
+  });
+
+  it('★ a multiword phrase falls back to its significant words', async () => {
+    const result = await ok('findProducts', { keywords: 'portable SSD travel' }, ctxOf(A));
+    assert.equal(result.count, 1);
+    assert.equal(result.items[0].id, ssdId);
+    assert.equal(result.expandedTerms, true);
+  });
+
+  it('★ a price threshold is a filter, not a literal search phrase', async () => {
+    const result = await ok('findProducts', { keywords: 'products under 5000' }, ctxOf(A));
+    assert.ok(result.count > 0);
+    assert.ok(result.items.some((row) => row.id === oilId));
+    assert.ok(result.items.every((row) => row.sellingPrice < 5000));
+    assert.equal(result.items.some((row) => row.id === exactCeilingId), false);
+    assert.equal(result.maxSellingPrice, 5000);
   });
 
   it('★ a no-match page states the limit of the search instead of inventing a product', async () => {

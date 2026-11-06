@@ -24,6 +24,7 @@ const SUGGESTIONS = [
   'Is anything out of stock?',
   'How much stock do we hold?',
   'What has moved recently?',
+  'What do our keyboards cost online?',
 ];
 
 /** The error fields this module reads. Narrowed at the untrusted boundary. */
@@ -381,7 +382,8 @@ function Welcome({ onAsk }: { onAsk: (text: string) => void }) {
       <Text style={styles.welcomeTitle}>Ask about your inventory</Text>
       <Text style={styles.welcomeBody}>
         I can read your catalog and stock to answer questions about low stock, out-of-stock items and recent
-        movements. I&apos;m read-only — I can&apos;t change products or stock.
+        movements. I can also search the public web for reviews, specifications and current online prices,
+        quoting only the sources I actually read. I&apos;m read-only — I can&apos;t change products or stock.
       </Text>
       <View style={styles.suggestions}>
         {SUGGESTIONS.map((s) => (
@@ -543,7 +545,19 @@ export default function AiChat({ conversationId = null }: AiChatProps) {
         res = await aiApi.chatStream(
           token as string,
           { conversationId: convId, message },
-          { signal: controller.signal, onDelta },
+          {
+            signal: controller.signal,
+            onDelta,
+            // AI-74 — the server threw away what it streamed (a draft it re-asks for, or an
+            // answer a guard rewrote). Clear the bubble instead of leaving the replaced version
+            // above the replacement; `streamed` is cleared too, because nothing the member is
+            // still reading was discarded — so a later transport failure may fall back and the
+            // optimistic question may be withdrawn, exactly as if no text had arrived.
+            onReset: () => {
+              streamed = '';
+              setStreamingText('');
+            },
+          },
         );
       } catch (streamErr) {
         // A stop or an ended session is final on both paths; so is any failure that arrived

@@ -56,6 +56,19 @@ describe('a pipe may be data', () => {
   });
 });
 
+describe('backslash-escaped markers render as the literal character', () => {
+  it('a \\* footnote marker shows as * with no backslash on the screen', async () => {
+    expect(stripMarkdown('Price is ₱6,000.00\\*')).toBe('Price is ₱6,000.00*');
+    expect(parseInline('Price is ₱6,000.00\\*').map((s) => s.text).join('')).toBe(
+      'Price is ₱6,000.00*',
+    );
+  });
+
+  it('an escaped star never opens emphasis', async () => {
+    expect(stripMarkdown('\\*not bold\\* here')).toBe('*not bold* here');
+  });
+});
+
 describe('strikethrough is a marker like any other', () => {
   it('★ paired tildes are removed, so no marker reaches the screen', async () => {
     expect(stripMarkdown('~~old~~ new')).toBe('old new');
@@ -109,5 +122,51 @@ describe("a truncated answer's dangling opener is not punctuation on the screen"
     // `(?=\S)` is the reason: an opener has content after it, and guessing here would be markup removal by
     // hope rather than by rule.
     expect(stripMarkdown('** a')).toBe('** a');
+  });
+});
+
+/**
+ * 4. **A source link reached the screen as its own markup** (2026-11-04, on the phone).
+ *
+ * The research tools quote where a fact came from, so their answers arrive with `[Keychron Philippines product
+ * page](https://keychron.ph/…)` and, from some models, the bare autolink `<https://techpickstream.com/…>`. The
+ * device run showed both literally — brackets, angle brackets and the URL — inside the bubble, which left the one
+ * thing that makes a researched price checkable (its source) unusable. They now parse into a span carrying
+ * `href`, which the renderer opens with `Linking`.
+ *
+ * Only `http(s)` is a link: research output never needs another scheme, and treating one as tappable is how a
+ * rendered answer could be made to run an intent. Anything else stays the text the model wrote.
+ */
+describe('a quoted source is a link, not markup', () => {
+  it('★ the measured answer — a labelled link — keeps its label and carries its address', async () => {
+    const [link] = parseInline('[Kechron Philippines product page](https://keychron.ph/products/keychron-k8-pro) (public-page source)');
+
+    expect(link).toEqual({ text: 'Kechron Philippines product page', href: 'https://keychron.ph/products/keychron-k8-pro' });
+    expect(stripMarkdown('[Kechron Philippines](https://keychron.ph/x)')).toBe('[Kechron Philippines](https://keychron.ph/x)');
+  });
+
+  it('★ an autolink becomes the bare address', async () => {
+    expect(parseInline('<https://techpickstream.com/general/how-good-is-the-keychron-k8-pro-keyboard>')).toEqual([
+      { text: 'https://techpickstream.com/general/how-good-is-the-keychron-k8-pro-keyboard', href: 'https://techpickstream.com/general/how-good-is-the-keychron-k8-pro-keyboard' },
+    ]);
+  });
+
+  it('a link inside a list item and a table cell is still a link', async () => {
+    const list = parseAssistantMarkdown('- ₱6,000.00 on [keychron.ph](https://keychron.ph/p)');
+    const item = (list[0] as Extract<Block, { kind: 'list' }>).items[0];
+    expect(item.spans.some((span) => span.href === 'https://keychron.ph/p')).toBe(true);
+
+    const table = tableOf('| Source | Price |\n| --- | --- |\n| [keychron.ph](https://keychron.ph/p) | 6000 |');
+    expect(table.rows[0][0][0]).toEqual({ text: 'keychron.ph', href: 'https://keychron.ph/p' });
+  });
+
+  it('only http(s) is a link; anything else stays the text it was', async () => {
+    expect(parseInline('[tap me](javascript:alert(1))')).toEqual([{ text: '[tap me](javascript:alert(1))' }]);
+    expect(parseInline('fewer than < 5 units')).toEqual([{ text: 'fewer than < 5 units' }]);
+  });
+
+  it('an unclosed label or address does not eat the rest of the line', async () => {
+    expect(parseInline('[Keychron PH](https://keychron.ph').map((span) => span.text)).toEqual(['[Keychron PH](https://keychron.ph']);
+    expect(parseInline('a [note] here').map((span) => span.text)).toEqual(['a [note] here']);
   });
 });

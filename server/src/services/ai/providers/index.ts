@@ -37,6 +37,21 @@ export interface ToolCall {
 }
 
 /**
+ * A reasoning block the provider returned, kept verbatim so it can be replayed.
+ *
+ * Mandatory-reasoning models bind tool calls to the reasoning that produced them; dropping these
+ * blocks between a tool call and its result makes the next round invalid. Optional fields are
+ * provider-specific: Anthropic-style thinking carries `thinking` + `signature`, while a redacted
+ * block carries opaque `data` instead.
+ */
+export interface ProviderThinkingBlock {
+  type: 'thinking' | 'redacted_thinking';
+  thinking?: string;
+  signature?: string;
+  data?: string;
+}
+
+/**
  * A tool as the model sees it, in the neutral shape the tool registry uses:
  * `parameters` is a JSON Schema object.
  */
@@ -55,6 +70,8 @@ export interface ProviderMessage {
   role: 'user' | 'assistant' | 'tool';
   content: string;
   toolCalls?: ToolCall[];
+  /** Reasoning blocks returned with this assistant turn, replayed before its tool calls. */
+  thinking?: ProviderThinkingBlock[];
   name?: string;
   toolCallId?: string;
 }
@@ -63,7 +80,12 @@ export interface ProviderMessage {
 export interface ProviderRequest {
   system: string;
   messages: ProviderMessage[];
-  tools: ToolDefinition[];
+  /**
+   * The tools this call may use. Optional because a turn's final round withholds them
+   * (AI-50) so the model answers from what it already gathered; absent and empty are
+   * both sent as "no tools", never as an empty tool list.
+   */
+  tools?: ToolDefinition[];
   /**
    * The model to call INSTEAD of the configured one (AI-29).
    *
@@ -116,6 +138,8 @@ export interface ProviderResponse {
   model: string;
   text: string;
   toolCalls: ToolCall[];
+  /** Raw reasoning blocks, present only when the provider returned them. */
+  thinking?: ProviderThinkingBlock[];
   usage: ProviderUsage | null;
   /**
    * AI-36 — the account allowance the response published, when it published one.

@@ -45,6 +45,32 @@ export interface ReleaseNote {
  */
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    id: '2026-11-06-assistant-catalogue-update',
+    date: '2026-11-06',
+    kind: 'improvement',
+    title: 'A sharper assistant and steadier stock movements',
+    summary:
+      'Ask for products by description, compare recorded brands and specifications, and get sourced web research — with movement forms that keep the product and location you chose.',
+    points: [
+      'Product search reads names, recorded brands and descriptions, not just exact titles.',
+      'Brand comparisons use recorded specifications and say when a fact is missing.',
+      'Web research lists its sources and only covers products in your inventory.',
+      'A stock-in link keeps its product and location, and an adjustment can be confirmed from the inventory row.',
+    ],
+  },
+  {
+    id: '2026-11-04-product-specifications',
+    date: '2026-11-04',
+    kind: 'improvement',
+    title: 'Record specifications your assistant can compare',
+    summary: 'Add recorded specifications to a product so Inventory AI can compare facts like battery life, size, or connectivity instead of guessing.',
+    points: [
+      'Specifications are optional and appear on the product detail screen.',
+      'Search and the assistant can find and compare recorded specifications.',
+      'If a fact is missing, the assistant says it is not recorded.',
+    ],
+  },
+  {
     id: '2026-11-03-web-research',
     date: '2026-11-03',
     kind: 'feature',

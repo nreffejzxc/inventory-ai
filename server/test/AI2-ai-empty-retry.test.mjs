@@ -66,7 +66,7 @@ async function askCounting(scenario) {
     businessId: 'b-dummy',
     userId: 'u-dummy',
     role: ROLES.OWNER,
-    message: 'how much stock do we hold?',
+    message: 'say hello in one sentence',
   });
   return { result, calls: seen.length };
 }
@@ -92,11 +92,11 @@ unitSuite('AI-2 empty-completion retry (DB-free)', () => {
     // THE headline behaviour. Before AI-2 this made ONE provider call and handed
     // the canned sentence to the user.
     const { result, calls } = await askCounting((_ctx, n) =>
-      n === 1 ? fakeText('') : fakeText('3 products are low on stock.'),
+      n === 1 ? fakeText('') : fakeText('here is the answer.'),
     );
 
     assert.equal(calls, 2, 'a content-less 200 must be retried exactly once');
-    assert.equal(result.content, '3 products are low on stock.', 'the retry\'s answer is the answer');
+    assert.equal(result.content, 'here is the answer.', 'the retry\'s answer is the answer');
     assert.equal(result.degraded, undefined, 'a retry that succeeded is not a degraded turn');
   });
 
