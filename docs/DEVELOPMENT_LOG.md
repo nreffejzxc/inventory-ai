@@ -50,7 +50,7 @@ see the documentation entries below. The auth checklist and account runbook now 
 decisions; Guides 9, 11, 12 and 13 keep their commands and safety rules, with the phrase matrix owned
 by Guide 10 and dated measurements removed; the auth architecture and checklist keep one invariant
 register and one status owner, with overlapping client-authority and email clauses narrowed to one row
-each. The AI-48–AI-84 work is recorded in §27HQ and §27HS, and the newest entry.
+each. The AI-48–AI-84 work is recorded in §27HQ and §27HS.
 
 | | |
 | --- | --- |
