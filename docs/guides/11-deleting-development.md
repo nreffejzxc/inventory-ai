@@ -48,18 +48,7 @@ pick one for you. The rest are one tenant each.
 
 ### The phrase each command uses
 
-| Command | `CLEANUP_CONFIRM` |
-|---|---|
-| `cleanup -- --target=database` | `cleanup:database` |
-| `cleanup -- --target=firebase` | `cleanup:firebase` ([Guide 13](13-firebase-identities.md)) |
-| `cleanup:demo` | `cleanup:demo-account` |
-| `cleanup:perf-tenant` | `cleanup:perf-tenant` |
-| `cleanup:demo-tenant` | `cleanup:demo-tenant` |
-| `cleanup:roles` | `cleanup:roles` |
-| `cleanup:three` | `cleanup-three-accounts` |
-| `cleanup:account` | `cleanup-account-data` |
-| `cleanup:perf` | `seed-perf-ai` (its own guard, not the two/three-phrase rule) |
-
+Each command's own phrase is in the one [phrase and safety matrix](10-seeding-production.md#phrase-and-safety-matrix).
 A phrase that belongs to a different command is refused, so `CLEANUP_CONFIRM=cleanup:database` cannot run
 `--target=firebase`.
 
@@ -185,9 +174,9 @@ before and after; the `READY` line and the products/documents counts must be ide
 ## What a delete does not free
 
 Documents go; the space their **indexes** were allocated does not. On the shared 512 MB M0 that residue is
-why a later re-seed can be refused for space even though every document is gone — the measurements and the
-reclaim are in [Guide 12 § The space a delete does not give back](12-deleting-production.md), and they apply
-to this database too.
+why a later re-seed can be refused for space even though every document is gone — the index residue and
+the reclaim are in [Guide 12 § The space a delete does not give back](12-deleting-production.md), and they
+apply to this database too.
 
 ---
 
@@ -195,7 +184,7 @@ to this database too.
 
 | Message | Do |
 |---|---|
-| `two confirmation phrase(s) are required` | export the command's **own** phrase from the table above — for example `cleanup-account-data`, not `cleanup:account` — and `CLEANUP_DB_CONFIRM=inventoryai_dev_db`; the refusal names the exact value it wanted |
+| `two confirmation phrase(s) are required` | export the command's **own** phrase from the [phrase matrix](10-seeding-production.md#phrase-and-safety-matrix) — for example `cleanup-account-data`, not `cleanup:account` — and `CLEANUP_DB_CONFIRM=inventoryai_dev_db`; the refusal names the exact value it wanted |
 | `three confirmation phrase(s) … CLEANUP_PROD_CONFIRM=DELETE-PRODUCTION-DATA` | the target is production — add the third phrase ([Guide 12](12-deleting-production.md)) |
 | `--database is "…" but this process resolved "…"` | set `MONGODB_DB_NAME` to match; do not retype the flag |
 | `MONGODB_URI names the database "…"` | the URI points the shell at another database; fix it before retrying |

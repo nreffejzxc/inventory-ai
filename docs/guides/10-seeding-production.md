@@ -64,7 +64,7 @@ allowed row of that family also needs.
 
 The first column names the outcome, not a command to copy. Every full invocation for a seeding row is in
 the sections below; the cleanup rows name their own phrase, and the destructive commands themselves are
-documented in [Guide 12](12-deleting-production.md) and [Guide 13](13-firebase-identities.md).
+documented in [Guide 11](11-deleting-development.md), [Guide 12](12-deleting-production.md) and [Guide 13](13-firebase-identities.md).
 
 **The other phrases every allowed row also needs.**
 

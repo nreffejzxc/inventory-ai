@@ -128,8 +128,7 @@ The link check is deliberately paranoid, because the alternative is unrecoverabl
 - **Both databases are read** — `inventoryai_dev_db` and `inventoryai_prod_db` — since one identity can
   be referenced twice.
 - **Both links are checked** — by `firebaseUid` **and** by the address. A uid goes stale whenever an
-  identity is deleted and re-created under the same address; measured 2026-10-26, all three development
-  rows held uids that no longer existed. `email` is unique, lower-cased, indexed, and is what
+  identity is deleted and re-created under the same address. `email` is unique, lower-cased, indexed, and is what
   registration collides on, so the address is what decides.
 - **One reference anywhere refuses everything.** A partial delete would leave the operator unsure which
   addresses are still usable.
