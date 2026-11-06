@@ -7,8 +7,9 @@ submission. **Nothing has been uploaded**; there is no Play Console access in th
 **The current blocker is the artifact.** Both existing AABs were built before 2026-10-24 20:56, when
 the in-app account-deletion screen landed, so their JavaScript contains none of its copy. Uploading
 either would answer Play's deletion requirement with a build where the feature does not exist. §1
-is the proof and must run on every future artifact. A new build needs the Free plan's Android build
-quota, which resets **2026-11-01**.
+is the proof and must run on every future artifact. The tree has since moved to **`1.0.2`**, so the next
+artifact is a fresh production build rather than an upload of either old AAB; the Android build quota
+is available again.
 
 ## 1. The artifact
 
@@ -23,7 +24,7 @@ quota, which resets **2026-11-01**.
 | Ads / analytics / billing | none in `package.json` |
 | Update channel | `production`, runtime `1.0.0` |
 | Embedded JavaScript | **predates account deletion — not uploadable** |
-| Next build | `versionName 1.0.1`, `versionCode` **6** — the tree moved to `1.0.1` on 2026-10-25 (SDK patch) and a quota-refused attempt already advanced the remote counter to 5, so 5 has no artifact. Incrementing it back would be a risk taken for cosmetics; Play only requires the number to rise |
+| Next build | `versionName 1.0.2`, `versionCode` **9** — remote is 8; `production-apk` builds the installable APK for the phone, `production` the Play AAB. Both share the `production` channel |
 
 `targetSdk 36` meets Play's rule that new apps and updates target Android 16 (API 36) from
 31 August 2026.

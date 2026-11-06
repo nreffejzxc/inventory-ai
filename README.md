@@ -146,23 +146,21 @@ binary. Full procedure, rollback and troubleshooting:
 - `.freebuff/`, `.claude/settings.local.json`, `.smoke/` and `.scratch/` are local-only.
 - CI runs `scripts/check-secrets.mjs` on every change; GitHub secret scanning and push protection
   are also enabled on this public repository.
-- Two Dependabot advisories remain on `mobile/package-lock.json` — `zod` (high) and `deepmerge`
-  (low) — and have **no safe upgrade**: neither reaches a shipped bundle and no patched release is
-  reachable inside its consumer's declared range. The third, `node-forge` (high), was fixed in the
-  lockfile on 2026-10-30 by an in-range bump to 1.4.2. `node scripts/check-upgrade-watches.mjs` is the
-  read-only report that says whether a gate has opened since; the reasoning is in
-  [`docs/SECURITY_DEPENDENCY_DECISIONS.md`](docs/SECURITY_DEPENDENCY_DECISIONS.md). Do not force
-  versions with `overrides`.
+- Dependency advisories are accepted only when documented. The accepted findings and the conditions
+  that end each acceptance are in
+  [`docs/SECURITY_DEPENDENCY_DECISIONS.md`](docs/SECURITY_DEPENDENCY_DECISIONS.md).
+  `node scripts/check-upgrade-watches.mjs` is the read-only report that says whether an upgrade gate has
+  opened since. Do not force versions with `overrides`.
 
 ## Documentation
 
 | Read this | For |
 | --- | --- |
+| [`docs/README.md`](docs/README.md) | the documentation map: guides, reference, records and current status |
 | [`docs/guides/`](docs/guides/README.md) | everyday tasks: run it, use the phone, test accounts, every command, OTA, Play submission |
 | [`docs/SYSTEM_SPECIFICATION.md`](docs/SYSTEM_SPECIFICATION.md) | what the system must do |
-| [`docs/DESIGN_SYSTEM.md`](docs/DESIGN_SYSTEM.md) | tokens, components, theme rules |
 | [`docs/AUTH_SECURITY_MASTER_CHECKLIST.md`](docs/AUTH_SECURITY_MASTER_CHECKLIST.md) | authentication and authorization guarantees |
-| [`docs/SECURITY_DEPENDENCY_DECISIONS.md`](docs/SECURITY_DEPENDENCY_DECISIONS.md) | accepted dependency advisories and why |
+| [`docs/DEVELOPMENT_LOG.md`](docs/DEVELOPMENT_LOG.md) | what is current, verified, blocked and next |
 | [`docs/DEVELOPMENT_ROADMAP.md`](docs/DEVELOPMENT_ROADMAP.md) | **the archive**: one dated record per increment |
 | [`docs/evidence/`](docs/evidence) | device and production measurements |
 

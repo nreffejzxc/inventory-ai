@@ -16,7 +16,7 @@ Inventory AI is a multi-tenant, AI-assisted inventory management system for Andr
 locations, stock movements, transfers, suppliers, purchase orders, a read-only AI assistant and an
 audit trail — one tenant per business, isolated by `businessId` at every layer.
 
-**V1 is complete and in production testing.** Mobile version `1.0.1`, runtime `1.0.1`, served by
+**V1 is complete and in production testing.** Mobile version `1.0.2`, runtime `1.0.2`, served by
 `https://ai-inventory-l1mi.onrender.com`. The production database holds test data only; there are no
 real customers yet, and the Play release has not been made.
 
@@ -42,7 +42,7 @@ TypeScript-first, **no build step**: the server runs its `.ts` sources through N
 stripping (`npm start` is `node src/index.ts`), so an older runtime cannot start it. `tsconfig.json`
 sets `noEmit` and `erasableSyntaxOnly`, so `tsc` is purely a checker and non-strippable syntax is a
 compile error rather than a runtime failure. `server/src` is **164** `.ts` modules (re-counted
-2026-11-03) and exactly one intentionally deferred `.js` module,
+2026-11-04) and exactly one intentionally deferred `.js` module,
 `server/src/services/entitlement.service.js`; `docs/TS-MIGRATION-MANIFEST.md` records the migration
 campaign.
 
@@ -559,6 +559,8 @@ anchor (`§27…`) in that file.
 - **§27HL** — A natural product question finishes (2026-11-03)
 - **§27HM** — What the catalogue contains, in one read (2026-11-03)
 - **§27HN** — Research the web, recommend only what the business stocks (2026-11-04)
+- **§27HO** — Recorded specifications, and a seed catalogue worth asking about (2026-11-04)
+- **§27HP** — Market prices from cited pages, and a faster research fan-out (2026-11-04)
 
 ---
 

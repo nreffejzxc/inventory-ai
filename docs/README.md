@@ -21,8 +21,7 @@ documents.
 | --- | --- |
 | [guides/README.md](guides/README.md) | Which guide do I need? |
 | [1-run-on-your-laptop.md](guides/1-run-on-your-laptop.md) | Starting the backend and the app, and proving they work |
-| [2-run-on-your-phone.md](guides/2-run-on-your-phone.md) | Getting the app onto a real Android phone |
-| [3-see-your-phone-on-your-laptop.md](guides/3-see-your-phone-on-your-laptop.md) | Mirroring the phone into a laptop window |
+| [2-run-on-your-phone.md](guides/2-run-on-your-phone.md) | Getting the app onto a real Android phone and mirroring it over USB |
 | [4-test-accounts-and-mock-data.md](guides/4-test-accounts-and-mock-data.md) | Which accounts exist, what data each one holds, and what the sample data contains |
 | [5-words-explained.md](guides/5-words-explained.md) | Glossary, A–Z |
 | [6-scripts-and-commands.md](guides/6-scripts-and-commands.md) | Every command that is not about data: start, check, measure, maintain |
@@ -33,7 +32,10 @@ documents.
 | [11-deleting-development.md](guides/11-deleting-development.md) | Taking data out of the development database: wipes and tenant cleanups, what is verified |
 | [12-deleting-production.md](guides/12-deleting-production.md) | Taking data out of the production database: the same rules, and the space a delete does not free |
 | [13-firebase-identities.md](guides/13-firebase-identities.md) | Which commands create logins, and how to delete one without locking an account out |
-| [14-command-runbook.md](guides/14-command-runbook.md) | Every complete development and production invocation in one sheet: seed, verify, clean up, back up |
+| [15-wireless-phone-session.md](guides/15-wireless-phone-session.md) | Starting the app and mirroring it over Wi-Fi, including the one-command helper |
+
+The numbered filenames are stable links. Guides 3 and 14 were consolidated into Guide 2, Guides 9–13 and
+Guide 6; no rule, command or safety procedure was removed.
 
 ## 2. What the system is — reference
 
@@ -79,6 +81,24 @@ today. When the two disagree, the roadmap's newest record is the evidence and th
 in a new entry.
 
 ---
+
+## Keeping this map true
+
+A change should update the document that owns the question, not every document that mentions it:
+
+| You changed | Update |
+| --- | --- |
+| A rule, API, data shape or user-visible behaviour | `SYSTEM_SPECIFICATION.md`, and the guide a reader follows for that task |
+| A command, script or CI job | Guide 6, plus the task guide that uses it |
+| The phone workflow | Guides 2 and 15; `DEVELOPING_ON_A_PHYSICAL_DEVICE.md` only for depth they do not carry |
+| Authentication, sessions or a security control | `AUTHENTICATION_AND_USER_VERIFICATION_TARGET_ARCHITECTURE.md` and `AUTH_SECURITY_MASTER_CHECKLIST.md` |
+| A release, OTA or store step | Guides 7 and 8 |
+| A decision with a trade-off | a dated `DEVELOPMENT_ROADMAP.md` record; `CLAUDE.md` only if it binds future work |
+| Anything finished, blocked or next | `DEVELOPMENT_LOG.md`, in the same session |
+
+The test for an edit: could a reader acting on this document be misled? If yes, fix it now. Delete a
+section when another document answers its question better; keep the **why** even when the code makes
+the **how** obvious.
 
 ## Two rules before you edit here
 

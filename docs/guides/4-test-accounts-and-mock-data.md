@@ -58,7 +58,7 @@ every command must name its database. The rule in full: [Guide 9](9-seeding-deve
 | **Your own address** | `seed --plan=demo` | one tenant sized by `--total` (default 80 000 documents) |
 | **A throwaway tester** (`tester-1@example.com`, …) | `seed --plan=demo` with a new address | its own separate tenant; a fresh address per tester |
 | **Three comparison accounts** | `npm run seed:three` (development) / `seed:accounts` (production) | development: the preset's 30 000 / 50 000 / 90 000 products (≈133 000 / 222 000 / 400 000 documents); production: the sizes you name per run — the current run holds 1 000 products (≈4 444 documents) for each, 13 332 documents in total |
-| **`demo-preview@example.invalid`** | `seed:demo-tenant` | the small fixed-figure demo tenant (6 products, 112 units) |
+| **`demo-preview@example.invalid`** | `seed:demo-tenant` | the small fixed-figure demo tenant (14 curated products, 136 units) |
 | **`role-owner@…` / `role-admin@…` / `role-manager@…` / `role-staff@…`** | `seed:roles` | one tenant, one working login per role, ~900 documents |
 | **`perf-seed-ai@example.invalid`** | `seed:perf-tenant` | a large measurement tenant you can sign into |
 | *no login* | `seed:perf` | a measurement tenant that cannot be signed into |
@@ -115,7 +115,7 @@ for what is actually stored.
 
 | Fixture | Shape |
 |---|---|
-| `seed:demo-tenant` | 6 products, 112 units, 3 locations, 9 ledger movements — every figure fixed and printed by the seeder |
+| `seed:demo-tenant` | 14 curated products, 136 units, 3 locations, 30 ledger movements — every figure fixed and printed by the seeder |
 | `seed:roles` | ~900 documents (≈200 products), four logins, one tenant |
 | `seed:perf` | `--size` **products** (1–200 000), deterministic SKUs `SEEDSKU-…`, no login |
 | `seed:perf-tenant` | `--size` **documents** (products ≈22 %), deterministic SKUs `SEEDSKU-…`, one OWNER login |

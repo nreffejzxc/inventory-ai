@@ -126,20 +126,13 @@ SEED_CONFIRM=seed-accounts SEED_DB_CONFIRM=inventoryai_dev_db \
     --accounts="a@x.com:100000,b@y.com:40000" --dry-run
 ```
 
-One account is the same command with a one-entry list; several are the comma-separated form above — there
-is no other shape.
-
-The same command with a different code choice per account — preview first, then the identical line without
-`--dry-run`:
+One account is the same command with a one-entry list. A mixed run sets a different count and code
+mode per entry; preview first, then drop `--dry-run` to write:
 
 ```bash
 SEED_CONFIRM=seed-accounts SEED_DB_CONFIRM=inventoryai_dev_db \
   npm run seed:accounts -- --database=inventoryai_dev_db \
     --accounts="a@x.com:1000:codes=both,b@y.com:2000:codes=none,c@z.com:3000:codes=sku" --dry-run
-
-SEED_CONFIRM=seed-accounts SEED_DB_CONFIRM=inventoryai_dev_db \
-  npm run seed:accounts -- --database=inventoryai_dev_db \
-    --accounts="a@x.com:1000:codes=both,b@y.com:2000:codes=none,c@z.com:3000:codes=sku"
 ```
 
 - **A size is PRODUCTS**, and every entry needs one:
@@ -193,6 +186,11 @@ SEED_CONFIRM=seed-demo-account SEED_DB_CONFIRM=inventoryai_dev_db \
 `--total=80000` is the default (range **100–400 000**, in **documents**); `--seed=1` makes the data identical
 every run. `--email=` must be the address you sign in with — the tenant is found through the Firebase UID.
 Expect `OK` and `TOTAL 80000 (target 80000)`.
+
+`--codes=both` is the default for this command, so products carry a readable SKU and a valid EAN-13.
+Use `--codes=none` for neither field, `--codes=sku` for SKU only, or `--codes=barcode` for barcode only.
+The flag means the same four things as the per-account `codes=` field; only the default differs
+(`seed:accounts` defaults to `none`). The line above can take `--codes=barcode` beside `--total=80000`.
 
 For a brand-new address the login is created; supply its password through a setting, never on the command
 line:
@@ -258,12 +256,12 @@ Sign in as `demo-preview@example.invalid` (owner `Demo Tester`). Every figure is
 
 | | |
 |---|---|
-| Products | **6** active, 5 with stock (Demo Desk Lamp has no inventory row) |
-| On hand | **112 units** |
-| Locations | **Demo Warehouse 75** (4 products) · **Demo Shop 30** (2) · **Demo Van 7** (1) |
-| Health | 3 healthy · 3 at/below minimum · **1 out of stock** |
-| Restock | Demo Desk Lamp (0 vs min 3) · Demo Coffee Beans 1kg (4 vs 10) · Demo Paper Cups 100pk (15 vs 20) |
-| Ledger | 9 movements, each ending at the figures above |
+| Products | **14** active, 13 with stock (ASUS ROG Strix Flare II Animate has no inventory row) |
+| On hand | **136 units** |
+| Locations | **Demo Warehouse 99** (12 products) · **Demo Shop 30** (8) · **Demo Van 7** (2) |
+| Health | 9 in stock · 5 at/below minimum (**1 out of stock**) |
+| Restock | ASUS ROG Strix Flare II Animate (0 vs min 3) · Keychron K8 Pro (6 vs 6) · Logitech MX Master 3S (4 vs 5) · Dell UltraSharp U2723QE (2 vs 2) · Elgato Stream Deck MK.2 (2 vs 3) |
+| Ledger | 30 movements, each ending at the figures above |
 
 The seeder prints these figures itself; compare them with the screen. Teardown is `cleanup:demo-tenant`
 ([Guide 11](11-deleting-development.md)), which keeps the Firebase identity.
@@ -287,7 +285,8 @@ DEMO_ACCOUNT_PASSWORD='choose-a-password' SEED_CONFIRM=seed:perf-tenant \
 - It follows the **same two/three-phrase rule** as everything above; the production form is in
   [Guide 10](10-seeding-production.md).
 - `--size` is **documents**, 50–400 000, default 4 000; products land at ≈22 %. Deterministic (`--seed`,
-  default 1). SKUs are `SEEDSKU-…`.
+  default 1). SKUs are `SEEDSKU-…`; names, brands, descriptions and specifications come from the curated
+  catalogue.
 - It creates a verified OWNER login (`perf-seed-ai@example.invalid`) in that tenant only, and refreshes its
   password from `DEMO_ACCOUNT_PASSWORD` when that variable is supplied.
 - Re-counts every collection, re-checks every movement's arithmetic and requires its anchor before saying
@@ -307,32 +306,19 @@ SEED_CONFIRM=seed-perf-ai npm run cleanup:perf
 ```
 
 Named `PERF SEED — AI assistant stress test (do not use)`, **no Firebase identity**, so it cannot be signed
-into. It prints the `businessId` the query measurements need. Development only: its guard refuses production
+into. Products cycle the curated catalogue, so the stress tenant carries real brands, descriptions and
+specifications. It prints the `businessId` the query measurements need. Development only: its guard refuses production
 outright. `cleanup:perf` proves `0 remaining` and says `nothing to clean` when there was nothing.
 
 ---
 
 ## Dry run — plan without writing
 
-Add `--dry-run` to any plan. The target and all phrases are still checked; nothing is connected to and
-nothing is written, so it is the safe way to prove a command before running it for real.
-
-Every seeder previews, and each preview stops before its first write:
-
-| Command | What the preview reports |
-|---|---|
-| `seed --plan=…` | the plan, the target and the phrase count — **no connection is opened** |
-| `seed:three` / `seed:accounts` | the products **and** the documents each entry will write — **no connection is opened** here (production adds the tenant each entry would reset) |
-| `seed:perf` | the size, the tenant and the fact that any previous seed tenant would be replaced — no connection |
-| `seed:perf-tenant` | whether the tenant would be created or replaced, and how many documents would be cleared |
-| `seed:demo-tenant` | whether the tenant would be created, attached or replaced, and how many documents would be cleared |
-
-The last two read the database to count (they need it to know what exists) and **never touch Firebase**; a
-real run is what creates or refreshes the login. Neither needs the password to preview.
-
-`--dry-run` is not a verification: it reports what *would* happen. Verification reads the rows back.
-
----
+Add `--dry-run` to any plan. The target and every required phrase are checked, the plan is printed, and
+nothing is written; a real run creates or refreshes identities. `seed --plan=…`, `seed:three`,
+`seed:accounts` and `seed:perf` preview without connecting. `seed:perf-tenant` and `seed:demo-tenant`
+read the database to count what they would replace, but never touch Firebase. `--dry-run` is not
+verification: verification reads the rows back.
 
 ## Verify — read-only, always
 
@@ -433,6 +419,12 @@ products). Every command prints both figures, so nothing has to be converted by 
 The dataset is deterministic (`--seed=1` by default), so two measurements describe the same tenant. Seed in
 the morning rather than mid-measurement: a run replaces the tenant's data, and the assistant would be
 measured against a half-written catalogue.
+
+**Every bulk seeder now writes real products.** `seed`, `seed:accounts`, `seed:three`, `seed:perf-tenant` and
+`seed:perf` cycle the curated catalogue in `server/scripts/seed/catalog.mjs` — 14 sourced products across four
+categories, each with a real name, brand, description and recorded specifications. Large runs repeat the
+catalogue rather than inventing rows, so a 90 000-product tenant still gives the assistant facts it can
+search and compare.
 
 **The cluster is shared.** Development and production live on the same 512 MB Atlas M0, so a full development
 copy of the three comparison accounts (~338 MB) on top of a full production one exceeds the ceiling, and an

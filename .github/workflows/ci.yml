@@ -23,7 +23,7 @@ name: ci
 #   * No path filters: the whole pipeline is a few minutes, and a filtered required
 #     check is the classic way to block merges with a check that never reports.
 #   * The third job, `secret-guard`, exists because GitHub's secret scanning and push
-#     protection are free only on PUBLIC repositories and this repository is private
+#     protection are free only on PUBLIC repositories and this repository is public
 #     (roadmap §27AE). `scripts/check-secrets.mjs` is dependency-free, so the job needs
 #     no install step and finishes in seconds. It is a net for the common shapes of a
 #     leaked credential, not a proof a commit is clean — see docs/SOURCE_PROTECTION.md.
@@ -247,6 +247,11 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
           cache-dependency-path: mobile/package-lock.json
+
+      # Dependency-free: no npm install, phone, backend or mirror. This runs on every PR and main push.
+      - name: Wireless helper self-test
+        working-directory: ${{ github.workspace }}
+        run: node scripts/device/wireless.mjs --self-test
 
       - name: Install dependencies
         run: npm ci

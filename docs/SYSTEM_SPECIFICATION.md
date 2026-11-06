@@ -1,6 +1,6 @@
 # Inventory AI — System Specification
 
-**Version:** 1.0 (this specification) · the shipped app is **1.0.1** · **Status:** implemented for
+**Version:** 1.0 (this specification) · the tree is **1.0.2**; the shipped production binary is **1.0.1** · **Status:** implemented for
 V1 — every behaviour below is live or marked as a non-goal · **Platforms:** Android + iOS (iOS is
 unverified: no macOS host) · **Architecture:** React Native + Expo + Node.js + Express + MongoDB Atlas
 
@@ -447,7 +447,7 @@ document, the plan catalogue is `server/src/constants/plans.ts`, and the entitle
 `server/src/services/entitlement.service.js`. Section 30 governs who may act inside the business.
 
 Subscription plans, billing and paid-plan enforcement are **not implemented** — they are deferred to
-V4 (see §48). The foundation above exists so that billing can be added to the tenant without
+V4 (see the retired-sections note below). The foundation above exists so that billing can be added to the tenant without
 re-keying ownership onto an identity.
 
 ---
@@ -2107,7 +2107,7 @@ revoke/preview/resolve), `routes/invitations.routes.ts` (the three `users.manage
 deletion and with the tenant on teardown. Mobile: `app/invite.tsx` (public preview), the invited shape
 of Create Account, and `app/(app)/users/invitations.tsx` (send, list, revoke) reached from Users.
 
-## Enforcement Guard
+## Enforcement Guard — the permission contract
 
 `server/test/phase22-authorization-contract.test.mjs` is a database-free suite
 that pins the contract above: the route→capability binding for each protected
@@ -2180,7 +2180,7 @@ the app offer an action the server refuses, and a grant present only in the mirr
 see an action it is permitted to perform. The server matrix is authoritative, and the mirror is
 updated to match it.
 
-## Enforcement Guard
+## Enforcement Guard — classification, mirror and error codes
 
 `server/test/phase23-authorization-contract.test.mjs` is the database-free suite that pins the three
 contracts above: the classification of every route with the exemption lists and their reasons, the
@@ -2415,7 +2415,7 @@ OPENROUTER_BASE_URL
 AI_MODEL_OPENROUTER
 ```
 
-## Firebase Authentication
+## Firebase Configuration
 
 Firebase credentials are **server-side only** and are never sent to the mobile application. Either
 the three separate values:
@@ -2636,549 +2636,27 @@ The specific image storage provider can be selected later.
 
 ---
 
-# 41. Testing Strategy
-
-Critical backend tests must cover:
-
-## Authentication
-
-- Register
-- Login
-- Invalid credentials
-- Protected routes
-
-## Authorization
-
-- OWNER permissions
-- ADMIN permissions
-- MANAGER permissions
-- STAFF permissions
-- Unauthorized actions
-
-## Business Isolation
-
-User from Business A must never access Business B data.
-
-## Products
-
-- Create
-- Read
-- Update
-- Archive
-- Search
-
-## Inventory
-
-- Stock in
-- Stock out
-- Adjustment
-- Insufficient stock
-- Quantity consistency
-- Transaction creation
-
-## Dashboard
-
-- Correct totals
-- Correct low-stock count
-- Correct out-of-stock count
-
-## AI
-
-- Authentication
-- Business isolation
-- Tool authorization
-- Read-only restrictions
-- Correct database-derived answers
-- Provider wire mapping against a **local HTTP stub**: the provider suites assert what Inventory AI
-  sends, and how it parses a reply, without ever contacting a live gateway, holding a gateway
-  credential or consuming provider credits. Live-endpoint behaviour is verified by production smoke
-  testing, not by the suite. See `docs/DEVELOPMENT_ROADMAP.md` §27S.
-
----
-
-# 42. Git Strategy
-
-Recommended branches:
-
-```text
-main
-develop
-feature/*
-```
-
-Feature branches should be used for substantial features.
-
-Commit messages should clearly describe the change.
-
-Example:
-
-```text
-feat: add product model
-feat: implement stock in
-feat: add inventory history
-fix: prevent negative stock
-feat: add read-only AI inventory tools
-```
-
-Do not commit:
-
-```text
-.env
-API keys
-database credentials
-private certificates
-```
-
----
-
-# 43. Documentation
-
-The project should eventually contain:
-
-```text
-docs/
-├── SYSTEM_SPECIFICATION.md
-├── DATABASE_SPECIFICATION.md
-├── API_SPECIFICATION.md
-├── AI_SPECIFICATION.md
-├── MOBILE_SPECIFICATION.md
-├── SECURITY_SPECIFICATION.md
-└── DEVELOPMENT_ROADMAP.md
-```
-
-`SYSTEM_SPECIFICATION.md` is the primary source of truth.
-
-Other documents should provide deeper implementation details as the project grows.
-
----
-
-# 44. V1 Mobile Screens
-
-Recommended V1 screens:
-
-```text
-Splash
-Login
-Register
-
-Dashboard
-
-Products
-├── Product List
-├── Product Details
-├── Create Product
-└── Edit Product
-
-Categories
-
-Locations
-
-Inventory
-├── Inventory List
-├── Stock In
-└── Stock Out
-
-Inventory History
-
-AI Assistant
-
-Profile / Settings
-```
-
-Navigation should be designed so core inventory workflows require minimal interaction.
-
----
-
-# 45. V1 User Flow
-
-## Registration
-
-```text
-Register
- ↓
-Create Business
- ↓
-Create OWNER user
- ↓
-Login
- ↓
-Dashboard
-```
-
-## Product Setup
-
-```text
-Create Location
- ↓
-Create Category
- ↓
-Create Product
- ↓
-Assign inventory/location
-```
-
-## Stock-In
-
-```text
-Select Product
- ↓
-Select Location
- ↓
-Enter Quantity
- ↓
-Confirm
- ↓
-Update Inventory
- ↓
-Create Transaction
- ↓
-Create Audit Log
-```
-
-## Stock-Out
-
-```text
-Select Product
- ↓
-Select Location
- ↓
-Enter Quantity
- ↓
-Validate Available Quantity
- ↓
-Confirm
- ↓
-Update Inventory
- ↓
-Create Transaction
- ↓
-Create Audit Log
-```
-
----
-
-# 46. AI User Flow
-
-```text
-Open AI Assistant
- ↓
-Ask Question
- ↓
-Backend Authenticates User
- ↓
-AI Service
- ↓
-AI Determines Required Tool
- ↓
-Backend Executes Authorized Tool
- ↓
-Database Result
- ↓
-AI Generates Response
- ↓
-Display Response
-```
-
-Example:
-
-```text
-User:
-"What products are low in stock?"
-
-AI:
-"I found 5 products below their minimum stock level..."
-```
-
-The product list must originate from the database.
-
----
-
-# 47. V1 Scope Summary
-
-## Included
-
-```text
-Authentication
-User roles
-Business
-Locations
-Categories
-Products
-Inventory
-Stock In
-Stock Out
-Inventory Transactions
-Inventory History
-Dashboard
-Search
-Low Stock
-Out of Stock
-AI Assistant
-AI read-only tools
-Audit Logs
-Security
-Testing
-```
-
-## Excluded
-
-```text
-Payments
-Subscriptions
-Full Offline Sync
-Advanced AI Actions
-AI Forecasting
-RAG
-Vector Search
-Advanced Analytics
-Supplier Management
-Barcode Scanner
-Automated Purchasing
-```
-
----
-
-# 48. Future Roadmap
-
-## V2
-
-```text
-Push Notifications
-Advanced Reports
-Multiple Branch Improvements
-Document Upload
-RAG
-MongoDB Vector Search
-Improved AI Context
-Facebook Login (Firebase provider)
-```
-
-Firebase Authentication itself is **not** future work — it shipped in Phases 32B–32E as the identity
-provider (§29). **Google Sign-In is likewise no longer future work:** it shipped as a native provider
-(Phase C) and its existing-account Android flow is E2E verified, so it has been removed from the list
-above; only the new-identity `REGISTRATION_REQUIRED` path remains environment-blocked. The one provider
-entry that remains is Facebook, which is approved but unimplemented — it needs its own phase and is
-bound by §29's linking policy (no automatic linking on an email match) and by its open items (O-5), and
-**no Facebook provider SDK is installed**. **Apple Sign-In remains future scope** and is not scheduled.
-
-Shipped since this list was written, and therefore no longer future work: the barcode/QR scanner
-(Phases 12B–12D), supplier management (Phases 13A and 17) and stock transfers (Phase 19). They were
-removed from the list above by Phase 29 so that this roadmap states the remaining future scope rather
-than repeating delivered work; their implemented behaviour is specified in §13–§19 and §39. This
-reconciliation matches the equivalent note in `docs/DEVELOPMENT_ROADMAP.md` §35.
-
-## V3
-
-```text
-AI Forecasting
-Demand Prediction
-Purchase Recommendations
-Automated Stock Alerts
-Advanced Analytics
-AI-assisted Actions
-```
-
-AI write actions must require explicit confirmation before execution.
-
-## V4 — SaaS
-
-```text
-Multiple Businesses
-Subscription Plans
-Billing
-AI Usage Quotas
-Team Management
-Organization Settings
-SaaS Administration
-```
-
-A **shared rate-limit / shared-state store** is also deferred to V4 rather than to V1. The
-recovery-flooding exposure (B2) and the per-process limiter stores (E3) share one root cause and one
-remedy, so they are recorded as related shared-infrastructure work and deferred together by the Phase
-29 owner decision. Both remain **open**, V1 ships in-memory per-process limiters by decision, and no
-shared store is in scope. See `docs/DEVELOPMENT_ROADMAP.md` §27B for the risks and §27E for the
-decision.
-
----
-
-# 49. AI Cost Control
-
-AI usage must be treated as a potentially variable operational cost.
-
-The backend should eventually support:
-
-- Rate limits
-- Per-user limits
-- Per-business limits
-- Token/usage tracking
-- Provider fallback
-- Model selection
-- Error handling when AI quota is exhausted
-
-If AI is unavailable, the inventory application must continue operating normally.
-
----
-
-# 50. Deployment Architecture
-
-Initial deployment:
-
-```text
-React Native / Expo
-        │
-        ▼
-Android / iOS
-        │
-        ▼
-Production API
-        │
-        ▼
-Node.js / Express
-        │
-        ▼
-MongoDB Atlas
-        │
-        └──────► AI Provider
-```
-
-Production secrets must be configured through the hosting platform's environment configuration.
-
----
-
-# 51. Mobile App Distribution
-
-The application should eventually support:
-
-```text
-Android
-↓
-Google Play Store
-
-iOS
-↓
-Apple App Store
-```
-
-The project should use a build and submission workflow appropriate for Expo/EAS.
-
-Store requirements must be handled before production release, including:
-
-- App icon
-- Splash screen
-- App metadata
-- Screenshots
-- Privacy policy
-- Terms where appropriate
-- Data disclosure
-- Support information
-- App versioning
-- Production testing
-
----
-
-# 52. Observability
-
-Production should eventually include:
-
-- Error monitoring
-- Crash reporting
-- API logs
-- Performance monitoring
-- AI usage monitoring
-- Authentication/security monitoring
-
-The application should avoid logging sensitive information.
-
----
-
-# 53. Backup and Recovery
-
-MongoDB production data must have an appropriate backup strategy.
-
-The project should define:
-
-- Backup frequency
-- Retention
-- Recovery process
-- Disaster recovery expectations
-
-Database backup configuration must not be treated as optional for a production application.
-
----
-
-# 54. Acceptance Criteria
-
-V1 is considered functionally complete when the following workflow works end-to-end:
-
-1. A user can register.
-2. A business is created.
-3. The user becomes OWNER.
-4. The user can log in.
-5. The user can create a location.
-6. The user can create a category.
-7. The user can create a product.
-8. The product can have inventory at a location.
-9. Stock-in increases inventory.
-10. Stock-in creates an inventory transaction.
-11. Stock-out decreases inventory.
-12. Stock-out creates an inventory transaction.
-13. Stock-out cannot exceed available inventory.
-14. Inventory history displays changes.
-15. Dashboard statistics update correctly.
-16. Low-stock detection works.
-17. Out-of-stock detection works.
-18. Product search works.
-19. Role permissions are enforced.
-20. Business isolation is enforced.
-21. AI can answer supported inventory questions.
-22. AI uses controlled backend tools.
-23. AI cannot directly access MongoDB.
-24. AI cannot modify inventory in V1.
-25. AI credentials remain server-side.
-26. Core inventory functions continue working when AI is unavailable.
-27. Critical backend tests pass.
-28. Production configuration does not expose secrets.
-29. Documentation accurately reflects the implementation.
-
----
-
-# 55. Development Principle
-
-The application should be developed incrementally.
-
-Do not attempt to build the entire system in one implementation step.
-
-Recommended sequence:
-
-```text
-Phase 00
-Planning & Inspection
-        ↓
-Phase 01
-Project Foundation
-        ↓
-Phase 02
-Backend + Database
-        ↓
-Phase 03
-Authentication + Authorization
-        ↓
-Phase 04
-Inventory Core
-        ↓
-Phase 05
-Mobile Application
-        ↓
-Phase 06
-AI Assistant
-        ↓
-Phase 07
-Testing + Production Hardening
-```
-
-Each phase must be implemented, tested, reviewed, and verified before moving to the next phase.
-
----
+# 41–55. Retired planning sections
+
+These fifteen sections were the original build plan: generic testing lists, branch strategy, proposed
+document types, V1 screen and flow sketches, a scope summary, the V2–V4 wish list, cost control,
+deployment and store boilerplate, observability, backup, acceptance criteria and the phase sequence.
+They were removed on 2026-11-06 because they described intentions rather than the system that exists,
+and several contradicted it: §47 excluded the barcode scanner that §39 records as shipped, §43
+proposed specification files that do not exist, and §49 listed AI cost controls as future work after
+they had shipped.
+
+| Question | Read |
+| --- | --- |
+| What must the system do? | the sections above this one |
+| How is it verified? | `server/test/` and the checks in `.github/workflows/ci.yml` |
+| How do I run, test or release it? | `docs/guides/` |
+| What shipped, with evidence? | `docs/DEVELOPMENT_ROADMAP.md` |
+| What is planned next? | `docs/DEVELOPMENT_LOG.md` |
+
+Dated records that cite §44 or §48 refer to this retired text, not to a current section. The two
+principles that still bind are §56 (the specification is the source of truth) and §57 (the backend,
+not the AI, owns business rules, permissions and inventory consistency).
 
 # 56. Source of Truth Rule
 

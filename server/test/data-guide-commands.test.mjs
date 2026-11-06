@@ -9,8 +9,8 @@
  * (`cleanup-target-guard.test.mjs` proves five removed scripts stay removed); nothing checked that the
  * guides and `package.json` still describe the same commands.
  *
- * WHAT IT MEASURES. For each data/identity guide and the command runbook, every `npm run <name>`
- * occurrence is compared with the `scripts` block of `server/package.json`. All six guides are run
+ * WHAT IT MEASURES. For each data/identity guide, every `npm run <name>` occurrence is compared with
+ * the `scripts` block of `server/package.json`. All five guides are run
  * from `server/`, so the server's manifest is the only one that can answer for them; the mobile guides
  * are deliberately out of scope,
  * because `npm run check:ota` and friends belong to `mobile/package.json` and a check against the
@@ -33,8 +33,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
 /**
- * The guides that run their commands from `server/` — the four data guides, the identity guide and the
- * command runbook. Guide 14 repeats invocations, never rules, but its commands must still be real.
+ * The guides that run their commands from `server/` — the four data guides and the identity guide.
  */
 const SERVER_GUIDES = [
   '9-seeding-development.md',
@@ -42,7 +41,6 @@ const SERVER_GUIDES = [
   '11-deleting-development.md',
   '12-deleting-production.md',
   '13-firebase-identities.md',
-  '14-command-runbook.md',
 ];
 
 /** The commands Guide 11 names as removed, so a guide cannot quietly re-adopt one. */
