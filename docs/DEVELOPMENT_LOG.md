@@ -40,16 +40,20 @@ at the end of every development session, newest entry first.
 
 ## Current position
 
-**Updated:** 2026-11-04
+**Updated:** 2026-11-06
 **Goal:** finish and harden Inventory AI **V1** through production testing. No Play Store or App
 Store release is being prepared.
 
+**Docs maintenance:** On 2026-11-06 the active guide set was consolidated, the device reference and
+the specification's obsolete planning tail were trimmed, and a documentation-link guard was added;
+see the documentation entries below. The functional work described in this position is unchanged.
+
 | | |
 | --- | --- |
-| **Working now** | Inventory AI **V1** is complete and in production testing. AI-47 inventory-only web research is merged and deployed at **`f0eefb5`**: the assistant can research recorded products and brands, with a keyless fallback, and now appends missing source URLs itself. The final AI-47 phone check is the only open verification: the last device run on `178cbe6` proved the inventory boundary and sourced snippets, but it did not show the links or the new **Web research** label. |
-| **Just verified** | PR #145 (`0278c28`), PR #146 (`178cbe6`) and PR #147 (`f0eefb5`) all passed the four required checks; run [41730904633](https://github.com/nreffejzxc/inventory-ai/actions/runs/41730904633) is the last. AI-47 is **12 unit + 3 DB** passing; server `tsc` and ESLint are clean. Production `/api/health` reports `f0eefb5`, database `connected`, **0** server errors. Preview OTA `1ac39b80-1b9b-44cc-86d7-2cea4ba80bf5` is published. |
-| **Blocked** | The final AI-47 phone check is blocked because the phone is absent from `adb devices` and Windows USB enumeration; restarting ADB did not restore it. The previously recorded GitHub contributor display residue and the one-location movement check remain unchanged. |
-| **Next after this** | Reconnect the phone, launch the app twice so OTA `1ac39b80` applies, confirm **Web research**, repeat the keyboard-brand question and capture the `Source URLs:` list. Then populate real brand/specification data and finish the one-location device check. TypeScript 7 remains issue #32. |
+| **Working now** | AI-49 is implemented locally: a read-only **researchMarketPrices** tool quotes only exact prices visible in cited page text, with marketplace, URL and retrieval time; prompt rules 23–24 cover price comparisons and broad value questions; research fan-out is bounded at three brand groups and two price products. The full unit suite passes **1,676** with **60** skips. OpenRouter Logs show **15 paid web-search rows at $0.007 ($0.105)**, all on free models; both research tools now use a keyless free path, and a live free price lookup found Keychron PH at **₱6,000.00**. `AI_ALLOW_PAID_WEB_SEARCH` now defaults false. No commit or deployment has been made. |
+| **Just verified** | AI-49 **13 unit + 2 DB**, AI-47 **13 unit + 3 DB**, focused docs/AI-49 checks **30 pass / 1 skip**; server `tsc`/ESLint clean. Live Q4 cited K8 Pro **₱5,195–₱5,895** and RK61 **₱1,995–₱2,369** in **59.8 s**, and stated no verified Shopee/Lazada/Amazon price; Q4 later fell to **47.5 s** after the payload trim; Q3 measured **60.0–67.1 s**, Q6 **49.1 s**. The installed phone preview lacks the new JS; Expo Go is blocked by native Firebase. |
+| **Blocked** | The deployed 60 s/1,200-token budget does not fit research-heavy turns (Q3 60.7 s, Q5 76.3 s); a second Q5 run hit the 120 s evaluation deadline after repeated research calls. Direct Shopee/Lazada/Amazon prices were not verifiable (Shopee 403/anti-bot, Lazada JSON-LD without price, Amazon price block empty). |
+| **Next after this** | Decide the operator turn budget/model for research turns; add a recorded currency field before treating recorded prices as a currency; then deploy only with authorization. |
 
 ### Open items carried forward
 
@@ -57,7 +61,7 @@ Store release is being prepared.
 | --- | --- | --- |
 | Single-location default, on a real device | Ready, phone pending | The production tenant `6ae6f1d8baa72cee39730240` now has exactly one ACTIVE location, and §27HF pins the late-arriving list for all three kinds; the visual check needs the owner to sign in on the phone |
 | AI-42 live answer | Resolved 2026-11-02 | `getInventoryHistory` folds a transfer into one `from`/`to` event; the server reports `1c1734b` and the phone answered **From: Main Warehouse, To: Shop Front**, 2 units, once — [evidence](evidence/ai42-transfer-2026-11-02/README.md) |
-| Brand and specification fields | Brand resolved; specifications still open | The product records an optional `brand` (max 80), and production now has three recorded brands (ROG, RAK Gears and Royal Kludge) covering three products. The assistant aggregates them with `listBrands`, and §27HN researches those recorded brands only; a missing brand is `null`, never inferred from a name. There is still no structured specification, rating or review field. |
+| Brand and specification fields | Resolved locally; not deployed | The product records an optional `brand` (max 80) and, since AI-48, an optional `specifications` string (max 1,000). Both seeders write real sourced rows; the assistant searches and researches specifications. Production still runs the pre-AI-48 schema until this change is deployed, and there is still no rating or review field. |
 | `glob` and `minimatch` advisories | Deferred, D-10 | Patched `14.0.2` / `11.0.1` are majors outside every consumer's range; re-check the gates in `SECURITY_DEPENDENCY_DECISIONS.md` §4 |
 | `zod` high advisory | Resolved 2026-11-02 | Cleared by `expo@58.0.22`; the nested `zod@3.25.76` is gone and the mobile audit reports **0 high** |
 | `deepmerge` low advisory | Deferred | No fix inside the consumer's declared range; do not force versions |
@@ -104,6 +108,110 @@ Known limits, checked before spending one of them:
   space that a backup or an index change would explain.
 - **Brevo** — used for verification codes, reset codes and invitations. Do not send test mail in
   bulk; a delivery failure is not a code regression until the provider log says so.
+
+---
+
+## 2026-11-06 — Data guides keep the commands, not the repeated proof
+
+| Item | Evidence |
+| --- | --- |
+| **Why** | Guide 9 printed three near-identical `seed:accounts` examples and a preview table whose rows repeated each command's section. Guide 12 restated Guide 11's verification reasoning and carried a dated per-collection cleanup measurement. |
+| **Development seeding** | `9-seeding-development.md` **512 → 481** lines. One mixed `seed:accounts` preview replaces three repeated examples; the dry-run section now states the one distinction that matters — which previews read, which only plan. Every command and safety rule remains. |
+| **Production deletion** | `12-deleting-production.md` **302 → 278** lines. The verification section keeps the read-back command and exit meanings, points to Guide 11 for the shared reasoning, and retains the witness check. The 2026-10-25 cleanup measurement is one line; the index-space measurements stay because Guide 12 owns them. |
+| **Verified** | Documentation guards **39/39** pass; `git diff --check` clean. No code, test or configuration change. |
+| **Not done** | No commit, push, deployment or production change. |
+
+---
+
+## 2026-11-06 — Wireless and production-seeding guides trimmed to current procedure
+
+| Item | Evidence |
+| --- | --- |
+| **Why** | Guide 15 repeated its manual procedure in a "short version" and carried a machine-specific snapshot table and dated timings. Guide 10 repeated Guide 9's verifier semantics and printed a verification example whose sizes (1,000 each) did not match the seed example (1,000 / 2,000 / 3,000). |
+| **Wireless guide** | `15-wireless-phone-session.md` **365 → 291** lines. Kept the one-command path, manual fallback, tunnel explanation, verification, stop behavior and wireless-specific failures. Removed the snapshot table, dated timings/excerpts and the duplicated short version. |
+| **Production guide** | `10-seeding-production.md` **491 → 434** lines. Verification now shows the matching 1,000 / 2,000 / 3,000 addresses and points to Guide 9 for output and code-mode semantics; the role-fixture check keeps its production-only `--signin` reason. The dated cluster measurements are replaced by the shared-limit warning and a pointer to Guide 12. |
+| **Verified** | Documentation guards **39/39** pass; `git diff --check` clean. No code, test or configuration change. |
+| **Not done** | No commit, push, deployment or production change. |
+
+---
+
+## 2026-11-06 — OTA guide and account runbook shortened to current decisions
+
+| Item | Evidence |
+| --- | --- |
+| **Why** | Both documents carried long dated snapshots that the log and roadmap already own: the OTA guide listed old update groups and build IDs, and the runbook repeated the history-rewrite measurement. A reader had to separate current rules from history to act. |
+| **OTA guide** | `7-over-the-air-updates.md` **541 → 505** lines. The dated live-state table, the full paid-plan comparison, the evidence table and the historical build-record list are replaced by the current constraint, the code-signing decision, and pointers to the evidence directory and roadmap. Every command, release step, troubleshooting row and security rule remains. |
+| **Account runbook** | `ACCOUNT_MIGRATION_RUNBOOK.md` **655 → 571** lines. §2.1's 17-commit narrative is now a six-row result table that points to the detailed log and roadmap records; the current state, hard rules, provider runbooks, approval gates and definition of done are unchanged. |
+| **Verified** | Documentation guards **39/39** pass; `git diff --check` clean. No code, test or configuration change. |
+| **Not done** | No commit, push, deployment or production change. The frozen `freebuff/` provenance trail and the dated roadmap records were left intact. |
+
+---
+
+## 2026-11-06 — Root workspace cleaned of capture and backup debris
+
+| Item | Evidence |
+| --- | --- |
+| **Why** | Device runs and history rewrites had left screenshots, logs, XML dumps, APKs and scratch checkouts in the project root; none were referenced by the application or its documentation. |
+| **Removed** | 183 ignored `.tmp-*` files (logs, screenshots, XML, HTML, three APKs), 19 untracked `phone-*.png` screenshots, two clean scratch worktrees, five temporary backup directories, `.scratch/`, `.cloud-attachments/` and `logs/`. |
+| **Preserved** | Every commit tip the backup bundles held: `git show-ref` still lists **37** `refs/backup/*` refs. `.tmp-demo-tenant/password` is retained because the log cites it as the generated demo-account credential; it is one hidden 1 KB file, not a capture artifact. |
+| **Result** | Workspace **2.6 GB → 1.5 GB**; `git worktree list` names only the main checkout; the 126 modified/untracked entries were unchanged by the cleanup. |
+| **Not done** | No commit, push, deployment or source change. Older log entries that name the removed bundle paths remain as written; this entry records why those paths are gone. |
+
+---
+
+## 2026-11-06 — Documentation trimmed to the questions each document owns
+
+| Item | Evidence |
+| --- | --- |
+| **Why** | A second pass found duplication, not gaps. The phone reference re-taught Guides 2 and 15, and the specification still carried its original fifteen-section build plan — including claims that contradicted shipped behaviour. |
+| **Removed** | `DEVELOPING_ON_A_PHYSICAL_DEVICE.md` §§1–3 and §9 (install, dev build, stack start, routine) are taught in Guide 2; §10 is now a pointer to Guide 15; eight troubleshooting rows Guide 2 owns were removed. `SYSTEM_SPECIFICATION.md` §§41–55 retired: generic test lists, git strategy, proposed document types, V1 screen and flow sketches, scope summary, the V2–V4 wish list, cost control, deployment and store boilerplate, observability, backup, acceptance criteria and the phase sequence. |
+| **Kept** | The authenticated walkthrough (§7), the failure table (§8), the headless-harness traps (§9b), the measured wireless note (§10), and every rule above §41. Section numbers stay stable so dated roadmap citations resolve; the retirement note names §44 and §48 for readers following old references. |
+| **Maintenance rule** | `docs/README.md` now maps each kind of change to the one document that owns it, so an edit lands in the specification, a task guide, a dated decision or the log — not in all four. |
+| **Verified** | Device reference **563 → 394** lines; specification **3,226 → 2,704**. The six documentation guards pass **39/39**: links, data-guide commands, fact drift, section integrity, route inventory and issue records. `git diff --check` clean. |
+| **Not done** | No commit, push, deployment or production change. The historical records (`DEVELOPMENT_ROADMAP.md`, `freebuff/`, `evidence/`) were not rewritten; the frozen Freebuff audit trail and the closed GitHub-support record were kept as provenance. |
+| **Next** | Keep §56 and §57 as the only planning principles; record a new decision in the roadmap rather than restoring a removed section. |
+
+---
+
+## 2026-11-06 — Documentation consolidated around the reader's task
+
+| Item | Evidence |
+| --- | --- |
+| **Why** | The active guide set had two copies of the phone-session workflow and a 1,488-line command runbook that repeated Guides 9–13. The first check also exposed a stale mobile-version claim and evidence links written under the wrong root. |
+| **What changed** | Guide 3's USB mirroring is now Step 10 of Guide 2 and Guide 3 is retired. Guide 14 is retired; Guides 9–13 keep the data rules and complete invocations, Guide 6 keeps backup/restore and the command index, and the duplicated test was removed. Indexes, `CLAUDE.md`'s `1.0.2` version, the spec's tree/shipped distinction, the CI summary and the README dependency wording were corrected. Evidence links and the CI repository-visibility comment were fixed. |
+| **Guard added** | [`docs-links.test.mjs`](../server/test/docs-links.test.mjs) resolves every relative Markdown path under the root/docs tree and is registered in the pure-unit list. It skips temp clones and dependencies; it does not validate anchors or HTTP targets. |
+| **Verified** | `node --test` on the link, data-guide, fact-drift, section-integrity, route-inventory and issue-record guards: **39 passed, 0 failed**. `node --check` and ESLint on the changed test files: clean. `git diff --check`: clean. |
+| **Not done** | No commit, push, deployment, EAS build, OTA or production change. The full database suite and GitHub Actions were not run from this machine. |
+| **Next** | Let CI run the link guard; keep historical roadmap/evidence records append-only and link-checked. |
+
+---
+
+## 2026-11-04 — Market prices from cited pages, and a faster research fan-out
+
+| Item | Evidence |
+| --- | --- |
+| **Why** | AI-47 could research quality but had no price path. A model-written price is unverifiable; Shopee returned an anti-bot shell, Lazada JSON-LD carried no price, and Amazon’s target price block was empty. |
+| **What shipped** | Read-only **researchMarketPrices**: one to three tenant-owned product ids, one OpenRouter web-plugin request per product (two at a time), exact price strings from cited page text only, brand + model token required, up to five listings per product and twelve total, with marketplace, URL, snippet and retrieval time. Prompt rules 23–24 keep recorded prices separate and handle price-threshold/multi-kind questions. Research fan-out is bounded at three brand groups; price subjects at two. |
+| **Tests** | AI-49 **13 unit + 2 DB**; AI-47 **13 unit + 3 DB**; focused docs/AI-49 checks **30 pass / 1 skip**; server `tsc` and ESLint clean. Full unit suite **1,676 pass, 0 fail, 60 skipped** (1,736 tests). |
+| **Live** | Disposable 14-product/22-row tenant, process-local Nemotron Ultra, 3,000 tokens and 120 s: Q1 23.1 s, Q2 26.3 s, Q3 60.7 s, Q4 59.8 s, Q5 76.3 s, Q6 49.1 s. Q4 cited Keychron PH ₱6,000, Game One ₱5,895, PriceMe ₱5,195–₱5,895, iTech ₱1,995–₱2,369 and Bermor ₱1,995–₱2,350, and stated no verified Shopee/Lazada/Amazon price. Q6 called its evidence professional-review snippets, not owner reviews. |
+| **Cost audit** | The signed-in OpenRouter Logs view showed 31 generations in 24 h, all on free models; **15** rows cost **$0.007 each ($0.105)**, the paid web-search plugin, while every other row cost $0.00. `AI_ALLOW_PAID_WEB_SEARCH` now defaults false; both research tools use the keyless free path, and a live free price lookup found Keychron PH at **₱6,000.00** for the K8 Pro. The test harnesses also refuse non-`:free` models without approval. |
+| **Remaining** | A second Q5 run spent six tool rounds and hit 120 s; broad value questions are not stable. The 60 s/1,200-token default cannot fit these research turns. Product has no currency field; Q1/Q4 inferred ₱ while Q5 omitted it. No direct marketplace price was verified. |
+| **Not done** | No commit, deploy, OTA publication or production config change. |
+| **Follow-up** | Four brand groups and three price products now run concurrently; the price result returns only source titles/URLs. Q4 after trim **47.5 s** (36.2 s provider, 11,001 input tokens); Q3 **60.0 s** with ultra research and **67.1 s** with default liquid research (56.9 s final generation). Phone: installed preview build lacks the new JS; Expo Go is blocked by native Firebase. |
+| **Record** | Roadmap **§27HP**; indexed in `CLAUDE.md`; record count **221 → 222**. Evidence: [`docs/evidence/ai49-market-price-research-2026-11-04/`](evidence/ai49-market-price-research-2026-11-04/README.md). |
+
+---
+
+## 2026-11-04 — Recorded specifications, and a real seed catalogue
+
+| Item | Evidence |
+| --- | --- |
+| **Why** | The assistant had no specification field, and the seeders wrote “Demo Coffee Beans 1kg” or “Premium Kettle 10001” with “Seeded row N” descriptions. A comparison could not be grounded in recorded facts. |
+| **What shipped** | Optional `Product.specifications` (max 1,000), validated and carried through create/get/update; `findProducts` searches it and `getProduct` returns it in full; prompt rules 16/19/22 and the research prompt use it as recorded data. A shared 14-product catalogue (12 brands, four categories) now backs both demo and bulk seeders, with manufacturer/support sources and no placeholder names. Mobile form/detail support and a release note were added. |
+| **Tests** | AI-48 **4 unit + 3 DB**; SEED-1 **2 unit + 1 DB**; AI-47 **12 unit + 3 DB**; DEMO-1 **22/22**; server and mobile `tsc`/ESLint clean. The full unit suite is **1,650 pass, 0 fail, 58 skipped** after fixing the issue-record guard, which had been scanning git-ignored local artifacts (a stale `.tmp-*` copy of the suite) and reporting their identifiers as citations. |
+| **Live trial** | A disposable development tenant (14 products, 22 stock rows) was asked a keyboard comparison and a reliability/research recommendation. The configured `nvidia/nemotron-3.5-lightning:free` primary timed out at 60 s. The configured fallback `nvidia/nemotron-3-ultra-550b-a55b:free`, used as a process-local primary with an evaluation-only 3,000-token output budget and 120 s deadline, completed both: the comparison in **30.5 s** (`findProducts`, 1,102 output tokens) with the recorded RK61/K8 Pro layout, switch, battery and stock facts, an explicit “not recorded” for missing RK61 details, and a recommendation limited to the recorded small-desk case; research in **84.8 s** (`findProducts` + `researchInventoryProducts`, 2,045 output tokens) with four stocked keyboards, recorded facts kept separate from web snippets, the URLs the tool returned, an explicit “no snippets” for Keychron/ASUS, and a K8 Pro office recommendation grounded in recorded facts. At the default 60 s/1,200 tokens the research turn would not fit; no production config was changed. |
+| **Not done** | No commit, deploy, OTA publication or phone observation. The production model/config was not changed; the evaluation override was process-local. |
+| **Record** | Roadmap **§27HO**; indexed in `CLAUDE.md`; record count **220 → 221**. Evidence: [`docs/evidence/ai48-product-specifications-2026-11-04/`](evidence/ai48-product-specifications-2026-11-04/README.md). |
 
 ---
 

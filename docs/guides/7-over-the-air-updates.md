@@ -38,7 +38,7 @@ count the check).
 | **Channel** | compiled into the binary: `development`, `preview`, `production`. An install listens to exactly one. |
 | **Branch** | where a group is stored; here each branch is named after its channel. |
 | **Update group** | one publish: bundle, assets, message, commit, group id. What you roll back or republish. |
-| **Runtime version** | the compatibility label; under `appVersion` policy it is `expo.version` — `1.0.1` in the tree, `1.0.0` on every installed binary (§3). Delivered only on an **exact** match. |
+| **Runtime version** | the compatibility label; under `appVersion` policy it is `expo.version` — `1.0.2` in the tree, `1.0.1` in the shipped production and preview builds. The older production group is `1.0.0` (§3). Delivered only on an **exact** match. |
 | **Embedded bundle** | the JavaScript inside the APK; the fallback that always exists. |
 
 An install receives an update when its **channel** points at the branch **and** its **runtime**
@@ -50,7 +50,7 @@ no push.
 `mobile/app.json`:
 
 ```json
-"version": "1.0.1",
+"version": "1.0.2",
 "runtimeVersion": { "policy": "appVersion" },
 "updates": {
   "url": "https://u.expo.dev/607eca05-1175-43ed-86a0-1829e91c9531",
@@ -74,14 +74,17 @@ no push.
                      "android": { "buildType": "apk" },
                      "env": { "EXPO_PUBLIC_API_URL": "https://ai-inventory-l1mi.onrender.com" } },
   "production":    { "autoIncrement": true, "channel": "production",
-                     "env": { "EXPO_PUBLIC_API_URL": "https://ai-inventory-l1mi.onrender.com" } }
+                     "env": { "EXPO_PUBLIC_API_URL": "https://ai-inventory-l1mi.onrender.com" } },
+  "production-apk": { "extends": "production", "distribution": "internal",
+                     "android": { "buildType": "apk" } }
 }
 ```
 
-Every profile has its own channel (except `ios-simulator`, which shares `development`), so preview and
-production cannot collide. `production` builds an **AAB**; `preview` an APK. A rehearsal may set
-`"buildType": "apk"` on production temporarily — remove it afterwards. `appVersionSource: "remote"`
-means EAS owns the Android `versionCode`; check it rather than assuming:
+Every profile listens to one channel. `ios-simulator` deliberately shares `development`, and
+`production-apk` deliberately shares `production` — it is the same release packaged as an installable
+APK instead of an AAB, so it must receive the same updates. Nothing else may share. `production`
+builds an **AAB**; `preview` and `production-apk` build APKs. `appVersionSource: "remote"` means EAS
+owns the Android `versionCode`; check it rather than assuming:
 
 ```bash
 cd C:/Users/jeffe/inventory-ai/mobile
@@ -96,7 +99,9 @@ profile.
 (`6217b878…` on EAS, `e32953a7…` here) because [mobile/app.config.js](../../mobile/app.config.js)
 resolves Firebase file paths that only exist on the builder. `appVersion` removes that mismatch.
 
-## 3. Live state
+## 3. Current build state
+
+Check the live state instead of trusting a snapshot:
 
 ```bash
 npx eas-cli channel:list
@@ -104,21 +109,14 @@ npx eas-cli branch:list
 npx eas-cli update:list --branch production --limit 5
 ```
 
-| | `preview` | `production` |
-|---|---|---|
-| Channel | exists, **unprotected** (no code signing) | exists, **unprotected** |
-| Branch | `preview` | `production` |
-| Newest group | `6e14b317-…` | `62654350-…` |
-| Runtime | `1.0.0` | `1.0.0` |
-| Android `versionCode` (remote) | — | **5** (no artifact: a quota-refused attempt incremented it) |
-| Installs | side-loaded preview APKs | store builds and the production-profile APK on the test phone |
+**The installed production APK is runtime `1.0.1`; the tree is `1.0.2`.** Build `1158f2ef-…` was
+compiled with Expo 58.0.19 and React Native 0.88.0, while this tree and the 2026-11-02 preview build
+use Expo 58.0.22 and React Native 0.88.1. A publish from this tree would reach a binary compiled for
+different native modules, so **a new production build is required**; the old APK then stops listening.
+`npm run check:ota` refuses until `mobile/ota-native-runtime.json` records the new build — §10 and §12.
 
-Older groups remain as history; installs always move **forward** to the newest group for their runtime.
-Unprotected means code signing is off; enabling it is a **build-time** change (§10).
-
-**The installed binaries are still runtime `1.0.0`.** The tree moved to **`1.0.1`** on 2026-10-25 with
-an SDK patch that changed `expo-modules-core` (58.0.23 → 58.0.26), so no `1.0.1` binary exists yet and
-`npm run check:ota` refuses a publish until one does — see §10 and §12.
+Older groups remain as history; installs move forward to the newest group for their runtime. Channels
+are unprotected because code signing is off; enabling it is a build-time change (§11).
 
 ## 4. EAS environments
 
@@ -253,7 +251,7 @@ the newest one is **correct**. Release builds log little — use the behaviour p
 **Which group is `production` serving right now?**
 
 ```bash
-curl -sS -H "expo-platform: android" -H "expo-runtime-version: 1.0.0" \
+curl -sS -H "expo-platform: android"  -H "expo-runtime-version: 1.0.2" \
   -H "expo-channel-name: production" -H "accept: multipart/mixed" \
   -H "expo-protocol-version: 1" \
   https://u.expo.dev/607eca05-1175-43ed-86a0-1829e91c9531 \
@@ -270,9 +268,9 @@ For contents, read the phone or grep `mobile/dist/_expo/static/js/android/*.hbc`
 UI. A copy change simply appears after the next launch. `--message` is stored with the group and shown
 in `update:list` and the dashboard: a note **to the team**, never to users.
 
-**Profile → About → App version** shows `1.0.0` (from `expo-constants`), which changes only with a
-native build. Nothing displays `Updates.updateId`, so the running *bundle* cannot be identified from
-the phone.
+**Profile → About → App version** shows the build's own version (`1.0.2` after this release, from
+`expo-constants`), which changes only with a native build. Nothing displays `Updates.updateId`, so the
+running *bundle* cannot be identified from the phone.
 
 ### Release notes — the "What's new" card (shipped 2026-10-25)
 
@@ -319,11 +317,10 @@ Write for the person using the app: no phase numbers, file names or acronyms.
 summary. **The id is the contract** — reusing one silently announces nothing. Wording cannot be
 changed from a dashboard; it is bundle text, like all copy.
 
-**Restart prompt — not implemented (deferred by the owner, 2026-10-25).** `ON_LOAD` downloads before a
-screen is interactive, so a useful prompt must call `Updates.checkForUpdateAsync()` on demand, then
-`fetchUpdateAsync()`, then `reloadAsync()`. Caveats: `reloadAsync()` discards unsaved input and reads
-as a crash to some people. If built, it may only ever be offered when **nothing holds unsaved input**,
-hidden — not merely disabled — while a form is dirty.
+**Restart prompt — not implemented (deferred by the owner, 2026-10-25).** `ON_LOAD` downloads before
+a screen is interactive, so a prompt would need `checkForUpdateAsync()`, `fetchUpdateAsync()` and
+`reloadAsync()`. It may only be offered when nothing holds unsaved input, and hidden while a form is
+dirty.
 
 **Play Store users** see nothing different: an OTA publish creates no version, no review and no
 listing "What's new" entry. That text belongs to a store release.
@@ -349,7 +346,7 @@ listing "What's new" entry. That text belongs to a store release.
 | Publish fails building the web bundle | `--platform android` omitted | add it |
 | `--environment` required | SDK 55+ | add it; never bypass |
 | App says *"Cannot reach the server"* after an update | bundle built without `EXPO_PUBLIC_API_URL` | `env:list`, fix, republish |
-| `--runtimeVersion is required in non-interactive mode` | `roll-back-to-embedded` without it | add `--runtime-version 1.0.0` |
+| `--runtimeVersion is required in non-interactive mode` | `roll-back-to-embedded` without it | add `--runtime-version 1.0.2` |
 | Changes appear once, then revert | wrong channel or runtime | check the build's channel/runtime, publish to the right one |
 | A development build never updates | expected — it runs Metro | test OTA on a `preview`/`production` build |
 | `eas update` published, phone unchanged | only launched once since | close and start it again |
@@ -369,25 +366,28 @@ listing "What's new" entry. That text belongs to a store release.
 | Server routes, permissions, mail templates, database rules | No — deploy the server |
 
 Rule of thumb: **native dependencies or native `app.json` fields changed → build; only `.ts`/`.tsx`
-and images → publish.** A native change **must bump `expo.version`** (`1.0.0` → `1.0.1`); without it
+and images → publish.** A native change **must bump `expo.version`** (`1.0.1` → `1.0.2`); without it
 the new binary keeps runtime `1.0.0` and accepts updates built for the old native code, which crashes
 after install. With it, the new build stops listening to `1.0.0` — the point.
 
 ### The native-runtime record (added 2026-10-25)
 
-`npm run check:ota` also reads `mobile/ota-native-runtime.json` (not in the tree yet — it is created
-after the first build), a committed record of the versions the **last build** was compiled with. It refuses to publish when
-`expo`, `expo-modules-core` or `react-native` differ from that record, because EAS labels a bundle by
-`appVersion` and cannot see which native modules the phone actually has. Write the file after a build:
+`npm run check:ota` also reads `mobile/ota-native-runtime.json`, a committed record of the versions the
+**last build** was compiled with. It refuses to publish when `expo`, `expo-modules-core` or
+`react-native` differ from that record, because EAS labels a bundle by `appVersion` and cannot see
+which native modules the phone actually has. It currently records the `1.0.1` preview build; after the
+`1.0.2` production build it must name `1.0.2` and add that build's id before any publish:
 
 ```json
 {
   "appVersion": "1.0.1",
-  "expo": "58.0.19",
-  "expoModulesCore": "58.0.26",
-  "reactNative": "0.88.0",
-  "recordedAt": "2026-11-01",
-  "builds": { "preview": "<build id>", "production": "<build id>" }
+  "expo": "58.0.22",
+  "expoModulesCore": "58.0.29",
+  "reactNative": "0.88.1",
+  "recordedAt": "2026-11-02",
+  "builds": {
+    "preview": "5500e6be-bc45-46f9-a334-f738f4bd1bea"
+  }
 }
 ```
 
@@ -428,44 +428,27 @@ on the publishing machine, so it has to be backed up somewhere that is not this 
 machine needs it provisioned before it can publish. Staged releases (`--rollout-percentage`) are the
 other safety lever.
 
-### Is the paid plan genuinely necessary? (measured 2026-10-26)
+### Code signing needs a paid plan
 
-Expo's documentation is explicit — *"EAS Update Code Signing is only available to accounts subscribed
-to the EAS Production or Enterprise plans"* — so inside the system this app already uses there is no
-free switch. The **verification** is not the paid part: `expo-updates` checks each downloaded update's
-signature on the phone against the certificate compiled into the binary. The **supported signed
-publish** is what the plan pays for.
-
-| Option | Cost | What it buys | What it costs |
-| --- | --- | --- | --- |
-| Stay unsigned on Free (today) | $0 | HTTPS transport, channel isolation, the publish gate in §7, and an Expo account treated as a deployment credential | A compromised Expo account or CDN could serve a malicious bundle; a signed install would refuse it |
-| EAS Production plan | $199/month | end-to-end signing: an ISP, a CDN, or Expo itself cannot tamper | the plan, plus a private key to back up and provision |
-| Self-hosted updates with our own key | $0 in licence, real engineering | the same cryptography without the plan | replaces the working channel — another server, another failure mode, and no EAS rollback/rollout |
-
-The middle row is the only one that keeps the system that already works, and $199 is not justified
-while the app has no store release and no real customers. The free posture is a decision, not an
-oversight; the trigger to revisit is the Play release plus real tenants, not a date.
+Expo allows EAS Update code signing only on the Production ($199/month) or Enterprise plans. The
+verification happens on the phone; the paid part is the supported signed publish. Stay unsigned on the
+free plan until the Play release and real tenants exist — that is a decision, not an oversight. The free
+posture keeps HTTPS transport and channel isolation, but a compromised Expo account or CDN could serve
+a bundle to an unsigned install. Revisit at the Play release, not on a date.
 
 ## 12. Current gaps
 
-1. **No preview build installed** — the handset runs the production-profile APK, so testing on it
-   means publishing to production. Build one: `npx eas-cli build --platform android --profile preview`.
-2. **Code signing off, and blocked by plan** — Expo allows it on Production/Enterprise only, so it
-   waits on a paid-plan decision, not on work (§27FN).
-3. **CLI a major version behind** (`24.7.0`; `25.3.0` available) — re-read `--help` after upgrading.
-4. **`EXPO_PUBLIC_API_URL` in two places** — harmless while identical.
-5. **Nothing prunes old groups** — `eas update:delete <group-id>` if the list becomes noise.
-6. **The Play path is unproven** — an OTA to store users needs a store build containing
-   `expo-updates`, which depends on the AAB being uploaded. Play App Signing does not interfere.
-7. **`update:list` cannot be joined to git** — hence the clean-tree preflight.
-8. **No restart prompt, no bundle id on screen.**
-9. **The `1.0.1` build is pending** — the free plan allows **15 Android builds a month** and October's
-   are used, so the production AAB and preview APK could not be created on 2026-10-25. The next build
-   (quota resets at the start of the month, or the plan is upgraded) carries runtime `1.0.1`; until
-   then `check:ota` refuses, by design.
-10. **Two earlier production build records were deleted** (`09d77d3d…`, `4b133d62…`) and their
-    artifacts answer 400, so they cannot be re-downloaded (§27FN). Record a new build id only after
-    `eas build:view <id>` resolves, and download the artifact somewhere durable in the same pass.
+1. **The handset runs a development build** — debuggable `1.0.0`, versionCode 1, installed by PC. A
+   development client runs Metro and never receives OTA. Install the `1.0.2` production APK once built.
+2. **Code signing is off, blocked by plan** — Expo allows it on Production/Enterprise only; it waits on
+   a paid-plan decision, not on work (§27FN).
+3. **CLI is a major version behind** — `24.7.0`; re-read `--help` after upgrading.
+4. **`EXPO_PUBLIC_API_URL` is defined twice** — harmless while identical.
+5. **The Play path is unproven** — an OTA to store users needs a store build containing `expo-updates`.
+6. **`update:list` cannot be joined to git** — hence the clean-tree preflight.
+7. **A new production build is required** — the installed `1.0.1` APK carries Expo 58.0.19 / RN 0.88.0
+   while the tree is 58.0.22 / 0.88.1. `expo.version` is `1.0.2`; build `production-apk`, install it,
+   record the build id, then publish.
 
 ## 13. Limits
 
@@ -482,18 +465,10 @@ $199/month Production plan**, which is the only reason it is off.
 
 ## 15. Evidence
 
-| Claim | Record |
-|---|---|
-| A preview APK updated **without reinstalling**, and ran the new JavaScript | [2026-10-24-preview-ota](../evidence/device-runs/2026-10-24-preview-ota/README.md) |
-| Preview and production channels isolated; production/development manifests answered 404 | same record |
-| Registration, verification, reset and offline cold start on that updated build | [2026-10-24-preview-journeys](../evidence/device-runs/2026-10-24-preview-journeys/README.md) |
-| A production-profile APK received an update; `roll-back-to-embedded` restored the embedded bundle | [2026-10-24-release-build](../evidence/device-runs/2026-10-24-release-build/README.md) |
-| The store AAB carries the right channel, runtime and API host | [2026-10-24-release-aab](../evidence/device-runs/2026-10-24-release-aab/README.md) |
-| The production app was updated by OTA to ship invitations, terms and the deletion fix | [2026-10-25-invitations](../evidence/device-runs/2026-10-25-invitations/README.md) |
-| A note published then undone locally left the channel serving group `48f7bbcc-…`, which no commit contained; `62654350-…` corrected it | §27FF, [DEVELOPMENT_ROADMAP.md](../DEVELOPMENT_ROADMAP.md) |
-
-Not verified: code signing, `update:rollback <group-id>` (only *roll-back-to-embedded* was exercised),
-the Play upload path, and iOS.
+The device runs that proved preview and production OTA, the embedded-bundle rollback and the store AAB
+are under [`docs/evidence/device-runs`](../evidence/device-runs/README.md). The publish-accident record
+is §27FF in [`DEVELOPMENT_ROADMAP.md`](../DEVELOPMENT_ROADMAP.md). Not verified: code signing,
+`update:rollback <group-id>` (only `roll-back-to-embedded` was exercised), the Play upload path, and iOS.
 
 ## 16. Cheat sheet
 
@@ -516,10 +491,11 @@ npx eas-cli update:insights <group-id>
 npx eas-cli update:republish --group <group-id> -m "Republished"
 npx eas-cli update:rollback <group-id> --platform android -m "Rolled back"
 npx eas-cli update:roll-back-to-embedded --channel production --platform android \
-  --runtime-version 1.0.0 -m "Back to embedded" --non-interactive
+  --runtime-version 1.0.2 -m "Back to embedded" --non-interactive
 
-npx eas-cli build --platform android --profile preview       # APK
-npx eas-cli build --platform android --profile production    # AAB for Play
+npx eas-cli build --platform android --profile preview          # APK, preview channel
+npx eas-cli build --platform android --profile production-apk   # APK, production channel (phone)
+npx eas-cli build --platform android --profile production       # AAB for Play
 ```
 
 **Remember:** saving does nothing; `eas update` publishes; the phone applies it on its next launches.

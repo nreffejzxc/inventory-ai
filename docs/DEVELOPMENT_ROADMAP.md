@@ -8,12 +8,9 @@ of truth for *what actually happened*, and it is why this file is long.
 
 **How to read it.** Do not read it top to bottom. Either find a record by number (§27FJ, §27DM — the
 numbers are cited from `CLAUDE.md` and from source comments), or use the index: `CLAUDE.md` §7 lists
-all **220** records by the title each gives itself.
+all **222** records by the title each gives itself.
 
-**Current state:** V1 complete and in production testing. The records that answer *where are we now*
-are §27HN (inventory-only web research), §27HH (a transfer as one event to the assistant), §27HG (the stock-in link's product), §27HF (the single-location default's timing), §27HE (the
-stock-in link's location), §27HD (the movement fixes and the production device pass), §27HC (the
-assistant's local-time answers), §27FM (the V1 re-verification) and §27FJ (the two open advisories).
+**Current state:** V1 complete and in production testing. The records that answer *where are we now*are §27HP (market prices from cited pages), §27HO (recorded specifications and the real seed catalogue), §27HN (inventory-only web research), §27HH (a transfer as one event to the assistant), §27HG (the stock-in link's product), §27HF (the single-location default's timing), §27HE (the stock-in link's location), §27HD (the movement fixes and the production device pass), §27HC (the assistant's local-time answers), §27FM (the V1 re-verification) and §27FJ (the two open advisories).
 
 ---
 
@@ -24328,7 +24325,7 @@ message. When the provider key was replaced, the same question was asked on the 
 of the product ZZ Sprint1 Verify, logged at 2026-11-01 08:47 local time."* That matches the
 dashboard's **Main Warehouse → Shop Front** row exactly, names the destination the earlier answer
 omitted, and reports the movement once. Screenshot and context: [the evidence
-record](../evidence/ai42-transfer-2026-11-02/README.md) and [`answer.png`](../evidence/ai42-transfer-2026-11-02/answer.png).
+record](evidence/ai42-transfer-2026-11-02/README.md) and [`answer.png`](evidence/ai42-transfer-2026-11-02/answer.png).
 
 **No EAS build, no OTA.** A server deploy only; the installed preview build already points at
 production.
@@ -24390,7 +24387,7 @@ brands from the catalogue."* The detergent comparison said the catalogue stores 
 model numbers, specifications, ratings or quality labels, and named the fields that do exist. No
 invented brand or product appeared. The quoted **Ultra Detergent 10990** fields match the Products
 screen exactly (Household, box, ₱43.80, minimum 91). Evidence:
-[`docs/evidence/ai43-recommendations-2026-11-03/`](../evidence/ai43-recommendations-2026-11-03/README.md).
+[`docs/evidence/ai43-recommendations-2026-11-03/`](evidence/ai43-recommendations-2026-11-03/README.md).
 
 **What this does not prove.** Model compliance is not deterministic; the tool boundary is pinned,
 but one phone pass cannot prove every future answer. The tenant still has no brand or specification
@@ -24447,7 +24444,7 @@ honest empty state, not a positive brand summary; the positive aggregation is co
 the DB fixture and the UI field has shipped. `listBrands` reports brand presence and
 product counts, not stock. Brand is optional, and the product list has no dedicated brand
 filter yet — search matches brand text. Evidence:
-[`docs/evidence/ai44-brand-lookup-2026-11-03/`](../evidence/ai44-brand-lookup-2026-11-03/README.md).
+[`docs/evidence/ai44-brand-lookup-2026-11-03/`](evidence/ai44-brand-lookup-2026-11-03/README.md).
 
 ---
 
@@ -24472,7 +24469,7 @@ then `listCategories`, then repeated one-word product searches. It exhausted the
 budget and returned *"I could not finish that request within the allowed number of steps."*
 The data was right — this tenant has no automotive products — but the member never received
 the answer. The failure is recorded as
-[`first-loop-failure.png`](../evidence/ai45-natural-search-2026-11-03/first-loop-failure.png).
+[`first-loop-failure.png`](evidence/ai45-natural-search-2026-11-03/first-loop-failure.png).
 
 **Fix.** PR #139 makes a no-match `findProducts` result self-contained: it carries the ACTIVE
 categories and an explicit stop instruction saying not to run another search for the question.
@@ -24491,7 +24488,7 @@ merged as **`aae32ea`**; PR #139 merged as **`e1af99c`**; all four checks were g
 Snacks, Beverages**, and said it could not recommend brands or report stock for a product type
 the records do not contain. Provenance: **Product discovery**. This is natural, grounded and
 correct for the tenant. Screenshot:
-[`natural-answer.png`](../evidence/ai45-natural-search-2026-11-03/natural-answer.png).
+[`natural-answer.png`](evidence/ai45-natural-search-2026-11-03/natural-answer.png).
 Production `/api/health` reports `e1af99c`, database `connected`, **0** server errors. Preview
 OTA `5d89b55b` carries the label.
 
@@ -24502,7 +24499,7 @@ the DB fixture, not live stock. Recommendations still compare only recorded fiel
 tenant records no specifications or quality ratings. Model compliance is not deterministic;
 the tool payload and prompt boundary are pinned, but one phone pass is not every future answer.
 
-**Evidence.** [`docs/evidence/ai45-natural-search-2026-11-03/`](../evidence/ai45-natural-search-2026-11-03/README.md).
+**Evidence.** [`docs/evidence/ai45-natural-search-2026-11-03/`](evidence/ai45-natural-search-2026-11-03/README.md).
 
 ---
 
@@ -24541,12 +24538,12 @@ reported **1,004 active products** across five category rows — Household 252, 
 products with 1,001 unrecorded, and 1,000 recorded descriptions with 4 missing. Provenance
 was **Catalog overview** (the installed build's humanised fallback; the explicit **Catalogue
 overview** label is in the published OTA). It used one read and invented nothing. Screenshots:
-[`catalog-question.png`](../evidence/ai46-catalog-overview-2026-11-03/catalog-question.png)
-and [`catalog-answer.png`](../evidence/ai46-catalog-overview-2026-11-03/catalog-answer.png).
+[`catalog-question.png`](evidence/ai46-catalog-overview-2026-11-03/catalog-question.png)
+and [`catalog-answer.png`](evidence/ai46-catalog-overview-2026-11-03/catalog-answer.png).
 The tenant still records only three brand values and no automotive products, so a positive
 recommendation remains a data gap rather than a tool gap.
 
-**Evidence.** [`docs/evidence/ai46-catalog-overview-2026-11-03/`](../evidence/ai46-catalog-overview-2026-11-03/README.md).
+**Evidence.** [`docs/evidence/ai46-catalog-overview-2026-11-03/`](evidence/ai46-catalog-overview-2026-11-03/README.md).
 
 ---
 
@@ -24611,9 +24608,9 @@ on 2026-11-04 the phone was absent from `adb devices`, Windows enumerated no And
 and ADB's mDNS list was empty; restarting the ADB server did not bring it back. The URL append is
 server-side and unit-tested, but **the final on-device link check has not been observed**. Finishing
 it needs the phone reconnected, the OTA applied by a second launch, and the same question repeated.
-Screenshots: [`question.png`](../evidence/ai47-inventory-web-research-2026-11-04/question.png),
-[`answer-top.png`](../evidence/ai47-inventory-web-research-2026-11-04/answer-top.png) and
-[`answer-bottom.png`](../evidence/ai47-inventory-web-research-2026-11-04/answer-bottom.png).
+Screenshots: [`question.png`](evidence/ai47-inventory-web-research-2026-11-04/question.png),
+[`answer-top.png`](evidence/ai47-inventory-web-research-2026-11-04/answer-top.png) and
+[`answer-bottom.png`](evidence/ai47-inventory-web-research-2026-11-04/answer-bottom.png).
 
 **What this does not prove.** The OpenRouter account is free-tier and the research model's daily
 allowance was exhausted during the live test; the observed answer came from the DuckDuckGo
@@ -24622,4 +24619,158 @@ or change its markup. A source supports a claim; it does not prove a product is 
 findings are never inventory records, and this tenant has only three recorded brands and no
 specification/rating field, so it cannot demonstrate a broad comparison from its own data.
 
-**Evidence.** [`docs/evidence/ai47-inventory-web-research-2026-11-04/`](../evidence/ai47-inventory-web-research-2026-11-04/README.md).
+**Evidence.** [`docs/evidence/ai47-inventory-web-research-2026-11-04/`](evidence/ai47-inventory-web-research-2026-11-04/README.md).
+
+---
+
+# 27HO. Recorded specifications, and a seed catalogue worth asking about (2026-11-04)
+
+**Why.** AI-43 had made the assistant honest about a gap: the product model had no specification
+field, so a comparison could only use a free-text description, name and price. The seeders made the
+gap worse. `seed:demo` wrote six products called “Demo Coffee Beans 1kg”; the bulk seeder generated
+names by combining an adjective and a noun with a counter, and its descriptions said “Seeded row 42
+for AI scale testing”. A model cannot search, compare or recommend from that, and a reviewer cannot
+check whether it answered correctly.
+
+**What shipped.** `Product.specifications` is now an optional, trimmed string capped at 1,000
+characters, validated on create/update, returned by the product DTO and included in the API create
+payload. `findProducts` searches it as recorded text and returns it; `getProduct` returns it in full.
+The prompt's rules 16, 19 and 22 tell the model to compare the recorded field, never infer a
+specification from a description or name, and say plainly when one side has no recorded fact. The
+research subject carries the specifications to the web researcher as bounded, JSON-quoted data, so
+an exact model can be searched for without letting the field act as instructions.
+
+Both seeders now use one sourced catalogue: **14 real products, 12 brands, four categories**
+(*Keyboards & Mice, Audio, Displays, Accessories*). Each row records a real brand, a useful
+description, manufacturer specifications and the manufacturer/support URL the facts came from.
+Uncertain numbers were omitted rather than invented; prices are illustrative seeded selling prices,
+not current quotes. `seed:demo` keeps its deliberate non-degenerate shape: one product has no
+inventory row, three products are low, one is out of stock, and several are held in two locations.
+`seedTenant` loops the same rows, so a large generated tenant no longer contains placeholder
+products. `verify:demo` additionally checks that every demo product has a brand and specifications.
+
+The mobile product form and detail screen accept and display the field, and release note
+`2026-11-04-product-specifications` announces it.
+
+**Tests.** `AI48` is **4 unit + 3 DB** passing: validation and length, prompt/tool descriptions,
+safe research quoting, API create/get/update, specification search, and the full detail payload.
+`SEED1` is **2 unit + 1 DB** passing: catalogue quality and source presence, demo coverage, and 23
+real rows written by `seedTenant` with no placeholder names. AI-47 remains **12 unit + 3 DB**; DEMO-1
+is **22/22**; server and mobile `tsc --noEmit` and ESLint are clean. The full unit suite is **1,650 pass, 0 fail, 58 skipped**; the issue-record guard now skips git-ignored local artifacts, so a stale scratch copy of the suite cannot be reported as a citation.
+
+**Live trial — first attempt (partial).** A disposable development tenant was
+seeded with the 14-product fixture (22 inventory rows) and asked two real questions. With the
+configured `nvidia/nemotron-3.5-lightning:free` primary, the comparison reached `findProducts` but
+spent the 60-second turn deadline on its second provider call; the research turn called
+`findProducts` and `researchInventoryProducts` but exhausted the 1,200-token output cap before
+answering. The same comparison was then run with the verified free model
+`liquid/lfm-2.5-2.6b:free` as an evaluation-only override: it answered in **5.3 s** using
+`findProducts` and `getProduct`, correctly reported the RK61's 32 units and the K8 Pro's 6, and
+quoted the recorded layouts, connectivity, switches, battery and price. It hit the same 1,200-token
+cap before its final recommendation, and the follow-up research turn was refused with an upstream
+429. At that point no complete live recommendation had been observed. The deterministic
+suites prove the tools and grounding; the free provider's rate limit and the configured model's
+speed were the operational blockers for this first attempt.
+
+**Live trial — completed on the configured fallback (2026-11-04).** The same disposable tenant was
+asked both questions with `nvidia/nemotron-3-ultra-550b-a55b:free`, the deployment's configured
+fallback, as a process-local primary and an evaluation-only output budget of 3,000 tokens and a
+120-second turn deadline. The comparison completed in **30.5 s** (`findProducts`, 1,102 output
+tokens): the RK61's 60% layout and 32 units were set against the K8 Pro's 80% TKL layout, recorded
+Gateron G Pro switches, 4,000 mAh battery and 6 units; missing RK61 facts were marked “not recorded”,
+and the RK61 was recommended only for the small-desk use its recorded description and layout
+support. The research turn completed in **84.8 s** (`findProducts` and
+`researchInventoryProducts`, 2,045 output tokens): it listed the four mechanical keyboards in stock,
+kept catalogue specifications separate from search-result snippets, cited the URLs the tool
+returned, said plainly that no snippets came back for Keychron or ASUS, and recommended the K8 Pro
+for an office on its recorded facts rather than on missing web evidence. Both answers stayed inside
+the stocked catalogue.
+
+The limits are measured, not assumed. At the deployment's defaults (60 s, 1,200 output tokens) the
+comparison fits, but the research turn does not: it needed 84.8 s and 2,045 output tokens. The
+successful run therefore used process-local overrides only; `server/.env`, the configured primary
+and fallback order, and production were not changed. Whether to raise the deployed turn budget is
+an operator decision that the measurement now supports, not something this change made silently.
+
+**What this does not prove.** It does not establish that every model will obey the prompt, that the
+illustrative prices match any market, or that the free-tier sample of manufacturer pages is complete.
+The research boundary is still a prompt plus a tool allow-list, not a guarantee that a source is
+correct. The mobile changes are JavaScript-only but have not been published to an OTA or observed on
+a phone in this session.
+
+**Evidence.** [`docs/evidence/ai48-product-specifications-2026-11-04/`](evidence/ai48-product-specifications-2026-11-04/README.md).
+
+---
+
+# 27HP. Market prices from cited pages, and a faster research fan-out (2026-11-04)
+
+**Why.** AI-47 could research quality, but the assistant still had no way to answer the
+Shopee/Lazada/Amazon question. A price written by a model is unverifiable, and a number scraped from
+a marketplace page is worse: Shopee returned an anti-bot shell, Lazada's product JSON-LD carried no
+price, and Amazon's target price block was empty. The assistant needed a price path that could only
+quote a number a cited page actually displayed.
+
+**What shipped.** `researchMarketPrices` is a read-only tool that takes one to three product ids,
+loads those ACTIVE rows inside the session's business, and runs one OpenRouter web-plugin request per
+product (two at a time). It ignores the model's prose and extracts only exact `₱`/`PHP`/`$` strings
+from `url_citation` page text; a listing needs the recorded brand plus a model token, and discounts,
+shipping, zero prices and unrelated variants are rejected. It returns at most five listings per
+product and twelve total, with the exact `priceText`, marketplace, URL, snippet, retrieval time and
+`priceSource: 'cited-page-content'`. Prompt rule 23 keeps the recorded selling price separate and
+requires the marketplace, source URL and retrieval date; source URLs from both research tools are
+appended to the answer. Prompt rule 24 handles price-threshold and multi-kind questions, and forbids
+naming a publication without a returned URL.
+
+The AI-47 research fan-out is now bounded at three brand groups at a time instead of sequential;
+price subjects run two at a time. On the four-brand keyboard question this cut tool time from 77 s
+(which hit the 120 s deadline before an answer) to 22 s, and the turn completed in 60.7 s.
+
+**Tests.** AI-49 is **13 unit + 2 DB** passing (one intentional skip in each mode); AI-47 is
+**13 unit + 3 DB**; server `tsc --noEmit` and ESLint are clean. The full unit suite is **1,676 pass, 0 fail, 60 skipped** (1,736 tests). Price extraction is tested against exact public page/snippet text only, including a page with no price,
+a spent allowance, cross-tenant ids, duplicate URLs and a model that writes no prose.
+
+**Live stress pass.** A disposable development tenant (14 products, 22 rows) was asked six realistic
+questions with `nvidia/nemotron-3-ultra-550b-a55b:free` as a process-local primary, 3,000 output
+tokens and a 120 s deadline. Q1 peripherals completed in **23.1 s** and explicitly said no internal
+components; Q2 brands/stock in **26.3 s**; Q3 quality/recommendation in **60.7 s** with cited reviews
+and a stocked-only recommendation; Q4 K8 Pro/RK61 prices in **59.8 s**, citing Keychron PH
+(₱6,000), Game One (₱5,895), PriceMe (₱5,195–₱5,895), iTech (₱1,995–₱2,369) and Bermor
+(₱1,995–₱2,350), while stating that no verified Shopee, Lazada or Amazon price was found; Q5 value
+under 10,000 in **76.3 s** with seven priced products; Q6 MX Master 3S reliability in **49.1 s**,
+explicitly calling the evidence professional-review snippets rather than owner reviews. No
+production config, budget, inventory or deployment was changed.
+
+**A second Q5 run did not complete.** After the stricter publication-URL rule, the same question
+spent six tool rounds and hit the 120 s deadline. The individual inventory, research and price tools
+work; the broad multi-product value question is not stable at this budget, and a hard per-turn
+research cap or a larger deadline is still required.
+
+**Follow-up performance pass (2026-11-04).** Four brand groups and three price products now run at
+once, and the price result returns only citation titles and URLs rather than each page's 2,500-character
+body. Q4 fell from **91.4 s** in a provider-variable rerun to **47.5 s** (36.2 s provider, 11,001
+input tokens); the earlier first pass was 59.8 s. Q3 measured **60.0 s** with the ultra research
+override and **67.1 s** with the default liquid research model (10.3 s tool time, 56.9 s final
+generation). The remaining bottleneck is final generation, not search. The original 84.8 s
+sequential-research turn is improved, but research turns are still not reliably under the deployed
+60 s budget.
+
+**Phone readability.** scrcpy mirrored the CPH1969 phone. The installed preview app (1.0.1, build 8)
+rendered the dashboard and the AI Assistant composer clearly at phone width. That build carries the
+older JavaScript, so the new specifications section and AI-49 price answer were not present. Expo Go
+58 loaded the new bundle but stopped at `NativeRNFBTurboApp is not registered`; the app needs a
+development build or an approved preview OTA for a visual check. No new production AI query was sent
+before approval.
+
+**Marketplace limits.** Shopee's search API returned HTTP 403 (`error:90309999`) and its product page
+served an anti-bot shell; Lazada's `Product`/`AggregateOffer` JSON-LD had availability and a URL but
+no price; Amazon's target `corePrice_desktop` block was empty. The tool reports those marketplaces as
+unavailable rather than parsing an unrelated price. The cited prices are other Philippine retailers
+and a comparison site, not Shopee/Lazada/Amazon listings.
+
+**What this does not prove.** It does not prove every marketplace has no price, that every model will
+obey rules 23–24, or that a cited page is current after the retrieval time. `Product` still has no
+currency field; Q5 omitted a currency symbol, but Q1/Q4 inferred `₱` from the seeded Philippine
+prices. The durable fix is a recorded currency, not a stronger prompt. The 60 s/1,200-token deployed
+default cannot fit the research-heavy turns measured here; the evaluation overrides were process-local.
+
+**Evidence.** [`docs/evidence/ai49-market-price-research-2026-11-04/`](evidence/ai49-market-price-research-2026-11-04/README.md).

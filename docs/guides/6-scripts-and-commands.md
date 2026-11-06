@@ -11,7 +11,6 @@ their own guides.
 | Deleting data — development | [11. Deleting data — development](11-deleting-development.md) |
 | Deleting data — production | [12. Deleting data — production](12-deleting-production.md) |
 | Firebase logins | [13. Firebase identities](13-firebase-identities.md) |
-| Every complete development and production invocation, in one runbook | [14. Command runbook](14-command-runbook.md) |
 | Which accounts exist | [4. Test accounts and mock data](4-test-accounts-and-mock-data.md) |
 | A word you do not know | [5. Words explained](5-words-explained.md) |
 
@@ -97,6 +96,24 @@ The first decodes the label the app draws now **and** checks geometry (both 11-m
 page large enough). The second decodes a real printed PDF. Exit `0` only on a match, `2` when it could
 not look. Its own must-fail controls run first on every invocation.
 
+### One command for the wireless session
+
+```bash
+cd C:/Users/jeffe/inventory-ai
+node scripts/device/wireless.mjs          # phone -> tunnels -> backend/Metro -> app -> scrcpy
+node scripts/device/wireless.mjs --check  # read-only status; changes nothing
+node scripts/device/wireless.mjs --stop   # stop the session the helper started
+node scripts/device/wireless.mjs --self-test  # recovery, restart failure, and stop controls; no phone needed
+```
+
+The helper finds the wireless phone, recreates both reverse tunnels, reuses or starts the backend and
+Metro, opens the development client and launches scrcpy. `--serial=<host:port>` selects one device when
+more than one is attached; `--stop` closes the managed session from a second terminal; `--help` lists
+the options. If ADB is hung at startup, it restarts the local server once; `--self-test` exercises
+recovery, a failed restart, and the stop handshake without a phone. It never creates an Expo build.
+Full setup and troubleshooting:
+[Guide 15](15-wireless-phone-session.md).
+
 ### A phone pass you can re-run
 
 Phone connected, development build installed, tunnels up (`adb reverse tcp:4000 tcp:4000`,
@@ -136,8 +153,7 @@ node scripts/device/run.mjs --journey=transfer --sku=SMOKE-1 \
 ## Part 3 — Data
 
 Putting data in, taking it out and handling logins are documented where they belong, so there is one
-copy of each rule. [Guide 14](14-command-runbook.md) is the complete development and production
-command sheet; the rules stay in Guides 9–13:
+copy of each rule. Guides 9–13 own the rules and the complete invocations; the table below is the index:
 
 | Task | Guide | The command, in one line |
 |---|---|---|
@@ -387,10 +403,12 @@ Two things a reader arriving here usually wants to know:
 
 ## Part 7 — What runs by itself
 
-CI runs, for the server: `typecheck`, `lint`, `check:extensions`, `check:specifiers`, the full test suite
-and a boot smoke test; for mobile: `typecheck` and Jest; separately, the secret guard. Not automatic,
-because they write or need your credentials: the seeders, cleanups, performance probes and
-`audit-access.mjs`.
+CI has four jobs. The **server** job runs `typecheck`, `lint`, `check:extensions`, `check:specifiers`, the
+full test suite and a boot smoke test. The **mobile** job runs `typecheck`, the build-environment contract,
+Jest, the Metro/Expo bundle check, the printable-label barcode check and the wireless helper's
+`--self-test`. The **secret-guard** job proves its scanner can fail before scanning, and the
+**attribution-guard** job checks the commit messages the event introduces. Not automatic, because they
+write or need your credentials: the seeders, cleanups, performance probes and `audit-access.mjs`.
 
 **Nothing watches the deployment.** `/api/health/ready` answers 200 only when the database is reachable
 now; poll it every 5 minutes, alert after two non-200 answers, and optionally watch `/api/health` for a
@@ -421,7 +439,8 @@ process (reset on restart) and public but contain no names, paths, users or mess
 `node scripts/check-build-env.mjs --live` — all read-only or local.
 
 **project root**: `node scripts/check-secrets.mjs`, `audit-access.mjs`, `check-upgrade-watches.mjs`,
-`verify-label-barcode.mjs --html|--pdf --expect=…`, `scripts/device/run.mjs` (read-only walk;
+`verify-label-barcode.mjs --html|--pdf --expect=…`, `scripts/device/wireless.mjs` (wireless session;
+`--check` is read-only; `--stop` ends a managed session), `scripts/device/run.mjs` (device walk;
 `--journey=draft|stock|transfer --allow-writes` writes).
 
 ## Part 9 — When a command refuses

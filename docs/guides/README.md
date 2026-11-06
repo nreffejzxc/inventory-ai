@@ -8,15 +8,14 @@ technical documents listed at the bottom; if they disagree with a guide, they wi
 | I want to… | Read |
 |---|---|
 | Start the backend and the app on this laptop | [1. Running on a laptop](1-run-on-your-laptop.md) |
-| Run the app on a real phone | [2. Running on a phone](2-run-on-your-phone.md) |
-| See the phone's screen on the laptop | [3. Mirroring the phone](3-see-your-phone-on-your-laptop.md) |
+| Run the app on a real phone, and mirror it over USB | [2. Running and mirroring on a phone](2-run-on-your-phone.md) |
+| Start the app and mirror it with no cable, in one command | [15. Wireless phone session](15-wireless-phone-session.md) |
 | Understand test accounts and what data each one holds | [4. Test accounts and mock data](4-test-accounts-and-mock-data.md) |
 | Put data into the development database | [9. Seeding data — development](9-seeding-development.md) |
 | Put data into the production database | [10. Seeding data — production](10-seeding-production.md) |
 | Delete data from the development database | [11. Deleting data — development](11-deleting-development.md) |
 | Delete data from the production database | [12. Deleting data — production](12-deleting-production.md) |
 | Work with Firebase logins | [13. Firebase identities](13-firebase-identities.md) |
-| Run a data command in either environment from one page | [14. Command runbook — development and production](14-command-runbook.md) |
 | Look up any other command or script | [6. Scripts and commands](6-scripts-and-commands.md) |
 | Update an installed app without reinstalling it | [7. Updating the app](7-over-the-air-updates.md) |
 | Prepare the Google Play submission | [8. Preparing the Play submission](8-play-store-submission.md) |
@@ -24,8 +23,11 @@ technical documents listed at the bottom; if they disagree with a guide, they wi
 
 Guides 5 and 6 are references — jump to the word or command you need. Guides 9–13 own the data commands
 — one guide for each half in each environment (put it in, take it out), one for the logins — so Guide 6
-does not repeat them. Guide 14 is the one-page runbook of complete development and production
-invocations; it repeats the commands, never the rules.
+does not repeat the rules. The complete invocations and the backup/restore procedure are in those guides
+and Guide 6; there is no separate runbook.
+
+The numbered filenames are stable links. Guides 3 and 14 were consolidated into Guide 2, Guides 9–13 and
+Guide 6; no rule, command or safety procedure was removed.
 
 ## Five things to know first
 
@@ -34,7 +36,7 @@ invocations; it repeats the commands, never the rules.
 2. **The database is in the cloud** (MongoDB Atlas). "Database unreachable" is a network problem,
    not a broken install.
 3. **The phone is a separate computer.** On the phone, `localhost` means *the phone*, so the laptop's
-   backend is reached through a USB tunnel (Guide 2).
+   backend is reached through a USB tunnel (Guide 2) or a wireless ADB reverse tunnel (Guide 15).
 4. **Nothing here is destructive by default.** Dangerous commands are marked ⚠️ and require a
    confirmation phrase.
 5. **Only sign-ins you know the password to can sign in.** Deleting a login while its database record

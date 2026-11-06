@@ -25,8 +25,9 @@
  * was written for was in an **untracked-then-committed** state, and a scan of tracked
  * files alone would have missed it for a while — `git ls-files` also makes the test
  * depend on the git binary and on being run inside a work tree, which the suite runner
- * does not guarantee. `node_modules`, `.git`, `.expo` and the editor directories are
- * skipped because they are not the project's own text, and `.env` is skipped because it
+ * does not guarantee. `node_modules`, `.git`, `.expo`, the editor directories and the
+ * git-ignored local-artifact directories are skipped because they are not the project's
+ * own text, and `.env` is skipped because it
  * is git-ignored configuration rather than evidence (the same reason `check-secrets`
  * scans tracked files).
  *
@@ -54,8 +55,29 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(here, '..', '..');
 const ROADMAP_PATH = path.join(repoRoot, 'docs', 'DEVELOPMENT_ROADMAP.md');
 
-/** Directories holding generated, vendored or tool-owned content, never evidence. */
-const SKIP_DIRS = new Set(['node_modules', '.git', '.expo', 'dist', 'build', 'coverage']);
+/**
+ * Directories holding generated, vendored or tool-owned content, never evidence.
+ *
+ * The last group is git-ignored local state (see `.gitignore`): imported chat attachments
+ * and one-off repository copies, device captures or logs. They are this machine's scratch
+ * data, not the project's text, and a stale copy inside one of them is not a citation —
+ * measured: an old `.tmp-*` copy of this very suite made the scan report an identifier the
+ * live tree no longer used.
+ */
+const SKIP_DIRS = new Set([
+  'node_modules',
+  '.git',
+  '.expo',
+  'dist',
+  'build',
+  'coverage',
+  '.cloud-attachments',
+  '.scratch',
+  'logs',
+]);
+
+/** Git-ignored local artifacts written as `.tmp-*` (screenshots, dumps, scratch copies). */
+const SKIP_PREFIX = '.tmp-';
 
 /**
  * The ONE file excluded from its own scan, and the reason is its nature rather than its
@@ -66,7 +88,7 @@ const SKIP_DIRS = new Set(['node_modules', '.git', '.expo', 'dist', 'build', 'co
  * one.
  *
  * That is not a hypothesis: the first draft scanned itself, and failed on its own fixture
- * (a fabricated `ISS-99`); rewording the fixture was not enough, because the *explanation*
+ * (a fabricated issue identifier); rewording the fixture was not enough, because the *explanation*
  * of that failure names it too. The exclusion is therefore recorded here rather than left
  * as a silent `if` — and it is deliberately a single file, so a new citation anywhere else,
  * including in every other test, is still judged.
@@ -98,6 +120,7 @@ const TABLE_ROW_ID = /^\|\s*\*\*(ISS-\d+)\*\*/;
 
 function collectTextFiles(dir, out = []) {
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    if (entry.name.startsWith(SKIP_PREFIX)) continue;
     const full = path.join(dir, entry.name);
     if (entry.isDirectory()) {
       if (SKIP_DIRS.has(entry.name)) continue;
@@ -157,7 +180,7 @@ describe('the scan is actually reading the project', () => {
     // reported as a broken extraction rather than as every row having been deleted.
     //
     // THESE FIXTURES USE IDENTIFIERS THE TABLE REALLY CARRIES, AND THAT IS NOT
-    // COSMETIC. The first draft wrote a fabricated `ISS-99` into them — and this suite
+    // COSMETIC. The first draft wrote a fabricated issue identifier into them — and this suite
     // then failed against its own source, because the scan reads every file in the
     // project including this one, found the invented identifier in the fixture and
     // reported it as a citation with no row. Real identifiers are used instead, so the

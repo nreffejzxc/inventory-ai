@@ -194,14 +194,14 @@ hashes, immune to CRLF normalisation; no automated verifier exists. All five are
 to `HEAD`.
 
 ```text
-fc1214bbf91e319d8ef34d4fd162369d01e3ca91  mobile/eas.json
+7a6580985611418d785163d73582af887f7c90a6  mobile/eas.json
 377ffab6936f6474f101ffd8df92b8e16f077b83  server/src/services/ai/providers/http.ts
 07601c7ab31009263d0045f20a9b940539184094  server/test/phase06-ai-wire.test.mjs
 12627bae19ec693bd8d609ac00bd57b602139dce  docs/superpowers/plans/2026-09-11-phase-18c-core-list-screens.md
 347bcc1365939bed92879f00d781f63f71cf670e  docs/superpowers/plans/2026-09-11-phase-18e-secondary-screens.md
 ```
 
-**Refreshed 2026-10-26.** Two entries had moved with authorized commits — `mobile/eas.json` (the
+**Refreshed 2026-11-06.** `mobile/eas.json` gained the `production-apk` profile required by the release guides; the other four still match. **Refreshed 2026-10-26.** Two entries had moved with authorized commits — `mobile/eas.json` (the
 production API URL, §27T) and `http.ts` — while the other three still matched. Every value now equals
 `HEAD`. Verify with `git hash-object <path>` against `git rev-parse HEAD:<path>`; the hashes are a
 record of *what is committed*, not a rule that the files can never change.

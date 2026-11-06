@@ -33,6 +33,13 @@
       "env": {
         "EXPO_PUBLIC_API_URL": "https://ai-inventory-l1mi.onrender.com"
       }
+    },
+    "production-apk": {
+      "extends": "production",
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      }
     }
   }
 }

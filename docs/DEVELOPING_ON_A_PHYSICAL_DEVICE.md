@@ -1,13 +1,14 @@
 # Developing on a Physical Android Device (Windows)
 
 The developer reference for running Inventory AI on a real Android phone — no emulator. It changes
-no product behaviour; the beginner walkthrough is [Guide 2](guides/2-run-on-your-phone.md) and
-[Guide 3](guides/3-see-your-phone-on-your-laptop.md).
+no product behaviour; the beginner walkthrough is [Guide 2](guides/2-run-on-your-phone.md).
 
-The installation and mirroring steps (now in those guides) and the troubleshooting table were executed
-on this machine (2026-10-10) against an **OPPO CPH1969, Android 11 (SDK 30)**, with scrcpy 4.1 and
-adb 37.0.1. §7's tunnel, launch and pre-flight steps were verified on 2026-10-11; its journey table is
-derived from the code.
+§7's tunnel, launch and pre-flight steps were executed on this machine (2026-10-11) against an
+**OPPO CPH1969, Android 11 (SDK 30)**; its journey table is derived from the code. §9b's headless
+traps were measured on the same phone. Installation, mirroring and the wireless session are taught
+step by step in [Guide 2](guides/2-run-on-your-phone.md) and
+[Guide 15](guides/15-wireless-phone-session.md); this file keeps only the depth those guides do not
+carry. Section numbers are stable so the roadmap's older citations still resolve.
 
 ---
 
@@ -38,101 +39,14 @@ The commonest misunderstanding: **a `preview` or `production` build is not a dev
 
 > **This is the developer reference, not the beginner walkthrough.** For the plain-language,
 > step-by-step path (install adb, enable USB debugging, put a dev build on the phone, mirror the
-> screen) read [Guide 2](guides/2-run-on-your-phone.md) and [Guide 3](guides/3-see-your-phone-on-your-laptop.md).
-> What follows is the depth those guides do not carry: the checks that tell a working setup from a
-> plausible-looking one, and the signed-in walkthrough with the log lines it must produce.
-
-## 1. The checks that matter most
-
-```powershell
-adb devices -l      # PV4DDMIZZLTCIVSK  device product:CPH1969 model:CPH1969 device:OP4863
-adb shell getprop ro.build.version.sdk      # 30  (Android 11 on this phone)
-scrcpy --version    # scrcpy 4.1   |   adb version -> 1.0.41
-node -v             # >= 24, or the server will not start
-```
-
-| `adb devices` output | Meaning | Fix |
-| --- | --- | --- |
-| `… device` | Working | Continue |
-| `… unauthorized` | RSA prompt not accepted | Accept + *Always allow*, or Developer options → **Revoke USB debugging authorizations** → replug |
-| `… offline` | Stale handle | `adb reconnect`, or `adb kill-server` then replug |
-| *(empty)* | Not seen | Cable (data, not charge-only), port, USB mode = **File transfer**, or debugging is off |
-
-- **Open a new terminal after installing a tool** (`winget install --id Google.PlatformTools -e`,
-  `winget install --id Genymobile.scrcpy -e`). winget edits the user `PATH`; a running shell keeps the
-  old one, which is the usual "installed but not recognised" cause.
-- **Never start scrcpy until `adb devices` is clean** — it is built on adb and cannot see more.
-- On OPPO/Realme/Vivo also enable **USB debugging (Security settings)** (input simulation). ColorOS
-  nests Developer options under *Additional settings*; Build number is under *Version*.
-- Machine notes: adb is at `%LOCALAPPDATA%\Android\Sdk\platform-tools\adb.exe`; scrcpy uses the `adb`
-  on `PATH` (override with `$env:ADB`); `eas` is a **global** CLI (`eas-cli/24.7.0`), not a dependency.
-- Mirroring: `scrcpy -s <serial> -m 1024 --window-title "Inventory AI"`. Frames are arriving when it
-  prints `INFO: Texture: 472x1024`. MOD = left-Alt: `MOD+b` back · `MOD+h` home · `MOD+o` screen off
-  · `MOD+p` power · `MOD+q` quit; drag an `.apk` onto the window to install it.
-
-## 2. Dev client, not a standalone build (this replaces old §6a)
-
-```powershell
-cd C:\Users\jeffe\inventory-ai\mobile
-eas build --profile development --platform android
-adb install -r "C:\path\to\downloaded.apk"
-```
-
-`npx expo run:android` would generate `mobile/android/`, which this project never commits — EAS owns
-native builds. Installing a dev build **replaces** a standalone build of the same package (and the
-reverse); app data survives when the signing key matches. To tell which is installed:
-
-```powershell
-adb shell cmd package resolve-activity --brief -a android.intent.action.VIEW `
-  -d "inventoryai://expo-development-client/?url=http://localhost:8081"
-# names com.inventoryai.app/.MainActivity; "No activity found" = standalone build installed
-```
-
-## 3. Start the stack, and prove each layer
-
-```powershell
-# terminal 1 — backend; needs server\.env
-cd C:\Users\jeffe\inventory-ai\server; npm start; curl.exe http://localhost:4000/api/health/ready
-
-# terminal 2 — Metro
-cd C:\Users\jeffe\inventory-ai\mobile; npx expo start --dev-client
-```
-
-`EXPO_PUBLIC_API_URL` must be reachable **from the phone** (`http://<laptop-lan-ip>:4000` on shared
-Wi-Fi, or `http://localhost:4000` with the tunnels below). `EXPO_PUBLIC_*` is inlined at bundle time:
-after changing it, restart Metro with `--clear`.
-
-```powershell
-# avoid Wi-Fi entirely
-adb reverse tcp:8081 tcp:8081     # phone :8081 -> Metro
-adb reverse tcp:4000 tcp:4000     # phone :4000 -> backend
-# force the app open (the inner URL must be percent-encoded)
-adb shell am start -a android.intent.action.VIEW `
-  -d "inventoryai://expo-development-client/?url=http%3A%2F%2F192.168.1.4%3A8081"
-```
-
-Three independent signals — all three, or you have not proved it:
-
-1. **Metro served the bundle:** `Android Bundled 2930ms node_modules\expo-router\entry.js (1602 modules)`.
-2. **The app is on screen:** visible in scrcpy (`uiautomator dump` for text — see §7e on Git Bash).
-3. **It reached this laptop:** the backend prints
-   `{"ts":"…","type":"http","method":"GET","path":"/api/auth/me","status":401}`.
-
-If (1) and (2) pass but (3) is silent, the app is running and pointing elsewhere — fix
-`EXPO_PUBLIC_API_URL` and restart with `--clear`. Files reload automatically; **`r`** forces it, the
-dev menu is a shake or `adb shell input keyevent 82`, `console.log` prints in Metro.
-
-> **Why the numbering skips 4–6.** Install adb/scrcpy, enable USB debugging and mirror the screen were
-> folded into [Guide 2](guides/2-run-on-your-phone.md) and [Guide 3](guides/3-see-your-phone-on-your-laptop.md)
-> on 2026-10-26, because all three documents were teaching the same steps. The numbers are deliberately
-> left unfilled so this file's own cross-references — and the roadmap's citations of **§6a** and
-> **§9b** — still resolve to what they meant.
-
----
+> screen) read [Guide 2](guides/2-run-on-your-phone.md); for a cable-free session read
+> [Guide 15](guides/15-wireless-phone-session.md).
+> What follows is the depth those guides do not carry: the signed-in walkthrough and the log lines it
+> must produce, the failure table, and the headless-harness traps.
 
 ## 7. The authenticated walkthrough
 
-Getting the app **running** is §§1–3. Getting it **signed in** crosses Firebase, the mail provider and
+Getting the app **running** is [Guide 2](guides/2-run-on-your-phone.md). Getting it **signed in** crosses Firebase, the mail provider and
 MongoDB, and the first successful run is what creates a tenant.
 
 ### 7a. Why the first run is special
@@ -334,21 +248,13 @@ mailbox files the code as spam.
 
 | Symptom | Cause | Fix |
 | --- | --- | --- |
-| `scrcpy` not recognised | PATH updated after the shell started | new terminal, or re-login |
-| `adb devices` empty | charge-only cable / debugging off / bad port | data cable, other port, re-enable debugging |
-| `unauthorized` (also after it worked) | RSA prompt not accepted, or the adb server restarted | accept it; else revoke authorizations and replug |
-| `offline` | stale handle | `adb reconnect`, else `adb kill-server` and replug |
-| `more than one device/emulator` | two devices | `-s $serial`, or `-d` |
-| scrcpy `Could not find any ADB device` | adb cannot see it | fix `adb devices`; scrcpy has no separate fix |
 | scrcpy `Could not change "stay_on_while_plugged_in"` | ColorOS refuses `WRITE_SECURE_SETTINGS` | harmless — only stay-awake is skipped; raise the screen timeout |
 | Mirroring fine, taps do nothing | OEM blocks input injection | enable **USB debugging (Security settings)**, restart scrcpy |
-| Black screen | asleep | `MOD+p`, or right-click |
 | `adb: failed to stat …` on install | a Git-Bash path was passed to Windows adb | Windows path, or `cygpath -w` |
 | `INSTALL_FAILED_UPDATE_INCOMPATIBLE` | different signing key | `adb uninstall com.inventoryai.app`, reinstall |
 | App cannot reach the backend | IP changed, or firewall blocks 4000 | fix `EXPO_PUBLIC_API_URL` + `--clear`; allow Node on **Private**; or use `adb reverse` |
 | `ping` fails but the app works | Windows drops ICMP, allows TCP | **do not trust ping** — test the port |
 | `Could not parse Expo config: google-services.json` | those files are EAS-managed | non-fatal; ignore |
-| Port 8081 in use | an old Metro | close it, or accept the other port |
 | Stale UI after `.env` | inlined at bundle time | `npx expo start --dev-client --clear` |
 | `uiautomator dump` writes to `/Files/Git/sdcard/…` | Git Bash rewrote the path | `MSYS_NO_PATHCONV=1` (§7e) |
 | `uiautomator`: `null root node …` | intermittent accessibility read | retry, fall back to scrcpy, `dumpsys activity activities`; never trust a stale file |
@@ -357,38 +263,6 @@ mailbox files the code as spam.
 | *"Cannot reach the sign-in service"* while the API is reachable | Firebase Auth uses the phone's internet, not the tunnel | reconnect the phone |
 | `scripts/device/run.mjs` reports the **Expo dev launcher** | a cold-started dev build opens the launcher; a route deep link cannot reach a stopped app | start Metro, pick the server in the launcher, re-run |
 | `scripts/device/run.mjs` reports **"Session expired"** | the app holds a token the server no longer accepts | sign in on the phone; exit **2** means "could not check", not an app defect |
-
----
-
-## 9. The routine
-
-```powershell
-adb devices                                  # must say "device"
-scrcpy -s PV4DDMIZZLTCIVSK -m 1024 --window-title "Inventory AI"
-
-# THE TUNNELS — required, and the step most often missed
-adb reverse tcp:8081 tcp:8081
-adb reverse tcp:4000 tcp:4000
-adb reverse --list                           # must list BOTH
-
-cd C:\Users\jeffe\inventory-ai\server; npm start
-cd C:\Users\jeffe\inventory-ai\mobile; npx expo start --dev-client
-```
-
-Three windows: the mirror, the backend log, the Metro log. Edit → the phone reloads; after a `.env`
-change, restart Metro with `--clear`.
-
-**Why step 3 bites.** `EXPO_PUBLIC_API_URL=http://localhost:4000` means *the phone's* localhost. Expo
-creates the `tcp:8081` tunnel for you; **nothing creates 4000**, so the app loads and every API call
-fails. A reverse tunnel belongs to the current ADB connection, so it dies on every replug and every
-`adb` restart. Diagnose in this order:
-
-```powershell
-curl http://localhost:4000/api/health/ready   # laptop: must be 200
-adb reverse --list                            # must list 8081 AND 4000
-```
-
-A tunnel to a dead port fails exactly like a missing tunnel, which is why the `curl` comes first.
 
 ---
 
@@ -511,24 +385,10 @@ picker **BLOCKED** (nothing to choose here) instead of a defect.
 
 ---
 
-## 10. Optional: wireless *(documented, not verified here)*
+## 10. Wireless
 
-```powershell
-adb tcpip 5555
-adb shell ip -4 addr show wlan0 | findstr inet      # the phone's IP, e.g. 192.168.1.5
-adb connect 192.168.1.5:5555
-adb devices                                         # now lists 192.168.1.5:5555
-scrcpy -s 192.168.1.5:5555 -m 1024
-adb disconnect 192.168.1.5:5555
-```
-
-Android 11+ also has **Wireless debugging → Pair device with pairing code**
-(`adb pair <ip>:<port>`). Wireless is slower and drops when the phone sleeps; USB stays the default.
-
----
-
-## 11. References
-
-- scrcpy — <https://github.com/Genymobile/scrcpy> (`scrcpy --help` is authoritative)
-- adb — <https://developer.android.com/tools/adb>
-- Expo development builds — <https://docs.expo.dev/develop/development-builds/introduction/>
+The complete runbook is [Guide 15](guides/15-wireless-phone-session.md); the one-command helper and
+its measured setup are documented there. The measured fact this reference adds: the wireless
+session was run on 2026-11-06 against this OPPO at `192.168.1.2:5555`, and the phone both loaded the
+bundle from Metro and reached the backend through the wireless ADB reverse tunnel. Reverse tunnels
+do not survive a new ADB connection; recreate both after any reconnect.
