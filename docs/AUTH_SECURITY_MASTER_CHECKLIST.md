@@ -14,7 +14,7 @@ this file checks against is
 implemented · `[⛔]` blocked by something outside the repository · `[⏸]` deferred by decision ·
 `[—]` considered and not applicable.
 
-*Last reconciled 2026-10-26 against `main`. "Implemented" ≠ "verified on a phone"; "planned" ≠
+*Last reconciled 2026-11-06 against `main`. "Implemented" ≠ "verified on a phone"; "planned" ≠
 "authorised".*
 
 ---
@@ -128,16 +128,15 @@ Resolved decisions are not reopened without new repository evidence.
 | # | Decision | State |
 | --- | --- | --- |
 | O-1 | Unlink policy and last-method protection | **Policy B resolved; operation removed.** No reachable path clears `firebaseUid`; the residual (Firebase's own provider set) stays open |
-| O-2 | Linked account and `change-password`/reset | Closed — inert-hash behaviour recorded (32K) |
 | O-3 | Is `emailVerified` enforced? | Resolved and **implemented**: the gate is the registration ordering plus a verify screen; `requireAuth` untouched |
-| O-4 | RNFirebase (M1) vs alternatives | Resolved — M1 with durable persistence; forfeits Expo Go |
 | O-5 | Facebook identities without a usable email | **Open** — blocks Facebook Login |
 | O-6 | Remedy for the unhealable orphan identity | **Open** — blocks legacy migration |
-| O-7 | `google-services.json` / plist storage | Resolved — EAS build-time injection, never committed |
 | O-8 | Does Firebase take over recovery? | Resolved — yes; shipped as AUTH-06 |
-| O-9 | `passwordChangedAt` for Firebase-native accounts | Resolved and **implemented** — the credential-change revocation bridge |
 | O-10 | Invitation-based onboarding | **Shipped 2026-10-25** (roadmap §27FB). Still open: migrating admin-created password accounts before legacy login can be retired |
 | O-11 | Expo Go policy | Open and moot — the dev-client requirement forfeited it |
+
+Also resolved, unchanged: O-2 inert-hash behaviour, O-4 RNFirebase M1, O-7 EAS build-time
+configuration injection, and O-9 the credential-change revocation bridge.
 
 ---
 
@@ -164,7 +163,6 @@ Resolved decisions are not reopened without new repository evidence.
 | P-4 | Keychain survival across reinstall | `[⛔]` | device-time test not run |
 | P-5 | Firebase console state | `[~]` | Android satisfied; **iOS app not registered** |
 | P-6 | iOS build capability | `[⛔]` | no macOS host |
-| Gate 1 | Firebase `auth:import` bcrypt support | `[⛔]` | needs a live project; blocks one migration route |
 | L-17 | Password-reset *Customize action URL* set to `https://ai-inventory-l1mi.onrender.com/auth/reset` | `[ ]` **open** | console-only; gates the emailed-link path |
 | New-identity Google sign-in | `REGISTRATION_REQUIRED` outcome | `[~]` | device consent cache |
 
@@ -201,35 +199,14 @@ to `HEAD`.
 347bcc1365939bed92879f00d781f63f71cf670e  docs/superpowers/plans/2026-09-11-phase-18e-secondary-screens.md
 ```
 
-**Refreshed 2026-11-06.** `mobile/eas.json` gained the `production-apk` profile required by the release guides; the other four still match. **Refreshed 2026-10-26.** Two entries had moved with authorized commits — `mobile/eas.json` (the
-production API URL, §27T) and `http.ts` — while the other three still matched. Every value now equals
-`HEAD`. Verify with `git hash-object <path>` against `git rev-parse HEAD:<path>`; the hashes are a
-record of *what is committed*, not a rule that the files can never change.
+**Refreshed 2026-11-06.** `mobile/eas.json` gained the `production-apk` profile required by the
+release guides; the other four still match. Every value now equals `HEAD`. Verify with `git hash-object <path>`
+against `git rev-parse HEAD:<path>`; the hashes are a record of *what is committed*, not a rule that
+the files can never change.
 
 Before meaningful work: inspect branch, `HEAD`, `git status --porcelain`, and these five. After:
 re-check them, run the required checks, and commit only approved work. Never `reset`, `restore`,
 `clean`, `stash`, force-push, rewrite history, rebase or merge without explicit approval.
-
----
-
-## 9. Where the old sections went
-
-Earlier revisions of this file were a 53-section tracker. The register that other documents cite:
-
-| Old | Now |
-| --- | --- |
-| §0 invariants | §1 (I-1…I-21, plus I-22…I-24 added since) |
-| §25 external gates | §6 |
-| §26 production readiness | §7 |
-| §27 owner decisions | §4 |
-| §28 deferred work | §5 |
-| §32 git/change safety · §38 baseline | §8 |
-| §39–§42, §53 phase records | [`DEVELOPMENT_ROADMAP.md`](DEVELOPMENT_ROADMAP.md) — §27U…§27Y, §27FB |
-
-The per-area item tables, the completed-phase table and the CI reconciliation narrative were
-removed on 2026-10-26. Every fact in them is a dated measurement held in the roadmap, and keeping a
-second copy is how the two drifted apart: this file still listed invitations as "not implemented"
-months after they shipped.
 
 ---
 

@@ -46,7 +46,9 @@ Store release is being prepared.
 
 **Docs maintenance:** On 2026-11-06 the active guide set was consolidated, the device reference and
 the specification's obsolete planning tail were trimmed, and a documentation-link guard was added;
-see the documentation entries below. The AI-48–AI-84 work is recorded in §27HQ and the newest entry.
+see the documentation entries below. The auth checklist and account runbook now state current
+decisions; superseded migration procedure was removed. The AI-48–AI-84 work is recorded in §27HQ and
+the newest entry.
 
 | | |
 | --- | --- |
@@ -108,6 +110,19 @@ Known limits, checked before spending one of them:
   space that a backup or an index change would explain.
 - **Brevo** — used for verification codes, reset codes and invitations. Do not send test mail in
   bulk; a delivery failure is not a code regression until the provider log says so.
+
+---
+
+## 2026-11-06 — Auth and account-migration docs reduced to current decisions
+
+| Item | Evidence |
+| --- | --- |
+| **Why** | The account runbook still carried the full paused handover procedure, restored-account history and old definition of done; the auth checklist still carried a historical section map and separate resolved-decision rows. A reader had to separate current rules from procedure that no longer applies. |
+| **Account runbook** | `ACCOUNT_MIGRATION_RUNBOOK.md` **571 → 136** lines. Keeps the current owner and repository, the pause decision, the single-email rule, hard rules, provider anchors, read-only verification, approval gates and current open items. Removes the per-provider transfer recipes, the restoration narrative, the paused completion checklist and the provider source list. |
+| **Auth checklist** | `AUTH_SECURITY_MASTER_CHECKLIST.md` **239 → 216** lines. Removes the old-section map; folds resolved O-2/O-4/O-7/O-9 into one line while keeping open decisions; removes the paused `auth:import` migration gate; drops the superseded 2026-10-26 protected-path note. All 24 invariants, control status, remaining gates, production posture and protected hashes stay. |
+| **Index** | `docs/README.md` now describes the runbook as current owner state, the paused decision, anchors, checks and gates, not a handover plan. |
+| **Verified** | Documentation guards **39/39** pass; `git diff --check` clean. No code, test or configuration change. |
+| **Not done** | No account, credential, repository-permission or history change; no deployment. A docs-only merge does not redeploy the server. |
 
 ---
 
