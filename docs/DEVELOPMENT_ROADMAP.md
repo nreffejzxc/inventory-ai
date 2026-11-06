@@ -8,9 +8,9 @@ of truth for *what actually happened*, and it is why this file is long.
 
 **How to read it.** Do not read it top to bottom. Either find a record by number (§27FJ, §27DM — the
 numbers are cited from `CLAUDE.md` and from source comments), or use the index: `CLAUDE.md` §7 lists
-all **223** records by the title each gives itself.
+all **224** records by the title each gives itself.
 
-**Current state:** V1 complete and in production testing. The records that answer *where are we now*are §27HQ (grounded answers and scoped stock reads), §27HP (market prices from cited pages), §27HO (recorded specifications and the real seed catalogue), §27HN (inventory-only web research), §27HH (a transfer as one event to the assistant), §27HG (the stock-in link's product), §27HF (the single-location default's timing), §27HE (the stock-in link's location), §27HD (the movement fixes and the production device pass), §27HC (the assistant's local-time answers), §27FM (the V1 re-verification) and §27FJ (the two open advisories).
+**Current state:** V1 complete and in production testing. The records that answer *where are we now*are §27HR (AI-48–AI-84 merged and deployed), §27HQ (grounded answers and scoped stock reads), §27HP (market prices from cited pages), §27HO (recorded specifications and the real seed catalogue), §27HN (inventory-only web research), §27HH (a transfer as one event to the assistant), §27HG (the stock-in link's product), §27HF (the single-location default's timing), §27HE (the stock-in link's location), §27HD (the movement fixes and the production device pass), §27HC (the assistant's local-time answers), §27FM (the V1 re-verification) and §27FJ (the two open advisories).
 
 ---
 
@@ -24825,3 +24825,24 @@ budget has not been re-measured against this branch's research turns.
 [AI-49 market prices](evidence/ai49-market-price-research-2026-11-04/README.md), the
 [AI-54–AI-60 grounded-answer battery](evidence/ai54-60-grounded-answers-2026-11-05/README.md), and
 the [AI-61 tool audit](evidence/ai61-tool-audit-2026-11-05/README.md).
+
+---
+
+# 27HR. AI-48–AI-84 merged and deployed (2026-11-06)
+
+**What changed.** PR #151 squash-merged as `98a4282`, carrying 90 files: the AI-48–AI-84
+grounding, scoped-read, research and language work plus the §27HQ record.
+
+**Verification.** The PR's four required checks passed before merge, and the post-merge `main` CI
+run `42277471424` passed all four jobs (`server`, `mobile`, `secret-guard`,
+`attribution-guard`). The documentation guards pass **39/39**.
+
+**Deployment.** Production `/api/health` reports `commit: 98a4282`, `status: ok` and
+`db: connected` at `2026-11-06T19:16:04Z`. This is the serving commit, not just a merge receipt.
+
+**What this does not prove.** No EAS build, OTA or phone observation was made. The 60 s research
+budget has not been re-measured against the deployed assistant, and the revenue figure remains an
+estimate because the product records no sale price, invoice or customer.
+
+**Evidence.** [PR #151](https://github.com/nreffejzxc/inventory-ai/pull/151), `main` CI run
+`42277471424`, and `GET /api/health`.
