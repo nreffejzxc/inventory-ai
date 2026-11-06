@@ -168,11 +168,862 @@ const STATUS_PHRASES: Record<string, string> = {
   OUT_OF_STOCK: 'Out of stock',
   LOW_STOCK: 'Low stock',
   IN_STOCK: 'In stock',
+  // AI-62 — the movement types, measured on the device the same day: "538 STOCK_OUT events".
+  // The words are the app's own TypeBadge labels, so the answer and the History screen agree.
+  STOCK_IN: 'Stock in',
+  STOCK_OUT: 'Stock out',
+  ADJUSTMENT: 'Adjustment',
+  TRANSFER: 'Transfer',
 };
+
+/**
+ * AI-56 — the model's own markup, taken off the screen.
+ *
+ * Read off the phone on 2026-11-04: an answer comparing the ROG Strix G16's recorded price
+ * with marketplace listings drew "(search-snippet) <br>• PC Express: ₱205,995" inside a table
+ * cell, with the long product URLs wrapped three characters wide beside it. The chat bubble
+ * renders markdown but not HTML, so `<br>` reached the member as literal characters — the
+ * same class of defect as an unrendered status constant, and just as invisible to a text
+ * assertion in the provider tests.
+ *
+ * The prompt forbids HTML (rule 26), but a prompt is a request: this is the deterministic
+ * half that guarantees the member never reads a tag. `<br>` becomes a line break, every
+ * other complete HTML tag is dropped, and the five character references a model actually
+ * emits are decoded. A bare `<` stays untouched, since it is usually a comparison.
+ */
+const HTML_BREAK = /<br\s*\/?>/gi;
+const HTML_TAG = /<\/?[a-z][a-z0-9]*(?:\s[^<>]*)?\/?>/gi;
+const HTML_ENTITIES: Array<[RegExp, string]> = [
+  [/&nbsp;/gi, ' '],
+  [/&lt;/gi, '<'],
+  [/&gt;/gi, '>'],
+  [/&quot;/gi, '"'],
+  [/&#39;/g, "'"],
+  [/&amp;/gi, '&'],
+];
+
+export function normaliseAnswerMarkup(raw: string): string {
+  if (!raw || !raw.includes('<')) {
+    return HTML_ENTITIES.reduce((text, [pattern, value]) => text.replace(pattern, value), raw);
+  }
+  const broken = raw.replace(HTML_BREAK, '\n').replace(HTML_TAG, '');
+  const decoded = HTML_ENTITIES.reduce((text, [pattern, value]) => text.replace(pattern, value), broken);
+  // A dropped tag leaves its line's padding behind (`  \n`), which renders as a blank gap.
+  return decoded.replace(/[ \t]+$/gm, '');
+}
 
 export function humaniseStatusConstants(raw: string): string {
   if (!raw) return raw;
-  return raw.replace(/\b(OUT_OF_STOCK|LOW_STOCK|IN_STOCK)\b/g, (token) => STATUS_PHRASES[token] ?? token);
+  return raw.replace(/\b(OUT_OF_STOCK|LOW_STOCK|IN_STOCK|STOCK_IN|STOCK_OUT|ADJUSTMENT|TRANSFER)\b/g, (token) => STATUS_PHRASES[token] ?? token);
+}
+
+/**
+ * AI-60 — does this answer state a figure that can only have come from recorded data?
+ *
+ * Used by the turn loop to decide whether an answer that ran NO tool should be sent back to
+ * read one. It is a *detector*, not a validator: it says "this text makes a claim about the
+ * business", which is exactly the case where a zero-tool answer cannot be trusted. It does not
+ * try to check the figure itself, because a formatted total legitimately differs from a tool
+ * payload (rounding, thousands separators, `PHP` versus `₱`, 12 versus 12.00).
+ *
+ * Money and quantity claims it catches:
+ *  - a currency code in front of a digit (`PHP 383,426`, `USD 45`, `php139995`);
+ *  - a currency symbol in front of a digit (`₱1,299`, `$45.00`) — the one the members use; plus
+ *    a trailing peso marker, which is how some answers write it (`1,299 ₱`);
+ *  - a thousands-grouped number anywhere (`383,426`, `1,299.00`), since a raw count that large
+ *    is a total too, and a model inventing inventory figures writes one of these three;
+ *  - AI-62 — a count of a business thing: a number in front of an inventory noun or a stock
+ *    phrase (`2 units available`, `minimum 5`, `3 products`, `14 on hand`), a reorder
+ *    threshold (`minimum 5`, `reorder point: 3`), or a markdown table row carrying digits.
+ *    Added after a device turn (2026-11-05 5:13 PM, calls=1 toolRuns=0) answered *"What is
+ *    running low at the Front Counter right now"* with an invented "Product A – 2 units
+ *    available, minimum 5 … Product C", and none of the three money shapes matched, so the
+ *    fabricated shelf passed the AI-60 guard untouched.
+ *
+ * Deliberately NOT matched: bare numbers with no unit or stock noun (`3`, `2 low`, `2026`),
+ * because those appear in ordinary prose ("I can see 3 tools"), and a false positive costs a
+ * whole re-ask round. A number that names a business noun is a claim about the business, so
+ * a tool has to have produced it.
+ */
+const CURRENCY_CODE_AMOUNT = /\b(?:PHP|USD|EUR|GBP|JPY|AUD|CAD|SGD|HKD|INR|NZD|AED|MYR|THB|IDR|VND|KRW|CNY|CHF|SEK|NOK|DKK|BRL|MXN|ZAR)\s?\d/i;
+const CURRENCY_SYMBOL_AMOUNT = /(?:₱|\$|€|£|¥)\s?\d|\d\s?(?:₱|€|£|¥)/;
+const GROUPED_NUMBER = /\b\d{1,3}(?:,\d{3})+(?:\.\d+)?\b/;
+// AI-62 — the nouns a stock answer counts. Kept to business things the tools actually return,
+// so "I can check 3 things for you" (no noun) still passes through untouched. Up to two
+// qualifier words are allowed between the figure and its noun, because a measured answer wrote
+// "538 stock-out movements" and a bare noun match would have read that as a quantity of
+// movements with no number attached.
+const COUNTED_NOUN =
+  /\b\d+(?:\.\d+)?(?:\s+[\w'-]+){0,2}\s+(?:units?|items?|pcs\.?|pieces?|boxes|box|packs?|sets?|pairs?|orders?|sales|products?|skus?|variants?|locations?|suppliers?|categories?|shelves|shelf|transactions?|movements?|events?|transfers?|receipts?|shipments?|in stock|on hand)\b/i;
+const REORDER_THRESHOLD = /\b(?:minimum|min\.?|reorder point|reorder level|reorder quantity|threshold|par level)\s*[:=]?\s*\d/i;
+// AI-66 — an absence claim is a data claim, and it was the one shape with no digits in it.
+//
+// Measured on the phone 2026-11-05 5:50 PM: *"What moved out of the Store Room recently"*
+// was answered a second time with no tool run at all (`toolRuns=0`) as "No stock-out
+// movements were recorded for the Store Room in the last 7 days (2026-10-29 to 2026-11-05) …
+// zero events for that location and period" — the answer of the PREVIOUS turn, replayed from
+// the conversation. Every number in it was spelled or a date, so neither the currency nor the
+// counted-noun pattern fired and the guard never ran. "No movements", "zero events" and
+// "nothing came in" are exactly as much a read of the ledger as "538 movements" is.
+const WORDED_ABSENCE =
+  /\b(?:no|zero|none|not\s+a\s+single)\b(?:\s+[\w'-]+){0,3}\s+(?:units?|items?|sales?|movements?|events?|transactions?|transfers?|receipts?|deliver(?:y|ies)|products?|stock-?outs?|stock-?ins?)\b/i;
+// A markdown table row with a digit in it is a data table: a no-tool run cannot have built one.
+const NUMERIC_TABLE_ROW = /^\s*\|[^\n]*\|[^\n]*\d/m;
+
+/**
+ * AI-63 — is this a question about what the business has recorded?
+ *
+ * The companion to `statesRecordedFigure` above, and the same measured failure: on the device
+ * (2026-11-05 5:19 PM) *"How many units did we sell this week"* was answered in 2.0 s with
+ * `calls=1 toolRuns=0` — "538 stock-out movements across the business" — where the trail held
+ * 7 movements and 13 units. That answer dodged the figure detector (no currency, no grouped
+ * number, the count sat in front of a *qualified* noun), so the detector alone is one phrasing
+ * behind the model every time.
+ *
+ * This asks the other half of the question instead: a member who asks about recorded stock,
+ * sales or movements cannot be answered without reading them. When such a question runs NO tool,
+ * the turn loop re-asks once. The vocabulary is deliberately narrow — the words inventory
+ * members actually use — and an app/how-to question is excluded first, because "how do I record
+ * a sale?" is answered from knowledge, not from the ledger, and re-asking it would cost a round
+ * for nothing.
+ */
+// AI-75 — "brands" and "products" are data nouns too: on 2026-11-05 10:00 PM *"Do you carry
+// Samsung products?"* was answered "No" with `toolRuns=0`, while nine Samsung products were
+// ACTIVE in the same business. The brand tool was never called, so the previous answer's
+// incomplete brand list became the truth.
+const DATA_NOUN =
+  /\b(?:stocks?|inventory|units?|items?|brands?|products?|headsets?|headphones?|earbuds?|keyboards?|mice|mouse|monitors?|webcams?|cameras?|ssds?|hard drives?|power banks?|speakers?|microphones?|controllers?|docks?|docking stations?|routers?|printers?|laptops?|tablets?|phones?|cables?|chargers?|accessories|peripherals|storage|compare|recommend(?:ation)?|sales?|sold|selling|revenue|worth|value|valued|prices?|priced|costs?|low|shortage|reorder|restock|movements?|moved|moving|transfers?|transferred|received|deliver(?:y|ies)|purchase orders?|suppliers?|categories|locations?|on hand|history|where (?:is|are|was|were)|(?:came|come|coming) (?:in|into)|arrived|(?:went|go|gone|going) out|(?:left|leaving))\b/i;
+const HOW_TO_QUESTION =
+  /\b(?:how (?:do|can|does|should|would) (?:i|we|you)|how to|where (?:do|can|should) (?:i|we)|what (?:can|do) you (?:do|help)|who are you|what are you|explain|meaning of|difference between)\b/i;
+// "Where is the Stock In screen?" names a data noun but asks about the app, so a screen or
+// control word wins: those answers come from knowledge, not from the ledger.
+const APP_SURFACE =
+  /\b(?:screen|button|tab|menu|form|field|settings?|dashboard|notification|app)\b/i;
+
+export function asksForRecordedData(question: string): boolean {
+  const text = String(question ?? '').trim();
+  if (!text) return false;
+  if (HOW_TO_QUESTION.test(text) || APP_SURFACE.test(text)) return false;
+  return DATA_NOUN.test(text);
+}
+
+// AI-81 — the last-resort degradation is for an OPINION about the catalogue, not for every
+// data question. A recommendation must not be invented without a read, but a partial answer
+// to an output-limit or a simple healthy turn must survive; those are separate behaviours.
+const PRODUCT_ADVICE =
+  /\b(?:recommend(?:ation)?|best|better|which (?:one|.*?\s)?should|should (?:i|we) (?:buy|get|choose)|compare|comparison|versus|vs\.?)\b/i;
+
+export function asksForProductAdvice(question: string): boolean {
+  const text = String(question ?? '').trim();
+  if (!text || !DATA_NOUN.test(text)) return false;
+  return PRODUCT_ADVICE.test(text);
+}
+
+/**
+ * AI-64 — is this text a plan to read something rather than an answer?
+ *
+ * Measured on the device 2026-11-05 5:29 PM: after the recorded-data guard asked for real data,
+ * *"What moved out of the Store Room recently"* came back as a narration shown to the member as
+ * the final answer — "I'll call getInventoryHistory with the location set to \"Store Room\" …
+ * [awaiting tool response]" — with `toolRuns=0`. No tool ran, and the placeholder the model was
+ * talking to itself with was rendered on the phone.
+ *
+ * Two shapes are a plan and cannot be an answer:
+ *  - a bracketed placeholder the model writes while "waiting" (`[awaiting tool response]`);
+ *  - a promise to call a tool, where the answer also names one, which the prompt forbids
+ *    (`I'll call getInventoryHistory …`). Naming a tool at all is the tell: the member's
+ *    vocabulary never includes `getInventoryHistory`, so only the model's own plan does.
+ *
+ * A bare "Let me check the records — the G304 has 3 left" is NOT matched: it has content and no
+ * tool name, and a quantity claim is already caught by the detector above.
+ */
+const CALL_PLACEHOLDER = /\[[^\]\n]{0,60}\b(?:awaiting|pending|tool|response|executing|running)\b[^\]\n]{0,60}\]/i;
+const ANNOUNCES_CALL = /\b(?:i'll|i will|i'm going to|i am going to|let me)\b[^\n]{0,40}\b(?:call|run|use|query|fetch|pull|look up|retrieve|invoke)\b/i;
+const TOOL_NAME = /\b(?:get|list|search|resolve|find)[A-Z][A-Za-z]{2,}\b/;
+
+export function looksUnanswered(raw: string): boolean {
+  if (!raw) return false;
+  if (CALL_PLACEHOLDER.test(raw)) return true;
+  return ANNOUNCES_CALL.test(raw) && TOOL_NAME.test(raw);
+}
+
+/**
+ * AI-75 — is this reply a model failure notice rather than an answer?
+ *
+ * Measured on the phone 2026-11-05 9:50 PM: *"Which gaming headset do you recommend and what
+ * brands do you carry"* was answered, after one search, with the literal text
+ * "[ERROR: Max turns exceeded]" — the turn had not hit any limit (3 of 6 steps used), so the
+ * model invented the notice and the server stored and displayed it as the answer.
+ *
+ * Only a whole reply that is an error/limit notice is matched, and only when short: a real
+ * answer may contain the word "error" ("Error rates are not recorded") and must pass through.
+ */
+const FAILURE_NOTICE = /^\s*\[?\s*(?:error|failure)\s*:[^\]\n]*\]?\s*$/i;
+const TURN_LIMIT_NOTICE =
+  /\b(?:max(?:imum)?|too many)\s+(?:turns?|steps?|iterations?|tool calls?)\b[^.\n]{0,40}\b(?:exceeded|reached|used|allowed)\b|\bmax(?:imum)?\s+(?:turn|step|iteration)\s+limit\b/i;
+
+export function looksLikeFailureNotice(raw: string): boolean {
+  const text = String(raw ?? '').trim();
+  if (!text || text.length > 240) return false;
+  return FAILURE_NOTICE.test(text) || TURN_LIMIT_NOTICE.test(text);
+}
+
+export function statesRecordedFigure(raw: string): boolean {
+  if (!raw) return false;
+  return (
+    CURRENCY_CODE_AMOUNT.test(raw) ||
+    CURRENCY_SYMBOL_AMOUNT.test(raw) ||
+    GROUPED_NUMBER.test(raw) ||
+    COUNTED_NOUN.test(raw) ||
+    WORDED_ABSENCE.test(raw) ||
+    REORDER_THRESHOLD.test(raw) ||
+    NUMERIC_TABLE_ROW.test(raw)
+  );
+}
+
+/**
+ * AI-67 — does the answer claim that SOMEWHERE ELSE has none?
+ *
+ * Measured on the phone 2026-11-05 5:58 PM: *"Where are the G304s"* called `getInventory`
+ * once, which returned the first 15 of 17 rows (`hasMore: true`), and answered "at the Front
+ * Counter with 6 units … No other location shows stock for this product." The Store Room was
+ * holding 25 of them, in the two rows the page cut off. The word "no" in that sentence is a
+ * claim about rows the model never read, so the shape is worth naming: it is only a lie when
+ * the read was partial, which the turn loop knows from `hasMore` and this predicate does not.
+ */
+const CLAIMS_EMPTY_ELSEWHERE =
+  /\b(?:no other (?:location|place|store|shop|warehouse|branch)s? (?:has|have|holds?|shows?|carries|stocks?|is stocked|keeps?)|nowhere else|only (?:at|in) (?:the|one)|not (?:stocked|held|available|sold) (?:at|in) (?:any )?(?:other|another))\b/i;
+
+export function claimsEmptyElsewhere(raw: string): boolean {
+  if (!raw) return false;
+  return CLAIMS_EMPTY_ELSEWHERE.test(raw);
+}
+
+/**
+ * AI-69 — does the answer stop at "the window was empty"?
+ *
+ * Measured on the phone 2026-11-05 6:08 PM: *"Which products sold the most this week"* ran
+ * `getInventoryHistory`, which returned an empty window WITH the last real movements in
+ * `mostRecentIgnoringType` and a note saying to name them — and the answer still ended at
+ * "The history window is empty for that location and period, so there is nothing to report".
+ * A page-window answer is only honest when it also says what did happen, so the turn loop
+ * re-asks when the result carried earlier movements and the text does not name any of them.
+ */
+const CLAIMS_EMPTY_RESULT =
+  /\b(?:window|period|range|history)\b[^.\n]{0,30}\b(?:is|was|stays?|remains?)\s+empty\b|\bnothing (?:to report|matched|moved|sold|left|was recorded|has (?:moved|sold|been recorded))\b|\bno (?:stock-?outs?|stock-?ins?|movements?|sales?|transactions?)\b[^.\n]{0,30}\b(?:were|was|have been|has been) recorded\b/i;
+
+export function claimsEmptyResult(raw: string): boolean {
+  if (!raw) return false;
+  return CLAIMS_EMPTY_RESULT.test(raw);
+}
+
+/**
+ * AI-70 — a revenue question needs a qualification, not just a number.
+ *
+ * Measured on the phone 2026-11-05 6:23 PM: *"How much revenue did we make this week"* was
+ * answered "PHP 68,975 in revenue this week … the sum of recorded selling prices × units
+ * sold". No sale price, invoice or customer is recorded anywhere in the product — a
+ * STOCK_OUT may be a sale, usage, damage or a write-off — so that sentence invents a fact
+ * about money out of a stock moving. Prompt rule 25 asks for the qualification and the model
+ * dropped it under a number, so the turn is re-asked whenever a revenue question is answered
+ * with money and no qualification at all.
+ */
+const ASKS_REVENUE =
+  /\b(?:revenue|turnover|profit|margin|earnings?|income|sales? (?:value|total|amount|figure)|how much (?:did|have) we (?:make|made|earn|earned|sell|sold)|how much money)\b/i;
+
+const MONEY = /(?:\bPHP\s?|\u20b1|\$)\s?[\d,]+/i;
+
+const QUALIFIES_MONEY =
+  /\b(?:estimate|estimated|approximation|approximate|roughly|indicative|not recorded|does not record|do not record|is not tracked|aren\u2019t tracked|are not tracked|no sale prices|not a sale|no revenue|assumption|cannot be calculated)\b/i;
+
+export function asksForRevenue(question: string): boolean {
+  if (!question) return false;
+  return ASKS_REVENUE.test(question);
+}
+
+/**
+ * AI-72 — a business-wide question answered inside last turn's shelf.
+ *
+ * Measured on the phone 2026-11-05 7:25 PM: after a Front Counter question, *"What has never
+ * left the store at all?"* was answered "At the Front Counter there is no dead stock …" — the
+ * scope word "at all" was read past and the stale location was carried over, so a member asking
+ * about the whole business got one shelf. Prompt rule 30 already forbids carrying a location
+ * over; this predicate supplies the evidence when it happens anyway.
+ *
+ * Deliberately narrow: only wording that names the whole business ("at all", "anywhere",
+ * "everywhere", "all locations") counts. A question that merely omits a location — "what sold
+ * the most this week" — is left alone, because the shelf from the previous turn is a fair
+ * reading of that, and rule 30 already covers the plain case.
+ */
+const ASKS_BUSINESS_WIDE =
+  /\b(?:at all|whole (?:business|store|shop)|entire (?:business|store|shop)|business[- ]wide|across (?:the )?(?:whole |entire )?(?:business|store)|all (?:the )?(?:locations|branches|places)|everywhere|anywhere|every location|in total|overall)\b/i;
+
+export function asksBusinessWide(question: string): boolean {
+  if (!question) return false;
+  return ASKS_BUSINESS_WIDE.test(question);
+}
+
+/**
+ * AI-72 — remove a dropped place's name from a business-wide answer.
+ *
+ * Dropping `location` before the call makes the read wide, but the model still narrates the
+ * place it was about to use. Measured on the phone 2026-11-05 11:02 PM: the follow-up got the
+ * right business-wide count (59) and introduced it as "at Main Warehouse", whose own count is
+ * 92 — the number was right and the scope sentence was false, so the member would act on the
+ * wrong shelf. The instrument, its column header and its note all named the place.
+ *
+ * The rewrite is deliberately literal: `at <place>` becomes `across all locations` (which also
+ * repairs "Available at <place>"), and any bare leftover becomes `all locations`. It is only
+ * applied to a place the turn itself removed from a read. `at the` is handled because members
+ * and models both write "at the Main Warehouse".
+ */
+/**
+ * AI-73 — everyday wording for "which products have never moved".
+ *
+ * Measured on the phone 2026-11-05 11:01 and 11:07 PM: *"Any dead stock at the Main Warehouse"*
+ * (no question mark) routed to `getLowStockProducts`, and the turn shipped rows reading
+ * "Stock-out count 1" under a dead-stock heading — the opposite of the definition. The same
+ * phrase WITH a question mark routed correctly at 11:10 PM, so tool choice is not reliable for
+ * this vocabulary and a prompt rule cannot be the guarantee.
+ *
+ * Deliberately excludes stock-level wording: "low stock", "out of stock", "reorder" and
+ * "below minimum" are the low-stock question's own words, and treating them as dead stock would
+ * break the commonest question there is.
+ */
+const ASKS_DEAD_STOCK =
+  /\b(?:dead[ -]?stock|not selling|isn\u2019t selling|unsold|stale stock|zero sales|sitting on the shelf|never (?:been )?sold|never left|has(?:n\u2019t| not) moved|have not moved|has not moved)\b/i;
+
+/** Wording that asks about shortage levels, which the dead-stock tool does not answer. */
+const ASKS_STOCK_LEVEL =
+  /\b(?:low(?:\s+(?:on|in))?\s+stock|out of stock|running low|run low|low|reorder|restock|below minimum|at minimum|shortage)\b/i;
+
+export function asksForDeadStock(question: string): boolean {
+  if (!question) return false;
+  return ASKS_DEAD_STOCK.test(question);
+}
+
+export function asksForLowStock(question: string): boolean {
+  return ASKS_STOCK_LEVEL.test(String(question ?? ''));
+}
+
+const NEVER_SOLD_TOOL = 'getProductsNeverSold';
+const STOCK_LEVEL_TOOLS = new Set(['getLowStockProducts', 'getOutOfStockProducts', 'getReorderNeededProducts']);
+
+/** The dead-stock tool's own arguments, taken from whatever read the model did ask for. */
+function neverSoldArgs(raw: unknown): Record<string, unknown> {
+  const input = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {};
+  const out: Record<string, unknown> = {};
+  for (const key of ['location', 'locationId', 'from']) {
+    if (typeof input[key] === 'string' && (input[key] as string).trim()) out[key] = input[key];
+  }
+  // The dead-stock tool caps `limit` at 25; carrying a low-stock page size of 50 straight over
+  // would be rejected by the schema, so it is clamped rather than passed through.
+  if (typeof input.limit === 'number' && Number.isFinite(input.limit)) {
+    out.limit = Math.min(Math.max(Math.trunc(input.limit), 1), 25);
+  }
+  return out;
+}
+
+/**
+ * AI-73 — before the tools run, route a dead-stock question through the dead-stock tool.
+ *
+ * This is a rewrite of the CALLS, not a request in the prompt: the rows the model is about to
+ * read are replaced, so an answer built from `getLowStockProducts` cannot be produced for a
+ * dead-stock question. A mixed question ("what is dead stock and what is low on stock?") keeps
+ * both reads, because dropping the low-stock answer there would be wrong in the other direction.
+ * A question that already asks for the dead-stock tool is left untouched, so a correct turn is
+ * never rewritten. When no location is named, the call is business-wide, which is what the
+ * dead-stock tool already means by default.
+ */
+export function routeDeadStockReads<T extends { name?: string; input?: unknown }>(
+  calls: T[],
+  question: string,
+): T[] {
+  if (!asksForDeadStock(question)) return calls;
+  if (calls.some((call) => String(call?.name ?? '') === NEVER_SOLD_TOOL)) return calls;
+
+  const base = calls.map((call) => call?.input).find((input) => input && typeof input === 'object');
+  const added = {
+    id: 'call-ai73-dead-stock',
+    name: NEVER_SOLD_TOOL,
+    input: neverSoldArgs(base),
+  } as unknown as T;
+
+  if (ASKS_STOCK_LEVEL.test(question)) return [...calls, added];
+
+  let replaced = false;
+  const routed = calls.map((call) => {
+    if (!STOCK_LEVEL_TOOLS.has(String(call?.name ?? ''))) return call;
+    replaced = true;
+    return { ...call, name: NEVER_SOLD_TOOL, input: neverSoldArgs(call?.input) };
+  });
+  return replaced ? routed : [...calls, added];
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+export function relabelBusinessWideScope(answer: string, place: string): string {
+  const name = (place ?? '').trim();
+  if (!answer || !name) return answer;
+  const escaped = escapeRegExp(name);
+  return answer
+    .replace(new RegExp(`\\bat\\s+(?:the\\s+)?${escaped}\\b`, 'gi'), 'across all locations')
+    .replace(new RegExp(escaped, 'gi'), 'all locations');
+}
+
+/**
+ * AI-72 — the place a business-wide answer treats as its scope when the turn never read it.
+ *
+ * The dropped-argument path only catches a place the model passed to a tool. A model can just as
+ * easily carry a place over from the conversation without reading it, and then the answer's scope
+ * sentence is the only evidence — measured on the phone 2026-11-05 11:02 PM, where the count was
+ * right and every sentence around it said "at Main Warehouse".
+ *
+ * The construction is the check, not the mere presence of a name: `at <place>` (with or without
+ * "the") is how a scope is stated. Exactly one such place is a false scope and is returned;
+ * two or more is a per-location breakdown ("at Main Warehouse 40, at Shop Front 19") and is left
+ * alone, as is a place the question itself names. The caller fetches the business's own location
+ * names, so an ordinary product name can never be mistaken for a place.
+ */
+export function scopedPlaceIn(answer: string, places: string[], question: string): string | null {
+  if (!answer || !Array.isArray(places) || places.length === 0) return null;
+  const asked = String(question ?? '').toLowerCase();
+  const unique = [...new Set(places.map((place) => String(place ?? '').trim()).filter(Boolean))];
+  const scoped = unique.filter((name) => {
+    if (asked.includes(name.toLowerCase())) return false;
+    return new RegExp(`\\bat\\s+(?:the\\s+)?${escapeRegExp(name)}\\b`, 'i').test(answer);
+  });
+  return scoped.length === 1 ? (scoped[0] ?? null) : null;
+}
+
+/** Money stated as a fact about sales, with no wording that marks it as derived. */
+export function statesUnqualifiedMoney(raw: string): boolean {
+  if (!raw) return false;
+  return MONEY.test(raw) && !QUALIFIES_MONEY.test(raw);
+}
+
+/**
+ * AI-70 — attach the qualification without letting the cap cut it off.
+ *
+ * The note is composed here rather than by the model because asking the model to reword the
+ * figure cost a whole step budget and produced no answer at all (measured 2026-11-05 6:27 PM).
+ * Composing it server-side means it must survive the two things that happen AFTER the model
+ * stops: the answer cap, and the ordering of "append" versus "truncate". Appending first and
+ * capping afterwards would slice the note in half on a long answer — exactly the answer whose
+ * money figure most needs explaining — so the note's room is reserved before the body is cut.
+ * `note` already present in the answer is left alone, so a model that qualifies the figure
+ * itself never gets the sentence twice.
+ */
+export function withRevenueQualifier(answer: string, note: string, maxChars: number): string {
+  const body = (answer ?? '').trimEnd();
+  if (!note) return body;
+  if (/Note: this is an estimate, not recorded revenue/.test(body)) return body;
+  const room = maxChars - note.length - 2; // the "\n\n" separator
+  if (!body) return note;
+  if (room <= 24) return note;
+  const kept = body.length <= room ? body : `${body.slice(0, room - 1).trimEnd()}\u2026`;
+  return `${kept}\n\n${note}`;
+}
+
+/**
+ * AI-75 — put a reversed stock range back in ascending order.
+ *
+ * Measured on the phone 2026-11-05 10:05 PM: a Samsung answer said "others have between 596
+ * and 242 units on hand" while the rows held 0, 0, 75, 147, 186, 238, 242, 307 and 596. The
+ * prompt now asks for the true minimum and maximum; this is the deterministic backstop for a
+ * model that still writes the larger number first. It only touches quantity ranges whose unit
+ * is a stock unit, so price or product-count ranges are not rewritten.
+ */
+const QUANTITY_RANGE =
+  /\b(between|from)\s+([\d,]+)\s+(and|to)\s+([\d,]+)\s+(units?|pcs\.?|pieces?|items?)\b/gi;
+
+export function normaliseReversedQuantityRange(raw: string): string {
+  if (!raw) return raw;
+  return raw.replace(QUANTITY_RANGE, (match, lead, a, joiner, b, unit) => {
+    const first = Number(String(a).replace(/,/g, ''));
+    const second = Number(String(b).replace(/,/g, ''));
+    if (!Number.isFinite(first) || !Number.isFinite(second) || first <= second) return match;
+    return `${lead} ${b} ${joiner} ${a} ${unit}`;
+  });
+}
+
+/**
+ * AI-77 — remove a low-stock section the member did not ask for.
+ *
+ * Measured on the phone 2026-11-05 10:24 PM: a Samsung stock-range answer appended
+ * "The most urgent low-stock items ... are: 242-unit, 307-unit and 0-unit rows (the two that
+ * are at or below their configured minimums)." Only the two 0-unit SKUs were at or below
+ * their minimums; 242 and 307 were above theirs. The section was unrequested (rule 12), and
+ * its count contradicted the rows it named. Removing the whole tail is safer than rewriting
+ * the count, because the rows it named were not the low ones.
+ */
+const LOW_STOCK_TAIL = /\s*(?:The\s+)?most urgent low[\s\u2010\u2011-]stock items\b[\s\S]*$/i;
+
+export function stripUnrequestedLowStockTail(raw: string, question: string): string {
+  if (!raw || asksForLowStock(question)) return raw;
+  return raw.replace(LOW_STOCK_TAIL, '').trimEnd();
+}
+
+/**
+ * AI-76 — does the member want the brands the business carries?
+ *
+ * Measured on the phone 2026-11-05: *"What brands do you carry?"* named eleven of the
+ * twelve brands returned by `listBrands`, and Samsung disappeared. The tool result was
+ * complete; the omission happened while the model wrote prose. This predicate identifies
+ * the question shape so the turn loop can check the finished answer against the rows.
+ *
+ * A genuine brand-list question names brands and either a carrying verb or an explicit
+ * list request. A recommendation question ("which brand do you recommend?") is excluded:
+ * appending the whole catalogue to an opinion would be noise, not completeness.
+ */
+const HAS_BRAND_WORD = /\bbrands?(?:\s+names?)?\b/i;
+const BRAND_LIST_QUESTION =
+  /\b(?:what|which|list|name|show|tell me|give me)\b[^\n?]{0,60}\bbrands?(?:\s+names?)?\b/i;
+const BRAND_LIST_CARRY =
+  /\b(?:do|does)\s+(?:you|we|they)\s+(?:carry|have|stock|sell|offer)\b[^\n?]{0,40}\bbrands?(?:\s+names?)?\b/i;
+const BRAND_LIST_HAVE =
+  /\bbrands?(?:\s+names?)?\b[^\n?]{0,40}\b(?:carry|carries|have|has|stock|stocks|sell|sells|offer|offers|available|recorded|listed|there|exist)\b/i;
+const BRAND_LIST_COMMAND = /\b(?:list|name|show|tell me|give me)\b[^\n?]{0,40}\bbrands?(?:\s+names?)?\b/i;
+const BRAND_QUALITY_QUESTION =
+  /\b(?:recommend|best|better|quality|good|trusted|prefer|favorite|favourite|choose|top)\b/i;
+
+export function asksForBrandList(question: string): boolean {
+  const text = String(question ?? '').trim();
+  if (!text || !HAS_BRAND_WORD.test(text)) return false;
+  if (BRAND_LIST_COMMAND.test(text)) return true;
+  if (BRAND_LIST_CARRY.test(text) || BRAND_LIST_HAVE.test(text)) return true;
+  // A generic "what brands …" is a list request unless it is asking for an opinion.
+  return BRAND_LIST_QUESTION.test(text) && !BRAND_QUALITY_QUESTION.test(text);
+}
+
+/** A question that asks only for the brand list, with no second request to preserve. */
+const BRAND_LIST_EXTRA_REQUEST =
+  /\b(?:recommend|best|better|quality|good|trusted|prefer|favorite|favourite|choose|top|headset|products?|stock|price|prices|count|how many|specs?|specifications?|reviews?|compare|cheapest|in stock|on hand)\b/i;
+
+export function asksForBrandListOnly(question: string): boolean {
+  return asksForBrandList(question) && !BRAND_LIST_EXTRA_REQUEST.test(String(question ?? ''));
+}
+
+/**
+ * AI-76 — put every brand the tool returned into a brand-list answer.
+ *
+ * The prompt asks for the complete list, but prompt compliance was measured to fail by one
+ * row (Samsung, 2026-11-05). This is the deterministic backstop: if any returned name is
+ * absent from the answer, a complete list is appended with room reserved inside the answer
+ * cap. It does not invent a brand; it only repeats names from `listBrands`.
+ */
+export function withCompleteBrandList(
+  answer: string,
+  brands: readonly string[],
+  maxChars: number,
+): string {
+  const body = String(answer ?? '').trimEnd();
+  const names: string[] = [];
+  const seen = new Set<string>();
+  for (const raw of brands) {
+    const name = String(raw ?? '').trim();
+    const key = name.toLowerCase();
+    if (!name || seen.has(key)) continue;
+    seen.add(key);
+    names.push(name);
+  }
+  if (names.length === 0) return body;
+  const complete = names.every((name) => new RegExp(`\\b${escapeRegExp(name)}\\b`, 'i').test(body));
+  if (complete) return body;
+
+  const line = `Complete recorded brand list: ${names.join(', ')}.`;
+  const limit = Number.isFinite(maxChars) && maxChars > 0 ? maxChars : line.length;
+  if (line.length >= limit) return line.slice(0, limit);
+  if (!body) return line;
+  const room = limit - line.length - 2; // the "\n\n" separator
+  if (body.length <= room) return `${body}\n\n${line}`;
+  const kept = body.slice(0, Math.max(0, room - 1)).trimEnd();
+  return kept ? `${kept}\u2026\n\n${line}` : line;
+}
+
+/**
+ * AI-76 — a clean brand-list answer assembled only from the tool rows.
+ *
+ * A pure "what brands do you carry?" answer cannot safely be repaired by appending a
+ * second list: measured on the phone 2026-11-05, the model's numbered list contained an
+ * invented Roccat and omitted Samsung, while the appended list contained Samsung. Two
+ * lists that disagree are worse than one deterministic list, so a pure list question is
+ * answered from the rows themselves. Every name here came from `listBrands`; no model
+ * prose and no outside brand enters it.
+ */
+export function canonicalBrandListAnswer(
+  rows: readonly { brand: string; productCount?: number }[],
+  maxChars: number,
+): string {
+  const unique: Array<{ brand: string; productCount?: number }> = [];
+  const seen = new Set<string>();
+  for (const row of rows) {
+    const brand = String(row?.brand ?? '').trim();
+    const key = brand.toLowerCase();
+    if (!brand || seen.has(key)) continue;
+    seen.add(key);
+    unique.push({ brand, productCount: row?.productCount });
+  }
+  if (unique.length === 0) return '';
+  const lines = unique.map((row, index) => {
+    const count = Number(row.productCount);
+    const suffix = Number.isFinite(count) && count > 0 ? ` — ${count} ${count === 1 ? 'product' : 'products'}` : '';
+    return `${index + 1}. **${row.brand}**${suffix}`;
+  });
+  const text = `The catalogue carries ${unique.length} recorded ${unique.length === 1 ? 'brand' : 'brands'}:\n\n${lines.join('\n')}`;
+  const limit = Number.isFinite(maxChars) && maxChars > 0 ? maxChars : text.length;
+  return text.length <= limit ? text : text.slice(0, limit);
+}
+
+export interface CatalogueFact {
+  id?: string;
+  name: string;
+  brand?: string | null;
+  sellingPrice?: number | null;
+  availableQuantity?: number | null;
+}
+
+function finiteNumber(value: unknown): number | null {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
+function peso(value: number): string {
+  return `PHP ${new Intl.NumberFormat('en-PH', { maximumFractionDigits: 0 }).format(value)}`;
+}
+
+function uniqueFacts(rows: readonly CatalogueFact[]): CatalogueFact[] {
+  const byKey = new Map<string, CatalogueFact>();
+  for (const raw of rows) {
+    if (typeof raw?.name !== 'string') continue;
+    const name = raw.name.trim();
+    if (!name) continue;
+    const key = raw.id ? `id:${raw.id}` : `name:${name.toLowerCase()}`;
+    const prior = byKey.get(key);
+    if (!prior) {
+      byKey.set(key, { ...raw, name });
+      continue;
+    }
+    byKey.set(key, {
+      ...prior,
+      brand: prior.brand ?? raw.brand ?? null,
+      sellingPrice: prior.sellingPrice ?? raw.sellingPrice ?? null,
+      availableQuantity: prior.availableQuantity ?? raw.availableQuantity ?? null,
+    });
+  }
+  return [...byKey.values()];
+}
+
+function appendWithRoom(body: string, line: string, maxChars: number): string {
+  const text = String(body ?? '').trimEnd();
+  if (!line) return text;
+  const limit = Number.isFinite(maxChars) && maxChars > 0 ? maxChars : line.length;
+  if (line.length >= limit) return line.slice(0, limit);
+  if (!text) return line;
+  const room = limit - line.length - 2;
+  if (text.length <= room) return `${text}\n\n${line}`;
+  const kept = text.slice(0, Math.max(0, room - 1)).trimEnd();
+  return kept ? `${kept}\u2026\n\n${line}` : line;
+}
+
+export function asksForRestockList(question: string): boolean {
+  return /\b(?:restock(?:ing)?|reorder(?:ing)?)\b/i.test(String(question ?? ''));
+}
+
+export function asksForLowStockValue(question: string): boolean {
+  const text = String(question ?? '');
+  return /\blow[\s-]?stock\b/i.test(text) && /\b(?:total|value|worth)\b/i.test(text);
+}
+
+export function asksForMostExpensive(question: string): boolean {
+  return /\b(?:most expensive|highest (?:recorded )?(?:price|price per unit))\b/i.test(String(question ?? ''));
+}
+
+export function asksForBrandStockRange(question: string): boolean {
+  return /\bstock range\b/i.test(String(question ?? '')) && !/\bacross\s+skus?\b/i.test(String(question ?? ''));
+}
+
+function locationFromTotalsQuestion(question: string): string | null {
+  const match = String(question ?? '').match(
+    /\bhow many products and units are (?:at|in)\s+(?:the\s+)?(.+?)\s*[?.!]*$/i,
+  );
+  const name = match?.[1]?.trim() ?? '';
+  return name || null;
+}
+
+export function asksForLocationTotals(question: string): boolean {
+  return locationFromTotalsQuestion(question) !== null;
+}
+
+/** Sum a COMPLETE product page for one location, never a partial page. */
+export function locationTotalsAnswer(
+  rows: readonly CatalogueFact[],
+  question: string,
+  maxChars: number,
+): string | null {
+  const location = locationFromTotalsQuestion(question);
+  const facts = uniqueFacts(rows);
+  if (!location || facts.length === 0) return null;
+  let units = 0;
+  for (const row of facts) {
+    const quantity = finiteNumber(row.availableQuantity);
+    if (quantity === null || quantity < 0) return null;
+    units += quantity;
+  }
+  const answer = `${location} has ${facts.length} ${facts.length === 1 ? 'product' : 'products'} and ${units} units on hand.`;
+  return answer.length <= maxChars ? answer : answer.slice(0, maxChars);
+}
+
+export function asksForStockOutCount(question: string): boolean {
+  return /\bhow many\b[\s\S]*\bstock[-\s]?out\b[\s\S]*\bmovements?\b/i.test(
+    String(question ?? ''),
+  );
+}
+
+export function stockOutCountAnswer(count: number, maxChars: number): string | null {
+  if (!Number.isFinite(count) || count < 0) return null;
+  const answer = `There ${count === 1 ? 'is' : 'are'} ${count} stock-out ${count === 1 ? 'movement' : 'movements'} recorded.`;
+  return answer.length <= maxChars ? answer : answer.slice(0, maxChars);
+}
+
+function priceCeilingFromQuestion(question: string): number | null {
+  const match = String(question ?? '').match(
+    /\b(?:less than|under|below|cheaper than|up to|within)\s+(?:php|p|\u20b1)?\s*([\d,]+(?:\.\d+)?)\s*(k)?\b/i,
+  );
+  if (!match) return null;
+  const amount = Number((match[1] ?? '').replace(/,/g, '')) * (match[2] ? 1000 : 1);
+  return Number.isFinite(amount) && amount > 0 ? amount : null;
+}
+
+export function asksForProductsUnderPrice(question: string): boolean {
+  const text = String(question ?? '');
+  return (
+    priceCeilingFromQuestion(text) !== null &&
+    /\b(?:which|what|list|show)\b[\s\S]*\b(?:products?|items?)\b[\s\S]*\b(?:cost|costs|priced|price)\b[\s\S]*\b(?:less than|under|below)\b/i.test(
+      text,
+    )
+  );
+}
+
+/** List only the rows whose RECORDED selling price is below the asked ceiling. */
+export function productsUnderPriceAnswer(
+  rows: readonly CatalogueFact[],
+  question: string,
+  maxChars: number,
+): string | null {
+  const ceiling = priceCeilingFromQuestion(question);
+  if (ceiling === null) return null;
+  const facts = uniqueFacts(rows)
+    .map((row) => ({ row, price: finiteNumber(row.sellingPrice) }))
+    .filter((entry): entry is { row: CatalogueFact; price: number } =>
+      entry.price !== null && entry.price > 0 && entry.price < ceiling,
+    )
+    .sort((a, b) => a.price - b.price || a.row.name.localeCompare(b.row.name));
+  if (facts.length === 0) return null;
+  const shown = facts.slice(0, 8);
+  const list = shown.map(({ row, price }) => `**${row.name}** (${peso(price)})`).join(', ');
+  const remainder = facts.length > shown.length ? `, and ${facts.length - shown.length} more` : '';
+  const answer = `The products with a recorded selling price under ${peso(ceiling)} are ${list}${remainder}.`;
+  return answer.length <= maxChars ? answer : answer.slice(0, maxChars);
+}
+
+/** Add every product returned by getReorderNeededProducts, not just the first one. */
+export function withCompleteRestockNames(
+  answer: string,
+  rows: readonly CatalogueFact[],
+  maxChars: number,
+): string {
+  const names: string[] = [];
+  const seen = new Set<string>();
+  for (const row of rows) {
+    if (typeof row?.name !== 'string') continue;
+    const name = row.name.trim();
+    const key = name.toLowerCase();
+    if (!name || seen.has(key)) continue;
+    seen.add(key);
+    names.push(name);
+  }
+  if (names.length === 0) return String(answer ?? '');
+  const body = String(answer ?? '').trimEnd();
+  if (names.every((name) => new RegExp(`\\b${escapeRegExp(name)}\\b`, 'i').test(body))) return body;
+  return appendWithRoom(body, `The full restock list is: ${names.join(', ')}.`, maxChars);
+}
+
+/** Compute a low-stock subtotal only from the rows the low-stock tool returned. */
+export function lowStockValueAnswer(
+  rows: readonly CatalogueFact[],
+  maxChars: number,
+): string | null {
+  const facts = uniqueFacts(rows);
+  if (facts.length === 0) return null;
+  let total = 0;
+  for (const row of facts) {
+    const price = finiteNumber(row.sellingPrice);
+    const quantity = finiteNumber(row.availableQuantity);
+    if (price === null || quantity === null) return null;
+    total += Math.max(quantity, 0) * Math.max(price, 0);
+  }
+  const answer = `The total recorded value of the ${facts.length} low-stock ${facts.length === 1 ? 'item' : 'items'} is ${peso(total)}.`;
+  return answer.length <= maxChars ? answer : answer.slice(0, maxChars);
+}
+
+/** The maximum recorded selling price, independent of stock value or page order. */
+export function mostExpensiveProductAnswer(
+  rows: readonly CatalogueFact[],
+  maxChars: number,
+): string | null {
+  const facts = uniqueFacts(rows).filter((row) => {
+    const price = finiteNumber(row.sellingPrice);
+    return price !== null && price > 0;
+  });
+  if (facts.length === 0) return null;
+  const max = Math.max(...facts.map((row) => finiteNumber(row.sellingPrice) ?? 0));
+  const winners = facts.filter((row) => finiteNumber(row.sellingPrice) === max);
+  const names = winners.map((row) => `**${row.name}**`).join(', ');
+  const answer = `The product with the highest recorded selling price is ${names} at ${peso(max)}.`;
+  return answer.length <= maxChars ? answer : answer.slice(0, maxChars);
+}
+
+/** Range of per-product totals, not the individual location rows. */
+export function brandStockRangeAnswer(
+  rows: readonly CatalogueFact[],
+  question: string,
+  maxChars: number,
+): string | null {
+  const facts: CatalogueFact[] = [];
+  for (const row of rows) {
+    const name = typeof row?.name === 'string' ? row.name.trim() : '';
+    const brand = typeof row?.brand === 'string' ? row.brand.trim() : '';
+    if (!name || !brand) continue;
+    facts.push({ ...row, name, brand });
+  }
+  const brand = [...new Set(facts.map((row) => String(row.brand).trim()))].find((name) =>
+    new RegExp(`\\b${escapeRegExp(name)}\\b`, 'i').test(question),
+  );
+  if (!brand) return null;
+  const byProduct = new Map<string, { name: string; quantity: number }>();
+  for (const row of facts) {
+    if (String(row.brand).trim().toLowerCase() !== brand.toLowerCase()) continue;
+    const quantity = finiteNumber(row.availableQuantity);
+    if (quantity === null) continue;
+    const key = row.id ? `id:${row.id}` : `name:${String(row.name).toLowerCase()}`;
+    const prior = byProduct.get(key);
+    byProduct.set(key, {
+      name: String(row.name),
+      // Product-level reads can repeat a product (findProducts plus getStockValue); use
+      // the largest total rather than adding the same shelf twice. The router supplies a
+      // product-level read for a brand range, so this is not a location-row sum.
+      quantity: Math.max(prior?.quantity ?? 0, quantity),
+    });
+  }
+  const totals = [...byProduct.values()];
+  if (totals.length < 2) return null;
+  const values = totals.map((row) => row.quantity);
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const answer = `The recorded stock range across ${brand} products is **${min} to ${max} units** (product totals across all locations).`;
+  return answer.length <= maxChars ? answer : answer.slice(0, maxChars);
 }
 
 export function trimIncompleteAnswer(raw: string): string {

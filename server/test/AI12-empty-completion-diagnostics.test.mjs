@@ -300,11 +300,11 @@ dbSuite('AI-12 an empty completion over the real route, and the model it records
     // stored as `openrouter`, and the column the usage report reads.
     respond = {
       status: 200,
-      body: JSON.stringify({ content: [{ type: 'text', text: 'Nothing is low on stock.' }], stop_reason: 'end_turn' }),
+      body: JSON.stringify({ content: [{ type: 'text', text: 'Hello there.' }], stop_reason: 'end_turn' }),
       contentType: 'application/json',
     };
 
-    const res = await api('POST', '/api/ai/chat', { token: owner.token, body: { message: 'is anything low?' } });
+    const res = await api('POST', '/api/ai/chat', { token: owner.token, body: { message: 'say hello in one sentence' } });
     assert.equal(res.status, 201);
 
     const list = await api('GET', '/api/ai/conversations', { token: owner.token });

@@ -164,7 +164,7 @@ function turnArgs() {
     businessId: 'b-dummy',
     userId: 'u-dummy',
     role: ROLES.OWNER,
-    message: 'how much stock do we hold?',
+    message: 'say hello in one sentence',
   };
 }
 
@@ -208,9 +208,9 @@ afterEach(() => {
 unitSuite('AI-31 automatic promotion', () => {
   it('keeps a healthy active model active', async () => {
     for (let i = 0; i < 3; i += 1) {
-      const { result, error, calls, promotionLines } = await turn(() => fakeText('203 active products.'));
+      const { result, error, calls, promotionLines } = await turn(() => fakeText('the deployment is healthy.'));
       assert.equal(error, null);
-      assert.equal(result.content, '203 active products.');
+      assert.equal(result.content, 'the deployment is healthy.');
       assert.deepEqual(calls, [undefined], 'the configured model is still the first call');
       assert.equal(promotionLines.length, 0);
     }

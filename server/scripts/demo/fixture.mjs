@@ -10,16 +10,22 @@
 // against without querying anything. That is the whole point: an assistant answer
 // is only verifiable when the ground truth is known in advance.
 //
-// THE SHAPE IS DELIBERATELY NON-DEGENERATE. It contains one healthy product, one
-// product spread over two locations, one product below its minimum in one place,
-// and one product with NO inventory row at all (which the specification defines
-// as zero stock, not missing stock). A fixture where every row is healthy would
-// leave the restock path, the out-of-stock count and the "missing row is zero"
-// rule all unexercised.
+// THE PRODUCTS ARE REAL. Names, brands, descriptions and specifications come from
+// `seed/catalog.mjs`, which records the manufacturer source beside each row. The
+// fixture is still small and deterministic, but the assistant now has the model,
+// brand and specification facts a real comparison needs.
+//
+// THE SHAPE IS DELIBERATELY NON-DEGENERATE. It contains healthy products, products
+// spread over two locations, products below their minimum, and one product with NO
+// inventory row at all (which the specification defines as zero stock, not missing
+// stock). A fixture where every row is healthy would leave the restock path, the
+// out-of-stock count and the "missing row is zero" rule all unexercised.
 //
 // NOTHING HERE CONNECTS OR WRITES. It is data plus pure arithmetic; the CLI and
 // its library do the I/O. A fixture module that opens a connection on import is
 // how a test run writes to a database.
+
+import { CATALOG_CATEGORIES, CATALOG_PRODUCTS } from '../seed/catalog.mjs';
 
 /** The tenant's identity. Both fingerprints are checked before anything is deleted. */
 export const DEMO_TENANT = {
@@ -39,63 +45,137 @@ export const DEMO_LOCATIONS = [
   { key: 'van', name: 'Demo Van' },
 ];
 
-export const DEMO_CATEGORIES = [
-  { key: 'beverages', name: 'Demo Beverages' },
-  { key: 'office', name: 'Demo Office' },
-];
+export const DEMO_CATEGORIES = CATALOG_CATEGORIES.map((category) => ({ ...category }));
 
 /**
- * Six ACTIVE products. `minimumStock` is what makes a product "low" (available
+ * Stock thresholds are fixture choices, not manufacturer facts. They create one
+ * out-of-stock product, three low-stock products and a healthy majority.
+ */
+const MINIMUM_STOCK = Object.freeze({
+  'mx-keys-s': 5,
+  'keychron-k8-pro': 6,
+  'rog-flare-ii': 3,
+  'razer-blackwidow-v4-pro': 3,
+  'royal-kludge-rk61': 8,
+  'mx-master-3s': 5,
+  'sony-wh-1000xm5': 4,
+  'arctis-nova-7': 4,
+  'dell-u2723qe': 2,
+  'lg-27gp850-b': 2,
+  'anker-737': 4,
+  'samsung-t7-shield': 5,
+  'logitech-c920s': 6,
+  'elgato-stream-deck-mk2': 3,
+});
+
+/**
+ * The ACTIVE catalogue. `minimumStock` is what makes a product "low" (available
  * at or below the minimum), so the restock expectations below are derived from
  * these values rather than restated.
  */
-export const DEMO_PRODUCTS = [
-  { key: 'coffee', name: 'Demo Coffee Beans 1kg', sku: 'DEMO-001', category: 'beverages', unit: 'bag', costPrice: 8.5, sellingPrice: 14, minimumStock: 10 },
-  { key: 'cups', name: 'Demo Paper Cups 100pk', sku: 'DEMO-002', category: 'beverages', unit: 'pack', costPrice: 3.2, sellingPrice: 6.5, minimumStock: 20 },
-  { key: 'oat', name: 'Demo Oat Milk 1L', sku: 'DEMO-003', category: 'beverages', unit: 'carton', costPrice: 1.8, sellingPrice: 3.4, minimumStock: 12 },
-  { key: 'lamp', name: 'Demo Desk Lamp', sku: 'DEMO-004', category: 'office', unit: 'pcs', costPrice: 12, sellingPrice: 24, minimumStock: 3 },
-  { key: 'cable', name: 'Demo USB-C Cable 2m', sku: 'DEMO-005', category: 'office', unit: 'pcs', costPrice: 2.5, sellingPrice: 7.9, minimumStock: 25 },
-  { key: 'notebook', name: 'Demo Notebook A5', sku: 'DEMO-006', category: 'office', unit: 'pcs', costPrice: 1.1, sellingPrice: 3, minimumStock: 8 },
-];
+export const DEMO_PRODUCTS = CATALOG_PRODUCTS.map((product, index) => ({
+  ...product,
+  sku: `DEMO-${String(index + 1).padStart(3, '0')}`,
+  minimumStock: MINIMUM_STOCK[product.key] ?? 5,
+}));
 
 /**
- * On-hand inventory. `lamp` has NO row on purpose: zero stock is the absence of
- * a row, and the dashboard's definition counts it as out of stock.
+ * On-hand inventory. `rog-flare-ii` has NO row on purpose: zero stock is the
+ * absence of a row, and the dashboard's definition counts it as out of stock.
  *
- * Totals: Warehouse 75 units / 4 products, Shop 30 / 2, Van 7 / 1, business
- * 112 units across 5 stocked products out of 6 ACTIVE products.
+ * Three products are at or below their threshold, one of which is the product with
+ * no row. Several products are held in two locations so a location answer is not
+ * degenerate.
  */
 export const DEMO_STOCK = [
-  { product: 'coffee', location: 'warehouse', quantity: 4 },
-  { product: 'cups', location: 'warehouse', quantity: 15 },
-  { product: 'oat', location: 'warehouse', quantity: 30 },
-  { product: 'oat', location: 'shop', quantity: 10 },
-  { product: 'cable', location: 'warehouse', quantity: 26 },
-  { product: 'cable', location: 'van', quantity: 7 },
-  { product: 'notebook', location: 'shop', quantity: 20 },
+  { product: 'mx-keys-s', location: 'warehouse', quantity: 18 },
+  { product: 'mx-keys-s', location: 'shop', quantity: 6 },
+  { product: 'keychron-k8-pro', location: 'warehouse', quantity: 4 },
+  { product: 'keychron-k8-pro', location: 'shop', quantity: 2 },
+  { product: 'razer-blackwidow-v4-pro', location: 'warehouse', quantity: 7 },
+  { product: 'razer-blackwidow-v4-pro', location: 'van', quantity: 3 },
+  { product: 'royal-kludge-rk61', location: 'warehouse', quantity: 22 },
+  { product: 'royal-kludge-rk61', location: 'shop', quantity: 10 },
+  { product: 'mx-master-3s', location: 'warehouse', quantity: 3 },
+  { product: 'mx-master-3s', location: 'shop', quantity: 1 },
+  { product: 'sony-wh-1000xm5', location: 'warehouse', quantity: 8 },
+  { product: 'sony-wh-1000xm5', location: 'shop', quantity: 4 },
+  { product: 'arctis-nova-7', location: 'warehouse', quantity: 5 },
+  { product: 'arctis-nova-7', location: 'shop', quantity: 3 },
+  { product: 'dell-u2723qe', location: 'warehouse', quantity: 2 },
+  { product: 'lg-27gp850-b', location: 'warehouse', quantity: 3 },
+  { product: 'anker-737', location: 'warehouse', quantity: 9 },
+  { product: 'anker-737', location: 'van', quantity: 4 },
+  { product: 'samsung-t7-shield', location: 'warehouse', quantity: 6 },
+  { product: 'samsung-t7-shield', location: 'shop', quantity: 2 },
+  { product: 'logitech-c920s', location: 'warehouse', quantity: 12 },
+  { product: 'elgato-stream-deck-mk2', location: 'shop', quantity: 2 },
 ];
 
 /**
- * Nine ledger rows whose arithmetic is true by construction: STOCK_IN adds,
- * STOCK_OUT subtracts, and each row's `previousQuantity`/`newQuantity` chain
- * ends at exactly the `DEMO_STOCK` figure for that (product, location).
+ * Recent stock-outs used to build a ledger that ENDS at `DEMO_STOCK`. Keeping the
+ * outbound quantities here rather than hand-writing opening balances means the
+ * opening quantity and the final quantity cannot disagree.
+ */
+const DEMO_OUTBOUND = [
+  { product: 'mx-keys-s', location: 'warehouse', quantity: 6, daysAgo: 8, reason: 'Sales and transfers' },
+  { product: 'mx-keys-s', location: 'shop', quantity: 2, daysAgo: 6, reason: 'Sales and transfers' },
+  { product: 'keychron-k8-pro', location: 'warehouse', quantity: 4, daysAgo: 5, reason: 'Sales and transfers' },
+  { product: 'razer-blackwidow-v4-pro', location: 'warehouse', quantity: 3, daysAgo: 4, reason: 'Sales and transfers' },
+  { product: 'royal-kludge-rk61', location: 'warehouse', quantity: 8, daysAgo: 3, reason: 'Sales and transfers' },
+  { product: 'mx-master-3s', location: 'warehouse', quantity: 2, daysAgo: 2, reason: 'Sales and transfers' },
+  { product: 'sony-wh-1000xm5', location: 'warehouse', quantity: 2, daysAgo: 1, reason: 'Sales and transfers' },
+  { product: 'samsung-t7-shield', location: 'warehouse', quantity: 2, daysAgo: 7, reason: 'Sales and transfers' },
+];
+
+/**
+ * Ledger rows whose arithmetic is true by construction: STOCK_IN adds, STOCK_OUT
+ * subtracts, and each row's `previousQuantity`/`newQuantity` chain ends at exactly
+ * the `DEMO_STOCK` figure for that (product, location).
  *
  * `seed-perf-data` taught this lesson the hard way: a ledger that always ADDED
  * made 6 615 of 6 616 STOCK_OUT rows claim stock went up, and the assistant
  * reported that faithfully (§27BG). A fixture is not exempt from the invariant
  * it is used to check.
  */
-export const DEMO_MOVEMENTS = [
-  { product: 'coffee', location: 'warehouse', type: 'STOCK_IN', quantity: 20, previousQuantity: 0, newQuantity: 20, daysAgo: 9, reason: 'Initial demo stock' },
-  { product: 'cups', location: 'warehouse', type: 'STOCK_IN', quantity: 20, previousQuantity: 0, newQuantity: 20, daysAgo: 8, reason: 'Initial demo stock' },
-  { product: 'oat', location: 'warehouse', type: 'STOCK_IN', quantity: 30, previousQuantity: 0, newQuantity: 30, daysAgo: 7, reason: 'Initial demo stock' },
-  { product: 'oat', location: 'shop', type: 'STOCK_IN', quantity: 10, previousQuantity: 0, newQuantity: 10, daysAgo: 6, reason: 'Initial demo stock' },
-  { product: 'cable', location: 'warehouse', type: 'STOCK_IN', quantity: 26, previousQuantity: 0, newQuantity: 26, daysAgo: 5, reason: 'Initial demo stock' },
-  { product: 'cable', location: 'van', type: 'STOCK_IN', quantity: 7, previousQuantity: 0, newQuantity: 7, daysAgo: 4, reason: 'Initial demo stock' },
-  { product: 'notebook', location: 'shop', type: 'STOCK_IN', quantity: 20, previousQuantity: 0, newQuantity: 20, daysAgo: 3, reason: 'Initial demo stock' },
-  { product: 'coffee', location: 'warehouse', type: 'STOCK_OUT', quantity: 16, previousQuantity: 20, newQuantity: 4, daysAgo: 2, reason: 'Demo stock out' },
-  { product: 'cups', location: 'warehouse', type: 'STOCK_OUT', quantity: 5, previousQuantity: 20, newQuantity: 15, daysAgo: 1, reason: 'Demo stock out' },
-];
+export const DEMO_MOVEMENTS = (() => {
+  const finalByKey = new Map(
+    DEMO_STOCK.map((row) => [`${row.product}@${row.location}`, row.quantity]),
+  );
+  const outByKey = new Map(
+    DEMO_OUTBOUND.map((row) => [`${row.product}@${row.location}`, row.quantity]),
+  );
+  const rows = [];
+  for (const stock of DEMO_STOCK) {
+    const key = `${stock.product}@${stock.location}`;
+    const opening = stock.quantity + (outByKey.get(key) ?? 0);
+    rows.push({
+      product: stock.product,
+      location: stock.location,
+      type: 'STOCK_IN',
+      quantity: opening,
+      previousQuantity: 0,
+      newQuantity: opening,
+      daysAgo: 30,
+      reason: 'Opening stock count',
+    });
+  }
+  for (const out of DEMO_OUTBOUND) {
+    const key = `${out.product}@${out.location}`;
+    const final = finalByKey.get(key) ?? 0;
+    rows.push({
+      product: out.product,
+      location: out.location,
+      type: 'STOCK_OUT',
+      quantity: out.quantity,
+      previousQuantity: final + out.quantity,
+      newQuantity: final,
+      daysAgo: out.daysAgo,
+      reason: out.reason,
+    });
+  }
+  return rows;
+})();
 
 /** The quantity on hand per product, summed over every location. */
 export function stockByProduct() {

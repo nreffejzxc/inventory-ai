@@ -135,6 +135,49 @@ describe('AI-40 — the assistant streams its answer', () => {
     expect(chat).not.toHaveBeenCalled();
   });
 
+  it('clears a replaced draft before the stored answer arrives (AI-74)', async () => {
+    const allowReset = deferred<void>();
+    const allowReplacement = deferred<void>();
+    const gate = deferred<typeof TURN>();
+    chatStream.mockImplementation(
+      async (
+        _token: string,
+        _body: unknown,
+        options: { onDelta?: (t: string) => void; onReset?: () => void },
+      ) => {
+        options.onDelta?.('Draft: OUT_OF_STOCK');
+        await allowReset.promise;
+        options.onReset?.();
+        await allowReplacement.promise;
+        options.onDelta?.('Draft: Out of stock');
+        return gate.promise;
+      },
+    );
+
+    const view = await mount();
+    await ask(view);
+
+    // The draft is on screen first — that is what the reset has to clear.
+    await waitFor(() => expect(view.getByText('Draft: OUT_OF_STOCK')).toBeTruthy());
+    await act(async () => {
+      allowReset.resolve();
+    });
+
+    // The replaced copy is gone before the stored answer arrives; the screen shows the wait
+    // again rather than a version the server has already discarded.
+    await waitFor(() => expect(view.queryByText('Draft: OUT_OF_STOCK')).toBeNull());
+    expect(view.getByText(/Analyzing your inventory/)).toBeTruthy();
+    await act(async () => {
+      allowReplacement.resolve();
+    });
+    await waitFor(() => expect(view.getByText('Draft: Out of stock')).toBeTruthy());
+
+    await act(async () => {
+      gate.resolve(TURN);
+    });
+    await waitFor(() => expect(view.getByText('You hold 112 units in total.')).toBeTruthy());
+  });
+
   it('falls back to the ordinary request when the stream never started', async () => {
     chatStream.mockRejectedValue(new ApiError(404, null, 'Not found'));
 

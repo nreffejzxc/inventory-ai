@@ -737,9 +737,12 @@ export interface ProductInput {
   barcode?: string;
   categoryId?: string;
   description?: string;
+  specifications?: string;
   unit?: string;
   costPrice?: number | null;
   sellingPrice?: number | null;
+  /** ISO-4217 code of the prices, e.g. PHP. Omitted means the currency is unknown. */
+  currency?: string;
   minimumStock?: number | null;
   imageUrl?: string;
 }
@@ -1017,6 +1020,12 @@ export const aiApi = {
       signal?: AbortSignal;
       onDelta?: (text: string) => void;
       /**
+       * AI-74 — the server rewrote or discarded what it had streamed. The caller must clear the
+       * answer it has shown: the text that follows is the replacement, and `done` remains the
+       * authority. Without this the replaced version stays on screen until the turn completes.
+       */
+      onReset?: () => void;
+      /**
        * AI-40 — the streaming transport, injectable for the same reason `readModelHealth` takes
        * a `fetchImpl`: the failure this path must survive (a body that never settles) cannot be
        * produced by the real implementation on demand, so the only way to pin the recovery is to
@@ -1098,6 +1107,10 @@ export const aiApi = {
           const parsed = safeJson(event.data);
           const text = parsed && typeof parsed.text === 'string' ? parsed.text : '';
           if (text) options.onDelta?.(text);
+          return;
+        }
+        if (event.event === 'reset') {
+          options.onReset?.();
           return;
         }
         if (event.event === 'done') {

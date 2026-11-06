@@ -106,6 +106,12 @@ export function aiConfig() {
     // measured on the deployment (5.3–19.4 s on the free tier, §27DZ/§27EA), e.g. 25000.
     attemptMaxMs: nonNegativeInt(process.env.AI_ATTEMPT_MAX_MS, 0),
     openrouterBaseUrl: (process.env.OPENROUTER_BASE_URL || '').trim(),
+    // PAID TOOL GATE. OpenRouter's web plugin is billed separately (about $0.007 per
+    // search through Exa) even when the model id ends in \`:free\`. The free-model
+    // allowance does not cover it, so it is OFF by default. Review research then uses
+    // the keyless HTML result fallback; price research reports unavailable instead of
+    // spending credits. Set AI_ALLOW_PAID_WEB_SEARCH=true only with owner approval.
+    allowPaidWebSearch: (process.env.AI_ALLOW_PAID_WEB_SEARCH || '').trim().toLowerCase() === 'true',
 
     // Cost / rate protection (V1). See SYSTEM_SPECIFICATION.md §25.
     maxMessageChars: positiveInt(process.env.AI_MAX_MESSAGE_CHARS, 4000),
@@ -121,6 +127,33 @@ export function aiConfig() {
     // cost generation time, which is why this is 1200 and not unlimited: the AI-1 turn deadline
     // still bounds the turn, and a longer answer now has further to run before it is saved.
     maxOutputTokens: positiveInt(process.env.AI_MAX_OUTPUT_TOKENS, 1200),
+    // AI-54 — hidden reasoning is turned OFF on the Anthropic-compatible wire by default.
+    //
+    // WHY. The 2026-11-04 device run could not explain why a 1,200-token answer came back
+    // at 154 words with `degraded=OUTPUT_LIMIT`, so the provider was measured directly on
+    // the same endpoint and model the assistant uses. With `max_tokens: 400` and a question
+    // needing one short paragraph, the response was `stop_reason: max_tokens`,
+    // `output_tokens: 400`, `output_tokens_details.thinking_tokens: 400`, and its only
+    // content block was `thinking` (1,827 characters). The whole budget went to reasoning
+    // and NO answer was produced — in 3.8 s. Repeating the same request with
+    // `thinking: { type: 'disabled' }` returned a 213-character answer in 43 output tokens
+    // and 0.8 s, and a tool round still chose `findProducts` correctly in 0.76 s.
+    //
+    // So the failures recorded as AI-10 (`OUTPUT_LIMIT`), AI-12 (empty completion) and the
+    // AI-52/53 retries were not the cap being too small: on this model the reasoning shares
+    // the SAME budget as the answer, and at 1,200 it routinely left only a few hundred
+    // tokens for the visible text — occasionally none. Raising the cap would have bought
+    // time rather than correctness, and paid for it in latency.
+    //
+    // A bounded budget (`thinking: { type: 'enabled', budget_tokens }`) also works on this
+    // gateway (measured: 58 thinking tokens with a 400 budget), but tool rounds then require
+    // the thinking blocks to be replayed in the assistant turn, which this wire does not do
+    // yet, so a budget above zero is not offered as a supported setting.
+    //
+    // Set AI_THINKING_DISABLED=false only to restore the provider's own default (its
+    // extended thinking on, if it has any) for an experiment; everything else, including an
+    // empty or malformed value, keeps it off.
+    thinkingDisabled: (process.env.AI_THINKING_DISABLED || '').trim().toLowerCase() !== 'false',
     maxToolIterations: positiveInt(process.env.AI_MAX_TOOL_ITERATIONS, 6),
     // AI-2 — how many times a turn retries a provider response that carries NO
     // usable content (neither text nor a tool call). The deployed free-tier gateway

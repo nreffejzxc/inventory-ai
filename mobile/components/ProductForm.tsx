@@ -59,6 +59,7 @@ export default function ProductForm({ initial }: { initial?: ApiResponse }) {
   const [barcode, setBarcode] = useState<string>(initial?.barcode ?? '');
   const [categoryId, setCategoryId] = useState<string>(initial?.category?.id ?? '');
   const [description, setDescription] = useState<string>(initial?.description ?? '');
+  const [specifications, setSpecifications] = useState<string>(initial?.specifications ?? '');
   const [unit, setUnit] = useState<string>(initial?.unit ?? '');
   const [costPrice, setCostPrice] = useState<string>(
     initial?.costPrice != null && initial.costPrice !== 0 ? String(initial.costPrice) : ''
@@ -66,6 +67,9 @@ export default function ProductForm({ initial }: { initial?: ApiResponse }) {
   const [sellingPrice, setSellingPrice] = useState<string>(
     initial?.sellingPrice != null && initial.sellingPrice !== 0 ? String(initial.sellingPrice) : ''
   );
+  // ISO-4217 code for the two prices, so the assistant can format them with the right
+  // currency instead of guessing. Blank means "not recorded", which is a valid state.
+  const [currency, setCurrency] = useState<string>(initial?.currency ?? '');
   const [minimumStock, setMinimumStock] = useState<string>(
     initial?.minimumStock != null && initial.minimumStock !== 0 ? String(initial.minimumStock) : ''
   );
@@ -93,6 +97,10 @@ export default function ProductForm({ initial }: { initial?: ApiResponse }) {
     const min = toWhole(minimumStock);
     if (!min.ok) problems.minimumStock = min.message;
     else if (min.value != null && min.value < 0) problems.minimumStock = 'Minimum stock must be at least 0';
+    const code = currency.trim().toUpperCase();
+    if (code && !/^[A-Z]{3}$/.test(code)) {
+      problems.currency = 'Use a 3-letter ISO code, e.g. PHP';
+    }
     if (Object.keys(problems).length) {
       setFieldErrors(problems);
       return;
@@ -108,9 +116,11 @@ export default function ProductForm({ initial }: { initial?: ApiResponse }) {
       barcode: barcode.trim() || undefined,
       categoryId: categoryId || undefined,
       description: description.trim() || undefined,
+      specifications: specifications.trim() || undefined,
       unit: unit.trim() || undefined,
       costPrice: cost.value,
       sellingPrice: sell.value,
+      currency: code || undefined,
       minimumStock: min.value,
       imageUrl: imageUrl.trim() || undefined,
     };
@@ -145,8 +155,19 @@ export default function ProductForm({ initial }: { initial?: ApiResponse }) {
         disabled={categories.items.length === 0}
       />
       <Input name="description" label="Description" value={description} onChangeText={setDescription} multiline error={fieldErrors.description} />
+      <Input
+        name="specifications"
+        label="Specifications"
+        value={specifications}
+        onChangeText={setSpecifications}
+        multiline
+        maxLength={1000}
+        error={fieldErrors.specifications}
+        helper="Recorded facts such as dimensions, battery, capacity, or connectivity. The assistant compares these, not guesses."
+      />
       <Input name="costPrice" label="Cost price" value={costPrice} onChangeText={setCostPrice} keyboardType="decimal-pad" error={fieldErrors.costPrice} placeholder="0.00" />
       <Input name="sellingPrice" label="Selling price" value={sellingPrice} onChangeText={setSellingPrice} keyboardType="decimal-pad" error={fieldErrors.sellingPrice} placeholder="0.00" />
+      <Input name="currency" label="Currency" value={currency} onChangeText={setCurrency} error={fieldErrors.currency} placeholder="e.g. PHP" maxLength={3} autoCapitalize="characters" helper="3-letter ISO code for both prices. Leave blank if unknown — the assistant will not guess." />
       <Input name="unit" label="Unit" value={unit} onChangeText={setUnit} error={fieldErrors.unit} placeholder="e.g. box, kg, litre" autoCapitalize="none" />
       <Input name="minimumStock" label="Minimum stock" value={minimumStock} onChangeText={setMinimumStock} keyboardType="number-pad" error={fieldErrors.minimumStock} helper="Alert when available stock drops to this level (0 = disabled)" />
       <Input name="imageUrl" label="Image URL" value={imageUrl} onChangeText={setImageUrl} error={fieldErrors.imageUrl} placeholder="Optional https://…" autoCapitalize="none" />

@@ -43,6 +43,7 @@ import assert from 'node:assert/strict';
 
 import { unitSuite } from './testEnv.mjs';
 import { startServer } from '../src/config/startup.ts';
+import { aiConfig } from '../src/services/ai/aiConfig.ts';
 import { checkModelCatalogue, probeModel } from '../src/services/ai/modelCheck.ts';
 
 const MODEL = 'vendor/model-one:free';
@@ -57,6 +58,22 @@ const env = (over = {}) => ({
   AI_MODEL_OPENROUTER: MODEL,
   ...over,
 });
+
+/** Apply model settings for one test and restore the ambient environment afterwards. */
+function withEnv(overrides) {
+  const previous = new Map();
+  for (const [key, value] of Object.entries(overrides)) {
+    previous.set(key, process.env[key]);
+    if (value === undefined) delete process.env[key];
+    else process.env[key] = String(value);
+  }
+  return () => {
+    for (const [key, value] of previous) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+  };
+}
 
 /** A catalogue response listing `ids`. */
 function catalogue(ids, { status = 200 } = {}) {
@@ -235,6 +252,64 @@ unitSuite('AI-28 model configuration check (DB-free)', () => {
     it('is not applicable when there is nothing configured to probe', async () => {
       const result = await probeModel({ env: {}, fetchImpl: probeResponse([{ type: 'text', text: 'x' }]) });
       assert.equal(result.status, 'not_applicable');
+    });
+  });
+
+  describe('AI-85 switching the assistant model from .env', () => {
+    const PAID = 'openai/gpt-oss-120b';
+    const FREE = 'nvidia/nemotron-3.5-lightning:free';
+    const FREE_ALT = 'nvidia/nemotron-3-ultra-550b-a55b:free';
+
+    it('★ reads the paid primary and its explicit fallback chain from the environment', () => {
+      const restore = withEnv({
+        AI_MODEL_OPENROUTER: PAID,
+        AI_FALLBACK_MODELS_OPENROUTER: `${FREE}, ${FREE_ALT}`,
+      });
+      try {
+        const cfg = aiConfig();
+        assert.equal(cfg.openrouterModel, PAID);
+        assert.deepEqual(cfg.fallbackModels, [FREE, FREE_ALT]);
+      } finally {
+        restore();
+      }
+    });
+
+    it('★ a free configuration contains no implicit paid model', () => {
+      const restore = withEnv({
+        AI_MODEL_OPENROUTER: FREE,
+        AI_FALLBACK_MODELS_OPENROUTER: FREE_ALT,
+      });
+      try {
+        const cfg = aiConfig();
+        const chain = [cfg.openrouterModel, ...cfg.fallbackModels];
+        assert.deepEqual(chain, [FREE, FREE_ALT]);
+        assert.ok(chain.every((id) => id.endsWith(':free')), 'no paid id is added implicitly');
+      } finally {
+        restore();
+      }
+    });
+
+    it('★ sends whichever selected model is configured, with tools, for both paid and free', async () => {
+      for (const model of [PAID, FREE]) {
+        let body = null;
+        const result = await probeModel({
+          env: env({ AI_MODEL_OPENROUTER: model }),
+          fetchImpl: async (_url, init) => {
+            body = JSON.parse(init.body);
+            return {
+              ok: true,
+              status: 200,
+              json: async () => ({
+                content: [{ type: 'tool_use', id: 'tool-1', name: 'getInventorySummary' }],
+              }),
+            };
+          },
+        });
+
+        assert.equal(result.status, 'usable');
+        assert.equal(body.model, model);
+        assert.ok(Array.isArray(body.tools) && body.tools.length > 0, 'the selected model gets the tool catalog');
+      }
     });
   });
 

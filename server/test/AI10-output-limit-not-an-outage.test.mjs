@@ -227,7 +227,7 @@ unitSuite('AI-10 the output limit is its own failure (DB-free)', () => {
         });
       });
       await assert.rejects(
-        runAiChat({ businessId: 'b-dummy', userId: 'u-dummy', role: ROLES.OWNER, message: 'how much stock?' }),
+        runAiChat({ businessId: 'b-dummy', userId: 'u-dummy', role: ROLES.OWNER, message: 'say hello in one sentence' }),
         (err) => err.code === AI_OUTPUT_LIMIT,
       );
     } finally {
@@ -276,7 +276,7 @@ unitSuite('AI-10 the output limit is its own failure (DB-free)', () => {
         throw new AiOutputLimit();
       });
       await assert.rejects(
-        runAiChat({ businessId: 'b-dummy', userId: 'u-dummy', role: ROLES.OWNER, message: 'how much stock?' }),
+        runAiChat({ businessId: 'b-dummy', userId: 'u-dummy', role: ROLES.OWNER, message: 'say hello in one sentence' }),
         (err) => err.code === AI_OUTPUT_LIMIT,
       );
     } finally {
@@ -289,25 +289,95 @@ unitSuite('AI-10 the output limit is its own failure (DB-free)', () => {
     assert.ok(!cost.includes('outcome=AI_UNAVAILABLE'), 'a limit is not an outage in the log either');
   });
 
-  it('is never retried — paying twice cannot buy room that was already spent', async () => {
+  // AI-52 — the limit is retried ONCE, and only when it produced nothing.
+  //
+  // This suite used to pin `calls === 1`: "paying twice cannot buy room that was already
+  // spent". That held while the failure looked deterministic. The device battery of
+  // 2026-11-04 showed it is not — "what do reviewers say about the K8 Pro" and "do we
+  // have anything from Royal Kludge?" each hit `AiOutputLimit` with no text and no tool
+  // call, and each answered correctly on the immediate retry (the retry's own log line
+  // is in that run). A member was being shown "ask a shorter question" for a question
+  // that only needed asking twice, so the rule is now the empty-completion rule: one
+  // retry, sharing `emptyRetryMax`, and a second limit in the same turn is reported.
+  it('is retried once when it produced nothing — the spent budget was not the question\'s fault', async () => {
     process.env.AI_PROVIDER = 'fake';
     let calls = 0;
+    const warn = console.warn;
+    console.warn = () => {};
+    let result;
     try {
       setFakeScenario(() => {
         calls += 1;
-        // A second call WOULD succeed, so a retry would hide the limit behind a 201 —
-        // which is what makes `calls === 1` a real assertion rather than a tautology.
         if (calls === 1) throw new AiOutputLimit();
-        return fakeText('this answer must never be produced');
+        return fakeText('here is the answer.');
+      });
+      result = await runAiChat({
+        businessId: 'b-dummy',
+        userId: 'u-dummy',
+        role: ROLES.OWNER,
+        message: 'say hello in one sentence',
+      });
+    } finally {
+      console.warn = warn;
+      process.env.AI_PROVIDER = 'openrouter';
+    }
+    assert.equal(calls, 2, 'a limit with no content is retried exactly once');
+    assert.equal(result.content, 'here is the answer.', "the retry's answer is the answer");
+  });
+
+  it('reports a second limit rather than paying a third time', async () => {
+    process.env.AI_PROVIDER = 'fake';
+    let calls = 0;
+    const warn = console.warn;
+    console.warn = () => {};
+    try {
+      setFakeScenario(() => {
+        calls += 1;
+        throw new AiOutputLimit();
       });
       await assert.rejects(
-        runAiChat({ businessId: 'b-dummy', userId: 'u-dummy', role: ROLES.OWNER, message: 'how much stock?' }),
+        runAiChat({ businessId: 'b-dummy', userId: 'u-dummy', role: ROLES.OWNER, message: 'say hello in one sentence' }),
         (err) => err.code === AI_OUTPUT_LIMIT,
       );
     } finally {
+      console.warn = warn;
       process.env.AI_PROVIDER = 'openrouter';
     }
-    assert.equal(calls, 1, 'a reached limit must never be retried');
+    assert.equal(calls, 2, 'the retry budget is one, not an open question');
+  });
+
+  // AI-53 — the retry must ASK FOR SOMETHING ELSE.
+  //
+  // On 2026-11-04 a real question ("...is there a newer Alienware model than the one we
+  // stock") spent the whole 1,200-token budget twice: two calls, both stop=max_tokens, no
+  // text and no tool call, so the member was shown only "ran out of room". The retry used to
+  // resend the identical request, which at temperature 0 mostly re-spends the budget on the
+  // same preamble. It now adds one brevity instruction, so the resent turn is a different
+  // request; this test reads the messages the second call actually received.
+  it('the retry asks for brevity instead of resending the identical request', async () => {
+    process.env.AI_PROVIDER = 'fake';
+    let calls = 0;
+    let secondMessages = null;
+    const warn = console.warn;
+    console.warn = () => {};
+    try {
+      setFakeScenario((ctx) => {
+        calls += 1;
+        if (calls === 1) throw new AiOutputLimit();
+        secondMessages = ctx.messages;
+        return fakeText('here is the answer.');
+      });
+      await runAiChat({ businessId: 'b-dummy', userId: 'u-dummy', role: ROLES.OWNER, message: 'say hello in one sentence' });
+    } finally {
+      console.warn = warn;
+      process.env.AI_PROVIDER = 'openrouter';
+    }
+
+    assert.equal(calls, 2, 'still exactly one retry');
+    const final = secondMessages[secondMessages.length - 1];
+    assert.equal(final.role, 'user', 'the nudge rides on the retry as a user turn');
+    assert.match(String(final.content), /whole reply budget without producing an answer/);
+    assert.match(String(final.content), /under 120 words/, 'it names a length the model can meet');
   });
 
   it('leaves AI-8 alone: a truncated answer that ARRIVED keeps its text', async () => {
@@ -361,9 +431,11 @@ dbSuite('AI-10 the limit reaches the client as its own code, never as an outage'
     // Positive control: the turn really reached the gateway. Without it, the
     // assertions below would pass just as happily against a provider that never
     // spoke to the stub at all.
+    // AI-10 retries a content-less limit once, so the control expects the first call and
+    // its retry — both real requests to the gateway.
     assert.equal(
       hits,
-      1,
+      2,
       `positive control: the turn really reached the gateway — provider=${process.env.AI_PROVIDER}` +
         ` base=${process.env.OPENROUTER_BASE_URL}`
     );
@@ -383,7 +455,7 @@ dbSuite('AI-10 the limit reaches the client as its own code, never as an outage'
       body: { message: 'How many products are completely out of stock?' },
     });
     assert.equal(res.status, 502, 'positive control: the request really reached the gateway');
-    assert.equal(hits, 1);
+    assert.equal(hits, 2, 'the limit is retried once before it is reported');
 
     // The whole chain: stub gateway → postJson → parseAnthropicResponse → AiOutputLimit →
     // the service's catch → the cost line. A hand-thrown error would prove only the last hop.

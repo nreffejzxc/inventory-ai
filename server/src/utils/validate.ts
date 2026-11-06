@@ -988,6 +988,7 @@ export function validateSupplier(body: Body, { partial = false }: PartialOption 
 const PRODUCT_NAME_MAX = 120;
 const PRODUCT_BRAND_MAX = 80;
 const PRODUCT_DESCRIPTION_MAX = 1000;
+const PRODUCT_SPECIFICATIONS_MAX = 1000;
 /** Shared SKU / barcode length cap (products, and the barcode lookup query). */
 export const CODE_MAX = 100;
 const UNIT_MAX = 30;
@@ -1008,6 +1009,12 @@ export function validateProduct(body: Body, { partial = false }: PartialOption =
   problems.push(...barcode.problems);
   const description = optionalString(body?.description, 'description', PRODUCT_DESCRIPTION_MAX);
   problems.push(...description.problems);
+  const specifications = optionalString(
+    body?.specifications,
+    'specifications',
+    PRODUCT_SPECIFICATIONS_MAX,
+  );
+  problems.push(...specifications.problems);
   const categoryId = optionalObjectId(body?.categoryId, 'categoryId');
   problems.push(...categoryId.problems);
   const unit = optionalString(body?.unit, 'unit', UNIT_MAX);
@@ -1019,6 +1026,14 @@ export function validateProduct(body: Body, { partial = false }: PartialOption =
   problems.push(...costPrice.problems);
   const sellingPrice = optionalNumber(body?.sellingPrice, 'sellingPrice', { min: 0 });
   problems.push(...sellingPrice.problems);
+  // ISO-4217 code of the prices. Optional: an omitted or blank value leaves the currency unknown.
+  const currencyRaw = optionalString(body?.currency, 'currency', 3);
+  problems.push(...currencyRaw.problems);
+  let currency: string | undefined = currencyRaw.value?.trim() ? currencyRaw.value.trim().toUpperCase() : undefined;
+  if (currency !== undefined && !/^[A-Z]{3}$/.test(currency)) {
+    problems.push({ field: 'currency', message: 'currency must be a 3-letter ISO code' });
+    currency = undefined;
+  }
   const minimumStock = optionalNumber(body?.minimumStock, 'minimumStock', { min: 0, integer: true });
   problems.push(...minimumStock.problems);
 
@@ -1029,9 +1044,11 @@ export function validateProduct(body: Body, { partial = false }: PartialOption =
     sku: sku.value,
     barcode: barcode.value,
     description: description.value,
+    specifications: specifications.value,
     categoryId: categoryId.value,
     costPrice: costPrice.value,
     sellingPrice: sellingPrice.value,
+    currency,
     unit: unit.value,
     minimumStock: minimumStock.value,
     imageUrl: imageUrl.value,

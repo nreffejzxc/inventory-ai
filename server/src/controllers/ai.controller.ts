@@ -382,13 +382,17 @@ function turnPayload(saved: SavedTurn, result: Awaited<ReturnType<typeof runAiCh
  * The wire contract is three event names and nothing else:
  *
  *   delta  { text }                     one piece of answer text, in order
+ *   reset  {}                           discard the text shown so far; a corrected answer
+ *                                       follows (or `done` replaces it)
  *   done   { conversation, userMessage, assistantMessage, degraded }
  *                                        the stored turn — identical to the JSON response
  *   error  { status, code, message }    the same mapping the JSON path uses, after headers
  *
  * The `done` payload is the authority, not the deltas: the server rewrites status constants and
  * trims a cut-off unit before storing, so the client replaces what it rendered with the final
- * message. Deltas are what make the wait visible; `done` is what makes it correct.
+ * message. Deltas are what make the wait visible; `done` is what makes it correct. AI-74's
+ * `reset` closes the window in between: when a guard rewrites or discards an answer, the client
+ * must stop showing the version that was replaced instead of keeping it until `done`.
  *
  * Persistence is identical to the JSON path and happens at the same moment — after the provider
  * has answered, never as text arrives. A turn that fails still writes nothing, so a retry is the
@@ -442,6 +446,7 @@ async function sendStreamedTurn(req: AuthenticatedRequest, res: Response): Promi
       signal: turn.clientGone.signal,
       timeZone: turn.timeZone,
       onTextDelta: (text) => write('delta', { text }),
+      onTextReset: () => write('reset', {}),
     });
     const saved = await persistTurn({
       businessId,

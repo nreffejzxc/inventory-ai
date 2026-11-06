@@ -20,6 +20,13 @@
 // stage 1 and stage 2 would be different datasets and comparing their timings
 // would mean nothing.
 //
+// THE PRODUCTS ARE REAL. Every row cycles the curated catalogue in
+// `seed/catalog.mjs` (14 sourced products across four categories), so even a
+// large measurement tenant carries actual names, brands, descriptions and
+// specifications. A generated "Premium Kettle 1001" has nothing for the
+// assistant to search or compare, which makes the measurements measure the
+// fixture rather than the assistant.
+//
 // Usage:
 //   SEED_CONFIRM=seed-perf-ai npm run seed:perf -- --size=100
 //   SEED_CONFIRM=seed-perf-ai npm run seed:perf -- --size=1000 --seed=1
@@ -45,24 +52,13 @@ import {
   findSeedTenantIds,
   removeTenant,
 } from './perf/lib.mjs';
+import { CATALOG_CATEGORIES, catalogProductAt } from './seed/catalog.mjs';
 import { parseCount } from './seed/lib.mjs';
 
 const COMMAND = 'seed:perf';
 
 const LOCATIONS = ['Main Warehouse', 'Shop Front', 'Overflow Store'];
-const CATEGORY_NAMES = [
-  'Beverages', 'Snacks', 'Household', 'Personal Care', 'Stationery', 'Hardware',
-  'Electrical', 'Kitchen', 'Pet Supplies', 'Toys', 'Clothing', 'Garden',
-];
-const UNITS = ['pcs', 'box', 'pack', 'kg', 'L'];
-const ADJECTIVES = [
-  'Premium', 'Classic', 'Compact', 'Heavy Duty', 'Everyday', 'Deluxe', 'Eco',
-  'Professional', 'Mini', 'Ultra', 'Value', 'Pro',
-];
-const NOUNS = [
-  'Kettle', 'Notebook', 'Detergent', 'Torch', 'Cable', 'Mug', 'Tape', 'Battery',
-  'Brush', 'Gloves', 'Lamp', 'Bottle', 'Padlock', 'Sponge', 'Clips', 'Towel',
-];
+const CATEGORY_NAMES = CATALOG_CATEGORIES.map((category) => category.name);
 
 function argValue(flag, argv = process.argv) {
   const prefix = `${flag}=`;
@@ -171,16 +167,26 @@ async function main() {
       ? (rand() < 0.4 ? 0 : intBetween(rand, 1, minimumStock))
       : Math.round(minimumStock * (1.5 + rand() * 8));
 
+    // A curated real product, not an adjective + noun + index. Runs larger than
+    // the catalogue cycle it: scale is the point here, but every row still has a
+    // real brand, description and specification for the assistant to read.
+    const template = catalogProductAt(i);
+    const categoryIndex = CATEGORY_NAMES.indexOf(
+      CATALOG_CATEGORIES.find((category) => category.key === template.category)?.name ?? '',
+    );
+
     productDocs.push({
       businessId,
-      name: `${pick(rand, ADJECTIVES)} ${pick(rand, NOUNS)} ${1000 + i}`,
+      name: template.name,
+      brand: template.brand,
       sku: `SEEDSKU-${i}`,
       barcode: `SEEDBC${i}`,
-      description: `Seeded row ${i} for performance measurement`,
-      categoryId: pick(rand, categories)._id,
-      costPrice: Number((1 + rand() * 40).toFixed(2)),
-      sellingPrice: Number((2 + rand() * 80).toFixed(2)),
-      unit: pick(rand, UNITS),
+      description: template.description,
+      specifications: template.specifications,
+      categoryId: categories[categoryIndex >= 0 ? categoryIndex : i % categories.length]._id,
+      costPrice: template.costPrice,
+      sellingPrice: template.sellingPrice,
+      unit: template.unit,
       minimumStock,
       status: 'ACTIVE',
       // Carried on the doc so the inventory rows below can be built from it without

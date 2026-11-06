@@ -155,7 +155,7 @@ dbSuite('AI-46 catalogue overview', dbOk, () => {
     assert.equal(row.brand, 'ZZ Oil');
     assert.equal(row.productCount, 2);
     assert.deepEqual(row.categories, [automotiveName]);
-    assert.deepEqual(row.priceRange, { min: 8, max: 12.5 });
+    assert.deepEqual(row.priceRange, { min: 8, max: 12.5, currency: null });
     assert.ok(row.sampleProducts.some((product) => /API SN 10W-40/.test(product.description)));
     assert.match(result.note, /price range is the recorded selling price/i);
     assert.match(result.note, /not a quality or value rating/i);

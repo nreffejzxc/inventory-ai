@@ -56,6 +56,7 @@ import {
   ean13Value,
   internalEan13Candidates,
 } from '../src/utils/internalBarcode.ts';
+import { CATALOG_CATEGORIES, CATALOG_PRODUCTS } from '../scripts/seed/catalog.mjs';
 
 const read = (name) => readFileSync(new URL(`../scripts/${name}`, import.meta.url), 'utf8');
 const seedLibSource = read('seed/lib.mjs');
@@ -454,6 +455,81 @@ describe('the run-wide code default is --codes=, and the old flag is refused', (
     );
     assert.throws(() => parseRunwideCodes(['--codes']), /--codes needs a value/);
     assert.throws(() => parseRunwideCodes(['--codes=both', '--codes=sku']), /more than once/);
+  });
+});
+
+describe('the shared code parser preserves each command\'s existing default', () => {
+  it('defaults to none unless a command asks for its own default', () => {
+    assert.equal(parseRunwideCodes([]), 'none');
+    assert.equal(parseRunwideCodes([], { defaultMode: 'both' }), 'both');
+  });
+
+  it('an explicit flag overrides the command default in every direction', () => {
+    assert.equal(parseRunwideCodes(['--codes=sku'], { defaultMode: 'both' }), 'sku');
+    assert.equal(parseRunwideCodes(['--codes=none'], { defaultMode: 'both' }), 'none');
+    assert.equal(parseRunwideCodes(['--codes=barcode'], { defaultMode: 'none' }), 'barcode');
+  });
+
+  it('refuses an unsupported internal default instead of silently selecting it', () => {
+    assert.throws(
+      () => parseRunwideCodes([], { defaultMode: 'maybe' }),
+      /internal default.*not one of both, none, sku, barcode/,
+    );
+  });
+});
+
+describe('seed --plan=demo exposes the same four code modes', () => {
+  const source = read('seed-demo-account.mjs');
+
+  it('parses the flag before seeding, defaults to both, and passes both fields', () => {
+    assert.match(source, /parseRunwideCodes\(process\.argv, \{ defaultMode: 'both' \}\)/);
+    assert.match(source, /const \{ includeSku, includeBarcode \} = codeFields\(codes\)/);
+    assert.match(source, /includeSku,\s*\n\s*includeBarcode,/);
+    assert.ok(!source.includes('includeSku: true'), 'the demo seeder must not hard-code SKUs on');
+    assert.ok(!source.includes('includeBarcode: true'), 'the demo seeder must not hard-code barcodes on');
+  });
+
+  it('the development dry run returns before a connection is opened', () => {
+    const dryIndex = source.indexOf('dry run complete — no connection was opened');
+    const connectIndex = source.indexOf('mongoose.connect(', source.indexOf('async function main()'));
+    assert.ok(dryIndex > -1, 'the development preview message is missing');
+    assert.ok(connectIndex > -1, 'the real run never connects, which cannot be right');
+    assert.ok(dryIndex < connectIndex, 'the development dry run runs AFTER the connection is opened');
+  });
+});
+
+describe('the generated inventory is the curated catalogue', () => {
+  const source = read('seed/lib.mjs');
+
+  it('the catalogue rows carry real identifiers, descriptions and specifications', () => {
+    assert.ok(CATALOG_PRODUCTS.length >= 14, 'the catalogue must cover every demo product');
+    assert.equal(new Set(CATALOG_PRODUCTS.map((p) => p.key)).size, CATALOG_PRODUCTS.length);
+    assert.equal(new Set(CATALOG_PRODUCTS.map((p) => p.name)).size, CATALOG_PRODUCTS.length);
+
+    for (const product of CATALOG_PRODUCTS) {
+      assert.ok(product.name.includes(product.brand), `${product.key} name must carry its brand`);
+      assert.ok(product.description.length >= 60, `${product.key} needs a useful description`);
+      assert.ok(product.specifications.length >= 40, `${product.key} needs recorded specifications`);
+      assert.match(product.sourceUrl, /^https:\/\//, `${product.key} needs a manufacturer source`);
+      assert.ok(
+        CATALOG_CATEGORIES.some((category) => category.key === product.category),
+        `${product.key} names an unknown category`,
+      );
+    }
+  });
+
+  it('seedTenant writes those fields, not generated adjectives and nouns', () => {
+    assert.match(source, /const template = catalogProductAt\(i\)/);
+    for (const field of ['name', 'brand', 'description', 'specifications', 'costPrice', 'sellingPrice', 'unit']) {
+      assert.match(source, new RegExp(`${field}: template\\.${field}`), `seedTenant must write ${field}`);
+    }
+    assert.ok(!source.includes('`${pick(rand, ADJECTIVES)} ${pick(rand, NOUNS)} ${i}`'));
+  });
+
+  it('the writer sets only the code fields the chosen mode selected', () => {
+    assert.match(source, /if \(includeSku\) doc\.sku =/);
+    assert.match(source, /if \(includeBarcode\) \{/);
+    assert.match(source, /allocateEan13Barcodes\(productDocs\.map/);
   });
 });
 

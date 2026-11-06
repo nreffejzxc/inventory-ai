@@ -75,14 +75,14 @@ unitSuite('M6 provider message shape (Phase 07E, DB-free)', () => {
       return fakeText('hello there');
     });
 
-    const result = await runAiChat({ businessId: 'b-dummy', userId: 'u-dummy', role: ROLES.OWNER, message: 'how low is stock?' });
+    const result = await runAiChat({ businessId: 'b-dummy', userId: 'u-dummy', role: ROLES.OWNER, message: 'say hello in one sentence' });
     assert.equal(result.content, 'hello there');
 
     // The provider saw one and only one message: the current user message.
     assert.equal(seen.messages.length, 1);
     assert.equal(rolesOf(seen)[0], 'user');
-    assert.equal(countUserMessage(seen, 'how low is stock?'), 1);
-    assert.equal(lastUserMessage(seen), 'how low is stock?');
+    assert.equal(countUserMessage(seen, 'say hello in one sentence'), 1);
+    assert.equal(lastUserMessage(seen), 'say hello in one sentence');
   });
 
   it('prior Q/A turns are preserved in order and the follow-up is sent exactly once', async () => {
@@ -167,6 +167,46 @@ unitSuite('M6 provider message shape (Phase 07E, DB-free)', () => {
     assert.ok(wire.every((m) => Array.isArray(m.content) ? m.content.length > 0 : m.content !== ''));
     const plainTexts = wire.filter((m) => typeof m.content === 'string').map((m) => m.content);
     assert.equal(plainTexts.filter((t) => t === 'probe').length, 1);
+  });
+
+  it('a model error notice is re-asked, never shown as the answer', async () => {
+    let turn = 0;
+    let retryCtx = null;
+    setFakeScenario((ctx) => {
+      turn += 1;
+      if (turn === 1) return fakeText('[ERROR: Max turns exceeded]');
+      retryCtx = ctx;
+      return fakeText('I can help with that.');
+    });
+
+    const result = await runAiChat({
+      businessId: 'b-dummy',
+      userId: 'u-dummy',
+      role: ROLES.OWNER,
+      message: 'say hello in one sentence',
+    });
+
+    assert.equal(turn, 2, 'the error notice is retried once');
+    assert.equal(result.content, 'I can help with that.');
+    assert.ok(
+      retryCtx.messages.some((m) => m.role === 'user' && /error notice/i.test(String(m.content))),
+      'the retry tells the model the previous reply was not an answer',
+    );
+  });
+
+  it('an error notice that never clears becomes the honest degraded sentence', async () => {
+    setFakeScenario(() => fakeText('[ERROR: Max turns exceeded]'));
+
+    const result = await runAiChat({
+      businessId: 'b-dummy',
+      userId: 'u-dummy',
+      role: ROLES.OWNER,
+      message: 'say hello in one sentence',
+    });
+
+    assert.equal(result.degraded, 'UNGROUNDED_ANSWER');
+    assert.doesNotMatch(result.content, /max turns|\[ERROR/i);
+    assert.match(result.content, /could not read that from your records/i);
   });
 });
 

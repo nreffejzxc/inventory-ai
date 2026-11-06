@@ -239,6 +239,12 @@ export default function ProductDetailScreen() {
         {product.description ? (
           <Text style={styles.description}>{product.description}</Text>
         ) : null}
+        {product.specifications ? (
+          <View style={styles.specificationsBlock}>
+            <Text style={styles.specificationsLabel}>Specifications</Text>
+            <Text style={styles.description}>{product.specifications}</Text>
+          </View>
+        ) : null}
 
         <View style={styles.divider} />
         <Field label="SKU" value={product.sku} mono />
@@ -340,6 +346,8 @@ const createStyles = (colors: Palette) => StyleSheet.create({
   titleRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: spacing.md },
   name: { ...type.h2, color: colors.text, flex: 1 },
   description: { ...type.body, color: colors.textSecondary, marginTop: spacing.sm, lineHeight: 22 },
+  specificationsBlock: { marginTop: spacing.md },
+  specificationsLabel: { ...type.bodySmall, color: colors.textMuted, fontWeight: '700', marginBottom: spacing.xs },
   divider: { height: StyleSheet.hairlineWidth, backgroundColor: colors.divider, marginVertical: spacing.lg },
   barcodeCard: { marginTop: spacing.lg },
   barcodeTitle: { ...type.h3, color: colors.text },

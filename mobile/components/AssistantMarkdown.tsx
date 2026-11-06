@@ -1,5 +1,5 @@
 import { memo, useMemo } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Alert, Linking, StyleSheet, Text, View } from 'react-native';
 
 import { parseAssistantMarkdown, type Block, type Cell, type Row } from '../lib/assistantMarkdown';
 import { radius, spacing, type } from '../lib/theme';
@@ -64,7 +64,26 @@ function Spans({ spans, styles }: { spans: Cell; styles: Styles }) {
           span.bold ? styles.strong : null,
           span.italic ? styles.emphasis : null,
           span.code ? styles.inlineCode : null,
+          span.href ? styles.link : null,
         ].filter(Boolean);
+        // A research answer quotes its sources as links; they open the listing the price came from.
+        const href = span.href;
+        if (href) {
+          return (
+            <Text
+              key={index}
+              style={style.length ? style : undefined}
+              accessibilityRole="link"
+              onPress={() => {
+                // If no app can take the address, the member still gets the address: a silent no-op
+                // looks like a dead link in an answer whose whole point is the source.
+                void Linking.openURL(href).catch(() => Alert.alert('Could not open this link', href));
+              }}
+            >
+              {span.text}
+            </Text>
+          );
+        }
         return (
           <Text key={index} style={style.length ? style : undefined}>
             {span.text}
@@ -217,6 +236,7 @@ const createStyles = (colors: Palette) =>
       color: colors.text,
       backgroundColor: colors.surfaceMuted,
     },
+    link: { color: colors.link, textDecorationLine: 'underline' },
 
     list: { gap: spacing.xs },
     listItem: { flexDirection: 'row', gap: spacing.sm },

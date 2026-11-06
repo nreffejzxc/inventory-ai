@@ -118,6 +118,8 @@ type ProductRefSource = {
   unit?: unknown;
   status?: unknown;
   minimumStock?: number;
+  sellingPrice?: unknown;
+  currency?: unknown;
 };
 
 /** The public product reference. `minimumStock` is defaulted, so it is a number. */
@@ -129,6 +131,13 @@ type ProductRef = {
   unit: unknown;
   status: unknown;
   minimumStock: number;
+  // AI-58 — the recorded price travels with the row. Without it a stock question that
+  // needs a value ("what is this shelf worth?") gave the assistant no grounded figure
+  // and it invented one: measured on the device 2026-11-05, where rows whose recorded
+  // price was PHP 139,995 were reported as PHP 45,000. Null means never recorded, which
+  // is the answer the assistant must give rather than a number it makes up.
+  sellingPrice: unknown;
+  currency: unknown;
 };
 
 type LocationRefSource = { _id?: unknown; id?: unknown; name?: unknown };
@@ -188,7 +197,8 @@ function isDuplicateKey(err: unknown) {
 
 function pickProductRef(p: unknown): ProductRef | null {
   if (!p) return null;
-  const { _id, id, name, sku, barcode, unit, status, minimumStock } = p as ProductRefSource;
+  const { _id, id, name, sku, barcode, unit, status, minimumStock, sellingPrice, currency } =
+    p as ProductRefSource;
   return {
     id: String(_id ?? id),
     name,
@@ -197,6 +207,11 @@ function pickProductRef(p: unknown): ProductRef | null {
     unit: unit ?? null,
     status,
     minimumStock: minimumStock ?? 0,
+    // Only a finite number is a price. A NaN/Infinity or a numeric string is not one the
+    // assistant can quote, so it is reported as never recorded rather than passed through.
+    sellingPrice: typeof sellingPrice === 'number' && Number.isFinite(sellingPrice) ? sellingPrice : null,
+    // A whitespace-only currency would render as an empty label beside a price.
+    currency: typeof currency === 'string' && currency.trim() !== '' ? currency : null,
   };
 }
 

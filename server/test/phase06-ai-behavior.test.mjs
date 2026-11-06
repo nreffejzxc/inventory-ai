@@ -227,7 +227,7 @@ dbSuite('Phase 06 — AI chat behavior', dbOk, () => {
       seenCtx = ctx;
       return fakeText('first-answer');
     });
-    const first = await chat(biz.token, { message: 'How is stock today?' });
+    const first = await chat(biz.token, { message: 'How is everything today?' });
     assert.equal(first.status, 201);
     const convId = first.json.conversation.id;
 
@@ -235,14 +235,14 @@ dbSuite('Phase 06 — AI chat behavior', dbOk, () => {
       seenCtx = ctx;
       return fakeText('second-answer');
     });
-    const second = await chat(biz.token, { conversationId: convId, message: 'Actually, focus on low stock.' });
+    const second = await chat(biz.token, { conversationId: convId, message: 'Actually, tell me more.' });
     assert.equal(second.status, 201);
     assert.equal(second.json.assistantMessage.content, 'second-answer');
 
     // The history handed to the provider includes the first exchange.
     const userTexts = seenCtx.messages.filter((m) => m.role === 'user').map((m) => m.content);
-    assert.ok(userTexts.some((t) => t === 'How is stock today?'), 'first user turn must be in history');
-    assert.equal(lastUserMessage(seenCtx), 'Actually, focus on low stock.');
+    assert.ok(userTexts.some((t) => t === 'How is everything today?'), 'first user turn must be in history');
+    assert.equal(lastUserMessage(seenCtx), 'Actually, tell me more.');
 
     // Both exchanges are persisted in order.
     const msgs = await api('GET', `/api/ai/conversations/${convId}/messages`, { token: biz.token });
@@ -250,8 +250,8 @@ dbSuite('Phase 06 — AI chat behavior', dbOk, () => {
     assert.equal(msgs.json.total, 4);
     const roles = msgs.json.items.map((m) => m.role);
     assert.deepEqual(roles, ['USER', 'ASSISTANT', 'USER', 'ASSISTANT']);
-    assert.equal(msgs.json.items[0].content, 'How is stock today?');
-    assert.equal(msgs.json.items[2].content, 'Actually, focus on low stock.');
+    assert.equal(msgs.json.items[0].content, 'How is everything today?');
+    assert.equal(msgs.json.items[2].content, 'Actually, tell me more.');
   });
 
   it('conversations and messages have the public shape with model/usage/tools', async () => {

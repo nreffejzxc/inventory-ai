@@ -165,6 +165,32 @@ describe('AI-40 — chatStream settles even when the body does not', () => {
     expect(result?.assistantMessage?.content).toBe('You hold 112 units.');
   });
 
+  it('reports a reset and keeps delivering the replacement (AI-74)', async () => {
+    const events =
+      'event: delta\ndata: {"text":"Draft: OUT_OF_STOCK"}\n\n' +
+      'event: reset\ndata: {}\n\n' +
+      'event: delta\ndata: {"text":"Draft: Out of stock"}\n\n' +
+      'event: done\ndata: {"assistantMessage":{"id":"m1","role":"ASSISTANT","content":"Draft: Out of stock"}}\n\n';
+    mockStreamingFetch.mockResolvedValue(okResponse(bodyOf([events]).body));
+
+    const deltas: string[] = [];
+    let resets = 0;
+    const result = await aiApi.chatStream(
+      'token-1',
+      { message: 'x' },
+      streamOptions({
+        onDelta: (text: string) => deltas.push(text),
+        onReset: () => {
+          resets += 1;
+        },
+      }),
+    );
+
+    expect(resets).toBe(1);
+    expect(deltas).toEqual(['Draft: OUT_OF_STOCK', 'Draft: Out of stock']);
+    expect(result?.assistantMessage?.content).toBe('Draft: Out of stock');
+  });
+
   it('negative control: the same wedged reader is what makes the two failures possible', async () => {
     // Without an unsettled read the cases above would prove nothing about the race: a body that
     // ends immediately settles on its own and reports the missing answer, not a timeout.

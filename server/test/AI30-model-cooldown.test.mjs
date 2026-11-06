@@ -97,7 +97,7 @@ async function turn(scenario, { fallback = FALLBACK } = {}) {
       businessId: 'b-dummy',
       userId: 'u-dummy',
       role: ROLES.OWNER,
-      message: 'how much stock do we hold?',
+      message: 'say hello in one sentence',
     });
   } catch (err) {
     error = err;
@@ -270,12 +270,15 @@ unitSuite('AI-30 turns with a cooling model', () => {
   it('starts directly on a candidate while the primary is cooling', async () => {
     prime(FAKE_MODEL);
 
+    // The answer deliberately states no figure: this suite measures model selection, and
+    // AI-60 re-asks any turn that states one without reading (a single extra call here would
+    // be correct behaviour, but it is not what these assertions are about).
     const { result, error, calls, cooldownLines, failoverLines, costLines } = await turn(() =>
-      fakeText('You hold 49,217 units.'),
+      fakeText('Happy to help — which product should I check?'),
     );
 
     assert.equal(error, null);
-    assert.equal(result.content, 'You hold 49,217 units.');
+    assert.equal(result.content, 'Happy to help — which product should I check?');
     assert.deepEqual(calls, [FALLBACK], 'the primary must not be tried at all');
     assert.equal(failoverLines.length, 0, 'this is not a failover — the model was chosen up front');
     assert.equal(fields(costLines[0]).failovers, '0');
@@ -433,11 +436,11 @@ unitSuite('AI-30 turns with a cooling model', () => {
 
   it('leaves a healthy deployment exactly as it was', async () => {
     const { result, error, calls, cooldownLines, failoverLines, costLines } = await turn(() =>
-      fakeText('203 active products.'),
+      fakeText('the deployment is healthy.'),
     );
 
     assert.equal(error, null);
-    assert.equal(result.content, '203 active products.');
+    assert.equal(result.content, 'the deployment is healthy.');
     assert.deepEqual(calls, [undefined], 'the configured model is still the first and only call');
     assert.equal(cooldownLines.length, 0);
     assert.equal(failoverLines.length, 0);

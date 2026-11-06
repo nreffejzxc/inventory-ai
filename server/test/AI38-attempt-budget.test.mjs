@@ -97,7 +97,7 @@ function turnArgs() {
     businessId: 'b-dummy',
     userId: 'u-dummy',
     role: ROLES.OWNER,
-    message: 'how much stock do we hold?',
+    message: 'say hello in one sentence',
   };
 }
 

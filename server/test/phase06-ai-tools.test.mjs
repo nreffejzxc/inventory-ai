@@ -352,7 +352,7 @@ dbSuite('Phase 06 — AI tools', dbOk, () => {
     assert.equal(res.code, 'TOOL_ERROR');
   });
 
-  it('the tool catalog is strictly read-only (16 tools, no write verbs)', async () => {
+  it('the tool catalog is strictly read-only (19 tools, no write verbs)', async () => {
     const names = AI_TOOL_DEFS.map((t) => t.name).sort();
     assert.deepEqual(names, [
       // AI-45: everyday discovery across name, brand and description, with stock.
@@ -368,7 +368,11 @@ dbSuite('Phase 06 — AI tools', dbOk, () => {
       'getOutOfStockProducts',
       'getProduct',
       'getProductsByLocation',
+      // AI-71: dead stock — ACTIVE products with no stock-out on record at all.
+      'getProductsNeverSold',
       'getReorderNeededProducts',
+      // AI-57: stock value at the recorded selling price, and the most valuable products.
+      'getStockValue',
       // AI-14: reference lookups — read-only, and the only way to turn a location or
       // category NAME into the id the tools above filter by.
       // AI-44: recorded brands, one read for the brand question.
@@ -377,6 +381,8 @@ dbSuite('Phase 06 — AI tools', dbOk, () => {
       'listLocations',
       // AI-47: web research is bounded to product ids this tenant owns.
       'researchInventoryProducts',
+      // 19H: market-price research, bounded to product ids this tenant owns.
+      'researchMarketPrices',
       'searchProducts',
     ]);
     for (const def of AI_TOOL_DEFS) {
