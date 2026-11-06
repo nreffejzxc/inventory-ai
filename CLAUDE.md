@@ -563,6 +563,7 @@ anchor (`§27…`) in that file.
 - **§27HP** — Market prices from cited pages, and a faster research fan-out (2026-11-04)
 - **§27HQ** — Grounded answers, scoped stock reads, and the member's language (2026-11-06)
 - **§27HR** — AI-48–AI-84 merged and deployed (2026-11-06)
+- **§27HS** — The AI-50–AI-84 increment register (2026-11-06)
 
 ---
 

@@ -8,9 +8,9 @@ of truth for *what actually happened*, and it is why this file is long.
 
 **How to read it.** Do not read it top to bottom. Either find a record by number (§27FJ, §27DM — the
 numbers are cited from `CLAUDE.md` and from source comments), or use the index: `CLAUDE.md` §7 lists
-all **224** records by the title each gives itself.
+all **225** records by the title each gives itself.
 
-**Current state:** V1 complete and in production testing. The records that answer *where are we now*are §27HR (AI-48–AI-84 merged and deployed), §27HQ (grounded answers and scoped stock reads), §27HP (market prices from cited pages), §27HO (recorded specifications and the real seed catalogue), §27HN (inventory-only web research), §27HH (a transfer as one event to the assistant), §27HG (the stock-in link's product), §27HF (the single-location default's timing), §27HE (the stock-in link's location), §27HD (the movement fixes and the production device pass), §27HC (the assistant's local-time answers), §27FM (the V1 re-verification) and §27FJ (the two open advisories).
+**Current state:** V1 complete and in production testing. The records that answer *where are we now*are §27HS (the AI-50–AI-84 increment register), §27HR (AI-48–AI-84 merged and deployed), §27HQ (grounded answers and scoped stock reads), §27HP (market prices from cited pages), §27HO (recorded specifications and the real seed catalogue), §27HN (inventory-only web research), §27HH (a transfer as one event to the assistant), §27HG (the stock-in link's product), §27HF (the single-location default's timing), §27HE (the stock-in link's location), §27HD (the movement fixes and the production device pass), §27HC (the assistant's local-time answers), §27FM (the V1 re-verification) and §27FJ (the two open advisories).
 
 ---
 
@@ -24846,3 +24846,93 @@ estimate because the product records no sale price, invoice or customer.
 
 **Evidence.** [PR #151](https://github.com/nreffejzxc/inventory-ai/pull/151), `main` CI run
 `42277471424`, and `GET /api/health`.
+
+---
+
+# 27HS. The AI-50–AI-84 increment register (2026-11-06)
+
+**Why.** §27HQ records the AI-48–AI-84 delivery as one change, and §27HR records its merge and
+deployment. Neither maps each numbered increment to the failure it closed or the check that keeps
+it closed. This register is the backfill: one entry per number, the measured symptom, the change,
+and the smallest test or source guard that pins it. It adds no code and changes no behavior.
+
+**How to read it.** `AI50` means `server/test/AI50-ai-tool-loop-and-currency.test.mjs`; the other
+test names follow the same pattern. A prompt rule or turn-loop guard with no dedicated suite is
+named by the rule or source file. AI-48 and AI-49 stay in §27HO and §27HP; this register starts at
+AI-50. The work and tests are the merged content of PR #151, not a new run.
+
+**Tool loop and research.**
+
+| # | What changed | Pinned by |
+| --- | --- | --- |
+| AI-50 | The final tool round withholds tools and answers from the evidence already gathered; a repeated call carries `repeatNotice`; research turns get two extra rounds. A recorded price names its ISO currency, or says the currency was not recorded. | `AI50` |
+| AI-51 | The full tool audit decoded HTML entities in research titles, stopped mixing currencies in a brand range, reported the marketplaces actually checked, made `searchProducts` fall back to descriptions/specifications, keyed single-product research to that product, and ranked product-detail pages before listings. | `AI51`; [tool audit](evidence/ai51-tool-audit-2026-11-04/README.md) |
+| AI-52 | Keyless research falls back from DuckDuckGo to Bing, treats a 202/block page as unavailable rather than empty, filters unrelated results by the recorded name, anchors the retry with the recorded category, and accepts a labelled buy-box price. | `AI52`; [inventory assistant](evidence/ai52-inventory-assistant-2026-11-04/README.md) |
+| AI-53 | A refusal is read from visible text; a junk batch is a failed attempt; prices in structured metadata are read; instalments, loyalty points and cash-back are refused; a shop the member named is asked directly. | `AI53`; [brand research](evidence/ai53-brand-research-2026-11-04/README.md) |
+| AI-54 | Reasoning is disabled by default so hidden tokens cannot consume the answer budget; only an explicit `false` opts out. | `AI54` |
+
+**Grounding and completion.**
+
+| # | What changed | Pinned by |
+| --- | --- | --- |
+| AI-55 | Sales, usage and receipts are read from movements, not the catalogue; an empty window names the newest movement outside it; revenue is labelled an estimate. | `prompt 25`; [battery](evidence/ai54-60-grounded-answers-2026-11-05/README.md) |
+| AI-56 | HTML tags and entities are normalised before storage; answers with sources use one line per item, not a URL table. | `AI56` |
+| AI-57 | `getStockValue` values stock at the recorded selling price, excludes unpriced products rather than counting zero, and refuses a smuggled `businessId`. | `AI57` |
+| AI-58 | Inventory rows carry `sellingPrice` and `currency`; a missing price stays null, and the model may not estimate or multiply an assumed price. | `AI58` |
+| AI-59 | `getStockValue` takes optional location/category filters; the tool filters products and totals and echoes the scope. | `AI59` |
+| AI-60 | A figure-bearing answer from a turn with no tool read is discarded and re-asked once; the measured PHP 18,500 answer became PHP 383,426 after the read. | `AI60`; [battery](evidence/ai54-60-grounded-answers-2026-11-05/README.md) |
+| AI-62 | The figure detector also catches counts, reorder thresholds, markdown table rows and worded absence; movement constants are humanised (`538 STOCK_OUT` becomes `538 Stock out`). | `AI60`; `AI26` |
+| AI-63 | A question about recorded stock, sales or movements with no tool read is re-asked even when the answer states no digit; app/how-to questions are excluded. | `AI60` |
+| AI-64 | A tool plan or `[awaiting tool response]` placeholder is detected and discarded for a re-ask, not accepted as the data answer. | `AI60` |
+| AI-65 | An empty history window also returns the newest matching movements outside it, first with the requested type then without it, so the answer can name what did happen. | `tools.ts`; [tool audit](evidence/ai61-tool-audit-2026-11-05/README.md) |
+| AI-66 | A worded absence (`zero events`, `no units`) is a recorded-data claim; movement-out questions are routed to history. | `AI60` |
+| AI-67 | A `hasMore` page cannot support "no other location has it"; the turn re-reads the product's rows across locations. | `AI60` |
+| AI-68 | History totals begin with the scoped `$match`; `unitsSold` and `topOut` are computed over every matching movement, not the page, and the current question sets the scope. | `AI68` |
+| AI-69 | An empty-window answer that drops the earlier movements the tool returned is re-asked once and must name one with its time and real type. | `AI60`; `ai.service.ts` |
+| AI-70 | The revenue qualification is appended by the server inside the answer cap, never duplicated, and survives a long or empty answer. | `AI70` |
+
+**Scoped reads and routing.**
+
+| # | What changed | Pinned by |
+| --- | --- | --- |
+| AI-61 | Low/out-of-stock accept an exact location; each product is judged against that place; an unknown location is refused with the names it knows; no filter keeps business-wide scope. | `AI61` |
+| AI-71 | `getProductsNeverSold` compares the whole catalogue with the whole ledger, carries `excludeIds`, and explains an empty page as every stocked product having moved. | `AI71` |
+| AI-72 | A business-wide question drops a carried-in location before the read; an answer that still names that place is relabelled to all locations; a two-location breakdown is left alone. | `AI72` |
+| AI-73 | Dead-stock wording rewrites low/out/reorder calls to `getProductsNeverSold` before execution, adds a missing dead-stock read, and keeps both halves of a mixed question. | `AI73` |
+| AI-78 | A product with no inventory row is 0 units and out of stock, not an unreadable quantity. | `prompt 33` |
+| AI-79 | A catalogue read is not a stock read: a quantity answer after `searchProducts` is re-asked for `getInventory`/`getProduct`, then refused if it still carries an invented quantity. | `ai.service.ts`; `prompt 34` |
+| AI-82 | Price comparisons use `sellingPrice`, not stock value; thresholds filter returned rows rather than becoming a search phrase; a subset total never borrows the business-wide total; stated unit totals match shown rows. | `prompt 36`; 120-question stress run |
+| AI-83 | A restock answer names every returned product, out-of-stock first, and says how many the page does not show. | `withCompleteRestockNames`; `prompt 37` |
+
+**Answer surface and completeness.**
+
+| # | What changed | Pinned by |
+| --- | --- | --- |
+| AI-74 | When a guard rewrites or discards streamed text, the server sends `reset`; the client clears the bubble and replays the stored answer before `done`. | `AI40`; [tool audit](evidence/ai61-tool-audit-2026-11-05/README.md) |
+| AI-75 | A model failure notice is re-asked, then degraded; a reversed stock range is ordered ascending; brand/product nouns count as data claims. | `AI60` |
+| AI-76 | A brand-list answer is checked against every `listBrands` row; a pure list is rebuilt from those rows, so an omitted or invented brand cannot stand. | `AI60` |
+| AI-77 | An unrequested low-stock tail is removed from a stock-range answer, including its wrong count. | `AI60` |
+| AI-80 | Reviews and current prices are web reads: a no-research answer is re-asked with the right research tool, then refused rather than called an absent inventory field. | `ai.service.ts`; `prompt 35` |
+| AI-81 | Product-kind, comparison and recommendation questions require a tool read; the last-resort degradation is limited to advice, not every data question. | `AI60` |
+
+**Language.**
+
+| # | What changed | Pinned by |
+| --- | --- | --- |
+| AI-84 | Replies follow the latest message's language; Bisaya/Cebuano and Tagalog/Filipino are distinct; English tool output does not switch the reply; names, codes and numbers stay recorded. | `AI84` |
+
+**Verification.** This record is documentation only. It was checked with the documentation guards
+**39/39** and `git diff --check`; no server or mobile suite was re-run. The underlying results stay
+those in §27HQ and §27HR: server unit **1,832 pass, 0 fail, 61 skipped**; mobile **101 suites /
+1,203 tests**; PR #151's four required checks and the post-merge `main` run `42277471424` green.
+
+**What this does not prove.** No suite is named for AI-55, AI-65, AI-78–AI-80, AI-82 or AI-83; their
+rows point to the prompt or source guard and the device/stress evidence rather than inventing a
+test. This register is a map of already-merged work, not a new verification. It does not change
+§27HR's limits: no phone observation, no EAS build or OTA, the deployed 60 s research budget is
+still unmeasured, and revenue remains an estimate because no sale price, invoice or customer is
+recorded.
+
+**Evidence.** [PR #151](https://github.com/nreffejzxc/inventory-ai/pull/151), the
+[AI-54–AI-60 battery](evidence/ai54-60-grounded-answers-2026-11-05/README.md), the
+[AI-61 tool audit](evidence/ai61-tool-audit-2026-11-05/README.md), and the test files named above.
