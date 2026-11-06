@@ -106,9 +106,11 @@ updates:
       # dependency when the app gained its update runtime. The SDK pins it like the rest, so the pin
       # guard compared it and failed until it was listed here — the same guard doing the same job.
       #
-      # WHAT IS NOT SDK-PINNED: `@react-native-google-signin/google-signin` is a version choice this
-      # project makes, so Dependabot may still propose it. (`expo` IS listed below: the SDK package
-      # carries the upgrade, so it is taken deliberately.)
+      # WHY GOOGLE SIGN-IN IS HERE (2026-11-06). `@react-native-google-signin/google-signin`
+      # is not Expo-pinned, but owner decision P-2 (FB-D-125) freezes it at 16.1.5 and
+      # `__tests__/phase1-rnfirebase-foundation.test.ts` rejects every other version. PR #133
+      # proposed 16.2.0 and failed that guard by design. It moves with a deliberate native
+      # upgrade and on-device verification, not as a routine minor update.
       #
       # WHY THE FIREBASE PAIR WAS ADDED (2026-10-31). `@react-native-firebase/app` and
       # `@react-native-firebase/auth` are not Expo-pinned, but the project freezes them as an exact
@@ -121,6 +123,7 @@ updates:
       - dependency-name: "@expo/vector-icons"
       - dependency-name: "@react-native-firebase/app"
       - dependency-name: "@react-native-firebase/auth"
+      - dependency-name: "@react-native-google-signin/google-signin"
       - dependency-name: eslint-config-expo
       - dependency-name: expo
       - dependency-name: expo-build-properties
