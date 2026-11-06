@@ -91,7 +91,8 @@ A change should update the document that owns the question, not every document t
 | A rule, API, data shape or user-visible behaviour | `SYSTEM_SPECIFICATION.md`, and the guide a reader follows for that task |
 | A command, script or CI job | Guide 6, plus the task guide that uses it |
 | The phone workflow | Guides 2 and 15; `DEVELOPING_ON_A_PHYSICAL_DEVICE.md` only for depth they do not carry |
-| Authentication, sessions or a security control | `AUTHENTICATION_AND_USER_VERIFICATION_TARGET_ARCHITECTURE.md` and `AUTH_SECURITY_MASTER_CHECKLIST.md` |
+| Authentication design, a session or recovery rule | `AUTHENTICATION_AND_USER_VERIFICATION_TARGET_ARCHITECTURE.md` |
+| A security invariant, control status, decision or gate | `AUTH_SECURITY_MASTER_CHECKLIST.md` |
 | A release, OTA or store step | Guides 7 and 8 |
 | A decision with a trade-off | a dated `DEVELOPMENT_ROADMAP.md` record; `CLAUDE.md` only if it binds future work |
 | Anything finished, blocked or next | `DEVELOPMENT_LOG.md`, in the same session |

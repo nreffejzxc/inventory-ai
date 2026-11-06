@@ -47,8 +47,9 @@ Store release is being prepared.
 **Docs maintenance:** On 2026-11-06 the active guide set was consolidated, the device reference and
 the specification's obsolete planning tail were trimmed, and a documentation-link guard was added;
 see the documentation entries below. The auth checklist and account runbook now state current
-decisions; Guides 11 and 13 defer shared proof and phrase rules to the guide that owns them. The
-AI-48–AI-84 work is recorded in §27HQ and the newest entry.
+decisions; Guides 11 and 13 defer shared proof and phrase rules to the guide that owns them; the auth
+architecture and checklist keep one invariant register and one status owner. The AI-48–AI-84 work is
+recorded in §27HQ and the newest entry.
 
 | | |
 | --- | --- |
@@ -110,6 +111,19 @@ Known limits, checked before spending one of them:
   space that a backup or an index change would explain.
 - **Brevo** — used for verification codes, reset codes and invitations. Do not send test mail in
   bulk; a delivery failure is not a code regression until the provider log says so.
+
+---
+
+## 2026-11-06 — Auth architecture and checklist now own one copy of each rule
+
+| Item | Evidence |
+| --- | --- |
+| **Why** | The architecture repeated the checklist's invariant register and implementation-status table; the checklist repeated the architecture's identity/session model and failure classification. A rule could be changed in one file and left stale in the other. |
+| **Architecture** | `AUTHENTICATION_AND_USER_VERIFICATION_TARGET_ARCHITECTURE.md` **287 → 266** lines. §11 now points to the checklist's single invariant register (30 unique rows); §12 points to checklist control status, decisions and gates. The duplicate 15-item invariant list and 11-row status table are gone. |
+| **Checklist** | `AUTH_SECURITY_MASTER_CHECKLIST.md` **216 → 194** lines. §2 now points to architecture §§1–10 instead of repeating the model and failure table. I-25…I-30 add the six architecture invariants the register did not already carry: revoked credential, unverified identity, raw errors, retry timing, transient preservation and one mechanism for every role. |
+| **Ownership map** | `docs/README.md` now sends auth design/session/recovery changes to the architecture and invariant/control/decision/gate changes to the checklist. |
+| **Verified** | **30** invariants, all unique; no numbered invariant list remains in the architecture; documentation guards **39/39** pass; `git diff --check` clean. |
+| **Not done** | No code, test or configuration change; no deployment. |
 
 ---
 
