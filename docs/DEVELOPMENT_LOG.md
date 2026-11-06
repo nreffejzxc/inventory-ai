@@ -47,9 +47,10 @@ Store release is being prepared.
 **Docs maintenance:** On 2026-11-06 the active guide set was consolidated, the device reference and
 the specification's obsolete planning tail were trimmed, and a documentation-link guard was added;
 see the documentation entries below. The auth checklist and account runbook now state current
-decisions; Guides 9, 11, 12 and 13 keep their commands and safety rules, with the phrase matrix owned by
-Guide 10 and dated measurements removed. The auth architecture and checklist keep one invariant register
-and one status owner. The AI-48–AI-84 work is recorded in §27HQ and the newest entry.
+decisions; Guides 9, 11, 12 and 13 keep their commands and safety rules, with the phrase matrix owned
+by Guide 10 and dated measurements removed; the auth architecture and checklist keep one invariant
+register and one status owner. The AI-48–AI-84 work is recorded in §27HQ and §27HS, and the newest
+entry.
 
 | | |
 | --- | --- |
@@ -163,6 +164,19 @@ Known limits, checked before spending one of them:
 | **Guide 10** | Its matrix footer now names Guide 11 for development cleanup, so the one table points at the right owner. |
 | **Verified** | Documentation guards **39/39**; `git diff --check` clean. No code, test, prompt, configuration or deployment change. |
 | **Not done** | No deployment; a docs-only merge does not redeploy the server. |
+
+---
+
+## 2026-11-06 — AI-50–AI-84 itemised in one increment register
+
+| Item | Evidence |
+| --- | --- |
+| **Why** | §27HQ records the AI-48–AI-84 delivery as one change, and §27HR records its merge; neither maps each AI-50–AI-84 number to the failure it closed or the test/source guard that keeps it closed. |
+| **Recorded** | Roadmap §27HS: 35 increments in five groups, each with its measured symptom, change and pin. Record count 224 → 225; `CLAUDE.md` index updated. |
+| **Boundary** | Documentation only: no server, mobile, prompt, test or deployment change. It records work already merged in `98a4282`; PR #151 remains the code review. |
+| **Verified** | Documentation guards **39/39**; `git diff --check` clean. No server or mobile suite was re-run; the merge counts remain those in §27HQ/§27HR. |
+| **Not done** | No EAS build, OTA, phone observation or research-budget measurement; those limits remain as §27HR states. |
+| **Review** | The docs-only PR is the review gate for this register. |
 
 ---
 
