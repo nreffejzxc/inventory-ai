@@ -21,7 +21,8 @@ implemented · `[⛔]` blocked by something outside the repository · `[⏸]` de
 
 ## 1. Security invariants
 
-Non-negotiable. A change that breaks one is a defect, not a trade-off.
+Non-negotiable. A change that breaks one is a defect, not a trade-off. This is the single invariant
+register; the architecture document explains the design and points here.
 
 | # | Invariant | Where it is enforced |
 | --- | --- | --- |
@@ -49,48 +50,25 @@ Non-negotiable. A change that breaks one is a defect, not a trade-off.
 | I-22 | **At most 20 open sessions per user** (`MAX_ACTIVE_SESSIONS_PER_USER`). Creation evicts the **oldest**, so the device in hand keeps working; each eviction is audited `reason: "session-cap"`; best-effort by design. | `session.service.ts` |
 | I-23 | **An invitation is not a credential.** Acceptance requires a verified identity whose address equals the invited one; only the token's SHA-256 digest is stored; tenant and role come from the invitation row, never the request. | `invitations.service.ts`, `firebaseAuth.service.ts` |
 | I-24 | **Account deletion removes personal data, not the tenant's ledger.** A business whose last member leaves closes with them. | `accountDeletion.service.ts`, `tenantTeardown.service.ts` |
+| I-25 | **A revoked Firebase credential cannot create a session.** Revocation is checked at exchange. | `firebaseAuth.service.ts`; revocation check |
+| I-26 | **An unverified identity cannot obtain a session.** Registration provisions only after verification. | `firebaseAuth.service.ts`; `tokenVerifier.ts` |
+| I-27 | **Raw authentication errors are never exposed.** They pass through the operation-aware mapper. | auth error mapper; auth controllers |
+| I-28 | **Server-provided retry timing is authoritative.** The client renders `Retry-After`; it never invents one. | `middlewares/rateLimit.ts`; `mobile/lib/client.ts` |
+| I-29 | **A transient failure preserves a valid session.** Only a server refusal signs out. | `mobile/lib/auth.tsx`; authentication epoch |
+| I-30 | **Every role uses the same authentication mechanism.** Differences are authorization data only. | `authenticate.ts`; role matrix |
 
 > **I-19 note.** `utils/businessAccess.ts` `assertBusinessAccess` is production-dead (no `src/`
 > importer). Real isolation is `businessId` scoping returning 404. Left in place.
 
 ---
 
-## 2. Identity and session model, in one page
+## 2. Identity and session model
 
-```text
-Firebase identity  — credentials, email verification, revocation     (who)
-        │  ID token, exchanged once
-        ▼
-Inventory AI user  — businessId, role, status, permissions           (what may be done)
-        │  server-side session named by jti
-        ▼
-Inventory JWT      — 1 h, claims {sub, jti, iat, exp, iss, aud}      (access)
-```
-
-* **No authorization in the token.** Role, business and permissions are loaded per request.
-* **Session row** — `userId`, `jti`, `deviceLabel`, `createdAt`, `lastUsedAt`, `expiresAt`,
-  `revokedAt`. Bound: **14 days absolute** from creation. A new JWT never resurrects a revoked row.
-* **Renewal** — `POST /api/auth/renew` with a still-valid token, same `jti`, `expiresAt` untouched,
-  single-flight on the client, one per 60 s. The only fallback is a fresh exchange, never a custom
-  refresh token.
-* **Logout** — revoke the session server-side, clear locally, then sign out of Firebase. A failed
-  Firebase sign-out is retried later; Inventory access is already gone.
-* **Verification** — a six-digit Inventory AI code sent through Brevo; confirming it sets Firebase
-  `emailVerified` through the Admin SDK, which stays the authority of record. No `User`, `Business`,
-  JWT or session exists until the address is verified.
-* **Passwords** — Firebase owns them for every account that has a Firebase identity. bcrypt remains
-  only for admin-created accounts that predate Firebase, on a retirement path (§4, O-10).
-
-### Transient vs terminal failure
-
-| Class | Codes | Behaviour |
-| --- | --- | --- |
-| Recoverable | `SESSION_EXPIRED` | one controlled renewal, then one exchange |
-| Terminal | `SESSION_REVOKED`, `SESSION_INVALIDATED`, `INVALID_TOKEN` | sign out |
-| Blocked | `ACCOUNT_DISABLED`, `BUSINESS_NOT_ACTIVE` | keep identity, block the workspace |
-| Transient | `FIREBASE_UNAVAILABLE`, timeouts, 5xx | **never discard a valid token** — degrade and retry |
-
-A network failure is not a sign-out. Only the server refusing the session is.
+The design is owned by
+[`AUTHENTICATION_AND_USER_VERIFICATION_TARGET_ARCHITECTURE.md`](AUTHENTICATION_AND_USER_VERIFICATION_TARGET_ARCHITECTURE.md)
+§§1–10. It defines the authority layers, exchange, verification, token/session contract, failure
+classes, password and recovery rules, linking, tenant isolation and legacy retirement. This checklist
+records the invariants and controls that test that design; it does not restate the model.
 
 ---
 

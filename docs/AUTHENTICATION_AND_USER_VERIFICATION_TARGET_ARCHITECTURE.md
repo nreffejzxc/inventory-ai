@@ -1,14 +1,15 @@
 # Authentication & User Verification — Architecture
 
-**Status:** approved target architecture, and — for everything marked shipped in §12 — the
-implemented one.
+**Status:** approved target architecture. It states rules; implementation status, control status and
+open decisions are in
+[`AUTH_SECURITY_MASTER_CHECKLIST.md`](AUTH_SECURITY_MASTER_CHECKLIST.md).
 
 This is the design authority for sign-in, verification, application sessions and credential recovery.
 It states *rules*, not history. Behaviour is specified in
 [`SYSTEM_SPECIFICATION.md`](SYSTEM_SPECIFICATION.md) §29; the dated record of each increment is in
-[`DEVELOPMENT_ROADMAP.md`](DEVELOPMENT_ROADMAP.md); open decisions and gates are in
-[`AUTH_SECURITY_MASTER_CHECKLIST.md`](AUTH_SECURITY_MASTER_CHECKLIST.md). Where an existing
-implementation conflicts with a rule here, the rule wins and the conflict is reported.
+[`DEVELOPMENT_ROADMAP.md`](DEVELOPMENT_ROADMAP.md). The checklist owns the invariant register (§1),
+control status (§3), decisions and gates (§§4–6). Where an existing implementation conflicts with a
+rule here, the rule wins and the conflict is reported.
 
 ---
 
@@ -252,36 +253,14 @@ choose the weaker door.
 
 ## 11. Invariants
 
-1. Firebase UID is the identity link.
-2. Firebase owns authentication credentials.
-3. MongoDB owns application authorization.
-4. A client-supplied `businessId` is never the authorization authority.
-5. Every JWT corresponds to a live session.
-6. A revoked session cannot be reused.
-7. A revoked Firebase credential cannot create a session.
-8. An unverified identity cannot obtain a session.
-9. Accounts are never linked by email.
-10. MongoDB is not a second password authority in the final architecture.
-11. Raw authentication errors are never exposed.
-12. Server-provided retry timing is authoritative.
-13. Transient failures do not destroy valid sessions.
-14. Authentication and authorization stay separate concerns.
-15. Every role uses the same authentication mechanism.
+The invariant register is
+[`AUTH_SECURITY_MASTER_CHECKLIST.md`](AUTH_SECURITY_MASTER_CHECKLIST.md) §1: one row per invariant,
+with where it is enforced. This document explains the design that makes those invariants hold; a new
+or changed invariant is recorded in the checklist, not duplicated here.
 
 ---
 
 ## 12. Where the implementation stands
 
-| Area | State |
-| --- | --- |
-| Exchange, verification, revocation checking | shipped |
-| JWT, 14-day cap, 20-session bound, renewal | shipped |
-| Six-digit verification and reset codes | shipped, live acceptance on Brevo |
-| Reset link return page | shipped; **console setting still open** (checklist L-17) |
-| Linking | shipped |
-| Unlinking | **removed** |
-| Invitations | shipped |
-| Google sign-in | shipped and device-verified for an existing account; the new-identity path is environment-blocked |
-| Facebook / Apple | not implemented; each needs an approved phase |
-| Legacy login retirement | **blocked** — admin-created accounts still hold a password hash and no `firebaseUid` |
-| iOS | unverified everywhere — no macOS host |
+Control status, decisions and gates are in checklist §§3–6. This document does not keep a second
+status table; the checklist is updated from evidence.
