@@ -47,8 +47,8 @@ Store release is being prepared.
 **Docs maintenance:** On 2026-11-06 the active guide set was consolidated, the device reference and
 the specification's obsolete planning tail were trimmed, and a documentation-link guard was added;
 see the documentation entries below. The auth checklist and account runbook now state current
-decisions; superseded migration procedure was removed. The AI-48–AI-84 work is recorded in §27HQ and
-the newest entry.
+decisions; Guides 11 and 13 defer shared proof and phrase rules to the guide that owns them. The
+AI-48–AI-84 work is recorded in §27HQ and the newest entry.
 
 | | |
 | --- | --- |
@@ -110,6 +110,18 @@ Known limits, checked before spending one of them:
   space that a backup or an index change would explain.
 - **Brevo** — used for verification codes, reset codes and invitations. Do not send test mail in
   bulk; a delivery failure is not a code regression until the provider log says so.
+
+---
+
+## 2026-11-06 — Guides 11 and 13 keep commands and refusals, not repeated proof
+
+| Item | Evidence |
+| --- | --- |
+| **Why** | Both guides restated the database-first/identity-second rule and phrase mechanics that Guide 11 owns. Guide 11 repeated the witness and re-count proof in its verification section; Guide 13 repeated the self-service deletion explanation and split one boundary statement across three bullets. |
+| **Guide 11** | `11-deleting-development.md` **234 → 218** lines. Removed the duplicate per-account proof, the witness restatement, the repeated fixture-rule paragraph and the long order explanation. All **21** command lines and **13** refusal rows remain. |
+| **Guide 13** | `13-firebase-identities.md` **244 → 235** lines. Points phrase mechanics to Guide 11, condenses the role-cleanup and Profile warning, and folds the no-command boundary into one paragraph. All **7** command lines and **9** refusal rows remain. |
+| **Verified** | Documentation guards **39/39** pass; command lists and refusal rows compare identical to `HEAD`; `git diff --check` clean. No code, test or configuration change. |
+| **Not done** | No data, identity, credential or deployment change. |
 
 ---
 

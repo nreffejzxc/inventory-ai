@@ -105,10 +105,9 @@ NODE_ENV=production MONGODB_DB_NAME=inventoryai_prod_db \
 ```
 
 - `--email=` repeats, or takes a comma-separated list. At least one is required.
-- `--database=` is required and must equal the database this shell resolved; **two phrases in
-  development, three in production** (`CLEANUP_CONFIRM=cleanup:firebase`, `CLEANUP_DB_CONFIRM`,
-  and `CLEANUP_PROD_CONFIRM=DELETE-PRODUCTION-DATA`). The same rule as [Guide 11](11-deleting-development.md)
-  and [Guide 12](12-deleting-production.md).
+- `--database=` is required and must equal the database this shell resolved. The phrase rules are
+  [Guide 11](11-deleting-development.md)'s; this target's phrase is `cleanup:firebase`, and the production
+  line above shows the third phrase.
 - The Firebase project must be exactly the approved project — `inventoryai-d0d20` — and must not look
   like a production project. Any other id is refused.
 - It authorises nothing else: it cannot delete a login you did not name, and it never touches MongoDB.
@@ -155,17 +154,14 @@ still a reference by email, so it blocks the delete just the same.
 
 ## One cleanup command that deletes identities by itself
 
-`cleanup:roles --delete-firebase` removes the four role identities, but only after the tenant's rows
-are gone and only after re-querying that no user still uses the addresses. Apart from the app's own
-**Delete account**, it is the one automatic identity deletion, and it is safe in that order:
+`cleanup:roles --delete-firebase` removes the four role identities only after the tenant's rows are gone
+and no user still uses the addresses. Apart from the app's **Delete account**, it is the one automatic
+identity deletion; without the flag, the logins are kept.
 
 ```bash
 CLEANUP_CONFIRM=cleanup:roles CLEANUP_DB_CONFIRM=inventoryai_dev_db \
   npm run cleanup:roles -- --database=inventoryai_dev_db --delete-firebase
 ```
-
-Without the flag, the four logins are kept — which is the safe default: nothing is orphaned and the
-addresses stay usable.
 
 ---
 
@@ -187,12 +183,9 @@ This deletes **every** identity in `inventoryai-d0d20`, including yours. It guar
   `CLEANUP_CONFIRM=cleanup:test-firebase` together with `--yes`;
 - deleting only Firebase users: it never touches MongoDB, and it never creates a user.
 
-Use it only to reset the test project itself (for example after a device run has littered it with
-throwaway registrations). **Not** a way to start over with your own account. For that, use **Profile →
-Delete account** in the app: the server removes the identity and the personal data (and closes the
-business if you are its only member and OWNER), after which the address can be registered again. `cleanup --
---target=database` does **not** work for this — it deletes the `users` rows and strands every login
-([Guide 4](4-test-accounts-and-mock-data.md)).
+Use it only to reset the test project itself, never as a way to start over with your own account. For that,
+use **Profile → Delete account**. `cleanup -- --target=database` is not a substitute: it deletes the `users`
+rows and strands every login.
 
 ---
 
@@ -230,11 +223,9 @@ environment.
 
 ## What no command does
 
-- **Repair an orphaned address.** Re-pointing a `firebaseUid` is an identity operation, and no seeder
-  or cleanup performs one implicitly.
-- **Create an identity for an existing MongoDB user.** Onboarding and invitation flows own that.
-- **Delete identity data to "free" an address whose row remains.** That is the state the guard exists
-  to prevent.
+No command repairs an orphaned address, creates an identity for an existing MongoDB user, or frees an
+address whose row remains. Onboarding and invitation flows own identity creation; the guard exists to
+prevent the last state.
 
 ← [Guides index](README.md) · Related: [4. Test accounts](4-test-accounts-and-mock-data.md) ·
 [9. Seeding data — development](9-seeding-development.md) ·
