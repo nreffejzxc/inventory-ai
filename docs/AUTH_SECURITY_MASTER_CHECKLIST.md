@@ -30,7 +30,7 @@ register; the architecture document explains the design and points here.
 | I-2 | **MongoDB is the application authority** — `userId`, `businessId`, `role`, `status`, permissions, plan. | `models/user.model.ts`; `middlewares/authenticate.ts` reloads per request |
 | I-3 | **The Inventory AI JWT is the API bearer.** A Firebase ID token is exchanged **once** and never becomes the bearer. | `services/firebaseAuth.service.ts`; `config/jwt.ts` |
 | I-4 | **The server derives** `userId`/`businessId`/`role`/`status`; the client never supplies them. | `authenticate.ts`; `phase24-runtime-authorization-matrix` |
-| I-5 | **The client cannot choose** business, role, status or Firebase linkage. | `firebaseLink.service.ts` returns only `{problems, idToken}` |
+| I-5 | **The client cannot choose Firebase linkage**; the link route takes the provider UID from the verified token. | `firebaseLink.service.ts` returns only `{problems, idToken}` |
 | I-6 | **Tenant isolation is server-side**; every business-owned query is scoped by a server-derived `businessId`. | query scoping; refusals are a plain 404 |
 | I-7 | **Email is not an identity key.** No automatic linking on an address match. | exchange resolves by `firebaseUid` only |
 | I-8 | **`firebaseUid` is read only from a verified token payload.** | `services/firebase/tokenVerifier.ts` |
@@ -39,7 +39,7 @@ register; the architecture document explains the design and points here.
 | I-11 | **A token with no, invalid, revoked or expired `jti` is refused.** | `session.service.ts`; `authenticate.ts` |
 | I-12 | **`passwordChangedAt` invalidates earlier tokens** (`SESSION_INVALIDATED`). | `authenticate.ts` |
 | I-13 | **Sensitive credential changes require recent authentication** (`auth_time`, 300 s, fail-closed). | `constants/firebase.ts` |
-| I-14 | **Linking is authenticated, own-account only, email never a join key**, conflicts refused with one 409. | `firebaseLink.service.ts` |
+| I-14 | **Linking is authenticated and own-account only**; conflicts are refused with one 409. | `firebaseLink.service.ts` |
 | I-15 | **Unlinking writes a new credential in the same transition** — no zero-method account. *(The unlink operation itself was removed; see §4, O-1.)* | retired with the operation |
 | I-16 | **No cross-business movement** — a link writes only `firebaseUid` and `emailVerified`, never `businessId`, `role` or `status`. | `firebaseLink.service.ts` |
 | I-17 | **No credential in a log** — no password, Firebase token, JWT, `jti`, reset code, invitation token or secret. Audit rows omit them. | `mail/*`, `audit.service.ts`, Phase 08A logger |

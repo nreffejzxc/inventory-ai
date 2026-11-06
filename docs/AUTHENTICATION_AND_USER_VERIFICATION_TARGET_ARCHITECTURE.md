@@ -215,10 +215,8 @@ JWT → session → authenticated User → server-derived businessId → scoped 
 ```
 
 A client-supplied `businessId` is ignored. A resource belonging to another tenant is indistinguishable
-from one that does not exist — a plain `404`.
-
-`utils/businessAccess.ts`'s `assertBusinessAccess` is production-dead and left in place; real
-isolation is query scoping.
+from one that does not exist — a plain `404`. The checklist records the production-dead
+`assertBusinessAccess` exception under I-19; real isolation is query scoping.
 
 ---
 
