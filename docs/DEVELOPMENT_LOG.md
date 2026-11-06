@@ -153,6 +153,18 @@ Known limits, checked before spending one of them:
 
 ---
 
+## 2026-11-06 — Google Sign-In routine updates blocked at the P-2 native pin
+
+| Item | Evidence |
+| --- | --- |
+| **Why** | Dependabot #133 proposed `@react-native-google-signin/google-signin` 16.1.5 → 16.2.0. P-2 (FB-D-125) freezes 16.1.5 and `phase1-rnfirebase-foundation.test.ts` rejects the move, so the PR could never be green and contradicted the dependency policy's normal queue. |
+| **Config** | `.github/dependabot.yml` now lists the package in the `/mobile` version-update ignore rules, with the native-upgrade reason. Security updates remain outside the version-update ignore. |
+| **PR** | #133 closed as a routine-update conflict; no dependency, lockfile, test, app or native change. |
+| **Verified** | Documentation guards **39/39**; `git diff --check`; the focused Expo pin test passes; Dependabot YAML parses. |
+| **Not done** | No mobile build, OTA, device verification or deployment. `16.1.5` remains installed. Dependabot #132 remains open, green and behind; merging it would deploy the server. |
+
+---
+
 ## 2026-11-06 — Documentation queue merged and merged branches retired
 
 | Item | Evidence |
@@ -161,7 +173,7 @@ Known limits, checked before spending one of them:
 | **Merged** | #156 `5021636` (AI-50–AI-84 register), #157 `dffa2da` (guide phrase and measurement trim), #158 `016326b` (auth invariant dedupe), and #159 `46397f9` (summary correction). The log conflicts kept every entry and the combined maintenance summary. |
 | **Repository** | 13 pre-existing merged local branches and 14 merged remote branches were retired after their PRs were confirmed; the #159 branch was deleted on merge. `wip/backup-working-tree` was kept, and the only other remote refs are the two open Dependabot branches. |
 | **Verified** | PRs #156–#159 passed `server`, `mobile`, `secret-guard` and `attribution-guard`; post-merge `main` CI `42291758396` passed all four jobs on `46397f9`; documentation guards **39/39**; `git diff --check` clean. |
-| **Not done** | No product code, prompt, test, configuration or deployment change. Dependabot #132 remains green but behind; #133 still fails its deliberate Google Sign-In pin test. |
+| **Not done** | No product code, prompt, test or deployment change in this queue. Dependabot #132 remains green but behind; #133 is resolved separately in the newer entry. |
 
 ---
 
