@@ -40,7 +40,7 @@ at the end of every development session, newest entry first.
 
 ## Current position
 
-**Updated:** 2026-11-06
+**Updated:** 2026-11-07
 **Goal:** finish and harden Inventory AI **V1** through production testing. No Play Store or App
 Store release is being prepared.
 
@@ -50,12 +50,12 @@ see the documentation entries below. The auth checklist and account runbook now 
 decisions; Guides 9, 11, 12 and 13 keep their commands and safety rules, with the phrase matrix owned
 by Guide 10 and dated measurements removed; the auth architecture and checklist keep one invariant
 register and one status owner, with overlapping client-authority and email clauses narrowed to one row
-each. The AI-48–AI-84 work is recorded in §27HQ and §27HS.
+each. On 2026-11-07 the account runbook's provider snapshot was re-measured: GitHub and Render remain on the current account, Render auto-deploy is limited to `server/`, and EAS is already on the target Gmail's Expo account. The AI-48–AI-84 work is recorded in §27HQ and §27HS.
 
 | | |
 | --- | --- |
 | **Working now** | AI-48–AI-84 is merged to `main` (`98a4282`) and deployed: production `/api/health` reports `98a4282`. The change delivered grounded answers, recorded currency and specifications, scoped stock/value/history reads, dead-stock routing, revenue qualification, keyless research, and the member-language policy. Phone verification is still pending. |
-| **Just verified** | PRs #156–#159 passed all four required checks; documentation guards **39/39**; `git diff --check` clean. The deployed product commit remains `98a4282`: `/api/health` reports `status: ok`, `db: connected`. |
+| **Just verified** | PRs #156–#161 and #163 passed all four required checks; post-merge `main` CI `42296782342` passed all four jobs; the WIP backup was audited against its six incorporating commits and retired; documentation guards **39/39**; `git diff --check` clean. The deployed product commit remains `98a4282`: `/api/health` reports `status: ok`, `db: connected`. |
 | **Blocked** | Phone observation of the deployed AI behavior and the 60 s research-budget check remain; no EAS build or OTA was spent. |
 | **Next after this** | Exercise the assistant on the phone against the deployed commit, then decide whether the research budget needs an operator change. |
 
@@ -73,7 +73,7 @@ each. The AI-48–AI-84 work is recorded in §27HQ and §27HS.
 | Play release | Not started, deliberately | V1 testing first |
 | L-17 password-reset action URL | Open, console-only | Cannot be set from code |
 | iOS device acceptance | External verification required | No macOS on the development host |
-| GitHub contributor residue | Default branch clean; historical refs remain | The contributors API returns exactly **nreffejzxc 452** and **dependabot[bot] 7**. `main`'s five merge subjects were rewritten to `nreffejzxc`, and no merge subject names `jeffernqwerty`. Two non-merge documentation commit messages still quote the old login as historical context. PRs #99–#106 still show `jeffernqwerty` as author, and 18 Codebuff commits remain in 44 old PR refs; Git cannot rewrite either. The surgical rewrite preserved **38** of **42** commit signatures; **4** signed descendants lost theirs. Ticket #4936796 was closed without action because this account only has self-service resources. At the rewrite, local `main` matched `origin/main` (`d6bdbc35`); the old tip `afd7088` is preserved at `refs/backup/main-before-merge-subject-rewrite-afd7088` and in a verified bundle. The superseded `af44b60` pass is preserved at `refs/backup/main-before-signature-preserving-rewrite-af44b60` and in `main-af44b60.bundle`. The 16 identity-carrying local branches and four linked worktrees were retired after their tips and dirty states were saved under `refs/backup/local-branches-2026-11-02` and `refs/backup/worktree-wip-2026-11-02`. The 13 stale clean-identity branches were retired on 2026-11-02 after merged/ancestor/superseded checks, with each tip saved under `refs/backup/local-branches-retired-2026-11-02`; the merged work branches and the WIP backup remained locally at that point. On 2026-11-06, after their PRs were confirmed merged, 13 further local branches and 14 remote branches were retired; the #159 branch was deleted on merge. Only `main`, `wip/backup-working-tree` and the open server Dependabot ref remain; `main` is level with `origin/main`. |
+| GitHub contributor residue | Default branch clean; historical refs remain | The contributors API returns exactly **nreffejzxc 452** and **dependabot[bot] 7**. `main`'s five merge subjects were rewritten to `nreffejzxc`, and no merge subject names `jeffernqwerty`. Two non-merge documentation commit messages still quote the old login as historical context. PRs #99–#106 still show `jeffernqwerty` as author, and 18 Codebuff commits remain in 44 old PR refs; Git cannot rewrite either. The surgical rewrite preserved **38** of **42** commit signatures; **4** signed descendants lost theirs. Ticket #4936796 was closed without action because this account only has self-service resources. At the rewrite, local `main` matched `origin/main` (`d6bdbc35`); the old tip `afd7088` is preserved at `refs/backup/main-before-merge-subject-rewrite-afd7088` and in a verified bundle. The superseded `af44b60` pass is preserved at `refs/backup/main-before-signature-preserving-rewrite-af44b60` and in `main-af44b60.bundle`. The 16 identity-carrying local branches and four linked worktrees were retired after their tips and dirty states were saved under `refs/backup/local-branches-2026-11-02` and `refs/backup/worktree-wip-2026-11-02`. The 13 stale clean-identity branches were retired on 2026-11-02 after merged/ancestor/superseded checks, with each tip saved under `refs/backup/local-branches-retired-2026-11-02`; the merged work branches and the WIP backup remained locally at that point. On 2026-11-06, after their PRs were confirmed merged, 13 further local branches and 14 remote branches were retired; the #159 branch was deleted on merge. Only `main` and the open server Dependabot ref remain; `main` is level with `origin/main`. |
 | Current branch identity | Resolved 2026-11-01; PR #120 repaired 2026-11-02 | The three local commits were replayed onto `5d74f8e`; replayed head `ee7e710`, **3 ahead / 0 behind**, no retired email. The documentation commit follows on top, the branch was delivered through PR #119, and its local ref was retired on 2026-11-02 after backup. PR #120 now carries docs commit `d347b70`, replayed directly onto new `main`; its tree matches `ddc1474`, it is one commit ahead, and the branch no longer contains the old `main` ancestry. |
 
 ### Resource budgets
@@ -112,6 +112,32 @@ Known limits, checked before spending one of them:
   space that a backup or an index change would explain.
 - **Brevo** — used for verification codes, reset codes and invitations. Do not send test mail in
   bulk; a delivery failure is not a code regression until the provider log says so.
+
+---
+
+## 2026-11-07 — WIP backup audited and retired
+
+| Item | Evidence |
+| --- | --- |
+| **Why** | `wip/backup-working-tree` was the last local-only non-`main` branch: one 2026-09-28 commit, `d94bec2`, preserved because its working-tree snapshot existed in no other commit. |
+| **Audit** | The commit changed six files from `a7baa72`. Each was compared with the first `main` commit that later touched it; the WIP commit is not an ancestor of `main`. |
+| **Preserved** | `mobile/eas.json` and `server/src/services/ai/providers/http.ts` match `main` blob-for-blob in `168487b` and `9a210e6`. The test diagnostics were committed in `9a210e6`, whose only changes from the WIP version were the AgentRouter→OpenRouter retargeting; the checklist and both Phase 18 plans were committed in reconciled form in `372db91` and `976c49c`. No unique content remained. |
+| **Retired** | Deleted the local branch after confirming it had no remote-tracking ref or `refs/backup/*` copy. The open server Dependabot branch is now the only non-`main` remote branch. |
+| **Verified** | Every change is accounted for; `main` remains `26656ab`, level with `origin/main`. No product code, test, build, deployment or provider setting changed. |
+
+---
+
+## 2026-11-07 — Account runbook reconciled with GitHub, Render and EAS
+
+| Item | Evidence |
+| --- | --- |
+| **Why** | The runbook's provider snapshot was dated 2026-11-06, still said no Render GitHub App was installed, and did not record that EAS is already controlled by the target Gmail. |
+| **GitHub** | `nreffejzxc/inventory-ai` is public; `main` is clean at `26656ab`; the owner is the only direct collaborator, with 0 pending invitations; branch protection, secret scanning, push protection and private vulnerability reporting match the table; GitHub settings show 2FA still disabled and the primary email is `jefferndullamalinaozxc@gmail.com`; `scripts/audit-access.mjs` reports no policy violations. |
+| **Render** | `ai-inventory` is live at `https://ai-inventory-l1mi.onrender.com`; source `nreffejzxc/inventory-ai`, branch `main`, root `server`; Auto-Deploy is **On Commit** but scoped to `server/`, so the docs-only merges after `98a4282` did not redeploy; the Render GitHub App is installed; `/api/health` returns 200, `status: ok`, `db: connected`, commit `98a4282`. |
+| **EAS** | `eas project:info` resolves `@jeffernqwes-team/inventory-ai` at `607eca05-1175-43ed-86a0-1829e91c9531`; `eas whoami` is `jeffernqwe` (`jeffernmalinaoqwe@gmail.com`), the paused target, so EAS is already under that account while GitHub and Render are not. |
+| **Correction** | The runbook now scopes auto-deploy, records the installed Render GitHub App, states the EAS account split, and updates the verification date. |
+| **Verified** | Documentation guards **39/39**; `git diff --check` clean; `node scripts/audit-access.mjs` exited 0. No account, permission, deployment, build or OTA change. |
+| **Not done** | No provider setting was changed. EAS ownership remains a decision for the owner. |
 
 ---
 
