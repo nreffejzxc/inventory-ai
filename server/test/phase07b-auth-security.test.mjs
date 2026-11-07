@@ -540,6 +540,54 @@ dbSuite('Phase 07B — H1 authentication rate limiting', dbOk, () => {
     });
   });
 
+  it('skipSuccessfulRequests survives a window reset on the per-IP bucket', async () => {
+    // The IP bucket is the one login limiter a success is never allowed to clear
+    // (resetLoginAccountBucketOnSuccess touches only the account bucket), so it is
+    // where `skipSuccessfulRequests` itself is observable across a boundary. The
+    // failure budget must be the FULL loginIpMax in the fresh window: a success
+    // charged to it would make the second post-reset failure a 429, and an undo
+    // that crossed the boundary would push the lock out to a fourth.
+    const windowMs = 900;
+    await build(
+      { loginWindowMs: 60000, loginMax: 100, loginIpWindowMs: windowMs, loginIpMax: 2 },
+      async (url2) => {
+        const seed = await seedBusinessUser();
+
+        for (let i = 0; i < 2; i++) {
+          const res = await api(url2, 'POST', '/api/auth/login', {
+            body: { email: seed.email, password: 'WrongPass123!' },
+          });
+          assert.equal(res.status, 401, `first-window failure ${i + 1}`);
+        }
+        const locked = await api(url2, 'POST', '/api/auth/login', {
+          body: { email: seed.email, password: 'WrongPass123!' },
+        });
+        assertRateLimitBlock(locked, 'LOGIN_RATE_LIMITED');
+
+        // Cross the boundary. This 2xx lands in the FRESH window and is skipped
+        // there, so it must leave that window's failure budget untouched.
+        await new Promise((resolve) => setTimeout(resolve, windowMs + 400));
+        const ok = await api(url2, 'POST', '/api/auth/login', {
+          body: { email: seed.email, password: seed.password },
+        });
+        assert.equal(ok.status, 200, 'the fresh window admits the legitimate login');
+
+        for (let i = 0; i < 2; i++) {
+          const res = await api(url2, 'POST', '/api/auth/login', {
+            body: { email: seed.email, password: 'WrongPass123!' },
+          });
+          assert.equal(res.status, 401, `post-reset failure ${i + 1} is a normal 401`);
+        }
+        // Exactly loginIpMax failures, then the lock — no credit lost to the
+        // success and none gained by a decrement crossing the boundary.
+        const relocked = await api(url2, 'POST', '/api/auth/login', {
+          body: { email: seed.email, password: 'WrongPass123!' },
+        });
+        assertRateLimitBlock(relocked, 'LOGIN_RATE_LIMITED');
+      }
+    );
+  });
+
   it('rate limiting is scoped per normalized account+IP: another account is not blocked', async () => {
     await build({ loginWindowMs: 60000, loginMax: 3, loginIpMax: 100 }, async (url2) => {
       const locked = await seedBusinessUser();
