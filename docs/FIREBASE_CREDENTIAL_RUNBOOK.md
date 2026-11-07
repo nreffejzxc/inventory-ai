@@ -7,7 +7,7 @@ secret that lets the server verify Firebase ID tokens. Server-side only; the app
 (not base64). One value cannot half-update: the project, client email, key id and private key always
 come from the same download.
 
-**Last verified:** 2026-11-07.
+**Last verified:** 2026-11-07. The exposed key was rotated the same day — see §5.
 
 ---
 
@@ -122,6 +122,12 @@ Only authorized people may open the Environment tab: anyone who can read it can 
 8. Delete `server/logs/.env.before-key.bak` and any older `.env` backups.
 
 Deleting the old key before step 5 removes your rollback. That is the one ordering rule.
+
+**Record — 2026-11-07.** The exposed key `3fd33d78…3174` was replaced by `781cada9…257e` in
+`server/.env` and Render. `npm run verify:firebase` returned `VERIFIED`, production sign-in created
+sessions at 13:06:29Z, 13:07:33Z, 13:09:49Z and 13:15:03Z, and the old key was then deleted. Both
+`.env` backups were removed. The console remains the only way to list keys: the IAM API is disabled
+on this project.
 
 ---
 
