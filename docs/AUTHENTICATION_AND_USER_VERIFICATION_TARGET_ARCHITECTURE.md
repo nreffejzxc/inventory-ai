@@ -74,30 +74,26 @@ application decisions.
 `requireAuth` is deliberately unmodified by this flow. A verified identity with no `User` row answers
 `403 REGISTRATION_REQUIRED`, and registration is the only route that creates one.
 
-### Two console settings, not repository settings
+### Firebase console settings: verified 2026-11-07
 
-> **Current implementation (AUTH-06, 2026-10-20).** The app's own password reset is the six-digit code
-> flow in `docs/SYSTEM_SPECIFICATION.md` §29; the link chain below remains only for Firebase-composed
-> emails and the server page.
+> **Current implementation (AUTH-06, 2026-10-20).** The app's password reset is the six-digit code
+> flow in `docs/SYSTEM_SPECIFICATION.md` §29, sent through Brevo. Firebase's password-reset email and
+> action-link return chain are **not** on the active path.
 
-The emailed reset link returns through a page on this server, because Firebase refuses to mail a link
-that opens a custom scheme (`auth/unauthorized-domain`). Both settings live in the Firebase console:
+The Firebase Admin API (`GET /admin/v2/projects/inventoryai-d0d20/config`) was read on 2026-11-07:
 
-1. **Authentication → Templates → Password reset → Customize action URL** =
-   `https://<api-host>/auth/reset` (production: `ai-inventory-l1mi.onrender.com`).
-2. **Authentication → Settings → Authorized domains** must list the same host.
+- **Authentication → Settings → Authorized domains** lists `localhost`,
+  `inventoryai-d0d20.firebaseapp.com`, `inventoryai-d0d20.web.app` and
+  `ai-inventory-l1mi.onrender.com`. The production host is present; no change is needed.
+- **Authentication → Templates → Password reset** still uses Firebase's default template and
+  callback (`https://inventoryai-d0d20.firebaseapp.com/__/auth/action`). No custom action URL is set.
+  That is intentional: the template editor refused writes, and the active six-digit flow does not
+  use the Firebase link.
 
-The chain, when both are set:
-
-```text
-emailed link -> GET /auth/reset?mode=resetPassword&oobCode=…&apiKey=…&lang=en
-             -> inventoryai://reset-password?oobCode=…   (the app redeems it)
-             -> Firebase's hosted page                    (fallback: no app, or a desktop browser)
-```
-
-With them unset, Firebase sends its own hosted page and the flow still completes in a browser — the
-previous behaviour, not a regression. The page holds no authority: it validates the one-time code
-against an allow-list, forwards it, and logs neither the code nor the query string.
+**L-17 is closed as not applicable.** It gated the Firebase emailed-link return path, not AUTH-06.
+The server still carries the legacy reset-link code, but the mobile client no longer calls
+`sendPasswordResetEmail`; if that Firebase path is reintroduced, L-17 must be reopened and both
+console settings revisited.
 
 ---
 
