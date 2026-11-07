@@ -50,12 +50,12 @@ see the documentation entries below. The auth checklist and account runbook now 
 decisions; Guides 9, 11, 12 and 13 keep their commands and safety rules, with the phrase matrix owned
 by Guide 10 and dated measurements removed; the auth architecture and checklist keep one invariant
 register and one status owner, with overlapping client-authority and email clauses narrowed to one row
-each. On 2026-11-07 the account runbook's provider snapshot was re-measured: GitHub and Render remain on the current account, Render auto-deploy is limited to `server/`, and EAS is already on the target Gmail's Expo account. The AI-48–AI-84 work is recorded in §27HQ, §27HR and §27HS. On the same day the documentation map gained a maintenance loop: a root `check-docs` guard, a close-out `check-repo-state` script, [`CONTRIBUTING.md`](../CONTRIBUTING.md) and a pull-request template, delivered through PR #165. `PHASE_HISTORY.md` now reaches AI-84, and the dependency record was re-measured at 15 server / 35 mobile entries. The runbook's production anchor was corrected from `98a4282` to `e18264e` after the dependency-only PR #162 merged.
+each. On 2026-11-07 the account runbook's provider snapshot was re-measured: GitHub and Render remain on the current account, Render auto-deploy is limited to `server/`, and EAS is already on the target Gmail's Expo account. The AI-48–AI-84 work is recorded in §27HQ, §27HR and §27HS. On the same day the documentation map gained a maintenance loop: a root `check-docs` guard, a close-out `check-repo-state` script, [`CONTRIBUTING.md`](../CONTRIBUTING.md) and a pull-request template, delivered through PR #165. The living reference set now carries a review cadence enforced by the same guard, and the per-IP login limiter has a window-reset regression test, both delivered in PR #168. `PHASE_HISTORY.md` now reaches AI-84, and the dependency record was re-measured at 15 server / 35 mobile entries. The runbook's production anchor was corrected from `98a4282` to `e18264e` after the dependency-only PR #162 merged.
 
 | | |
 | --- | --- |
-| **Working now** | AI-48–AI-84 is merged to `main` and deployed; the current production commit is `e18264e` after the dependency-only PR #162. The AI change delivered grounded answers, recorded currency and specifications, scoped stock/value/history reads, dead-stock routing, revenue qualification, keyless research, and the member-language policy. Phone verification is still pending. |
-| **Just verified** | PR #162 was rebased onto `d313620` and merged as `e18264e`; all four required checks passed, Render deployed the merge, and `/api/health` returns 200 with `status: ok`, `db: connected` and the expected commit. PR #165 merged as `d313620` at `2026-11-07T06:17:42Z`, and its final head `5941956` passed all four required checks in run `42346155717`; documentation guards **39/39**; the root map guard indexes **27/27** active documents with **30** unique invariants; the four documentation test files pass **27/27**; `git diff --check` clean. |
+| **Working now** | AI-48–AI-84 is merged to `main` and deployed; the current production commit is `c99760d` after the guard/test PR #168; the runtime is unchanged. The AI change delivered grounded answers, recorded currency and specifications, scoped stock/value/history reads, dead-stock routing, revenue qualification, keyless research, and the member-language policy. Phone verification is still pending. |
+| **Just verified** | PR #162 was rebased onto `d313620` and merged as `e18264e`; all four required checks passed, Render deployed the merge, and `/api/health` returns 200 with `status: ok`, `db: connected` and the expected commit. PR #165 merged as `d313620` at `2026-11-07T06:17:42Z`, and its final head `5941956` passed all four required checks in run `42346155717`; documentation guards **39/39**; the root map guard indexes **27/27** active documents with **30** unique invariants and **10** living reference documents within cadence; the four documentation test files pass **27/27**; `git diff --check` clean. PR #168 merged as `c99760d` at `2026-11-07T07:22:01Z` after head `d901a2a` passed all four required checks in run `42350783903`; Render redeployed and `/api/health` reports `c99760d`, `status: ok`, `db: connected`, **0** server errors. |
 | **Blocked** | Phone observation of the deployed AI behavior and the 60 s research-budget check remain; no EAS build or OTA was spent. |
 | **Next after this** | Exercise the assistant on the phone against the deployed commit, then decide whether the research budget needs an operator change. |
 
@@ -112,6 +112,19 @@ Known limits, checked before spending one of them:
   space that a backup or an index change would explain.
 - **Brevo** — used for verification codes, reset codes and invitations. Do not send test mail in
   bulk; a delivery failure is not a code regression until the provider log says so.
+
+---
+
+## 2026-11-07 — Review-cadence guard and rate-limit reset test merged
+
+| Item | Evidence |
+| --- | --- |
+| **Why** | Two guard gaps: the ten living reference documents had no review clock, and no test proved `skipSuccessfulRequests` survives a rate-limit window reset on the bucket a success cannot clear. |
+| **Added** | `scripts/check-docs.mjs` parses the `### Review cadence` table in `docs/README.md` §2 and fails on a missing, duplicate, malformed or overdue row; nine documents use a 90-day cadence and `SECURITY_DEPENDENCY_DECISIONS.md` uses 30 days, with every clock starting at the 2026-11-07 adoption date. The auth suite adds a DB-backed window-reset test on the per-IP bucket. |
+| **Merge** | PR #168 head `d901a2a28216fd69655e63fd33a52859b0fc713a` passed all four required checks in run `42350783903` (`server` 2m13s, `mobile` 1m40s, `secret-guard` 9s, `attribution-guard` 9s), then squash-merged at `2026-11-07T07:22:01Z` as `c99760d5bee9fe1ef0a60da59ff2f461e9bf4f6f`. |
+| **Deploy** | Render redeployed because `server/test/` changed. `GET /api/health` returned 200 with `status: ok`, `db: connected`, `environment: production`, commit `c99760d`, and **0** server errors. The runtime is unchanged. |
+| **Docs** | The runbook Production row moved from `e18264e` to `c99760d`; the log's Current position names the merge and its verification. The earlier entries were not rewritten. |
+| **Not done** | No runtime, dependency, provider, mobile build or OTA change. Phone verification of the AI behavior and the 60 s research-budget check remain open. |
 
 ---
 
