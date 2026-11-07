@@ -307,19 +307,20 @@ below has the measurement.
   artifacts now answer 400. Record an id only after `eas build:view <id>` resolves, and treat a
   published AAB that is not downloaded and kept as gone. See §27FN.
 
-## Open items (2026-11-02)
+## Open items (2026-11-07)
 
 This is a dated snapshot of the project's open work. The **living** version — updated every session,
 with what is in progress, verified or blocked — is [`docs/DEVELOPMENT_LOG.md`](docs/DEVELOPMENT_LOG.md).
 
-- **Five Dependabot alerts remain** — `glob` and `minimatch` on both manifests (medium; the patched
-  releases are majors outside every consumer's declared range) and `deepmerge` on mobile (low; 4.3.1
-  is both the newest release and inside the advisory range). None is reachable from application code
-  and none reaches a shipped bundle; do not "fix" them by forcing versions or running
-  `npm audit fix`. `zod` (high) is **closed**: `expo@58.0.22` removed the nested `zod@3.25.76`.
-  `node-forge` is **fixed in the lockfile** at 1.4.2 (§27GX). `scripts/check-upgrade-watches.mjs`
-  reports `deepmerge` `DEFERRED`, `zod` and `node-forge` `CLOSED`; the `glob`/`minimatch` gates are in
-  [`docs/SECURITY_DEPENDENCY_DECISIONS.md`](docs/SECURITY_DEPENDENCY_DECISIONS.md) §4.
+- **Three Dependabot alerts remain** — `glob` on both manifests (medium; the patched release is a
+  major outside every consumer's declared range) and `deepmerge` on mobile (low; 4.3.1 is both the
+  newest release and inside the advisory range). `minimatch` (medium) is **closed**: the reviewed
+  D-13 exception pins `11.0.5` in both lockfiles and alerts #18/#19 are closed. None of the remaining
+  alerts is reachable from application code and none reaches a shipped bundle; do not "fix" them by forcing
+  versions or running `npm audit fix`. `zod` (high) is **closed**: `expo@58.0.22` removed the nested
+  `zod@3.25.76`; `node-forge` is **fixed in the lockfile** at 1.4.2 (§27GX).
+  `scripts/check-upgrade-watches.mjs` reports `deepmerge` `DEFERRED`, `zod` and `node-forge` `CLOSED`;
+  the `glob` gate is in [`docs/SECURITY_DEPENDENCY_DECISIONS.md`](docs/SECURITY_DEPENDENCY_DECISIONS.md) §4.
 - **L-17 is OPEN**: the Firebase console's password-reset *Customize action URL* must point at
   `https://ai-inventory-l1mi.onrender.com/auth/reset`. No code can set it, and it gates only the
   AUTH-05 hosted-link path.
