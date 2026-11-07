@@ -48,6 +48,7 @@ Guide 6; no rule, command or safety procedure was removed.
 | [`SECURITY_DEPENDENCY_DECISIONS.md`](SECURITY_DEPENDENCY_DECISIONS.md) | Advisories accepted rather than patched, and when that ends |
 | [`SOURCE_PROTECTION.md`](SOURCE_PROTECTION.md) | What protects the source, what does not, and the public-window caveat |
 | [`ACCOUNT_MIGRATION_RUNBOOK.md`](ACCOUNT_MIGRATION_RUNBOOK.md) | The current owner and repository, the paused migration decision, provider anchors, read-only checks and approval gates |
+| [`FIREBASE_CREDENTIAL_RUNBOOK.md`](FIREBASE_CREDENTIAL_RUNBOOK.md) | The Firebase Admin credential: where it comes from, how it is stored, verified and rotated |
 | [`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md) | The mobile visual language: tokens, type, primitives, accessibility rules |
 | [`DEVELOPING_ON_A_PHYSICAL_DEVICE.md`](DEVELOPING_ON_A_PHYSICAL_DEVICE.md) | The deep phone reference: verified commands, log reading, failure → fix |
 | [`../README.md`](../README.md) | The front door: stack, layout, how to run each half, deployment |
@@ -66,6 +67,7 @@ Reference documents are consulted rather than read once, so they are reviewed on
 | [`SECURITY_DEPENDENCY_DECISIONS.md`](SECURITY_DEPENDENCY_DECISIONS.md) | 30 days | 2026-11-07 |
 | [`SOURCE_PROTECTION.md`](SOURCE_PROTECTION.md) | 90 days | 2026-11-07 |
 | [`ACCOUNT_MIGRATION_RUNBOOK.md`](ACCOUNT_MIGRATION_RUNBOOK.md) | 90 days | 2026-11-07 |
+| [`FIREBASE_CREDENTIAL_RUNBOOK.md`](FIREBASE_CREDENTIAL_RUNBOOK.md) | 90 days | 2026-11-07 |
 | [`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md) | 90 days | 2026-11-07 |
 | [`DEVELOPING_ON_A_PHYSICAL_DEVICE.md`](DEVELOPING_ON_A_PHYSICAL_DEVICE.md) | 90 days | 2026-11-07 |
 | [`../README.md`](../README.md) | 90 days | 2026-11-07 |
@@ -117,6 +119,7 @@ A change should update the document that owns the question, not every document t
 | The phone workflow | Guides 2 and 15; `DEVELOPING_ON_A_PHYSICAL_DEVICE.md` only for depth they do not carry |
 | Authentication design, a session or recovery rule | `AUTHENTICATION_AND_USER_VERIFICATION_TARGET_ARCHITECTURE.md` |
 | A security invariant, control status, decision or gate | `AUTH_SECURITY_MASTER_CHECKLIST.md` |
+| A credential, key or provider secret | `FIREBASE_CREDENTIAL_RUNBOOK.md` |
 | A release, OTA or store step | Guides 7 and 8 |
 | A decision with a trade-off | a dated `DEVELOPMENT_ROADMAP.md` record; `CLAUDE.md` only if it binds future work |
 | Anything finished, blocked or next | `DEVELOPMENT_LOG.md`, in the same session |

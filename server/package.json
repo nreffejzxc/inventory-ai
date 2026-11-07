@@ -36,6 +36,7 @@
     "cleanup:roles": "node scripts/cleanup-role-accounts.mjs",
     "verify:roles": "node scripts/verify-role-access.mjs",
     "verify:demo": "node scripts/verify-demo-data.mjs",
+    "verify:firebase": "node scripts/verify-firebase-credential.mjs",
     "cleanup:perf": "node scripts/cleanup-perf-data.mjs",
     "cleanup:perf-tenant": "node scripts/cleanup-perf-tenant.mjs",
     "cleanup:demo-tenant": "node scripts/cleanup-demo-tenant.mjs",
