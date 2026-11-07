@@ -1,6 +1,6 @@
 # Security Dependency Decisions
 
-**Status:** living decision record · **Advisories re-measured 2026-11-07** at `main`; the node-forge lockfile fix is from 2026-10-30 and the zod fix from 2026-11-02
+**Status:** living decision record · **Advisories re-measured 2026-11-07** at `main`; the node-forge lockfile fix is from 2026-10-30 and the zod fix from 2026-11-02. The minimatch override drafts #173/#174 are open, green and **not merged**; D-10 remains in force.
 
 An advisory that is not being fixed is **named, evidenced and dispositioned**, never left implied.
 This file covers dependency advisories only; application security decisions are in
@@ -37,6 +37,10 @@ seen through their parents; the mobile's 35 entries are three advisories, with *
 now that the `zod` chain is gone. At the 2026-11-02 measurement, Dependabot grouped them into five
 package alerts across the two manifests.
 
+The counts above describe `main`. Draft PRs #173 (mobile) and #174 (server) propose a workspace
+`minimatch` override; on those branches the tree resolves one `minimatch@11.0.5` and the minimatch
+finding is absent. They are not merged, so they do not change the current result.
+
 ---
 
 ## 2. The open advisories — and the one cleared
@@ -46,7 +50,7 @@ package alerts across the two manifests.
 | **GHSA-mrhx-c7xc-m3w5** — `zod` exhausts memory validating an oversized array against a length-unconstrained schema (CWE-770) | high, 7.5 | **none** — the nested `3.25.76` was removed | Was `expo@58.0.19 → @expo/cli@58.1.15`; **cleared** by `expo@58.0.22 → @expo/cli@58.1.18`, which declares no `zod` | **CLEARED 2026-11-02** — only `zod@4.6.7` remains, via `eslint-plugin-react-hooks` |
 | **GHSA-gcqx-w48m-w2h4** — `deepmerge` `mergeObject()` allows prototype poisoning of the returned object (CWE-1321) | low, 5.3 | `4.3.1` | `expo@58.0.22 → @expo/config@58.0.10`, and `jest@30.5.2 → jest-config@30.5.2`; both declare `deepmerge: ^4.2.2` | **none published** — `4.3.1` is both the newest release and inside `>= 4.2.0 <= 4.3.1` |
 | **GHSA-3g3m-2fjr-6pw4** — `glob` abort-signal cancellation bypass allows post-timeout filesystem traversal | medium | `13.0.6` (mobile), `10.5.0` (both) | `expo-updates@58.0.20`, `@expo/cli`, `@expo/config`, `@expo/metro-config`, Jest reporters; server `google-gax@5.0.8 → rimraf@5.0.10` | `>= 14.0.2` |
-| **GHSA-g3hv-75wg-m249** — `minimatch` denial of service via globparts amplification | medium | `10.2.6`, `9.0.9`, `3.1.5` | `eslint`, `@eslint/config-array`, `@typescript-eslint/typescript-estree`, `eslint-plugin-import` and `eslint-plugin-react`; every `glob` row above; Jest's `test-exclude` | `>= 11.0.1` |
+| **GHSA-g3hv-75wg-m249** — `minimatch` denial of service via globparts amplification | medium | `10.2.6`, `9.0.9`, `3.1.5` | `eslint`, `@eslint/config-array`, `@typescript-eslint/typescript-estree`, `eslint-plugin-import` and `eslint-plugin-react`; every `glob` row above; Jest's `test-exclude` | `>= 11.0.1`; override drafts #173/#174 open, not merged |
 
 **None of the three remaining is reachable from application code.** Measured on this tree, not assumed:
 
@@ -83,6 +87,7 @@ package alerts across the two manifests.
 | **D-8** | **The zod half is cleared; deepmerge remains.** Checked 2026-11-02: `expo@58.0.22` installs `@expo/cli@58.1.18`, which declares no `zod`; the nested `zod@3.25.76` is gone and the top-level `zod@4.6.7` is outside the advisory range. `deepmerge` 4.3.1 is still the newest release and still inside `>= 4.2.0 <= 4.3.1`, so no patched release exists. | **MEASURED 2026-11-02** |
 | **D-10** | **`glob` and `minimatch` are ACCEPTED AND DOCUMENTED; no override, no `npm audit fix`.** The patched releases (`glob >= 14.0.2`, `minimatch >= 11.0.1`) are majors outside every declared range: `glob` consumers declare `^7`, `^10` or `^13`; `minimatch` consumers declare `^3` or `^10`. On `server/`, the non-forced audit fix proposes a `google-gax` downgrade (`5.0.8 → 5.0.4`) and leaves the `glob` advisory in place; `--force` offers `eslint@4.0.0` (mobile) or `expo-updates@0.27.5`. This supersedes D-4's older two-advisory count — the disposition (accepted, documented, not forced) is unchanged. The 2026-11-07 re-check found `glob@14.0.4` and `minimatch@11.0.5`, but no installed consumer admits them; see §5 row 22. | **ACCEPTED 2026-11-01; RE-MEASURED 2026-11-07 — no admitted fix** |
 | **D-11** | **The `zod` high advisory is FIXED IN THE LOCKFILE** by the Expo 58.0.22 patch. `mobile/package.json` moves `expo` from `~58.0.19` to `~58.0.22`; `npm install` resolves `@expo/cli@58.1.18`, which no longer declares `zod`, and removes the nested `zod@3.25.76`. No override and no `npm audit fix` were used. | **FIXED IN LOCKFILE 2026-11-02** |
+| **D-12** | **The minimatch override is UNDER REVIEW, not accepted.** Draft PRs #173 (mobile) and #174 (server) add `overrides.minimatch: "^11.0.1"`; both trees resolve `11.0.5`, and local typecheck/lint plus all four CI checks pass. The override crosses D-6/D-10 and is not merged. Merging requires an explicit owner decision and a dated amendment to D-10 (or a separate acceptance); until then the counts and alert state above are unchanged. | **PENDING OWNER DECISION — 2026-11-07** |
 
 The reasoning for the remaining advisories is the same: the vulnerable API is never invoked by
 application code, the package is confined to build or library-internal tooling, and every available
@@ -116,7 +121,7 @@ two:
    the floor is `11.0.1` — or a parent (`eslint`, `@typescript-eslint`, `test-exclude`, the `glob`
    line) widens to admit it. The newest release on 2026-11-07 is `11.0.5`; `eslint@10.14.0`
    still declares `^10.2.6`, `@typescript-eslint/typescript-estree@8.72.1` `^10.2.2`, and
-   `test-exclude@8.0.0` `^10.2.2`.
+   `test-exclude@8.0.0` `^10.2.2`. On 2026-11-07, draft PRs #173/#174 test an override to 11.0.5; they are not merged, so this gate remains open.
 8. **`firebase-admin` or its `google-gax`/`rimraf` chain moves** — that is the server production path,
    and it should be re-audited with the upgrade.
 
@@ -127,10 +132,10 @@ entries are not 15 distinct defects, and mobile's 35 are not 35.
 
 ## 5. Evidence
 
-Read-only commands unless noted; commands 9 and 17 are the only installs in this section. Command 9
-is the node-forge lockfile change; commands 17–20 are the Expo 58.0.22 patch. Rows 4–11 are the
-2026-10-30 measurements that remain true. Rows 2, 7, 8 and 17–20 were measured on 2026-11-02; rows 21–22 on 2026-11-07; the
-remaining rows are dated in place.
+Read-only commands unless noted; the installs in this section are command 9 (the node-forge lockfile
+change), command 17 (the Expo 58.0.22 patch) and the branch-only commands in rows 23–24. Rows 4–11 are the
+2026-10-30 measurements that remain true. Rows 2, 7, 8 and 17–20 were measured on 2026-11-02; rows 21–22 on 2026-11-07;
+rows 23–24 are branch evidence for the draft override PRs, not measurements of `main`; the remaining rows are dated in place.
 
 | # | Command | Result |
 | --- | --- | --- |
@@ -157,5 +162,7 @@ remaining rows are dated in place.
 
 | 21 | `npm audit --json` in `server/` and `mobile/` (2026-11-07) | server `{low:0, moderate:15, high:0, critical:0, total:15}`; mobile `{low:1, moderate:34, high:0, critical:0, total:35}` — the same three advisories (`deepmerge`, `glob`, `minimatch`), no high or critical; counts are dependents and move with the tree |
 | 22 | `npm view glob version` · `npm view minimatch version`; `npm view google-gax@5.0.8 dependencies.rimraf`; `npm view rimraf version dependencies.glob`; `npm view @google-cloud/firestore-api version dependencies`; `npm view test-exclude@8.0.0 dependencies`; `npm view eslint@10.14.0 dependencies.minimatch`; `npm view @typescript-eslint/typescript-estree@8.72.1 dependencies.minimatch`; `npm view expo-updates@58.0.21 dependencies.glob` (2026-11-07) | `glob@14.0.4` and `minimatch@11.0.5` are newest; `google-gax@5.0.8` declares `rimraf ^5.0.1`, so `rimraf@6.1.4` (`glob ^14.0.3`) is not admitted; `@google-cloud/firestore@9.4.0` declares `@google-cloud/firestore-api ^0.2.0`, while the latest API is `0.7.1` (`google-gax ^6.0.0`), so the range cannot reach it; `test-exclude@8.0.0` still declares `glob ^13.0.6` / `minimatch ^10.2.2`; `eslint@10.14.0` `^10.2.6`; `@typescript-eslint/typescript-estree@8.72.1` `^10.2.2`; `expo-updates@58.0.21` no longer declares `glob`, but the other Expo paths remain — no installed-chain consumer admits the patched majors |
+| 23 | `cd mobile && npm ls minimatch --all`; `npm run typecheck`; `npm run lint`; `npx jest .`; PR #173 checks (2026-11-07) | single `minimatch@11.0.5`; typecheck/lint pass; **101 suites / 1,203 tests**; branch audit `{low:1, moderate:26, total:27}` with no minimatch finding; run `42354522923` all four required checks pass. Branch evidence only; not installed on `main`. |
+| 24 | `cd server && npm ls minimatch --all`; `npm run typecheck`; `npm run lint`; PR #174 checks (2026-11-07) | single `minimatch@11.0.5`; typecheck/lint pass; branch audit `{moderate:5, total:5}` with no minimatch finding; local full suite not completed; run `42354554146` all four required checks pass, including the full server suite and boot smoke. Branch evidence only; not installed on `main`. |
 
 No credential, token or secret value appears in this record.
