@@ -81,7 +81,7 @@ package alerts across the two manifests.
 | **D-6** | **npm `overrides` are NOT used** to force `zod` 4.x into `@expo/cli` or to replace `deepmerge`. Both would install a dependency the parent never declared, against a consumer that has not been tested with it. | **REJECTED** |
 | **D-7** | The decision is **watched, not remembered**. `scripts/check-upgrade-watches.mjs` carries `zod (advisory)`, `deepmerge (advisory)` and `node-forge (advisory)`, reports the gate each one needs, and reports `CLOSED` for a tree already outside the vulnerable range. The `glob`/`minimatch` advisories are not in that script: each has several consumers with different ranges, so a single-consumer watch would report `READY` on a fix only one parent admits. Their gates are the explicit conditions in §4. The `zod` row also reads the **published** `expo@latest` manifest, resolves the newest `@expo/cli` release that manifest admits, and inspects that CLI's zod range — so the pre-upgrade gate is detected before the CLI is installed. `READY` means that admitted CLI declares a range admitting `4.6.6+`; the registry's absolute latest CLI is reported beside it but only the admitted one can decide. On 2026-11-02 the nested `zod@3.25.76` is gone, the installed tree reports `4.6.7`, and the watch reports `CLOSED`; `node-forge` remains `CLOSED`, while `deepmerge` remains `DEFERRED`. | **ACTIVE — zod and node-forge CLOSED** |
 | **D-8** | **The zod half is cleared; deepmerge remains.** Checked 2026-11-02: `expo@58.0.22` installs `@expo/cli@58.1.18`, which declares no `zod`; the nested `zod@3.25.76` is gone and the top-level `zod@4.6.7` is outside the advisory range. `deepmerge` 4.3.1 is still the newest release and still inside `>= 4.2.0 <= 4.3.1`, so no patched release exists. | **MEASURED 2026-11-02** |
-| **D-10** | **`glob` and `minimatch` are ACCEPTED AND DOCUMENTED; no override, no `npm audit fix`.** The patched releases (`glob >= 14.0.2`, `minimatch >= 11.0.1`) are majors outside every declared range: `glob` consumers declare `^7`, `^10` or `^13`; `minimatch` consumers declare `^3` or `^10`. On `server/`, the non-forced audit fix proposes a `google-gax` downgrade (`5.0.8 → 5.0.4`) and leaves the `glob` advisory in place; `--force` offers `eslint@4.0.0` (mobile) or `expo-updates@0.27.5`. This supersedes D-4's older two-advisory count — the disposition (accepted, documented, not forced) is unchanged. | **ACCEPTED 2026-11-01** |
+| **D-10** | **`glob` and `minimatch` are ACCEPTED AND DOCUMENTED; no override, no `npm audit fix`.** The patched releases (`glob >= 14.0.2`, `minimatch >= 11.0.1`) are majors outside every declared range: `glob` consumers declare `^7`, `^10` or `^13`; `minimatch` consumers declare `^3` or `^10`. On `server/`, the non-forced audit fix proposes a `google-gax` downgrade (`5.0.8 → 5.0.4`) and leaves the `glob` advisory in place; `--force` offers `eslint@4.0.0` (mobile) or `expo-updates@0.27.5`. This supersedes D-4's older two-advisory count — the disposition (accepted, documented, not forced) is unchanged. The 2026-11-07 re-check found `glob@14.0.4` and `minimatch@11.0.5`, but no installed consumer admits them; see §5 row 22. | **ACCEPTED 2026-11-01; RE-MEASURED 2026-11-07 — no admitted fix** |
 | **D-11** | **The `zod` high advisory is FIXED IN THE LOCKFILE** by the Expo 58.0.22 patch. `mobile/package.json` moves `expo` from `~58.0.19` to `~58.0.22`; `npm install` resolves `@expo/cli@58.1.18`, which no longer declares `zod`, and removes the nested `zod@3.25.76`. No override and no `npm audit fix` were used. | **FIXED IN LOCKFILE 2026-11-02** |
 
 The reasoning for the remaining advisories is the same: the vulnerable API is never invoked by
@@ -109,10 +109,14 @@ two:
    than assuming the count is unchanged.
 6. **`glob` publishes a patched release inside a declared range** (`^7`, `^10` or `^13`) — none exists;
    the floor is `14.0.2` — or a parent (`expo-updates`, `@expo/cli`, `rimraf`, `test-exclude`)
-   widens to admit it.
+   widens to admit it *and is itself admitted by the installed chain*. On 2026-11-07,
+   `rimraf@6.1.4` declares `glob ^14.0.3`, but `google-gax@5.0.8` and `gaxios@7.1.3` still
+   declare `rimraf ^5.0.1`, so the server chain cannot reach it.
 7. **`minimatch` publishes a patched release inside a declared range** (`^3` or `^10`) — none exists;
    the floor is `11.0.1` — or a parent (`eslint`, `@typescript-eslint`, `test-exclude`, the `glob`
-   line) widens to admit it.
+   line) widens to admit it. The newest release on 2026-11-07 is `11.0.5`; `eslint@10.14.0`
+   still declares `^10.2.6`, `@typescript-eslint/typescript-estree@8.72.1` `^10.2.2`, and
+   `test-exclude@8.0.0` `^10.2.2`.
 8. **`firebase-admin` or its `google-gax`/`rimraf` chain moves** — that is the server production path,
    and it should be re-audited with the upgrade.
 
@@ -125,7 +129,7 @@ entries are not 15 distinct defects, and mobile's 35 are not 35.
 
 Read-only commands unless noted; commands 9 and 17 are the only installs in this section. Command 9
 is the node-forge lockfile change; commands 17–20 are the Expo 58.0.22 patch. Rows 4–11 are the
-2026-10-30 measurements that remain true. Rows 2, 7, 8 and 17–20 were measured on 2026-11-02; row 21 on 2026-11-07; the
+2026-10-30 measurements that remain true. Rows 2, 7, 8 and 17–20 were measured on 2026-11-02; rows 21–22 on 2026-11-07; the
 remaining rows are dated in place.
 
 | # | Command | Result |
@@ -152,5 +156,6 @@ remaining rows are dated in place.
 | 20 | `cd mobile && npm run typecheck`; `npm test -- --runInBand` (2026-11-02) | typecheck exit **0**; **101 suites, 1 191 tests, all pass** — the first run exposed 1 suite / 3 pin failures before the 14 pins were aligned |
 
 | 21 | `npm audit --json` in `server/` and `mobile/` (2026-11-07) | server `{low:0, moderate:15, high:0, critical:0, total:15}`; mobile `{low:1, moderate:34, high:0, critical:0, total:35}` — the same three advisories (`deepmerge`, `glob`, `minimatch`), no high or critical; counts are dependents and move with the tree |
+| 22 | `npm view glob version` · `npm view minimatch version`; `npm view google-gax@5.0.8 dependencies.rimraf`; `npm view rimraf version dependencies.glob`; `npm view @google-cloud/firestore-api version dependencies`; `npm view test-exclude@8.0.0 dependencies`; `npm view eslint@10.14.0 dependencies.minimatch`; `npm view @typescript-eslint/typescript-estree@8.72.1 dependencies.minimatch`; `npm view expo-updates@58.0.21 dependencies.glob` (2026-11-07) | `glob@14.0.4` and `minimatch@11.0.5` are newest; `google-gax@5.0.8` declares `rimraf ^5.0.1`, so `rimraf@6.1.4` (`glob ^14.0.3`) is not admitted; `@google-cloud/firestore@9.4.0` declares `@google-cloud/firestore-api ^0.2.0`, while the latest API is `0.7.1` (`google-gax ^6.0.0`), so the range cannot reach it; `test-exclude@8.0.0` still declares `glob ^13.0.6` / `minimatch ^10.2.2`; `eslint@10.14.0` `^10.2.6`; `@typescript-eslint/typescript-estree@8.72.1` `^10.2.2`; `expo-updates@58.0.21` no longer declares `glob`, but the other Expo paths remain — no installed-chain consumer admits the patched majors |
 
 No credential, token or secret value appears in this record.
