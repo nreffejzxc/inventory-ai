@@ -115,6 +115,17 @@ Known limits, checked before spending one of them:
 
 ---
 
+## 2026-11-07 — Dependency record re-measured under the new cadence
+
+| Item | Evidence |
+| --- | --- |
+| **Why** | The first review under the living-reference cadence checked every open advisory against the current trees and the published consumer ranges. |
+| **Measured** | `server/` **15** entries, 2 advisories (0 high); `mobile/` **35** entries, 3 advisories (0 high, 1 low) — unchanged. `glob@14.0.4` and `minimatch@11.0.5` are the newest patches, but no installed consumer admits them. `rimraf@6.1.4` now declares `glob ^14.0.3`, yet `google-gax@5.0.8` and `gaxios@7.1.3` still declare `rimraf ^5.0.1`; `@google-cloud/firestore@9.4.0` still declares `firestore-api ^0.2.0`, which cannot reach the latest `0.7.1` (`google-gax ^6`). |
+| **Updated** | `SECURITY_DEPENDENCY_DECISIONS.md`: gate 6 now requires a widening parent to be admitted by the installed chain, gate 7 names the current minimatch ranges, and evidence row 22 records the registry measurement. The review date remains 2026-11-07, the adoption date. |
+| **Not done** | No dependency, lockfile, runtime, mobile build, OTA or deploy change. D-10 remains accepted; no override and no `npm audit fix`. |
+
+---
+
 ## 2026-11-07 — Review-cadence guard and rate-limit reset test merged
 
 | Item | Evidence |
