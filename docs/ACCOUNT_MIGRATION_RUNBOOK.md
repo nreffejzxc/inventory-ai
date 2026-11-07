@@ -1,14 +1,16 @@
 # Account Migration & Security Runbook
 
-**Status:** **paused.** The repository is back on the original account. The move to the newer Gmail is
-not active, not scheduled and not authorised by this document.
+**Status:** **paused.** GitHub and Render are back on the original account. EAS is already under the
+newer Gmail's Expo account; no further move is active, scheduled or authorised by this document.
 
-**Last verified:** 2026-11-06.
-**Current owner:** `nreffejzxc` (`jefferndullamalinaozxc@gmail.com`).
+**Last verified:** 2026-11-07.
+**Current GitHub/Render owner:** `nreffejzxc` (`jefferndullamalinaozxc@gmail.com`).
 **Current repository:** [`nreffejzxc/inventory-ai`](https://github.com/nreffejzxc/inventory-ai), public.
 **Paused target:** `jeffernmalinaoqwe@gmail.com` / `jeffernqwerty`.
-**Decision:** the current account remains the authoritative owner until the owner explicitly resumes
-the migration. The repository restoration is complete; the migration is paused, not cancelled.
+**EAS account:** `jeffernqwe` (`jeffernmalinaoqwe@gmail.com`), owner of `jeffernqwes-team`.
+**Decision:** the current GitHub/Render account remains the authoritative owner until the owner
+explicitly resumes the migration. The repository restoration is complete; the migration is paused,
+not cancelled.
 
 ---
 
@@ -21,13 +23,15 @@ the migration. The repository restoration is complete; the migration is paused, 
 | Branch protection | Pull request required; four required checks; strict; admins enforced; force pushes and deletions blocked; conversation resolution required |
 | Scanning | Secret scanning and push protection enabled; private vulnerability reporting enabled |
 | Git identity | `jeffernzxc` / `jefferndullamalinaozxc@gmail.com` |
-| Production | `/api/health` returns 200, `status: ok`, `db: connected`, commit `98a4282` |
+| Production | `/api/health` returns 200, `status: ok`, `db: connected`, commit `98a4282` (latest `server/` change; docs-only merges do not redeploy); free instance, so a cold start can delay the first response by 50 s or more |
+| EAS | Project `@jeffernqwes-team/inventory-ai` (ID `607eca05-1175-43ed-86a0-1829e91c9531`) is under the target Gmail's Expo account, not the current GitHub/Render account |
 | History | The approved metadata-only attribution rewrite is complete; no further rewrite is approved |
 | GitHub 2FA | Disabled by owner decision on 2026-10-31; deferred until a backup method and offline recovery codes exist |
 
-The current account is both the recovery root and the commit identity. Do not add the newer Gmail as
-a second owner on the same GitHub account. If migration resumes, it is one ownership move, not two
-parallel identities.
+The GitHub account is both the recovery root and the commit identity. EAS is a known exception: its
+project already belongs to the target Gmail's Expo account. Do not add the newer Gmail as a second
+owner on the same GitHub account; any resume starts from this split state, not a clean single-account
+move.
 
 ---
 
@@ -55,8 +59,8 @@ These are the current objects. A future ownership move changes who controls them
 | --- | --- |
 | Firebase | Project `inventoryai-d0d20`; Admin credential in `FIREBASE_SERVICE_ACCOUNT_JSON`; production auth flows and authorized domains depend on it |
 | MongoDB Atlas | Production database `inventoryai_prod_db`; the application connects through `MONGODB_URI` as a database user, not an Atlas API key |
-| Render | Service `ai-inventory`, root directory `server`, Auto-Deploy On Commit, host `https://ai-inventory-l1mi.onrender.com` |
-| Expo / EAS | Project `@jeffernqwes-team/inventory-ai`, project ID `607eca05-1175-43ed-86a0-1829e91c9531`, owner `jeffernqwes-team` in `mobile/app.json` |
+| Render | Service `ai-inventory`, root directory `server`, Auto-Deploy On Commit scoped to `server/` (docs-only merges do not redeploy), GitHub App installed, host `https://ai-inventory-l1mi.onrender.com` |
+| Expo / EAS | Project `@jeffernqwes-team/inventory-ai`, project ID `607eca05-1175-43ed-86a0-1829e91c9531`, owner `jeffernqwes-team` in `mobile/app.json`; the signed-in account is `jeffernqwe` (`jeffernmalinaoqwe@gmail.com`), the paused target |
 
 Installed mobile builds are permanently pointed at the EAS project ID. The Render host is compiled
 into `EXPO_PUBLIC_API_URL`. A replacement project or host therefore requires new mobile builds; an
@@ -131,6 +135,9 @@ authenticated GitHub account; one direct collaborator; four required checks; hea
   method and offline recovery codes exist.
 - **Firebase key:** rotate the key exposed on 2026-10-25 after approval; verify the new key before
   deleting the old one.
-- **Render connection:** the service deploys from GitHub, but no Render GitHub App was installed when
-  checked on 2026-10-31. Confirm the integration in the Render dashboard before changing repository
-  access.
+- **Render connection:** the Render GitHub App is installed and the service is connected to
+  `nreffejzxc/inventory-ai` on `main`; auto-deploy is limited to `server/` by the root directory.
+  Re-confirm repository access before changing permissions.
+- **EAS ownership:** the project already belongs to the target Gmail's Expo account, not the current
+  GitHub/Render account. Decide how to handle that before resuming, removing either account or
+  transferring the project.
