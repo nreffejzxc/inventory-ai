@@ -115,6 +115,17 @@ Known limits, checked before spending one of them:
 
 ---
 
+## 2026-11-07 — Dependabot #132 closed as superseded by #162
+
+| Item | Evidence |
+| --- | --- |
+| **Why** | The 2026-11-06 entries still said Dependabot #132 "remains green but behind" and that #162 "remains open". Both statements are now stale. |
+| **#132** | `build(deps): bump the server-minor-and-patch group in /server with 2 updates` — state **CLOSED**, closed at `2026-11-06T21:18:19Z`, `mergedAt: null`, head `a4813f5`. It was not rebased or merged. |
+| **Replacement** | #162 (`chore(deps): bump the server-minor-and-patch group across 1 directory with 4 updates`) merged at `2026-11-07T06:31:42Z` as `e18264ec95cdf5c0e41230eff976a0122a9bf4c3`. It is the refreshed group that supersedes #132. |
+| **Recorded** | This entry is additive; the 2026-11-06 entries were not rewritten. No dependency, lockfile, runtime, deploy or pull-request state changed. |
+
+---
+
 ## 2026-11-07 — Dependency record re-measured under the new cadence
 
 | Item | Evidence |
