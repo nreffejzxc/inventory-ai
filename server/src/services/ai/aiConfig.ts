@@ -10,6 +10,8 @@
  * sent to the mobile application or to the AI provider's training process.
  */
 
+import { reasoningSettings } from './reasoningPolicy.ts';
+
 function positiveInt(raw: string | undefined, fallback: number) {
   const n = Number.parseInt(raw ?? '', 10);
   return Number.isFinite(n) && n > 0 ? n : fallback;
@@ -147,13 +149,19 @@ export function aiConfig() {
     //
     // A bounded budget (`thinking: { type: 'enabled', budget_tokens }`) also works on this
     // gateway (measured: 58 thinking tokens with a 400 budget), but tool rounds then require
-    // the thinking blocks to be replayed in the assistant turn, which this wire does not do
-    // yet, so a budget above zero is not offered as a supported setting.
+    // the thinking blocks to be replayed in the assistant turn; this wire replays SIGNED blocks,
+    // so AI-55 offers `budget:N` for models that return them and `auto` for unsigned ones.
     //
     // Set AI_THINKING_DISABLED=false only to restore the provider's own default (its
     // extended thinking on, if it has any) for an experiment; everything else, including an
     // empty or malformed value, keeps it off.
-    thinkingDisabled: (process.env.AI_THINKING_DISABLED || '').trim().toLowerCase() !== 'false',
+    // AI-55 — reasoning is a PER-MODEL policy: `off` (the AI-54 default), `auto` (the model's
+    // own default, required by mandatory-reasoning models such as openai/gpt-oss-*), or
+    // `budget:<tokens>`. `AI_REASONING_MODELS_OPENROUTER` holds first-match-wins rules and
+    // `AI_REASONING_DEFAULT` is the fallback; `AI_THINKING_DISABLED=false` still means `auto`
+    // when the new default is unset, so an existing deployment behaves as it did. Resolved from
+    // the model the REQUEST names, which keeps failover candidates on their own policy.
+    reasoning: reasoningSettings(process.env),
     maxToolIterations: positiveInt(process.env.AI_MAX_TOOL_ITERATIONS, 6),
     // AI-2 — how many times a turn retries a provider response that carries NO
     // usable content (neither text nor a tool call). The deployed free-tier gateway

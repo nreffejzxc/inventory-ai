@@ -33,6 +33,7 @@ documents.
 | [12-deleting-production.md](guides/12-deleting-production.md) | Taking data out of the production database: the same rules, and the space a delete does not free |
 | [13-firebase-identities.md](guides/13-firebase-identities.md) | Which commands create logins, and how to delete one without locking an account out |
 | [15-wireless-phone-session.md](guides/15-wireless-phone-session.md) | Starting the app and mirroring it over Wi-Fi, including the one-command helper |
+| [16-openrouter-models.md](guides/16-openrouter-models.md) | Choosing a free or paid OpenRouter model, setting its reasoning, and proving it works |
 
 The numbered filenames are stable links. Guides 3 and 14 were consolidated into Guide 2, Guides 9–13 and
 Guide 6; no rule, command or safety procedure was removed.

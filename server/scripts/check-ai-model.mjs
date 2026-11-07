@@ -37,6 +37,11 @@ import 'dotenv/config';
 import { checkModelCatalogue, probeModel } from '../src/services/ai/modelCheck.ts';
 import { declaresToolSupport, refreshModelCapabilities } from '../src/services/ai/modelCapabilities.ts';
 import { aiConfig, MAX_FALLBACK_MODELS } from '../src/services/ai/aiConfig.ts';
+import {
+  describeReasoningPolicy,
+  reasoningSettings,
+  resolveReasoningPolicy,
+} from '../src/services/ai/reasoningPolicy.ts';
 
 /** The candidate chain exactly as the turn loop reads it (same parse, same cap). */
 function parseCandidates() {
@@ -52,6 +57,20 @@ function line(label, value) {
 const catalogue = await checkModelCatalogue();
 line('model', catalogue.model || '(unset)');
 line('catalogue', `${catalogue.status} — ${catalogue.message}`);
+
+// AI-55 — reasoning is a per-model setting, so the check prints the policy the assistant will
+// actually send. A model that REQUIRES reasoning fails the probe when its policy is `off`,
+// which is the failure this line exists to make visible before a member meets it.
+const reasoning = reasoningSettings();
+const primaryReasoning = resolveReasoningPolicy(catalogue.model, reasoning);
+line(
+  'reasoning',
+  `${describeReasoningPolicy(primaryReasoning.policy)} — ${primaryReasoning.source === 'model' ? 'model rule' : 'default'}`,
+);
+if (reasoning.ignored.length > 0) {
+  line('ignored', `${reasoning.ignored.length} malformed reasoning rule(s): ${reasoning.ignored.join('; ')}`);
+}
+if (reasoning.defaultProblem) line('warning', reasoning.defaultProblem);
 
 if (catalogue.status === 'not_applicable') {
   // No AI in this environment is a legitimate state (the tests, a docs build), so it is NOT a
@@ -86,7 +105,9 @@ if (candidates.length === 0) {
     const declared = declaresToolSupport(id);
     line(
       'candidate',
-      `${index + 1}. ${id} — declared tools: ${
+      `${index + 1}. ${id} — reasoning: ${describeReasoningPolicy(
+        resolveReasoningPolicy(id, reasoning).policy,
+      )}; declared tools: ${
         declared === undefined ? 'unknown (catalogue not read)' : declared ? 'yes' : 'NO (skipped at runtime)'
       }`,
     );

@@ -83,6 +83,7 @@ Values live in the Render dashboard and the EAS dashboard; the repository holds 
 | `EMAIL_VERIFICATION_CODE_PEPPER` | required for the six-digit verification and in-app reset-code flows; those routes answer 503 without it |
 | `AI_PROVIDER` + `OPENROUTER_API_KEY` + `OPENROUTER_BASE_URL` + `AI_MODEL_OPENROUTER` | AI is disabled when unset; the model has **no default** |
 | `AI_FALLBACK_MODELS_OPENROUTER`, `AI_MODEL_FAILURE_THRESHOLD`, `AI_MODEL_COOLDOWN_MS`, `AI_MODEL_HEALTH_TTL_MS`, `AI_QUOTA_BLOCK_MS`, `AI_ATTEMPT_MAX_MS`, `AI_HEALTH_ALERT_EMAIL` (+ `AI_HEALTH_WATCH_*`) | optional failover, health and alerting tuning |
+| `AI_REASONING_DEFAULT` + `AI_REASONING_MODELS_OPENROUTER` | per-model reasoning policy (`off`, `auto`, `budget:<n>`); mandatory-reasoning models such as `openai/gpt-oss-*` need `auto` — see Guide 16 |
 | `MAIL_PROVIDER`, `MAIL_FROM`, `BREVO_API_KEY`, `PASSWORD_RESET_URL` | optional; missing mail config disables recovery (503); `PASSWORD_RESET_URL` is only for the emailed-link path |
 | `AUTH_*_RATE_LIMIT_*` (36 variables, 18 pairs) | optional; the documented defaults are the production values |
 | `TRUST_PROXY` | **effectively required** — set `1` |

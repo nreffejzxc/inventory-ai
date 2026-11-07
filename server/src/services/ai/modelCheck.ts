@@ -35,6 +35,12 @@
  * status, the model id and a fixed sentence, and are safe to log.
  */
 
+import {
+  reasoningSettings,
+  resolveReasoningPolicy,
+  thinkingFieldFor,
+} from './reasoningPolicy.ts';
+
 /** The statuses `checkModelCatalogue` can return. */
 export type CatalogueStatus = 'ok' | 'missing' | 'unreachable' | 'not_applicable';
 
@@ -383,6 +389,13 @@ export async function probeModel({
       body: JSON.stringify({
         model,
         max_tokens: 32,
+        // AI-55 — the probe sends the SAME reasoning setting the assistant would, so a model
+        // that is misconfigured for its reasoning mode fails here rather than on a member's
+        // turn. A `budget` cannot fit under this probe's 32-token cap, so it is omitted.
+        ...thinkingFieldFor(
+          resolveReasoningPolicy(model, reasoningSettings(env)).policy,
+          32,
+        ),
         tools: [PROBE_TOOL],
         messages: [{ role: 'user', content: 'How much stock do we hold? Use the tool.' }],
       }),
