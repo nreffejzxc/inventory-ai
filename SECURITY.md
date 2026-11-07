@@ -164,5 +164,6 @@ These are verifiable settings on this repository, not claims:
 5. **Two owner-side settings are not API-verifiable:** account 2FA and which GitHub Apps can reach
    the repository. Check both in the GitHub UI.
 6. **A service-account key was exposed outside the repository.** A local terminal transcript on
-   2026-10-25 printed `FIREBASE_SERVICE_ACCOUNT_JSON`; it was never committed, but it should be
-   rotated. See [`docs/SOURCE_PROTECTION.md`](docs/SOURCE_PROTECTION.md) §2.
+   2026-10-25 printed `FIREBASE_SERVICE_ACCOUNT_JSON`; it was never committed. **It was rotated on
+   2026-11-07** — new key verified, production sign-in confirmed, old key deleted. See
+   [`docs/SOURCE_PROTECTION.md`](docs/SOURCE_PROTECTION.md) §2.

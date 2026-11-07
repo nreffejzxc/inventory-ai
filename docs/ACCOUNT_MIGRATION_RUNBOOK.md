@@ -67,8 +67,9 @@ into `EXPO_PUBLIC_API_URL`. A replacement project or host therefore requires new
 ownership transfer that preserves both does not.
 
 The Firebase service-account value was printed in a local terminal transcript on 2026-10-25. It was
-never committed, but it must be treated as exposed. Rotating it is required independently of the
-migration and is subject to the approval gates below.
+never committed, but it is treated as exposed. **It was rotated on 2026-11-07** — the old key was
+deleted after the new one was verified in production. Future rotations remain subject to the
+approval gates below.
 
 ---
 
@@ -133,8 +134,8 @@ authenticated GitHub account; one direct collaborator; four required checks; hea
 - **Resume date:** the newer Gmail is still unavailable; the owner has not set a resume date.
 - **2FA:** deferred by owner decision; it is not a migration prerequisite until a reliable backup
   method and offline recovery codes exist.
-- **Firebase key:** rotate the key exposed on 2026-10-25 after approval; verify the new key before
-  deleting the old one.
+- **Firebase key:** rotated on 2026-11-07; the old key was deleted and the new one verified in
+  production. No action remains; any future rotation follows the credential runbook.
 - **Render connection:** the Render GitHub App is installed and the service is connected to
   `nreffejzxc/inventory-ai` on `main`; auto-deploy is limited to `server/` by the root directory.
   Re-confirm repository access before changing permissions.

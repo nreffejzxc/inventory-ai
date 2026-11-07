@@ -118,8 +118,9 @@ body. No `.env`, service-account JSON, keystore, `.pem`, `.p12`, `google-service
 **One exposure is separate from the repository.** On 2026-10-25 a verification command printed
 `FIREBASE_SERVICE_ACCOUNT_JSON` into a local terminal transcript. That credential lives in
 `server/.env` and the deployment environment; it has never been in the repository, so publication
-does not expose it. It should still be rotated (Google Cloud → IAM → the Firebase Admin service
-account → new key → replace it in Render and `server/.env` → delete the old key).
+does not expose it. **It was rotated on 2026-11-07:** the new key was verified with
+`npm run verify:firebase`, production sign-in was confirmed, and the old key was deleted. See
+[`FIREBASE_CREDENTIAL_RUNBOOK.md`](FIREBASE_CREDENTIAL_RUNBOOK.md) §5.
 
 ---
 
@@ -184,8 +185,9 @@ account → new key → replace it in Render and `server/.env` → delete the ol
    pull request merge; fix the check or the change.
 4. **Keep three backups that are not the same account**: the working clone, an encrypted offline
    `git bundle`, and a second private remote. A bundle *is* the source code — encrypt it.
-5. **Rotate the Firebase service-account key exposed in the local terminal transcript.** It is not
-   in the repository, but it is a live production credential.
+5. **The Firebase service-account key exposed in the local terminal transcript was rotated on
+   2026-11-07.** It was never in the repository, and the old key is deleted. Repeat the runbook for
+   any future exposure.
 6. **Treat the source as disclosed.** Never put a credential, private key or customer datum in the
    tree; public history is permanent.
 
