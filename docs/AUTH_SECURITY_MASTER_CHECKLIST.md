@@ -84,7 +84,7 @@ records the invariants and controls that test that design; it does not restate t
 | Account unlinking | `[—]` | **removed** — re-scoped into a password change |
 | Email verification | `[✓]` | live acceptance on Brevo 2026-10-04 |
 | Password change | `[✓]` | recent-auth gate; other sessions revoked; a fresh session is issued |
-| Password recovery | `[✓]` | six-digit code in the app; link path needs console setting L-17 |
+| Password recovery | `[✓]` | six-digit code in the app via Brevo; Firebase's emailed link path is not used |
 | Session revocation | `[✓]` | per session, everywhere, and on credential change |
 | Session cap | `[✓]` | 20 open sessions, oldest evicted, audited |
 | RBAC | `[✓]` | catalogue + role matrix; route classification and a runtime four-role matrix are guarded |
@@ -141,8 +141,12 @@ configuration injection, and O-9 the credential-change revocation bridge.
 | P-4 | Keychain survival across reinstall | `[⛔]` | device-time test not run |
 | P-5 | Firebase console state | `[~]` | Android satisfied; **iOS app not registered** |
 | P-6 | iOS build capability | `[⛔]` | no macOS host |
-| L-17 | Password-reset *Customize action URL* set to `https://ai-inventory-l1mi.onrender.com/auth/reset` | `[ ]` **open** | console-only; gates the emailed-link path |
 | New-identity Google sign-in | `REGISTRATION_REQUIRED` outcome | `[~]` | device consent cache |
+
+**L-17 is closed (2026-11-07) as not applicable.** The active reset is AUTH-06's Brevo six-digit
+code, not Firebase's emailed action link. The Admin API confirmed the Password Reset template
+remains Firebase-hosted and has no custom action URL. The authorized domains list is separately
+verified in `AUTHENTICATION_AND_USER_VERIFICATION_TARGET_ARCHITECTURE.md`.
 
 An empty iOS column is an environment limit, not a choice: report it as unverified rather than
 assumed.
