@@ -50,12 +50,12 @@ see the documentation entries below. The auth checklist and account runbook now 
 decisions; Guides 9, 11, 12 and 13 keep their commands and safety rules, with the phrase matrix owned
 by Guide 10 and dated measurements removed; the auth architecture and checklist keep one invariant
 register and one status owner, with overlapping client-authority and email clauses narrowed to one row
-each. On 2026-11-07 the account runbook's provider snapshot was re-measured: GitHub and Render remain on the current account, Render auto-deploy is limited to `server/`, and EAS is already on the target Gmail's Expo account. The AI-48–AI-84 work is recorded in §27HQ and §27HS.
+each. On 2026-11-07 the account runbook's provider snapshot was re-measured: GitHub and Render remain on the current account, Render auto-deploy is limited to `server/`, and EAS is already on the target Gmail's Expo account. The AI-48–AI-84 work is recorded in §27HQ, §27HR and §27HS. On the same day the documentation map gained a maintenance loop: a root `check-docs` guard, a close-out `check-repo-state` script, [`CONTRIBUTING.md`](../CONTRIBUTING.md) and a pull-request template. `PHASE_HISTORY.md` now reaches AI-84, and the dependency record was re-measured at 15 server / 35 mobile entries.
 
 | | |
 | --- | --- |
 | **Working now** | AI-48–AI-84 is merged to `main` (`98a4282`) and deployed: production `/api/health` reports `98a4282`. The change delivered grounded answers, recorded currency and specifications, scoped stock/value/history reads, dead-stock routing, revenue qualification, keyless research, and the member-language policy. Phone verification is still pending. |
-| **Just verified** | PRs #156–#161 and #163 passed all four required checks; post-merge `main` CI `42296782342` passed all four jobs; the WIP backup was audited against its six incorporating commits and retired; documentation guards **39/39**; `git diff --check` clean. The deployed product commit remains `98a4282`: `/api/health` reports `status: ok`, `db: connected`. |
+| **Just verified** | PRs #156–#161 and #163 passed all four required checks; post-merge `main` CI `42296782342` passed all four jobs; the WIP backup was audited against its six incorporating commits and retired; documentation guards **39/39**; the root map guard indexes **27/27** active documents with **30** unique invariants; the four documentation test files pass **27/27**; `git diff --check` clean. The deployed product commit remains `98a4282`: `/api/health` reports `status: ok`, `db: connected`. |
 | **Blocked** | Phone observation of the deployed AI behavior and the 60 s research-budget check remain; no EAS build or OTA was spent. |
 | **Next after this** | Exercise the assistant on the phone against the deployed commit, then decide whether the research budget needs an operator change. |
 
@@ -112,6 +112,19 @@ Known limits, checked before spending one of them:
   space that a backup or an index change would explain.
 - **Brevo** — used for verification codes, reset codes and invitations. Do not send test mail in
   bulk; a delivery failure is not a code regression until the provider log says so.
+
+---
+
+## 2026-11-07 — Documentation map, guard and close-out workflow
+
+| Item | Evidence |
+| --- | --- |
+| **Why** | The active set had outgrown the map: `PHASE_HISTORY.md` stopped at AI-25 and still called release engineering "the last records", the dependency record carried counts from 2026-11-02, and the AI language review sheet was not indexed. Separately, the new invariant-register guard was sitting uncommitted under `server/`, where merging it would trigger a Render deploy for a documentation check. |
+| **Audit** | The audit covered **124** Markdown files before this change. The four categories in `docs/README.md` are sound; no active document was removed. The historical folders (`evidence/`, `freebuff/`, `superpowers/`) remain frozen, and the roadmap/records stay append-only. |
+| **Added** | A dependency-free root guard, `scripts/check-docs.mjs`, checks that all **27** active pages are linked from the map, that map links resolve, and that the auth checklist is the only invariant register. It runs in the required `server` CI job before `npm ci`, so a docs-only PR needs no database or server install. `scripts/check-repo-state.mjs` fetches `origin/main` and fails on a dirty, ahead or behind `main`. [`CONTRIBUTING.md`](../CONTRIBUTING.md) records the branch, documentation, check, PR and clean-close loop; the pull-request template asks for documentation impact and deployment scope. |
+| **Corrected** | `PHASE_HISTORY.md` now reaches AI-84, names the current records (`§27HQ`–`§27HS`) and no longer calls release engineering the newest work. `SECURITY_DEPENDENCY_DECISIONS.md` was re-measured at **15** server and **35** mobile entries; the same three advisories remain, and the record explains that the totals count dependents. The AI language review sheet is now indexed. |
+| **Verified** | `node scripts/check-docs.mjs` passes: 27 active documents indexed, 30 invariant rows, checklist-only. The existing documentation tests pass **27/27** (links, fact drift, section integrity, route inventory); `git diff --check` is clean. The four required PR checks and the squash merge are the delivery gate; no result is claimed before they run. |
+| **Not done** | No runtime, server, mobile, dependency, provider or deployment change. The docs-only PR does not trigger Render. |
 
 ---
 

@@ -741,6 +741,10 @@ Primary specification:
 
 `docs/SYSTEM_SPECIFICATION.md`
 
+The map is [`docs/README.md`](docs/README.md); the branch, documentation and pull-request loop is
+[`CONTRIBUTING.md`](CONTRIBUTING.md). A new active document must be linked from the map; the root
+`scripts/check-docs.mjs` guard fails otherwise.
+
 Do not silently contradict the specification.
 
 If an intentional architecture change is required:
@@ -940,6 +944,10 @@ after the work that the log records.
   was not done and why, findings, blockers, resource use and the next priority. Update the roadmap
   when a status, priority or milestone changes. Never record "complete" because code was written, a
   commit exists or a deploy was triggered — only because the check was run and its result seen.
+- **Close** on `main` with no uncommitted files and no unpushed commits.
+  `node scripts/check-repo-state.mjs` fetches `origin/main` and must report the worktree clean and
+  `main` level with it. A docs-only change still needs its own pull request; it does not need a
+  Render deploy.
 
 ## Expo EAS builds — one allowance, spent deliberately
 

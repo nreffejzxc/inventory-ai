@@ -88,6 +88,13 @@ jobs:
           cache: npm
           cache-dependency-path: server/package-lock.json
 
+      # Dependency-free and run from the repository root. This keeps the
+      # documentation map and invariant-register checks in the required
+      # `server` job without needing the server install or a database.
+      - name: Check documentation map and invariant register
+        working-directory: .
+        run: node scripts/check-docs.mjs
+
       - name: Install dependencies
         run: npm ci
 
