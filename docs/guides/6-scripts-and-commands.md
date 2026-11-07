@@ -410,6 +410,13 @@ Jest, the Metro/Expo bundle check, the printable-label barcode check and the wir
 **attribution-guard** job checks the commit messages the event introduces. Not automatic, because they
 write or need your credentials: the seeders, cleanups, performance probes and `audit-access.mjs`.
 
+Separately, the **TypeScript 7 watch** runs every Monday at **06:17 UTC** and on manual dispatch. It
+runs the read-only `check-upgrade-watches` gate against both workspaces and opens **one** issue only
+when the parser chain on both paths admits TypeScript 7 and a workspace is still below it. It fails
+when the gate itself cannot be read, rather than treating that as deferred, and it never upgrades a
+dependency. Start it by hand with `gh workflow run typescript-7-watch.yml`; the exact issue title and
+the #32 ledger live in the workflow.
+
 **Nothing watches the deployment.** `/api/health/ready` answers 200 only when the database is reachable
 now; poll it every 5 minutes, alert after two non-200 answers, and optionally watch `/api/health` for a
 climbing `counters.serverErrors` (the 2026-10-18 failure shape readiness cannot see). The counters are per
