@@ -64,15 +64,19 @@ async function ask() {
 }
 
 async function withFlag(value, fn) {
-  const had = Object.prototype.hasOwnProperty.call(process.env, 'AI_THINKING_DISABLED');
-  const previous = process.env.AI_THINKING_DISABLED;
-  if (value === undefined) delete process.env.AI_THINKING_DISABLED;
-  else process.env.AI_THINKING_DISABLED = value;
+  // AI-55's simple switch overrides the legacy flag, so clear it for these AI-54 assertions.
+  const keys = ['AI_THINKING_DISABLED', 'AI_REASONING'];
+  const saved = new Map(keys.map((key) => [key, process.env[key]]));
+  for (const key of keys) delete process.env[key];
+  if (value !== undefined) process.env.AI_THINKING_DISABLED = value;
   try {
     return await fn();
   } finally {
-    if (had) process.env.AI_THINKING_DISABLED = previous;
-    else delete process.env.AI_THINKING_DISABLED;
+    for (const key of keys) {
+      const previous = saved.get(key);
+      if (previous === undefined) delete process.env[key];
+      else process.env[key] = previous;
+    }
   }
 }
 

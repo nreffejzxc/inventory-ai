@@ -14,6 +14,7 @@
  */
 
 import { aiConfig } from '../aiConfig.ts';
+import { resolveReasoningPolicy, thinkingFieldFor } from '../reasoningPolicy.ts';
 import { AiNotConfigured, AiOutputLimit, AiProviderError } from '../aiErrors.ts';
 import type { QuotaInfo } from '../quota.ts';
 import { postJson, postSse, type SseEvent, type UpstreamJsonBody } from './http.ts';
@@ -535,9 +536,14 @@ export function createAnthropicCompatibleProvider(opts: AnthropicCompatibleOptio
         // AI-54 — reasoning shares `max_tokens` with the answer on this gateway, and the
         // measured model spent the ENTIRE budget on `thinking` blocks (400/400, no text),
         // so the assistant asks for it to be off. The reason, the measurements and the
-        // escape hatch live in `aiConfig().thinkingDisabled`; nothing about the neutral
+        // per-model rules live in `aiConfig().reasoning`; nothing about the neutral
         // response contract changes, because a disabled model simply returns text.
-        ...(cfg.thinkingDisabled ? { thinking: { type: 'disabled' } } : {}),
+        // AI-55 — the policy is resolved for THIS request's model, not for the deployment, so a
+        // failover candidate that requires reasoning does not inherit the primary's `off`.
+        ...thinkingFieldFor(
+          resolveReasoningPolicy(model, cfg.reasoning).policy,
+          cfg.maxOutputTokens,
+        ),
       };
       const requestHeaders = { ...(authHeaders ? authHeaders(apiKey) : {}), ...extraHeaders };
 

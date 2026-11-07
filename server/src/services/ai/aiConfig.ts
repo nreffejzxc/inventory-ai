@@ -10,6 +10,8 @@
  * sent to the mobile application or to the AI provider's training process.
  */
 
+import { reasoningSettings } from './reasoningPolicy.ts';
+
 function positiveInt(raw: string | undefined, fallback: number) {
   const n = Number.parseInt(raw ?? '', 10);
   return Number.isFinite(n) && n > 0 ? n : fallback;
@@ -147,13 +149,19 @@ export function aiConfig() {
     //
     // A bounded budget (`thinking: { type: 'enabled', budget_tokens }`) also works on this
     // gateway (measured: 58 thinking tokens with a 400 budget), but tool rounds then require
-    // the thinking blocks to be replayed in the assistant turn, which this wire does not do
-    // yet, so a budget above zero is not offered as a supported setting.
+    // the thinking blocks to be replayed in the assistant turn; this wire replays SIGNED blocks,
+    // so AI-55 offers `budget:N` for models that return them and `auto` for unsigned ones.
     //
     // Set AI_THINKING_DISABLED=false only to restore the provider's own default (its
     // extended thinking on, if it has any) for an experiment; everything else, including an
     // empty or malformed value, keeps it off.
-    thinkingDisabled: (process.env.AI_THINKING_DISABLED || '').trim().toLowerCase() !== 'false',
+    // AI-55 — `AI_REASONING` is the simple switch: `enable` sends no reasoning field and lets
+    // the model use its own default (required by openai/gpt-oss-*); `disable` sends
+    // `thinking: { type: 'disabled' }` so the answer owns the output budget. It overrides the
+    // advanced `AI_REASONING_MODELS_OPENROUTER` rules and `AI_REASONING_DEFAULT`; those remain
+    // for per-model policies. `AI_THINKING_DISABLED=false` still means `auto` when the new
+    // default is unset, so an existing deployment behaves as it did.
+    reasoning: reasoningSettings(process.env),
     maxToolIterations: positiveInt(process.env.AI_MAX_TOOL_ITERATIONS, 6),
     // AI-2 — how many times a turn retries a provider response that carries NO
     // usable content (neither text nor a tool call). The deployed free-tier gateway
