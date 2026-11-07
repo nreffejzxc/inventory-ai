@@ -40,8 +40,10 @@
  *                             one is published and `@expo/config`'s `^4.3.1` range admits it (§27GX).
  *
  * HOW TO RUN. `node scripts/check-upgrade-watches.mjs` (add `--json` for machine output, `--self-test`
- * to run the controls alone). It needs the network and is deliberately NOT part of CI: a pipeline that
- * fails when npm is unreachable would turn an upstream outage into a red build. Exit code is 0 for
+ * to run the controls alone). It needs the network and is deliberately NOT part of the required CI gate:
+ * a pipeline that fails when npm is unreachable would turn an upstream outage into a red build. A
+ * separate scheduled workflow (`.github/workflows/typescript-7-watch.yml`) runs this report weekly and
+ * opens one issue when the TypeScript 7 gate is READY; that workflow is not a merge gate. Exit code is 0 for
  * "report produced" — a watch being READY is news, not a failure of this script. The one non-zero exit
  * is a **failed control**, which stops the report before it is printed, so a broken rule can never be
  * read as a clean bill of health (§27AR's rule, applied here).

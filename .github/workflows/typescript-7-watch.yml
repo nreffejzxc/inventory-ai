@@ -1,0 +1,161 @@
+name: typescript-7-watch
+
+# The TypeScript 7 gate is upstream, not local: `typescript-eslint` must publish a
+# stable release whose declared `typescript` peer admits 7, and the Expo-pinned
+# mobile parser chain must do the same. `scripts/check-upgrade-watches.mjs` already
+# measures both halves. This workflow runs that read-only report on a schedule and
+# opens one issue when the gate opens, instead of asking a future session to
+# remember to re-check it.
+#
+# This is deliberately separate from `ci.yml`: the npm registry can be unreachable
+# or rate-limited, and a transient upstream outage must not turn every pull request
+# red. It is also not a merge gate; it only raises the issue that starts the upgrade.
+#
+# The mobile half reads the INSTALLED SDK-pinned tree (`node_modules`), not the
+# registry's latest, so `npm ci` is required before the watch runs. The server half
+# reads `server/package.json` and the published `typescript-eslint` manifest, so it
+# needs no server install.
+
+on:
+  schedule:
+    # Monday 06:17 UTC. The odd minute avoids the top-of-hour scheduler congestion.
+    - cron: '17 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: typescript-7-watch
+  cancel-in-progress: false
+
+jobs:
+  watch:
+    # Scheduled workflows run from the default branch. Keep manual dispatches from
+    # opening an issue based on a feature branch's dependency tree.
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      - name: Install the mobile SDK-pinned tree
+        working-directory: mobile
+        run: npm ci
+
+      - name: Measure the TypeScript 7 gate
+        id: gate
+        run: |
+          set -euo pipefail
+          node scripts/check-upgrade-watches.mjs --json > "$RUNNER_TEMP/upgrade-watches.json"
+
+          node - "$RUNNER_TEMP/upgrade-watches.json" <<'NODE'
+          const fs = require('node:fs');
+
+          const report = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+          const gate = report.results?.find((row) => row.package === 'typescript-eslint');
+          if (!gate) throw new Error('the typescript-eslint watch is missing from the report');
+          if (gate.status !== 'READY' && gate.status !== 'DEFERRED') {
+            // UNREADABLE/UNPARSED is not a pass: do not silently skip the issue.
+            throw new Error(`TypeScript 7 gate is ${gate.status}: ${gate.detail}`);
+          }
+
+          const packageJson = (path) => JSON.parse(fs.readFileSync(path, 'utf8'));
+          const majorOf = (range) => {
+            const match = /^\s*(?:[~^]|>=|>)?\s*(\d+)/.exec(String(range ?? ''));
+            if (!match) throw new Error(`cannot parse TypeScript range: ${range}`);
+            return Number(match[1]);
+          };
+          const serverTypescript = packageJson('server/package.json').devDependencies?.typescript;
+          const mobileTypescript = packageJson('mobile/package.json').devDependencies?.typescript;
+          const stillPending =
+            gate.status === 'READY' && (majorOf(serverTypescript) < 7 || majorOf(mobileTypescript) < 7);
+
+          console.log(`TypeScript 7 gate: ${gate.status}`);
+          console.log(gate.detail);
+          console.log(`Declared TypeScript: server=${serverTypescript}, mobile=${mobileTypescript}`);
+          console.log(`issue needed: ${stillPending}`);
+
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `ready=${stillPending}\n`);
+          NODE
+
+      - name: Open the readiness issue
+        if: steps.gate.outputs.ready == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          ISSUE_TITLE: TypeScript 7 toolchain is READY — upgrade server and mobile
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          ISSUE_32_URL: ${{ github.server_url }}/${{ github.repository }}/issues/32
+        run: |
+          set -euo pipefail
+
+          # One open issue, not one per weekly run. Match the exact title so an
+          # unrelated issue that merely discusses TypeScript 7 is not treated as it.
+          open_issues=$(gh issue list --state open --limit 100 --json number,title)
+          existing=$(printf '%s' "$open_issues" | ISSUE_TITLE="$ISSUE_TITLE" node -e '
+            let input = "";
+            process.stdin.setEncoding("utf8");
+            process.stdin.on("data", (chunk) => { input += chunk; });
+            process.stdin.on("end", () => {
+              const issue = JSON.parse(input).find((candidate) => candidate.title === process.env.ISSUE_TITLE);
+              if (issue) process.stdout.write(String(issue.number));
+            });
+          ')
+          if [ -n "$existing" ]; then
+            echo "Issue #$existing is already open; no duplicate created."
+            exit 0
+          fi
+
+          node - "$RUNNER_TEMP/upgrade-watches.json" "$RUNNER_TEMP/typescript7-issue.md" <<'NODE'
+          const fs = require('node:fs');
+
+          const [reportPath, bodyPath] = process.argv.slice(2);
+          const report = JSON.parse(fs.readFileSync(reportPath, 'utf8'));
+          const gate = report.results.find((row) => row.package === 'typescript-eslint');
+          const packageJson = (path) => JSON.parse(fs.readFileSync(path, 'utf8'));
+          const serverTypescript = packageJson('server/package.json').devDependencies?.typescript;
+          const mobileTypescript = packageJson('mobile/package.json').devDependencies?.typescript;
+          const issue32 = process.env.ISSUE_32_URL;
+
+          const body = `<!-- typescript-7-toolchain-watch -->
+          ## TypeScript 7 toolchain is READY
+
+          The scheduled TypeScript 7 watch measured the live gate at \`${report.checkedAt ?? 'unknown'}\`.
+
+          | Workspace | TypeScript declaration |
+          | --- | --- |
+          | server | \`${serverTypescript}\` |
+          | mobile | \`${mobileTypescript}\` |
+
+          Gate detail:
+
+          \`\`\`text
+          ${gate.detail}
+          \`\`\`
+
+          ## Next step
+
+          1. Plan and take the TypeScript 7 upgrade in both workspaces.
+          2. Update the server \`typescript-eslint\` line and the Expo-pinned mobile lint/parser chain as needed.
+          3. Run typecheck, lint and the tests in both workspaces.
+          4. Record the result, then close this issue and ${issue32}.
+
+          This issue was opened automatically by the [scheduled TypeScript 7 watch](${process.env.RUN_URL}). It is the
+          actionable follow-up to ${issue32}; that issue remains the deferred-upgrade ledger until the upgrade lands.
+          `;
+          fs.writeFileSync(bodyPath, body);
+          NODE
+
+          gh issue create \
+            --title "$ISSUE_TITLE" \
+            --body-file "$RUNNER_TEMP/typescript7-issue.md" \
+            --label dependencies
