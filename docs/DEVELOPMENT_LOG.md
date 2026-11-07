@@ -55,7 +55,7 @@ each. On 2026-11-07 the account runbook's provider snapshot was re-measured: Git
 | | |
 | --- | --- |
 | **Working now** | AI-48–AI-84 is merged to `main` and deployed; the current production commit is `e18264e` after the dependency-only PR #162. The AI change delivered grounded answers, recorded currency and specifications, scoped stock/value/history reads, dead-stock routing, revenue qualification, keyless research, and the member-language policy. Phone verification is still pending. |
-| **Just verified** | PR #162 was rebased onto `d313620` and merged as `e18264e`; all four required checks passed, Render deployed the merge, and `/api/health` returns 200 with `status: ok`, `db: connected` and the expected commit. PR #165's documentation workflow also passed; documentation guards **39/39**; the root map guard indexes **27/27** active documents with **30** unique invariants; the four documentation test files pass **27/27**; `git diff --check` clean. |
+| **Just verified** | PR #162 was rebased onto `d313620` and merged as `e18264e`; all four required checks passed, Render deployed the merge, and `/api/health` returns 200 with `status: ok`, `db: connected` and the expected commit. PR #165 merged as `d313620` at `2026-11-07T06:17:42Z`, and its final head `5941956` passed all four required checks in run `42346155717`; documentation guards **39/39**; the root map guard indexes **27/27** active documents with **30** unique invariants; the four documentation test files pass **27/27**; `git diff --check` clean. |
 | **Blocked** | Phone observation of the deployed AI behavior and the 60 s research-budget check remain; no EAS build or OTA was spent. |
 | **Next after this** | Exercise the assistant on the phone against the deployed commit, then decide whether the research budget needs an operator change. |
 
@@ -112,6 +112,18 @@ Known limits, checked before spending one of them:
   space that a backup or an index change would explain.
 - **Brevo** — used for verification codes, reset codes and invitations. Do not send test mail in
   bulk; a delivery failure is not a code regression until the provider log says so.
+
+---
+
+## 2026-11-07 — PR #165 merge commit and final CI run recorded
+
+| Item | Evidence |
+| --- | --- |
+| **Why** | The PR #165 entry records the code-commit run `42345889077` but not the squash-merge commit or the final head's CI run, so the delivery was only half-linked to its evidence. |
+| **Merge** | PR #165 (`docs: make the documentation map a checked workflow`) was squash-merged at `2026-11-07T06:17:42Z` as `d31362009dda17f598ffa018c818aad4900214d1`. Its final head was `5941956bf47b27a777c1fb601bfa4f3c17994fe9`. |
+| **Final CI** | Run [`42346155717`](https://github.com/nreffejzxc/inventory-ai/actions/runs/42346155717), event `pull_request`, completed **success** on `5941956`: `server` pass (2m27s), `mobile` pass (1m14s), `secret-guard` pass (8s), `attribution-guard` pass (9s). |
+| **Recorded** | This entry is additive; the earlier #165 entry and its `0f8472a`/`42345889077` evidence were not rewritten. Current position now names the merge commit and final run. |
+| **Not done** | No code, runtime, dependency, provider, mobile or deployment change. The docs-only merge does not trigger Render. |
 
 ---
 

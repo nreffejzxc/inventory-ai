@@ -56,6 +56,9 @@ The documentation guard is dependency-free and is the first check in the require
 node scripts/check-docs.mjs
 ```
 
+It also fails when a living reference document is past its review cadence in `docs/README.md`;
+update that row's date only after reviewing the document.
+
 For a documentation-only change, also run the documentation tests from `server/`:
 
 ```sh

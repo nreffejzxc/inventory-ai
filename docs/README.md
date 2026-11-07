@@ -52,6 +52,29 @@ Guide 6; no rule, command or safety procedure was removed.
 | [`DEVELOPING_ON_A_PHYSICAL_DEVICE.md`](DEVELOPING_ON_A_PHYSICAL_DEVICE.md) | The deep phone reference: verified commands, log reading, failure → fix |
 | [`../README.md`](../README.md) | The front door: stack, layout, how to run each half, deployment |
 
+### Review cadence
+
+Reference documents are consulted rather than read once, so they are reviewed on a clock.
+`node scripts/check-docs.mjs` fails when one is overdue; this table is the only place its date lives.
+
+| Document | Cadence | Last reviewed |
+| --- | --- | --- |
+| [`../CLAUDE.md`](../CLAUDE.md) | 90 days | 2026-11-07 |
+| [`SYSTEM_SPECIFICATION.md`](SYSTEM_SPECIFICATION.md) | 90 days | 2026-11-07 |
+| [`AUTHENTICATION_AND_USER_VERIFICATION_TARGET_ARCHITECTURE.md`](AUTHENTICATION_AND_USER_VERIFICATION_TARGET_ARCHITECTURE.md) | 90 days | 2026-11-07 |
+| [`AUTH_SECURITY_MASTER_CHECKLIST.md`](AUTH_SECURITY_MASTER_CHECKLIST.md) | 90 days | 2026-11-07 |
+| [`SECURITY_DEPENDENCY_DECISIONS.md`](SECURITY_DEPENDENCY_DECISIONS.md) | 30 days | 2026-11-07 |
+| [`SOURCE_PROTECTION.md`](SOURCE_PROTECTION.md) | 90 days | 2026-11-07 |
+| [`ACCOUNT_MIGRATION_RUNBOOK.md`](ACCOUNT_MIGRATION_RUNBOOK.md) | 90 days | 2026-11-07 |
+| [`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md) | 90 days | 2026-11-07 |
+| [`DEVELOPING_ON_A_PHYSICAL_DEVICE.md`](DEVELOPING_ON_A_PHYSICAL_DEVICE.md) | 90 days | 2026-11-07 |
+| [`../README.md`](../README.md) | 90 days | 2026-11-07 |
+
+The 2026-11-07 date starts each clock at adoption: it records when the cadence began, not that every
+document was re-read that day. A review updates the date; a change that materially rewrites a document
+counts as its review. `SECURITY_DEPENDENCY_DECISIONS.md` is the one tighter row because advisories
+move weekly; the rest are quarterly.
+
 ## 3. What happened — records
 
 Written once and then left alone, because their value is that they still say what was true on the
@@ -107,7 +130,8 @@ the **how** obvious.
 `node scripts/check-docs.mjs` is the map guard. It fails when a top-level `docs/*.md` page or a
 guide is not linked here, when a map link points at a missing file, or when an invariant row is
 declared outside the one register. It runs in the required `server` CI job before dependencies are
-installed, so a documentation-only change is checked without a database or a server install.
+installed, so a documentation-only change is checked without a database or a server install. It also
+fails when a living reference document is past the review cadence in §2.
 
 At the close of every session:
 
