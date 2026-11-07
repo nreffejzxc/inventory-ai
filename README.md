@@ -21,6 +21,7 @@ suppliers, purchase orders, transfers, an audit trail and a **read-only** assist
 ```text
 /
 ├── CLAUDE.md      project rules for AI assistants
+├── CONTRIBUTING.md documentation, Git and pull-request workflow
 ├── docs/          specification, roadmap, security records, evidence, guides
 ├── mobile/        Expo app (own package.json + lockfile)
 └── server/        Express API (own package.json + lockfile)
@@ -157,6 +158,7 @@ binary. Full procedure, rollback and troubleshooting:
 | Read this | For |
 | --- | --- |
 | [`docs/README.md`](docs/README.md) | the documentation map: guides, reference, records and current status |
+| [`CONTRIBUTING.md`](CONTRIBUTING.md) | the branch, documentation, check, pull-request and clean-`main` loop |
 | [`docs/guides/`](docs/guides/README.md) | everyday tasks: run it, use the phone, test accounts, every command, OTA, Play submission |
 | [`docs/SYSTEM_SPECIFICATION.md`](docs/SYSTEM_SPECIFICATION.md) | what the system must do |
 | [`docs/AUTH_SECURITY_MASTER_CHECKLIST.md`](docs/AUTH_SECURITY_MASTER_CHECKLIST.md) | authentication and authorization guarantees |

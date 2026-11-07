@@ -1,6 +1,6 @@
 # Security Dependency Decisions
 
-**Status:** living decision record · **Advisories re-measured 2026-11-02** at `main`; the node-forge lockfile fix is from 2026-10-30 and the zod fix from 2026-11-02
+**Status:** living decision record · **Advisories re-measured 2026-11-07** at `main`; the node-forge lockfile fix is from 2026-10-30 and the zod fix from 2026-11-02
 
 An advisory that is not being fixed is **named, evidenced and dispositioned**, never left implied.
 This file covers dependency advisories only; application security decisions are in
@@ -17,23 +17,25 @@ from application runtime code · is the vulnerable API actually called.
 
 | Tree | `npm audit` | Distinct advisories |
 | --- | --- | --- |
-| `server/` | **16 entries, 2 advisories — 0 high, 16 moderate** | `glob`, `minimatch` |
-| `mobile/` | **47 entries, 3 advisories — 0 high, 46 moderate, 1 low** | `deepmerge`, `glob`, `minimatch` |
+| `server/` | **15 entries, 2 advisories — 0 high, 15 moderate** | `glob`, `minimatch` |
+| `mobile/` | **35 entries, 3 advisories — 0 high, 34 moderate, 1 low** | `deepmerge`, `glob`, `minimatch` |
 
 The server tree was clean on 2026-10-30; the 2026-11-01 measurement is not. Two advisories published
 since then reach it through two separate paths: `firebase-admin`'s production chain
 (`google-gax → rimraf → glob → minimatch`) and the ESLint/TypeScript-ESLint development tooling.
-Mobile carries the same two beside `deepmerge`, the one remaining low advisory.
+Mobile carries the same two beside `deepmerge`, the one remaining low advisory. The 2026-11-07
+re-measurement is **15** server entries and **35** mobile entries; the three advisories are unchanged,
+and the totals move because `npm audit` counts dependents.
 
 On 2026-10-30 the **third** mobile advisory — `node-forge` (GHSA-86w9-cpqp-85rv, high) — was fixed in
 the lockfile by a bump from `1.4.0` to `1.4.2`, inside its consumer's `^1.4.0` range. That fix stands.
 
 On 2026-11-02 the **zod** high advisory was cleared by the Expo 58.0.22 patch: `expo@58.0.22` installs `@expo/cli@58.1.18`, whose manifest no longer declares `zod`, and the nested `zod@3.25.76` is gone. The only `zod` in the tree is `4.6.7`, outside the advisory range.
 
-`npm audit` counts **dependents, not distinct defects**. The server's 16 entries are two advisories
-seen through their parents; the mobile's 47 entries are three advisories, with **no high entry**
-now that the `zod` chain is gone. Dependabot groups them into five package alerts across the two
-manifests.
+`npm audit` counts **dependents, not distinct defects**. The server's 15 entries are two advisories
+seen through their parents; the mobile's 35 entries are three advisories, with **no high entry**
+now that the `zod` chain is gone. At the 2026-11-02 measurement, Dependabot grouped them into five
+package alerts across the two manifests.
 
 ---
 
@@ -114,8 +116,8 @@ two:
 8. **`firebase-admin` or its `google-gax`/`rimraf` chain moves** — that is the server production path,
    and it should be re-audited with the upgrade.
 
-Watch the gate rather than the number: `npm audit` counts **dependents** as well, so the server's 16
-entries are not 16 distinct defects, and mobile's 47 are not 47.
+Watch the gate rather than the number: `npm audit` counts **dependents** as well, so the server's 15
+entries are not 15 distinct defects, and mobile's 35 are not 35.
 
 ---
 
@@ -123,7 +125,7 @@ entries are not 16 distinct defects, and mobile's 47 are not 47.
 
 Read-only commands unless noted; commands 9 and 17 are the only installs in this section. Command 9
 is the node-forge lockfile change; commands 17–20 are the Expo 58.0.22 patch. Rows 4–11 are the
-2026-10-30 measurements that remain true. Rows 2, 7, 8 and 17–20 were measured on 2026-11-02; the
+2026-10-30 measurements that remain true. Rows 2, 7, 8 and 17–20 were measured on 2026-11-02; row 21 on 2026-11-07; the
 remaining rows are dated in place.
 
 | # | Command | Result |
@@ -148,5 +150,7 @@ remaining rows are dated in place.
 | 18 | `cd mobile && npx expo install --check` (2026-11-02) | “Dependencies are up to date”; exit **0** |
 | 19 | `cd mobile && npm ls zod --all`; `npm ls @expo/cli --all` (2026-11-02) | `@expo/cli@58.1.18` under `expo@58.0.22`; nested `zod` absent; only `zod@4.6.7` via `eslint-config-expo → eslint-plugin-react-hooks → zod-validation-error` |
 | 20 | `cd mobile && npm run typecheck`; `npm test -- --runInBand` (2026-11-02) | typecheck exit **0**; **101 suites, 1 191 tests, all pass** — the first run exposed 1 suite / 3 pin failures before the 14 pins were aligned |
+
+| 21 | `npm audit --json` in `server/` and `mobile/` (2026-11-07) | server `{low:0, moderate:15, high:0, critical:0, total:15}`; mobile `{low:1, moderate:34, high:0, critical:0, total:35}` — the same three advisories (`deepmerge`, `glob`, `minimatch`), no high or critical; counts are dependents and move with the tree |
 
 No credential, token or secret value appears in this record.

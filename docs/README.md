@@ -62,6 +62,7 @@ date they were written. **Read them for an audit, not for orientation.**
 | [`DEVELOPMENT_ROADMAP.md`](DEVELOPMENT_ROADMAP.md) | Every increment, in order, with its evidence — over 20,000 lines. Find a record by number; `CLAUDE.md` indexes all of them by title |
 | [`PHASE_HISTORY.md`](PHASE_HISTORY.md) | One line per phase, with the roadmap record it points to |
 | [`TS-MIGRATION-MANIFEST.md`](TS-MIGRATION-MANIFEST.md) | The completed TypeScript migration and the one module left in JavaScript |
+| [`AI_LANGUAGE_REVIEW_14_2026-11-06.md`](AI_LANGUAGE_REVIEW_14_2026-11-06.md) | The dated native-speaker review sheet for 14 assistant answers; scores stay blank until a reviewer fills them |
 | [`superpowers/`](superpowers/) | Dated plans and design specs written before work began |
 | [`evidence/`](evidence/device-runs/README.md) | Device runs, scale measurements and captured output |
 | [`freebuff/`](freebuff/README.md) | An older agent-activity log. Forensic only — not architecture, history or specification, and its status statements are frozen at their dates |
@@ -100,6 +101,24 @@ A change should update the document that owns the question, not every document t
 The test for an edit: could a reader acting on this document be misled? If yes, fix it now. Delete a
 section when another document answers its question better; keep the **why** even when the code makes
 the **how** obvious.
+
+## The maintenance loop
+
+`node scripts/check-docs.mjs` is the map guard. It fails when a top-level `docs/*.md` page or a
+guide is not linked here, when a map link points at a missing file, or when an invariant row is
+declared outside the one register. It runs in the required `server` CI job before dependencies are
+installed, so a documentation-only change is checked without a database or a server install.
+
+At the close of every session:
+
+1. Update `DEVELOPMENT_LOG.md` and the document that owns the change.
+2. Commit, push, open the pull request and wait for all four required checks.
+3. Squash-merge, then `git switch main && git pull --ff-only`.
+4. Run `node scripts/check-repo-state.mjs`; it must report a clean `main` level with `origin/main`.
+
+The full branch, commit, check and merge loop is [`../CONTRIBUTING.md`](../CONTRIBUTING.md). The pull
+request template asks for the documentation impact, so "no docs change" is a decision, not an
+omission.
 
 ## Two rules before you edit here
 
