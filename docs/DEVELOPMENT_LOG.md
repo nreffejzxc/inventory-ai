@@ -50,12 +50,12 @@ see the documentation entries below. The auth checklist and account runbook now 
 decisions; Guides 9, 11, 12 and 13 keep their commands and safety rules, with the phrase matrix owned
 by Guide 10 and dated measurements removed; the auth architecture and checklist keep one invariant
 register and one status owner, with overlapping client-authority and email clauses narrowed to one row
-each. On 2026-11-07 the account runbook's provider snapshot was re-measured: GitHub and Render remain on the current account, Render auto-deploy is limited to `server/`, and EAS is already on the target Gmail's Expo account. The AI-48–AI-84 work is recorded in §27HQ, §27HR and §27HS. On the same day the documentation map gained a maintenance loop: a root `check-docs` guard, a close-out `check-repo-state` script, [`CONTRIBUTING.md`](../CONTRIBUTING.md) and a pull-request template, delivered through PR #165. `PHASE_HISTORY.md` now reaches AI-84, and the dependency record was re-measured at 15 server / 35 mobile entries.
+each. On 2026-11-07 the account runbook's provider snapshot was re-measured: GitHub and Render remain on the current account, Render auto-deploy is limited to `server/`, and EAS is already on the target Gmail's Expo account. The AI-48–AI-84 work is recorded in §27HQ, §27HR and §27HS. On the same day the documentation map gained a maintenance loop: a root `check-docs` guard, a close-out `check-repo-state` script, [`CONTRIBUTING.md`](../CONTRIBUTING.md) and a pull-request template, delivered through PR #165. `PHASE_HISTORY.md` now reaches AI-84, and the dependency record was re-measured at 15 server / 35 mobile entries. The runbook's production anchor was corrected from `98a4282` to `e18264e` after the dependency-only PR #162 merged.
 
 | | |
 | --- | --- |
-| **Working now** | AI-48–AI-84 is merged to `main` (`98a4282`) and deployed: production `/api/health` reports `98a4282`. The change delivered grounded answers, recorded currency and specifications, scoped stock/value/history reads, dead-stock routing, revenue qualification, keyless research, and the member-language policy. Phone verification is still pending. |
-| **Just verified** | PRs #156–#161 and #163 passed all four required checks; post-merge `main` CI `42296782342` passed all four jobs; the WIP backup was audited against its six incorporating commits and retired; documentation guards **39/39**; the root map guard indexes **27/27** active documents with **30** unique invariants; the four documentation test files pass **27/27**; `git diff --check` clean. The deployed product commit remains `98a4282`: `/api/health` reports `status: ok`, `db: connected`. |
+| **Working now** | AI-48–AI-84 is merged to `main` and deployed; the current production commit is `e18264e` after the dependency-only PR #162. The AI change delivered grounded answers, recorded currency and specifications, scoped stock/value/history reads, dead-stock routing, revenue qualification, keyless research, and the member-language policy. Phone verification is still pending. |
+| **Just verified** | PR #162 was rebased onto `d313620` and merged as `e18264e`; all four required checks passed, Render deployed the merge, and `/api/health` returns 200 with `status: ok`, `db: connected` and the expected commit. PR #165's documentation workflow also passed; documentation guards **39/39**; the root map guard indexes **27/27** active documents with **30** unique invariants; the four documentation test files pass **27/27**; `git diff --check` clean. |
 | **Blocked** | Phone observation of the deployed AI behavior and the 60 s research-budget check remain; no EAS build or OTA was spent. |
 | **Next after this** | Exercise the assistant on the phone against the deployed commit, then decide whether the research budget needs an operator change. |
 
@@ -112,6 +112,18 @@ Known limits, checked before spending one of them:
   space that a backup or an index change would explain.
 - **Brevo** — used for verification codes, reset codes and invitations. Do not send test mail in
   bulk; a delivery failure is not a code regression until the provider log says so.
+
+---
+
+## 2026-11-07 — Production anchor corrected after the dependency merge
+
+| Item | Evidence |
+| --- | --- |
+| **Why** | PR #162 merged after the runbook and the log's Current position were written; both still named `98a4282` while production had moved to `e18264e`. |
+| **Merge** | PR #162 was rebased onto `d313620`; its head `a5babbe` passed all four required checks; squash-merged as `e18264ec95cdf5c0e41230eff976a0122a9bf4c3` at 2026-11-07T06:31:42Z. |
+| **Deploy** | Render deployed the merge. `GET /api/health` returned 200 with `status: ok`, `db: connected`, `environment: production`, commit `e18264e`, and no 5xx/server errors. |
+| **Docs** | The runbook Production row and the log's Current position/Just verified now name `e18264e`; historical entries were not rewritten. |
+| **Not done** | No account, credential, access, history, mobile build or OTA change. |
 
 ---
 
