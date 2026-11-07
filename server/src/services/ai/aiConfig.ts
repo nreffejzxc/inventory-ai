@@ -155,12 +155,12 @@ export function aiConfig() {
     // Set AI_THINKING_DISABLED=false only to restore the provider's own default (its
     // extended thinking on, if it has any) for an experiment; everything else, including an
     // empty or malformed value, keeps it off.
-    // AI-55 — reasoning is a PER-MODEL policy: `off` (the AI-54 default), `auto` (the model's
-    // own default, required by mandatory-reasoning models such as openai/gpt-oss-*), or
-    // `budget:<tokens>`. `AI_REASONING_MODELS_OPENROUTER` holds first-match-wins rules and
-    // `AI_REASONING_DEFAULT` is the fallback; `AI_THINKING_DISABLED=false` still means `auto`
-    // when the new default is unset, so an existing deployment behaves as it did. Resolved from
-    // the model the REQUEST names, which keeps failover candidates on their own policy.
+    // AI-55 — `AI_REASONING` is the simple switch: `enable` sends no reasoning field and lets
+    // the model use its own default (required by openai/gpt-oss-*); `disable` sends
+    // `thinking: { type: 'disabled' }` so the answer owns the output budget. It overrides the
+    // advanced `AI_REASONING_MODELS_OPENROUTER` rules and `AI_REASONING_DEFAULT`; those remain
+    // for per-model policies. `AI_THINKING_DISABLED=false` still means `auto` when the new
+    // default is unset, so an existing deployment behaves as it did.
     reasoning: reasoningSettings(process.env),
     maxToolIterations: positiveInt(process.env.AI_MAX_TOOL_ITERATIONS, 6),
     // AI-2 — how many times a turn retries a provider response that carries NO

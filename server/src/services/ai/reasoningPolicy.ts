@@ -1,22 +1,20 @@
 /**
- * AI-55 — reasoning is a PER-MODEL setting, resolved from the environment at request time.
+ * AI-55 — reasoning is configured with a simple switch, with optional per-model rules.
  *
- * WHY THIS EXISTS. AI-54 measured that hidden reasoning shares `max_tokens` with the answer on
- * this gateway, so the assistant asked for it to be OFF — for every model, in one global flag.
- * That is correct for the free chain (a 400-token budget once went 400/400 to `thinking` and
- * produced no answer), but it is wrong for models that REQUIRE reasoning. OpenRouter refuses
- * such a model with:
+ * AI-54 disabled reasoning globally, which is correct for the free chain but wrong for a model
+ * that REQUIRES it. OpenRouter answers such a model with:
  *
  *   invalid_request_error: "Reasoning is mandatory for this endpoint and cannot be disabled."
  *
  * `openai/gpt-oss-*` is one of them, so switching `AI_MODEL_OPENROUTER` to a paid gpt-oss id was
- * enough to break every turn even though the model itself was fine. There is no global value
- * that suits both families, so the setting is chosen per model.
+ * enough to break every turn. `AI_REASONING` makes the choice explicit without a source change:
+ * `enable` sends no reasoning field (the model's own default), and `disable` sends
+ * `thinking: { type: 'disabled' }` (the free-chain behaviour).
  *
- * CONFIGURATION, NOT CODE. `AI_REASONING_MODELS_OPENROUTER` is an ordered list of
- * `pattern=mode` rules; `AI_REASONING_DEFAULT` is the fallback. Adding a model of either kind
- * is one `.env` line, and because the rule is resolved from the model the REQUEST names, a
- * failover candidate gets its own policy — the two mechanisms cannot disagree.
+ * ADVANCED. `AI_REASONING_MODELS_OPENROUTER` is an ordered list of `pattern=mode` rules and
+ * `AI_REASONING_DEFAULT` is the fallback. When `AI_REASONING` is set, it deliberately overrides
+ * both, so one value applies to the primary and every failover candidate. The rules remain
+ * supported for deployments that need a different policy per model.
  *
  * MODES.
  *   `off`       ask the gateway to disable reasoning. The AI-54 default: the answer owns the
@@ -24,10 +22,10 @@
  *   `auto`      send no reasoning field and let the model use its own default. The correct
  *               value for a mandatory-reasoning model.
  *   `budget:N`  allow up to N reasoning tokens (N >= 1024 and below `AI_MAX_OUTPUT_TOKENS`).
- *               Useful for a signed-reasoning model; see the replay note in `anthropicWire.ts`.
  *
  * An unrecognised value never changes behaviour silently: it is returned in `ignored` (or
- * `defaultProblem`) so `npm run ai:check` can name it, while the safe default still applies.
+ * `defaultProblem`/`simpleProblem`) so `npm run ai:check` can name it, while the safe default
+ * still applies.
  */
 
 export type ReasoningMode = 'off' | 'auto' | 'budget';
@@ -47,6 +45,10 @@ export interface ReasoningSettings {
   rules: ReasoningRule[];
   /** Rule entries that could not be parsed, verbatim, for an operator-facing warning. */
   ignored: string[];
+  /** Set when `AI_REASONING` is present and valid; it overrides the advanced settings. */
+  simplePolicy: ReasoningPolicy | null;
+  /** Set when `AI_REASONING` is present but is not enable/disable. */
+  simpleProblem: string | null;
   defaultPolicy: ReasoningPolicy;
   /** Set when `AI_REASONING_DEFAULT` was present but unusable. */
   defaultProblem: string | null;
@@ -54,7 +56,7 @@ export interface ReasoningSettings {
 
 export interface ResolvedReasoningPolicy {
   policy: ReasoningPolicy;
-  source: 'model' | 'default';
+  source: 'simple' | 'model' | 'default';
 }
 
 /** Anthropic's documented floor for `budget_tokens`; below it the gateway refuses the request. */
@@ -81,6 +83,24 @@ export function parseReasoningPolicy(raw: string | undefined | null): ReasoningP
     if (Number.isFinite(tokens) && tokens >= MIN_REASONING_BUDGET) {
       return { mode: 'budget', budgetTokens: tokens };
     }
+  }
+  return null;
+}
+
+/**
+ * `AI_REASONING` -> the simple switch policy, or null when it is not enable/disable.
+ *
+ * The two documented values map to the same modes the advanced rules use (`enable` -> auto,
+ * `disable` -> off). The boolean spellings are accepted too, so an existing value can move across.
+ */
+export function parseSimpleReasoning(raw: string | undefined | null): ReasoningPolicy | null {
+  const value = String(raw ?? '').trim().toLowerCase();
+  if (!value) return null;
+  if (value === 'enable' || value === 'enabled' || value === 'on' || value === 'true' || value === 'auto') {
+    return { mode: 'auto' };
+  }
+  if (value === 'disable' || value === 'disabled' || value === 'off' || value === 'none' || value === 'false') {
+    return { mode: 'off' };
   }
   return null;
 }
@@ -129,11 +149,31 @@ export function reasoningPatternMatches(pattern: string, model: string): boolean
 /**
  * The environment as one settings object.
  *
- * `AI_REASONING_DEFAULT` wins when set. When it is unset, the legacy `AI_THINKING_DISABLED`
- * keeps its old meaning — only an explicit `false` restores the model's own default — so an
- * existing deployment that never adopted the new variable behaves exactly as it did after AI-54.
+ * The simple `AI_REASONING` switch wins when present and valid. It returns early with empty
+ * advanced rules, so a stale `AI_REASONING_MODELS_OPENROUTER` cannot override the one setting the
+ * operator chose. When it is absent, the advanced rules/default apply; when it is invalid, the
+ * value is reported in `simpleProblem` and the advanced/default path still supplies a safe
+ * policy. Legacy `AI_THINKING_DISABLED=false` keeps its old meaning when no new default is set.
  */
 export function reasoningSettings(env: Record<string, string | undefined> = process.env): ReasoningSettings {
+  const configuredSimple = (env.AI_REASONING ?? '').trim();
+  const simplePolicy = configuredSimple ? parseSimpleReasoning(configuredSimple) : null;
+  const simpleProblem =
+    configuredSimple && !simplePolicy
+      ? 'AI_REASONING must be enable or disable; using the existing reasoning settings.'
+      : null;
+
+  if (simplePolicy) {
+    return {
+      rules: [],
+      ignored: [],
+      defaultPolicy: simplePolicy,
+      defaultProblem: null,
+      simplePolicy,
+      simpleProblem: null,
+    };
+  }
+
   const { rules, ignored } = parseReasoningRules(env.AI_REASONING_MODELS_OPENROUTER);
   const configuredDefault = (env.AI_REASONING_DEFAULT ?? '').trim();
   let defaultPolicy: ReasoningPolicy = { mode: 'off' };
@@ -150,7 +190,7 @@ export function reasoningSettings(env: Record<string, string | undefined> = proc
     defaultPolicy = { mode: 'auto' };
   }
 
-  return { rules, ignored, defaultPolicy, defaultProblem };
+  return { rules, ignored, defaultPolicy, defaultProblem, simplePolicy: null, simpleProblem };
 }
 
 /** The first rule naming this model, else the default. */
@@ -158,6 +198,8 @@ export function resolveReasoningPolicy(
   model: string,
   settings: ReasoningSettings,
 ): ResolvedReasoningPolicy {
+  if (settings.simplePolicy) return { policy: settings.simplePolicy, source: 'simple' };
+
   const id = String(model ?? '').trim();
   if (id) {
     for (const rule of settings.rules) {
@@ -200,6 +242,7 @@ export function describeReasoningPolicy(policy: ReasoningPolicy): string {
 
 export default {
   parseReasoningPolicy,
+  parseSimpleReasoning,
   parseReasoningRules,
   reasoningPatternMatches,
   reasoningSettings,

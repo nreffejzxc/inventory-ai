@@ -11,6 +11,10 @@
  *
  *   * no configuration still means `off`, so every existing free-model deployment is byte-for-byte
  *     unchanged (AI-54's behaviour);
+ *   * `AI_REASONING=enable|disable` is the simple switch: enable omits the field and lets every
+ *     model (primary or failover) use its own default; disable sends `thinking: disabled`;
+ *   * a valid simple switch overrides the advanced rules; an invalid one is reported and the
+ *     advanced/default path keeps the safe behaviour;
  *   * `auto` omits the field and lets the model use its own default;
  *   * a per-model rule overrides the default for THAT model only, and the resolution follows the
  *     model the request names — which is the model a failover candidate names;
@@ -29,6 +33,7 @@ import { unitSuite } from './testEnv.mjs';
 import { createAnthropicCompatibleProvider } from '../src/services/ai/providers/anthropicWire.ts';
 import {
   parseReasoningPolicy,
+  parseSimpleReasoning,
   reasoningSettings,
   resolveReasoningPolicy,
   thinkingFieldFor,
@@ -38,6 +43,7 @@ process.env.AI_INVENTORY_TEST_KEY = 'not-a-real-key'; // secret-guard:allow — 
 
 const KEYS = [
   'AI_MODEL_OPENROUTER',
+  'AI_REASONING',
   'AI_REASONING_DEFAULT',
   'AI_REASONING_MODELS_OPENROUTER',
   'AI_THINKING_DISABLED',
@@ -96,7 +102,7 @@ async function ask(model) {
   });
 }
 
-unitSuite('AI-55 reasoning is a per-model policy', () => {
+unitSuite('AI-55 reasoning uses a simple switch with per-model overrides', () => {
   it('keeps AI-54 behaviour when nothing is configured: reasoning is off', async () => {
     await withEnv({}, async () => {
       const stub = stubFetch();
@@ -118,6 +124,67 @@ unitSuite('AI-55 reasoning is a per-model policy', () => {
       } finally {
         stub.restore();
       }
+    });
+  });
+
+  it('AI_REASONING=enable lets every model use its own default, overriding rules', async () => {
+    const settings = reasoningSettings({
+      AI_REASONING: 'enable',
+      AI_REASONING_MODELS_OPENROUTER: '*=off',
+    });
+    assert.equal(settings.rules.length, 0, 'the simple switch ignores advanced rules');
+    assert.deepEqual(resolveReasoningPolicy('any/model', settings), {
+      policy: { mode: 'auto' },
+      source: 'simple',
+    });
+
+    await withEnv(
+      { AI_REASONING: 'enable', AI_REASONING_MODELS_OPENROUTER: '*=off' },
+      async () => {
+        const stub = stubFetch();
+        try {
+          await ask('openai/gpt-oss-120b');
+          await ask('nvidia/nemotron-3.5-lightning:free');
+          assert.equal('thinking' in stub.bodies[0], false);
+          assert.equal('thinking' in stub.bodies[1], false);
+        } finally {
+          stub.restore();
+        }
+      },
+    );
+  });
+
+  it('AI_REASONING=disable sends disabled for every model, overriding rules', async () => {
+    await withEnv(
+      { AI_REASONING: 'disable', AI_REASONING_MODELS_OPENROUTER: '*=auto' },
+      async () => {
+        const stub = stubFetch();
+        try {
+          await ask('nvidia/nemotron-3.5-lightning:free');
+          await ask('anthropic/claude-sonnet-4.5');
+          assert.deepEqual(stub.bodies[0].thinking, { type: 'disabled' });
+          assert.deepEqual(stub.bodies[1].thinking, { type: 'disabled' });
+        } finally {
+          stub.restore();
+        }
+      },
+    );
+  });
+
+  it('reports an invalid AI_REASONING and keeps the advanced fallback', () => {
+    assert.deepEqual(parseSimpleReasoning('enable'), { mode: 'auto' });
+    assert.deepEqual(parseSimpleReasoning('disable'), { mode: 'off' });
+    assert.equal(parseSimpleReasoning('budget:1024'), null, 'AI_REASONING is enable/disable only');
+
+    const settings = reasoningSettings({
+      AI_REASONING: 'sometimes',
+      AI_REASONING_DEFAULT: 'auto',
+    });
+    assert.equal(settings.simplePolicy, null);
+    assert.match(settings.simpleProblem, /AI_REASONING must be enable or disable/);
+    assert.deepEqual(resolveReasoningPolicy('any/model', settings), {
+      policy: { mode: 'auto' },
+      source: 'default',
     });
   });
 

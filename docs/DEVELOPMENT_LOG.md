@@ -115,26 +115,28 @@ Known limits, checked before spending one of them:
 
 ---
 
-## 2026-11-07 — AI-55: reasoning is chosen per model
+## 2026-11-07 — AI-55: reasoning follows the model, with a simple switch
 
 **Why.** AI-54 disabled reasoning globally. Models that require it, such as
 `openai/gpt-oss-*`, then failed every turn with HTTP 400. One global value cannot
 serve both mandatory-reasoning and free-chain models.
 
-**Changed.** `AI_REASONING_DEFAULT` and `AI_REASONING_MODELS_OPENROUTER` resolve
-`off`, `auto`, or `budget:<tokens>` for the model the request names; first match
-wins, `off` remains the default, and `AI_THINKING_DISABLED=false` still means
-`auto`. The probe sends the same setting as the turn, so a bad rule fails in
-`npm run ai:check` instead of on a member's turn. Guide 16 and the README config
-table document the modes.
+**Changed.** `AI_REASONING=enable` omits the reasoning field and lets the model use
+its own default (required by `openai/gpt-oss-*`); `disable` sends
+`thinking: { type: 'disabled' }` (the free-chain behaviour). It deliberately
+overrides the advanced `AI_REASONING_DEFAULT` and
+`AI_REASONING_MODELS_OPENROUTER` rules, which remain for deployments that need a
+policy per model; `AI_THINKING_DISABLED=false` still means `auto` when the new
+default is unset. The probe sends the same setting as the turn, and an invalid
+`AI_REASONING` fails `npm run ai:check` with the accepted values. Guide 16 and the
+README config table document the two-variable switch.
 
-**Verified.** Typecheck and lint exit 0. Targeted reasoning/failover tests:
-104 tests, 97 pass, 7 skipped, 0 fail. Full unit suite: 1,905 tests, 1,844 pass,
-61 skipped, 0 fail. `check-docs` and `check-secrets` exit 0; `git diff --check`
-clean.
+**Verified.** Typecheck and lint exit 0. Targeted reasoning tests: 15 tests,
+15 pass, 0 skipped, 0 fail. Full unit suite: 1,908 tests, 1,847 pass, 61 skipped,
+0 fail. `check-docs` and `check-secrets` exit 0; `git diff --check` clean.
 
-**State.** Branch `fix/ai-55-per-model-reasoning`; PR opening for review. The
-separate environment-template cleanup remains outside this branch.
+**State.** Branch `fix/ai-55-per-model-reasoning`; PR #180. The separate
+environment-template cleanup remains outside this branch.
 ## 2026-11-07 — Firebase credential rotated; production sign-in restored
 
 | Item | Evidence |

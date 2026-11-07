@@ -58,19 +58,27 @@ const catalogue = await checkModelCatalogue();
 line('model', catalogue.model || '(unset)');
 line('catalogue', `${catalogue.status} — ${catalogue.message}`);
 
-// AI-55 — reasoning is a per-model setting, so the check prints the policy the assistant will
-// actually send. A model that REQUIRES reasoning fails the probe when its policy is `off`,
-// which is the failure this line exists to make visible before a member meets it.
+// AI-55 — `AI_REASONING` is the simple switch (`enable`/`disable`); when it is unset, the
+// check prints the advanced rule or default the assistant will actually send. A model that
+// REQUIRES reasoning fails the probe when its policy is `off`, which is the failure this line
+// exists to make visible before a member meets it.
 const reasoning = reasoningSettings();
 const primaryReasoning = resolveReasoningPolicy(catalogue.model, reasoning);
+let sourceLabel = 'default';
+if (primaryReasoning.source === 'simple') sourceLabel = 'AI_REASONING';
+else if (primaryReasoning.source === 'model') sourceLabel = 'model rule';
 line(
   'reasoning',
-  `${describeReasoningPolicy(primaryReasoning.policy)} — ${primaryReasoning.source === 'model' ? 'model rule' : 'default'}`,
+  `${describeReasoningPolicy(primaryReasoning.policy)} — ${sourceLabel}`,
 );
 if (reasoning.ignored.length > 0) {
   line('ignored', `${reasoning.ignored.length} malformed reasoning rule(s): ${reasoning.ignored.join('; ')}`);
 }
 if (reasoning.defaultProblem) line('warning', reasoning.defaultProblem);
+if (reasoning.simpleProblem) {
+  console.error(`[ai:check] FAILED — ${reasoning.simpleProblem}`);
+  process.exit(1);
+}
 
 if (catalogue.status === 'not_applicable') {
   // No AI in this environment is a legitimate state (the tests, a docs build), so it is NOT a
@@ -95,6 +103,22 @@ if (catalogue.status === 'unreachable') {
 // `--probe` column is the live half, because a declaration is not a demonstration — a model can
 // declare `tools` and still use them badly.
 const candidates = parseCandidates();
+
+// AI-55 — catch the known incompatible pair before spending a probe request. gpt-oss models
+// reject `thinking: disabled`; the upstream answer is a 400, but naming the switch is clearer.
+const mandatoryReasoning = [catalogue.model, ...candidates].find(
+  (id) => /gpt-oss/i.test(id) && resolveReasoningPolicy(id, reasoning).policy.mode === 'off',
+);
+if (mandatoryReasoning) {
+  console.error(
+    `[ai:check] FAILED — ${mandatoryReasoning} requires reasoning, but its policy is off.`,
+  );
+  console.error(
+    '[ai:check] Set AI_REASONING=enable, or add a model rule such as openai/gpt-oss-*=auto.',
+  );
+  process.exit(1);
+}
+
 const capabilityStatus = await refreshModelCapabilities();
 
 if (candidates.length === 0) {
