@@ -102,6 +102,7 @@ const PURE_UNIT = [
   'AI72-business-wide-scope.test.mjs', // AI-72: a business-wide question is recognised, a place carried over from an earlier turn is relabelled out of the answer, and the answer's own single `at <place>` scope is detected while a two-location breakdown is left alone
   'AI73-dead-stock-routing.test.mjs', // AI-73: dead-stock wording is recognised, stock-level wording is not rewritten, and the reads are routed to getProductsNeverSold before they run (scope kept, a missing read added, a mixed question kept whole)
   'AI84-language-policy.test.mjs', // AI-84: the prompt follows the member's latest language, keeps Bisaya and Tagalog distinct, and does not switch to English just because tool output is English
+  'AI86-research-efficiency.test.mjs', // AI-86: independent evidence outranks a vendor's own pages for reviews (while specifications keep the manufacturer first), one host cannot fill the citation list, and token accounting reads both OpenRouter wire shapes including cache tokens
 ];
 const PURE_DB = [
   'INVENTORY-IDEMPOTENCY.test.mjs', // §27GZ: one operation, one movement — the same Idempotency-Key delivered twice writes one ledger row and replays the first answer for stock in, stock out, adjustment, transfer, PO create and PO receive; a different key applies in full; a reused key with a changed body is 422 with no row; no key behaves as before; and a 409 that reports `applied` lines is replayed instead of re-run
