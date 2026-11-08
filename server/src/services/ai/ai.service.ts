@@ -1565,7 +1565,7 @@ export async function runAiChat({
         : toolController.signal;
       try {
         output = await withBudget(
-          executeTool(name, toolInput, { businessId, userId, role, timeZone, signal: toolSignal }),
+          executeTool(name, toolInput, { businessId, userId, role, timeZone, signal: toolSignal, deadlineAt }),
           toolBudgetMs,
           signal,
         );

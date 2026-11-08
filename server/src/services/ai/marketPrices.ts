@@ -27,6 +27,7 @@ import {
   fetchPublicPage,
   searchFreeWeb,
   type FreeSearchFailureReason,
+  type FreeSearchResult,
 } from './freeWeb.ts';
 import { chatCompletionsUrlFromBase, type ResearchSource } from './webResearch.ts';
 
@@ -683,14 +684,31 @@ async function priceEvidenceFromQuery({
   query,
   retrievedAt,
   signal,
+  deadlineAt,
 }: {
   subject: PriceSubject;
   query: string;
   retrievedAt: string;
   signal?: AbortSignal;
+  deadlineAt?: number;
 }): Promise<QueryEvidence> {
   throwIfAborted(signal);
-  const search = await searchFreeWeb(query, { limit: FREE_SEARCH_RESULTS, signal });
+  const outOfTime = () => deadlineAt !== undefined && Date.now() >= deadlineAt;
+  if (outOfTime()) return { listings: [], sources: [], reason: 'SEARCH_TIMEOUT', answered: false };
+  const left = deadlineAt === undefined ? undefined : Math.max(1, deadlineAt - Date.now());
+  const searchSignal =
+    left === undefined
+      ? signal
+      : signal
+        ? AbortSignal.any([signal, AbortSignal.timeout(left)])
+        : AbortSignal.timeout(left);
+  let search: FreeSearchResult;
+  try {
+    search = await searchFreeWeb(query, { limit: FREE_SEARCH_RESULTS, signal: searchSignal });
+  } catch {
+    throwIfAborted(signal);
+    return { listings: [], sources: [], reason: 'SEARCH_TIMEOUT', answered: false };
+  }
   throwIfAborted(signal);
   const searchedUrls = search.sources.map((source) => source.url);
   if (search.sources.length === 0) {
@@ -724,6 +742,16 @@ async function priceEvidenceFromQuery({
     );
   }
 
+  if (outOfTime()) {
+    return {
+      listings,
+      sources,
+      reason: listings.length > 0 ? undefined : 'SEARCH_TIMEOUT',
+      answered: true,
+      searchedUrls,
+    };
+  }
+
   const candidates = search.sources
     .filter((source) => !listings.some((listing) => listing.url === source.url))
     .map((source, index) => ({ source, index, hint: productPageHint(source.url) }))
@@ -734,7 +762,12 @@ async function priceEvidenceFromQuery({
     .map((row) => row.source);
   const pages = await mapLimit(candidates, FREE_PAGE_CONCURRENCY, async (source) => {
     throwIfAborted(signal);
-    const page = await fetchPublicPage(source.url, { signal });
+    const page = await fetchPublicPage(source.url, {
+      signal,
+      ...(deadlineAt === undefined
+        ? {}
+        : { timeoutMs: Math.max(500, deadlineAt - Date.now()) }),
+    });
     throwIfAborted(signal);
     if (!page.ok) return null;
     // Structured price tokens come first so a stored price is found even when the
@@ -774,15 +807,18 @@ async function searchSubjectPricesFree({
   subject,
   retrievedAt,
   signal,
+  deadlineAt,
 }: {
   subject: PriceSubject;
   retrievedAt: string;
   signal?: AbortSignal;
+  deadlineAt?: number;
 }): Promise<SubjectSearchResult> {
   throwIfAborted(signal);
+  const outOfTime = () => deadlineAt !== undefined && Date.now() >= deadlineAt;
   const query = freePriceQuery(subject);
   const queries = [query];
-  let evidence = await priceEvidenceFromQuery({ subject, query, retrievedAt, signal });
+  let evidence = await priceEvidenceFromQuery({ subject, query, retrievedAt, signal, deadlineAt });
 
   // A name-only query can rank a marketplace listing below review pages that quote
   // no price. One bounded retry asks for the exact phrase instead: unquoted words find
@@ -793,7 +829,7 @@ async function searchSubjectPricesFree({
   // A search that timed out or was refused gains nothing from a second query to the
   // same engine, so the retry waits for an answered search with no priced product page.
   let retryQuery: string | null = null;
-  if (evidence.listings.length === 0 && evidence.answered) {
+  if (evidence.listings.length === 0 && evidence.answered && !outOfTime()) {
     const carriedByName = brand !== '' && subject.name.toLowerCase().includes(brand.toLowerCase());
     const retry = [carriedByName ? '' : brand, `"${subject.name}"`, 'price'].filter(Boolean).join(' ');
     if (retry !== query) {
@@ -801,12 +837,18 @@ async function searchSubjectPricesFree({
       throwIfAborted(signal);
       queries.push(retry);
       retryQuery = retry;
-      const second = await priceEvidenceFromQuery({ subject, query: retry, retrievedAt, signal });
+      const second = await priceEvidenceFromQuery({
+        subject,
+        query: retry,
+        retrievedAt,
+        signal,
+        deadlineAt,
+      });
       if (second.listings.length > 0) evidence = second;
     }
   }
 
-  if (retryQuery && evidence.listings.length === 0) {
+  if (retryQuery && evidence.listings.length === 0 && !outOfTime()) {
     // AI-52 — the keyless engine's answer is random per call, not per query: the same
     // `Keychron K8 Pro price` query answered DataBlitz, keychron.com and keychron.ph on
     // one call and nothing usable on the next (measured 2026-11-04, and the reason the
@@ -815,12 +857,23 @@ async function searchSubjectPricesFree({
     // unresearched; `searchedQueries` still lists each distinct query once.
     await new Promise((resolve) => setTimeout(resolve, 300));
     throwIfAborted(signal);
-    const again = await priceEvidenceFromQuery({ subject, query: retryQuery, retrievedAt, signal });
+    const again = await priceEvidenceFromQuery({
+      subject,
+      query: retryQuery,
+      retrievedAt,
+      signal,
+      deadlineAt,
+    });
     if (again.listings.length > 0) evidence = again;
   }
 
   if (evidence.listings.length === 0) {
-    return { listings: [], sources: [], reason: evidence.reason ?? 'NO_PRICE_FOUND', searchedQueries: queries };
+    return {
+      listings: [],
+      sources: [],
+      reason: outOfTime() ? 'SEARCH_TIMEOUT' : evidence.reason ?? 'NO_PRICE_FOUND',
+      searchedQueries: queries,
+    };
   }
   return { ...evidence, searchedQueries: queries };
 }
@@ -889,14 +942,25 @@ async function checkStore({
   hint,
   retrievedAt,
   signal,
+  deadlineAt,
 }: {
   subject: PriceSubject;
   hint: StoreHint;
   retrievedAt: string;
   signal?: AbortSignal;
+  deadlineAt?: number;
 }): Promise<StoreCheck> {
   const query = storeQuery(hint, subject);
-  const evidence = await priceEvidenceFromQuery({ subject, query, retrievedAt, signal });
+  if (deadlineAt !== undefined && Date.now() >= deadlineAt) {
+    return { store: hint.label, query, listings: [], pages: [], reachedStore: false };
+  }
+  const evidence = await priceEvidenceFromQuery({
+    subject,
+    query,
+    retrievedAt,
+    signal,
+    deadlineAt,
+  });
   const listings = evidence.listings.filter((listing) => hostMatchesStore(listing.url, hint));
   const pages = (evidence.searchedUrls ?? []).filter((url) => hostMatchesStore(url, hint)).slice(0, 4);
   return {
@@ -1140,8 +1204,11 @@ export async function researchMarketPrices({
   subjects,
   stores,
   signal,
+  deadlineAt,
 }: {
   subjects: PriceSubject[];
+  /** Absolute time this tool must stop at, leaving the turn room to answer. */
+  deadlineAt?: number;
   /**
    * The turn's cancellation signal. The free search ladder can outlast a turn
    * (several 9 s attempts per query, then four page fetches per subject), so it
@@ -1163,6 +1230,8 @@ export async function researchMarketPrices({
     return failure('NO_PRICE_FOUND', [], retrievedAt);
   }
   throwIfAborted(signal);
+  const outOfTime = () => deadlineAt !== undefined && Date.now() >= deadlineAt;
+  if (outOfTime()) return failure('SEARCH_TIMEOUT', safeSubjects, retrievedAt);
 
   const cfg = aiConfig();
 
@@ -1175,13 +1244,25 @@ export async function researchMarketPrices({
       .slice(0, MAX_STORE_CHECKS);
     const [results, checks] = await Promise.all([
       Promise.all(
-        safeSubjects.map((subject) => searchSubjectPricesFree({ subject, retrievedAt, signal })),
+        safeSubjects.map((subject) =>
+          searchSubjectPricesFree({ subject, retrievedAt, signal, deadlineAt }),
+        ),
       ),
-      Promise.all(pairs.map(({ hint, subject }) => checkStore({ subject, hint, retrievedAt, signal }))),
+      Promise.all(
+        pairs.map(({ hint, subject }) => checkStore({ subject, hint, retrievedAt, signal, deadlineAt })),
+      ),
     ]);
     const collected = collectPriceResults(results, safeSubjects, retrievedAt);
-    if (checks.length === 0) return collected;
-    return {
+    const withBudgetNote = (result: MarketPriceResult): MarketPriceResult =>
+      outOfTime()
+        ? {
+            ...result,
+            ...(result.available ? {} : { reason: 'SEARCH_TIMEOUT' as PriceFailureReason }),
+            note: `${result.note} Research stopped at its time budget, so some listings may be missing; quote only the listings returned.`,
+          }
+        : result;
+    if (checks.length === 0) return withBudgetNote(collected);
+    return withBudgetNote({
       ...collected,
       storeChecks: checks,
       searchedQueries: uniqueStrings([
@@ -1192,7 +1273,7 @@ export async function researchMarketPrices({
         ...collected.targetedMarketplaces,
         ...checks.map((check) => check.store),
       ]),
-    };
+    });
   }
 
   const apiKey = (process.env.OPENROUTER_API_KEY || '').trim();
@@ -1211,6 +1292,7 @@ export async function researchMarketPrices({
   const results: SubjectSearchResult[] = [];
   for (let index = 0; index < safeSubjects.length; index += MAX_CONCURRENT_SUBJECTS) {
     throwIfAborted(signal);
+    if (outOfTime()) break;
     const chunk = safeSubjects.slice(index, index + MAX_CONCURRENT_SUBJECTS);
     const settled = await Promise.all(
       chunk.map((subject) =>

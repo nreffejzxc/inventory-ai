@@ -26,7 +26,7 @@
  */
 
 import { aiConfig } from './aiConfig.ts';
-import { decodeHtmlEntities, searchFreeWeb } from './freeWeb.ts';
+import { decodeHtmlEntities, searchFreeWeb, type FreeSearchResult } from './freeWeb.ts';
 
 export type ResearchFocus = 'overall' | 'quality' | 'affordability' | 'reliability' | 'specifications';
 
@@ -74,6 +74,8 @@ export interface ResearchResult {
   unresearched?: string[];
   /** Brands beyond the bounded research fan-out, named rather than silently dropped. */
   omittedBrands?: string[];
+  /** True when the research budget, not the web, ended the search. */
+  partial?: boolean;
   note: string;
 }
 
@@ -398,8 +400,11 @@ function brandsOf(subjects: ResearchSubject[]) {
   return [...new Set(subjects.map((subject) => subject.brand).filter((brand): brand is string => Boolean(brand)))];
 }
 
-function noteFor(unresearched: string[], omittedBrands: string[]) {
+function noteFor(unresearched: string[], omittedBrands: string[], partial = false) {
   const notes = [WEB_RESEARCH_NOTE];
+  if (partial) {
+    notes.push('Research stopped at its time budget, so the evidence is partial; cite only the sources returned and say which subjects were not reached.');
+  }
   if (unresearched.length) {
     notes.push(`No sourced finding was returned for: ${unresearched.join(', ')}.`);
   }
@@ -416,7 +421,7 @@ function failure(reason: ResearchFailureReason, subjects: ResearchSubject[], ext
     findings: [],
     sources: [],
     brandsRecorded: brandsOf(subjects),
-    note: noteFor(extra.unresearched ?? [], extra.omittedBrands ?? []),
+    note: noteFor(extra.unresearched ?? [], extra.omittedBrands ?? [], extra.partial === true),
     ...extra,
   };
 }
@@ -431,6 +436,7 @@ interface GroupResult {
   findings: ResearchFinding[];
   sources: ResearchSource[];
   reason?: ResearchFailureReason;
+  partial?: boolean;
 }
 
 /**
@@ -686,46 +692,69 @@ export function fallbackQuery(group: ResearchGroup, focus: ResearchFocus, simple
 async function searchFallback({
   group,
   focus,
+  deadlineAt,
 }: {
   group: ResearchGroup;
   focus: ResearchFocus;
+  deadlineAt?: number;
 }): Promise<GroupResult> {
-  const first = await searchFreeWeb(fallbackQuery(group, focus), { limit: SOURCES_PER_GROUP });
+  const outOfTime = () => deadlineAt !== undefined && Date.now() >= deadlineAt;
+  let partial = false;
+  const search = async (query: string): Promise<FreeSearchResult> => {
+    if (outOfTime()) {
+      partial = true;
+      return { sources: [], reason: 'SEARCH_TIMEOUT' };
+    }
+    const left = deadlineAt === undefined ? undefined : Math.max(1, deadlineAt - Date.now());
+    try {
+      return await searchFreeWeb(query, {
+        limit: SOURCES_PER_GROUP,
+        ...(left === undefined ? {} : { signal: AbortSignal.timeout(left) }),
+      });
+    } catch {
+      if (outOfTime()) partial = true;
+      return { sources: [], reason: 'SEARCH_TIMEOUT' };
+    }
+  };
+  const first = await search(fallbackQuery(group, focus));
   let sources = relevantSources(group, first.sources);
   let reason = first.reason;
   let brandOnly = false;
   let answered = first.sources.length > 0;
-  if (sources.length === 0 && first.sources.length > 0) {
+  if (sources.length === 0 && first.sources.length > 0 && !outOfTime()) {
     // Results arrived but named none of the recorded subjects — the engine matched the
     // first word of the brand instead of the product. One bounded retry, phrased to keep
     // it anchored (see `broadQuery`), and every attempt filters its results the same way.
     await new Promise((resolve) => setTimeout(resolve, 300));
-    const broad = await searchFreeWeb(broadQuery(group, focus), { limit: SOURCES_PER_GROUP });
+    const broad = await search(broadQuery(group, focus));
     sources = relevantSources(group, broad.sources);
     answered = answered || broad.sources.length > 0;
     reason = sources.length > 0 ? broad.reason : reason ?? broad.reason;
   }
-  if (sources.length === 0) {
+  if (sources.length === 0 && !outOfTime()) {
     // A long product-name query can miss a small brand. Retry once with just
     // the recorded brand before declaring it unresearched; the retry is bounded
     // and still supplies only public result snippets.
     await new Promise((resolve) => setTimeout(resolve, 300));
-    const second = await searchFreeWeb(fallbackQuery(group, focus, true), {
-      limit: SOURCES_PER_GROUP,
-    });
+    const second = await search(fallbackQuery(group, focus, true));
     sources = relevantSources(group, second.sources);
     answered = answered || second.sources.length > 0;
     reason = second.reason ?? reason;
     brandOnly = Boolean(group.brand);
   }
-  if (sources.length === 0 && !answered && (reason === 'SEARCH_UNAVAILABLE' || reason === 'SEARCH_TIMEOUT')) {
+  if (
+    sources.length === 0 &&
+    !answered &&
+    !outOfTime() &&
+    (reason === 'SEARCH_UNAVAILABLE' || reason === 'SEARCH_TIMEOUT')
+  ) {
     // AI-53 — the engine refused or timed out without answering at all. That is what a
     // burst throttle looks like (measured 2026-11-04: three parallel product groups were
     // answered with anomaly pages, and the same queries seconds later returned results),
     // so one delayed retry on the anchored shape is spent before the product is reported
     // unresearched. A product that really has no coverage fails the same query twice.
     await new Promise((resolve) => setTimeout(resolve, 1200));
-    const retry = await searchFreeWeb(broadQuery(group, focus), { limit: SOURCES_PER_GROUP });
+    const retry = await search(broadQuery(group, focus));
     sources = relevantSources(group, retry.sources);
     answered = answered || retry.sources.length > 0;
     if (sources.length > 0) {
@@ -733,7 +762,7 @@ async function searchFallback({
       brandOnly = false;
     }
   }
-  if (sources.length === 0 && answered) {
+  if (sources.length === 0 && answered && !outOfTime()) {
     // AI-52 — the engine's junk answer is random per call, not per query: asked
     // `"Keychron K8 Pro" keyboard quality review` twice it answered GitHub's ChatGPT
     // topics, then YouTube, while `Keychron K8 Pro review` answered Tom's Hardware and
@@ -741,7 +770,7 @@ async function searchFallback({
     // call before the recorded product is reported unresearched — it is the same
     // bounded retry budget, just spent on the shape that has evidence of working.
     await new Promise((resolve) => setTimeout(resolve, 300));
-    const again = await searchFreeWeb(broadQuery(group, focus), { limit: SOURCES_PER_GROUP });
+    const again = await search(broadQuery(group, focus));
     sources = relevantSources(group, again.sources);
     if (sources.length > 0) {
       reason = again.reason;
@@ -749,14 +778,19 @@ async function searchFallback({
     }
   }
   if (sources.length === 0) {
-    return { findings: [], sources: [], reason: reason ?? 'NO_SOURCES' };
+    return {
+      findings: [],
+      sources: [],
+      reason: outOfTime() ? 'SEARCH_TIMEOUT' : reason ?? 'NO_SOURCES',
+      ...(partial || outOfTime() ? { partial: true } : {}),
+    };
   }
-  if (focus === 'specifications') {
+  if (focus === 'specifications' && !outOfTime()) {
     // A second, line-level search beside the recorded model (see `latestModelQuery`).
     // Its results go through the same subject filter, so a sibling model is evidence
     // about the line, not a new product the answer may recommend.
     await new Promise((resolve) => setTimeout(resolve, 300));
-    const latest = await searchFreeWeb(latestModelQuery(group), { limit: SOURCES_PER_GROUP });
+    const latest = await search(latestModelQuery(group));
     const known = new Set(sources.map((source) => source.url));
     for (const source of relevantSources(group, latest.sources)) {
       if (known.has(source.url)) continue;
@@ -765,8 +799,10 @@ async function searchFallback({
     }
   }
   const findings = findingsFromSources(group, sources, { brandOnly });
-  if (findings.length === 0) return { findings: [], sources, reason: 'NO_USABLE_FINDINGS' };
-  return { findings, sources };
+  if (findings.length === 0) {
+    return { findings: [], sources, reason: 'NO_USABLE_FINDINGS', ...(partial ? { partial } : {}) };
+  }
+  return { findings, sources, ...(partial ? { partial } : {}) };
 }
 
 async function searchGroup({
@@ -775,13 +811,16 @@ async function searchGroup({
   apiKey,
   baseUrl,
   model,
+  deadlineAt,
 }: {
   group: ResearchGroup;
   focus: ResearchFocus;
   apiKey: string;
   baseUrl: string;
   model: string;
+  deadlineAt?: number;
 }): Promise<GroupResult> {
+  const outOfTime = () => deadlineAt !== undefined && Date.now() >= deadlineAt;
   let response: Response;
   try {
     response = await fetch(chatCompletionsUrlFromBase(baseUrl), {
@@ -803,14 +842,23 @@ async function searchGroup({
         // not the JSON contract this module validates.
         plugins: [{ id: 'web', max_results: SOURCES_PER_GROUP }],
       }),
-      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+      signal: AbortSignal.timeout(
+        deadlineAt === undefined
+          ? REQUEST_TIMEOUT_MS
+          : Math.max(1, Math.min(REQUEST_TIMEOUT_MS, deadlineAt - Date.now())),
+      ),
     });
   } catch (err) {
     const name = (err as { name?: unknown } | null)?.name;
     if (name === 'TimeoutError' || name === 'AbortError') {
-      return { findings: [], sources: [], reason: 'SEARCH_TIMEOUT' };
+      return {
+        findings: [],
+        sources: [],
+        reason: 'SEARCH_TIMEOUT',
+        ...(outOfTime() ? { partial: true } : {}),
+      };
     }
-    return searchFallback({ group, focus });
+    return searchFallback({ group, focus, deadlineAt });
   }
 
   // The free allowance is shared by every research model. Do not spend three
@@ -822,11 +870,11 @@ async function searchGroup({
   try {
     const parsed: unknown = await response.json();
     if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-      return searchFallback({ group, focus });
+      return searchFallback({ group, focus, deadlineAt });
     }
     body = parsed as Record<string, unknown>;
   } catch {
-    return searchFallback({ group, focus });
+    return searchFallback({ group, focus, deadlineAt });
   }
 
   const choices = Array.isArray(body.choices) ? body.choices : [];
@@ -854,7 +902,7 @@ async function searchGroup({
     // give the final answer their titles/snippets rather than discarding them.
     const digest = findingsFromSources(group, sources);
     if (digest.length > 0) return { findings: digest, sources };
-    return searchFallback({ group, focus });
+    return searchFallback({ group, focus, deadlineAt });
   }
   return { findings, sources };
 }
@@ -882,12 +930,17 @@ function worstReason(reasons: Array<ResearchFailureReason | undefined>): Researc
 export async function researchInventoryWeb({
   subjects,
   focus = 'overall',
+  deadlineAt,
 }: {
   subjects: ResearchSubject[];
   focus?: ResearchFocus;
+  /** Absolute time the research must stop at, leaving the turn room to answer. */
+  deadlineAt?: number;
 }): Promise<ResearchResult> {
   const safeSubjects = subjects.filter((subject) => subject && subject.id && subject.name).slice(0, MAX_SUBJECTS);
   if (safeSubjects.length === 0) return failure('NO_USABLE_FINDINGS', []);
+  const outOfTime = () => deadlineAt !== undefined && Date.now() >= deadlineAt;
+  if (outOfTime()) return failure('SEARCH_TIMEOUT', safeSubjects, { partial: true });
 
   const apiKey = (process.env.OPENROUTER_API_KEY || '').trim();
   const cfg = aiConfig();
@@ -907,13 +960,20 @@ export async function researchInventoryWeb({
   // refused group still falls back to the no-key result list, and a group with no
   // result is named in `unresearched` rather than silently disappearing.
   const results: GroupResult[] = [];
+  const unresearched: string[] = [];
+  let skippedForBudget = false;
   for (let index = 0; index < groups.length; index += MAX_CONCURRENT_GROUPS) {
+    if (outOfTime()) {
+      skippedForBudget = true;
+      for (const group of groups.slice(index)) unresearched.push(groupName(group));
+      break;
+    }
     const chunk = groups.slice(index, index + MAX_CONCURRENT_GROUPS);
     const settled = await Promise.all(
       chunk.map((group) =>
         canUseResearchModel
-          ? searchGroup({ group, focus, apiKey, baseUrl, model })
-          : searchFallback({ group, focus }),
+          ? searchGroup({ group, focus, apiKey, baseUrl, model, deadlineAt })
+          : searchFallback({ group, focus, deadlineAt }),
       ),
     );
     results.push(...settled);
@@ -921,7 +981,6 @@ export async function researchInventoryWeb({
 
   const findings: ResearchFinding[] = [];
   const sources: ResearchSource[] = [];
-  const unresearched: string[] = [];
   const seenFindings = new Set<string>();
   const seenSources = new Set<string>();
   for (const [index, result] of results.entries()) {
@@ -940,11 +999,13 @@ export async function researchInventoryWeb({
     }
   }
 
+  const partial = skippedForBudget || results.some((result) => result.partial === true);
   if (findings.length === 0) {
     return failure(worstReason(results.map((result) => result.reason)), safeSubjects, {
       sources: sources.slice(0, MAX_SOURCES),
       unresearched,
       omittedBrands,
+      ...(partial ? { partial } : {}),
     });
   }
 
@@ -955,7 +1016,8 @@ export async function researchInventoryWeb({
     brandsRecorded: brandsOf(safeSubjects),
     ...(unresearched.length ? { unresearched } : {}),
     ...(omittedBrands.length ? { omittedBrands } : {}),
-    note: noteFor(unresearched, omittedBrands),
+    ...(partial ? { partial } : {}),
+    note: noteFor(unresearched, omittedBrands, partial),
   };
 }
 
