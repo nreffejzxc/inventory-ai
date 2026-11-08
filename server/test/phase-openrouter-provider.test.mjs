@@ -28,9 +28,11 @@ import { AI_OUTPUT_LIMIT, AiNotConfigured, AiProviderError, AiOutputLimit, AiQuo
 import { createOpenrouterProvider } from '../src/services/ai/providers/openrouterProvider.ts';
 import { providerRequiredEnv, selectProvider } from '../src/services/ai/providers/index.ts';
 import { validateProductionConfig } from '../src/config/validateConfig.ts';
-import { asksForWebResearch } from '../src/services/ai/webCapabilities.ts';
+import { asksForResearchModel, asksForWebResearch } from '../src/services/ai/webCapabilities.ts';
 import { AI_TOOL_DEFS } from '../src/services/ai/tools.ts';
 import { runAiChat } from '../src/services/ai/ai.service.ts';
+import { recordModelFailure, resetModelBreaker } from '../src/services/ai/modelBreaker.ts';
+import { promotedModel, resetModelSelection } from '../src/services/ai/modelSelection.ts';
 import { ROLES } from '../src/constants/roles.ts';
 import {
   startServer,
@@ -44,6 +46,7 @@ import { unitSuite, dbSuite } from './testEnv.mjs';
 
 const TEST_KEY = 'or_wire_test_key';
 const MODEL = 'test-vendor/tool-capable-model';
+const RESEARCH_MODEL = 'test-vendor/research-model';
 
 /** The shipped read-only catalogue, pinned by name so a rename cannot slip by. */
 const EXPECTED_TOOLS = [
@@ -203,6 +206,16 @@ const okTools = (calls) => ({
     usage: { input_tokens: 11, output_tokens: 7 },
   },
 });
+
+/** A final answer that also proves a native search happened, so the research guard is satisfied. */
+const okNativeText = (text) =>
+  okText(text, {
+    content: [
+      { type: 'server_tool_use', id: 'srvtoolu_test', name: 'web_search', input: {} },
+      { type: 'web_search_tool_result', tool_use_id: 'srvtoolu_test', content: [] },
+      { type: 'text', text },
+    ],
+  });
 
 before(async () => {
   server = http.createServer((req, res) => {
@@ -787,6 +800,50 @@ unitSuite('OpenRouter provider — configurable web tools', () => {
     }
   });
 
+  it('withholds configured server tools when the turn loop falls back to local research', async () => {
+    const restores = [withEnv('AI_WEB_SEARCH', 'enable'), withEnv('AI_WEB_FETCH', 'enable')];
+    try {
+      const provider = providerFor(`http://127.0.0.1:${port}/api`);
+      responder = () => okText('answer');
+      await provider.complete({
+        system: 's',
+        messages: [{ role: 'user', content: 'hi' }],
+        tools: AI_TOOL_DEFS,
+        nativeWeb: false,
+      });
+      const body = lastRequest().body;
+      assert.deepEqual(serverTools(body), []);
+      assert.equal(body.tools.length, AI_TOOL_DEFS.length, 'the local tools remain available');
+    } finally {
+      restoreAll(restores);
+    }
+  });
+
+  it('reports the native tools a response actually ran', async () => {
+    const restores = [withEnv('AI_WEB_SEARCH', 'enable'), withEnv('AI_WEB_FETCH', 'enable')];
+    try {
+      const provider = providerFor(`http://127.0.0.1:${port}/api`);
+      responder = () =>
+        okText('answer', {
+          content: [
+            { type: 'server_tool_use', id: 'srvtoolu_1', name: 'web_search', input: {} },
+            { type: 'web_search_tool_result', tool_use_id: 'srvtoolu_1', content: [] },
+            { type: 'server_tool_use', id: 'srvtoolu_2', name: 'web_fetch', input: {} },
+            { type: 'web_fetch_tool_result', tool_use_id: 'srvtoolu_2', content: {} },
+            { type: 'text', text: 'answer' },
+          ],
+        });
+      const result = await provider.complete({
+        system: 's',
+        messages: [{ role: 'user', content: 'hi' }],
+        tools: AI_TOOL_DEFS,
+      });
+      assert.deepEqual(result.webToolsUsed, ['search', 'fetch']);
+    } finally {
+      restoreAll(restores);
+    }
+  });
+
   it('does not attach either server tool to a final answer round with no tools', async () => {
     const restores = [withEnv('AI_WEB_SEARCH', 'enable'), withEnv('AI_WEB_FETCH', 'enable')];
     try {
@@ -820,11 +877,35 @@ unitSuite('OpenRouter provider — configurable web tools', () => {
       'Find product reviews for the Sony headset.',
       'Evaluate the quality and reliability of this brand.',
       'Find product recommendations for a laptop.',
+      'What is the market pricing for this headset?',
       'What is the current online price on Shopee?',
       'Fetch https://example.com and summarize it.',
       'Research this product.',
     ]) {
       assert.equal(asksForWebResearch(message), true, message);
+    }
+  });
+
+  it('routes only genuine research shapes to the stronger model', () => {
+    for (const message of [
+      'How many units are in Main Warehouse?',
+      'What is my best selling product?',
+      'Review my stock and tell me what is low.',
+      'Show me out-of-stock products.',
+      'What is the price of the Sony headset?',
+    ]) {
+      assert.equal(asksForResearchModel(message), false, message);
+    }
+    for (const message of [
+      'Find product reviews for the Sony headset.',
+      'Compare the Sony and Bose headsets.',
+      'What is the market pricing for this headset?',
+      'Which headset is better?',
+      'Should I buy the Sony or Bose?',
+      'What is the current online price on Shopee?',
+      'Research this product.',
+    ]) {
+      assert.equal(asksForResearchModel(message), true, message);
     }
   });
 
@@ -1049,6 +1130,95 @@ unitSuite('OpenRouter provider — AI loop compatibility (DB-free)', () => {
     }
   });
 
+  it('keeps ordinary inventory turns on the primary and routes research turns to the configured research model (AI-87)', async () => {
+    const restores = [
+      ...useOpenrouter(),
+      withEnv('AI_RESEARCH_MODEL_OPENROUTER', RESEARCH_MODEL),
+      withEnv('AI_FALLBACK_MODELS_OPENROUTER', undefined),
+      withEnv('AI_WEB_SEARCH', 'enable'),
+      withEnv('AI_WEB_FETCH', 'enable'),
+    ];
+    resetModelSelection();
+    resetModelBreaker();
+    try {
+      const seen = [];
+      responder = (body, turn) => {
+        seen.push(body.model);
+        if (body.model === RESEARCH_MODEL) return okNativeText('Reviews are positive.');
+        return turn === 1
+          ? okTools([{ id: 'i1', name: 'getInventorySummary', input: { plantedBusinessId: 'attacker' } }])
+          : okText('You hold 12 units.');
+      };
+
+      await runAiChat({ ...ctx, message: 'How many units are in Main Warehouse?' });
+      assert.ok(
+        seen.every((model) => model === MODEL),
+        'an ordinary inventory turn stays on the primary, including its tool round',
+      );
+
+      // Make the primary unavailable so the research turn has only one place to start.
+      // This is the case that used to risk promoting the research model into the default.
+      const cfg = aiConfig();
+      for (let i = 0; i < cfg.modelFailureThreshold; i += 1) {
+        recordModelFailure(MODEL, Date.now(), {
+          threshold: cfg.modelFailureThreshold,
+          cooldownMs: cfg.modelCooldownMs,
+        });
+      }
+
+      await runAiChat({ ...ctx, message: 'Find product reviews for the Sony headset.' });
+      assert.equal(seen.at(-1), RESEARCH_MODEL, 'research starts on the research model');
+      assert.equal(
+        seen.filter((model) => model === RESEARCH_MODEL).length,
+        1,
+        'the research turn made one request, not a duplicate research run',
+      );
+      assert.equal(promotedModel(), null, 'research success does not make the research model the default');
+
+      resetModelBreaker();
+      await runAiChat({ ...ctx, message: 'Hi there' });
+      assert.equal(seen.at(-1), MODEL, 'the next ordinary turn returns to the primary');
+    } finally {
+      restoreAll(restores);
+      resetModelSelection();
+      resetModelBreaker();
+    }
+  });
+
+  it('falls back from the research model to the primary without repeating the research request (AI-87)', async () => {
+    const restores = [
+      ...useOpenrouter(),
+      withEnv('AI_RESEARCH_MODEL_OPENROUTER', RESEARCH_MODEL),
+      withEnv('AI_FALLBACK_MODELS_OPENROUTER', undefined),
+      withEnv('AI_WEB_SEARCH', 'enable'),
+      withEnv('AI_WEB_FETCH', 'enable'),
+    ];
+    resetModelSelection();
+    resetModelBreaker();
+    try {
+      const seen = [];
+      responder = (body, turn) => {
+        seen.push(body.model);
+        return turn === 1
+          ? {
+              status: 404,
+              contentType: 'application/json',
+              raw: JSON.stringify({ error: { message: 'model unavailable' } }),
+            }
+          : okNativeText('The standard model answered.');
+      };
+
+      const out = await runAiChat({ ...ctx, message: 'Find product reviews for the Sony headset.' });
+      assert.equal(out.content, 'The standard model answered.');
+      assert.deepEqual(seen, [RESEARCH_MODEL, MODEL], 'the primary is the automatic fallback');
+      assert.equal(requests.length, 2, 'one failed research call plus one fallback, not two research runs');
+    } finally {
+      restoreAll(restores);
+      resetModelSelection();
+      resetModelBreaker();
+    }
+  });
+
   it('executes a tool call, feeds the result back, and continues to a final answer', async () => {
     const restores = useOpenrouter();
     try {
@@ -1177,7 +1347,85 @@ unitSuite('OpenRouter provider — AI loop compatibility (DB-free)', () => {
     }
   });
 
-  it('offers the paid web tools to a genuine public-research question (AI-86)', async () => {
+  it('uses native web tools as the primary research path (AI-86)', async () => {
+    const restores = [
+      ...useOpenrouter(),
+      withEnv('AI_WEB_SEARCH', 'enable'),
+      withEnv('AI_WEB_FETCH', 'enable'),
+    ];
+    try {
+      const answer = 'Reviews are positive [1].';
+      responder = () =>
+        okText(answer, {
+          content: [
+            { type: 'server_tool_use', id: 'srvtoolu_1', name: 'web_search', input: {} },
+            { type: 'web_search_tool_result', tool_use_id: 'srvtoolu_1', content: [] },
+            { type: 'text', text: answer },
+          ],
+        });
+      const { value, lines } = await captureLogs(() =>
+        runAiChat({ ...ctx, message: 'Find product reviews for the Sony headset.' }),
+      );
+      assert.equal(value.content, answer);
+      assert.ok(requests.length > 0);
+      const tools = requests[0].body.tools ?? [];
+      const paid = tools.filter(
+        (tool) => typeof tool?.type === 'string' && tool.type.startsWith('openrouter:'),
+      );
+      assert.deepEqual(paid.map((tool) => tool.type), [
+        'openrouter:web_search',
+        'openrouter:web_fetch',
+      ]);
+      for (const local of ['researchInventoryProducts', 'researchMarketPrices']) {
+        assert.equal(
+          tools.some((tool) => tool.name === local),
+          false,
+          `${local} is withheld while the native tools are primary`,
+        );
+      }
+      assert.ok(tools.some((tool) => tool.name === 'findProducts'), 'catalogue discovery stays available');
+      const turnLine = lines.find((entry) => entry.startsWith('[ai] turn outcome='));
+      assert.ok(turnLine);
+      assert.match(turnLine, /web=search/);
+    } finally {
+      restoreAll(restores);
+    }
+  });
+
+  it('does not run the local research tool while native web is primary (AI-86)', async () => {
+    const restores = [
+      ...useOpenrouter(),
+      withEnv('AI_WEB_SEARCH', 'enable'),
+      withEnv('AI_WEB_FETCH', 'enable'),
+    ];
+    try {
+      const answer = 'Reviews are positive [1].';
+      responder = (_body, turn) =>
+        turn === 1
+          ? okTools([{ id: 'w1', name: 'researchInventoryProducts', input: {} }])
+          : okText(answer, {
+              content: [
+                { type: 'server_tool_use', id: 'srvtoolu_1', name: 'web_search', input: {} },
+                { type: 'web_search_tool_result', tool_use_id: 'srvtoolu_1', content: [] },
+                { type: 'text', text: answer },
+              ],
+            });
+      const { value } = await captureLogs(() =>
+        runAiChat({ ...ctx, message: 'Find product reviews for the Sony headset.' }),
+      );
+      assert.equal(value.content, answer);
+      assert.ok(requests.length >= 2);
+      const [blocked] = parsedToolResults(requests[1].body);
+      assert.equal(blocked.reason, 'NATIVE_WEB_REQUIRED');
+      const secondTools = requests[1].body.tools ?? [];
+      assert.ok(secondTools.some((tool) => tool.type === 'openrouter:web_search'));
+      assert.equal(secondTools.some((tool) => tool.name === 'researchInventoryProducts'), false);
+    } finally {
+      restoreAll(restores);
+    }
+  });
+
+  it('falls back to the local research tool when OpenRouter refuses the native tools (AI-86)', async () => {
     const restores = [
       ...useOpenrouter(),
       withEnv('AI_WEB_SEARCH', 'enable'),
@@ -1186,19 +1434,29 @@ unitSuite('OpenRouter provider — AI loop compatibility (DB-free)', () => {
     try {
       responder = (_body, turn) =>
         turn === 1
-          ? okTools([{ id: 'w1', name: 'researchInventoryProducts', input: { plantedBusinessId: 'attacker' } }])
-          : okText('According to the sources, the reviews are positive.');
-      await captureLogs(() =>
+          ? {
+              status: 400,
+              contentType: 'application/json',
+              raw: JSON.stringify({ error: { message: 'native server tools are not supported' } }),
+            }
+          : okText('The web research is unavailable right now.');
+      const { value } = await captureLogs(() =>
         runAiChat({ ...ctx, message: 'Find product reviews for the Sony headset.' }),
       );
-      assert.ok(requests.length > 0);
-      const paid = (requests[0].body.tools ?? []).filter(
-        (tool) => typeof tool?.type === 'string' && tool.type.startsWith('openrouter:'),
+      assert.ok(requests.length >= 2, 'the refused request is retried with the local path');
+      const fallbackTools = requests[1].body.tools ?? [];
+      assert.equal(
+        fallbackTools.some(
+          (tool) => typeof tool?.type === 'string' && tool.type.startsWith('openrouter:'),
+        ),
+        false,
+        'the retry does not offer the native tools again',
       );
-      assert.deepEqual(paid.map((tool) => tool.type), [
-        'openrouter:web_search',
-        'openrouter:web_fetch',
-      ]);
+      assert.ok(
+        fallbackTools.some((tool) => tool.name === 'researchInventoryProducts'),
+        'the local research tool is available as the fallback',
+      );
+      assert.match(value.content, /could not read that from your records/i);
     } finally {
       restoreAll(restores);
     }

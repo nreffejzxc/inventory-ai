@@ -17,6 +17,8 @@ import {
   capResearchSourcesPerHost,
   rankResearchSources,
 } from '../src/services/ai/webResearch.ts';
+import { webToolsUsedFromResponse } from '../src/services/ai/webCapabilities.ts';
+import { systemPrompt } from '../src/services/ai/ai.service.ts';
 import { readUsage } from '../src/services/ai/providers/anthropicWire.ts';
 
 const group = {
@@ -94,9 +96,18 @@ unitSuite('AI-86 usage is read from the Anthropic and OpenAI shapes', () => {
         output_tokens: 20,
         cache_read_input_tokens: 30,
         cache_creation_input_tokens: 5,
+        cost: 0.007192,
       }),
-      { inputTokens: 135, outputTokens: 20 },
+      { inputTokens: 135, outputTokens: 20, costUsd: 0.007192 },
     );
+  });
+
+  it('★ a reported zero cost is a measurement, not an absence', () => {
+    assert.deepEqual(readUsage({ input_tokens: 1, output_tokens: 1, cost: 0 }), {
+      inputTokens: 1,
+      outputTokens: 1,
+      costUsd: 0,
+    });
   });
 
   it('★ an OpenAI-shaped report is accepted, not reported as zero', () => {
@@ -109,5 +120,33 @@ unitSuite('AI-86 usage is read from the Anthropic and OpenAI shapes', () => {
   it('★ a body with no counters stays absent rather than becoming a zero', () => {
     assert.equal(readUsage({}), null);
     assert.equal(readUsage(null), null);
+  });
+});
+
+unitSuite('AI-86 native web tools are the primary research path', () => {
+  it('★ server-tool usage details count as a real web read', () => {
+    assert.deepEqual(
+      webToolsUsedFromResponse([], {
+        server_tool_use_details: { web_search_requests: 2, web_fetch_requests: 1 },
+      }),
+      ['search', 'fetch'],
+    );
+    assert.deepEqual(
+      webToolsUsedFromResponse([], {
+        server_tool_use: { web_search_requests: 1 },
+      }),
+      ['search'],
+    );
+  });
+
+  it('★ the native-mode prompt supersedes the local research tools', () => {
+    const native = systemPrompt({ nativeWeb: true });
+    assert.match(native, /OpenRouter native web search and web fetch are enabled/);
+    assert.match(native, /do NOT call researchInventoryProducts or researchMarketPrices/);
+    assert.match(native, /cite every source URL exactly/i);
+
+    const local = systemPrompt({ nativeWeb: false });
+    assert.doesNotMatch(local, /OpenRouter native web search and web fetch are enabled/);
+    assert.match(local, /call researchInventoryProducts/);
   });
 });

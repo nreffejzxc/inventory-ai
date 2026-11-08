@@ -18,8 +18,8 @@
 // WHAT THIS PINS. One line per turn, on EVERY exit path:
 //
 //   [ai] turn outcome=ok total=15211ms providerMs=14800ms calls=2 toolMs=180ms
-//        toolRuns=1 tools=getInventorySummary empty=0 in=3399 out=427 model=...
-//        iterations=2
+//        toolRuns=1 tools=getInventorySummary empty=0 in=3399 out=427
+//        cost=$0.007192 web=none model=... iterations=2
 //
 // `grep -c '[ai] turn'` is then the turn count, and `outcome=` splits the healthy
 // turns from the four ways one can end badly (AI_TIMEOUT, AI_ABANDONED,
@@ -153,6 +153,51 @@ unitSuite('AI-5 turn cost (DB-free)', () => {
     const f = fields(costLines[0]);
     assert.equal(f.in, '30', 'both calls’ prompt tokens are on the turn line');
     assert.equal(f.out, '5', 'and both calls’ completion tokens');
+  });
+
+  it('★ sums every call’s provider charge instead of reporting only the last one', async () => {
+    let call = 0;
+    const { costLines } = await turnCapturingLogs(() => {
+      call += 1;
+      return call === 1
+        ? {
+            model: 'fake-model',
+            text: '',
+            toolCalls: [{ id: 'call-1', name: 'noSuchTool', input: {} }],
+            usage: { inputTokens: 10, outputTokens: 2, costUsd: 0.002 },
+          }
+        : {
+            model: 'fake-model',
+            text: 'done',
+            toolCalls: [],
+            usage: { inputTokens: 20, outputTokens: 3, costUsd: 0.005 },
+          };
+    });
+
+    assert.equal(fields(costLines[0]).cost, '$0.007000');
+  });
+
+  it('★ an unreported charge is unknown, never a free turn', async () => {
+    const { costLines } = await turnCapturingLogs(() => fakeText('done'));
+
+    assert.equal(fields(costLines[0]).cost, 'unknown');
+  });
+
+  it('★ a partial charge total says it is a lower bound', async () => {
+    let call = 0;
+    const { costLines } = await turnCapturingLogs(() => {
+      call += 1;
+      return call === 1
+        ? {
+            model: 'fake-model',
+            text: '',
+            toolCalls: [{ id: 'call-1', name: 'noSuchTool', input: {} }],
+            usage: { inputTokens: 10, outputTokens: 2, costUsd: 0.002 },
+          }
+        : fakeText('done');
+    });
+
+    assert.equal(fields(costLines[0]).cost, '>=$0.002000');
   });
 
   it('measures provider time rather than printing zeroes', async () => {

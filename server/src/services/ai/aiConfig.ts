@@ -60,9 +60,10 @@ function parseModelList(raw: string | undefined): { models: string[]; ignored: s
 export function aiConfig() {
   const fallbacks = parseModelList(process.env.AI_FALLBACK_MODELS_OPENROUTER);
   const web = webCapabilities(process.env);
+  const provider = (process.env.AI_PROVIDER || '').trim().toLowerCase();
   return {
     // Provider + keys (keys are read here but never returned/logged).
-    provider: (process.env.AI_PROVIDER || '').trim().toLowerCase(),
+    provider,
     // AI-25 — the direct Claude and Gemini models were removed with their providers. A model
     // is still a choice here, and a wide one: OpenRouter reaches both families (and many
     // others) through `AI_MODEL_OPENROUTER`, so flexibility lives in one variable rather than
@@ -73,6 +74,11 @@ export function aiConfig() {
     // different tool-calling ability, so the model is REQUIRED — the provider
     // factory refuses to build without it rather than silently guessing one here.
     openrouterModel: (process.env.AI_MODEL_OPENROUTER || '').trim(),
+    // AI-87 — the optional model for research-heavy turns. Ordinary inventory questions
+    // stay on `openrouterModel`; when this is unset, empty, or the same id, every turn
+    // uses the configured primary. A research turn tries this model first and keeps the
+    // primary as its fallback, so the 20B default is never displaced by a research answer.
+    openrouterResearchModel: (process.env.AI_RESEARCH_MODEL_OPENROUTER || '').trim(),
     // AI-29 — the candidate models a turn fails over to, in preference order, when the
     // configured model's upstream refuses the call (a 404/410 or 5xx, never a quota
     // refusal). Comma-separated; optional on purpose, because unset means "no failover",
@@ -173,6 +179,12 @@ export function aiConfig() {
     webFetchEnabled: web.fetchEnabled,
     webServerTools: web.serverTools,
     webProblems: web.problems,
+    // AI-86 — native OpenRouter web search/fetch are PRIMARY whenever both are
+    // enabled on an OpenRouter deployment. The turn loop withholds the local
+    // research tools in this mode; they remain the fallback when either switch is
+    // off, when another provider is selected, or when the gateway refuses the
+    // native tools.
+    nativeWebPrimary: provider === 'openrouter' && web.searchEnabled && web.fetchEnabled,
     maxToolIterations: positiveInt(process.env.AI_MAX_TOOL_ITERATIONS, 6),
     // AI-2 — how many times a turn retries a provider response that carries NO
     // usable content (neither text nor a tool call). The deployed free-tier gateway

@@ -182,6 +182,11 @@ function emptyResponseShape(data: AnthropicResponse) {
  * Cache reads and cache writes are billed input, so they are added when present:
  * Anthropic reports them SEPARATELY from `input_tokens`, and ignoring them made the
  * turn line understate what a research-heavy prompt actually cost.
+ *
+ * OpenRouter also reports the total charge for the request in `usage.cost` (USD,
+ * including server-tool charges). It is carried through when present so the turn
+ * line can show real credit spend; an older or different gateway that omits it
+ * stays an absence rather than being reported as a free call.
  */
 export function readUsage(raw: unknown): ProviderUsage | null {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
@@ -198,9 +203,11 @@ export function readUsage(raw: unknown): ProviderUsage | null {
   if (input === null && output === null) return null;
   const cacheRead = count('cache_read_input_tokens') ?? 0;
   const cacheWrite = count('cache_creation_input_tokens') ?? 0;
+  const cost = count('cost');
   return {
     inputTokens: (input ?? 0) + cacheRead + cacheWrite,
     outputTokens: output ?? 0,
+    ...(cost !== null ? { costUsd: cost } : {}),
   };
 }
 
@@ -591,6 +598,7 @@ export function createAnthropicCompatibleProvider(opts: AnthropicCompatibleOptio
       stream,
       onTextDelta,
       webResearch,
+      nativeWeb,
     }) {
       const cfg = aiConfig();
       // AI-29 — a per-request override, used by the turn loop's failover. It stays a
@@ -610,7 +618,7 @@ export function createAnthropicCompatibleProvider(opts: AnthropicCompatibleOptio
       // AI-86 — the turn loop sets this false for plain inventory questions. Keeping the
       // configured list separate lets the request log explain that the switches are on
       // while neither paid tool was offered. Undefined preserves direct-call behaviour.
-      const webToolsAllowed = webResearch !== false;
+      const webToolsAllowed = webResearch !== false && nativeWeb !== false;
       const serverToolDefs = tools && tools.length > 0 && webToolsAllowed ? configuredServerTools : [];
       const requestTools = [
         ...(tools && tools.length > 0 ? toAnthropicTools(tools) : []),
@@ -669,6 +677,12 @@ export function createAnthropicCompatibleProvider(opts: AnthropicCompatibleOptio
           // and lift a fail-fast window. It is attached AFTER parsing, so the parser's contract and
           // its diagnostics (which print the body's field names) are untouched.
           const withQuota = quota ? { ...parsed, quota } : parsed;
+          // AI-86 — expose the server tools this response actually ran so the turn
+          // loop can treat a native search/fetch as a real research read instead of
+          // re-asking for a custom tool and paying for the same research twice.
+          const withWebTools = usedWebTools.length > 0
+            ? { ...withQuota, webToolsUsed: usedWebTools }
+            : withQuota;
           // AI-12 — and an empty completion is named ONCE PER OCCURRENCE, before it is
           // returned, because the AI-2 retry means the turn-level warning appears only when
           // a turn GIVES UP: an empty response the retry rescues used to be invisible, and
@@ -679,7 +693,7 @@ export function createAnthropicCompatibleProvider(opts: AnthropicCompatibleOptio
               `[ai:${name}] empty completion (model=${model}, ${emptyResponseShape(body)}) — the provider answered 2xx with neither text nor a tool call; the turn retries once, then degrades (AI-2)`
             );
           }
-          return withQuota;
+          return withWebTools;
         } catch (err) {
           if (err instanceof AiOutputLimit) {
             console.warn(

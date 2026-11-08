@@ -86,10 +86,16 @@ export function webToolsUsedFromResponse(content: unknown, usage: unknown): WebT
   }
 
   const usageObject = usage && typeof usage === 'object' ? (usage as Record<string, unknown>) : null;
+  // OpenRouter reports the current shape as `server_tool_use_details`; some
+  // Anthropic-compatible responses have used the shorter `server_tool_use`.
+  // Read both so a successful native search is not mistaken for an ungrounded
+  // answer, which would trigger a second provider request for the same turn.
   const serverUsage =
-    usageObject?.server_tool_use && typeof usageObject.server_tool_use === 'object'
-      ? (usageObject.server_tool_use as Record<string, unknown>)
-      : null;
+    usageObject?.server_tool_use_details && typeof usageObject.server_tool_use_details === 'object'
+      ? (usageObject.server_tool_use_details as Record<string, unknown>)
+      : usageObject?.server_tool_use && typeof usageObject.server_tool_use === 'object'
+        ? (usageObject.server_tool_use as Record<string, unknown>)
+        : null;
   if (serverUsage) {
     if (typeof serverUsage.web_search_requests === 'number' && serverUsage.web_search_requests > 0) {
       used.add('search');
@@ -114,10 +120,27 @@ export function webToolsUsedFromResponse(content: unknown, usage: unknown): WebT
  * plainly do not need the public web.
  */
 const WEB_RESEARCH_INTENT =
-  /\b(?:web|internet|google|bing|url|website|web\s*page|webpage)\b|https?:\/\/|\b(?:search|look\s+up|check|find)\s+(?:the\s+)?(?:web|internet|online)\b|\b(?:fetch|read)\s+(?:the\s+)?(?:web\s*page|page|url)\b|\b(?:product|owner|customer|user|online)\s+reviews?\b|\breviews\s+(?:of|for|on)\b|\breviews\b|\b(?:quality|reliability|well[- ]reviewed)\b|\b(?:market|marketplace|online|retail|competitor)\s+prices?\b|\bprices?\s+(?:online|elsewhere|comparison)\b|\bcheaper\s+elsewhere\b|\bprice\s+comparison\b|\b(?:shopee|lazada|amazon|ebay)\b|\bresearch\b|\bsources?\b|\bnews\b|\b(?:latest|newest|newer)\s+(?:model|version|price|review|news)\b|\bup[- ]to[- ]date\b|\b(?:product|brand)\s+recommendations?\b|\brecommend\s+(?:a|some|any)\s+(?:product|brand|model)\b|\b(?:search|find|look\s+up)\s+(?:for\s+)?(?:the\s+)?(?:product|item)\s+prices?\b/i;
+  /\b(?:web|internet|google|bing|url|website|web\s*page|webpage)\b|https?:\/\/|\b(?:search|look\s+up|check|find)\s+(?:the\s+)?(?:web|internet|online)\b|\b(?:fetch|read)\s+(?:the\s+)?(?:web\s*page|page|url)\b|\b(?:product|owner|customer|user|online)\s+reviews?\b|\breviews\s+(?:of|for|on)\b|\breviews\b|\b(?:quality|reliability|well[- ]reviewed)\b|\b(?:market|marketplace|online|retail|competitor|current)\s+(?:prices?|pricing)\b|\bprices?\s+(?:online|elsewhere|comparison)\b|\bcheaper\s+elsewhere\b|\bprice\s+comparison\b|\b(?:shopee|lazada|amazon|ebay)\b|\bresearch\b|\bsources?\b|\bnews\b|\b(?:latest|newest|newer)\s+(?:model|version|price|review|news)\b|\bup[- ]to[- ]date\b|\b(?:product|brand)\s+recommendations?\b|\brecommend\s+(?:a|some|any)\s+(?:product|brand|model)\b|\b(?:search|find|look\s+up)\s+(?:for\s+)?(?:the\s+)?(?:product|item)\s+prices?\b/i;
 
 export function asksForWebResearch(message: string): boolean {
   return WEB_RESEARCH_INTENT.test(String(message ?? ''));
+}
+
+/**
+ * AI-87 — does this turn deserve the stronger research model?
+ *
+ * This is broader than the paid-tool gate only for comparisons and buying advice that
+ * do not name the web. It is deliberately narrower than `asksForProductAdvice`: "best
+ * selling product" is an inventory read, not research, and must stay on the cheaper
+ * default. `asksForWebResearch` already covers reviews, market prices, recommendations
+ * and explicit research.
+ */
+const RESEARCH_MODEL_INTENT =
+  /\b(?:compare|comparison|versus|vs\.?)\b|\bwhich\b[^?.!]{0,60}\b(?:better|best)\b|\bshould\s+(?:i|we)\s+(?:buy|get|choose)\b/i;
+
+export function asksForResearchModel(message: string): boolean {
+  const text = String(message ?? '');
+  return asksForWebResearch(text) || RESEARCH_MODEL_INTENT.test(text);
 }
 
 /**
