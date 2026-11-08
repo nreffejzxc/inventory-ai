@@ -1322,6 +1322,13 @@ export async function runAiChat({
     model = response?.model || model;
     addProviderUsage(response?.usage);
     for (const used of response?.webToolsUsed ?? []) nativeWebToolsUsed.add(used);
+    // Native web tools return their evidence as tool-result blocks, not as a local
+    // research tool. Keep those URLs so the stored answer can end with a clickable
+    // source list even when the model wrote only `【source N】` markers.
+    for (const source of response?.webSources ?? []) {
+      if (researchSources.some((existing) => existing.url === source.url)) continue;
+      researchSources.push(source);
+    }
     let calls = Array.isArray(response?.toolCalls) ? response.toolCalls : [];
     // Reasoning blocks are bound to the exact tool calls that followed them. Keep the original
     // call shape so a locally rewritten/added call does not replay a signature that covers a

@@ -865,6 +865,76 @@ unitSuite('OpenRouter provider — configurable web tools', () => {
     }
   });
 
+  it('keeps the URLs a native search returned, de-duplicated and public', async () => {
+    const restores = [withEnv('AI_WEB_SEARCH', 'enable')];
+    try {
+      const provider = providerFor(`http://127.0.0.1:${port}/api`);
+      responder = () =>
+        okText('answer', {
+          content: [
+            { type: 'server_tool_use', id: 'srvtoolu_1', name: 'web_search', input: {} },
+            {
+              type: 'web_search_tool_result',
+              tool_use_id: 'srvtoolu_1',
+              content: [
+                { type: 'web_search_result', url: 'https://example.com/review', title: 'Review' },
+                { type: 'web_search_result', url: 'https://example.com/review#again', title: 'Duplicate' },
+                { type: 'web_search_result', url: 'javascript:alert(1)', title: 'Not a source' },
+              ],
+            },
+            { type: 'text', text: 'answer' },
+          ],
+        });
+      const result = await provider.complete({
+        system: 's',
+        messages: [{ role: 'user', content: 'hi' }],
+        tools: AI_TOOL_DEFS,
+      });
+      assert.deepEqual(result.webSources, [
+        { title: 'Review', url: 'https://example.com/review' },
+      ]);
+    } finally {
+      restoreAll(restores);
+    }
+  });
+
+  it('keeps a citation delta that arrives while the answer streams', async () => {
+    const provider = providerFor(`http://127.0.0.1:${port}/api`);
+    responder = () => ({
+      status: 200,
+      contentType: 'text/event-stream',
+      raw: [
+        'event: message_start',
+        'data: {"type":"message_start","message":{"model":"test-vendor/tool-capable-model","usage":{"input_tokens":11}}}',
+        '',
+        'event: content_block_start',
+        'data: {"type":"content_block_start","index":0,"content_block":{"type":"text","text":""}}',
+        '',
+        'event: content_block_delta',
+        'data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"Answer"}}',
+        '',
+        'event: content_block_delta',
+        'data: {"type":"content_block_delta","index":0,"delta":{"type":"citations_delta","citation":{"type":"web_search_result_location","url":"https://example.com/cited","title":"Cited"}}}',
+        '',
+        'event: message_delta',
+        'data: {"type":"message_delta","delta":{"stop_reason":"end_turn"},"usage":{"output_tokens":2}}',
+        '',
+        '',
+      ].join('\n'),
+    });
+    const result = await provider.complete({
+      system: 's',
+      messages: [{ role: 'user', content: 'hi' }],
+      tools: AI_TOOL_DEFS,
+      stream: true,
+      onTextDelta: () => {},
+    });
+    assert.equal(result.text, 'Answer');
+    assert.deepEqual(result.webSources, [
+      { title: 'Cited', url: 'https://example.com/cited' },
+    ]);
+  });
+
   it('does not attach either server tool to a final answer round with no tools', async () => {
     const restores = [withEnv('AI_WEB_SEARCH', 'enable'), withEnv('AI_WEB_FETCH', 'enable')];
     try {
@@ -1083,7 +1153,7 @@ unitSuite('OpenRouter provider — configurable web tools', () => {
       });
 
       const deltas = [];
-      const { lines } = await captureLogs(() =>
+      const { value: result, lines } = await captureLogs(() =>
         provider.complete({
           system: 's',
           messages: [{ role: 'user', content: 'hi' }],
@@ -1093,6 +1163,7 @@ unitSuite('OpenRouter provider — configurable web tools', () => {
         }),
       );
       assert.equal(deltas.join(''), 'Fetched answer');
+      assert.deepEqual(result.webSources, [{ title: 'private.example', url }]);
       const line = lines.find((entry) => entry.includes('[ai:openrouter] web tools'));
       assert.ok(line);
       assert.match(line, /enabled=fetch/);
@@ -1503,6 +1574,39 @@ unitSuite('OpenRouter provider — AI loop compatibility (DB-free)', () => {
       const turnLine = lines.find((entry) => entry.startsWith('[ai] turn outcome='));
       assert.ok(turnLine);
       assert.match(turnLine, /web=search/);
+    } finally {
+      restoreAll(restores);
+    }
+  });
+
+  it('appends native source URLs when the answer cites only source numbers', async () => {
+    const restores = [
+      ...useOpenrouter(),
+      withEnv('AI_WEB_SEARCH', 'enable'),
+      withEnv('AI_WEB_FETCH', 'enable'),
+    ];
+    try {
+      const answer = 'Reviews are positive 【source 1】.';
+      responder = () =>
+        okText(answer, {
+          content: [
+            { type: 'server_tool_use', id: 'srvtoolu_1', name: 'web_search', input: {} },
+            {
+              type: 'web_search_tool_result',
+              tool_use_id: 'srvtoolu_1',
+              content: [
+                { type: 'web_search_result', url: 'https://example.com/review', title: 'Review' },
+              ],
+            },
+            { type: 'text', text: answer },
+          ],
+        });
+      const { value } = await captureLogs(() =>
+        runAiChat({ ...ctx, message: 'Find product reviews for the Sony headset.' }),
+      );
+      assert.match(value.content, /【source 1】/, 'the model answer itself is unchanged');
+      assert.match(value.content, /Source URLs:/);
+      assert.match(value.content, /^- Review: <https:\/\/example\.com\/review>$/m);
     } finally {
       restoreAll(restores);
     }

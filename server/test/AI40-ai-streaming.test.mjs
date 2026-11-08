@@ -104,20 +104,35 @@ const SSE_ERROR = [
   '',
 ].join('\n');
 
+// OpenRouter reports the request's charge in `usage.cost`. The streamed path must
+// carry it through both usage events, and must not erase a start value when the
+// final event omits one.
+const SSE_COST = SSE_TEXT.replace(
+  '"usage":{"input_tokens":11,"output_tokens":1}',
+  '"usage":{"input_tokens":11,"output_tokens":1,"cost":0.0012}',
+).replace('"usage":{"output_tokens":7}', '"usage":{"output_tokens":7,"cost":0.0034}');
+
+const SSE_COST_START_ONLY = SSE_TEXT.replace(
+  '"usage":{"input_tokens":11,"output_tokens":1}',
+  '"usage":{"input_tokens":11,"output_tokens":1,"cost":0.0012}',
+);
+
+const STREAMS = {
+  sse: SSE_TEXT,
+  'sse-tools': SSE_TOOLS,
+  'sse-error': SSE_ERROR,
+  // The same stream a CRLF gateway sends, so the only variable is the line ending.
+  'sse-crlf': SSE_TEXT.replace(/\n/g, '\r\n'),
+  'sse-cost': SSE_COST,
+  'sse-cost-start': SSE_COST_START_ONLY,
+};
+
 const stub = http.createServer((req, res) => {
   hits += 1;
   req.resume();
   req.on('end', async () => {
-    if (mode === 'sse' || mode === 'sse-tools' || mode === 'sse-error' || mode === 'sse-crlf') {
-      const body =
-        mode === 'sse'
-          ? SSE_TEXT
-          : mode === 'sse-tools'
-            ? SSE_TOOLS
-            : mode === 'sse-error'
-              ? SSE_ERROR
-              : // The same stream a CRLF gateway sends, so the only variable is the line ending.
-                SSE_TEXT.replace(/\n/g, '\r\n');
+    if (mode in STREAMS) {
+      const body = STREAMS[mode];
       res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache' });
       if (chunkDelayMs === 0) {
         res.end(body);
@@ -284,7 +299,40 @@ unitSuite('AI-40 the provider assembles a stream into the same response the JSON
     assert.equal(response.text, 'You hold 112 units.');
     assert.equal(response.toolCalls.length, 0);
     assert.equal(response.model, 'stub/model-1');
-    assert.deepEqual(response.usage, { inputTokens: 11, outputTokens: 7 });
+    assert.deepEqual(
+      response.usage,
+      { inputTokens: 11, outputTokens: 7 },
+      'a stream that reports no charge must not invent one',
+    );
+  });
+
+  it('preserves a charge reported on the stream in the final usage', async () => {
+    configure();
+    mode = 'sse-cost';
+    const provider = createOpenrouterProvider();
+    const response = await provider.complete({
+      system: 's',
+      messages: [{ role: 'user', content: 'how much stock do we hold?' }],
+      tools: [],
+      stream: true,
+      onTextDelta: () => {},
+    });
+    assert.equal(response.text, 'You hold 112 units.');
+    assert.deepEqual(response.usage, { inputTokens: 11, outputTokens: 7, costUsd: 0.0034 });
+  });
+
+  it('keeps a charge reported only at message_start', async () => {
+    configure();
+    mode = 'sse-cost-start';
+    const provider = createOpenrouterProvider();
+    const response = await provider.complete({
+      system: 's',
+      messages: [{ role: 'user', content: 'how much stock do we hold?' }],
+      tools: [],
+      stream: true,
+      onTextDelta: () => {},
+    });
+    assert.deepEqual(response.usage, { inputTokens: 11, outputTokens: 7, costUsd: 0.0012 });
   });
 
   it('rebuilds a tool call from its JSON fragments', async () => {

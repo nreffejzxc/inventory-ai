@@ -151,6 +151,16 @@ describe('a quoted source is a link, not markup', () => {
     ]);
   });
 
+  it('★ the server source list is a tappable address, not bracket markup', async () => {
+    const list = parseAssistantMarkdown('Source URLs:\n- Review: <https://example.com/review>').find(
+      (block) => block.kind === 'list',
+    ) as Extract<Block, { kind: 'list' }>;
+    expect(list.items[0].spans).toEqual([
+      { text: 'Review: ' },
+      { text: 'https://example.com/review', href: 'https://example.com/review' },
+    ]);
+  });
+
   it('a link inside a list item and a table cell is still a link', async () => {
     const list = parseAssistantMarkdown('- ₱6,000.00 on [keychron.ph](https://keychron.ph/p)');
     const item = (list[0] as Extract<Block, { kind: 'list' }>).items[0];

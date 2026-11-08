@@ -22,6 +22,7 @@ import {
   webToolsUsedFromResponse,
   type OpenRouterServerTool,
 } from '../webCapabilities.ts';
+import { nativeWebSources } from '../webResearch.ts';
 import type { QuotaInfo } from '../quota.ts';
 import { postJson, postSse, type SseEvent, type UpstreamJsonBody } from './http.ts';
 import type {
@@ -125,6 +126,7 @@ interface AnthropicResponse extends UpstreamJsonBody {
   usage?: Record<string, unknown>;
   stop_reason?: unknown;
   model?: unknown;
+  annotations?: unknown;
 }
 
 /**
@@ -246,6 +248,10 @@ export function parseAnthropicResponse(data: AnthropicResponse, requestedModel =
       thinking.push({ type: 'redacted_thinking', data: block.data });
     }
   }
+  // Native web citations arrive in tool-result blocks (and, on some gateways, as
+  // OpenAI-style annotations). Keep the URLs the provider actually returned so the
+  // turn can append a source list even when the model wrote only `【source N】`.
+  const webSources = nativeWebSources(content, data.annotations);
   const usage = readUsage(data.usage);
   if (data.stop_reason === 'max_tokens' && toolCalls.length === 0 && !text) {
     // AI-10 — this used to throw an AiProviderError, which the controller maps to
@@ -275,6 +281,7 @@ export function parseAnthropicResponse(data: AnthropicResponse, requestedModel =
     toolCalls,
     ...(thinking.length > 0 ? { thinking } : {}),
     usage,
+    ...(webSources.length > 0 ? { webSources } : {}),
     truncated: data.stop_reason === 'max_tokens',
   };
 }
@@ -315,13 +322,14 @@ interface StreamTarget {
 }
 
 type StreamBlock =
-  | { type: 'text'; text: string }
+  | { type: 'text'; text: string; citations?: unknown[] }
   | { type: 'tool_use'; id: string; name: string; json: string }
   | { type: 'thinking'; thinking: string; signature: string }
   | { type: 'redacted_thinking'; data: string }
   // AI-85 — preserve server-tool block labels so the request log can report
-  // actual use. The query, URL and result body are deliberately not retained.
-  | { type: 'server_tool'; blockType: string; name: string };
+  // actual use. A result block's `content` is kept only to extract public source
+  // URLs for the answer; it is never logged.
+  | { type: 'server_tool'; blockType: string; name: string; content?: unknown };
 
 /** Tool arguments that arrived in pieces; an unparseable set is empty, never a thrown turn. */
 function parseToolInput(raw: string): UpstreamJsonBody {
@@ -342,6 +350,7 @@ async function readAnthropicStream(
   const blocks = new Map<number, StreamBlock>();
   let reportedModel = target.model;
   let stopReason: string | null = null;
+  let annotations: unknown = undefined;
   // A holder, not a bare `let`: the assignments happen inside the SSE callback, and
   // TypeScript narrows a bare variable to its initial `null` at the read below.
   const usageState: { value: ProviderUsage | null } = { value: null };
@@ -363,6 +372,7 @@ async function readAnthropicStream(
     if (type === 'message_start') {
       const message = payload.message && typeof payload.message === 'object' ? (payload.message as UpstreamJsonBody) : null;
       if (message && typeof message.model === 'string' && message.model) reportedModel = message.model;
+      if (message && Array.isArray(message.annotations)) annotations = message.annotations;
       const startUsage = readUsage(message?.usage);
       if (startUsage) usageState.value = startUsage;
       return;
@@ -382,12 +392,13 @@ async function readAnthropicStream(
         blocks.set(index, { type: 'redacted_thinking', data: typeof block.data === 'string' ? block.data : '' });
       } else if (
         block.type === 'server_tool_use' ||
-        (typeof block.type === 'string' && block.type.startsWith('web_'))
+        (typeof block.type === 'string' && /web_(?:search|fetch)/i.test(block.type))
       ) {
         blocks.set(index, {
           type: 'server_tool',
           blockType: String(block.type),
           name: typeof block.name === 'string' ? block.name : '',
+          ...(block.content !== undefined ? { content: block.content } : {}),
         });
       } else {
         const initial = typeof block.text === 'string' ? block.text : '';
@@ -403,6 +414,13 @@ async function readAnthropicStream(
     if (type === 'content_block_delta') {
       const delta = payload.delta && typeof payload.delta === 'object' ? (payload.delta as UpstreamJsonBody) : {};
       const block = blocks.get(index);
+      if (delta.type === 'citations_delta' && delta.citation && typeof delta.citation === 'object') {
+        const textBlock =
+          block && block.type === 'text' ? block : { type: 'text' as const, text: '' };
+        textBlock.citations = [...(textBlock.citations ?? []), delta.citation];
+        blocks.set(index, textBlock);
+        return;
+      }
       if (delta.type === 'text_delta') {
         const text = typeof delta.text === 'string' ? delta.text : '';
         if (!text) return;
@@ -429,15 +447,23 @@ async function readAnthropicStream(
     if (type === 'message_delta') {
       const delta = payload.delta && typeof payload.delta === 'object' ? (payload.delta as UpstreamJsonBody) : null;
       if (delta && typeof delta.stop_reason === 'string') stopReason = delta.stop_reason;
+      if (Array.isArray(payload.annotations)) annotations = payload.annotations;
       const endUsage = readUsage(payload.usage);
       if (endUsage) {
         // Events are not guaranteed to repeat every field: `message_start` usually has
         // the prompt count, `message_delta` the final output count. Taking the larger
         // value keeps a later event with only one counter from erasing the other.
+        //
+        // The charge is not a counter, it is the request total: the latest event that
+        // reports one wins, and an event that omits it must not erase the earlier value.
+        // Dropping it here made every streamed turn log `cost=unknown` while the JSON
+        // path reported the same provider's charge exactly.
         const current = usageState.value;
+        const costUsd = endUsage.costUsd ?? current?.costUsd;
         usageState.value = {
           inputTokens: Math.max(current?.inputTokens ?? 0, endUsage.inputTokens),
           outputTokens: Math.max(current?.outputTokens ?? 0, endUsage.outputTokens),
+          ...(costUsd !== undefined ? { costUsd } : {}),
         };
       }
       return;
@@ -465,13 +491,23 @@ async function readAnthropicStream(
   const content = [...blocks.entries()]
     .sort((a, b) => a[0] - b[0])
     .map(([, block]) => {
-      if (block.type === 'text') return { type: 'text', text: block.text };
+      if (block.type === 'text') {
+        return {
+          type: 'text',
+          text: block.text,
+          ...(block.citations && block.citations.length > 0 ? { citations: block.citations } : {}),
+        };
+      }
       if (block.type === 'tool_use') {
         return { type: 'tool_use', id: block.id, name: block.name, input: parseToolInput(block.json) };
       }
       if (block.type === 'redacted_thinking') return { type: 'redacted_thinking', data: block.data };
       if (block.type === 'server_tool') {
-        return { type: block.blockType, ...(block.name ? { name: block.name } : {}) };
+        return {
+          type: block.blockType,
+          ...(block.name ? { name: block.name } : {}),
+          ...(block.content !== undefined ? { content: block.content } : {}),
+        };
       }
       return {
         type: 'thinking',
@@ -486,8 +522,13 @@ async function readAnthropicStream(
     content,
     stop_reason: stopReason ?? undefined,
     usage: finalUsage
-      ? { input_tokens: finalUsage.inputTokens, output_tokens: finalUsage.outputTokens }
+      ? {
+          input_tokens: finalUsage.inputTokens,
+          output_tokens: finalUsage.outputTokens,
+          ...(finalUsage.costUsd !== undefined ? { cost: finalUsage.costUsd } : {}),
+        }
       : undefined,
+    ...(annotations !== undefined ? { annotations } : {}),
   } as unknown as AnthropicResponse;
 
   return { data, quota };

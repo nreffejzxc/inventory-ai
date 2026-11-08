@@ -355,7 +355,8 @@ unitSuite('AI-47 research is inventory-bound and source-backed', () => {
     const text = 'The model cited Already cited: https://example.com/already';
     const withUrls = appendMissingSourceUrls(text, sources);
     assert.match(withUrls, /Source URLs:/);
-    assert.match(withUrls, /ROG guide: https:\/\/example\.com\/rog/);
+    // The phone renderer links an autolink, not a bare URL; the source list must use one.
+    assert.match(withUrls, /ROG guide: <https:\/\/example\.com\/rog>/);
     assert.equal((withUrls.match(/https:\/\/example\.com\/already/g) ?? []).length, 1);
     assert.equal(appendMissingSourceUrls(withUrls, sources), withUrls);
   });
