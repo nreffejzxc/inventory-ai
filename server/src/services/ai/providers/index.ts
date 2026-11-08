@@ -23,6 +23,7 @@
 import { AiNotConfigured } from '../aiErrors.ts';
 import type { QuotaInfo } from '../quota.ts';
 import type { WebToolName } from '../webCapabilities.ts';
+import type { ResearchSource } from '../webResearch.ts';
 import { createOpenrouterProvider } from './openrouterProvider.ts';
 
 /**
@@ -172,6 +173,14 @@ export interface ProviderResponse {
    * because OpenRouter runs them inside the provider request.
    */
   webToolsUsed?: WebToolName[];
+  /**
+   * Public source URLs the native web tools returned on this response.
+   *
+   * The turn loop appends them to the stored answer, so a model that cites only
+   * `【source N】` still leaves the member a clickable list. Absent when the
+   * response ran no native web tool.
+   */
+  webSources?: ResearchSource[];
   /** Raw reasoning blocks, present only when the provider returned them. */
   thinking?: ProviderThinkingBlock[];
   usage: ProviderUsage | null;

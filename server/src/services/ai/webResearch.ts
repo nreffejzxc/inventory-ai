@@ -361,6 +361,44 @@ export function validSources(annotations: unknown): ResearchSource[] {
 }
 
 /**
+ * Read the source URLs out of a native web-tool response.
+ *
+ * OpenRouter's Anthropic wire reports a search as a `web_search_tool_result` block
+ * whose `content` is an array of `web_search_result` objects; a fetch arrives as a
+ * `web_fetch_tool_result` whose `content` is the page object. Some gateways instead
+ * attach OpenAI-style `annotations` (`url_citation`) or per-text `citations`. All
+ * three carry a URL and a title, so they go through the same validator the local
+ * research path uses: public HTTP(S) only, no credentials, hashes removed, one entry
+ * per URL. This is what lets an answer that only wrote `【source N】` still end with
+ * a clickable list.
+ */
+export function nativeWebSources(content: unknown, annotations?: unknown): ResearchSource[] {
+  const candidates: unknown[] = [];
+  const add = (value: unknown) => {
+    if (Array.isArray(value)) candidates.push(...value);
+    else if (value && typeof value === 'object') candidates.push(value);
+  };
+  add(annotations);
+  if (Array.isArray(content)) {
+    for (const raw of content) {
+      if (!raw || typeof raw !== 'object') continue;
+      const block = raw as Record<string, unknown>;
+      // Anthropic's text block carries per-claim citations as `citations`.
+      add(block.citations);
+      const type = typeof block.type === 'string' ? block.type : '';
+      if (!/web_(?:search|fetch)_tool_result/i.test(type)) continue;
+      const result = block.content;
+      add(result);
+      if (result && typeof result === 'object' && !Array.isArray(result)) {
+        const record = result as Record<string, unknown>;
+        add(record.results);
+      }
+    }
+  }
+  return validSources(candidates);
+}
+
+/**
  * Filter the research model's JSON against the rows the inventory supplied.
  *
  * A name outside the allow-list is dropped, and a finding that names an outside
@@ -1147,12 +1185,18 @@ export async function researchInventoryWeb({
  * review the claim. The server appends only URLs the answer does not already
  * contain, so a model that cites correctly is left untouched and a model that
  * only names the publication still produces a clickable, reviewable list.
+ *
+ * THE ADDRESS IS A MARKDOWN AUTOLINK (`<https://…>`), not a bare URL. The phone's
+ * answer renderer only turns a labelled link or an autolink into a tappable span;
+ * a bare URL is plain text, so the source list would exist but be unusable. An
+ * autolink also survives titles and URLs containing brackets or parentheses,
+ * which a `[title](url)` link would misparse.
  */
 export function appendMissingSourceUrls(text: string, sources: ResearchSource[]) {
   const missing = sources.filter((source) => source.url && !text.includes(source.url));
   if (missing.length === 0) return text;
   const lines = ['', 'Source URLs:'];
-  for (const source of missing.slice(0, MAX_SOURCES)) lines.push(`- ${source.title}: ${source.url}`);
+  for (const source of missing.slice(0, MAX_SOURCES)) lines.push(`- ${source.title}: <${source.url}>`);
   return `${text}\n${lines.join('\n')}`;
 }
 
