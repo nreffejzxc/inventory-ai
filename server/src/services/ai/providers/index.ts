@@ -87,6 +87,15 @@ export interface ProviderRequest {
    */
   tools?: ToolDefinition[];
   /**
+   * AI-86 — whether this turn asks for public-web research.
+   *
+   * Optional and provider-neutral: a provider with built-in server tools can withhold
+   * them when this is explicitly false. Undefined preserves the provider's normal
+   * behavior for direct callers and tests. The turn loop always supplies a boolean, so
+   * a simple inventory question never exposes paid web tools.
+   */
+  webResearch?: boolean;
+  /**
    * The model to call INSTEAD of the configured one (AI-29).
    *
    * It exists for one caller: the turn loop's failover, after the configured model's
