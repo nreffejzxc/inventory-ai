@@ -149,7 +149,9 @@ unitSuite('AI-50 — research turns get room to reach the research tool', () => 
         }
         return fakeText('The research tool returned its result for the Keychron K8 Pro.');
       },
-      'Research the quality and reliability of the Keychron K8 Pro.',
+      // AI-88: a quality/reliability question is inventory-only unless the member names an
+      // external source, so the explicit "online" is what makes this a research turn.
+      'Research online the quality and reliability of the Keychron K8 Pro.',
     );
 
     assert.equal(seen.length, expandedRound, 'the research turn must reach its answer round');

@@ -827,8 +827,31 @@ function appendWithRoom(body: string, line: string, maxChars: number): string {
   return kept ? `${kept}\u2026\n\n${line}` : line;
 }
 
+/**
+ * AI-90 — does the member want the rows that need buying again?
+ *
+ * The restock tool answers "what should I reorder", but members ask the same question in
+ * stock-level words. Measured on the phone 2026-11-06: *"What is low on stock at the Front
+ * Counter"* read `getLowStockProducts`, and the completion step never ran because the
+ * original predicate only matched `restock|reorder` — so a 19-product answer stayed at the
+ * five rows the model happened to type.
+ *
+ * Two shapes are excluded. A low-stock VALUE question ("what is the total value of low
+ * stock?") is answered by `lowStockValueAnswer`, and appending a name list to a peso total
+ * would answer a different question. A pure count ("how many products are low on stock?")
+ * asked for a number, not a list; it only counts as a list request when it also asks which
+ * products those are.
+ */
+const RESTOCK_LIST_WORDING =
+  /\b(?:restock(?:ing)?|reorder(?:ing)?|low(?:\s+on)?\s+stock|running low|run low|shortages?|below\s+(?:the\s+|their\s+)?(?:reorder\s+)?minimum)\b/i;
+const ASKS_ONLY_FOR_A_COUNT = /^\s*how\s+(?:many|much)\b/i;
+const ALSO_ASKS_WHICH_ONES = /\b(?:list|name|show|which|what\s+are|who)\b/i;
+
 export function asksForRestockList(question: string): boolean {
-  return /\b(?:restock(?:ing)?|reorder(?:ing)?)\b/i.test(String(question ?? ''));
+  const text = String(question ?? '');
+  if (!text || !RESTOCK_LIST_WORDING.test(text)) return false;
+  if (ASKS_ONLY_FOR_A_COUNT.test(text) && !ALSO_ASKS_WHICH_ONES.test(text)) return false;
+  return !asksForLowStockValue(text);
 }
 
 export function asksForLowStockValue(question: string): boolean {
@@ -928,12 +951,26 @@ export function productsUnderPriceAnswer(
   return answer.length <= maxChars ? answer : answer.slice(0, maxChars);
 }
 
-/** Add every product returned by getReorderNeededProducts, not just the first one. */
+export interface RestockListOptions {
+  /** What to call the list, so a low-stock answer does not say "restock". */
+  label?: string;
+  /**
+   * False when the rows are only one page of a larger result. A partial page cannot be
+   * presented as the full list — that was the measured failure (AI-90: five of nineteen
+   * rows labelled complete) — so the model's answer is left untouched instead.
+   */
+  complete?: boolean;
+}
+
+/** Add every product this turn returned, not just the ones the model typed. */
 export function withCompleteRestockNames(
   answer: string,
   rows: readonly CatalogueFact[],
   maxChars: number,
+  options: RestockListOptions = {},
 ): string {
+  const body = String(answer ?? '').trimEnd();
+  if (options.complete === false) return body;
   const names: string[] = [];
   const seen = new Set<string>();
   for (const row of rows) {
@@ -944,10 +981,10 @@ export function withCompleteRestockNames(
     seen.add(key);
     names.push(name);
   }
-  if (names.length === 0) return String(answer ?? '');
-  const body = String(answer ?? '').trimEnd();
+  if (names.length === 0) return body;
   if (names.every((name) => new RegExp(`\\b${escapeRegExp(name)}\\b`, 'i').test(body))) return body;
-  return appendWithRoom(body, `The full restock list is: ${names.join(', ')}.`, maxChars);
+  const label = String(options.label ?? 'restock').trim() || 'restock';
+  return appendWithRoom(body, `The full ${label} list is: ${names.join(', ')}.`, maxChars);
 }
 
 /** Compute a low-stock subtotal only from the rows the low-stock tool returned. */

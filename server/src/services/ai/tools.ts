@@ -970,7 +970,7 @@ const tools: Tool[] = [
   {
     name: 'getLowStockProducts',
     description:
-      'Products whose available quantity is at or below their configured minimum stock (availability summed across all locations by default), including products with nothing available. Pass `location`/`locationId` to judge each product against what ONE place holds — use that whenever the member asks what is low AT a named place, because a full store room otherwise hides a selling shelf that has run down. Returns the current page of matching products. For a restock list that flags each item as out-of-stock or low-stock, prefer getReorderNeededProducts.',
+      'ACTIVE products whose available quantity is at or below their configured minimum stock (availability summed across all locations by default), including products with nothing available. Pass `location`/`locationId` to judge each product against what ONE place holds — use that whenever the member asks what is low AT a named place, because a full store room otherwise hides a selling shelf that has run down. `count` is every matching product and `items` is the current page; when `hasMore` is true, say the list is partial and give the total. For a restock list that flags each item as out-of-stock or low-stock, prefer getReorderNeededProducts.',
     permission: PERMISSIONS.INVENTORY_VIEW,
     defaultLimit: 20,
     parameters: {
@@ -990,12 +990,26 @@ const tools: Tool[] = [
       const location = await resolveLocation(ctx, args, { required: false });
       if (!location.ok) return location.result;
       const { items, total } = await productService.list(ctx.businessId, {
+        // Archived products stay in the catalogue but are not stock the member buys again.
+        // Without this, a low-stock answer counted rows the Restock screen never shows.
+        status: 'ACTIVE',
         lowStock: true,
         locationId: location.id,
         skip: 0,
         limit: Math.min(args.limit ?? 20, 50),
       });
-      return page(total, items.map(stockCard), location.id ? { locationId: location.id } : {});
+      return page(total, items.map(stockCard), {
+        ...(location.id ? { locationId: location.id } : {}),
+        // `hasMore` alone was read past on other lists, so a partial low-stock page says
+        // it is partial in words and carries the true total beside the rows.
+        ...(total > items.length
+          ? {
+              note:
+                `This is only ${items.length} of ${total} low-stock products. Say the list is ` +
+                'partial and give the total; raise `limit` (up to 50) only if the member asks for more.',
+            }
+          : {}),
+      });
     },
   },
 
