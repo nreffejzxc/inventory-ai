@@ -200,3 +200,67 @@ applied silently.
   over to the primary rather than repeating the same research request.
 - The assistant sends the same inventory tools to every model; choosing a model does not change
   what data it can read.
+
+## 9. Drill the research failover (120B → 20B)
+
+A fallback that has only ever been tested against a stub is a claim. The drill asks a deployed
+server to fail the research model **once, on purpose**, and reports which model actually answered.
+
+It is request-scoped: no environment variable changes, no restart, no model is promoted, and the
+simulated failure is not recorded against the real research model. Other members' turns — and the
+next turn — take the ordinary path.
+
+Requirements:
+
+- `AI_PROVIDER=openrouter` with `AI_RESEARCH_MODEL_OPENROUTER` set to a model different from
+  `AI_MODEL_OPENROUTER`.
+- An **OWNER** session token. A member's request is refused with `403 AI_DRILL_FORBIDDEN`.
+- A research question (reviews, market prices, a comparison). Any other message is refused with
+  `400 AI_DRILL_REQUIRES_RESEARCH` instead of passing as a drill that never fired.
+
+The header is the whole interface:
+
+```http
+POST /api/ai/chat
+x-ai-failover-drill: research
+```
+
+Run it against production:
+
+```bash
+cd server
+
+AI_ACCESS_TOKEN='…' AI_DRILL_CONFIRM=ai-failover:production \
+  npm run drill:ai-failover -- \
+    --base=https://ai-inventory-l1mi.onrender.com \
+    --expect-model=openai/gpt-oss-20b
+```
+
+`AI_DRILL_CONFIRM` is required for any non-loopback base, so a drilled request cannot be aimed at
+a real server by accident. The token is never printed.
+
+A passing run reports the answer and the model that produced it:
+
+```text
+[drill] status   201  4210 ms
+[drill] model    openai/gpt-oss-20b
+[drill] PASS — the fallback model answered this turn (openai/gpt-oss-20b).
+```
+
+Confirm in the server log that the failure was **simulated**, not a real outage:
+
+```text
+[ai] failover drill armed: user=… research=openai/gpt-oss-120b fallback=openai/gpt-oss-20b
+[ai] failover drill: simulated HTTP 503 from openai/gpt-oss-120b; no provider request
+[ai] failover attempt=1 model=openai/gpt-oss-120b -> openai/gpt-oss-20b reason=HTTP 503 remaining=…ms
+[ai] turn outcome=… calls=1 … failovers=1 … model=openai/gpt-oss-20b …
+```
+
+What it proves: the research turn starts on the research model, the model-level failover path
+runs, and the fallback really answers — the 20B call is a real, billed provider request. What it
+does **not** prove: a genuine upstream 120B outage. The failure is synthesised inside the server
+before any request is sent, so an OpenRouter outage, a revoked key or a withdrawn 120B is still a
+separate question.
+
+Exit codes: `0` the fallback answered, `1` the drill did not pass (wrong status or model), `2`
+refused before sending (no token, or a remote base without `AI_DRILL_CONFIRM`).
