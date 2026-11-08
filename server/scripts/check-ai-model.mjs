@@ -37,6 +37,7 @@ import 'dotenv/config';
 import { checkModelCatalogue, probeModel } from '../src/services/ai/modelCheck.ts';
 import { declaresToolSupport, refreshModelCapabilities } from '../src/services/ai/modelCapabilities.ts';
 import { aiConfig, MAX_FALLBACK_MODELS } from '../src/services/ai/aiConfig.ts';
+import { webCapabilities } from '../src/services/ai/webCapabilities.ts';
 import {
   describeReasoningPolicy,
   reasoningSettings,
@@ -77,6 +78,19 @@ if (reasoning.ignored.length > 0) {
 if (reasoning.defaultProblem) line('warning', reasoning.defaultProblem);
 if (reasoning.simpleProblem) {
   console.error(`[ai:check] FAILED — ${reasoning.simpleProblem}`);
+  process.exit(1);
+}
+
+// AI-85 — the two web tools are independent. Print the effective state so an
+// operator can verify a restart without sending a request; an invalid value is
+// a configuration failure, never a silent enable.
+const web = webCapabilities();
+line(
+  'web tools',
+  `search ${web.searchEnabled ? 'enabled' : 'disabled'}, fetch ${web.fetchEnabled ? 'enabled' : 'disabled'}`,
+);
+if (web.problems.length > 0) {
+  for (const problem of web.problems) console.error(`[ai:check] FAILED — ${problem.message}`);
   process.exit(1);
 }
 

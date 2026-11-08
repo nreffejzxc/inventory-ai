@@ -40,7 +40,7 @@ at the end of every development session, newest entry first.
 
 ## Current position
 
-**Updated:** 2026-11-07
+**Updated:** 2026-11-08
 **Goal:** finish and harden Inventory AI **V1** through production testing. No Play Store or App
 Store release is being prepared.
 
@@ -54,10 +54,10 @@ each. On 2026-11-07 the account runbook's provider snapshot was re-measured: Git
 
 | | |
 | --- | --- |
-| **Working now** | AI-55 per-model reasoning is on `fix/ai-55-per-model-reasoning`, with a PR opening for review. Production serves `37c42e3`. Firebase sign-in is **restored**: the credential was rotated on 2026-11-07 and the old key deleted. PR #179 carries the runbook, the checker and this record. Minimatch alerts #18/#19 are closed; L-17 is closed as not applicable to AUTH-06. Phone verification of the deployed AI behavior and the 60 s research-budget check remain pending. |
+| **Working now** | AI-55 per-model reasoning merged to `main` as `fece90d`. AI-85 adds independent `AI_WEB_SEARCH` / `AI_WEB_FETCH` switches; the implementation and Guide 17 are being committed to `main`. Production was on `37c42e3` before this session's push. Firebase sign-in is **restored**: the credential was rotated on 2026-11-07 and the old key deleted. PR #179 carries the runbook, the checker and this record. Minimatch alerts #18/#19 are closed; L-17 is closed as not applicable to AUTH-06. Phone verification of the deployed AI behavior and the 60 s research-budget check remain pending. |
 | **Just verified** | PR #162 was rebased onto `d313620` and merged as `e18264e`; all four required checks passed, Render deployed the merge, and `/api/health` returns 200 with `status: ok`, `db: connected` and the expected commit. PR #165 merged as `d313620` at `2026-11-07T06:17:42Z`, and its final head `5941956` passed all four required checks in run `42346155717`; documentation guards **39/39**; the root map guard indexes **27/27** active documents with **30** unique invariants and **10** living reference documents within cadence; the four documentation test files pass **27/27**; `git diff --check` clean. PR #168 merged as `c99760d` at `2026-11-07T07:22:01Z` after head `d901a2a` passed all four required checks in run `42350783903`; Render redeployed and `/api/health` reports `c99760d`, `status: ok`, `db: connected`, **0** server errors. PR #166 was reopened, rebased onto `783daf3`, and merged as `ebafae3` at `2026-11-07T07:49:57Z` after head `03a7418` passed all four required checks in run `42352706388`; Render redeployed and `/api/health` reports `ebafae3`, `status: ok`, `db: connected`, **0** server errors. On 2026-11-07 the minimatch override merged: #173 head `e7cc2d3` passed run `42355968583` and merged as `0eca990`; #174 head `608d811` passed run `42356272906` and merged as `8fe6403`; mobile Jest passed **101 suites / 1,203 tests**, and the server CI job ran the full suite and boot smoke. Render deployed `8fe6403`; `/api/health` reports `status: ok`, `db: connected`, **0** server errors. Minimatch alerts #18/#19 are closed; `glob` and `deepmerge` remain. On 2026-11-07 the TypeScript 7 watch self-test passed **32/32**; the live row is **DEFERRED** with both parser chains at `8.72.1` and peer `<6.1.0`; the extracted gate matrix and stubbed issue creation/deduplication passed; `check-docs` and `git diff --check` are clean. On 2026-11-07 the Firebase Admin API returned authorized domains `localhost`, `inventoryai-d0d20.firebaseapp.com`, `inventoryai-d0d20.web.app` and `ai-inventory-l1mi.onrender.com`; the Password Reset template is Firebase's default with callback `https://inventoryai-d0d20.firebaseapp.com/__/auth/action`, not the custom server URL. The mobile reset path is AUTH-06 (`/api/auth/password-reset/code` → `/verify` → `/confirm`), and `sendPasswordResetEmail` is absent from the mobile Firebase boundary. | On 2026-11-07 `npm run verify:firebase` was added and, run against `server/.env`, returned `400 invalid_grant: Invalid JWT Signature` (exit 1), detecting the production outage locally; `check-docs` and `secret-guard` are clean. On 2026-11-07 the Firebase credential was rotated end to end: `npm run verify:firebase` returned `VERIFIED`, `/api/health` reported 200 with no unexplained server errors, and production created session rows at 13:06:29Z, 13:07:33Z, 13:09:49Z and 13:15:03Z, the last after the old key was deleted.
 | **Blocked** | Phone observation of the deployed AI behavior and the 60 s research-budget check remain. The Render access review awaits the owner's plan and member list. No dependency decision is blocking; no EAS build or OTA was spent. |
-| **Next after this** | Exercise the assistant on the phone against the deployed commit, then begin planning the new major upgrade. |
+| **Next after this** | After the push/deploy, run `npm run ai:check` and one manual search/fetch turn, then exercise the assistant on the phone and begin planning the new major upgrade. |
 
 ### Open items carried forward
 
@@ -114,6 +114,31 @@ Known limits, checked before spending one of them:
   bulk; a delivery failure is not a code regression until the provider log says so.
 
 ---
+
+## 2026-11-08 — AI-85: OpenRouter web search and fetch are independent switches
+
+**Why.** The assistant already had product and price research tools, but no operator-level
+control over OpenRouter's built-in web tools. A deployment that wanted general web search or
+page fetching had no `.env` switch, and enabling either for one model would have been a source
+change.
+
+**Changed.** `AI_WEB_SEARCH` and `AI_WEB_FETCH` accept `enable` or `disable` independently.
+Both default to disabled; an invalid value also stays disabled and is reported. Enabled tools
+are sent as OpenRouter server tools (`openrouter:web_search` / `openrouter:web_fetch`) in the
+same `tools` array as the assistant's client tools. They are added only on tool-capable rounds,
+so the AI-50 final answer round remains tool-free. The same switches travel with every fallback
+model, while `AI_REASONING` still resolves per model. `npm run ai:check` prints the effective
+state, and Guide 17 documents the two variables, copy-ready examples and verification.
+
+**Verified.** Typecheck and lint exit 0. Full unit suite: **1,915 tests, 1,854 pass, 61
+skipped, 0 fail**. The OpenRouter stub suite proves disabled tools are omitted, each switch
+works alone, both coexist with `thinking: disabled`, a fallback request keeps the tools and its
+own reasoning rule, an invalid value is rejected by production config, and a no-tools answer
+round carries neither server tool. `check-docs`, `check-secrets` and `git diff --check` exit 0.
+
+**Not done.** No live OpenRouter web-tool request was made; that would spend provider credits
+and is left for the operator's verification. The full database-backed suite was not run because
+this change is request construction, not data access.
 
 ## 2026-11-07 — AI-55: reasoning follows the model, with a simple switch
 

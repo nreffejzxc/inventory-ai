@@ -11,6 +11,7 @@
  */
 
 import { reasoningSettings } from './reasoningPolicy.ts';
+import { webCapabilities } from './webCapabilities.ts';
 
 function positiveInt(raw: string | undefined, fallback: number) {
   const n = Number.parseInt(raw ?? '', 10);
@@ -58,6 +59,7 @@ function parseModelList(raw: string | undefined): { models: string[]; ignored: s
 
 export function aiConfig() {
   const fallbacks = parseModelList(process.env.AI_FALLBACK_MODELS_OPENROUTER);
+  const web = webCapabilities(process.env);
   return {
     // Provider + keys (keys are read here but never returned/logged).
     provider: (process.env.AI_PROVIDER || '').trim().toLowerCase(),
@@ -162,6 +164,15 @@ export function aiConfig() {
     // for per-model policies. `AI_THINKING_DISABLED=false` still means `auto` when the new
     // default is unset, so an existing deployment behaves as it did.
     reasoning: reasoningSettings(process.env),
+    // AI-85 — OpenRouter's built-in web tools. Each switch is independent and
+    // OFF by default so an existing deployment sends exactly the same request it
+    // did before this feature. `webServerTools` is the exact array the provider
+    // appends to a normal tool-capable round; it is deliberately empty when both
+    // switches are disabled or invalid.
+    webSearchEnabled: web.searchEnabled,
+    webFetchEnabled: web.fetchEnabled,
+    webServerTools: web.serverTools,
+    webProblems: web.problems,
     maxToolIterations: positiveInt(process.env.AI_MAX_TOOL_ITERATIONS, 6),
     // AI-2 — how many times a turn retries a provider response that carries NO
     // usable content (neither text nor a tool call). The deployed free-tier gateway

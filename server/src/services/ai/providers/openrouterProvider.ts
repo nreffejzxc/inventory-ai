@@ -91,6 +91,10 @@ export function createOpenrouterProvider(): AIProvider {
     // OpenRouter documents a bearer token and nothing else. No impersonation
     // headers, and no anthropic-version: the endpoint does not require one.
     authHeaders: (key) => ({ authorization: `Bearer ${key}` }),
+    // AI-85 — opt-in OpenRouter server tools. Read lazily so editing .env and
+    // restarting is the only change; the same tools travel with every model,
+    // including a failover candidate, and reasoning remains per-model.
+    serverTools: () => aiConfig().webServerTools,
   });
 }
 

@@ -71,6 +71,9 @@ which is what a mandatory-reasoning endpoint needs.
 `disable` is the safe choice for the free chain: on some models hidden reasoning shares
 `max_tokens` with the answer, so it can consume the whole budget and return no text.
 
+Web Search and Web Fetch are separate, independent switches; see
+[Guide 17](17-web-search-and-fetch.md).
+
 If the setting is not `enable` or `disable`, `npm run ai:check` prints the accepted values and
 exits 1. The assistant keeps a safe fallback for the turn, but the typo must be fixed.
 
