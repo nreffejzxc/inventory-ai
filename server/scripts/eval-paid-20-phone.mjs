@@ -13,38 +13,38 @@ import { writeFile } from 'node:fs/promises';
 
 import env from '../src/config/env.ts';
 
-const DEVICE = '192.168.1.2:5555';
-const BUSINESS_ID = new mongoose.Types.ObjectId('6ae1621616b1b0d5457512fa');
-const USER_ID = new mongoose.Types.ObjectId('6ae1621616b1b0d5457512fb');
+const DEVICE = process.env.PAID20_DEVICE || 'PV4DDMIZZLTCIVSK';
+const BUSINESS_ID = new mongoose.Types.ObjectId(process.env.PAID20_BUSINESS_ID || '6aee0e2c451a92d902af1190');
+const USER_ID = new mongoose.Types.ObjectId(process.env.PAID20_USER_ID || '6aee0e2c451a92d902af1191');
 const OUT = new URL(process.env.EVAL_OUT || '../.tmp-paid-20-phone.json', import.meta.url);
 const EXPECTED_MODEL = process.env.EVAL_EXPECTED_MODEL || 'openai/gpt-oss-120b';
 
 const QUESTIONS = [
   // Bisaya (Cebuano) — 7
-  { id: 'B1', lang: 'Bisaya', text: 'Pila ka aktibong produkto ang naa nato ug pila ka yunit ang tanan sa stock', expected: '1,000 active products; 233,444 units' },
-  { id: 'B2', lang: 'Bisaya', text: 'Pila ka produkto ang ubos na sa stock ug pila ang nahurot', expected: '166 low; 58 out of stock' },
-  { id: 'B3', lang: 'Bisaya', text: 'Asa nahimutang ang Value Notebook 10482 ug pila ka yunit ang naa sa matag lokasyon', expected: 'Value Notebook 10482; Main Warehouse 416; Shop Front 416' },
-  { id: 'B4', lang: 'Bisaya', text: 'Tagpila ang Ultra Padlock 10998 ug pila ka yunit ang naa', expected: 'Ultra Padlock 10998; 70.25; 0 units / out of stock' },
-  { id: 'B5', lang: 'Bisaya', text: 'Pila ka produkto ang naa sa Beverages nga kategoriya ug pila ka yunit', expected: 'Beverages: 250 products; 57,906 units' },
+  { id: 'B1', lang: 'Bisaya', text: 'Pila ka aktibong produkto ang naa nato ug pila ka yunit ang tanan sa stock', expected: '1,000 active products; 241,159 units' },
+  { id: 'B2', lang: 'Bisaya', text: 'Pila ka produkto ang ubos na sa stock ug pila ang nahurot', expected: '92 low; 57 out of stock' },
+  { id: 'B3', lang: 'Bisaya', text: 'Asa nahimutang ang Logitech MX Master 3S 10663 ug pila ka yunit ang naa sa matag lokasyon', expected: 'Logitech MX Master 3S 10663; Main Warehouse 452; Shop Front 453' },
+  { id: 'B4', lang: 'Bisaya', text: 'Tagpila ang Dell UltraSharp U2723QE 10232 ug pila ka yunit ang naa', expected: 'Dell UltraSharp U2723QE 10232; 38,990; 0 units / out of stock' },
+  { id: 'B5', lang: 'Bisaya', text: 'Pila ka produkto ang naa sa Keyboards and Mice nga kategoriya ug pila ka yunit', expected: 'Keyboards & Mice: 432 products; 104,843 units' },
   { id: 'B6', lang: 'Bisaya', text: 'Naa ba tay mga produkto para sa pag-ayo sa sakyanan', expected: 'No vehicle-repair products' },
-  { id: 'B7', lang: 'Bisaya', text: 'Pangitaa ang mga review sa Value Notebook 10482 ug ibutang ang mga source', expected: 'Reviews with source URL, or explicit unavailable' },
+  { id: 'B7', lang: 'Bisaya', text: 'Pangitaa ang mga review sa Logitech MX Master 3S 10663 ug ibutang ang mga source', expected: 'Reviews with source URL, or explicit unavailable' },
 
   // Tagalog — 7
-  { id: 'T1', lang: 'Tagalog', text: 'Ilan ang active na produkto natin at ilan ang kabuuang units sa stock', expected: '1,000 active products; 233,444 units' },
-  { id: 'T2', lang: 'Tagalog', text: 'Ilan ang mababa na sa stock at ilan ang out of stock', expected: '166 low; 58 out of stock' },
-  { id: 'T3', lang: 'Tagalog', text: 'Magkano ang Ultra Padlock 10998 at ilan ang stock nito', expected: 'Ultra Padlock 10998; 70.25; 0 units / out of stock' },
-  { id: 'T4', lang: 'Tagalog', text: 'Magkano ang kabuuang halaga ng Snacks category', expected: 'Snacks value 2,402,532.06' },
-  { id: 'T5', lang: 'Tagalog', text: 'Ihambing ang Value Notebook 10482 at Pro Notebook 10664 sa presyo at stock', expected: 'Value Notebook 80.24 / 832; Pro Notebook 72.21 / 779' },
-  { id: 'T6', lang: 'Tagalog', text: 'Anong produkto ang irerekomenda mo para sa maliit na opisina na may budget na 50', expected: 'In-stock product priced at or below 50' },
-  { id: 'T7', lang: 'Tagalog', text: 'Maghanap ng online na presyo ng Premium Tape 10972 at magbigay ng sources', expected: 'Online price with source, or explicit unavailable' },
+  { id: 'T1', lang: 'Tagalog', text: 'Ilan ang active na produkto natin at ilan ang kabuuang units sa stock', expected: '1,000 active products; 241,159 units' },
+  { id: 'T2', lang: 'Tagalog', text: 'Ilan ang mababa na sa stock at ilan ang out of stock', expected: '92 low; 57 out of stock' },
+  { id: 'T3', lang: 'Tagalog', text: 'Magkano ang Dell UltraSharp U2723QE 10232 at ilan ang stock nito', expected: 'Dell UltraSharp U2723QE 10232; 38,990; 0 units / out of stock' },
+  { id: 'T4', lang: 'Tagalog', text: 'Magkano ang kabuuang halaga ng Keyboards and Mice category', expected: 'Keyboards & Mice value 787,504,593' },
+  { id: 'T5', lang: 'Tagalog', text: 'Ihambing ang Logitech MX Master 3S 10663 at Dell UltraSharp U2723QE 10652 sa presyo at stock', expected: 'Logitech MX Master 3S 10663 5,490 / 905; Dell UltraSharp U2723QE 10652 38,990 / 818' },
+  { id: 'T6', lang: 'Tagalog', text: 'Anong produkto ang irerekomenda mo para sa maliit na opisina na may budget na 3,000', expected: 'Royal Kludge RK61 10004; 2,499; 218 units / in stock' },
+  { id: 'T7', lang: 'Tagalog', text: 'Maghanap ng online na presyo ng Samsung Portable SSD T7 Shield 1TB 10557 at magbigay ng sources', expected: 'Online price with source, or explicit unavailable' },
 
   // English — 6
-  { id: 'E1', lang: 'English', text: 'Which brands do we carry', expected: 'No brands recorded (0 brand values)' },
-  { id: 'E2', lang: 'English', text: 'How many products and units are at Main Warehouse', expected: '1,000 products; 175,920 units' },
-  { id: 'E3', lang: 'English', text: 'How many products need restocking and name three of them', expected: '166 products; any three genuine low/out names' },
-  { id: 'E4', lang: 'English', text: 'Which item has the highest stock value', expected: 'Value Notebook 10482; 66,759.68' },
+  { id: 'E1', lang: 'English', text: 'Which brands do we carry', expected: '12 brands: ASUS ROG, Anker, Dell, Elgato, Keychron, LG, Logitech, Razer, Royal Kludge, Samsung, Sony, SteelSeries' },
+  { id: 'E2', lang: 'English', text: 'How many products and units are at Main Warehouse', expected: '1,000 products; 179,016 units' },
+  { id: 'E3', lang: 'English', text: 'How many products need restocking and name three of them', expected: '149 products at/below minimum; any three genuine low/out names' },
+  { id: 'E4', lang: 'English', text: 'Which item has the highest stock value', expected: 'Dell UltraSharp U2723QE 10652; 31,893,820' },
   { id: 'E5', lang: 'English', text: 'Show me the five most recent stock movements', expected: 'Five latest movements with names and quantities' },
-  { id: 'E6', lang: 'English', text: 'Which item had the most units leave Main Warehouse', expected: 'Eco Kettle 10045; 458 units' },
+  { id: 'E6', lang: 'English', text: 'Which item had the most units leave Main Warehouse', expected: 'LG UltraGear 27GP850-B 10583; 575 units' },
 ];
 
 if (QUESTIONS.length !== 20) throw new Error(`Refusing: expected exactly 20 questions, got ${QUESTIONS.length}`);
