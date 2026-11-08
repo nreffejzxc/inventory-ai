@@ -519,10 +519,46 @@ function clearEngineStrikes(engine: string): void {
   engineStrikes.delete(engine);
 }
 
+/** A cancellation that must not be mistaken for an ordinary search timeout. */
+function abortError(): Error {
+  const error = new Error('The request was aborted.');
+  error.name = 'AbortError';
+  return error;
+}
+
+function throwIfAborted(signal?: AbortSignal): void {
+  if (signal?.aborted) throw abortError();
+}
+
+/** The operation's own timeout, plus the caller's cancellation if one was given. */
+function boundedBy(ms: number, signal?: AbortSignal): AbortSignal {
+  return signal ? AbortSignal.any([AbortSignal.timeout(ms), signal]) : AbortSignal.timeout(ms);
+}
+
+function wait(ms: number, signal?: AbortSignal): Promise<void> {
+  if (!signal) return new Promise((resolve) => setTimeout(resolve, ms));
+  return new Promise((resolve, reject) => {
+    if (signal.aborted) {
+      reject(abortError());
+      return;
+    }
+    const timer = setTimeout(() => {
+      signal.removeEventListener('abort', onAbort);
+      resolve();
+    }, ms);
+    const onAbort = () => {
+      clearTimeout(timer);
+      reject(abortError());
+    };
+    signal.addEventListener('abort', onAbort, { once: true });
+  });
+}
+
 async function fetchSearchPage(
   endpoint: URL,
   userAgent: string,
   engine: string,
+  signal?: AbortSignal,
 ): Promise<{ html: string } | { reason: FreeSearchFailureReason; blocked?: boolean }> {
   let response: Response;
   try {
@@ -533,9 +569,10 @@ async function fetchSearchPage(
         'user-agent': userAgent,
       },
       redirect: 'follow',
-      signal: AbortSignal.timeout(SEARCH_TIMEOUT_MS),
+      signal: boundedBy(SEARCH_TIMEOUT_MS, signal),
     });
   } catch (error) {
+    if (signal?.aborted) throw abortError();
     const name = (error as { name?: unknown } | null)?.name;
     return { reason: name === 'TimeoutError' || name === 'AbortError' ? 'SEARCH_TIMEOUT' : 'SEARCH_UNAVAILABLE' };
   }
@@ -543,6 +580,7 @@ async function fetchSearchPage(
   const throttled = response.status === 202 || response.status === 429;
   if (!response.ok || throttled) return { reason: 'SEARCH_UNAVAILABLE', blocked: true };
   const body = await readBoundedText(response, MAX_SEARCH_BYTES);
+  throwIfAborted(signal);
   if (!('text' in body)) return { reason: 'SEARCH_UNAVAILABLE' };
   const lowered = body.text.toLowerCase();
   if (engine === 'duckduckgo' && DDG_BLOCK_MARKERS.some((marker) => lowered.includes(marker))) {
@@ -645,8 +683,9 @@ export function parseBingResults(html: string, limit = 3): FreeSearchSource[] {
  */
 export async function searchFreeWeb(
   query: string,
-  { limit = 3 }: { limit?: number } = {},
+  { limit = 3, signal }: { limit?: number; signal?: AbortSignal } = {},
 ): Promise<FreeSearchResult> {
+  throwIfAborted(signal);
   const cleanQuery = query.replace(/\s+/g, ' ').trim();
   if (!cleanQuery) return { sources: [], reason: 'NO_SOURCES' };
   const wanted = Math.max(1, Math.min(limit, 10));
@@ -661,7 +700,7 @@ export async function searchFreeWeb(
       const response = await fetch(endpoint, {
         headers: { accept: 'application/json', 'user-agent': USER_AGENTS[1] },
         redirect: 'follow',
-        signal: AbortSignal.timeout(SEARCH_TIMEOUT_MS),
+        signal: boundedBy(SEARCH_TIMEOUT_MS, signal),
       });
       if (response.ok) {
         const payload: unknown = await response.json();
@@ -672,6 +711,7 @@ export async function searchFreeWeb(
         failures.push('SEARCH_UNAVAILABLE');
       }
     } catch (error) {
+      if (signal?.aborted) throw abortError();
       const name = (error as { name?: unknown } | null)?.name;
       failures.push(name === 'TimeoutError' || name === 'AbortError' ? 'SEARCH_TIMEOUT' : 'SEARCH_UNAVAILABLE');
     }
@@ -703,6 +743,7 @@ export async function searchFreeWeb(
   /** One pass over the ladder; returns sources when an attempt produced a result list. */
   const runAttempts = async (list: SearchAttempt[]): Promise<FreeSearchSource[] | null> => {
     for (const attempt of list) {
+      throwIfAborted(signal);
       if (isEngineBlocked(attempt.engineKey)) {
         failures.push('SEARCH_UNAVAILABLE');
         continue;
@@ -717,7 +758,8 @@ export async function searchFreeWeb(
         continue;
       }
       await searchSlot();
-      const page = await fetchSearchPage(endpoint, attempt.userAgent, attempt.engine);
+      throwIfAborted(signal);
+      const page = await fetchSearchPage(endpoint, attempt.userAgent, attempt.engine, signal);
       if (!('html' in page)) {
         if (page.blocked) noteEngineBlock(attempt.engineKey, 'throttled');
         else clearEngineStrikes(attempt.engineKey);
@@ -758,7 +800,7 @@ export async function searchFreeWeb(
   // question from reporting "nothing on the web" because it happened to land on an
   // anomaly page, and it is bounded to the two attempts that just failed.
   if (!custom && failures.includes('SEARCH_UNAVAILABLE')) {
-    await new Promise((resolve) => setTimeout(resolve, 900));
+    await wait(900, signal);
     failures.length = 0;
     const retryList = [...attempts.slice(0, 2), fallbackAttempts[0]].filter(
       (attempt): attempt is SearchAttempt => attempt !== undefined && !isEngineBlocked(attempt.engineKey),
@@ -778,7 +820,7 @@ export async function searchFreeWeb(
  */
 export async function fetchPublicPage(
   rawUrl: string,
-  { timeoutMs = PAGE_TIMEOUT_MS }: { timeoutMs?: number } = {},
+  { timeoutMs = PAGE_TIMEOUT_MS, signal }: { timeoutMs?: number; signal?: AbortSignal } = {},
 ): Promise<PublicPageResult> {
   let current: URL;
   try {
@@ -788,6 +830,7 @@ export async function fetchPublicPage(
   }
 
   for (let hop = 0; hop <= MAX_REDIRECTS; hop += 1) {
+    throwIfAborted(signal);
     const problem = await urlProblem(current);
     if (problem) return { ok: false, reason: problem };
     let response: Response;
@@ -799,9 +842,10 @@ export async function fetchPublicPage(
           'user-agent': USER_AGENTS[0],
         },
         redirect: 'manual',
-        signal: AbortSignal.timeout(timeoutMs),
+        signal: boundedBy(timeoutMs, signal),
       });
     } catch (error) {
+      if (signal?.aborted) throw abortError();
       const name = (error as { name?: unknown } | null)?.name;
       return { ok: false, reason: name === 'TimeoutError' || name === 'AbortError' ? 'SEARCH_TIMEOUT' : 'SEARCH_UNAVAILABLE' };
     }

@@ -53,12 +53,17 @@ const TIMEOUT_CODES = ['NETWORK_TIMEOUT', 'AI_TIMEOUT'];
  * real answers, and asking again would either spend a second request to be refused identically
  * or hide the one thing the member needs to know. `status === 0` and the three "this server has
  * no such route / does not stream" statuses are the safe set: the same turn over JSON is a
- * different code path that may well work.
+ * different code path that may well work — with one deliberate exception.
+ *
+ * A `NETWORK_TIMEOUT` is OUR budget expiring, not evidence that the stream is unavailable. The
+ * server may still be running the same turn, so retrying it immediately would start a second
+ * billable turn for the same question. The timeout is final on the streaming path.
  */
 export function streamFallbackAllowed(err: unknown): boolean {
-  const status = (err as { status?: number } | null | undefined)?.status;
-  if (status === 0) return true;
-  return status === 404 || status === 405 || status === 501;
+  const error = (err as { status?: number; code?: string | null } | null | undefined) ?? null;
+  if (error?.code === 'NETWORK_TIMEOUT') return false;
+  if (error?.status === 0) return true;
+  return error?.status === 404 || error?.status === 405 || error?.status === 501;
 }
 
 /**

@@ -9,7 +9,9 @@
  *      may rewrite what it streamed (status constants) or trim a cut-off unit. A screen that kept
  *      its own streamed copy beside the stored one would disagree with a reloaded thread.
  *   2. A STREAM THAT NEVER STARTED falls back to the ordinary route, so an older server, a proxy
- *      that cannot stream, or a connection that failed before the first byte still answers.
+ *      that cannot stream, or a connection that failed before the first byte still answers — but
+ *      a timeout does not, because the server may still be running that turn and a retry would
+ *      start a second billable turn.
  *   3. A STREAM THAT BROKE AFTER SHOWING TEXT does NOT retry: the text was read, and a second
  *      attempt would print the answer twice. The question stays on screen beside the part that
  *      arrived, and the failure is named.
@@ -189,6 +191,18 @@ describe('AI-40 — the assistant streams its answer', () => {
     expect(chat).toHaveBeenCalledTimes(1);
   });
 
+  it('does not start a second turn when the stream budget expires', async () => {
+    // The first turn may still be running in its tool. A JSON retry would bill the same
+    // question twice, so the timeout is shown immediately and no second request is made.
+    chatStream.mockRejectedValue(new ApiError(0, 'NETWORK_TIMEOUT', 'x'));
+
+    const view = await mount();
+    await ask(view);
+
+    await waitFor(() => expect(view.getByText(/took too long/)).toBeTruthy());
+    expect(chat).not.toHaveBeenCalled();
+  });
+
   it('does NOT retry after text was shown, and keeps what the member has read', async () => {
     chatStream.mockImplementation(async (_token: string, _body: unknown, options: { onDelta?: (t: string) => void }) => {
       options.onDelta?.('You hold 112');
@@ -251,9 +265,10 @@ describe('AI-40 — the assistant streams its answer', () => {
 });
 
 describe('AI-40 — which failures may be retried over the ordinary route', () => {
-  it('allows a transport failure but never a refusal that names the turn', () => {
+  it('allows a transport failure but never a timeout or a refusal that names the turn', () => {
     expect(streamFallbackAllowed(new ApiError(0, 'NETWORK_ERROR', 'x'))).toBe(true);
-    expect(streamFallbackAllowed(new ApiError(0, 'NETWORK_TIMEOUT', 'x'))).toBe(true);
+    // A timeout means the server may still be working; a retry would be a second full turn.
+    expect(streamFallbackAllowed(new ApiError(0, 'NETWORK_TIMEOUT', 'x'))).toBe(false);
     expect(streamFallbackAllowed(new ApiError(404, null, 'x'))).toBe(true);
     expect(streamFallbackAllowed(new ApiError(405, null, 'x'))).toBe(true);
   });

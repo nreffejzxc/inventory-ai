@@ -23,9 +23,11 @@ import assert from 'node:assert/strict';
 
 import { startServer, makeApi, createTracker, registerOwner, disconnectDb } from './support.mjs';
 import { dbSuite, unitSuite } from './testEnv.mjs';
-import { ROLES } from '../src/constants/roles.ts';
+import { ROLES, PERMISSIONS } from '../src/constants/roles.ts';
 import { runAiChat } from '../src/services/ai/ai.service.ts';
 import { aiConfig } from '../src/services/ai/aiConfig.ts';
+import { aiToolsById } from '../src/services/ai/tools.ts';
+import { researchMarketPrices } from '../src/services/ai/marketPrices.ts';
 import { AI_TIMEOUT, isAiError } from '../src/services/ai/aiErrors.ts';
 import { registerFakeProvider, setFakeScenario, fakeText, fakeCalls } from './fakes/aiProvider.mjs';
 
@@ -68,6 +70,49 @@ unitSuite('AI-1 turn deadline (DB-free)', () => {
     await assert.rejects(ask, (err) => err.name === 'AiTimeout');
     const elapsed = Date.now() - started;
     assert.ok(elapsed < 300 + 750, `expected the turn to end near 300ms, took ${elapsed}ms`);
+  });
+
+  it('bounds a tool that never returns by the turn deadline and cancels it', async () => {
+    process.env.AI_TURN_DEADLINE_MS = '250';
+    let toolSignal;
+    let providerCalls = 0;
+    aiToolsById.set('testHang', {
+      name: 'testHang',
+      description: 'test-only tool that never settles',
+      permission: PERMISSIONS.PRODUCTS_VIEW,
+      parameters: { type: 'object', properties: {}, additionalProperties: false },
+      executor: (ctx) => {
+        toolSignal = ctx.signal;
+        return new Promise(() => {});
+      },
+    });
+    try {
+      setFakeScenario(() => {
+        providerCalls += 1;
+        return fakeCalls([{ id: 'call-hang', name: 'testHang', input: {} }]);
+      });
+      const started = Date.now();
+      await assert.rejects(ask, (err) => err.name === 'AiTimeout');
+      assert.ok(Date.now() - started < 1500, 'the tool outlived the turn deadline');
+      assert.equal(toolSignal?.aborted, true, 'the tool must be cancelled at the deadline');
+      assert.equal(providerCalls, 1, 'a timed-out tool must not trigger another provider call');
+    } finally {
+      aiToolsById.delete('testHang');
+    }
+  });
+
+  it('stops price research when the turn signal is already aborted', async () => {
+    const controller = new AbortController();
+    controller.abort();
+    await assert.rejects(
+      researchMarketPrices({
+        subjects: [
+          { id: 'p1', name: 'Test Widget', brand: null, sellingPrice: null, currency: 'PHP', unit: 'pc' },
+        ],
+        signal: controller.signal,
+      }),
+      (err) => err.name === 'AbortError',
+    );
   });
 
   it('clamps each call to the time REMAINING, so the budget is shared across iterations', async () => {

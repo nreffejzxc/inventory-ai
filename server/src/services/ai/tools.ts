@@ -44,6 +44,12 @@ interface ToolContext {
    * production path supplies it.
    */
   timeZone?: string;
+  /**
+   * The turn's cancellation signal. Tools that can wait on the network (price
+   * research) must forward it, so a deadline or a client disconnect stops the
+   * work instead of letting the tool outlive the turn.
+   */
+  signal?: AbortSignal;
 }
 
 /**
@@ -1695,7 +1701,7 @@ const tools: Tool[] = [
         .map((store) => store.trim())
         .filter(Boolean)
         .slice(0, 3);
-      const research = await researchMarketPrices({ subjects, stores });
+      const research = await researchMarketPrices({ subjects, stores, signal: ctx.signal });
       return { ...research, subjects };
     },
   },
@@ -1830,6 +1836,10 @@ export async function executeTool(name: string, rawArgs: unknown, ctx: ToolConte
     const value = await tool.executor(ctx, cleaned);
     return { ok: true, result: value };
   } catch (err) {
+    // A cancelled turn is not a tool failure. Returning a result here would let
+    // the model spend another provider call on a turn whose caller has already
+    // gone away or whose deadline has passed, so the cancellation is rethrown.
+    if (ctx.signal?.aborted || (err as { name?: unknown } | null)?.name === 'AbortError') throw err;
     // `err` is `unknown`: a thrown value has no shape TypeScript may assume, and
     // the assertion is the erasable way to read the message this log has always
     // read. Nothing is attached to the error that leaves.

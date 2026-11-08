@@ -545,9 +545,28 @@ function clientErrorCodes(sources) {
   return codes;
 }
 
-/** Client codes the server cannot emit. Pure, so it can be negative-tested. */
-function unmatchedClientCodes(serverCodes, clientCodes) {
-  return [...clientCodes.keys()].filter((code) => !serverCodes.has(code)).sort();
+/**
+ * Every error code the mobile client constructs itself (`new ApiError(status, CODE)`).
+ * A code the client invents — `NETWORK_TIMEOUT` when its own request budget expires — is
+ * not a server code, so 23D must not require the server to emit it. The exemption is
+ * measured from the source rather than listed here, so renaming a client code still
+ * leaves it unmatched against a server code the client no longer branches on.
+ */
+function clientEmittedCodes(sources) {
+  const codes = new Set();
+  for (const { text } of sources) {
+    for (const m of text.matchAll(/new ApiError\(\s*[^,()]+,\s*'([^']*)'/g)) {
+      codes.add(m[1]);
+    }
+  }
+  return codes;
+}
+
+/** Client codes the server cannot emit and the client does not construct itself. */
+function unmatchedClientCodes(serverCodes, clientCodes, clientEmitted = new Set()) {
+  return [...clientCodes.keys()]
+    .filter((code) => !serverCodes.has(code) && !clientEmitted.has(code))
+    .sort();
 }
 
 const SERVER_SOURCES = walkSourceFiles(SRC_DIR, { extensions: SOURCE_EXTENSIONS }).map((file) => ({
@@ -792,7 +811,7 @@ unitSuite('Phase 23 — authorization contract completion', () => {
         `no client error-code branches were found under mobile/ — the scan is broken, not the client`
       );
 
-      const unmatched = unmatchedClientCodes(emitted, clientCodes);
+      const unmatched = unmatchedClientCodes(emitted, clientCodes, clientEmittedCodes(MOBILE_SOURCES));
       assert.deepEqual(
         unmatched,
         [],
@@ -936,13 +955,28 @@ unitSuite('Phase 23 — authorization contract completion', () => {
       assert.equal(declared(ROLE_GATED_ROUTES).includes(entry.route), false);
     });
 
-    it('detects a client error code the server cannot emit', () => {
+    it('detects a client error code neither the server nor the client emits', () => {
       const emitted = serverErrorCodes(SERVER_SOURCES);
+      const selfEmitted = clientEmittedCodes(MOBILE_SOURCES);
       const fake = new Map([['NO_SUCH_CODE', new Set(['mobile/lib/example.js'])]]);
-      assert.deepEqual(unmatchedClientCodes(emitted, fake), ['NO_SUCH_CODE']);
+      assert.deepEqual(unmatchedClientCodes(emitted, fake, selfEmitted), ['NO_SUCH_CODE']);
+
+      // The client's own transport budget code needs no server emission — but the
+      // exemption must be seen in the source, not assumed.
+      assert.ok(
+        selfEmitted.has('NETWORK_TIMEOUT'),
+        'the client is expected to construct NETWORK_TIMEOUT when its own budget expires'
+      );
+      const ownCode = new Map([['NETWORK_TIMEOUT', new Set(['mobile/components/AiChat.tsx'])]]);
+      assert.deepEqual(unmatchedClientCodes(emitted, ownCode, selfEmitted), []);
+      assert.deepEqual(
+        unmatchedClientCodes(emitted, ownCode),
+        ['NETWORK_TIMEOUT'],
+        'without a client construction, the same code must still be required from the server'
+      );
 
       const real = clientErrorCodes(MOBILE_SOURCES);
-      assert.deepEqual(unmatchedClientCodes(emitted, real), []);
+      assert.deepEqual(unmatchedClientCodes(emitted, real, selfEmitted), []);
     });
   });
 });
