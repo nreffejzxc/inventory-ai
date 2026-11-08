@@ -28,6 +28,7 @@ import { runAiChat } from '../src/services/ai/ai.service.ts';
 import { aiConfig } from '../src/services/ai/aiConfig.ts';
 import { aiToolsById } from '../src/services/ai/tools.ts';
 import { researchMarketPrices } from '../src/services/ai/marketPrices.ts';
+import { researchInventoryWeb } from '../src/services/ai/webResearch.ts';
 import { AI_TIMEOUT, isAiError } from '../src/services/ai/aiErrors.ts';
 import { registerFakeProvider, setFakeScenario, fakeText, fakeCalls } from './fakes/aiProvider.mjs';
 
@@ -113,6 +114,35 @@ unitSuite('AI-1 turn deadline (DB-free)', () => {
       }),
       (err) => err.name === 'AbortError',
     );
+  });
+
+  it('stops research at its own budget instead of spending the whole turn', async () => {
+    const started = Date.now();
+    const price = await researchMarketPrices({
+      subjects: [
+        { id: 'p1', name: 'Test Widget', brand: null, sellingPrice: null, currency: 'PHP', unit: 'pc' },
+      ],
+      deadlineAt: Date.now() - 1,
+    });
+    assert.equal(price.available, false);
+    assert.equal(price.reason, 'SEARCH_TIMEOUT');
+
+    const research = await researchInventoryWeb({
+      subjects: [
+        {
+          id: 'p1',
+          name: 'Test Widget',
+          brand: null,
+          category: null,
+          sellingPrice: null,
+          unit: 'pc',
+        },
+      ],
+      deadlineAt: Date.now() - 1,
+    });
+    assert.equal(research.available, false);
+    assert.equal(research.reason, 'SEARCH_TIMEOUT');
+    assert.ok(Date.now() - started < 1000, 'an expired research budget must not start network work');
   });
 
   it('clamps each call to the time REMAINING, so the budget is shared across iterations', async () => {

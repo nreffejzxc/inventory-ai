@@ -193,6 +193,12 @@ export function aiConfig() {
     // ai.service.ts derives ONE absolute deadline from this and clamps each call
     // to the time remaining, so the loop can never exceed it.
     turnDeadlineMs: positiveInt(process.env.AI_TURN_DEADLINE_MS, 60000),
+    // AI-86 — the budget a RESEARCH TOOL may spend inside a turn. The turn deadline
+    // bounds the whole turn, but a research ladder that consumes almost all of it
+    // leaves no round in which the model can answer, so a turn that had collected
+    // evidence still ended as a timeout (measured on the phone: 52.8 s of tool time
+    // in a 60 s turn). Research stops at this budget and returns what it has.
+    researchBudgetMs: positiveInt(process.env.AI_RESEARCH_BUDGET_MS, 30000),
     rateLimitWindowMs: positiveInt(process.env.AI_RATE_LIMIT_WINDOW_MS, 60000),
     rateLimitMax: positiveInt(process.env.AI_RATE_LIMIT_MAX, 20),
   };

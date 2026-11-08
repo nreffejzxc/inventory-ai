@@ -30,6 +30,7 @@ import { categoryService, locationService } from '../reference.service.ts';
 import { transactionsService, TRANSACTION_TYPES } from '../transactions.service.ts';
 import { researchInventoryWeb, WEB_RESEARCH_NOTE, type ResearchFocus, type ResearchSubject } from './webResearch.ts';
 import { MARKET_PRICE_NOTE, researchMarketPrices, type PriceSubject } from './marketPrices.ts';
+import { aiConfig } from './aiConfig.ts';
 import { hasPermission, PERMISSIONS } from '../../constants/roles.ts';
 import { localDateTime } from '../../utils/timeZone.ts';
 
@@ -50,6 +51,33 @@ interface ToolContext {
    * work instead of letting the tool outlive the turn.
    */
   signal?: AbortSignal;
+  /**
+   * The turn's absolute deadline. Research tools use it to stop before the whole
+   * budget is gone, so the model still has a round left to answer with the evidence
+   * that was collected.
+   */
+  deadlineAt?: number;
+}
+
+/**
+ * The deadline a research tool may run to: the smaller of the turn's remaining
+ * budget and its own research budget. The turn deadline alone is too late — a tool
+ * that spends it all leaves no round for the answer, which was the measured 60 s
+ * timeout on the phone.
+ */
+/** Time kept back from research so the model can still compose a cited answer. */
+const RESEARCH_ANSWER_RESERVE_MS = 15000;
+
+function researchDeadlineAt(ctx: ToolContext): number {
+  const now = Date.now();
+  const budgetEnd = now + aiConfig().researchBudgetMs;
+  if (ctx.deadlineAt === undefined) return budgetEnd;
+  // Several research tools can run in one turn, so the budget is clamped by what is
+  // left of the turn too: a second tool gets only the remaining time, and every tool
+  // stops before the reserve. Research that starts inside the reserve does no work and
+  // returns partial evidence immediately, which still lets the model answer.
+  const answerBy = ctx.deadlineAt - RESEARCH_ANSWER_RESERVE_MS;
+  return Math.max(now, Math.min(budgetEnd, answerBy));
 }
 
 /**
@@ -1609,7 +1637,7 @@ const tools: Tool[] = [
           ? args.focus
           : ('overall' as ResearchFocus);
 
-      const research = await researchInventoryWeb({ subjects, focus });
+      const research = await researchInventoryWeb({ subjects, focus, deadlineAt: researchDeadlineAt(ctx) });
       return { ...research, subjects };
     },
   },
@@ -1701,7 +1729,12 @@ const tools: Tool[] = [
         .map((store) => store.trim())
         .filter(Boolean)
         .slice(0, 3);
-      const research = await researchMarketPrices({ subjects, stores, signal: ctx.signal });
+      const research = await researchMarketPrices({
+        subjects,
+        stores,
+        signal: ctx.signal,
+        deadlineAt: researchDeadlineAt(ctx),
+      });
       return { ...research, subjects };
     },
   },
