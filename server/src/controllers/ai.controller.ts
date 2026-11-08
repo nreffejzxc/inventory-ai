@@ -26,6 +26,8 @@ import {
   AiTimeout,
 } from '../services/ai/aiErrors.ts';
 import { runAiChat, type ChatTurn } from '../services/ai/ai.service.ts';
+import { asksForResearchModel } from '../services/ai/webCapabilities.ts';
+import { ROLES } from '../constants/roles.ts';
 
 /**
  * The request context this controller reads, following `audit.controller.ts`,
@@ -181,6 +183,67 @@ function wantsEventStream(req: Request): boolean {
   return /\btext\/event-stream\b/i.test(String(req.headers?.accept ?? ''));
 }
 
+/** The request header that arms a controlled failover drill (Guide 16 §9). */
+const FAILOVER_DRILL_HEADER = 'x-ai-failover-drill';
+
+/**
+ * Read the controlled failover drill, or refuse it with a reason.
+ *
+ * The drill exists to be RUN, so a request that asks for it and cannot have it is an ERROR rather
+ * than a silent ordinary turn: the silent version would look like a drill whose fallback line
+ * never appeared in the logs, which is the exact confusion this feature must not create.
+ *
+ * It is OWNER-only and request-scoped. Nothing about the deployment changes, so every other
+ * member's turn — and the next turn by the same owner — takes the ordinary path.
+ */
+function readResearchDrill(
+  req: AuthenticatedRequest,
+  message: string,
+  cfg: ReturnType<typeof aiConfig>,
+): boolean {
+  const requested = String(req.headers?.[FAILOVER_DRILL_HEADER] ?? '').trim().toLowerCase();
+  if (!requested) return false;
+  // A MEMBER must never be able to make the assistant fail on purpose, not even for one request.
+  if (req.user!.role !== ROLES.OWNER) {
+    throw new ApiError(403, 'The failover drill is available to the owner only.', 'AI_DRILL_FORBIDDEN');
+  }
+  if (requested !== 'research') {
+    throw new ApiError(
+      400,
+      `Unknown failover drill "${requested}". The only supported drill is "research".`,
+      'AI_DRILL_UNKNOWN',
+    );
+  }
+  if (cfg.provider !== 'openrouter') {
+    throw new ApiError(
+      400,
+      'The research failover drill needs AI_PROVIDER=openrouter.',
+      'AI_DRILL_NOT_CONFIGURED',
+    );
+  }
+  const researchModel = cfg.openrouterResearchModel;
+  if (!researchModel || researchModel === cfg.openrouterModel) {
+    throw new ApiError(
+      400,
+      'The research failover drill needs AI_RESEARCH_MODEL_OPENROUTER set to a different model than AI_MODEL_OPENROUTER.',
+      'AI_DRILL_NOT_CONFIGURED',
+    );
+  }
+  // The drill simulates a failure of the model a RESEARCH turn starts on.
+  if (!asksForResearchModel(message)) {
+    throw new ApiError(
+      400,
+      'The research failover drill needs a research question, for example one asking for reviews, market prices or a comparison.',
+      'AI_DRILL_REQUIRES_RESEARCH',
+    );
+  }
+  console.log(
+    `[ai] failover drill armed: user=${req.user!.id} research=${researchModel}` +
+      ` fallback=${cfg.openrouterModel || 'unset'}`,
+  );
+  return true;
+}
+
 /** The turn's inputs, resolved and validated, before any model call is made. */
 interface PreparedTurn {
   cfg: ReturnType<typeof aiConfig>;
@@ -194,6 +257,12 @@ interface PreparedTurn {
    * Untrusted and display-only; the service validates it and falls back to UTC.
    */
   timeZone?: string;
+  /**
+   * A controlled failover drill for THIS request only (Guide 16 §9). True only for an OWNER
+   * request that sent `x-ai-failover-drill: research` with a research question on a deployment
+   * whose research model differs from the primary.
+   */
+  researchDrill: boolean;
   clientGone: AbortController;
   onResponseClose: () => void;
 }
@@ -279,7 +348,21 @@ async function prepareTurn(req: AuthenticatedRequest, res: Response): Promise<Pr
   // resolves it (unknown -> UTC) and it only ever changes displayed dates.
   const timeZone = typeof req.body?.timeZone === 'string' ? req.body.timeZone : undefined;
 
-  return { cfg, message, conversation, history, askedAt, timeZone, clientGone, onResponseClose };
+  // AI-88 — an OWNER-only, request-scoped failover drill. Read last: the drill needs a validated
+  // message, because it only applies to a turn that would start on the research model.
+  const researchDrill = readResearchDrill(req, message, cfg);
+
+  return {
+    cfg,
+    message,
+    conversation,
+    history,
+    askedAt,
+    timeZone,
+    researchDrill,
+    clientGone,
+    onResponseClose,
+  };
 }
 
 /** The three documents one successful turn writes. */
@@ -445,6 +528,7 @@ async function sendStreamedTurn(req: AuthenticatedRequest, res: Response): Promi
       message: turn.message,
       signal: turn.clientGone.signal,
       timeZone: turn.timeZone,
+      researchDrill: turn.researchDrill,
       onTextDelta: (text) => write('delta', { text }),
       onTextReset: () => write('reset', {}),
     });
@@ -555,6 +639,7 @@ const aiController = {
         message: turn.message,
         signal: turn.clientGone.signal,
         timeZone: turn.timeZone,
+        researchDrill: turn.researchDrill,
       });
     } catch (err) {
       // Nothing was persisted yet, so a failed request leaves no trace and a

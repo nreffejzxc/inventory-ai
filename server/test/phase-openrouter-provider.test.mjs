@@ -31,7 +31,7 @@ import { validateProductionConfig } from '../src/config/validateConfig.ts';
 import { asksForResearchModel, asksForWebResearch } from '../src/services/ai/webCapabilities.ts';
 import { AI_TOOL_DEFS } from '../src/services/ai/tools.ts';
 import { runAiChat } from '../src/services/ai/ai.service.ts';
-import { recordModelFailure, resetModelBreaker } from '../src/services/ai/modelBreaker.ts';
+import { isModelCooling, recordModelFailure, resetModelBreaker } from '../src/services/ai/modelBreaker.ts';
 import { promotedModel, resetModelSelection } from '../src/services/ai/modelSelection.ts';
 import { ROLES } from '../src/constants/roles.ts';
 import {
@@ -39,6 +39,7 @@ import {
   makeApi,
   createTracker,
   registerOwner,
+  makeRoleUser,
   uniqueName,
   disconnectDb,
 } from './support.mjs';
@@ -297,6 +298,26 @@ async function captureLogs(fn) {
     return { value, lines };
   } finally {
     console.log = original;
+  }
+}
+
+/**
+ * Capture BOTH info and error lines. The failover drill's evidence is logged at error level
+ * (it stands for a provider failure), so `captureLogs` alone would miss the lines that prove
+ * the drill fired and that the real failover path answered.
+ */
+async function captureAllLogs(fn) {
+  const lines = [];
+  const originalLog = console.log;
+  const originalError = console.error;
+  console.log = (...args) => lines.push(args.map((arg) => String(arg)).join(' '));
+  console.error = (...args) => lines.push(args.map((arg) => String(arg)).join(' '));
+  try {
+    const value = await fn();
+    return { value, lines };
+  } finally {
+    console.log = originalLog;
+    console.error = originalError;
   }
 }
 
@@ -1219,6 +1240,101 @@ unitSuite('OpenRouter provider — AI loop compatibility (DB-free)', () => {
     }
   });
 
+  // AI-88 — the controlled drill. It must exercise the REAL failover path, send the research
+  // model nothing at all, and teach the breaker nothing about a model that is actually healthy.
+  it('injects one simulated research failure for a drill and serves the answer from the primary (AI-88)', async () => {
+    const restores = [
+      ...useOpenrouter(),
+      withEnv('AI_RESEARCH_MODEL_OPENROUTER', RESEARCH_MODEL),
+      withEnv('AI_FALLBACK_MODELS_OPENROUTER', undefined),
+      withEnv('AI_WEB_SEARCH', 'enable'),
+      withEnv('AI_WEB_FETCH', 'enable'),
+      // A single failure opens the breaker, so "not cooling" proves the drill recorded nothing.
+      withEnv('AI_MODEL_FAILURE_THRESHOLD', '1'),
+    ];
+    resetModelSelection();
+    resetModelBreaker();
+    try {
+      const seen = [];
+      responder = (body) => {
+        seen.push(body.model);
+        return okNativeText('The standard model answered.');
+      };
+
+      const { value, lines } = await captureAllLogs(() =>
+        runAiChat({
+          ...ctx,
+          message: 'Find product reviews for the Sony headset.',
+          researchDrill: true,
+        }),
+      );
+
+      assert.equal(value.content, 'The standard model answered.');
+      assert.equal(value.model, MODEL, 'the fallback model is the one that answered');
+      assert.deepEqual(seen, [MODEL], 'the research model was never called');
+      assert.equal(requests.length, 1, 'one real provider call, not a failed research call plus a fallback');
+
+      assert.ok(
+        lines.some((line) =>
+          line.includes(
+            `[ai] failover drill: simulated HTTP 503 from ${RESEARCH_MODEL}; no provider request`,
+          ),
+        ),
+        'the simulated failure names the model it stood in for',
+      );
+      const failoverLine = lines.find((line) => line.includes('[ai] failover attempt=1'));
+      assert.ok(failoverLine, 'the real failover line was emitted');
+      assert.ok(
+        failoverLine.includes(`model=${RESEARCH_MODEL} -> ${MODEL}`),
+        'the fallback walks from the research model to the primary',
+      );
+      assert.match(failoverLine, /reason=HTTP 503/);
+      const turnLine = lines.find((line) => line.includes('[ai] turn outcome='));
+      assert.match(turnLine, /failovers=1/);
+      assert.match(turnLine, /calls=1/);
+      assert.ok(turnLine.includes(`model=${MODEL}`), 'the turn line names the model that answered');
+      assert.equal(
+        isModelCooling(RESEARCH_MODEL),
+        false,
+        'the simulated failure is not held against the real research model',
+      );
+    } finally {
+      restoreAll(restores);
+      resetModelSelection();
+      resetModelBreaker();
+    }
+  });
+
+  it('ignores a drill on an ordinary turn so no inventory question can be made to fail (AI-88)', async () => {
+    const restores = [
+      ...useOpenrouter(),
+      withEnv('AI_RESEARCH_MODEL_OPENROUTER', RESEARCH_MODEL),
+      withEnv('AI_FALLBACK_MODELS_OPENROUTER', undefined),
+    ];
+    resetModelSelection();
+    resetModelBreaker();
+    try {
+      const seen = [];
+      responder = (body) => {
+        seen.push(body.model);
+        return okText('Hello! I can help with your inventory.');
+      };
+      const { value, lines } = await captureAllLogs(() =>
+        runAiChat({ ...ctx, message: 'Hi there', researchDrill: true }),
+      );
+      assert.equal(value.content, 'Hello! I can help with your inventory.');
+      assert.deepEqual(seen, [MODEL], 'the ordinary turn still goes to the primary, once');
+      assert.ok(
+        !lines.some((line) => line.includes('failover drill')),
+        'no drill was armed and no failure was simulated',
+      );
+    } finally {
+      restoreAll(restores);
+      resetModelSelection();
+      resetModelBreaker();
+    }
+  });
+
   it('executes a tool call, feeds the result back, and continues to a final answer', async () => {
     const restores = useOpenrouter();
     try {
@@ -1698,6 +1814,83 @@ dbSuite('OpenRouter provider — real full-catalogue workload', dbOk, () => {
       t.diagnostic(`local loop overhead (stub, no network): ${elapsed}ms over ${requests.length} request(s)`);
       assert.ok(elapsed >= 0);
       assert.equal(requests.length, 1);
+    } finally {
+      restoreAll(restores);
+    }
+  });
+
+  // AI-88 — the same drill over the real route and the real auth chain. The header is the only
+  // difference between this request and an ordinary research turn.
+  it('runs the research failover drill for an OWNER over the real route (AI-88)', async () => {
+    const restores = [
+      ...useOpenrouter(),
+      withEnv('AI_RESEARCH_MODEL_OPENROUTER', RESEARCH_MODEL),
+      withEnv('AI_FALLBACK_MODELS_OPENROUTER', undefined),
+      withEnv('AI_WEB_SEARCH', 'enable'),
+      withEnv('AI_WEB_FETCH', 'enable'),
+    ];
+    resetModelSelection();
+    resetModelBreaker();
+    try {
+      const seen = [];
+      responder = (body) => {
+        seen.push(body.model);
+        return okNativeText('The standard model answered.');
+      };
+      const res = await fetch(`${baseUrl}/api/ai/chat`, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          authorization: `Bearer ${owner.token}`,
+          'x-ai-failover-drill': 'research',
+        },
+        body: JSON.stringify({ message: 'Find product reviews for the Sony headset.' }),
+      });
+      const body = await res.json();
+      assert.equal(res.status, 201, JSON.stringify(body));
+      assert.equal(body.assistantMessage.model, MODEL, 'the fallback model answered');
+      assert.equal(body.assistantMessage.content, 'The standard model answered.');
+      assert.deepEqual(seen, [MODEL], 'only the fallback received a provider request');
+      assert.equal(requests.length, 1);
+      assert.equal(isModelCooling(RESEARCH_MODEL), false);
+    } finally {
+      restoreAll(restores);
+      resetModelSelection();
+      resetModelBreaker();
+    }
+  });
+
+  it('refuses the research drill to a member and to a non-research question (AI-88)', async () => {
+    const restores = [
+      ...useOpenrouter(),
+      withEnv('AI_RESEARCH_MODEL_OPENROUTER', RESEARCH_MODEL),
+    ];
+    const staff = await makeRoleUser({ role: ROLES.STAFF, businessId: owner.businessId }, tracker);
+    try {
+      const send = (token, message, header = 'research') =>
+        fetch(`${baseUrl}/api/ai/chat`, {
+          method: 'POST',
+          headers: {
+            'content-type': 'application/json',
+            authorization: `Bearer ${token}`,
+            'x-ai-failover-drill': header,
+          },
+          body: JSON.stringify({ message }),
+        });
+
+      const forbidden = await send(staff.token, 'Find product reviews for the Sony headset.');
+      assert.equal(forbidden.status, 403);
+      assert.equal((await forbidden.json()).code, 'AI_DRILL_FORBIDDEN');
+
+      const wrongQuestion = await send(owner.token, 'How many units are in Main Warehouse?');
+      assert.equal(wrongQuestion.status, 400);
+      assert.equal((await wrongQuestion.json()).code, 'AI_DRILL_REQUIRES_RESEARCH');
+
+      const unknown = await send(owner.token, 'Find product reviews for the Sony headset.', 'everything');
+      assert.equal(unknown.status, 400);
+      assert.equal((await unknown.json()).code, 'AI_DRILL_UNKNOWN');
+
+      assert.equal(requests.length, 0, 'a refused drill never reaches the provider');
     } finally {
       restoreAll(restores);
     }

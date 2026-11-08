@@ -55,6 +55,7 @@ import type { CatalogueFact } from './answerCompletion.ts';
 import { locationService } from '../reference.service.ts';
 import { aiConfig } from './aiConfig.ts';
 import {
+  AI_UNAVAILABLE,
   AiAbandoned,
   AiOutputLimit,
   AiProviderError,
@@ -140,7 +141,30 @@ interface ChatParams {
    * Absent or unusable values fall back to UTC (`resolveTimeZone`).
    */
   timeZone?: string;
+  /**
+   * A controlled failover drill (Guide 16 §9): fail the research model ONCE, on purpose, so the
+   * deployment's real fallback path can be observed in production without changing an
+   * environment variable or waiting for an upstream outage.
+   *
+   * Set only by the controller, only for an OWNER request that asked for it, and only together
+   * with a research question — so no member can make the assistant fail on purpose and no
+   * ordinary turn is affected. The simulated failure is never recorded by the model breaker:
+   * nothing was actually wrong with the real research model.
+   */
+  researchDrill?: boolean;
 }
+
+/**
+ * Marks the ONE failure a failover drill synthesises, so the turn loop can tell it apart from a
+ * real provider failure. A symbol rather than a public field: it is internal to this service and
+ * cannot collide with anything an error already carries.
+ */
+const DRILL_FAILURE = Symbol('aiFailoverDrill');
+
+const isDrillFailure = (err: unknown): boolean =>
+  typeof err === 'object' &&
+  err !== null &&
+  (err as { [DRILL_FAILURE]?: unknown })[DRILL_FAILURE] === true;
 
 /**
  * The normalised result of one turn. `model` and `usage` are optional because a
@@ -492,6 +516,7 @@ export async function runAiChat({
   onTextDelta,
   onTextReset,
   timeZone: requestedTimeZone,
+  researchDrill,
 }: ChatParams): Promise<ChatResult> {
   const cfg = aiConfig();
   // Resolved once per turn: the prompt and every tool row in this turn must use
@@ -765,6 +790,17 @@ export async function runAiChat({
   );
 
   /**
+   * Whether THIS turn injects the drill's simulated failure.
+   *
+   * It requires a research turn, which is the only kind that starts on the research model — the
+   * fallback being drilled does not exist on an ordinary turn, so a drill there could not fire
+   * and would look like a pass. The controller refuses that request outright; this is the
+   * service's own guarantee for a caller that asks anyway.
+   */
+  const researchDrillTurn = Boolean(researchDrill && researchTurn);
+  let drillFailureInjected = false;
+
+  /**
    * The full ordered chain this turn may use: the primary first on an ordinary turn, or the
    * research model followed by the primary on a research turn, then the operator's
    * candidates, de-duplicated.
@@ -891,6 +927,15 @@ export async function runAiChat({
     model = startModel;
   }
 
+  // A drill that cannot fire is reported rather than passed off as one: the operator's next step
+  // is to read the log, and a silent ordinary turn would look exactly like a successful drill.
+  if (researchDrillTurn && startModel !== researchModel) {
+    console.error(
+      `[ai] failover drill: ${researchModel} is not this turn's start model` +
+        ` (start=${startModel ?? 'none'}); no failure was simulated`,
+    );
+  }
+
   /** The candidates left after whichever model this turn starts on. */
   const walkRemaining = eligibleChain.filter((id) => id !== startModel);
 
@@ -905,6 +950,20 @@ export async function runAiChat({
   const callProvider = async (attemptCapMs = 0, allowTools = true): Promise<ProviderResponse> => {
     const remaining = deadlineAt - Date.now();
     if (remaining <= 0) throw new AiTimeout();
+    // The drill's ONE simulated refusal happens here, before any request is built or sent: no
+    // provider is called, no quota is spent, and the counters below never claim a call that did
+    // not happen. It is a 503 because that is what a dead upstream returns, so the REAL failover
+    // path — not a stand-in for it — is what answers the turn.
+    if (researchDrillTurn && !drillFailureInjected && currentModel === researchModel) {
+      drillFailureInjected = true;
+      console.error(
+        `[ai] failover drill: simulated HTTP 503 from ${currentModel}; no provider request`,
+      );
+      throw Object.assign(
+        new AiProviderError('The AI service could not be reached.', AI_UNAVAILABLE, 503),
+        { [DRILL_FAILURE]: true },
+      );
+    }
     // AI-38 — a cap only shortens an attempt that HAS somewhere else to go; it can never spend
     // more than the turn has left, and the last attempt is called with 0 (no cap).
     const capped = attemptCapMs > 0 && attemptCapMs < remaining;
@@ -1013,7 +1072,11 @@ export async function runAiChat({
       // bad-request failures are still not evidence about this model and never make a healthy
       // model's next turn skip it. A transport failure that is NOT a slice expiry still counts
       // but does not fail over — the throw below is unchanged for it.
-      if (attempted && (isModelAvailabilityFailure(err) || timedOut)) {
+      // A DRILLED failure is not evidence about the model: nothing was sent to it, so the
+      // breaker must not count it. Otherwise five drills would hold the real research model out
+      // of the next cooldown and the drill would damage the deployment it is meant to observe.
+      const drillFailure = isDrillFailure(err);
+      if (attempted && !drillFailure && (isModelAvailabilityFailure(err) || timedOut)) {
         const outcome = recordModelFailure(attempted, Date.now(), {
           threshold: cfg.modelFailureThreshold,
           cooldownMs: cfg.modelCooldownMs,
