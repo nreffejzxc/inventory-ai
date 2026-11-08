@@ -54,7 +54,7 @@ each. On 2026-11-07 the account runbook's provider snapshot was re-measured: Git
 
 | | |
 | --- | --- |
-| **Working now** | AI-55 per-model reasoning merged to `main` as `fece90d`. AI-85 adds independent `AI_WEB_SEARCH` / `AI_WEB_FETCH` switches; the implementation and Guide 17 are being committed to `main`. Production was on `37c42e3` before this session's push. Firebase sign-in is **restored**: the credential was rotated on 2026-11-07 and the old key deleted. PR #179 carries the runbook, the checker and this record. Minimatch alerts #18/#19 are closed; L-17 is closed as not applicable to AUTH-06. Phone verification of the deployed AI behavior and the 60 s research-budget check remain pending. |
+| **Working now** | AI-55 per-model reasoning merged to `main` as `fece90d`. AI-85 adds independent `AI_WEB_SEARCH` / `AI_WEB_FETCH` switches; AI-86 gates those paid tools to genuine web-research intent and caps each request, implemented locally and awaiting delivery. Production was on `37c42e3` before this session's push. Firebase sign-in is **restored**: the credential was rotated on 2026-11-07 and the old key deleted. PR #179 carries the runbook, the checker and this record. Minimatch alerts #18/#19 are closed; L-17 is closed as not applicable to AUTH-06. Phone verification of the deployed AI behavior and the 60 s research-budget check remain pending. |
 | **Just verified** | PR #162 was rebased onto `d313620` and merged as `e18264e`; all four required checks passed, Render deployed the merge, and `/api/health` returns 200 with `status: ok`, `db: connected` and the expected commit. PR #165 merged as `d313620` at `2026-11-07T06:17:42Z`, and its final head `5941956` passed all four required checks in run `42346155717`; documentation guards **39/39**; the root map guard indexes **27/27** active documents with **30** unique invariants and **10** living reference documents within cadence; the four documentation test files pass **27/27**; `git diff --check` clean. PR #168 merged as `c99760d` at `2026-11-07T07:22:01Z` after head `d901a2a` passed all four required checks in run `42350783903`; Render redeployed and `/api/health` reports `c99760d`, `status: ok`, `db: connected`, **0** server errors. PR #166 was reopened, rebased onto `783daf3`, and merged as `ebafae3` at `2026-11-07T07:49:57Z` after head `03a7418` passed all four required checks in run `42352706388`; Render redeployed and `/api/health` reports `ebafae3`, `status: ok`, `db: connected`, **0** server errors. On 2026-11-07 the minimatch override merged: #173 head `e7cc2d3` passed run `42355968583` and merged as `0eca990`; #174 head `608d811` passed run `42356272906` and merged as `8fe6403`; mobile Jest passed **101 suites / 1,203 tests**, and the server CI job ran the full suite and boot smoke. Render deployed `8fe6403`; `/api/health` reports `status: ok`, `db: connected`, **0** server errors. Minimatch alerts #18/#19 are closed; `glob` and `deepmerge` remain. On 2026-11-07 the TypeScript 7 watch self-test passed **32/32**; the live row is **DEFERRED** with both parser chains at `8.72.1` and peer `<6.1.0`; the extracted gate matrix and stubbed issue creation/deduplication passed; `check-docs` and `git diff --check` are clean. On 2026-11-07 the Firebase Admin API returned authorized domains `localhost`, `inventoryai-d0d20.firebaseapp.com`, `inventoryai-d0d20.web.app` and `ai-inventory-l1mi.onrender.com`; the Password Reset template is Firebase's default with callback `https://inventoryai-d0d20.firebaseapp.com/__/auth/action`, not the custom server URL. The mobile reset path is AUTH-06 (`/api/auth/password-reset/code` → `/verify` → `/confirm`), and `sendPasswordResetEmail` is absent from the mobile Firebase boundary. | On 2026-11-07 `npm run verify:firebase` was added and, run against `server/.env`, returned `400 invalid_grant: Invalid JWT Signature` (exit 1), detecting the production outage locally; `check-docs` and `secret-guard` are clean. On 2026-11-07 the Firebase credential was rotated end to end: `npm run verify:firebase` returned `VERIFIED`, `/api/health` reported 200 with no unexplained server errors, and production created session rows at 13:06:29Z, 13:07:33Z, 13:09:49Z and 13:15:03Z, the last after the old key was deleted.
 | **Blocked** | Phone observation of the deployed AI behavior and the 60 s research-budget check remain. The Render access review awaits the owner's plan and member list. No dependency decision is blocking; no EAS build or OTA was spent. |
 | **Next after this** | After the push/deploy, run `npm run ai:check` and one manual search/fetch turn, then exercise the assistant on the phone and begin planning the new major upgrade. |
@@ -114,6 +114,36 @@ Known limits, checked before spending one of them:
   bulk; a delivery failure is not a code regression until the provider log says so.
 
 ---
+
+## 2026-11-08 — AI-86: paid web tools are offered only for research intent
+
+**Why.** AI-85 made the two OpenRouter server tools configurable, but an enabled switch was
+attached to every tool-capable round. OpenRouter's server tools are model-invoked rather than
+automatic, yet a model could still choose to search for a plain inventory question, and each
+search costs about $0.007 and each fetched page about $0.001.
+
+**Changed.** `asksForWebResearch` in `webCapabilities.ts` is a conservative gate over the
+member's message: explicit web work, product reviews, quality or reliability, online or
+marketplace prices, product recommendations, current news, or a named URL. Stock, movements,
+locations, catalogue fields, recorded selling prices and “review my stock” do not pass.
+`runAiChat` computes the intent once and sends it with every provider request; the Anthropic
+wire withholds both server tools when it is false, so a failover request inherits the same
+decision. That one boolean now also drives the existing extra-iteration budget and the
+research-without-a-read re-ask, so the two rules cannot disagree. Each definition carries a
+hard per-request cap: search `max_uses: 2` and `max_total_results: 10`; fetch `max_uses: 2`
+and `max_content_tokens: 30000`. System prompt rule 36 keeps public research separate from
+inventory facts and prefers the local research tools. Guide 17 documents the gate, the caps
+and how to read the log.
+
+**Verified.** Typecheck and lint exit 0. Full unit suite: **1,923 tests, 1,862 pass, 61
+skipped, 0 fail**. The OpenRouter stub suite (45 tests, 44 pass, 1 skipped) proves both sides
+end to end through `runAiChat`: with both switches on, a stock question carries no
+`openrouter:*` tool on any request and logs `offered=none used=none intent=inventory`, while
+a review question offers both tools. The wire suite also proves the caps, the per-request
+log, and that no query, URL or page content reaches that log.
+
+**Not done.** No live OpenRouter search or fetch was made. The change is uncommitted on
+`main`; delivery needs a pull request because the branch is protected.
 
 ## 2026-11-08 — AI-85: OpenRouter web search and fetch are independent switches
 

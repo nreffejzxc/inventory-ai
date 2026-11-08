@@ -78,6 +78,7 @@ import {
 import { activeModel, promoteModel } from './modelSelection.ts';
 import { selectProvider, type ProviderMessage, type ProviderResponse, type ProviderUsage, type ToolDefinition } from './providers/index.ts';
 import { capToolResult } from './toolPayload.ts';
+import { asksForWebResearch } from './webCapabilities.ts';
 import { executeTool, AI_TOOL_DEFS } from './tools.ts';
 import { appendMissingSourceUrls, type ResearchSource } from './webResearch.ts';
 import { localDate, localTime, resolveTimeZone, utcOffsetLabel } from '../../utils/timeZone.ts';
@@ -354,6 +355,10 @@ export function systemPrompt(
     // catalogue, so that was a false capability statement. Research questions are not
     // inventory fields; the turn loop now sends one back when it skips the research tool.
     '35. Reviews, ratings, quality, reliability, specifications and current online prices are public-web questions, not inventory fields. Never answer that the inventory record has no owner reviews or no quality data. Use findProducts to identify the recorded product, then call researchInventoryProducts for reviews, quality or specifications, or researchMarketPrices for current online prices; answer only from the returned sources and say plainly when the web search itself was unavailable.',
+    // AI-86 — the paid OpenRouter server tools are gated by the turn loop, but once
+    // offered the model still needs the boundary between public research and inventory
+    // facts. The local research tools remain the preferred path for product research.
+    '36. Web search and web fetch are paid, optional tools for public information. Use them only when the member explicitly asks to search or read the web, or when the question needs current external facts that no inventory tool can provide (market prices, reviews, quality, recommendations or a named URL). Never use them for stock, movements, catalogue fields, locations or recorded selling prices; use the inventory tools for those. When product research is needed, prefer researchInventoryProducts or researchMarketPrices.',
     // AI-82 — measured in the 120-question stress run on 2026-11-05. “Most expensive” was
     // answered with the Sony at 19,990 (the largest stock VALUE) while the Dell monitor was
     // recorded at 38,990; a low-stock subtotal quoted the business-wide total; and “under
@@ -481,6 +486,11 @@ export async function runAiChat({
     .slice(-cfg.contextMessages)
     .map((m) => ({ role: m.role === 'assistant' ? 'assistant' : 'user', content: m.content }));
   messages.push({ role: 'user', content: message });
+  // AI-86 — decide once, from the member's actual question. The paid OpenRouter web
+  // server tools are offered only when that question asks for public-web research;
+  // a normal inventory question keeps them out of every candidate request, including
+  // failover attempts. The model still chooses whether to call an offered tool.
+  const webResearchIntent = asksForWebResearch(message);
 
   let finalText: string | null = null;
   const toolsUsed = new Set<string>();
@@ -811,6 +821,7 @@ export async function runAiChat({
           ...(allowTools ? { tools: AI_TOOL_DEFS as ToolDefinition[] } : {}),
           timeoutMs: budget,
           signal,
+          webResearch: webResearchIntent,
           ...(currentModel ? { model: currentModel } : {}),
           // AI-40 — streaming is requested ONLY when someone is listening. A provider that
           // does not support it ignores these and answers whole, and the turn is unchanged.
@@ -1016,11 +1027,7 @@ export async function runAiChat({
   // Research turns need a genuine web read AFTER discovery. Six steps let Q99 spend four
   // rounds on catalogue lookups, get re-asked for research, and reach the answer round
   // with no tool available — so the extra two steps exist only for a research question.
-  const asksForWebResearch =
-    /\b(?:reviews?|ratings?|quality|reliability|well[- ]reviewed|sources?|specifications?|research|online\s+(?:prices?|stores?|listings?)|marketplace|cheaper\s+elsewhere|what\s+do\s+online\s+stores\s+charge)\b/i.test(
-      message,
-    );
-  const iterationBudget = asksForWebResearch
+  const iterationBudget = webResearchIntent
     ? Math.min(cfg.maxToolIterations + 2, 8)
     : cfg.maxToolIterations;
 
@@ -1381,7 +1388,7 @@ export async function runAiChat({
         // still arrives without a research read.
         const researchTools = ['researchInventoryProducts', 'researchMarketPrices'];
         const answeredResearchWithoutRead =
-          asksForWebResearch && !researchTools.some((tool) => toolsUsed.has(tool));
+          webResearchIntent && !researchTools.some((tool) => toolsUsed.has(tool));
         if (
           answeredResearchWithoutRead &&
           !isAnswerRound &&

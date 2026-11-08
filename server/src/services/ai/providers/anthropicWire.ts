@@ -16,7 +16,12 @@
 import { aiConfig } from '../aiConfig.ts';
 import { resolveReasoningPolicy, thinkingFieldFor } from '../reasoningPolicy.ts';
 import { AiNotConfigured, AiOutputLimit, AiProviderError } from '../aiErrors.ts';
-import type { OpenRouterServerTool } from '../webCapabilities.ts';
+import {
+  webToolLabel,
+  webToolNames,
+  webToolsUsedFromResponse,
+  type OpenRouterServerTool,
+} from '../webCapabilities.ts';
 import type { QuotaInfo } from '../quota.ts';
 import { postJson, postSse, type SseEvent, type UpstreamJsonBody } from './http.ts';
 import type {
@@ -278,7 +283,10 @@ type StreamBlock =
   | { type: 'text'; text: string }
   | { type: 'tool_use'; id: string; name: string; json: string }
   | { type: 'thinking'; thinking: string; signature: string }
-  | { type: 'redacted_thinking'; data: string };
+  | { type: 'redacted_thinking'; data: string }
+  // AI-85 — preserve server-tool block labels so the request log can report
+  // actual use. The query, URL and result body are deliberately not retained.
+  | { type: 'server_tool'; blockType: string; name: string };
 
 /** Tool arguments that arrived in pieces; an unparseable set is empty, never a thrown turn. */
 function parseToolInput(raw: string): UpstreamJsonBody {
@@ -335,6 +343,15 @@ async function readAnthropicStream(
         });
       } else if (block.type === 'redacted_thinking') {
         blocks.set(index, { type: 'redacted_thinking', data: typeof block.data === 'string' ? block.data : '' });
+      } else if (
+        block.type === 'server_tool_use' ||
+        (typeof block.type === 'string' && block.type.startsWith('web_'))
+      ) {
+        blocks.set(index, {
+          type: 'server_tool',
+          blockType: String(block.type),
+          name: typeof block.name === 'string' ? block.name : '',
+        });
       } else {
         const initial = typeof block.text === 'string' ? block.text : '';
         blocks.set(index, { type: 'text', text: initial });
@@ -407,6 +424,9 @@ async function readAnthropicStream(
         return { type: 'tool_use', id: block.id, name: block.name, input: parseToolInput(block.json) };
       }
       if (block.type === 'redacted_thinking') return { type: 'redacted_thinking', data: block.data };
+      if (block.type === 'server_tool') {
+        return { type: block.blockType, ...(block.name ? { name: block.name } : {}) };
+      }
       return {
         type: 'thinking',
         thinking: block.thinking,
@@ -528,6 +548,7 @@ export function createAnthropicCompatibleProvider(opts: AnthropicCompatibleOptio
       model: requestedModel,
       stream,
       onTextDelta,
+      webResearch,
     }) {
       const cfg = aiConfig();
       // AI-29 — a per-request override, used by the turn loop's failover. It stays a
@@ -540,8 +561,15 @@ export function createAnthropicCompatibleProvider(opts: AnthropicCompatibleOptio
       // AI-85 — OpenRouter's built-in server tools live in the SAME `tools` array as
       // the assistant's client tools, but they are raw entries with a `type`, not
       // `input_schema` function definitions. They are added only when this call is
-      // allowed to use tools at all, preserving AI-50's final-answer round.
-      const serverToolDefs = tools && tools.length > 0 ? serverTools?.() ?? [] : [];
+      // allowed to use tools at all, preserving AI-50's final-answer round. Keep the
+      // configured list separately for the log: it answers "was the switch on?", while
+      // the offered list answers "did this request actually carry the tool?".
+      const configuredServerTools = serverTools?.() ?? [];
+      // AI-86 — the turn loop sets this false for plain inventory questions. Keeping the
+      // configured list separate lets the request log explain that the switches are on
+      // while neither paid tool was offered. Undefined preserves direct-call behaviour.
+      const webToolsAllowed = webResearch !== false;
+      const serverToolDefs = tools && tools.length > 0 && webToolsAllowed ? configuredServerTools : [];
       const requestTools = [
         ...(tools && tools.length > 0 ? toAnthropicTools(tools) : []),
         ...serverToolDefs,
@@ -575,6 +603,24 @@ export function createAnthropicCompatibleProvider(opts: AnthropicCompatibleOptio
        * (AI-12) or report a spent output budget differently from an unstreamed one (AI-10).
        */
       const finish = (body: AnthropicResponse, quota: QuotaInfo | null): ProviderResponse => {
+        // AI-85 — one greppable line per provider request, in the same spirit as the
+        // failover line: what was configured, what this request offered, and what the
+        // provider actually ran. Only labels and the model id are printed; no prompt,
+        // query, URL, page content or credential can reach it. `used=none` is the
+        // important distinction: the feature was enabled, but this request did not use
+        // it. A final answer round can legitimately say `offered=none used=none` because
+        // AI-50 withholds all tools there.
+        const enabledWebTools = webToolNames(configuredServerTools);
+        const offeredWebTools = webToolNames(serverToolDefs);
+        const usedWebTools = webToolsUsedFromResponse(body.content, body.usage);
+        if (enabledWebTools.length > 0 || usedWebTools.length > 0) {
+          console.log(
+            `[ai:${name}] web tools enabled=${webToolLabel(enabledWebTools)}` +
+              ` offered=${webToolLabel(offeredWebTools)}` +
+              ` used=${webToolLabel(usedWebTools)}` +
+              ` intent=${webToolsAllowed ? 'web' : 'inventory'} model=${model}`,
+          );
+        }
         try {
           const parsed = parseAnthropicResponse(body, model);
           // AI-36 — the allowance rides on the successful response so the turn loop can report it

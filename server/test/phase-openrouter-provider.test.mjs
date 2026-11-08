@@ -28,6 +28,7 @@ import { AI_OUTPUT_LIMIT, AiNotConfigured, AiProviderError, AiOutputLimit, AiQuo
 import { createOpenrouterProvider } from '../src/services/ai/providers/openrouterProvider.ts';
 import { providerRequiredEnv, selectProvider } from '../src/services/ai/providers/index.ts';
 import { validateProductionConfig } from '../src/config/validateConfig.ts';
+import { asksForWebResearch } from '../src/services/ai/webCapabilities.ts';
 import { AI_TOOL_DEFS } from '../src/services/ai/tools.ts';
 import { runAiChat } from '../src/services/ai/ai.service.ts';
 import { ROLES } from '../src/constants/roles.ts';
@@ -268,6 +269,21 @@ async function quiet(fn) {
   } finally {
     console.error = original;
     console.warn = originalWarn;
+  }
+}
+
+/** Capture info-level lines so the web-tool request log can be asserted. */
+async function captureLogs(fn) {
+  const lines = [];
+  const original = console.log;
+  console.log = (...args) => {
+    lines.push(args.map((arg) => String(arg)).join(' '));
+  };
+  try {
+    const value = await fn();
+    return { value, lines };
+  } finally {
+    console.log = original;
   }
 }
 
@@ -679,7 +695,12 @@ unitSuite('OpenRouter provider — configurable web tools', () => {
         messages: [{ role: 'user', content: 'hi' }],
         tools: AI_TOOL_DEFS,
       });
-      assert.deepEqual(serverTools(lastRequest().body), [{ type: 'openrouter:web_search' }]);
+      assert.deepEqual(serverTools(lastRequest().body), [
+        {
+          type: 'openrouter:web_search',
+          parameters: { max_uses: 2, max_total_results: 10 },
+        },
+      ]);
     } finally {
       restoreAll(restores);
     }
@@ -695,7 +716,12 @@ unitSuite('OpenRouter provider — configurable web tools', () => {
         messages: [{ role: 'user', content: 'hi' }],
         tools: AI_TOOL_DEFS,
       });
-      assert.deepEqual(serverTools(lastRequest().body), [{ type: 'openrouter:web_fetch' }]);
+      assert.deepEqual(serverTools(lastRequest().body), [
+        {
+          type: 'openrouter:web_fetch',
+          parameters: { max_uses: 2, max_content_tokens: 30000 },
+        },
+      ]);
     } finally {
       restoreAll(restores);
     }
@@ -717,8 +743,14 @@ unitSuite('OpenRouter provider — configurable web tools', () => {
       });
       const body = lastRequest().body;
       assert.deepEqual(serverTools(body), [
-        { type: 'openrouter:web_search' },
-        { type: 'openrouter:web_fetch' },
+        {
+          type: 'openrouter:web_search',
+          parameters: { max_uses: 2, max_total_results: 10 },
+        },
+        {
+          type: 'openrouter:web_fetch',
+          parameters: { max_uses: 2, max_content_tokens: 30000 },
+        },
       ]);
       assert.deepEqual(body.thinking, { type: 'disabled' });
     } finally {
@@ -743,7 +775,12 @@ unitSuite('OpenRouter provider — configurable web tools', () => {
         model: 'fallback/model',
       });
       const body = lastRequest().body;
-      assert.deepEqual(serverTools(body), [{ type: 'openrouter:web_search' }]);
+      assert.deepEqual(serverTools(body), [
+        {
+          type: 'openrouter:web_search',
+          parameters: { max_uses: 2, max_total_results: 10 },
+        },
+      ]);
       assert.equal('thinking' in body, false, 'the fallback model still uses its own reasoning rule');
     } finally {
       restoreAll(restores);
@@ -761,6 +798,205 @@ unitSuite('OpenRouter provider — configurable web tools', () => {
       });
       assert.deepEqual(serverTools(lastRequest().body), []);
       assert.equal(lastRequest().body.tools, undefined, 'the answer round still has no tools key');
+    } finally {
+      restoreAll(restores);
+    }
+  });
+
+  it('gates paid web tools to explicit external-research intent', () => {
+    for (const message of [
+      'How many units are in Main Warehouse?',
+      'Review my stock and tell me what is low.',
+      'What is the price of the Sony headset?',
+      'Show me out-of-stock products.',
+      'Find products for engine oil.',
+      'Search our catalogue for keyboards.',
+      'What are the specifications of this product?',
+    ]) {
+      assert.equal(asksForWebResearch(message), false, message);
+    }
+    for (const message of [
+      'Search the web for current product prices.',
+      'Find product reviews for the Sony headset.',
+      'Evaluate the quality and reliability of this brand.',
+      'Find product recommendations for a laptop.',
+      'What is the current online price on Shopee?',
+      'Fetch https://example.com and summarize it.',
+      'Research this product.',
+    ]) {
+      assert.equal(asksForWebResearch(message), true, message);
+    }
+  });
+
+  it('withholds paid server tools for inventory-only intent', async () => {
+    const restores = [withEnv('AI_WEB_SEARCH', 'enable'), withEnv('AI_WEB_FETCH', 'enable')];
+    try {
+      const provider = providerFor(`http://127.0.0.1:${port}/api`);
+      responder = () => okText('answer');
+      const { lines } = await captureLogs(() =>
+        provider.complete({
+          system: 's',
+          messages: [{ role: 'user', content: 'How many units are in Main Warehouse?' }],
+          tools: AI_TOOL_DEFS,
+          webResearch: false,
+        }),
+      );
+      const body = lastRequest().body;
+      assert.deepEqual(serverTools(body), []);
+      assert.equal(body.tools.length, AI_TOOL_DEFS.length, 'the local tools remain available');
+      const line = lines.find((entry) => entry.includes('[ai:openrouter] web tools'));
+      assert.ok(line);
+      assert.match(line, /enabled=search,fetch/);
+      assert.match(line, /offered=none/);
+      assert.match(line, /used=none/);
+      assert.match(line, /intent=inventory/);
+    } finally {
+      restoreAll(restores);
+    }
+  });
+
+  it('writes no web-tool line when both switches are disabled', async () => {
+    const restores = [withEnv('AI_WEB_SEARCH', 'disable'), withEnv('AI_WEB_FETCH', 'disable')];
+    try {
+      const provider = providerFor(`http://127.0.0.1:${port}/api`);
+      responder = () => okText('answer');
+      const { lines } = await captureLogs(() =>
+        provider.complete({
+          system: 's',
+          messages: [{ role: 'user', content: 'hi' }],
+          tools: AI_TOOL_DEFS,
+        }),
+      );
+      assert.equal(lines.some((entry) => entry.includes('web tools')), false);
+    } finally {
+      restoreAll(restores);
+    }
+  });
+
+  it('logs enabled, offered, and actually used web capabilities without payload data', async () => {
+    const restores = [withEnv('AI_WEB_SEARCH', 'enable'), withEnv('AI_WEB_FETCH', 'enable')];
+    const secret = 'private-search-query';
+    const url = 'https://private.example/page';
+    try {
+      const provider = providerFor(`http://127.0.0.1:${port}/api`);
+      responder = () =>
+        okText('answer', {
+          content: [
+            { type: 'server_tool_use', id: 'srvtoolu_1', name: 'web_search', input: { query: secret } },
+            { type: 'web_search_tool_result', tool_use_id: 'srvtoolu_1', content: { title: secret } },
+            { type: 'server_tool_use', id: 'srvtoolu_2', name: 'web_fetch', input: { url } },
+            { type: 'web_fetch_tool_result', tool_use_id: 'srvtoolu_2', content: { url } },
+            { type: 'text', text: 'answer' },
+          ],
+        });
+
+      const { lines } = await captureLogs(() =>
+        provider.complete({
+          system: 's',
+          messages: [{ role: 'user', content: 'hi' }],
+          tools: AI_TOOL_DEFS,
+        }),
+      );
+      const line = lines.find((entry) => entry.includes('[ai:openrouter] web tools'));
+      assert.ok(line, 'the request must write one web-tool line');
+      assert.match(line, /enabled=search,fetch/);
+      assert.match(line, /offered=search,fetch/);
+      assert.match(line, /used=search,fetch/);
+      assert.match(line, /intent=web/);
+      assert.match(line, /model=test-vendor\/tool-capable-model/);
+      assert.doesNotMatch(line, new RegExp(secret));
+      assert.doesNotMatch(line, new RegExp(url));
+    } finally {
+      restoreAll(restores);
+    }
+  });
+
+  it('distinguishes enabled-but-unused tools from the no-tools answer round', async () => {
+    const restores = [withEnv('AI_WEB_SEARCH', 'enable'), withEnv('AI_WEB_FETCH', 'enable')];
+    try {
+      const provider = providerFor(`http://127.0.0.1:${port}/api`);
+      responder = () => okText('answer');
+
+      const withTools = await captureLogs(() =>
+        provider.complete({
+          system: 's',
+          messages: [{ role: 'user', content: 'hi' }],
+          tools: AI_TOOL_DEFS,
+        }),
+      );
+      const toolLine = withTools.lines.find((entry) => entry.includes('[ai:openrouter] web tools'));
+      assert.ok(toolLine);
+      assert.match(toolLine, /enabled=search,fetch/);
+      assert.match(toolLine, /offered=search,fetch/);
+      assert.match(toolLine, /used=none/);
+
+      const answerOnly = await captureLogs(() =>
+        provider.complete({
+          system: 's',
+          messages: [{ role: 'user', content: 'hi' }],
+        }),
+      );
+      const answerLine = answerOnly.lines.find((entry) => entry.includes('[ai:openrouter] web tools'));
+      assert.ok(answerLine);
+      assert.match(answerLine, /enabled=search,fetch/);
+      assert.match(answerLine, /offered=none/);
+      assert.match(answerLine, /used=none/);
+    } finally {
+      restoreAll(restores);
+    }
+  });
+
+  it('detects web-fetch use in a streamed response without logging the URL', async () => {
+    const restores = [withEnv('AI_WEB_SEARCH', 'disable'), withEnv('AI_WEB_FETCH', 'enable')];
+    const url = 'https://private.example/fetched-page';
+    try {
+      const provider = providerFor(`http://127.0.0.1:${port}/api`);
+      responder = () => ({
+        status: 200,
+        contentType: 'text/event-stream',
+        raw: [
+          'event: message_start',
+          'data: {"type":"message_start","message":{"model":"test-vendor/tool-capable-model","usage":{"input_tokens":11}}}',
+          '',
+          'event: content_block_start',
+          'data: {"type":"content_block_start","index":0,"content_block":{"type":"server_tool_use","id":"srvtoolu_1","name":"web_fetch"}}',
+          '',
+          'event: content_block_start',
+          `data: {"type":"content_block_start","index":1,"content_block":{"type":"web_fetch_tool_result","tool_use_id":"srvtoolu_1","content":{"url":"${url}"}}}`,
+          '',
+          'event: content_block_start',
+          'data: {"type":"content_block_start","index":2,"content_block":{"type":"text","text":""}}',
+          '',
+          'event: content_block_delta',
+          'data: {"type":"content_block_delta","index":2,"delta":{"type":"text_delta","text":"Fetched answer"}}',
+          '',
+          'event: message_delta',
+          'data: {"type":"message_delta","delta":{"stop_reason":"end_turn"},"usage":{"output_tokens":7}}',
+          '',
+          'event: message_stop',
+          'data: {"type":"message_stop"}',
+          '',
+          '',
+        ].join('\n'),
+      });
+
+      const deltas = [];
+      const { lines } = await captureLogs(() =>
+        provider.complete({
+          system: 's',
+          messages: [{ role: 'user', content: 'hi' }],
+          tools: AI_TOOL_DEFS,
+          stream: true,
+          onTextDelta: (text) => deltas.push(text),
+        }),
+      );
+      assert.equal(deltas.join(''), 'Fetched answer');
+      const line = lines.find((entry) => entry.includes('[ai:openrouter] web tools'));
+      assert.ok(line);
+      assert.match(line, /enabled=fetch/);
+      assert.match(line, /offered=fetch/);
+      assert.match(line, /used=fetch/);
+      assert.doesNotMatch(line, new RegExp(url));
     } finally {
       restoreAll(restores);
     }
@@ -896,6 +1132,73 @@ unitSuite('OpenRouter provider — AI loop compatibility (DB-free)', () => {
       const [result] = parsedToolResults(requests[1].body);
       assert.equal(result.code, 'TOOL_FORBIDDEN');
       assert.equal(out.iterations, 2);
+    } finally {
+      restoreAll(restores);
+    }
+  });
+
+  // AI-86 — the turn-level half of the intent gate. The provider test above proves the
+  // wire withholds the tools when told to; this proves the LOOP actually tells it to for
+  // a plain inventory question, across every request the turn makes.
+  it('offers no paid web tools to a plain inventory question with both switches on (AI-86)', async () => {
+    const restores = [
+      ...useOpenrouter(),
+      withEnv('AI_WEB_SEARCH', 'enable'),
+      withEnv('AI_WEB_FETCH', 'enable'),
+    ];
+    try {
+      responder = (_body, turn) =>
+        turn === 1
+          ? okTools([{ id: 'i1', name: 'getInventorySummary', input: { plantedBusinessId: 'attacker' } }])
+          : okText('You hold 12 units in Main Warehouse.');
+      const { value, lines } = await captureLogs(() =>
+        runAiChat({ ...ctx, message: 'How many units are in Main Warehouse?' }),
+      );
+      assert.equal(value.content, 'You hold 12 units in Main Warehouse.');
+      assert.ok(requests.length > 1, 'the turn made a grounded tool round before answering');
+      for (const request of requests) {
+        const paid = (request.body.tools ?? []).filter(
+          (tool) => typeof tool?.type === 'string' && tool.type.startsWith('openrouter:'),
+        );
+        assert.deepEqual(paid, [], 'an inventory turn never offers a paid web tool');
+        assert.ok(
+          (request.body.tools ?? []).some((tool) => tool.name === 'findProducts'),
+          'the local inventory tools are still offered',
+        );
+      }
+      const line = lines.find((entry) => entry.includes('[ai:openrouter] web tools'));
+      assert.ok(line, 'the request log still reports that the switches are on');
+      assert.match(line, /enabled=search,fetch/);
+      assert.match(line, /offered=none/);
+      assert.match(line, /used=none/);
+      assert.match(line, /intent=inventory/);
+    } finally {
+      restoreAll(restores);
+    }
+  });
+
+  it('offers the paid web tools to a genuine public-research question (AI-86)', async () => {
+    const restores = [
+      ...useOpenrouter(),
+      withEnv('AI_WEB_SEARCH', 'enable'),
+      withEnv('AI_WEB_FETCH', 'enable'),
+    ];
+    try {
+      responder = (_body, turn) =>
+        turn === 1
+          ? okTools([{ id: 'w1', name: 'researchInventoryProducts', input: { plantedBusinessId: 'attacker' } }])
+          : okText('According to the sources, the reviews are positive.');
+      await captureLogs(() =>
+        runAiChat({ ...ctx, message: 'Find product reviews for the Sony headset.' }),
+      );
+      assert.ok(requests.length > 0);
+      const paid = (requests[0].body.tools ?? []).filter(
+        (tool) => typeof tool?.type === 'string' && tool.type.startsWith('openrouter:'),
+      );
+      assert.deepEqual(paid.map((tool) => tool.type), [
+        'openrouter:web_search',
+        'openrouter:web_fetch',
+      ]);
     } finally {
       restoreAll(restores);
     }
