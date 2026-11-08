@@ -54,10 +54,10 @@ each. On 2026-11-07 the account runbook's provider snapshot was re-measured: Git
 
 | | |
 | --- | --- |
-| **Working now** | AI-87 is deployed: ordinary turns use `openai/gpt-oss-20b`; research turns try `openai/gpt-oss-120b` first, with the 20B primary as fallback and no promotion of the research model. PR #185 merged as `47353af` and Render deployed it. Two live turns verified 20B/120B routing, native search, exact costs and `failovers=0`; a live failover was not triggered. Firebase sign-in is **restored**: the credential was rotated on 2026-11-07 and the old key deleted. PR #179 carries the runbook, the checker and this record. Minimatch alerts #18/#19 are closed; L-17 is closed as not applicable to AUTH-06. Phone verification of the deployed AI behavior remains pending. |
-| **Just verified** | On 2026-11-08, PR #185 merged as `47353af`; all four required checks passed on run `42448637562`; Render deploy `dep-dbo028ks728c739m8d20` reached `live`; `/api/health` reports `status: ok`, `db: connected`, `environment: production`, and **0** server errors. One ordinary turn used `openai/gpt-oss-20b` (`$0.001749`, `failovers=0`); one research turn used `openai/gpt-oss-120b` with native search (`$0.008803`, `failovers=0`); total **$0.010552**. Live failover was not triggered. PR #162 was rebased onto `d313620` and merged as `e18264e`; all four required checks passed, Render deployed the merge, and `/api/health` returns 200 with `status: ok`, `db: connected` and the expected commit. PR #165 merged as `d313620` at `2026-11-07T06:17:42Z`, and its final head `5941956` passed all four required checks in run `42346155717`; documentation guards **39/39**; the root map guard indexes **27/27** active documents with **30** unique invariants and **10** living reference documents within cadence; the four documentation test files pass **27/27**; `git diff --check` clean. PR #168 merged as `c99760d` at `2026-11-07T07:22:01Z` after head `d901a2a` passed all four required checks in run `42350783903`; Render redeployed and `/api/health` reports `c99760d`, `status: ok`, `db: connected`, **0** server errors. PR #166 was reopened, rebased onto `783daf3`, and merged as `ebafae3` at `2026-11-07T07:49:57Z` after head `03a7418` passed all four required checks in run `42352706388`; Render redeployed and `/api/health` reports `ebafae3`, `status: ok`, `db: connected`, **0** server errors. On 2026-11-07 the minimatch override merged: #173 head `e7cc2d3` passed run `42355968583` and merged as `0eca990`; #174 head `608d811` passed run `42356272906` and merged as `8fe6403`; mobile Jest passed **101 suites / 1,203 tests**, and the server CI job ran the full suite and boot smoke. Render deployed `8fe6403`; `/api/health` reports `status: ok`, `db: connected`, **0** server errors. Minimatch alerts #18/#19 are closed; `glob` and `deepmerge` remain. On 2026-11-07 the TypeScript 7 watch self-test passed **32/32**; the live row is **DEFERRED** with both parser chains at `8.72.1` and peer `<6.1.0`; the extracted gate matrix and stubbed issue creation/deduplication passed; `check-docs` and `git diff --check` are clean. On 2026-11-07 the Firebase Admin API returned authorized domains `localhost`, `inventoryai-d0d20.firebaseapp.com`, `inventoryai-d0d20.web.app` and `ai-inventory-l1mi.onrender.com`; the Password Reset template is Firebase's default with callback `https://inventoryai-d0d20.firebaseapp.com/__/auth/action`, not the custom server URL. The mobile reset path is AUTH-06 (`/api/auth/password-reset/code` → `/verify` → `/confirm`), and `sendPasswordResetEmail` is absent from the mobile Firebase boundary. | On 2026-11-07 `npm run verify:firebase` was added and, run against `server/.env`, returned `400 invalid_grant: Invalid JWT Signature` (exit 1), detecting the production outage locally; `check-docs` and `secret-guard` are clean. On 2026-11-07 the Firebase credential was rotated end to end: `npm run verify:firebase` returned `VERIFIED`, `/api/health` reported 200 with no unexplained server errors, and production created session rows at 13:06:29Z, 13:07:33Z, 13:09:49Z and 13:15:03Z, the last after the old key was deleted.
-| **Blocked** | Phone observation of the deployed AI behavior remains; the research turn finished in 17.7 s, but it is not a phone measurement. A live failover was not triggered because neither turn needed one; the fallback path remains covered by the unit suite. The Render access review awaits the owner's plan and member list. No dependency decision is blocking; no EAS build or OTA was spent. |
-| **Next after this** | Run the same ordinary and research prompts on the phone, then begin planning the new major upgrade. A deliberate live fallback drill remains optional and would need a controlled upstream failure or temporary model change. |
+| **Working now** | AI-87 is deployed: ordinary turns use `openai/gpt-oss-20b`; research turns try `openai/gpt-oss-120b` first, with the 20B primary as fallback and no promotion of the research model. PR #185 merged as `47353af` and Render deployed it. Two live turns verified 20B/120B routing, native search, exact costs and `failovers=0`. PR #187 then added and executed a controlled research failover drill (AI-88): one OWNER request forced a simulated 120B `503` and the real 20B fallback answered (`failovers=1`, `$0.016796`). Firebase sign-in is **restored**: the credential was rotated on 2026-11-07 and the old key deleted. PR #179 carries the runbook, the checker and this record. Minimatch alerts #18/#19 are closed; L-17 is closed as not applicable to AUTH-06. Phone verification of the deployed AI behavior remains pending. |
+| **Just verified** | On 2026-11-08, PR #187 merged as `c98d688`; all four required checks passed on run `42451318595`; Render serves `c98d688` with `status: ok`, `db: connected` and **0** server errors. One OWNER drill forced a simulated 120B `503` and the 20B fallback answered (`201`, 28,214 ms, `failovers=1`, `$0.016796`). PR #185 merged as `47353af`; all four required checks passed on run `42448637562`; Render deploy `dep-dbo028ks728c739m8d20` reached `live`; `/api/health` reports `status: ok`, `db: connected`, `environment: production`, and **0** server errors. One ordinary turn used `openai/gpt-oss-20b` (`$0.001749`, `failovers=0`); one research turn used `openai/gpt-oss-120b` with native search (`$0.008803`, `failovers=0`); total **$0.010552**. Live failover was not triggered. PR #162 was rebased onto `d313620` and merged as `e18264e`; all four required checks passed, Render deployed the merge, and `/api/health` returns 200 with `status: ok`, `db: connected` and the expected commit. PR #165 merged as `d313620` at `2026-11-07T06:17:42Z`, and its final head `5941956` passed all four required checks in run `42346155717`; documentation guards **39/39**; the root map guard indexes **27/27** active documents with **30** unique invariants and **10** living reference documents within cadence; the four documentation test files pass **27/27**; `git diff --check` clean. PR #168 merged as `c99760d` at `2026-11-07T07:22:01Z` after head `d901a2a` passed all four required checks in run `42350783903`; Render redeployed and `/api/health` reports `c99760d`, `status: ok`, `db: connected`, **0** server errors. PR #166 was reopened, rebased onto `783daf3`, and merged as `ebafae3` at `2026-11-07T07:49:57Z` after head `03a7418` passed all four required checks in run `42352706388`; Render redeployed and `/api/health` reports `ebafae3`, `status: ok`, `db: connected`, **0** server errors. On 2026-11-07 the minimatch override merged: #173 head `e7cc2d3` passed run `42355968583` and merged as `0eca990`; #174 head `608d811` passed run `42356272906` and merged as `8fe6403`; mobile Jest passed **101 suites / 1,203 tests**, and the server CI job ran the full suite and boot smoke. Render deployed `8fe6403`; `/api/health` reports `status: ok`, `db: connected`, **0** server errors. Minimatch alerts #18/#19 are closed; `glob` and `deepmerge` remain. On 2026-11-07 the TypeScript 7 watch self-test passed **32/32**; the live row is **DEFERRED** with both parser chains at `8.72.1` and peer `<6.1.0`; the extracted gate matrix and stubbed issue creation/deduplication passed; `check-docs` and `git diff --check` are clean. On 2026-11-07 the Firebase Admin API returned authorized domains `localhost`, `inventoryai-d0d20.firebaseapp.com`, `inventoryai-d0d20.web.app` and `ai-inventory-l1mi.onrender.com`; the Password Reset template is Firebase's default with callback `https://inventoryai-d0d20.firebaseapp.com/__/auth/action`, not the custom server URL. The mobile reset path is AUTH-06 (`/api/auth/password-reset/code` → `/verify` → `/confirm`), and `sendPasswordResetEmail` is absent from the mobile Firebase boundary. | On 2026-11-07 `npm run verify:firebase` was added and, run against `server/.env`, returned `400 invalid_grant: Invalid JWT Signature` (exit 1), detecting the production outage locally; `check-docs` and `secret-guard` are clean. On 2026-11-07 the Firebase credential was rotated end to end: `npm run verify:firebase` returned `VERIFIED`, `/api/health` reported 200 with no unexplained server errors, and production created session rows at 13:06:29Z, 13:07:33Z, 13:09:49Z and 13:15:03Z, the last after the old key was deleted.
+| **Blocked** | Phone observation of the deployed AI behavior remains; the research turn finished in 17.7 s, but it is not a phone measurement. A live failover was not induced by a real upstream failure: the executed drill synthesised the 120B `503` inside the server, so a genuine outage is still unobserved, and the drill cannot fire when the research model is already cooling. The Render access review awaits the owner's plan and member list. No dependency decision is blocking; no EAS build or OTA was spent. |
+| **Next after this** | Run the same ordinary and research prompts on the phone, then begin planning the new major upgrade. A genuine upstream 120B outage remains unobserved; the executed drill covers the deployment's failover route, not a provider-side failure. |
 
 ### Open items carried forward
 
@@ -112,6 +112,60 @@ Known limits, checked before spending one of them:
   space that a backup or an index change would explain.
 - **Brevo** — used for verification codes, reset codes and invitations. Do not send test mail in
   bulk; a delivery failure is not a code regression until the provider log says so.
+
+---
+
+## 2026-11-08 — AI-88: controlled 120B → 20B failover drill executed in production
+
+**Why.** AI-87's fallback was covered by the unit suite, and both live turns logged `failovers=0`,
+so nothing showed the DEPLOYED failover path working. Waiting for a real upstream failure is not a
+plan, and temporarily changing Render's research model would put ordinary traffic at risk and need
+a revert nobody would verify.
+
+**Delivery.** PR #187 merged as `c98d68851c35a85eedd55daf7eb86cb468cec59e`; all four required
+checks passed on run `42451318595`; Render auto-deployed it and `GET /api/health` reports commit
+`c98d688`, `status: ok`, `db: connected`, `environment: production`, **0** server errors.
+
+**The drill.** `POST /api/ai/chat` with `x-ai-failover-drill: research` makes the research model
+fail once, on purpose, before any provider request is built. It is OWNER-only; it requires
+`AI_PROVIDER=openrouter` with `AI_RESEARCH_MODEL_OPENROUTER` different from
+`AI_MODEL_OPENROUTER`; it accepts only a research question; and the simulated failure is skipped by
+the model breaker, so the real 120B's health is untouched. `npm run drill:ai-failover` sends it,
+requires `AI_DRILL_CONFIRM=ai-failover:production` for a non-loopback base, and reads
+`AI_ACCESS_TOKEN` without printing it. Guide 16 §9 documents the header, script and expected lines.
+
+**Executed drill.** One request, using a short-lived session for the existing OWNER comparison
+fixture; the session was revoked with `POST /api/auth/logout` (200). No password, credential or
+Render environment variable changed.
+
+| Check | Evidence |
+| --- | --- |
+| HTTP result | `201` in 28,214 ms; `openai/gpt-oss-20b` answered; tool `findProducts` |
+| Simulated failure | `[ai] failover drill: simulated HTTP 503 from openai/gpt-oss-120b; no provider request` |
+| Real failover | `[ai] failover attempt=1 model=openai/gpt-oss-120b -> openai/gpt-oss-20b reason=HTTP 503 remaining=59999ms` |
+| Turn line | `outcome=ok … calls=3 … failovers=1 … cost=$0.016796 web=search,fetch model=openai/gpt-oss-20b iterations=3` |
+| Breaker | No `model cooling down` line; the suite proves one drill failure cannot cool a model at threshold 1 |
+
+The drill attempt never reached OpenRouter, so `calls=3` counts the real 20B rounds (a tool round
+and a re-ask), not the simulated attempt. The **$0.016796** is a real 20B turn with native search
+and fetch, not a 120B call.
+
+**What this proves.** The deployed research turn starts on `openai/gpt-oss-120b`; the model-level
+failover path is the code that actually answered; and the fallback really served the turn, tools and
+web research included. **What it does not prove.** The failure was synthesised inside the server, so
+a genuine OpenRouter 120B outage, a revoked key or a withdrawn model remains a separate question.
+A drill requested when the research model is already cooling or reported unavailable logs that it
+could not fire instead of passing silently.
+
+**Suite.** `npm run typecheck`, `npm run lint`,
+`node --test test/phase-openrouter-provider.test.mjs` (**59/59**), `node scripts/check-docs.mjs` and
+`git diff --check` all pass. The new cases prove the drill sends the research model nothing, the 20B
+answers with `failovers=1 calls=1`, the breaker stays closed at threshold 1, an ordinary turn is
+unaffected, and the route refuses a STAFF member (`403 AI_DRILL_FORBIDDEN`), a non-research message
+(`400 AI_DRILL_REQUIRES_RESEARCH`) and an unknown drill name (`400 AI_DRILL_UNKNOWN`).
+
+**Not done.** No phone observation; this proves the server's failover route, not the mobile client's
+rendering of a fallback answer. The OWNER-only header is not exposed in the app, by design.
 
 ---
 
