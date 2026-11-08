@@ -599,6 +599,14 @@ function priceListingFromText({
   };
 }
 
+/** A cancellation that must not be mistaken for an ordinary search failure. */
+function throwIfAborted(signal?: AbortSignal): void {
+  if (!signal?.aborted) return;
+  const error = new Error('The request was aborted.');
+  error.name = 'AbortError';
+  throw error;
+}
+
 async function mapLimit<T, R>(items: T[], limit: number, fn: (item: T) => Promise<R>): Promise<R[]> {
   const output = new Array<R>(items.length);
   let cursor = 0;
@@ -674,12 +682,16 @@ async function priceEvidenceFromQuery({
   subject,
   query,
   retrievedAt,
+  signal,
 }: {
   subject: PriceSubject;
   query: string;
   retrievedAt: string;
+  signal?: AbortSignal;
 }): Promise<QueryEvidence> {
-  const search = await searchFreeWeb(query, { limit: FREE_SEARCH_RESULTS });
+  throwIfAborted(signal);
+  const search = await searchFreeWeb(query, { limit: FREE_SEARCH_RESULTS, signal });
+  throwIfAborted(signal);
   const searchedUrls = search.sources.map((source) => source.url);
   if (search.sources.length === 0) {
     return { listings: [], sources: [], reason: freeSearchReason(search.reason), answered: false };
@@ -721,7 +733,9 @@ async function priceEvidenceFromQuery({
     .slice(0, FREE_PAGE_FETCHES)
     .map((row) => row.source);
   const pages = await mapLimit(candidates, FREE_PAGE_CONCURRENCY, async (source) => {
-    const page = await fetchPublicPage(source.url);
+    throwIfAborted(signal);
+    const page = await fetchPublicPage(source.url, { signal });
+    throwIfAborted(signal);
     if (!page.ok) return null;
     // Structured price tokens come first so a stored price is found even when the
     // readable text has none (see `structuredPriceTokens`).
@@ -759,13 +773,16 @@ async function priceEvidenceFromQuery({
 async function searchSubjectPricesFree({
   subject,
   retrievedAt,
+  signal,
 }: {
   subject: PriceSubject;
   retrievedAt: string;
+  signal?: AbortSignal;
 }): Promise<SubjectSearchResult> {
+  throwIfAborted(signal);
   const query = freePriceQuery(subject);
   const queries = [query];
-  let evidence = await priceEvidenceFromQuery({ subject, query, retrievedAt });
+  let evidence = await priceEvidenceFromQuery({ subject, query, retrievedAt, signal });
 
   // A name-only query can rank a marketplace listing below review pages that quote
   // no price. One bounded retry asks for the exact phrase instead: unquoted words find
@@ -781,9 +798,10 @@ async function searchSubjectPricesFree({
     const retry = [carriedByName ? '' : brand, `"${subject.name}"`, 'price'].filter(Boolean).join(' ');
     if (retry !== query) {
       await new Promise((resolve) => setTimeout(resolve, 300));
+      throwIfAborted(signal);
       queries.push(retry);
       retryQuery = retry;
-      const second = await priceEvidenceFromQuery({ subject, query: retry, retrievedAt });
+      const second = await priceEvidenceFromQuery({ subject, query: retry, retrievedAt, signal });
       if (second.listings.length > 0) evidence = second;
     }
   }
@@ -796,7 +814,8 @@ async function searchSubjectPricesFree({
     // anchored shape therefore gets one more call before the price is reported
     // unresearched; `searchedQueries` still lists each distinct query once.
     await new Promise((resolve) => setTimeout(resolve, 300));
-    const again = await priceEvidenceFromQuery({ subject, query: retryQuery, retrievedAt });
+    throwIfAborted(signal);
+    const again = await priceEvidenceFromQuery({ subject, query: retryQuery, retrievedAt, signal });
     if (again.listings.length > 0) evidence = again;
   }
 
@@ -869,13 +888,15 @@ async function checkStore({
   subject,
   hint,
   retrievedAt,
+  signal,
 }: {
   subject: PriceSubject;
   hint: StoreHint;
   retrievedAt: string;
+  signal?: AbortSignal;
 }): Promise<StoreCheck> {
   const query = storeQuery(hint, subject);
-  const evidence = await priceEvidenceFromQuery({ subject, query, retrievedAt });
+  const evidence = await priceEvidenceFromQuery({ subject, query, retrievedAt, signal });
   const listings = evidence.listings.filter((listing) => hostMatchesStore(listing.url, hint));
   const pages = (evidence.searchedUrls ?? []).filter((url) => hostMatchesStore(url, hint)).slice(0, 4);
   return {
@@ -893,13 +914,16 @@ async function searchSubjectPrices({
   baseUrl,
   model,
   retrievedAt,
+  signal,
 }: {
   subject: PriceSubject;
   apiKey: string;
   baseUrl: string;
   model: string;
   retrievedAt: string;
+  signal?: AbortSignal;
 }): Promise<SubjectSearchResult> {
+  throwIfAborted(signal);
   let response: Response;
   try {
     response = await fetch(chatCompletionsUrlFromBase(baseUrl), {
@@ -919,9 +943,12 @@ async function searchSubjectPrices({
         ],
         plugins: [{ id: 'web', max_results: MAX_SOURCES_PER_PRODUCT }],
       }),
-      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+      signal: signal
+        ? AbortSignal.any([AbortSignal.timeout(REQUEST_TIMEOUT_MS), signal])
+        : AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     });
   } catch (error) {
+    throwIfAborted(signal);
     const name = (error as { name?: unknown } | null)?.name;
     return {
       listings: [],
@@ -1112,8 +1139,15 @@ function collectPriceResults(
 export async function researchMarketPrices({
   subjects,
   stores,
+  signal,
 }: {
   subjects: PriceSubject[];
+  /**
+   * The turn's cancellation signal. The free search ladder can outlast a turn
+   * (several 9 s attempts per query, then four page fetches per subject), so it
+   * is checked between steps and forwarded to every fetch.
+   */
+  signal?: AbortSignal;
   /**
    * Retailers the member named ("check rkgamingstore.com", "what does Shopee
    * charge?"). The normal ladder ranks whatever the engine prefers, so a named
@@ -1128,6 +1162,7 @@ export async function researchMarketPrices({
   if (safeSubjects.length === 0) {
     return failure('NO_PRICE_FOUND', [], retrievedAt);
   }
+  throwIfAborted(signal);
 
   const cfg = aiConfig();
 
@@ -1139,8 +1174,10 @@ export async function researchMarketPrices({
       .flatMap((hint) => safeSubjects.map((subject) => ({ hint, subject })))
       .slice(0, MAX_STORE_CHECKS);
     const [results, checks] = await Promise.all([
-      Promise.all(safeSubjects.map((subject) => searchSubjectPricesFree({ subject, retrievedAt }))),
-      Promise.all(pairs.map(({ hint, subject }) => checkStore({ subject, hint, retrievedAt }))),
+      Promise.all(
+        safeSubjects.map((subject) => searchSubjectPricesFree({ subject, retrievedAt, signal })),
+      ),
+      Promise.all(pairs.map(({ hint, subject }) => checkStore({ subject, hint, retrievedAt, signal }))),
     ]);
     const collected = collectPriceResults(results, safeSubjects, retrievedAt);
     if (checks.length === 0) return collected;
@@ -1173,10 +1210,11 @@ export async function researchMarketPrices({
 
   const results: SubjectSearchResult[] = [];
   for (let index = 0; index < safeSubjects.length; index += MAX_CONCURRENT_SUBJECTS) {
+    throwIfAborted(signal);
     const chunk = safeSubjects.slice(index, index + MAX_CONCURRENT_SUBJECTS);
     const settled = await Promise.all(
       chunk.map((subject) =>
-        searchSubjectPrices({ subject, apiKey, baseUrl, model, retrievedAt }),
+        searchSubjectPrices({ subject, apiKey, baseUrl, model, retrievedAt, signal }),
       ),
     );
     results.push(...settled);

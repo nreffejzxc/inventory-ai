@@ -1553,9 +1553,36 @@ export async function runAiChat({
       const repeated = seenCallKeys.has(callKey);
       seenCallKeys.add(callKey);
       let output: unknown;
+      // The turn deadline used to stop at the tool boundary: a tool was awaited
+      // with no signal and could run for minutes after the phone had gone. The
+      // same wall-clock budget now covers the tool, and the tool receives a
+      // signal so its fetches stop rather than merely being ignored.
+      const toolBudgetMs = Math.max(0, deadlineAt - Date.now());
+      const toolController = new AbortController();
+      const toolTimer = setTimeout(() => toolController.abort(), toolBudgetMs);
+      const toolSignal = signal
+        ? AbortSignal.any([signal, toolController.signal])
+        : toolController.signal;
       try {
-        output = await executeTool(name, toolInput, { businessId, userId, role, timeZone });
+        output = await withBudget(
+          executeTool(name, toolInput, { businessId, userId, role, timeZone, signal: toolSignal }),
+          toolBudgetMs,
+          signal,
+        );
       } catch (err) {
+        // A tool that was cancelled or outlived the turn must end the turn, not
+        // become a TOOL_ERROR the model can answer with another provider call.
+        const abandoned = err instanceof AiAbandoned || signal?.aborted === true;
+        const expired = err instanceof AiTimeout || (err as { name?: unknown } | null)?.name === 'AbortError';
+        if (abandoned || expired) {
+          countTool();
+          if (abandoned) {
+            reportTurn('AI_ABANDONED');
+            throw err instanceof AiAbandoned ? err : new AiAbandoned();
+          }
+          reportTurn('AI_TIMEOUT');
+          throw err instanceof AiTimeout ? err : new AiTimeout();
+        }
         // The one exit none of the explicit sites covers: a tool that THROWS
         // rather than returning an error result. It reports and rethrows, so a
         // future failure mode cannot become a silent gap in the log — and it counts
@@ -1563,6 +1590,8 @@ export async function runAiChat({
         countTool();
         reportTurn('ERROR');
         throw err;
+      } finally {
+        clearTimeout(toolTimer);
       }
       countTool();
       if (name === 'listBrands' && output && typeof output === 'object') {
