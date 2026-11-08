@@ -37,6 +37,7 @@ import jwt from 'jsonwebtoken';
 import type { SignOptions } from 'jsonwebtoken';
 
 import { providerRequiredEnv } from '../services/ai/providers/index.ts';
+import { webCapabilities } from '../services/ai/webCapabilities.ts';
 import { serviceAccountProblems } from './firebase.ts';
 import { emailVerificationPepperProblems } from './emailVerification.ts';
 
@@ -130,6 +131,10 @@ export function validateProductionConfig(
           });
         }
       }
+      // AI-85 — the two optional web-tool switches are independent. An invalid
+      // value is a production configuration error rather than a silent no-op;
+      // the tools remain disabled until the operator fixes the value.
+      problems.push(...webCapabilities(values).problems);
     }
   }
 

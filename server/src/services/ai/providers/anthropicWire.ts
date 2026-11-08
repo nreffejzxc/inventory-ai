@@ -16,6 +16,7 @@
 import { aiConfig } from '../aiConfig.ts';
 import { resolveReasoningPolicy, thinkingFieldFor } from '../reasoningPolicy.ts';
 import { AiNotConfigured, AiOutputLimit, AiProviderError } from '../aiErrors.ts';
+import type { OpenRouterServerTool } from '../webCapabilities.ts';
 import type { QuotaInfo } from '../quota.ts';
 import { postJson, postSse, type SseEvent, type UpstreamJsonBody } from './http.ts';
 import type {
@@ -458,6 +459,16 @@ export interface AnthropicCompatibleOptions {
   authHeaders?: (apiKey: string) => Record<string, string>;
   /** static headers merged over authHeaders (e.g. a gateway-mandated User-Agent / beta header) */
   extraHeaders?: Record<string, string>;
+  /**
+   * OpenRouter server tools to append to a normal tool-capable request.
+   *
+   * A callback, not a captured array, because `aiConfig()` is read at request
+   * time. The wire only adds these when the caller supplied client tools; the
+   * turn loop deliberately withholds all tools on its final answer round (AI-50),
+   * and a server-side search must not be the exception that keeps that round
+   * searching instead of answering.
+   */
+  serverTools?: () => OpenRouterServerTool[];
 }
 
 /**
@@ -484,6 +495,7 @@ export function createAnthropicCompatibleProvider(opts: AnthropicCompatibleOptio
     defaultModel,
     authHeaders,
     extraHeaders = {},
+    serverTools,
   } = opts;
 
   const apiKey = (process.env[apiKeyEnv] || '').trim();
@@ -525,6 +537,15 @@ export function createAnthropicCompatibleProvider(opts: AnthropicCompatibleOptio
       // The turn's remaining budget when the orchestrator supplied one, so a
       // call can never outlive the turn's single deadline (AI-1).
       const budget = timeoutMs ?? cfg.requestTimeoutMs;
+      // AI-85 — OpenRouter's built-in server tools live in the SAME `tools` array as
+      // the assistant's client tools, but they are raw entries with a `type`, not
+      // `input_schema` function definitions. They are added only when this call is
+      // allowed to use tools at all, preserving AI-50's final-answer round.
+      const serverToolDefs = tools && tools.length > 0 ? serverTools?.() ?? [] : [];
+      const requestTools = [
+        ...(tools && tools.length > 0 ? toAnthropicTools(tools) : []),
+        ...serverToolDefs,
+      ];
       const requestBody = {
         model,
         max_tokens: cfg.maxOutputTokens,
@@ -532,7 +553,7 @@ export function createAnthropicCompatibleProvider(opts: AnthropicCompatibleOptio
         messages: toAnthropicMessages(messages),
         // AI-50 — a turn's answer round passes no tools, and an empty `tools: []` is not the
         // same request as none: the key is omitted entirely when there is nothing to offer.
-        ...(tools && tools.length > 0 ? { tools: toAnthropicTools(tools) } : {}),
+        ...(requestTools.length > 0 ? { tools: requestTools } : {}),
         // AI-54 — reasoning shares `max_tokens` with the answer on this gateway, and the
         // measured model spent the ENTIRE budget on `thinking` blocks (400/400, no text),
         // so the assistant asks for it to be off. The reason, the measurements and the

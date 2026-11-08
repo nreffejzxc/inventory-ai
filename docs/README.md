@@ -34,6 +34,7 @@ documents.
 | [13-firebase-identities.md](guides/13-firebase-identities.md) | Which commands create logins, and how to delete one without locking an account out |
 | [15-wireless-phone-session.md](guides/15-wireless-phone-session.md) | Starting the app and mirroring it over Wi-Fi, including the one-command helper |
 | [16-openrouter-models.md](guides/16-openrouter-models.md) | Choosing a free or paid OpenRouter model, setting its reasoning, and proving it works |
+| [17-web-search-and-fetch.md](guides/17-web-search-and-fetch.md) | Enabling or disabling OpenRouter web search and web fetch independently, and proving the setting |
 
 The numbered filenames are stable links. Guides 3 and 14 were consolidated into Guide 2, Guides 9–13 and
 Guide 6; no rule, command or safety procedure was removed.

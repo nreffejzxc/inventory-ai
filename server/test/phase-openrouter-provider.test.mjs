@@ -641,6 +641,156 @@ unitSuite('OpenRouter provider — Anthropic /v1/messages wire mapping', () => {
 });
 
 // ---------------------------------------------------------------------------
+// AI-85 — optional OpenRouter server tools (web search and web fetch).
+// ---------------------------------------------------------------------------
+unitSuite('OpenRouter provider — configurable web tools', () => {
+  function serverTools(body) {
+    return (body?.tools ?? []).filter((tool) =>
+      typeof tool?.type === 'string' && tool.type.startsWith('openrouter:'),
+    );
+  }
+
+  it('sends no web tools when both switches are disabled', async () => {
+    const restores = [withEnv('AI_WEB_SEARCH', 'disable'), withEnv('AI_WEB_FETCH', 'disable')];
+    try {
+      const provider = providerFor(`http://127.0.0.1:${port}/api`);
+      responder = () => okText('ok');
+      await provider.complete({
+        system: 's',
+        messages: [{ role: 'user', content: 'hi' }],
+        tools: AI_TOOL_DEFS,
+      });
+      const body = lastRequest().body;
+      assert.deepEqual(serverTools(body), []);
+      assert.equal(body.tools.length, AI_TOOL_DEFS.length, 'client tools are still sent');
+      assert.equal(body.plugins, undefined, 'the deprecated plugin form is never used');
+    } finally {
+      restoreAll(restores);
+    }
+  });
+
+  it('adds only web search when only AI_WEB_SEARCH is enabled', async () => {
+    const restores = [withEnv('AI_WEB_SEARCH', 'enable'), withEnv('AI_WEB_FETCH', 'disable')];
+    try {
+      const provider = providerFor(`http://127.0.0.1:${port}/api`);
+      responder = () => okText('ok');
+      await provider.complete({
+        system: 's',
+        messages: [{ role: 'user', content: 'hi' }],
+        tools: AI_TOOL_DEFS,
+      });
+      assert.deepEqual(serverTools(lastRequest().body), [{ type: 'openrouter:web_search' }]);
+    } finally {
+      restoreAll(restores);
+    }
+  });
+
+  it('adds only web fetch when only AI_WEB_FETCH is enabled', async () => {
+    const restores = [withEnv('AI_WEB_SEARCH', 'disable'), withEnv('AI_WEB_FETCH', 'enable')];
+    try {
+      const provider = providerFor(`http://127.0.0.1:${port}/api`);
+      responder = () => okText('ok');
+      await provider.complete({
+        system: 's',
+        messages: [{ role: 'user', content: 'hi' }],
+        tools: AI_TOOL_DEFS,
+      });
+      assert.deepEqual(serverTools(lastRequest().body), [{ type: 'openrouter:web_fetch' }]);
+    } finally {
+      restoreAll(restores);
+    }
+  });
+
+  it('adds both tools without disturbing the reasoning field', async () => {
+    const restores = [
+      withEnv('AI_WEB_SEARCH', 'enable'),
+      withEnv('AI_WEB_FETCH', 'enable'),
+      withEnv('AI_REASONING', 'disable'),
+    ];
+    try {
+      const provider = providerFor(`http://127.0.0.1:${port}/api`);
+      responder = () => okText('ok');
+      await provider.complete({
+        system: 's',
+        messages: [{ role: 'user', content: 'hi' }],
+        tools: AI_TOOL_DEFS,
+      });
+      const body = lastRequest().body;
+      assert.deepEqual(serverTools(body), [
+        { type: 'openrouter:web_search' },
+        { type: 'openrouter:web_fetch' },
+      ]);
+      assert.deepEqual(body.thinking, { type: 'disabled' });
+    } finally {
+      restoreAll(restores);
+    }
+  });
+
+  it('keeps the tools on a fallback request while reasoning stays per-model', async () => {
+    const restores = [
+      withEnv('AI_WEB_SEARCH', 'enable'),
+      withEnv('AI_WEB_FETCH', 'disable'),
+      withEnv('AI_REASONING', undefined),
+      withEnv('AI_REASONING_MODELS_OPENROUTER', 'fallback/*=auto'),
+    ];
+    try {
+      const provider = providerFor(`http://127.0.0.1:${port}/api`);
+      responder = () => okText('ok');
+      await provider.complete({
+        system: 's',
+        messages: [{ role: 'user', content: 'hi' }],
+        tools: AI_TOOL_DEFS,
+        model: 'fallback/model',
+      });
+      const body = lastRequest().body;
+      assert.deepEqual(serverTools(body), [{ type: 'openrouter:web_search' }]);
+      assert.equal('thinking' in body, false, 'the fallback model still uses its own reasoning rule');
+    } finally {
+      restoreAll(restores);
+    }
+  });
+
+  it('does not attach either server tool to a final answer round with no tools', async () => {
+    const restores = [withEnv('AI_WEB_SEARCH', 'enable'), withEnv('AI_WEB_FETCH', 'enable')];
+    try {
+      const provider = providerFor(`http://127.0.0.1:${port}/api`);
+      responder = () => okText('ok');
+      await provider.complete({
+        system: 's',
+        messages: [{ role: 'user', content: 'hi' }],
+      });
+      assert.deepEqual(serverTools(lastRequest().body), []);
+      assert.equal(lastRequest().body.tools, undefined, 'the answer round still has no tools key');
+    } finally {
+      restoreAll(restores);
+    }
+  });
+
+  it('treats an invalid value as disabled and reports it in production config', () => {
+    const restore = withEnv('AI_WEB_SEARCH', 'sometimes');
+    try {
+      const cfg = aiConfig();
+      assert.equal(cfg.webSearchEnabled, false);
+      assert.deepEqual(cfg.webServerTools, []);
+      assert.match(cfg.webProblems[0].message, /AI_WEB_SEARCH must be enable or disable/);
+
+      const problems = validateProductionConfig({
+        MONGODB_URI: 'mongodb://example/test',
+        JWT_SECRET: 'x'.repeat(48),
+        AI_PROVIDER: 'openrouter',
+        OPENROUTER_API_KEY: TEST_KEY,
+        OPENROUTER_BASE_URL: 'https://openrouter.example/api',
+        AI_MODEL_OPENROUTER: MODEL,
+        AI_WEB_SEARCH: 'sometimes',
+      });
+      assert.ok(problems.some((problem) => problem.variable === 'AI_WEB_SEARCH'));
+    } finally {
+      restore();
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
 // The existing orchestration loop, driven through this provider (DB-free).
 // Every tool used here decides BEFORE the database: an unknown name, a role
 // denial, or a schema violation. Real tool execution is the DB suite below.

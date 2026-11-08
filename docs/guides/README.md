@@ -11,6 +11,7 @@ technical documents listed at the bottom; if they disagree with a guide, they wi
 | Run the app on a real phone, and mirror it over USB | [2. Running and mirroring on a phone](2-run-on-your-phone.md) |
 | Start the app and mirror it with no cable, in one command | [15. Wireless phone session](15-wireless-phone-session.md) |
 | Use a free or paid OpenRouter model, and set its reasoning | [16. OpenRouter models](16-openrouter-models.md) |
+| Enable or disable OpenRouter web search and web fetch | [17. Web Search and Web Fetch](17-web-search-and-fetch.md) |
 | Understand test accounts and what data each one holds | [4. Test accounts and mock data](4-test-accounts-and-mock-data.md) |
 | Put data into the development database | [9. Seeding data — development](9-seeding-development.md) |
 | Put data into the production database | [10. Seeding data — production](10-seeding-production.md) |

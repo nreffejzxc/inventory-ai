@@ -413,6 +413,19 @@ export async function startServer({
   if (ai.openrouterModel) {
     logger.log(`[ai] chain order: ${[ai.openrouterModel, ...ai.fallbackModels].join(' -> ')}`);
   }
+  // AI-85 — say when the opt-in web tools are on, and name an invalid switch
+  // without ever enabling it. These are configuration lines, not refusals: the
+  // server still serves inventory turns with the safe disabled value.
+  if (ai.webProblems.length > 0) {
+    logger.error(`[config] warning: ${ai.webProblems.map((problem) => problem.message).join(' ')}`);
+  }
+  if (ai.webSearchEnabled || ai.webFetchEnabled) {
+    const enabled = [
+      ai.webSearchEnabled ? 'search' : null,
+      ai.webFetchEnabled ? 'fetch' : null,
+    ].filter(Boolean);
+    logger.log(`[ai] web tools enabled: ${enabled.join(', ')}`);
+  }
   if (ai.fallbackModelsIgnored.length > 0) {
     logger.error(
       `[config] warning: AI_FALLBACK_MODELS_OPENROUTER lists more than ${ai.fallbackModels.length}` +
