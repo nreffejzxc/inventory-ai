@@ -93,6 +93,8 @@ const MAX_GROUPS = 6;
 const MAX_CONCURRENT_GROUPS = 4;
 const MAX_SOURCES = 8;
 const SOURCES_PER_GROUP = 3;
+/** One free query's share of the budget; the group's retries still fit inside 30 s. */
+const SEARCH_QUERY_TIMEOUT_MS = 8_000;
 const MAX_FINDINGS = 8;
 const MAX_FINDING_CHARS = 600;
 const MAX_SOURCE_TITLE_CHARS = 180;
@@ -612,6 +614,105 @@ export function relevantSources(group: ResearchGroup, sources: ResearchSource[])
  * review` returned rtings, reddit, verdict-reviews and switchandclick. The category is
  * what keeps the engine anchored on the product instead of its first word.
  */
+/**
+ * Publishers that test products independently of the manufacturer.
+ *
+ * WHY A RANK, NOT A WHITELIST. A free result list is small and the engine does not
+ * know "reviews" means third-party evidence: a Logitech question came back with
+ * logitech.com's own product catalogue, G Hub page and shop, and those filled the
+ * citation list. Independent publishers are promoted and vendor pages demoted, but
+ * nothing is discarded — a manufacturer page is still the best evidence for specs,
+ * and it is returned when it is all the engine found.
+ */
+const INDEPENDENT_REVIEW_HOSTS = [
+  'rtings.com',
+  'tomshardware.com',
+  'tomsguide.com',
+  'techradar.com',
+  'theverge.com',
+  'pcmag.com',
+  'notebookcheck.net',
+  'wirecutter.com',
+  'trustedreviews.com',
+  'techspot.com',
+  'anandtech.com',
+  'engadget.com',
+  'digitaltrends.com',
+  'cnet.com',
+] as const;
+
+/** The hostname a source belongs to, with `www.` removed; empty for an invalid URL. */
+function hostOf(url: string): string {
+  try {
+    return new URL(url).hostname.replace(/^www\./i, '').toLowerCase();
+  } catch {
+    return '';
+  }
+}
+
+/** Does this hostname belong to the recorded brand (e.g. logitech.com)? */
+function isVendorHost(group: ResearchGroup, host: string): boolean {
+  const brand = normaliseName(group.brand ?? '').replace(/[^a-z0-9]/g, '');
+  if (brand.length < 3) return false;
+  return host.replace(/[^a-z0-9]/g, '').includes(brand);
+}
+
+/**
+ * Order sources by how likely they are to answer the question, stable within a score.
+ *
+ * Review intent promotes independent publishers and demotes the vendor's own shop;
+ * specification intent does the reverse, because the prompt already says manufacturer
+ * material is primary there. A review-shaped title/snippet adds weight, while a
+ * category, collection or search page is demoted because it prices many products and
+ * none of them is necessarily the recorded one.
+ */
+export function rankResearchSources(
+  group: ResearchGroup,
+  sources: ResearchSource[],
+  focus: ResearchFocus = 'overall',
+): ResearchSource[] {
+  const terms = group.subjects
+    .flatMap((subject) => nameWords(subject.name))
+    .filter((word) => word.length >= 3 && !GENERIC_NAME_WORDS.has(word));
+  const independent = new Set<string>(INDEPENDENT_REVIEW_HOSTS);
+  return sources
+    .map((source, index) => {
+      const host = hostOf(source.url);
+      const hay = normaliseName(`${source.title} ${source.snippet ?? ''}`);
+      let score = 0;
+      if ([...independent].some((domain) => host === domain || host.endsWith(`.${domain}`))) {
+        score += focus === 'specifications' ? 1 : 4;
+      }
+      if (isVendorHost(group, host)) score += focus === 'specifications' ? 4 : -3;
+      if (/\b(?:review|reviews|tested|verdict|rating|benchmark)\b/.test(hay)) score += 2;
+      if (/\b(?:official|shop|store|buy|catalog|catalogue|collection)\b/.test(hay)) score -= 2;
+      if (/\/(?:search|category|categories|collections?|tags?)(?:\/|$)/.test(source.url.toLowerCase())) {
+        score -= 2;
+      }
+      score += Math.min(2, terms.filter((term) => hay.includes(term)).length);
+      return { source, index, score };
+    })
+    .sort((a, b) => b.score - a.score || a.index - b.index)
+    .map((row) => row.source);
+}
+
+/** Keep at most `maxPerHost` sources from one host, preserving the ranked order. */
+export function capResearchSourcesPerHost(
+  sources: ResearchSource[],
+  maxPerHost = 2,
+): ResearchSource[] {
+  const counts = new Map<string, number>();
+  const out: ResearchSource[] = [];
+  for (const source of sources) {
+    const host = hostOf(source.url);
+    const count = counts.get(host) ?? 0;
+    if (host && count >= maxPerHost) continue;
+    counts.set(host, count + 1);
+    out.push(source);
+  }
+  return out;
+}
+
 export function broadQuery(group: ResearchGroup, focus: ResearchFocus) {
   const single = group.subjects.length === 1 ? group.subjects[0] : undefined;
   const name = single?.name ?? group.subjects[0]?.name ?? '';
@@ -709,7 +810,12 @@ async function searchFallback({
     try {
       return await searchFreeWeb(query, {
         limit: SOURCES_PER_GROUP,
-        ...(left === undefined ? {} : { signal: AbortSignal.timeout(left) }),
+        ...(left === undefined
+          ? { timeoutMs: SEARCH_QUERY_TIMEOUT_MS }
+          : {
+              signal: AbortSignal.timeout(left),
+              timeoutMs: Math.min(SEARCH_QUERY_TIMEOUT_MS, left),
+            }),
       });
     } catch {
       if (outOfTime()) partial = true;
@@ -717,7 +823,7 @@ async function searchFallback({
     }
   };
   const first = await search(fallbackQuery(group, focus));
-  let sources = relevantSources(group, first.sources);
+  let sources = rankResearchSources(group, relevantSources(group, first.sources), focus);
   let reason = first.reason;
   let brandOnly = false;
   let answered = first.sources.length > 0;
@@ -727,7 +833,7 @@ async function searchFallback({
     // it anchored (see `broadQuery`), and every attempt filters its results the same way.
     await new Promise((resolve) => setTimeout(resolve, 300));
     const broad = await search(broadQuery(group, focus));
-    sources = relevantSources(group, broad.sources);
+    sources = rankResearchSources(group, relevantSources(group, broad.sources), focus);
     answered = answered || broad.sources.length > 0;
     reason = sources.length > 0 ? broad.reason : reason ?? broad.reason;
   }
@@ -737,7 +843,7 @@ async function searchFallback({
     // and still supplies only public result snippets.
     await new Promise((resolve) => setTimeout(resolve, 300));
     const second = await search(fallbackQuery(group, focus, true));
-    sources = relevantSources(group, second.sources);
+    sources = rankResearchSources(group, relevantSources(group, second.sources), focus);
     answered = answered || second.sources.length > 0;
     reason = second.reason ?? reason;
     brandOnly = Boolean(group.brand);
@@ -755,7 +861,7 @@ async function searchFallback({
     // unresearched. A product that really has no coverage fails the same query twice.
     await new Promise((resolve) => setTimeout(resolve, 1200));
     const retry = await search(broadQuery(group, focus));
-    sources = relevantSources(group, retry.sources);
+    sources = rankResearchSources(group, relevantSources(group, retry.sources), focus);
     answered = answered || retry.sources.length > 0;
     if (sources.length > 0) {
       reason = retry.reason;
@@ -771,7 +877,7 @@ async function searchFallback({
     // bounded retry budget, just spent on the shape that has evidence of working.
     await new Promise((resolve) => setTimeout(resolve, 300));
     const again = await search(broadQuery(group, focus));
-    sources = relevantSources(group, again.sources);
+    sources = rankResearchSources(group, relevantSources(group, again.sources), focus);
     if (sources.length > 0) {
       reason = again.reason;
       brandOnly = false;
@@ -792,12 +898,16 @@ async function searchFallback({
     await new Promise((resolve) => setTimeout(resolve, 300));
     const latest = await search(latestModelQuery(group));
     const known = new Set(sources.map((source) => source.url));
-    for (const source of relevantSources(group, latest.sources)) {
+    for (const source of rankResearchSources(group, relevantSources(group, latest.sources), focus)) {
       if (known.has(source.url)) continue;
       known.add(source.url);
       sources.push(source);
     }
   }
+  // One storefront must not fill the citation list: cap each host before the
+  // finding is written, so the answer cannot read as "all sources say" when they
+  // are three pages of the same manufacturer's marketing site.
+  sources = capResearchSourcesPerHost(sources, 2);
   const findings = findingsFromSources(group, sources, { brandOnly });
   if (findings.length === 0) {
     return { findings: [], sources, reason: 'NO_USABLE_FINDINGS', ...(partial ? { partial } : {}) };
@@ -885,7 +995,11 @@ async function searchGroup({
       : null;
   if (!message) return searchFallback({ group, focus });
 
-  const sources = validSources(message.annotations).slice(0, SOURCES_PER_GROUP);
+  const sources = rankResearchSources(
+    group,
+    validSources(message.annotations),
+    focus,
+  ).slice(0, SOURCES_PER_GROUP);
   if (sources.length === 0) return searchFallback({ group, focus });
 
   const parsed = parseJsonObject(textContent(message.content));
@@ -983,6 +1097,7 @@ export async function researchInventoryWeb({
   const sources: ResearchSource[] = [];
   const seenFindings = new Set<string>();
   const seenSources = new Set<string>();
+  const hostCounts = new Map<string, number>();
   for (const [index, result] of results.entries()) {
     const group = groups[index];
     if (group && result.findings.length === 0) unresearched.push(groupName(group));
@@ -995,6 +1110,10 @@ export async function researchInventoryWeb({
     for (const source of result.sources) {
       if (seenSources.has(source.url)) continue;
       seenSources.add(source.url);
+      const host = hostOf(source.url);
+      const hostCount = hostCounts.get(host) ?? 0;
+      if (host && hostCount >= 2) continue;
+      hostCounts.set(host, hostCount + 1);
       if (sources.length < MAX_SOURCES) sources.push(source);
     }
   }

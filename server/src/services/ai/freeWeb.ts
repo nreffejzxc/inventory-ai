@@ -149,8 +149,45 @@ function orderByQueryMatch(sources: FreeSearchSource[], terms: string[]): { sour
   const rest = sources.filter((source) => !relevant.includes(source));
   return { sources: [...relevant, ...rest], junk: false };
 }
-const SEARCH_TIMEOUT_MS = 9_000;
+/**
+ * One engine request, not the whole search.
+ *
+ * The old 9 s ceiling was paid by EVERY attempt in a sequential ladder: four
+ * DuckDuckGo layouts plus Bing could spend ~45 s on one query before the caller
+ * saw a result. Engines that answer at all answer in 1–3 s, so 6 s keeps slow
+ * pages while letting the caller's own budget decide how many engines to try.
+ */
+const SEARCH_TIMEOUT_MS = 6_000;
+/** The whole search: two engines in parallel, then at most one fallback. */
+const SEARCH_TOTAL_TIMEOUT_MS = 12_000;
 const PAGE_TIMEOUT_MS = 9_000;
+/**
+ * Repeated product questions are common (the same model checked twice, a follow-up
+ * about the same item). A short successful-result cache removes the fetch and the
+ * throttle risk from the second question; it is keyed by the exact query and limit,
+ * holds nothing but public result titles/snippets/URLs, and is never logged.
+ */
+const SEARCH_CACHE_TTL_MS = 10 * 60_000;
+const SEARCH_CACHE_MAX = 100;
+const searchCache = new Map<string, { expiresAt: number; sources: FreeSearchSource[] }>();
+
+function cachedSearch(key: string): FreeSearchSource[] | null {
+  const hit = searchCache.get(key);
+  if (!hit) return null;
+  if (hit.expiresAt <= Date.now()) {
+    searchCache.delete(key);
+    return null;
+  }
+  return hit.sources;
+}
+
+function rememberSearch(key: string, sources: FreeSearchSource[]): void {
+  if (searchCache.size >= SEARCH_CACHE_MAX) {
+    const oldest = searchCache.keys().next().value;
+    if (oldest !== undefined) searchCache.delete(oldest);
+  }
+  searchCache.set(key, { expiresAt: Date.now() + SEARCH_CACHE_TTL_MS, sources });
+}
 const MAX_SEARCH_BYTES = 2_000_000;
 /**
  * AI-52 — a page is read up to this many bytes, not refused above it.
@@ -535,29 +572,11 @@ function boundedBy(ms: number, signal?: AbortSignal): AbortSignal {
   return signal ? AbortSignal.any([AbortSignal.timeout(ms), signal]) : AbortSignal.timeout(ms);
 }
 
-function wait(ms: number, signal?: AbortSignal): Promise<void> {
-  if (!signal) return new Promise((resolve) => setTimeout(resolve, ms));
-  return new Promise((resolve, reject) => {
-    if (signal.aborted) {
-      reject(abortError());
-      return;
-    }
-    const timer = setTimeout(() => {
-      signal.removeEventListener('abort', onAbort);
-      resolve();
-    }, ms);
-    const onAbort = () => {
-      clearTimeout(timer);
-      reject(abortError());
-    };
-    signal.addEventListener('abort', onAbort, { once: true });
-  });
-}
-
 async function fetchSearchPage(
   endpoint: URL,
   userAgent: string,
   engine: string,
+  timeoutMs = SEARCH_TIMEOUT_MS,
   signal?: AbortSignal,
 ): Promise<{ html: string } | { reason: FreeSearchFailureReason; blocked?: boolean }> {
   let response: Response;
@@ -569,7 +588,7 @@ async function fetchSearchPage(
         'user-agent': userAgent,
       },
       redirect: 'follow',
-      signal: boundedBy(SEARCH_TIMEOUT_MS, signal),
+      signal: boundedBy(timeoutMs, signal),
     });
   } catch (error) {
     if (signal?.aborted) throw abortError();
@@ -683,13 +702,35 @@ export function parseBingResults(html: string, limit = 3): FreeSearchSource[] {
  */
 export async function searchFreeWeb(
   query: string,
-  { limit = 3, signal }: { limit?: number; signal?: AbortSignal } = {},
+  {
+    limit = 3,
+    signal,
+    timeoutMs = SEARCH_TOTAL_TIMEOUT_MS,
+  }: { limit?: number; signal?: AbortSignal; timeoutMs?: number } = {},
 ): Promise<FreeSearchResult> {
   throwIfAborted(signal);
   const cleanQuery = query.replace(/\s+/g, ' ').trim();
   if (!cleanQuery) return { sources: [], reason: 'NO_SOURCES' };
   const wanted = Math.max(1, Math.min(limit, 10));
   const failures: FreeSearchFailureReason[] = [];
+  const deadlineAt = Date.now() + Math.max(1, timeoutMs);
+  const remainingMs = () => Math.max(0, deadlineAt - Date.now());
+  // Custom endpoints are a test harness or an operator's own engine: answer freshness
+  // matters more there than the milliseconds a cache saves, and a cached stub answer
+  // would make a resilience test prove the wrong thing.
+  const configuredForCache = Boolean(
+    (process.env.AI_FREE_SEARCH_URL || '').trim() || (process.env.AI_WEB_SEARCH_URL || '').trim(),
+  );
+  const cacheable = !configuredForCache;
+  const cacheKey = `${wanted}\u0000${cleanQuery.toLowerCase()}`;
+  if (cacheable) {
+    const cached = cachedSearch(cacheKey);
+    if (cached) return { sources: cached };
+  }
+  const success = (sources: FreeSearchSource[]): FreeSearchResult => {
+    if (cacheable) rememberSearch(cacheKey, sources);
+    return { sources };
+  };
 
   const searxBase = (process.env.AI_FREE_SEARCH_URL || '').trim();
   if (searxBase) {
@@ -705,7 +746,7 @@ export async function searchFreeWeb(
       if (response.ok) {
         const payload: unknown = await response.json();
         const sources = parseSearxResults(payload, wanted);
-        if (sources.length > 0) return { sources };
+        if (sources.length > 0) return success(sources);
         failures.push('NO_SOURCES');
       } else {
         failures.push('SEARCH_UNAVAILABLE');
@@ -741,9 +782,17 @@ export async function searchFreeWeb(
     : [{ url: BING_SEARCH_URL, userAgent: USER_AGENTS[0], lite: false, engine: 'bing', engineKey: 'bing' }];
 
   /** One pass over the ladder; returns sources when an attempt produced a result list. */
-  const runAttempts = async (list: SearchAttempt[]): Promise<FreeSearchSource[] | null> => {
+  const runAttempts = async (
+    list: SearchAttempt[],
+    attemptTimeoutMs = SEARCH_TIMEOUT_MS,
+  ): Promise<FreeSearchSource[] | null> => {
     for (const attempt of list) {
       throwIfAborted(signal);
+      const left = remainingMs();
+      if (left <= 0) {
+        failures.push('SEARCH_TIMEOUT');
+        break;
+      }
       if (isEngineBlocked(attempt.engineKey)) {
         failures.push('SEARCH_UNAVAILABLE');
         continue;
@@ -759,7 +808,13 @@ export async function searchFreeWeb(
       }
       await searchSlot();
       throwIfAborted(signal);
-      const page = await fetchSearchPage(endpoint, attempt.userAgent, attempt.engine, signal);
+      const page = await fetchSearchPage(
+        endpoint,
+        attempt.userAgent,
+        attempt.engine,
+        Math.min(attemptTimeoutMs, remainingMs() || 1),
+        signal,
+      );
       if (!('html' in page)) {
         if (page.blocked) noteEngineBlock(attempt.engineKey, 'throttled');
         else clearEngineStrikes(attempt.engineKey);
@@ -793,20 +848,34 @@ export async function searchFreeWeb(
     return null;
   };
 
-  const firstPass = await runAttempts([...attempts, ...fallbackAttempts]);
-  if (firstPass) return { sources: firstPass };
-  // AI-53 — a throttle page is transient here: the same endpoint answered a normal list
-  // less than a minute later (measured 2026-11-04). One short second pass keeps a
-  // question from reporting "nothing on the web" because it happened to land on an
-  // anomaly page, and it is bounded to the two attempts that just failed.
-  if (!custom && failures.includes('SEARCH_UNAVAILABLE')) {
-    await wait(900, signal);
-    failures.length = 0;
-    const retryList = [...attempts.slice(0, 2), fallbackAttempts[0]].filter(
-      (attempt): attempt is SearchAttempt => attempt !== undefined && !isEngineBlocked(attempt.engineKey),
-    );
-    const secondPass = await runAttempts(retryList);
-    if (secondPass) return { sources: secondPass };
+  // The two keyless engines are asked at the same time. Sequentially they were four
+  // DuckDuckGo layouts plus Bing, each with its own timeout; in parallel the first pass
+  // costs one timeout at most, and a throttled DuckDuckGo no longer delays Bing.
+  // The search-slot gate still spaces their starts, so this does not become a burst.
+  let firstPass: FreeSearchSource[] | null = null;
+  if (custom || fallbackAttempts.length === 0) {
+    firstPass = await runAttempts(attempts);
+  } else {
+    const primary = attempts[0];
+    if (primary) {
+      const [duck, bing] = await Promise.all([
+        runAttempts([primary]),
+        runAttempts([...fallbackAttempts]),
+      ]);
+      firstPass = duck ?? bing;
+    }
+  }
+  if (firstPass) return success(firstPass);
+
+  // One last layout, and only when an engine actually refused rather than timed out:
+  // a timeout has already shown this host is slow, so asking it again spends the
+  // caller's remaining budget for the same answer.
+  if (!custom && failures.includes('SEARCH_UNAVAILABLE') && remainingMs() > 0) {
+    const alternate = attempts[1];
+    if (alternate && !isEngineBlocked(alternate.engineKey)) {
+      const secondPass = await runAttempts([alternate]);
+      if (secondPass) return success(secondPass);
+    }
   }
 
   if (failures.includes('SEARCH_TIMEOUT')) return { sources: [], reason: 'SEARCH_TIMEOUT' };

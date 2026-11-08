@@ -149,7 +149,10 @@ const MAX_SNIPPET_CHARS = 320;
 const REQUEST_TIMEOUT_MS = 25_000;
 const MAX_OUTPUT_TOKENS = 256;
 const FREE_SEARCH_RESULTS = 8;
-const FREE_PAGE_FETCHES = 4;
+const FREE_PAGE_FETCHES = 3;
+/** One query's share of the research budget; retries still fit inside 30 s. */
+const FREE_QUERY_TIMEOUT_MS = 8_000;
+const FREE_PAGE_TIMEOUT_MS = 7_000;
 /**
  * How likely a URL is a single product page rather than a category, tag or search
  * listing. A listing page shows many prices and none of them is this product's, so
@@ -168,7 +171,7 @@ export function productPageHint(url: string) {
   if (/-i\.\d+\.\d+/.test(path)) return 2;
   return 1;
 }
-const FREE_PAGE_CONCURRENCY = 2;
+const FREE_PAGE_CONCURRENCY = 3;
 
 /**
  * Marketplaces the paid prompt asks the model to search by name, and which the
@@ -704,7 +707,11 @@ async function priceEvidenceFromQuery({
         : AbortSignal.timeout(left);
   let search: FreeSearchResult;
   try {
-    search = await searchFreeWeb(query, { limit: FREE_SEARCH_RESULTS, signal: searchSignal });
+    search = await searchFreeWeb(query, {
+      limit: FREE_SEARCH_RESULTS,
+      signal: searchSignal,
+      timeoutMs: left === undefined ? FREE_QUERY_TIMEOUT_MS : Math.min(FREE_QUERY_TIMEOUT_MS, left),
+    });
   } catch {
     throwIfAborted(signal);
     return { listings: [], sources: [], reason: 'SEARCH_TIMEOUT', answered: false };
@@ -765,8 +772,8 @@ async function priceEvidenceFromQuery({
     const page = await fetchPublicPage(source.url, {
       signal,
       ...(deadlineAt === undefined
-        ? {}
-        : { timeoutMs: Math.max(500, deadlineAt - Date.now()) }),
+        ? { timeoutMs: FREE_PAGE_TIMEOUT_MS }
+        : { timeoutMs: Math.max(500, Math.min(FREE_PAGE_TIMEOUT_MS, deadlineAt - Date.now())) }),
     });
     throwIfAborted(signal);
     if (!page.ok) return null;

@@ -175,6 +175,43 @@ function emptyResponseShape(data: AnthropicResponse) {
 }
 
 /**
+ * Read token usage from either wire shape the gateway has used.
+ *
+ * OpenRouter's Anthropic bridge normally reports `input_tokens`/`output_tokens`,
+ * but some upstreams answer with the OpenAI names (`prompt_tokens`/`completion_tokens`).
+ * Cache reads and cache writes are billed input, so they are added when present:
+ * Anthropic reports them SEPARATELY from `input_tokens`, and ignoring them made the
+ * turn line understate what a research-heavy prompt actually cost.
+ *
+ * OpenRouter also reports the total charge for the request in `usage.cost` (USD,
+ * including server-tool charges). It is carried through when present so the turn
+ * line can show real credit spend; an older or different gateway that omits it
+ * stays an absence rather than being reported as a free call.
+ */
+export function readUsage(raw: unknown): ProviderUsage | null {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+  const record = raw as Record<string, unknown>;
+  const count = (...keys: string[]): number | null => {
+    for (const key of keys) {
+      const value = record[key];
+      if (typeof value === 'number' && Number.isFinite(value)) return value;
+    }
+    return null;
+  };
+  const input = count('input_tokens', 'prompt_tokens');
+  const output = count('output_tokens', 'completion_tokens');
+  if (input === null && output === null) return null;
+  const cacheRead = count('cache_read_input_tokens') ?? 0;
+  const cacheWrite = count('cache_creation_input_tokens') ?? 0;
+  const cost = count('cost');
+  return {
+    inputTokens: (input ?? 0) + cacheRead + cacheWrite,
+    outputTokens: output ?? 0,
+    ...(cost !== null ? { costUsd: cost } : {}),
+  };
+}
+
+/**
  * @param data            the untrusted response body
  * @param requestedModel  the model the REQUEST named, used only when the body omits one.
  *
@@ -209,9 +246,7 @@ export function parseAnthropicResponse(data: AnthropicResponse, requestedModel =
       thinking.push({ type: 'redacted_thinking', data: block.data });
     }
   }
-  const usage = data.usage
-    ? { inputTokens: data.usage.input_tokens ?? 0, outputTokens: data.usage.output_tokens ?? 0 } as ProviderUsage
-    : null;
+  const usage = readUsage(data.usage);
   if (data.stop_reason === 'max_tokens' && toolCalls.length === 0 && !text) {
     // AI-10 — this used to throw an AiProviderError, which the controller maps to
     // 502 AI_UNAVAILABLE: *"temporarily unavailable, please try again in a moment"* for a
@@ -307,7 +342,9 @@ async function readAnthropicStream(
   const blocks = new Map<number, StreamBlock>();
   let reportedModel = target.model;
   let stopReason: string | null = null;
-  const usage = { inputTokens: 0, outputTokens: 0 };
+  // A holder, not a bare `let`: the assignments happen inside the SSE callback, and
+  // TypeScript narrows a bare variable to its initial `null` at the read below.
+  const usageState: { value: ProviderUsage | null } = { value: null };
 
   const handle = ({ event, data }: SseEvent): void => {
     // Some gateways terminate with an OpenAI-style sentinel even on an Anthropic wire.
@@ -326,8 +363,8 @@ async function readAnthropicStream(
     if (type === 'message_start') {
       const message = payload.message && typeof payload.message === 'object' ? (payload.message as UpstreamJsonBody) : null;
       if (message && typeof message.model === 'string' && message.model) reportedModel = message.model;
-      const startUsage = message?.usage && typeof message.usage === 'object' ? (message.usage as UpstreamJsonBody) : null;
-      if (startUsage && typeof startUsage.input_tokens === 'number') usage.inputTokens = startUsage.input_tokens;
+      const startUsage = readUsage(message?.usage);
+      if (startUsage) usageState.value = startUsage;
       return;
     }
 
@@ -392,8 +429,17 @@ async function readAnthropicStream(
     if (type === 'message_delta') {
       const delta = payload.delta && typeof payload.delta === 'object' ? (payload.delta as UpstreamJsonBody) : null;
       if (delta && typeof delta.stop_reason === 'string') stopReason = delta.stop_reason;
-      const endUsage = payload.usage && typeof payload.usage === 'object' ? (payload.usage as UpstreamJsonBody) : null;
-      if (endUsage && typeof endUsage.output_tokens === 'number') usage.outputTokens = endUsage.output_tokens;
+      const endUsage = readUsage(payload.usage);
+      if (endUsage) {
+        // Events are not guaranteed to repeat every field: `message_start` usually has
+        // the prompt count, `message_delta` the final output count. Taking the larger
+        // value keeps a later event with only one counter from erasing the other.
+        const current = usageState.value;
+        usageState.value = {
+          inputTokens: Math.max(current?.inputTokens ?? 0, endUsage.inputTokens),
+          outputTokens: Math.max(current?.outputTokens ?? 0, endUsage.outputTokens),
+        };
+      }
       return;
     }
 
@@ -434,11 +480,14 @@ async function readAnthropicStream(
       };
     });
 
+  const finalUsage = usageState.value;
   const data = {
     model: reportedModel,
     content,
     stop_reason: stopReason ?? undefined,
-    usage: { input_tokens: usage.inputTokens, output_tokens: usage.outputTokens },
+    usage: finalUsage
+      ? { input_tokens: finalUsage.inputTokens, output_tokens: finalUsage.outputTokens }
+      : undefined,
   } as unknown as AnthropicResponse;
 
   return { data, quota };
@@ -549,6 +598,7 @@ export function createAnthropicCompatibleProvider(opts: AnthropicCompatibleOptio
       stream,
       onTextDelta,
       webResearch,
+      nativeWeb,
     }) {
       const cfg = aiConfig();
       // AI-29 — a per-request override, used by the turn loop's failover. It stays a
@@ -568,7 +618,7 @@ export function createAnthropicCompatibleProvider(opts: AnthropicCompatibleOptio
       // AI-86 — the turn loop sets this false for plain inventory questions. Keeping the
       // configured list separate lets the request log explain that the switches are on
       // while neither paid tool was offered. Undefined preserves direct-call behaviour.
-      const webToolsAllowed = webResearch !== false;
+      const webToolsAllowed = webResearch !== false && nativeWeb !== false;
       const serverToolDefs = tools && tools.length > 0 && webToolsAllowed ? configuredServerTools : [];
       const requestTools = [
         ...(tools && tools.length > 0 ? toAnthropicTools(tools) : []),
@@ -627,6 +677,12 @@ export function createAnthropicCompatibleProvider(opts: AnthropicCompatibleOptio
           // and lift a fail-fast window. It is attached AFTER parsing, so the parser's contract and
           // its diagnostics (which print the body's field names) are untouched.
           const withQuota = quota ? { ...parsed, quota } : parsed;
+          // AI-86 — expose the server tools this response actually ran so the turn
+          // loop can treat a native search/fetch as a real research read instead of
+          // re-asking for a custom tool and paying for the same research twice.
+          const withWebTools = usedWebTools.length > 0
+            ? { ...withQuota, webToolsUsed: usedWebTools }
+            : withQuota;
           // AI-12 — and an empty completion is named ONCE PER OCCURRENCE, before it is
           // returned, because the AI-2 retry means the turn-level warning appears only when
           // a turn GIVES UP: an empty response the retry rescues used to be invisible, and
@@ -637,7 +693,7 @@ export function createAnthropicCompatibleProvider(opts: AnthropicCompatibleOptio
               `[ai:${name}] empty completion (model=${model}, ${emptyResponseShape(body)}) — the provider answered 2xx with neither text nor a tool call; the turn retries once, then degrades (AI-2)`
             );
           }
-          return withQuota;
+          return withWebTools;
         } catch (err) {
           if (err instanceof AiOutputLimit) {
             console.warn(

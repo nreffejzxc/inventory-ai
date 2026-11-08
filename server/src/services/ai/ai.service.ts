@@ -78,7 +78,12 @@ import {
 import { activeModel, promoteModel } from './modelSelection.ts';
 import { selectProvider, type ProviderMessage, type ProviderResponse, type ProviderUsage, type ToolDefinition } from './providers/index.ts';
 import { capToolResult } from './toolPayload.ts';
-import { asksForWebResearch } from './webCapabilities.ts';
+import {
+  asksForResearchModel,
+  asksForWebResearch,
+  webToolLabel,
+  type WebToolName,
+} from './webCapabilities.ts';
 import { executeTool, AI_TOOL_DEFS } from './tools.ts';
 import { appendMissingSourceUrls, type ResearchSource } from './webResearch.ts';
 import { localDate, localTime, resolveTimeZone, utcOffsetLabel } from '../../utils/timeZone.ts';
@@ -206,7 +211,11 @@ interface ChatResult {
  * read because the day-boundary behaviour is the thing that must be testable.
  */
 export function systemPrompt(
-  { timeZone, now = new Date() }: { timeZone?: string; now?: Date } = {},
+  {
+    timeZone,
+    now = new Date(),
+    nativeWeb = false,
+  }: { timeZone?: string; now?: Date; nativeWeb?: boolean } = {},
 ): string {
   const zone = resolveTimeZone(timeZone);
   return [
@@ -374,6 +383,15 @@ export function systemPrompt(
     // language they think in; an English reply is not a translation of the answer,
     // and Tagalog is not a substitute for Bisaya.
     '38. Reply in the language of the member\'s latest message: English for English, Tagalog/Filipino for Tagalog, and Bisaya/Cebuano for Bisaya. These are different languages: never answer a Bisaya question in Tagalog or a Tagalog question in Bisaya. Do not switch to English because tool results, product names, field labels or the rest of the app are in English; translate the answer, but keep product names, SKUs, codes, numbers, URLs and necessary technical terms exactly as recorded.',
+    // AI-86 — when both native OpenRouter web tools are enabled they are the PRIMARY
+    // research path. Rules 21, 23 and 35 still describe the local research tools, so
+    // this rule must explicitly supersede them; without it the model keeps reaching
+    // for tools it was told to prefer even though they are not offered.
+    ...(nativeWeb
+      ? [
+          '39. OpenRouter native web search and web fetch are enabled for this deployment. For any public-web research, use those native tools directly; do NOT call researchInventoryProducts or researchMarketPrices, because they are not offered while both native tools are available. Rules 21, 23 and 35 are superseded for this turn. First identify the recorded product with findProducts. Then use web search for evidence and web fetch to read the specific source page. Never run the same search twice or fetch the same URL twice in one turn. Answer only from what the native tools returned, cite every source URL exactly, and state the retrieval date for prices. Quote a price only when it appears on a fetched page or in a search result, keep the recorded selling price separate, never convert currency, and never add a product or brand the business does not stock. If the native tools return an error or no usable source, say plainly that the web research is unavailable instead of filling the gap from memory.',
+        ]
+      : []),
   ].join('\n');
 }
 
@@ -479,7 +497,7 @@ export async function runAiChat({
   // Resolved once per turn: the prompt and every tool row in this turn must use
   // the same zone, and a turn's 60 s budget cannot span enough time to matter.
   const timeZone = resolveTimeZone(requestedTimeZone);
-  const prompt = systemPrompt({ timeZone });
+  let prompt = systemPrompt({ timeZone, nativeWeb: cfg.nativeWebPrimary });
   const provider = selectProvider();
 
   const messages: ProviderMessage[] = history
@@ -491,6 +509,18 @@ export async function runAiChat({
   // a normal inventory question keeps them out of every candidate request, including
   // failover attempts. The model still chooses whether to call an offered tool.
   const webResearchIntent = asksForWebResearch(message);
+  // AI-86 — native OpenRouter web tools are PRIMARY whenever both switches are on
+  // and the deployed provider is OpenRouter. The local research tools are withheld
+  // in that mode, so the model cannot quietly use the slower fallback while the
+  // native capabilities are available. They come back only after a native refusal.
+  let nativeWebActive = cfg.nativeWebPrimary;
+  let nativeWebFallbackTried = false;
+  let nativeResearchToolBlocked = false;
+  const nativeWebToolsUsed = new Set<WebToolName>();
+  const localResearchToolNames = new Set(['researchInventoryProducts', 'researchMarketPrices']);
+  const toolDefsWithNativeWeb = AI_TOOL_DEFS.filter(
+    (tool) => !localResearchToolNames.has(tool.name),
+  ) as ToolDefinition[];
 
   let finalText: string | null = null;
   const toolsUsed = new Set<string>();
@@ -516,6 +546,37 @@ export async function runAiChat({
   // to change. A successful response still overwrites this with the model the provider reported.
   let model: string | null = provider.model ?? null;
   let usage: ProviderUsage | null = null;
+  // The provider's own charge for the whole turn, in USD. Kept separate from the
+  // token counters because a missing cost is not zero: `costMissingCalls` lets the
+  // line say that a known total is only a lower bound.
+  let turnCostUsd: number | null = null;
+  let costMissingCalls = 0;
+  /**
+   * Add one provider call's tokens and charge to the turn total.
+   *
+   * The counters used to be assigned from the LAST successful response, so a turn
+   * that made three or four model calls reported only the final call's prompt tokens
+   * (usually 0 on a streamed `message_start` that omits them) even though every call
+   * was billed. Summing here makes `in=` and `out=` describe the whole turn, which is
+   * what the allowance and credit questions are actually about. The same rule applies
+   * to `cost=`: every call's reported charge is summed, and a call that reported no
+   * charge is counted so a partial total cannot look exact.
+   */
+  const addProviderUsage = (spent: ProviderUsage | null | undefined): void => {
+    if (!spent) {
+      costMissingCalls += 1;
+      return;
+    }
+    if (typeof spent.costUsd === 'number' && Number.isFinite(spent.costUsd)) {
+      turnCostUsd = (turnCostUsd ?? 0) + spent.costUsd;
+    } else {
+      costMissingCalls += 1;
+    }
+    usage = {
+      inputTokens: (usage?.inputTokens ?? 0) + spent.inputTokens,
+      outputTokens: (usage?.outputTokens ?? 0) + spent.outputTokens,
+    };
+  };
   let steps = 0;
   // AI-2 — the degraded path's own state: why the turn gave up (null while it is
   // still healthy), how much of the retry budget has been spent, and whether the
@@ -619,6 +680,19 @@ export async function runAiChat({
   };
 
   /**
+   * The provider-reported charge for the turn, or an honest marker.
+   *
+   * `$0.000000` is a real measurement from a provider that reported zero. A
+   * missing report prints `unknown`; when some calls reported and others did not,
+   * the sum is marked `>=` because the true total is higher than what is shown.
+   */
+  const costLabel = (): string => {
+    if (turnCostUsd === null) return 'unknown';
+    const amount = `$${turnCostUsd.toFixed(6)}`;
+    return costMissingCalls > 0 ? `>=${amount}` : amount;
+  };
+
+  /**
    * The turn's one cost line. Emitted from every exit below — including the paths
    * that throw, which is why a failed turn reports what it spent before it died.
    * `outcome` uses the same vocabulary as the error codes the controller returns,
@@ -630,7 +704,8 @@ export async function runAiChat({
         ` providerMs=${providerMs}ms calls=${providerCalls}` +
         ` toolMs=${toolMs}ms toolRuns=${toolRuns} tools=${[...toolsUsed].join(',') || 'none'}` +
         ` empty=${emptyResponses} failovers=${failovers} quota=${quotaLabel()}` +
-        ` in=${usage?.inputTokens ?? 0} out=${usage?.outputTokens ?? 0}` +
+        ` in=${usage?.inputTokens ?? 0} out=${usage?.outputTokens ?? 0} cost=${costLabel()}` +
+        ` web=${nativeWebToolsUsed.size ? webToolLabel([...nativeWebToolsUsed]) : 'none'}` +
         ` model=${model ?? 'unknown'} iterations=${steps}`,
     );
   };
@@ -671,33 +746,58 @@ export async function runAiChat({
   const primaryModel = provider.model ?? cfg.openrouterModel ?? null;
 
   /**
-   * The full ordered chain this turn may use: the primary first, then the operator's
-   * candidates, de-duplicated. Two exclusions, both paid for already: a candidate that is
-   * the primary (the same refusal spent twice) and one the provider's catalogue says cannot
-   * call tools (it would answer an inventory question without reading the inventory). The
-   * PRIMARY is never excluded for tool support — it is what the deployment chose, and a
-   * catalogue read must not become a configuration veto.
+   * AI-87 — research-heavy turns start on the operator's research model, while ordinary
+   * inventory turns keep the configured primary. `asksForResearchModel` covers reviews, market
+   * prices, recommendations, comparisons, buying advice and explicit web research, but not
+   * analytics questions such as "best selling product".
    *
-   * Excluded ids are named on ONE line per turn rather than left silent, because a candidate
-   * that is never used is exactly the kind of configuration mistake nobody notices until the
-   * day it is needed.
+   * The choice is per TURN, never global: the research model is not promoted into the
+   * default slot (see `configuredActive` below). An unset or identical research model, a
+   * non-OpenRouter provider, or a plain inventory question leaves the request exactly as it
+   * was before this route existed.
+   */
+  const researchModel =
+    cfg.provider === 'openrouter' ? (cfg.openrouterResearchModel || null) : null;
+  const researchTurn = Boolean(
+    researchModel &&
+      researchModel !== primaryModel &&
+      asksForResearchModel(message),
+  );
+
+  /**
+   * The full ordered chain this turn may use: the primary first on an ordinary turn, or the
+   * research model followed by the primary on a research turn, then the operator's
+   * candidates, de-duplicated.
+   *
+   * The PRIMARY and the research model are never excluded for tool support — they are what
+   * the deployment chose, and a catalogue read must not become a configuration veto. A
+   * candidate is checked because an inventory answer without tools is worse than trying the
+   * next candidate. Excluded ids are named on ONE line per turn rather than left silent.
    */
   const orderedChain: string[] = (() => {
-    const primaryIds = new Set([provider.model, cfg.openrouterModel].filter((id): id is string => Boolean(id)));
+    const primaryIds = new Set(
+      [provider.model, cfg.openrouterModel].filter((id): id is string => Boolean(id)),
+    );
     const out: string[] = [];
     const seen = new Set<string>();
     const skipped: string[] = [];
-    for (const [index, id] of [primaryModel, ...cfg.fallbackModels].entries()) {
+    const start = researchTurn && researchModel ? [researchModel, primaryModel] : [primaryModel];
+    for (const id of start) {
       if (!id || seen.has(id)) continue;
       seen.add(id);
-      const isPrimarySlot = index === 0;
+      out.push(id);
+    }
+    for (const id of cfg.fallbackModels) {
+      if (!id || seen.has(id)) continue;
       // A candidate that IS the configured model is the same refusal spent twice, whichever
-      // of its two names (`provider.model` or the environment's id) it was written as.
-      if (!isPrimarySlot && primaryIds.has(id)) continue;
-      if (!isPrimarySlot && declaresToolSupport(id) === false) {
+      // of its two names (`provider.model` or the environment's id) it was written as. On a
+      // research turn the primary was already added to the start of the chain above.
+      if (primaryIds.has(id)) continue;
+      if (declaresToolSupport(id) === false) {
         skipped.push(id);
         continue;
       }
+      seen.add(id);
       out.push(id);
     }
     if (skipped.length > 0) {
@@ -711,7 +811,10 @@ export async function runAiChat({
   // The promotion is process-local and never written back to `.env`, so the configured
   // default stays exactly what the operator chose. A promoted id that has since been removed
   // from the configured chain is ignored (there is nothing left to use it with).
-  const configuredActive = activeModel(primaryModel);
+  // A research turn deliberately starts on the research model even when the primary is
+  // active; otherwise a healthy 20B would take the first slot and the 120B would never be
+  // used for the work it was configured for. Ordinary turns continue to follow AI-31.
+  const configuredActive = researchTurn ? researchModel : activeModel(primaryModel);
   const activeInChain =
     configuredActive && orderedChain.includes(configuredActive) ? configuredActive : null;
   const turnChain = activeInChain
@@ -818,10 +921,13 @@ export async function runAiChat({
           messages,
           // AI-50 — the final round withholds the tools so the model has to answer from what
           // it already gathered instead of spending the last step on another search.
-          ...(allowTools ? { tools: AI_TOOL_DEFS as ToolDefinition[] } : {}),
+          ...(allowTools
+            ? { tools: (nativeWebActive ? toolDefsWithNativeWeb : (AI_TOOL_DEFS as ToolDefinition[])) }
+            : {}),
           timeoutMs: budget,
           signal,
           webResearch: webResearchIntent,
+          nativeWeb: nativeWebActive,
           ...(currentModel ? { model: currentModel } : {}),
           // AI-40 — streaming is requested ONLY when someone is listening. A provider that
           // does not support it ignores these and answers whole, and the turn is unchanged.
@@ -1068,6 +1174,34 @@ export async function runAiChat({
     try {
       response = await completeWithFailover(!isAnswerRound);
     } catch (err) {
+      // AI-86 — a gateway or workspace that refuses the native server tools must not
+      // turn a research question into a failed turn while the local path still works.
+      // Retry ONCE with the local research tools. A 400/403 is the documented shape of
+      // that refusal; the retry is skipped after any answer text has been delivered.
+      if (
+        nativeWebActive &&
+        !nativeWebFallbackTried &&
+        webResearchIntent &&
+        emittedChars === 0 &&
+        err instanceof AiProviderError &&
+        (err.status === 400 || err.status === 403)
+      ) {
+        nativeWebFallbackTried = true;
+        nativeWebActive = false;
+        prompt = systemPrompt({ timeZone, nativeWeb: false });
+        console.warn(
+          `[ai] native web tools were refused (status=${err.status}) — retrying with the local research tools`,
+        );
+        messages.push({
+          role: 'user',
+          content:
+            'The native OpenRouter web tools are unavailable for this deployment. Do not retry them. ' +
+            'Use the local research tool instead: researchInventoryProducts for reviews, quality or ' +
+            'specifications, or researchMarketPrices for current online prices. Answer only from what ' +
+            'it returns, and say plainly if it is unavailable.',
+        });
+        continue;
+      }
       // AI-52 — the model can spend the ENTIRE output budget reasoning and return neither
       // text nor a tool call; the wire then raises `AiOutputLimit` with nothing to show
       // for it. Two battery questions died this way on 2026-11-04 ("K8 Pro reviews", "do
@@ -1113,7 +1247,7 @@ export async function runAiChat({
         // same reason every counter is: the line is written once, from here.
         const spent = aiErrorAccounting(err);
         if (spent.model) model = spent.model;
-        if (spent.usage) usage = spent.usage;
+        if (spent.usage) addProviderUsage(spent.usage);
         reportTurn((err as { code?: string }).code ?? 'AI_ERROR');
         throw err;
       }
@@ -1123,7 +1257,8 @@ export async function runAiChat({
     }
 
     model = response?.model || model;
-    usage = response?.usage || usage;
+    addProviderUsage(response?.usage);
+    for (const used of response?.webToolsUsed ?? []) nativeWebToolsUsed.add(used);
     let calls = Array.isArray(response?.toolCalls) ? response.toolCalls : [];
     // Reasoning blocks are bound to the exact tool calls that followed them. Keep the original
     // call shape so a locally rewritten/added call does not replay a signature that covers a
@@ -1233,7 +1368,14 @@ export async function runAiChat({
         const statedFigure = statesRecordedFigure(candidate);
         const narrated = looksUnanswered(candidate);
         const answeredFromMemory = statedFigure || narrated || asksForRecordedData(message);
-        if (toolRuns === 0 && !isAnswerRound && groundingRetries < MAX_GROUNDING_RETRIES && answeredFromMemory) {
+        if (
+          toolRuns === 0 &&
+          nativeWebToolsUsed.size === 0 &&
+          !webResearchIntent &&
+          !isAnswerRound &&
+          groundingRetries < MAX_GROUNDING_RETRIES &&
+          answeredFromMemory
+        ) {
           groundingRetries += 1;
           console.warn(
             `[ai] no tool read for a ${narrated ? 'tool-narrating' : statedFigure ? 'figure-stating' : 'recorded-data'} answer — asking the model for the data (attempt ${groundingRetries})`,
@@ -1371,7 +1513,12 @@ export async function runAiChat({
         // Any recorded-data question that still has no tool read after both re-asks is
         // ungrounded, whether it narrates a plan or simply states an absence. The earlier
         // version only refused the narration, so a confident "we do not carry it" could ship.
-        if (toolRuns === 0 && answeredFromMemory && asksForProductAdvice(message)) {
+        if (
+          toolRuns === 0 &&
+          nativeWebToolsUsed.size === 0 &&
+          answeredFromMemory &&
+          asksForProductAdvice(message)
+        ) {
           degraded = 'UNGROUNDED_ANSWER';
           finalText = DEGRADED.UNGROUNDED_ANSWER;
           break;
@@ -1387,8 +1534,11 @@ export async function runAiChat({
         // finding. Re-ask with the exact research path, then refuse the claim if it
         // still arrives without a research read.
         const researchTools = ['researchInventoryProducts', 'researchMarketPrices'];
+        const nativeResearchRead = nativeWebToolsUsed.size > 0;
         const answeredResearchWithoutRead =
-          webResearchIntent && !researchTools.some((tool) => toolsUsed.has(tool));
+          webResearchIntent &&
+          !researchTools.some((tool) => toolsUsed.has(tool)) &&
+          !nativeResearchRead;
         if (
           answeredResearchWithoutRead &&
           !isAnswerRound &&
@@ -1397,21 +1547,37 @@ export async function runAiChat({
           groundingRetries += 1;
           const priceQuestion = /\b(?:prices?|charge|costs?|marketplace|shopee|lazada|amazon)\b/i.test(message);
           const researchTool = priceQuestion ? 'researchMarketPrices' : 'researchInventoryProducts';
+          const useNativeNow = nativeWebActive && groundingRetries === 1;
+          if (nativeWebActive && !useNativeNow) {
+            // The first re-ask kept the native path; a second unanswered request is
+            // evidence the native tools are not running on this model. Switch the
+            // prompt and the offered tools together, so the fallback is one path.
+            nativeWebActive = false;
+            nativeWebFallbackTried = true;
+            prompt = systemPrompt({ timeZone, nativeWeb: false });
+            console.warn(
+              '[ai] native web tools did not run — falling back to the local research tools',
+            );
+          }
           const knownProducts = productFacts
             .filter((fact) => Boolean(fact.id))
             .slice(0, 8)
             .map((fact) => `${fact.name} (${fact.id})`)
             .join(', ');
           console.warn(
-            `[ai] research answer without a web read — asking for ${researchTool} (attempt ${groundingRetries})`,
+            `[ai] research answer without a web read — asking for ${
+              useNativeNow ? 'the native web tools' : researchTool
+            } (attempt ${groundingRetries})`,
           );
           messages.push({
             role: 'user',
             content:
               'That answer did not consult the public web, and this question asks for reviews, ' +
               'quality, specifications or online prices. Do not say the inventory record contains ' +
-              'no reviews. Use findProducts to identify the recorded product, then call ' +
-              `${researchTool} now and answer from the returned sources. ` +
+              'no reviews. Use findProducts to identify the recorded product, then ' +
+              (useNativeNow
+                ? 'use the native web search tool for evidence, fetch the specific source pages you need, and answer from those results. Cite the exact source URLs. '
+                : `call ${researchTool} now and answer from the returned sources. `) +
               (knownProducts ? `Recorded candidates from this turn: ${knownProducts}. ` : '') +
               'If the web search is unavailable, say that plainly rather than describing an inventory field.',
           });
@@ -1521,6 +1687,39 @@ export async function runAiChat({
     for (let i = 0; i < calls.length; i += 1) {
       const call = calls[i];
       const name = String(call?.name ?? '');
+      // AI-86 — a model can name a tool that is no longer offered. While the native
+      // web tools are primary, running the local research tool would silently spend
+      // the fallback path (and duplicate the research) behind the member's back.
+      // Answer the call with a native-only notice first; a second attempt is evidence
+      // the model cannot use the native path, so switch the turn to the local tools
+      // and run it rather than dead-ending.
+      if (nativeWebActive && localResearchToolNames.has(name)) {
+        if (!nativeResearchToolBlocked) {
+          nativeResearchToolBlocked = true;
+          console.warn(
+            `[ai] blocked ${name} while native web tools are primary — asking for the native tools`,
+          );
+          messages.push({
+            role: 'tool',
+            name,
+            toolCallId: String(call?.id ?? `call-${i + 1}`),
+            content: JSON.stringify({
+              available: false,
+              reason: 'NATIVE_WEB_REQUIRED',
+              note:
+                'OpenRouter native web search and web fetch are enabled for this turn. ' +
+                'That local research tool was not run. Use the native web tools instead.',
+            }),
+          });
+          continue;
+        }
+        nativeWebActive = false;
+        nativeWebFallbackTried = true;
+        prompt = systemPrompt({ timeZone, nativeWeb: false });
+        console.warn(
+          '[ai] native web tools were not used — falling back to the local research tools',
+        );
+      }
       if (name) toolsUsed.add(name);
       const callArgs = (call?.input ?? null) as Record<string, unknown> | null;
       const namedPlace = typeof callArgs?.location === 'string' ? callArgs.location.trim() : '';

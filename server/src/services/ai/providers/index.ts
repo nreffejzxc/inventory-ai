@@ -22,6 +22,7 @@
 
 import { AiNotConfigured } from '../aiErrors.ts';
 import type { QuotaInfo } from '../quota.ts';
+import type { WebToolName } from '../webCapabilities.ts';
 import { createOpenrouterProvider } from './openrouterProvider.ts';
 
 /**
@@ -96,6 +97,15 @@ export interface ProviderRequest {
    */
   webResearch?: boolean;
   /**
+   * AI-86 — whether the provider may offer its OWN native web tools on this call.
+   *
+   * `webResearch` says the turn needs public-web research; this says the native
+   * server-tool path is still usable. The turn loop sets it false when it falls
+   * back to the local research tools, so the two paths never compete in one
+   * request and one turn cannot pay for both.
+   */
+  nativeWeb?: boolean;
+  /**
    * The model to call INSTEAD of the configured one (AI-29).
    *
    * It exists for one caller: the turn loop's failover, after the configured model's
@@ -136,10 +146,19 @@ export interface ProviderRequest {
   onTextDelta?: (text: string) => void;
 }
 
-/** Token accounting as the provider reported it, or null when it reported none. */
+/** Usage accounting as the provider reported it, or null when it reported none. */
 export interface ProviderUsage {
   inputTokens: number;
   outputTokens: number;
+  /**
+   * The total provider charge for THIS response in USD, when the provider
+   * reports one. OpenRouter's Anthropic-compatible usage carries `cost`.
+   *
+   * Optional on purpose: absent means the cost was not reported, not that the
+   * response was free. The turn loop sums this across calls and prints
+   * `cost=unknown` rather than turning an omission into `$0`.
+   */
+  costUsd?: number;
 }
 
 /** What one completion returns, normalised across providers. */
@@ -147,6 +166,12 @@ export interface ProviderResponse {
   model: string;
   text: string;
   toolCalls: ToolCall[];
+  /**
+   * Native server tools this response actually exercised (AI-86). The turn loop
+   * uses this as a genuine research read; it cannot execute these calls itself
+   * because OpenRouter runs them inside the provider request.
+   */
+  webToolsUsed?: WebToolName[];
   /** Raw reasoning blocks, present only when the provider returned them. */
   thinking?: ProviderThinkingBlock[];
   usage: ProviderUsage | null;

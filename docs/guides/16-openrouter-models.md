@@ -8,7 +8,8 @@ needed.
 
 | Variable | Values | What it does | Example |
 | --- | --- | --- | --- |
-| `AI_MODEL_OPENROUTER` | a provider/model id | The model that handles the turn. Required; there is no default. | `openai/gpt-oss-120b` |
+| `AI_MODEL_OPENROUTER` | a provider/model id | The default model for ordinary inventory turns. Required; there is no default. | `openai/gpt-oss-20b` |
+| `AI_RESEARCH_MODEL_OPENROUTER` | a provider/model id, optional | Research-heavy turns start here; the primary remains the default and the fallback. Unset or identical means every turn uses the primary. | `openai/gpt-oss-120b` |
 | `AI_REASONING` | `enable` or `disable` | `enable` lets the model use its own reasoning (required by the gpt-oss family). `disable` asks OpenRouter to turn reasoning off. | `enable` |
 
 The connection settings are still required:
@@ -36,6 +37,26 @@ AI_MODEL_OPENROUTER=nvidia/nemotron-3.5-lightning:free
 AI_REASONING=disable
 AI_FALLBACK_MODELS_OPENROUTER=nvidia/nemotron-3-ultra-550b-a55b:free,nvidia/nemotron-3.5-super-vl:free
 ```
+
+**20B everyday model with 120B for research (recommended for cost):**
+
+```bash
+AI_PROVIDER=openrouter
+OPENROUTER_BASE_URL=https://openrouter.ai/api
+OPENROUTER_API_KEY=replace-with-your-key
+AI_MODEL_OPENROUTER=openai/gpt-oss-20b
+AI_RESEARCH_MODEL_OPENROUTER=openai/gpt-oss-120b
+AI_REASONING=enable
+AI_FALLBACK_MODELS_OPENROUTER=nvidia/nemotron-3.5-lightning:free
+```
+
+The turn is classified once, before any request. Plain inventory questions (stock, locations,
+history, recorded prices, catalogue fields) stay on the 20B model. Product comparisons, market
+pricing, reviews, recommendations, and explicit web research start on the 120B model. A research
+call that fails automatically falls back to the 20B primary, then to
+`AI_FALLBACK_MODELS_OPENROUTER`; the research model is never promoted into the default slot.
+This is one request per round, not a second research run, so it does not duplicate native web
+searches or fetches.
 
 **Paid primary with a free fallback:**
 
@@ -174,5 +195,8 @@ applied silently.
   into chat, a ticket, an issue or a screenshot.
 - `AI_FALLBACK_MODELS_OPENROUTER` may contain paid ids too — a failover spends credits just like
   the primary.
+- `AI_RESEARCH_MODEL_OPENROUTER` is optional and never added to the ordinary chain. If it is
+  absent, invalid, or unavailable, research turns use the primary; a failed research call fails
+  over to the primary rather than repeating the same research request.
 - The assistant sends the same inventory tools to every model; choosing a model does not change
   what data it can read.
