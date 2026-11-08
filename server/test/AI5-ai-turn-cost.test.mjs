@@ -128,6 +128,33 @@ unitSuite('AI-5 turn cost (DB-free)', () => {
     assert.equal(f.iterations, '2');
   });
 
+  it('★ sums every call’s tokens instead of reporting only the last call', async () => {
+    // A tool turn makes at least two provider calls, and both are billed. The line used
+    // to carry only the final response's usage, so the prompt tokens of the first call
+    // disappeared — exactly the calls a research turn spends the most on.
+    let call = 0;
+    const { costLines } = await turnCapturingLogs(() => {
+      call += 1;
+      return call === 1
+        ? {
+            model: 'fake-model',
+            text: '',
+            toolCalls: [{ id: 'call-1', name: 'noSuchTool', input: {} }],
+            usage: { inputTokens: 10, outputTokens: 2 },
+          }
+        : {
+            model: 'fake-model',
+            text: 'done',
+            toolCalls: [],
+            usage: { inputTokens: 20, outputTokens: 3 },
+          };
+    });
+
+    const f = fields(costLines[0]);
+    assert.equal(f.in, '30', 'both calls’ prompt tokens are on the turn line');
+    assert.equal(f.out, '5', 'and both calls’ completion tokens');
+  });
+
   it('measures provider time rather than printing zeroes', async () => {
     // THE ASSERTION THAT MAKES THE LINE WORTH HAVING. A shape-only check passes on
     // a line of zeroes, which would look like instrumentation and diagnose nothing.

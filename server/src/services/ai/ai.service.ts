@@ -516,6 +516,22 @@ export async function runAiChat({
   // to change. A successful response still overwrites this with the model the provider reported.
   let model: string | null = provider.model ?? null;
   let usage: ProviderUsage | null = null;
+  /**
+   * Add one provider call's tokens to the turn total.
+   *
+   * The counters used to be assigned from the LAST successful response, so a turn
+   * that made three or four model calls reported only the final call's prompt tokens
+   * (usually 0 on a streamed `message_start` that omits them) even though every call
+   * was billed. Summing here makes `in=` and `out=` describe the whole turn, which is
+   * what the allowance and credit questions are actually about.
+   */
+  const addProviderUsage = (spent: ProviderUsage | null | undefined): void => {
+    if (!spent) return;
+    usage = {
+      inputTokens: (usage?.inputTokens ?? 0) + spent.inputTokens,
+      outputTokens: (usage?.outputTokens ?? 0) + spent.outputTokens,
+    };
+  };
   let steps = 0;
   // AI-2 — the degraded path's own state: why the turn gave up (null while it is
   // still healthy), how much of the retry budget has been spent, and whether the
@@ -1113,7 +1129,7 @@ export async function runAiChat({
         // same reason every counter is: the line is written once, from here.
         const spent = aiErrorAccounting(err);
         if (spent.model) model = spent.model;
-        if (spent.usage) usage = spent.usage;
+        if (spent.usage) addProviderUsage(spent.usage);
         reportTurn((err as { code?: string }).code ?? 'AI_ERROR');
         throw err;
       }
@@ -1123,7 +1139,7 @@ export async function runAiChat({
     }
 
     model = response?.model || model;
-    usage = response?.usage || usage;
+    addProviderUsage(response?.usage);
     let calls = Array.isArray(response?.toolCalls) ? response.toolCalls : [];
     // Reasoning blocks are bound to the exact tool calls that followed them. Keep the original
     // call shape so a locally rewritten/added call does not replay a signature that covers a
