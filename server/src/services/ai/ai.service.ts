@@ -2144,8 +2144,13 @@ export async function runAiChat({
     // A restock read also returns the low-stock rows. Treating only the dedicated
     // low-stock tool as evidence made the same rows answer PHP 72,460 instead of the
     // five-row subtotal, so use whichever complete set this turn actually read.
-    const lowStockRows = lowStockFacts.length > 0 ? lowStockFacts : reorderFacts;
-    const computed = lowStockValueAnswer(lowStockRows, cfg.maxMessageChars);
+    const fromRestock = lowStockFacts.length === 0 && reorderFacts.length > 0;
+    const lowStockRows = fromRestock ? reorderFacts : lowStockFacts;
+    const lowStockRowsTotal = fromRestock ? reorderTotal : lowStockTotal;
+    // A page shorter than the read's own count is partial: its subtotal cannot be called
+    // the total of the low-stock set. Same rule as the restock list finalizer.
+    const complete = lowStockRowsTotal <= 0 || lowStockRows.length >= lowStockRowsTotal;
+    const computed = lowStockValueAnswer(lowStockRows, cfg.maxMessageChars, { complete });
     if (computed) {
       finalText = computed;
       degraded = null;

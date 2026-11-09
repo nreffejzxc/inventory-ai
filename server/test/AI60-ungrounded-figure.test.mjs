@@ -494,6 +494,19 @@ test('AI-90: a low-stock subtotal uses only returned rows and prices', () => {
   assert.equal(lowStockValueAnswer([{ name: 'Unknown price', availableQuantity: 2 }], 2000), null);
 });
 
+test('AI-90: a partial low-stock page cannot become the whole subtotal', () => {
+  const rows = [
+    { name: 'Two left', sellingPrice: 100, availableQuantity: 2 },
+    { name: 'Three left', sellingPrice: 250, availableQuantity: 3 },
+  ];
+  // 2 of 47 rows: the sum is a page subtotal, not the total of the low-stock set.
+  assert.equal(lowStockValueAnswer(rows, 2000, { complete: false }), null);
+  assert.equal(
+    lowStockValueAnswer(rows, 2000, { complete: true }),
+    'The total recorded value of the 2 low-stock items is 950.',
+  );
+});
+
 test('AI-90: the most expensive product is chosen by selling price, not stock value', () => {
   const answer = mostExpensiveProductAnswer(
     [

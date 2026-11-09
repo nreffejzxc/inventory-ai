@@ -1151,11 +1151,22 @@ export function restockThreeAnswer(
   return answer.length <= maxChars ? answer : answer.slice(0, maxChars);
 }
 
+export interface LowStockValueOptions {
+  /**
+   * False when the rows are only one page of a larger result. A subtotal over a partial
+   * page is not the total for the low-stock set, so the model's answer is left untouched
+   * rather than labelled complete. The restock finalizer makes the same distinction.
+   */
+  complete?: boolean;
+}
+
 /** Compute a low-stock subtotal only from the rows the low-stock tool returned. */
 export function lowStockValueAnswer(
   rows: readonly CatalogueFact[],
   maxChars: number,
+  options: LowStockValueOptions = {},
 ): string | null {
+  if (options.complete === false) return null;
   const facts = uniqueFacts(rows);
   if (facts.length === 0) return null;
   // Subtotals are kept apart by currency. A single total across PHP and USD would be a

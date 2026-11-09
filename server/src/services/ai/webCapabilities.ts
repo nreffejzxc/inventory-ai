@@ -140,6 +140,11 @@ const INVENTORY_ONLY_INTENT = new RegExp(
     String.raw`\b(?:do\s+not|don't|dont|never)\s+(?:use|search|check|consult)\s+(?:the\s+)?(?:web|internet|online)\s+(?:prices?|data|sources?|research)\b`,
     String.raw`\b(?:no|without|ignore|ignoring|excluding)\s+(?:the\s+)?(?:web|internet|online)\s+(?:data|prices?|research|search|sources?)\b`,
     String.raw`\b(?:without|no)\s+(?:the\s+)?(?:web|internet|online)\b`,
+    // A prohibition often puts a verb between the negation and the source: "without
+    // checking online", "don't look online", "never use external sources". The bounded
+    // window keeps a false lock cheap (the inventory tools still answer) while an
+    // unparsed prohibition would otherwise offer a billable web call against it.
+    String.raw`\b(?:without|do\s+not|don't|dont|never)\b[^.!?\n]{0,30}\b(?:web|internet|online|external)\b`,
     String.raw`\b(?:recorded|inventory)\s+(?:data|records?|information)\s+only\b`,
   ].join('|'),
   'i',

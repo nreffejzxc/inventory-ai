@@ -994,6 +994,9 @@ unitSuite('OpenRouter provider — configurable web tools', () => {
       'Use only our records and compare suppliers.',
       'Do not use web prices; what is the market price?',
       'Do not use the internet for this answer.',
+      'Answer without checking online prices.',
+      "Don't look online for this review.",
+      'Never use external sources for the price.',
       'Inventory-only: what do reviews say?',
       'My records only, please.',
     ]) {
