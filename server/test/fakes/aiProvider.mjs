@@ -17,10 +17,10 @@ export function setFakeScenario(fn) {
   current = fn || null;
 }
 
-/** Register the "fake" provider factory (idempotent). Call once per test file. */
-export function registerFakeProvider() {
-  registerProvider('fake', () => ({
-    name: 'fake',
+/** Register the fake provider factory under a name (idempotent). Call once per test file. */
+export function registerFakeProvider(name = 'fake') {
+  registerProvider(name, () => ({
+    name,
     // AI-28 — the model this provider is CONFIGURED to use. The real factory exposes the same
     // value, which is what lets a failing turn name its model instead of reporting `unknown`.
     model: 'fake-model',

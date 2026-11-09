@@ -72,6 +72,9 @@ import { registerFakeProvider, setFakeScenario, fakeText, fakeCalls } from './fa
 process.env.AI_PROVIDER = 'fake';
 process.env.AI_RATE_LIMIT_MAX = '1000';
 registerFakeProvider();
+// AI-87: research routing is OpenRouter-only. Register the same scenario double under the
+// built-in name so this suite can exercise the real route without a key or network call.
+registerFakeProvider('openrouter');
 
 const PRIMARY = 'primary-model';
 const FALLBACK = 'fallback-model';
@@ -87,7 +90,10 @@ function upstream(status) {
  * Run one turn with every log line captured, the environment set the way the case
  * needs it, and the fake provider's own call log exposed.
  */
-async function turnCapturingLogs(scenario, { fallback = FALLBACK, deadlineMs, env = {} } = {}) {
+async function turnCapturingLogs(
+  scenario,
+  { fallback = FALLBACK, deadlineMs, env = {}, message = 'say hello in one sentence', provider = 'fake' } = {},
+) {
   const lines = [];
   const real = { log: console.log, warn: console.warn, error: console.error };
   const capture = (...args) => {
@@ -98,10 +104,12 @@ async function turnCapturingLogs(scenario, { fallback = FALLBACK, deadlineMs, en
   console.error = capture;
 
   const saved = {
+    AI_PROVIDER: process.env.AI_PROVIDER,
     AI_MODEL_OPENROUTER: process.env.AI_MODEL_OPENROUTER,
     AI_FALLBACK_MODELS_OPENROUTER: process.env.AI_FALLBACK_MODELS_OPENROUTER,
     AI_TURN_DEADLINE_MS: process.env.AI_TURN_DEADLINE_MS,
   };
+  process.env.AI_PROVIDER = provider;
   process.env.AI_MODEL_OPENROUTER = PRIMARY;
   if (fallback === null) delete process.env.AI_FALLBACK_MODELS_OPENROUTER;
   else process.env.AI_FALLBACK_MODELS_OPENROUTER = fallback;
@@ -117,7 +125,7 @@ async function turnCapturingLogs(scenario, { fallback = FALLBACK, deadlineMs, en
       businessId: 'b-dummy',
       userId: 'u-dummy',
       role: ROLES.OWNER,
-      message: 'say hello in one sentence',
+      message,
     });
   } catch (err) {
     error = err;
@@ -362,6 +370,34 @@ unitSuite('AI-29 model failover (DB-free)', () => {
     assert.match(failoverLines[1], new RegExp(`model=${FALLBACK} -> ${FALLBACK_2} reason=HTTP 404`));
     assert.equal(fields(costLines[0]).calls, '3');
     assert.equal(fields(costLines[0]).failovers, '2');
+  });
+
+  it('★ sends a research turn to the research model and falls back to the primary on 503', async () => {
+    const RESEARCH = 'research-model';
+    const seen = [];
+    const { result, error, failoverLines, costLines } = await turnCapturingLogs(
+      (ctx) => {
+        seen.push(ctx.model);
+        if (seen.length === 1) throw upstream(503);
+        return fakeText('Fallback research answer.', {
+          webSources: [{ title: 'Review', url: 'https://example.com/review' }],
+        });
+      },
+      {
+        env: { AI_RESEARCH_MODEL_OPENROUTER: RESEARCH },
+        message: 'Compare current market prices and reviews for the Samsung refrigerator.',
+        provider: 'openrouter',
+      },
+    );
+
+    assert.equal(error, null, 'a dead research model must not fail the research turn');
+    assert.match(result.content, /Fallback research answer/);
+    assert.deepEqual(seen, [RESEARCH, 'fake-model'], 'the research model is tried first, then the provider primary');
+    assert.equal(failoverLines.length, 1);
+    assert.match(failoverLines[0], /research-model -> fake-model reason=HTTP 503/);
+    assert.equal(fields(costLines[0]).failovers, '1');
+    assert.equal(fields(costLines[0]).outcome, 'ok');
+    assert.equal(fields(costLines[0]).model, 'fake-model');
   });
 
   it('stops the walk immediately when a candidate is refused by the allowance', async () => {
