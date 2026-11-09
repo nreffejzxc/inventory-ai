@@ -25,6 +25,30 @@ The connection settings are still required:
 A model id ending in `:free` costs nothing. Any other id charges your OpenRouter balance for the
 tokens it uses. `AI_REASONING` applies to the primary and to every failover model in the chain.
 
+## 2A. Free-first simple inventory
+
+When the primary is paid and `AI_FALLBACK_MODELS_OPENROUTER` contains a tool-capable `:free` model,
+five narrow questions start on that free model: one product's stock, whether a product exists, what
+needs restocking, what is low, and how many products those are. The turn still calls the same
+business-scoped tools, so the free model can only answer from records the paid model would read.
+The free success is not promoted into the primary slot; ordinary and research turns keep their
+configured routing.
+
+The paid primary finishes the same turn only when the free attempt times out, returns an empty
+completion, spends its output budget, is refused by the free daily allowance, or repeatedly drafts
+an answer without the required read. There is one re-ask on the free model, then one escalation.
+
+| Variable | Default | What it does |
+| --- | --- | --- |
+| `AI_SIMPLE_FREE_ATTEMPT_MS` | `15000` | The free start model's own attempt slice; `0` disables the shorter cap. |
+| `AI_SIMPLE_PAID_DAILY_BUDGET_USD` | `0.25` | Process-local paid-fallback budget for the UTC day; `0` disables simple paid fallback. |
+| `AI_SIMPLE_PAID_TURN_RESERVE_USD` | `0.01` | Reserved before a paid fallback call, then settled from the provider's reported charge. |
+
+The budget is not the provider's account ledger: it resets on a server restart and is not shared
+between processes. The OpenRouter dashboard remains the authority for total spend. A missing
+provider charge is charged at the reservation, never treated as free. Check the turn line for
+`route=simple` and `simpleEscalations`; the free model's id ends in `:free`.
+
 ## 2. Copy a working setup
 
 **Free chain (zero cost):**

@@ -1471,7 +1471,9 @@ unitSuite('OpenRouter provider — AI loop compatibility (DB-free)', () => {
         turn === 1
           ? okTools([{ id: 'm1', name: 'getLowStockProducts', input: { limit: 'many', bogus: true } }])
           : okText('I could not read that.');
-      const out = await runAiChat({ ...ctx, message: 'low stock?' });
+      // AI-99 sends the plain "low stock?" shape through the free-first route. This test is
+      // about malformed arguments, so a comparison keeps the turn on the default route.
+      const out = await runAiChat({ ...ctx, message: 'Compare low stock across all locations.' });
       assert.equal(out.iterations, 2);
       const [result] = parsedToolResults(requests[1].body);
       assert.equal(result.code, 'TOOL_INVALID_ARGUMENTS');

@@ -66,6 +66,12 @@ import {
   stockOutCountAnswer,
   asksForProductsUnderPrice,
   productsUnderPriceAnswer,
+  asksForProductStockTotal,
+  productStockTotalAnswer,
+  catalogueFactFromRow,
+  productDetailStockRead,
+  asksForRestockCount,
+  restockCountAnswer,
 } from './answerCompletion.ts';
 import type { CatalogueFact, StockValueSummary, TopOutFact } from './answerCompletion.ts';
 import { locationService } from '../reference.service.ts';
@@ -103,6 +109,19 @@ import {
   webToolLabel,
   type WebToolName,
 } from './webCapabilities.ts';
+import {
+  selectSimpleModel,
+  simpleInventoryEscalationAsk,
+  simpleInventoryIntent,
+  simpleInventoryPrompt,
+  simpleInventoryReask,
+  simpleInventoryToolInput,
+} from './simpleInventory.ts';
+import {
+  reserveSimplePaidFallback,
+  settleSimplePaidFallback,
+  type SimplePaidBudgetReservation,
+} from './simplePaidBudget.ts';
 import { executeTool, AI_TOOL_DEFS } from './tools.ts';
 import {
   appendMissingSourceUrls,
@@ -575,12 +594,81 @@ export async function runAiChat({
   const webResearchIntent = asksForWebResearch(message);
   const sourceRestricted =
     inventoryOnly || (!webResearchIntent && asksForSourceSensitiveQuestion(message));
+  const provider = selectProvider();
+  // AI-99 — the configured primary, as the provider reports it. Resolved before the prompt
+  // because the simple route must know whether a free candidate would actually be a
+  // DIFFERENT model from the one this deployment already starts on.
+  const primaryModel = provider.model ?? cfg.openrouterModel ?? null;
+  /**
+   * AI-99 — route a SIMPLE inventory read through the free fallback allowance.
+   *
+   * The five shapes this covers are a single product's stock, whether a product exists,
+   * what needs restocking, what is low, and how many products those are. The classifier is
+   * deliberately conservative: anything with a price, value, sale, movement, comparison,
+   * category, brand, location breakdown or research cue stays on the existing route. A
+   * false negative costs credits; a false positive could send a question the free model
+   * handles badly to the wrong place. The read itself is still a real, business-scoped
+   * tool call, so the free model can only answer from records the paid model would read.
+   */
+  const simpleIntent = simpleInventoryIntent(message);
+  const simpleStartModel =
+    simpleIntent && cfg.provider === 'openrouter' ? selectSimpleModel(cfg.fallbackModels) : null;
+  const configuredPrimaryIds = new Set(
+    [provider.model, cfg.openrouterModel].filter((id): id is string => Boolean(id)),
+  );
+  const simpleTurn = Boolean(
+    simpleIntent &&
+      simpleStartModel &&
+      primaryModel &&
+      !configuredPrimaryIds.has(simpleStartModel),
+  );
+  /** The route this turn takes, named on the one turn line an operator reads. */
+  let route = simpleTurn ? 'simple' : 'default';
+  // AI-99 — the simple route's own budget: one re-ask on the free model, then one
+  // escalation to the paid primary. Both counters are per turn.
+  let simpleReadReasks = 0;
+  let simpleEscalated = false;
+  let simpleEscalations = 0;
+  let simplePaidReservation: SimplePaidBudgetReservation | null = null;
+  let simplePaidSettled = false;
+  let simplePaidBudgetBlocked = false;
+  /**
+   * Reserve the paid fallback before any request is sent. A failed reservation ends the turn
+   * with a quota error: the route has reached its own daily paid budget, and sending the paid
+   * request anyway would defeat the guard. The reservation is settled in `reportTurn` from the
+   * provider-reported turn cost, so every exit path releases it exactly once.
+   */
+  function ensureSimplePaidBudget(reason: string): void {
+    if (simplePaidReservation) return;
+    const reserved = reserveSimplePaidFallback({
+      dailyBudgetUsd: cfg.simplePaidDailyBudgetUsd,
+      turnReserveUsd: cfg.simplePaidTurnReserveUsd,
+    });
+    if (!reserved.ok) {
+      simplePaidBudgetBlocked = true;
+      console.error(
+        `[ai] simple route: paid fallback blocked by daily budget (${reason}; ` +
+          `spent=$${reserved.spentUsd.toFixed(6)}, reserved=$${reserved.reservedUsd.toFixed(6)}, ` +
+          `budget=$${reserved.budgetUsd.toFixed(6)})`,
+      );
+      throw new AiQuotaExceeded(
+        'The simple inventory assistant has reached its daily paid-fallback budget. Please try again tomorrow.',
+      );
+    }
+    simplePaidReservation = reserved.reservation ?? null;
+    console.warn(
+      `[ai] simple route: paid fallback reserved $${(simplePaidReservation?.reservedUsd ?? 0).toFixed(6)} ` +
+        `of the $${reserved.budgetUsd.toFixed(6)} daily budget (${reason})`,
+    );
+  }
   let prompt = systemPrompt({
     timeZone,
     nativeWeb: cfg.nativeWebPrimary && webResearchIntent,
     sourceRestricted,
   });
-  const provider = selectProvider();
+  if (simpleTurn && simpleIntent) {
+    prompt += `\n\n${simpleInventoryPrompt(simpleIntent)}`;
+  }
 
   const messages: ProviderMessage[] = history
     .slice(-cfg.contextMessages)
@@ -615,6 +703,9 @@ export async function runAiChat({
 
   let finalText: string | null = null;
   const toolsUsed = new Set<string>();
+  // AI-99 — which tools actually RAN successfully. `toolsUsed` is written before
+  // executeTool, so it records an attempt; this records the read the answer may use.
+  const toolsSucceeded = new Set<string>();
   // Research URLs are collected from successful tool results and appended after
   // the model's answer, so a model that names a publication without linking it
   // cannot leave the member unable to review the claim.
@@ -630,6 +721,9 @@ export async function runAiChat({
   const historyTopOutFacts: TopOutFact[] = [];
   const locationFacts: CatalogueFact[] = [];
   let locationPageComplete = false;
+  // AI-99 — a paged getInventory read cannot support a single-product total.
+  let inventoryPageComplete = false;
+  let inventoryReadThisTurn = false;
   let stockOutMovements: number | null = null;
   let reorderTotal = 0;
   let lowStockTotal = 0;
@@ -796,11 +890,27 @@ export async function runAiChat({
    * so a log line and an HTTP answer name the same thing.
    */
   const reportTurn = (outcome: string): void => {
+    if (simplePaidReservation && !simplePaidSettled) {
+      simplePaidSettled = true;
+      // A partial total is not a cheap turn. When any provider call omitted its charge, use at
+      // least the reservation: a missing number must not make paid usage look free. A known
+      // partial total above the reservation is still charged in full.
+      const settledTurnCost =
+        costMissingCalls > 0
+          ? Math.max(turnCostUsd ?? 0, simplePaidReservation.reservedUsd)
+          : turnCostUsd;
+      const spent = settleSimplePaidFallback(simplePaidReservation, settledTurnCost);
+      console.log(
+        `[ai] simple route: paid fallback settled at $${spent.spentUsd.toFixed(6)} ` +
+          `($${spent.reservedUsd.toFixed(6)} still reserved today)`,
+      );
+    }
     console.log(
       `[ai] turn outcome=${outcome} total=${Date.now() - turnStartedAt}ms` +
         ` providerMs=${providerMs}ms calls=${providerCalls}` +
         ` toolMs=${toolMs}ms toolRuns=${toolRuns} tools=${[...toolsUsed].join(',') || 'none'}` +
-        ` empty=${emptyResponses} failovers=${failovers} quota=${quotaLabel()}` +
+        ` empty=${emptyResponses} failovers=${failovers} route=${route}` +
+        ` simpleEscalations=${simpleEscalations} quota=${quotaLabel()}` +
         ` in=${usage?.inputTokens ?? 0} out=${usage?.outputTokens ?? 0} cost=${costLabel()}` +
         ` web=${nativeWebToolsUsed.size ? webToolLabel([...nativeWebToolsUsed]) : 'none'}` +
         ` model=${model ?? 'unknown'} iterations=${steps}`,
@@ -839,9 +949,6 @@ export async function runAiChat({
   // per turn, and never again.
   let currentModel: string | null = null;
 
-  /** The configured primary, as the provider reports it. */
-  const primaryModel = provider.model ?? cfg.openrouterModel ?? null;
-
   /**
    * AI-87 — research-heavy turns start on the operator's research model, while ordinary
    * inventory turns keep the configured primary. `asksForResearchModel` covers reviews, market
@@ -860,6 +967,9 @@ export async function runAiChat({
       researchModel !== primaryModel &&
       asksForResearchModel(message),
   );
+  // Research outranks the simple route if both patterns ever match. The classifier already
+  // refuses every research cue, so this only keeps the log honest for an edge case.
+  if (researchTurn) route = 'research';
 
   /**
    * Whether THIS turn injects the drill's simulated failure.
@@ -889,7 +999,12 @@ export async function runAiChat({
     const out: string[] = [];
     const seen = new Set<string>();
     const skipped: string[] = [];
-    const start = researchTurn && researchModel ? [researchModel, primaryModel] : [primaryModel];
+    const start =
+      researchTurn && researchModel
+        ? [researchModel, primaryModel]
+        : simpleTurn && simpleStartModel
+          ? [simpleStartModel, primaryModel]
+          : [primaryModel];
     for (const id of start) {
       if (!id || seen.has(id)) continue;
       seen.add(id);
@@ -922,7 +1037,15 @@ export async function runAiChat({
   // A research turn deliberately starts on the research model even when the primary is
   // active; otherwise a healthy 20B would take the first slot and the 120B would never be
   // used for the work it was configured for. Ordinary turns continue to follow AI-31.
-  const configuredActive = researchTurn ? researchModel : activeModel(primaryModel);
+  // The simple route starts on the free model even when another model is the promoted
+  // active one: its whole purpose is to spend the free allowance first. It deliberately
+  // opts out of promotion, so a free answer can never become the default model for turns
+  // that need the paid one.
+  const configuredActive = researchTurn
+    ? researchModel
+    : simpleTurn
+      ? null
+      : activeModel(primaryModel);
   const activeInChain =
     configuredActive && orderedChain.includes(configuredActive) ? configuredActive : null;
   const turnChain = activeInChain
@@ -992,6 +1115,23 @@ export async function runAiChat({
   }
 
   const startModel = eligibleChain[0] ?? null;
+  // AI-99 — the free start model can be skipped by its breaker or a provider health mark. That
+  // must not turn a simple turn into an unguarded paid call: starting on a non-free candidate
+  // takes the same reservation as an explicit fallback. A different free candidate is still free.
+  if (
+    simpleTurn &&
+    simpleStartModel &&
+    startModel &&
+    startModel !== simpleStartModel &&
+    !/:free$/i.test(startModel)
+  ) {
+    try {
+      ensureSimplePaidBudget('free model unavailable at start');
+    } catch (err) {
+      reportTurn('AI_QUOTA_EXCEEDED');
+      throw err;
+    }
+  }
   // No override when the turn starts on the configured primary: that keeps the configuration
   // the source of truth, and the request carries exactly the model it always did.
   if (startModel && startModel !== primaryModel) {
@@ -1093,6 +1233,18 @@ export async function runAiChat({
   let walkStarted = false;
 
   /**
+   * AI-99 — the free allowance and the paid balance are different budgets.
+   *
+   * A free model refused by quota is not evidence that the paid primary is refused: the
+   * daily free-request allowance is the free tier's, while the account's credits still
+   * work. This lets a simple turn fall forward ONCE, before anything is shown, so an
+   * exhausted allowance costs an answer rather than an error. `quotaRefusedModels` keeps
+   * the walk from re-trying the model that just refused.
+   */
+  let simpleQuotaFallForwardUsed = false;
+  const quotaRefusedModels = new Set<string>();
+
+  /**
    * AI-38 — did this attempt expire because of its own slice?
    *
    * That is a fact about the MODEL (it produced nothing while an alternative existed), which is
@@ -1110,18 +1262,65 @@ export async function runAiChat({
       if (err.kind) return err.kind;
     }
     if (err instanceof AiTimeout) return 'attempt timeout';
+    if (err instanceof AiOutputLimit) return 'output limit';
     return 'error';
+  };
+
+  /** AI-99 — the failures that earn the simple route's free start model one paid retry. */
+  const simpleFreeFallbackReason = (err: unknown): string | null => {
+    if (err instanceof AiTimeout) return 'timeout';
+    if (err instanceof AiOutputLimit) return 'output limit';
+    if (err instanceof AiProviderError && err.kind === 'timeout') return 'timeout';
+    return null;
+  };
+
+  /** Move a simple turn from its free start model to the paid primary, once per turn. */
+  const fallBackFromSimpleFree = (reason: string): void => {
+    ensureSimplePaidBudget(reason);
+    simpleEscalated = true;
+    simpleEscalations += 1;
+    currentModel = primaryModel;
+    model = primaryModel;
+    failovers += 1;
+    console.warn(
+      `[ai] simple route: free model ${simpleStartModel} ${reason} — falling back to the paid primary once`,
+    );
   };
 
   const completeWithFailover = async (allowTools = true): Promise<ProviderResponse> => {
     const attempted = currentModel ?? primaryModel;
-    // The first attempt gets a slice only when there is a candidate behind it (AI-38).
-    const attemptCap = cfg.attemptMaxMs > 0 && walkRemaining.length > 0 ? cfg.attemptMaxMs : 0;
+    // AI-99 — the free start model gets a SHORT slice even though the paid primary behind it
+    // is a candidate. That is what turns a stalled free attempt into a paid fallback instead of
+    // consuming the whole turn; the paid primary itself is not capped here.
+    const freeAttempt = Boolean(
+      simpleTurn && simpleStartModel && attempted === simpleStartModel && !simpleEscalated,
+    );
+    const attemptCap =
+      freeAttempt && cfg.simpleFreeAttemptMs > 0
+        ? cfg.simpleFreeAttemptMs
+        : cfg.attemptMaxMs > 0 && walkRemaining.length > 0
+          ? cfg.attemptMaxMs
+          : 0;
     try {
       const response = await callProvider(attemptCap, allowTools);
       // AI-36 — a 2xx proves the allowance is available, whether or not it carried content, so it
       // records the reading and lifts any fail-fast window a previous refusal set.
       noteQuotaSuccess(response.quota);
+      // AI-99 — a free 2xx with neither text nor a tool call is an empty completion. Do not
+      // spend the free allowance on the generic empty retry: hand the turn to the paid primary
+      // while there is still enough of the deadline for it to answer.
+      if (
+        simpleTurn &&
+        simpleStartModel &&
+        attempted === simpleStartModel &&
+        !simpleEscalated &&
+        emittedChars === 0 &&
+        !hasUsableContent(response) &&
+        deadlineAt - Date.now() >= FAILOVER_MIN_REMAINING_MS
+      ) {
+        fallBackFromSimpleFree('returned an empty completion');
+        return completeWithFailover(allowTools);
+      }
       // AI-30 — a usable 2xx is the only evidence that a model is healthy, so it is the only
       // thing that clears a failure streak. A half-open trial that succeeds closes the breaker
       // here. AI-31 — the same event promotes a model that is serving while the active is
@@ -1160,6 +1359,56 @@ export async function runAiChat({
           );
         }
       }
+      // AI-99 — see the note above `simpleQuotaFallForwardUsed`. Only the simple route's
+      // free start model, only before any text, only once. A paid quota refusal still ends
+      // the turn with AI_QUOTA_EXCEEDED exactly as AI-6 requires.
+      if (
+        simpleTurn &&
+        simpleStartModel &&
+        !simpleQuotaFallForwardUsed &&
+        !simplePaidBudgetBlocked &&
+        !walkStarted &&
+        attempted === simpleStartModel &&
+        err instanceof AiQuotaExceeded &&
+        emittedChars === 0
+      ) {
+        simpleQuotaFallForwardUsed = true;
+        quotaRefusedModels.add(simpleStartModel);
+        ensureSimplePaidBudget('free quota refusal');
+        // Keep the reading for the turn line and later simple turns, but WITHOUT starting
+        // AI-36's global block: the paid balance is a different budget and must stay usable.
+        noteQuotaRefusal(err.quota, { blockMs: 0 });
+        currentModel = primaryModel;
+        model = primaryModel;
+        failovers += 1;
+        simpleEscalations += 1;
+        console.warn(
+          `[ai] simple route: free model ${simpleStartModel} was refused by quota — ` +
+            'falling forward to the paid primary once',
+        );
+        return completeWithFailover(allowTools);
+      }
+      // AI-99 — a free attempt that times out, spends its output budget, or returns no
+      // completion gets one paid-primary retry in the SAME turn. The free-specific cap above
+      // makes a stall a known attempt timeout; the error still carries its own usage for the
+      // turn line. Text already delivered forbids a second answer.
+      const simpleFreeReason = simpleFreeFallbackReason(err);
+      if (
+        simpleTurn &&
+        simpleStartModel &&
+        attempted === simpleStartModel &&
+        !simpleEscalated &&
+        !walkStarted &&
+        emittedChars === 0 &&
+        simpleFreeReason &&
+        deadlineAt - Date.now() >= FAILOVER_MIN_REMAINING_MS
+      ) {
+        const spent = aiErrorAccounting(err);
+        if (spent.model) model = spent.model;
+        if (spent.usage) addProviderUsage(spent.usage);
+        fallBackFromSimpleFree(`failed (${simpleFreeReason})`);
+        return completeWithFailover(allowTools);
+      }
       // AI-40 — once answer text has reached the caller, this turn has ONE model. A second
       // model would answer the same question again, and the member would read both answers
       // glued together with no way to tell which one is real. The failure is still recorded
@@ -1180,6 +1429,13 @@ export async function runAiChat({
       // three-model walk read as if the same model were tried three times.
       let from = attempted ?? 'unknown';
       for (const [candidateIndex, candidate] of walkRemaining.entries()) {
+        // AI-99 — an escalated turn has already used the paid primary; walking onto it
+        // again would re-pay the same request. The quota-refused free model is skipped for
+        // the same reason: its allowance, not its health, is what refused.
+        if (candidate === attempted || quotaRefusedModels.has(candidate)) {
+          console.error(`[ai] failover skipped (already attempted this turn): ${candidate}`);
+          continue;
+        }
         // AI-30 — a candidate inside its cooldown is not worth a request. The primary is
         // skipped before this loop (it would not be this turn's start model), so this is the
         // normal case for a fallback that has been failing too.
@@ -1197,6 +1453,12 @@ export async function runAiChat({
         // The caller's interest and the turn's deadline outrank the chain: a model that
         // cannot finish before the deadline only delays the honest failure.
         if (signal?.aborted || remaining < FAILOVER_MIN_REMAINING_MS) throw lastError;
+        // AI-99 — a simple route that starts free may still reach the paid primary through a
+        // model-specific failover (for example a 503). That is a paid fallback too, so it takes
+        // the same reservation as an explicit escalation; another free candidate does not.
+        if (simpleTurn && !simplePaidReservation && !/:free$/i.test(candidate)) {
+          ensureSimplePaidBudget(`failover to ${candidate}`);
+        }
         currentModel = candidate;
         failovers += 1;
         // One greppable line per attempt, naming the model it came FROM, the status that
@@ -1451,6 +1713,65 @@ export async function runAiChat({
           degraded = 'UNGROUNDED_ANSWER';
           finalText = DEGRADED.UNGROUNDED_ANSWER;
           break;
+        }
+        // AI-99 — a simple turn must actually read the one thing it was asked about.
+        //
+        // The free model is chosen for cost, not because it is trusted more. A draft written
+        // before the operation's own read is discarded: one re-ask stays on the free model,
+        // then the SAME turn escalates to the paid primary, so a weaker free model can never
+        // turn a simple question into an ungrounded answer or an outage. If the paid model
+        // still will not read, the honest sentence ships.
+        if (simpleTurn && simpleIntent) {
+          const readDone = simpleIntent.readTools.some((name) => toolsSucceeded.has(name));
+          if (!readDone) {
+            if (
+              !isAnswerRound &&
+              simpleReadReasks === 0 &&
+              groundingRetries < MAX_GROUNDING_RETRIES
+            ) {
+              simpleReadReasks += 1;
+              groundingRetries += 1;
+              console.warn(
+                `[ai] simple route (${simpleIntent.operation}) answered without its ` +
+                  `${simpleIntent.readLabel} — asking again`,
+              );
+              messages.push({ role: 'user', content: simpleInventoryReask(simpleIntent) });
+              resetStreamedText(
+                'a simple-inventory draft without a read was discarded for a re-ask',
+              );
+              continue;
+            }
+            if (
+              !isAnswerRound &&
+              simpleStartModel &&
+              currentModel === simpleStartModel &&
+              !simpleEscalated &&
+              deadlineAt - Date.now() >= FAILOVER_MIN_REMAINING_MS
+            ) {
+              ensureSimplePaidBudget('missing required read');
+              simpleEscalated = true;
+              simpleEscalations += 1;
+              currentModel = primaryModel;
+              model = primaryModel;
+              failovers += 1;
+              groundingRetries += 1;
+              console.warn(
+                `[ai] simple route (${simpleIntent.operation}) still has no ` +
+                  `${simpleIntent.readLabel} — escalating to the paid primary`,
+              );
+              messages.push({
+                role: 'user',
+                content: simpleInventoryEscalationAsk(simpleIntent),
+              });
+              resetStreamedText(
+                'a simple-inventory draft was discarded for paid-model escalation',
+              );
+              continue;
+            }
+            degraded = 'UNGROUNDED_ANSWER';
+            finalText = DEGRADED.UNGROUNDED_ANSWER;
+            break;
+          }
         }
         // AI-72 — the model answered a wide read with the dropped place's name still in it.
         // The figures are already right; only the sentence that says what they cover is not, so
@@ -1943,6 +2264,9 @@ export async function runAiChat({
           `[ai] business-wide question — dropped the location "${namedPlace}" carried over from an earlier turn`,
         );
       }
+      // AI-99 — a stock total must read every location, not a page the model capped at one
+      // row. The helper raises getInventory's limit to the tool's maximum only for this route.
+      toolInput = simpleInventoryToolInput(simpleIntent, name, toolInput) as typeof toolInput;
       const toolStartedAt = Date.now();
       const countTool = (): void => {
         toolMs += Date.now() - toolStartedAt;
@@ -1996,6 +2320,10 @@ export async function runAiChat({
         clearTimeout(toolTimer);
       }
       countTool();
+      // AI-99 — executeTool's success envelope is the only proof the read happened.
+      if (name && output && typeof output === 'object' && (output as { ok?: unknown }).ok === true) {
+        toolsSucceeded.add(name);
+      }
       if (name === 'listBrands' && output && typeof output === 'object') {
         const result = (output as { result?: unknown }).result;
         const items =
@@ -2045,37 +2373,7 @@ export async function runAiChat({
           ? (wrappedOutput as Record<string, unknown>)
           : null;
       const resultItems = Array.isArray(resultRecord?.items) ? (resultRecord.items as unknown[]) : [];
-      const factFrom = (raw: unknown): CatalogueFact | null => {
-        if (!raw || typeof raw !== 'object') return null;
-        const record = raw as Record<string, unknown>;
-        const product =
-          record.product && typeof record.product === 'object'
-            ? (record.product as Record<string, unknown>)
-            : record;
-        const location =
-          record.location && typeof record.location === 'object'
-            ? (record.location as Record<string, unknown>)
-            : null;
-        const name = typeof product.name === 'string' ? product.name.trim() : '';
-        if (!name) return null;
-        const price = typeof product.sellingPrice === 'number' ? product.sellingPrice : null;
-        const directQuantity = typeof record.availableQuantity === 'number' ? record.availableQuantity : null;
-        const productQuantity = typeof product.availableQuantity === 'number' ? product.availableQuantity : null;
-        return {
-          id: typeof product.id === 'string' ? product.id : undefined,
-          name,
-          sku: typeof product.sku === 'string' && product.sku.trim() ? product.sku.trim() : undefined,
-          brand: typeof product.brand === 'string' ? product.brand : null,
-          sellingPrice: price,
-          currency: typeof product.currency === 'string' ? product.currency : null,
-          availableQuantity: directQuantity ?? productQuantity,
-          locationName:
-            typeof location?.name === 'string' && location.name.trim()
-              ? location.name.trim()
-              : null,
-          stockValue: typeof record.value === 'number' ? record.value : null,
-        };
-      };
+      const factFrom = catalogueFactFromRow;
       if (name === 'getInventoryHistory') {
         const count = Number(resultRecord?.stockOutMovements);
         if (Number.isFinite(count) && count >= 0) stockOutMovements = count;
@@ -2106,7 +2404,23 @@ export async function runAiChat({
         const total = Number(resultRecord?.count);
         lowStockTotal = Number.isFinite(total) && total >= 0 ? total : 0;
       }
+      if (name === 'getProduct') {
+        // AI-99 — getProduct returns one product with its per-location rows under
+        // product.stock, not a page of items, so the inventory capture below never saw
+        // them. A measured answer listed all three locations and left out the total the
+        // member asked for; the sum is the server's job, and these are its rows.
+        const read = productDetailStockRead(resultRecord);
+        inventoryFacts.length = 0;
+        inventoryPageComplete = read.complete;
+        inventoryReadThisTurn = true;
+        inventoryFacts.push(...read.facts);
+      }
       if (name === 'getInventory') {
+        // AI-99 — only the LAST inventory read describes the answer being written. Mixing
+        // rows from two reads would sum two scopes into one number.
+        inventoryFacts.length = 0;
+        inventoryReadThisTurn = true;
+        inventoryPageComplete = resultRecord?.hasMore !== true;
         for (const raw of resultItems) {
           const fact = factFrom(raw);
           if (fact) inventoryFacts.push(fact);
@@ -2249,6 +2563,32 @@ export async function runAiChat({
     if (computed) {
       finalText = computed;
       console.warn('[ai] product stock by location computed from the returned rows');
+    }
+  }
+  if (!degraded && asksForProductStockTotal(message)) {
+    // AI-99 — a stock total is arithmetic across the rows, and a free model is no more
+    // trusted with arithmetic than the paid one. The rows are the source of truth; a
+    // partial page or an ambiguous product set leaves the model's grounded answer alone.
+    const rows = inventoryReadThisTurn
+      ? inventoryPageComplete
+        ? inventoryFacts
+        : []
+      : productFacts;
+    const computed = productStockTotalAnswer(rows, message, cfg.maxMessageChars);
+    if (computed) {
+      finalText = computed;
+      console.warn('[ai] single-product stock total computed from the returned rows');
+    }
+  }
+  if (!degraded && asksForRestockCount(message)) {
+    // AI-99 — a count question is answered by the tool's own total, never by counting a page.
+    const readRestock = toolsSucceeded.has('getReorderNeededProducts');
+    const readLow = toolsSucceeded.has('getLowStockProducts');
+    const total = readRestock ? reorderTotal : readLow ? lowStockTotal : null;
+    const computed = total === null ? null : restockCountAnswer(total, cfg.maxMessageChars);
+    if (computed) {
+      finalText = computed;
+      console.warn('[ai] restock count read from the returned tool total');
     }
   }
   if (!degraded && stockOutMovements !== null && asksForStockOutCount(message)) {

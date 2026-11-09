@@ -224,6 +224,8 @@ sub-second even at tens of thousands of products — so `perf:measure` is what i
 | `npm run ai:models -- --check=<id>` | one model's health, then one tool-shaped request |
 | `npm run ai:check` (`-- --probe`) | the configured models verified against the provider's catalogue |
 | `npm run ai:health` (`-- --alert`) | one model-health check; exit 0 healthy, 1 degraded/unavailable, 2 could not check |
+| `npm run eval:simple-inventory -- --limit=1` | small disposable fixture; paid baseline then free-first route (`--free-only` skips the baseline; `--validate-only` makes no call) |
+| `npm run eval:simple-10k -- --phase=prepare` | disposable 10,256-product tenant and the gate/burst/sustained evaluator; `--phase=prepare` makes no model call |
 
 `perf:golden --compare` exits 0 identical, 1 different, 2 different tenants (a re-seed changes ids).
 `perf:turns` reads the allowance first and refuses with exit 2 when it provably cannot fit; `--force`
@@ -233,6 +235,41 @@ overrides. All three read the database only; only `perf:turns` spends quota.
 and a resolved development or test database, printed before the first query; they need no phrase,
 because measuring is not destructive, but a run that cannot say which database it read is not a
 measurement.
+
+### Evaluating the free-first simple route
+
+The two evaluators create their own disposable tenant and remove it in `finally`; neither touches a
+real tenant or production. Both need `AI_TEST_ALLOW_PAID_MODELS=true` only after the owner has
+approved paid fallback, because the baseline intentionally uses the paid primary.
+
+```bash
+cd C:/Users/jeffe/inventory-ai/server
+
+# Small fixture: one paid baseline question, then the free-first route.
+AI_TEST_ALLOW_PAID_MODELS=true SIMPLE_EVAL_LIMIT=1 \
+  npm run eval:simple-inventory
+
+# Free-only comparison, no paid baseline; still validates the route.
+AI_TEST_ALLOW_PAID_MODELS=true npm run eval:simple-inventory -- --free-only --limit=10
+
+# 10,256-product tenant, model calls; prepare makes no call and is the safe first run.
+SEED_CONFIRM=seed-perf-ai AI_TEST_ALLOW_PAID_MODELS=true \
+  npm run eval:simple-10k -- --phase=gate
+SEED_CONFIRM=seed-perf-ai AI_TEST_ALLOW_PAID_MODELS=true \
+  npm run eval:simple-10k -- --phase=burst --concurrency=40
+SEED_CONFIRM=seed-perf-ai AI_TEST_ALLOW_PAID_MODELS=true \
+  npm run eval:simple-10k -- --phase=sustained --concurrency=10 --requests=30
+```
+
+`eval:simple-10k` accepts `--phase=prepare|gate|burst|sustained`, `--size`, `--seed`,
+`--concurrency` (up to 40), `--requests` (up to 80), `--gap`, `--warmup`, `--transport=service|http`,
+`--base`, `--out` and `--keep`. `--keep` is the only way to retain the seed tenant for inspection; otherwise a
+failed phase also cleans it up. The evaluator writes `<out>.checkpoint.json` after each completed
+request. A rerun with the same phase, size, seed, concurrency, requests, gap, transport, base and
+models first removes any orphan seed tenant, reseeds the deterministic dataset, checks the dataset
+fingerprint, and skips completed request indices. A changed config or dataset discards the old rows;
+the checkpoint is removed when the completed artifact is written. `SIGINT`/`SIGTERM` clean up on a
+best-effort basis; a hard `SIGKILL` leaves the tenant for the next run's preflight.
 
 ### Measuring the deployed server
 
@@ -437,6 +474,7 @@ process (reset on restart) and public but contain no names, paths, users or mess
 | `npm run ai:usage`, `ai:models`, `ai:check`, `ai:health` | cost, allowance, models, health | ✅ reads |
 | `npm run perf:measure`, `perf:golden` | query timings / answer fingerprints | ✅ reads |
 | `npm run perf:turns` | real turns (`--login` for a deployment) | ⚠️ spends AI quota |
+| `npm run eval:simple-inventory`, `eval:simple-10k` | free-first simple-inventory evaluation on a disposable tenant | ⚠️ spends AI quota; dev database only |
 | `npm run check:accounts`, `verify:demo`, `verify:roles` | whether the accounts exist, and read a seed back | ✅ reads |
 | `npm run seed`, `seed:demo`, `seed:accounts`, `seed:three`, `seed:roles`, `seed:demo-tenant`, `seed:perf`, `seed:perf-tenant` | sample data in | → [Guides 9](9-seeding-development.md) and [10](10-seeding-production.md) |
 | `npm run cleanup`, `cleanup:demo`, `cleanup:roles`, `cleanup:demo-tenant`, `cleanup:perf`, `cleanup:perf-tenant`, `cleanup:account`, `cleanup:three`, `cleanup:test-firebase` | data and identities out | → [Guides 11](11-deleting-development.md), [12](12-deleting-production.md) and [13](13-firebase-identities.md) |

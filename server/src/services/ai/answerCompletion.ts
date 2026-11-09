@@ -777,6 +777,81 @@ export function canonicalBrandListAnswer(
   return text.length <= limit ? text : text.slice(0, limit);
 }
 
+/**
+ * AI-99 — normalise one row a catalogue tool returned into the fact shape every finalizer
+ * reads. The tools wrap a product differently (a row, a stock card, a list item), and a
+ * finalizer must never read a name from one place and a quantity from another.
+ */
+export function catalogueFactFromRow(raw: unknown): CatalogueFact | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const record = raw as Record<string, unknown>;
+  const product =
+    record.product && typeof record.product === 'object'
+      ? (record.product as Record<string, unknown>)
+      : record;
+  const location =
+    record.location && typeof record.location === 'object'
+      ? (record.location as Record<string, unknown>)
+      : null;
+  const name = typeof product.name === 'string' ? product.name.trim() : '';
+  if (!name) return null;
+  const price = typeof product.sellingPrice === 'number' ? product.sellingPrice : null;
+  const directQuantity = typeof record.availableQuantity === 'number' ? record.availableQuantity : null;
+  const productQuantity = typeof product.availableQuantity === 'number' ? product.availableQuantity : null;
+  return {
+    id: typeof product.id === 'string' ? product.id : undefined,
+    name,
+    sku: typeof product.sku === 'string' && product.sku.trim() ? product.sku.trim() : undefined,
+    brand: typeof product.brand === 'string' ? product.brand : null,
+    sellingPrice: price,
+    currency: typeof product.currency === 'string' ? product.currency : null,
+    availableQuantity: directQuantity ?? productQuantity,
+    locationName:
+      typeof location?.name === 'string' && location.name.trim()
+        ? location.name.trim()
+        : null,
+    stockValue: typeof record.value === 'number' ? record.value : null,
+  };
+}
+
+/**
+ * AI-99 — the stock rows behind a getProduct answer.
+ *
+ * getProduct returns ONE product with its per-location rows under `product.stock`, not a
+ * page of `items`. The inventory capture therefore never saw them, and a measured answer
+ * listed all three locations but left out the total the member asked for. `complete` is
+ * false when the detail read held more rows than it returned, because a partial page
+ * cannot prove a business-wide total.
+ */
+export function productDetailStockRead(result: unknown): {
+  facts: CatalogueFact[];
+  complete: boolean;
+} {
+  const record =
+    result && typeof result === 'object' && !Array.isArray(result)
+      ? (result as Record<string, unknown>)
+      : null;
+  const product =
+    record?.product && typeof record.product === 'object'
+      ? (record.product as Record<string, unknown>)
+      : null;
+  const stock = product && Array.isArray(product.stock) ? (product.stock as unknown[]) : [];
+  const stockRows = Number(product?.stockRows);
+  const facts: CatalogueFact[] = [];
+  for (const raw of stock) {
+    const fact = catalogueFactFromRow(
+      raw && typeof raw === 'object'
+        ? { product, ...(raw as Record<string, unknown>) }
+        : raw,
+    );
+    if (fact) facts.push(fact);
+  }
+  return {
+    facts,
+    complete: !(Number.isFinite(stockRows) && stockRows > stock.length),
+  };
+}
+
 export interface CatalogueFact {
   id?: string;
   name: string;
@@ -869,7 +944,7 @@ function appendWithRoom(body: string, line: string, maxChars: number): string {
  * products those are.
  */
 const RESTOCK_LIST_WORDING =
-  /\b(?:restock(?:ing)?|reorder(?:ing)?|low(?:\s+on)?\s+stock|running low|run low|shortages?|below\s+(?:the\s+|their\s+)?(?:reorder\s+)?minimum)\b/i;
+  /\b(?:restock(?:ing|ed)?|reorder(?:ing|ed)?|low(?:\s+on)?\s+stock|running low|run low|shortages?|below\s+(?:the\s+|their\s+)?(?:reorder\s+)?minimum|(?:reached|reaches|at)\s+(?:the\s+|their\s+)?(?:configured\s+)?(?:reorder\s+)?minimum(?:\s+(?:stock|level|levels|quantity))?)\b/i;
 const ASKS_ONLY_FOR_A_COUNT = /^\s*how\s+(?:many|much)\b/i;
 const ALSO_ASKS_WHICH_ONES = /\b(?:list|name|show|which|what\s+are|who)\b/i;
 
@@ -886,6 +961,27 @@ export function asksForThreeRestockNames(question: string): boolean {
     asksForRestockList(question) &&
     /\b(?:name|list|show|give)\b[\s\S]{0,20}\b(?:three|3)\b/i.test(String(question ?? ''))
   );
+}
+
+/**
+ * AI-99 — a pure count question is answered by the tool's own total, never by counting a
+ * page. "How many products need restocking?" is the shape the free route sees most, and
+ * the finalizer keeps it exact even when a free model would rather describe the rows.
+ */
+export function asksForRestockCount(question: string): boolean {
+  const text = String(question ?? '');
+  if (!RESTOCK_LIST_WORDING.test(text)) return false;
+  if (!ASKS_ONLY_FOR_A_COUNT.test(text)) return false;
+  return !ALSO_ASKS_WHICH_ONES.test(text);
+}
+
+export function restockCountAnswer(count: number, maxChars: number): string | null {
+  if (!Number.isFinite(count) || count < 0) return null;
+  const answer =
+    count === 0
+      ? 'No products need restocking right now.'
+      : `${formatUnits(count)} ${count === 1 ? 'product needs' : 'products need'} restocking.`;
+  return answer.length <= maxChars ? answer : null;
 }
 
 export function asksForLowStockValue(question: string): boolean {
@@ -1020,6 +1116,105 @@ export function productStockByLocationAnswer(
     ([location, quantity]) => `- ${location}: **${formatUnits(quantity)}**`,
   );
   const answer = `**${product.name}** on hand:\n\n${lines.join('\n')}\n\nTotal: **${formatUnits(total)}** units.`;
+  return answer.length <= maxChars ? answer : null;
+}
+
+/**
+ * AI-99 — a single product's stock total, as opposed to its per-location breakdown.
+ *
+ * Excluded shapes: a location breakdown (its own finalizer answers it), a value question
+ * (its own tool), and anything about prices, shortages or minimums. What remains is the
+ * common "how many units of X are in stock?" question, whose answer is an addition across
+ * the rows the inventory read returned.
+ */
+export function asksForProductStockTotal(question: string): boolean {
+  const text = String(question ?? '');
+  if (!text) return false;
+  if (
+    /\b(?:each|every|per|all)\s+(?:locations?|branches?|stores?|warehouses?|shelves|shelf)\b/i.test(
+      text,
+    )
+  ) {
+    return false;
+  }
+  if (/\bwhere\b/i.test(text)) return false;
+  if (/\b(?:value|worth|prices?|costs?|low|restock|reorder|minimum|out\s+of\s+stock)\b/i.test(text)) {
+    return false;
+  }
+  if (!STOCK_TOTAL_WORDING.test(text)) return false;
+  return /\b(?:how\s+many|how\s+much|what(?:'s|\s+is)|current)\b/i.test(text);
+}
+
+const STOCK_TOTAL_WORDING =
+  /\b(?:units?|pieces?|pcs|quantity|qty|stock|on[\s-]?hand|available|availability)\b/i;
+
+/**
+ * Sum one product's recorded quantities from the rows, and refuse when the rows cannot
+ * identify a single product or the question names a place the rows do not cover.
+ *
+ * The model was measured on production returning 1,029 and 904 units for a product whose
+ * rows held 149 at each of two locations (AI-92). This finalizer is the same rule for the
+ * business-wide total: the rows are added by the server, never by the model.
+ */
+export function productStockTotalAnswer(
+  rows: readonly CatalogueFact[],
+  question: string,
+  maxChars: number,
+): string | null {
+  const products = new Map<
+    string,
+    { name: string; locations: Map<string, number> }
+  >();
+  for (const row of rows) {
+    const name = typeof row?.name === 'string' ? row.name.trim() : '';
+    const quantity = finiteNumber(row?.availableQuantity);
+    if (!name || quantity === null || quantity < 0) continue;
+    const key = row.id ? `id:${row.id}` : `name:${name.toLowerCase()}`;
+    const location = typeof row.locationName === 'string' ? row.locationName.trim() : '';
+    const product = products.get(key) ?? { name, locations: new Map<string, number>() };
+    product.locations.set(location, (product.locations.get(location) ?? 0) + quantity);
+    products.set(key, product);
+  }
+  if (products.size === 0) return null;
+
+  const text = String(question ?? '').toLowerCase();
+  const named = [...products.values()].filter((product) =>
+    text.includes(product.name.toLowerCase()),
+  );
+  const product =
+    named.length === 1
+      ? named[0]
+      : named.length === 0 && products.size === 1
+        ? [...products.values()][0]
+        : null;
+  if (!product) return null;
+
+  const locations = [...product.locations.entries()].filter(([location]) => location !== '');
+  const locationNames = locations.map(([location]) => location);
+  const mentioned = locationNames.filter((location) => text.includes(location.toLowerCase()));
+  if (mentioned.length > 1) return null;
+  // A place is named but the read is business-wide: adding every location would answer a
+  // different question, so leave it to the model's grounded answer.
+  const namesPlace = /\b(?:at|in)\s+(?:the\s+)?(?!stock\b|inventory\b|total\b|all\b)[a-z]/i.test(
+    String(question ?? ''),
+  );
+  if (mentioned.length === 0 && namesPlace && locationNames.length > 1) return null;
+
+  const matchedLocation = mentioned.length === 1 ? (mentioned[0] ?? null) : null;
+  const soleLocation = locationNames.length === 1 ? (locationNames[0] ?? null) : null;
+  const total =
+    matchedLocation !== null
+      ? (product.locations.get(matchedLocation) ?? 0)
+      : [...product.locations.values()].reduce((sum, quantity) => sum + quantity, 0);
+  const scope =
+    matchedLocation !== null
+      ? ` at **${matchedLocation}**`
+      : locationNames.length > 1
+        ? ' across all locations'
+        : soleLocation !== null
+          ? ` at **${soleLocation}**`
+          : '';
+  const answer = `**${product.name}** has **${formatUnits(total)}** ${total === 1 ? 'unit' : 'units'} on hand${scope}.`;
   return answer.length <= maxChars ? answer : null;
 }
 

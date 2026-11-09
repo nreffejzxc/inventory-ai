@@ -42,8 +42,8 @@ Node.js **24** (pinned by `.nvmrc` and `engines.node`) · Express · TypeScript 
 TypeScript-first, **no build step**: the server runs its `.ts` sources through Node's native type
 stripping (`npm start` is `node src/index.ts`), so an older runtime cannot start it. `tsconfig.json`
 sets `noEmit` and `erasableSyntaxOnly`, so `tsc` is purely a checker and non-strippable syntax is a
-compile error rather than a runtime failure. `server/src` is **169** `.ts` modules (re-counted
-2026-11-09) and exactly one intentionally deferred `.js` module,
+compile error rather than a runtime failure. `server/src` is **171** `.ts` modules (re-counted
+2026-11-10) and exactly one intentionally deferred `.js` module,
 `server/src/services/entitlement.service.js`; `docs/TS-MIGRATION-MANIFEST.md` records the migration
 campaign.
 
@@ -252,9 +252,10 @@ The project is built in phases: one phase, one purpose, one verification record.
 | AUTH-01…AUTH-06 | Revocation checking, short-lived JWT + 14-day cap, renewal, verification codes, two-step recovery |
 | AI-1…AI-25 | Initial assistant delivery: turn deadline, retries, answer rendering, cost line, quota, failover, streaming, one provider |
 | AI-87/AI-88 | Ordinary/research model routing and a controlled research failover drill; deployed and recorded in `docs/DEVELOPMENT_LOG.md` |
-| AI-91/AI-92 | Exact product identity and per-location stock answers — §27HT, pending merge and phone verification |
+| AI-91/AI-92 | Exact product identity and per-location stock answers — §27HT, merged as `6d95168` and production-verified |
+| AI-99 | Free-first simple inventory route, deterministic stock totals and restock counts, bounded paid fallback, resumable 10k evaluator — in delivery |
 
-Most letter-numbered increments are roadmap records; AI-87/AI-88 are log-only and AI-91/AI-92 are in §27HT. The index below is complete.
+Most letter-numbered increments are roadmap records; AI-87/AI-88 are log-only and AI-91/AI-92 are in §27HT. AI-99 is recorded in this delivery; the index below is complete.
 
 ## Operational traps worth knowing
 
@@ -327,9 +328,9 @@ with what is in progress, verified or blocked — is [`docs/DEVELOPMENT_LOG.md`]
 - **L-17 is closed as not applicable (2026-11-07)**: the active reset is AUTH-06's Brevo six-digit
   code, not Firebase's emailed action link. Firebase's Password Reset template remains hosted with
   no custom action URL; if that link path is reintroduced, L-17 reopens.
-- **AI-91/AI-92 are on PR #193**, not merged, deployed or phone-verified: exact product identity
-  and per-location stock answers, with the seeding documentation. The pre-audit head passed all four
-  required checks; the documentation-audit head must do the same before merge.
+- **AI-91/AI-92 are merged and production-verified** as `6d95168`: exact product identity and
+  per-location stock answers, with the seeding documentation. The production 10k assistant run
+  exercised the deployed behavior; see `docs/DEVELOPMENT_LOG.md` and §27HT.
 - **The Play release has not been made.** The AAB exists and was inspected; nothing has been uploaded,
   so Play App Signing and the store-installed build are unproven. **Both production build records
   (`09d77d3d…`, `4b133d62…`) were later deleted from EAS and their artifacts are gone** (§27FN), so the

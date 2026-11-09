@@ -50,7 +50,9 @@
     "perf:measure": "node scripts/measure-ai-tools.mjs",
     "perf:golden": "node scripts/capture-ai-golden.mjs",
     "perf:turns": "node scripts/measure-ai-turns.mjs",
-    "drill:ai-failover": "node scripts/drill-ai-failover.mjs"
+    "drill:ai-failover": "node scripts/drill-ai-failover.mjs",
+    "eval:simple-inventory": "node scripts/eval-simple-inventory.mjs",
+    "eval:simple-10k": "node scripts/eval-simple-inventory-scale.mjs"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

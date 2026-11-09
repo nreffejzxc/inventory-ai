@@ -24,6 +24,13 @@ function nonNegativeInt(raw: string | undefined, fallback: number) {
   return Number.isFinite(n) && n >= 0 ? n : fallback;
 }
 
+/** A non-negative decimal setting; empty/invalid input keeps the documented default. */
+function nonNegativeNumber(raw: string | undefined, fallback: number) {
+  if (raw === undefined || String(raw).trim() === '') return fallback;
+  const n = Number(raw);
+  return Number.isFinite(n) && n >= 0 ? n : fallback;
+}
+
 /**
  * AI-29 — the most candidates one turn may ever attempt.
  *
@@ -115,6 +122,24 @@ export function aiConfig() {
     // model there was an alternative to. Enable with a value above the slowest legitimate answer
     // measured on the deployment (5.3–19.4 s on the free tier, §27DZ/§27EA), e.g. 25000.
     attemptMaxMs: nonNegativeInt(process.env.AI_ATTEMPT_MAX_MS, 0),
+    // AI-99 — the simple-inventory free route gets its own shorter attempt cap, so a stalled
+    // free model cannot consume the share of the turn the paid primary needs. It applies only
+    // to that route's free start model; ordinary and research turns keep `attemptMaxMs`.
+    // 0 disables the cap. A capped free attempt that expires falls back to the paid primary.
+    simpleFreeAttemptMs: nonNegativeInt(process.env.AI_SIMPLE_FREE_ATTEMPT_MS, 15000),
+    // AI-99 — the daily paid cap for the simple-inventory fallback. A free failure may escalate
+    // once to the paid primary, but a sustained load must not turn an exhausted free allowance
+    // into unbounded credit spend. The reservation is taken before the paid call and settled
+    // from the provider-reported turn charge; the day rolls at 00:00 UTC. 0 blocks all simple
+    // paid fallback. This is process-local by design (see simplePaidBudget.ts).
+    simplePaidDailyBudgetUsd: nonNegativeNumber(
+      process.env.AI_SIMPLE_PAID_DAILY_BUDGET_USD,
+      0.25,
+    ),
+    simplePaidTurnReserveUsd: nonNegativeNumber(
+      process.env.AI_SIMPLE_PAID_TURN_RESERVE_USD,
+      0.01,
+    ),
     openrouterBaseUrl: (process.env.OPENROUTER_BASE_URL || '').trim(),
     // PAID TOOL GATE. OpenRouter's web plugin is billed separately (about $0.007 per
     // search through Exa) even when the model id ends in \`:free\`. The free-model
