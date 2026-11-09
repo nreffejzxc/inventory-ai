@@ -6,9 +6,9 @@
 // can be asked questions at a scale a test fixture never reaches, and so the phone
 // the owner already signs in with lands directly in that dataset.
 //
-// For SEVERAL accounts at once (each with its own size, and WITHOUT generated
-// SKUs/barcodes) use `seed:accounts` instead — see seed-accounts.mjs. Both call the
-// same `seedTenant` core in ./seed/lib.mjs; this file is the single-account CLI.
+// For SEVERAL accounts at once (each with its own size and its own optional
+// SKU/barcode choice) use `seed:accounts` instead — see seed-accounts.mjs. Both call
+// the same `seedTenant` core in ./seed/lib.mjs; this file is the single-account CLI.
 //
 // WHY IT ATTACHES TO AN EXISTING IDENTITY RATHER THAN INVENTING ONE. The application
 // joins Firebase to MongoDB on `firebaseUid` ONLY (never email), and the exchange

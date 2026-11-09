@@ -400,7 +400,7 @@ writes** rather than degrading. Measurements and the index-reclaim procedure are
 | `seed:accounts` (resolved tenants) | **replaced** for each account's own tenant | kept | never deleted |
 | `seed:perf-tenant` | **replaced** for its own tenant | kept | created if absent; its own password refreshed when `DEMO_ACCOUNT_PASSWORD` is supplied |
 | `seed --plan=roles` | **replaced** for the role fixture tenant | four role logins reused | reused |
-| `seed:demo-tenant` | **replaced** for the demo tenant | kept | password set when `DEMO_ACCOUNT_PASSWORD` is supplied |
+| `seed:demo-tenant` | **replaced** for the demo tenant | kept | password set or refreshed when `DEMO_ACCOUNT_PASSWORD` is supplied |
 | `verify:demo` / `verify:roles` / `check:accounts` | untouched | untouched | untouched |
 
 ---
