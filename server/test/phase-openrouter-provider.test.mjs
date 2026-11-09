@@ -489,6 +489,10 @@ unitSuite('OpenRouter provider — Anthropic /v1/messages wire mapping', () => {
   });
 
   it('sends the configured model, token cap, system prompt, tools as input_schema and mapped messages', async () => {
+    // This assertion is about the shipped client tools. Pin the two native-web switches
+    // off so a developer's required production `.env` (search and fetch enabled) cannot
+    // add two server tools and make the wire count environment-dependent.
+    pendingRestores.push(withEnv('AI_WEB_SEARCH', 'disable'), withEnv('AI_WEB_FETCH', 'disable'));
     const provider = providerFor(`http://127.0.0.1:${port}/api`);
     responder = () => okText('hi');
     await provider.complete({
@@ -1012,6 +1016,8 @@ unitSuite('OpenRouter provider — configurable web tools', () => {
       'Review my stock and tell me what is low.',
       'Show me out-of-stock products.',
       'What is the price of the Sony headset?',
+      'Show each product\'s available stock versus its minimum.',
+      'Compare stock across all locations.',
     ]) {
       assert.equal(asksForResearchModel(message), false, message);
     }
@@ -1204,7 +1210,7 @@ unitSuite('OpenRouter provider — configurable web tools', () => {
   });
 
   it('treats an invalid value as disabled and reports it in production config', () => {
-    const restore = withEnv('AI_WEB_SEARCH', 'sometimes');
+    const restores = [withEnv('AI_WEB_SEARCH', 'sometimes'), withEnv('AI_WEB_FETCH', 'disable')];
     try {
       const cfg = aiConfig();
       assert.equal(cfg.webSearchEnabled, false);
@@ -1222,7 +1228,7 @@ unitSuite('OpenRouter provider — configurable web tools', () => {
       });
       assert.ok(problems.some((problem) => problem.variable === 'AI_WEB_SEARCH'));
     } finally {
-      restore();
+      for (const restore of restores.reverse()) restore();
     }
   });
 });

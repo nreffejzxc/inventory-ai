@@ -97,13 +97,15 @@ missing or mismatched, **2** could not check.
 
 | Account | Products | ≈ Documents | `businessId` |
 |---|---|---|---|
-| `jefferndullamalinaozxc@gmail.com` | 5 000 | 22 222 | `6ae15d1b6f2be6b817771e97` |
-| `jefferndullamalinao@gmail.com` | 10 000 | 44 444 | `6ae15dc16f2be6b817771e9c` |
-| `jeffernmalinaoqwe@gmail.com` | 15 000 | 66 667 | `6ae15e926f2be6b817771ea2` |
+| `jefferndullamalinaozxc@gmail.com` | 0 | 33 | `6aeef1185f91b09470af0832` |
+| `jefferndullamalinao@gmail.com` | 0 | 4 | `6aef22959c304aea601245a6` |
+| `jeffernmalinaoqwe@gmail.com` | 0 | 4 | `6aef231c9c304aea601245ab` |
 
-That table is a **measurement of what the tenants held on 2026-10-29**, not a target: nothing reads it.
-`seed:accounts` uses the size you type in `--accounts`, and re-seeding replaces whatever is there. The
-`seed:three` preset (30 000 / 50 000 / 90 000) is a separate, development-only convenience.
+That table is a **measurement of what the tenants held on 2026-11-09**, not a target: nothing reads it.
+All three comparison accounts were empty on that date. `seed:accounts` uses the size you type in
+`--accounts`, and re-seeding replaces whatever is there. The `seed:three` preset (30 000 / 50 000 /
+90 000) is a separate, development-only convenience. For the large production test tenant, use
+`seed:perf-tenant` below; it owns a separate login and does not touch these accounts.
 
 The id is the tenant's own `_id`, not the login's. `seed:accounts` resolves the address to that row and
 needs no id; `seed --plan=demo` still names it with a `--business` flag carrying that id. A supplied id
@@ -183,11 +185,11 @@ NODE_ENV=production MONGODB_DB_NAME=inventoryai_prod_db \
 - `verify:demo` ([Guide 9](9-seeding-development.md#verify--read-only-always)) is the independent
   check afterwards: it validates ledger arithmetic, references and emptiness, and prints the counts it
   read. It does not require any particular size, so it works for every size this command accepts.
-- Measured 2026-10-29 at **5 000 / 10 000 / 15 000** products: those tenants held **22 222 / 44 444 /
-  66 667 documents** (133 333 in all) and `verify:demo` returned **SUCCESS** for each with 0 bad ledger
-  rows and 0 missing references. That measurement describes that run, not a requirement. The earlier
-  30 000 / 50 000 / 90 000 run on 2026-10-27 wrote **755 555 documents** in **23 min 6 s**, and every
-  identity was reported `already existed, verified` — nothing was written to Firebase.
+- Historical measurement: on 2026-10-29 the three accounts held **5 000 / 10 000 / 15 000** products
+  (**22 222 / 44 444 / 66 667 documents**, 133 333 in all), and `verify:demo` returned **SUCCESS** for
+  each with 0 bad ledger rows and 0 missing references. That describes that run, not a requirement or
+  the current state; the Step 0 table is the live measurement. The earlier 30 000 / 50 000 / 90 000 run
+  on 2026-10-27 wrote **755 555 documents** in **23 min 6 s**.
 
 ---
 
@@ -277,27 +279,30 @@ recommended production route because it never touches a tenant it did not create
 NODE_ENV=production MONGODB_DB_NAME=inventoryai_prod_db \
   SEED_CONFIRM=seed:perf-tenant SEED_DB_CONFIRM=inventoryai_prod_db \
   SEED_PROD_CONFIRM=SEED-PRODUCTION-DATA \
-  npm run seed:perf-tenant -- --database=inventoryai_prod_db --size=60000 --dry-run
+  npm run seed:perf-tenant -- --database=inventoryai_prod_db --size=44444 --dry-run
 
 # EXECUTE — the same command, plus the password, without --dry-run
 NODE_ENV=production MONGODB_DB_NAME=inventoryai_prod_db \
   DEMO_ACCOUNT_PASSWORD='choose-a-password' SEED_CONFIRM=seed:perf-tenant \
   SEED_DB_CONFIRM=inventoryai_prod_db SEED_PROD_CONFIRM=SEED-PRODUCTION-DATA \
-  npm run seed:perf-tenant -- --database=inventoryai_prod_db --size=60000
+  npm run seed:perf-tenant -- --database=inventoryai_prod_db --size=44444
 ```
 
 - It follows the **same three-phrase rule** as every command above.
-- `--size` is **documents**, 50–400 000, default 4 000; products land at ≈22 %. Deterministic (`--seed`,
-  default 1). SKUs are `SEEDSKU-…`; names, brands, descriptions and specifications come from the curated
-  catalogue.
+- `--size` is **documents**, 50–400 000, default 4 000; products land at ≈22.5 %. `44444` therefore
+  writes **10 000 products**. Deterministic (`--seed`, default 1). SKUs are `SEEDSKU-…`; names, brands,
+  descriptions and specifications come from the curated bulk catalogue, which includes computer
+  components and peripherals, home appliances, hardware/power tools and automotive/car care.
 - It creates a verified OWNER login (`perf-seed-ai@example.invalid`) in that tenant only, and refreshes its
   password from `DEMO_ACCOUNT_PASSWORD` when that variable is supplied.
 - Re-counts every collection, re-checks every movement's arithmetic and requires its anchor before saying
   `OK`.
 - Its teardown is `cleanup:perf-tenant` ([Guide 12](12-deleting-production.md)); it keeps the identity.
 
-Measured on production 2026-10-25: `--size=60000` → 13 500 products, 27 200 inventory rows, 17 836 movements,
-1 200 purchase orders in **110 s**.
+Measured on production 2026-11-09: `--size=44444` → **10 000 products**, 20 006 inventory rows, 13 354
+movements, 889 purchase orders, 13 categories and 4 locations in **68.9 s**; the command re-counted every
+collection, checked all 13 354 movements and reported no problems. The tenant was
+`6af18628a9a409131a84235b`, with **1,535** products low on stock and **632** out of stock.
 
 ### The fixed-figure demo tenant (`seed:demo-tenant`)
 

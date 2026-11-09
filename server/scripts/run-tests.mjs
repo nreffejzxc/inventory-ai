@@ -105,6 +105,7 @@ const PURE_UNIT = [
   'AI86-research-efficiency.test.mjs', // AI-86: independent evidence outranks a vendor's own pages for reviews (while specifications keep the manufacturer first), one host cannot fill the citation list, and token accounting reads both OpenRouter wire shapes including cache tokens
   'AI91-product-identity-answer.test.mjs', // AI-91: the exact recorded product name is kept for top stock-out and highest-stock-value answers, and a name-three restock answer takes the tool's own rows in order instead of asking the model to reproduce them
   'AI92-product-stock-by-location.test.mjs', // AI-92: a single product's on-hand quantity at every location is rebuilt from the returned inventory rows, with a refusal to answer when the page contains more than one candidate product
+  'AI93-routing-total-and-evidence.test.mjs', // AI-93/AI-94: recorded stock comparisons stay on the default model, a combined stock-value answer keeps the tool total and highest item, false no-tool claims are removed, and unsupported best-selling wording is removed without a sales read
 ];
 const PURE_DB = [
   'INVENTORY-IDEMPOTENCY.test.mjs', // §27GZ: one operation, one movement — the same Idempotency-Key delivered twice writes one ledger row and replays the first answer for stock in, stock out, adjustment, transfer, PO create and PO receive; a different key applies in full; a reused key with a changed body is 422 with no row; no key behaves as before; and a 409 that reports `applied` lines is replayed instead of re-run

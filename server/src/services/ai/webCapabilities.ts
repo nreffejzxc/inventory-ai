@@ -186,18 +186,30 @@ export function asksForWebResearch(message: string): boolean {
 /**
  * AI-87 — does this turn deserve the stronger research model?
  *
- * This is broader than the paid-tool gate only for comparisons and buying advice that
- * do not name the web. It is deliberately narrower than `asksForProductAdvice`: "best
- * selling product" is an inventory read, not research, and must stay on the cheaper
- * default. `asksForWebResearch` already covers reviews, market prices, recommendations
- * and explicit research.
+ * This is broader than the paid-tool gate only for product comparisons and buying
+ * advice that do not name the web. It is deliberately narrower than
+ * `asksForProductAdvice`: "best selling product" is an inventory read, not research,
+ * and must stay on the cheaper default. `asksForWebResearch` already covers reviews,
+ * market prices, recommendations and explicit research.
+ *
+ * MEASURED 2026-11-09: "show its available stock versus its minimum" matched the old
+ * `versus` branch and was sent to the research model even though every fact was in the
+ * tenant's own stock rows. A comparison between recorded inventory fields is an
+ * ordinary inventory operation. Only a comparison that is not about those fields — a
+ * product/brand comparison or buying advice — earns the stronger model.
  */
 const RESEARCH_MODEL_INTENT =
-  /\b(?:compare|comparison|versus|vs\.?)\b|\bwhich\b[^?.!]{0,60}\b(?:better|best)\b|\bshould\s+(?:i|we)\s+(?:buy|get|choose)\b/i;
+  /\b(?:compare|comparison)\b|\bwhich\b[^?.!]{0,60}\b(?:better|best)\b|\bshould\s+(?:i|we)\s+(?:buy|get|choose)\b/i;
+const RECORDED_INVENTORY_COMPARISON =
+  /\b(?:stock|inventory|quantit(?:y|ies)|minimum|units?|locations?|categories|suppliers?|prices?|costs?|values?)\b/i;
 
 export function asksForResearchModel(message: string): boolean {
   const text = String(message ?? '');
-  return asksForWebResearch(text) || RESEARCH_MODEL_INTENT.test(text);
+  if (asksForWebResearch(text)) return true;
+  if (!RESEARCH_MODEL_INTENT.test(text)) return false;
+  // "Compare the Sony and Bose headsets" has no recorded-inventory field and is a
+  // product comparison; "compare stock across locations" does, and is not.
+  return !RECORDED_INVENTORY_COMPARISON.test(text);
 }
 
 /**
