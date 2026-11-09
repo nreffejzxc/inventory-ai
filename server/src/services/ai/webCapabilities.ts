@@ -120,7 +120,7 @@ export function webToolsUsedFromResponse(content: unknown, usage: unknown): WebT
  * plainly do not need the public web.
  */
 const WEB_RESEARCH_INTENT =
-  /\b(?:web|internet|google|bing|url|website|web\s*page|webpage)\b|https?:\/\/|\b(?:search|look\s+up|check|find)\s+(?:the\s+)?(?:web|internet|online)\b|\b(?:fetch|read)\s+(?:the\s+)?(?:web\s*page|page|url)\b|\b(?:product|owner|customer|user|online)\s+reviews?\b|\breviews\s+(?:of|for|on)\b|\breviews\b|\b(?:quality|reliability|well[- ]reviewed)\b|\b(?:market|marketplace|online|retail|competitor|current)\s+(?:prices?|pricing)\b|\bprices?\s+(?:online|elsewhere|comparison)\b|\bcheaper\s+elsewhere\b|\bprice\s+comparison\b|\b(?:shopee|lazada|amazon|ebay)\b|\bresearch\b|\bsources?\b|\bnews\b|\b(?:latest|newest|newer)\s+(?:model|version|price|review|news)\b|\bup[- ]to[- ]date\b|\b(?:product|brand)\s+recommendations?\b|\brecommend\s+(?:a|some|any)\s+(?:product|brand|model)\b|\b(?:search|find|look\s+up)\s+(?:for\s+)?(?:the\s+)?(?:product|item)\s+prices?\b/i;
+  /\b(?:web|internet|google|bing|url|website|web\s*page|webpage)\b|https?:\/\/|\b(?:search|look\s+up|check|find)\s+(?:the\s+)?(?:web|internet|online)\b|\b(?:fetch|read)\s+(?:the\s+)?(?:web\s*page|page|url)\b|\b(?:product|owner|customer|user|online)\s+reviews?\b|\breviews\s+(?:of|for|on)\b|\breviews\b|\b(?:quality|reliability|well[- ]reviewed)\b|\b(?:market|marketplace|online|retail|competitor|current)\s+(?:prices?|pricing)\b|\bprices?\s+(?:online|elsewhere|comparison)\b|\bcheaper\s+elsewhere\b|\bprice\s+comparison\b|\b(?:shopee|lazada|amazon|ebay)\b|\bresearch\b|\bsources?\b|\bnews\b|\b(?:latest|newest|newer)\s+(?:model|version|price|review|news)\b|\bup[- ]to[- ]date\b|\b(?:product|brand)\s+recommendations?\b|\brecommend\s+(?:a|some|any)\s+(?:product|brand|model)\b|\b(?:search|find|look\s+up)\s+(?:for\s+)?(?:the\s+)?(?:product|item)\s+prices?\b|\b(?:maghanap|hanapin|humanap|saliksik|pananaliksik|pangitaa|pagpangita)\b[^.!?\n]{0,50}\b(?:online|web|internet|review|reviews|rebyu|pagsusuri|sanggunian|pinagmulan|sources?)\b|\b(?:mga\s+)?(?:sanggunian|pinagmulan)\b|\bmga\s+(?:review|reviews|rebyu|pagsusuri)\b/i;
 
 /**
  * A source lock is a constraint, not a preference. These are the shapes a member uses
@@ -159,10 +159,10 @@ export function asksForInventoryOnly(message: string): boolean {
  * into a paid web search on their own.
  */
 const SOURCE_SENSITIVE_INTENT =
-  /\b(?:prices?|pricing|costs?|cost\s+price|selling\s+price|charge|cheaper|affordab(?:le|ility)|suppliers?|vendors?|distributors?|wholesalers?|lead\s+times?|moq|minimum\s+order|reviews|ratings?|quality|reliability|well[- ]reviewed|feedback)\b/i;
+  /\b(?:prices?|pricing|costs?|cost\s+price|selling\s+price|charge|cheaper|affordab(?:le|ility)|presyo|presyuhan|suppliers?|vendors?|distributors?|wholesalers?|lead\s+times?|moq|minimum\s+order|reviews?|ratings?|quality|kalidad|reliability|well[- ]reviewed|feedback)\b/i;
 
 const EXPLICIT_EXTERNAL_SOURCE =
-  /\b(?:web|internet|online|google|public|external|market(?:place)?|market\s+prices?|market\s+pricing|retail|competitor|elsewhere|shopee|lazada|amazon|ebay|website|web\s*page|webpage)\b|\b(?:product|owner|customer|user|public)\s+reviews?\b|\b(?:search|look\s+up|check|find|fetch|read|browse)\b[^.!?\n]{0,40}\b(?:online|web|internet|site|url|page)\b|https?:\/\//i;
+  /\b(?:web|internet|online|google|public|external|market(?:place)?|market\s+prices?|market\s+pricing|retail|competitor|elsewhere|shopee|lazada|amazon|ebay|website|web\s*page|webpage)\b|\b(?:product|owner|customer|user|public)\s+reviews?\b|\bmga\s+(?:review|reviews|rebyu|pagsusuri|source|sources)\b|\b(?:sanggunian|pinagmulan)\b|\b(?:maghanap|hanapin|humanap|saliksik|pananaliksik|pangitaa|pagpangita)\b[^.!?\n]{0,50}\b(?:online|web|internet|review|reviews|rebyu|pagsusuri|sanggunian|pinagmulan|sources?)\b|\b(?:search|look\s+up|check|find|fetch|read|browse)\b[^.!?\n]{0,40}\b(?:online|web|internet|site|url|page)\b|https?:\/\//i;
 
 export function asksForSourceSensitiveQuestion(message: string): boolean {
   return SOURCE_SENSITIVE_INTENT.test(String(message ?? ''));

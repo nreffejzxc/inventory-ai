@@ -427,10 +427,36 @@ test('AI-90: a restock question is recognised in its natural wording', () => {
     'Which products need restocking?',
     'What should I reorder?',
     'Show me products that need restock',
+    'What is low on stock at the Front Counter?',
+    'Which products are running low?',
+    'Show me the items that are below minimum',
+    'Any shortages right now?',
   ]) {
     assert.equal(asksForRestockList(question), true, question);
   }
   assert.equal(asksForRestockList('What is our total stock value?'), false);
+  // A subtotal and a bare count are different questions from "which ones".
+  assert.equal(asksForRestockList('What is the total value of low stock?'), false);
+  assert.equal(asksForRestockList('How many products are low on stock?'), false);
+  assert.equal(asksForRestockList('How many products are low on stock and which are they?'), true);
+});
+
+test('AI-90: a low-stock list is completed under its own wording', () => {
+  const rows = [{ name: 'Keychron K8 Pro' }, { name: 'Dell UltraSharp U2723QE' }];
+  assert.equal(
+    withCompleteRestockNames('Two products are low on stock.', rows, 2000, { label: 'low-stock' }),
+    'Two products are low on stock.\n\nThe full low-stock list is: Keychron K8 Pro, Dell UltraSharp U2723QE.',
+  );
+});
+
+test('AI-90: a partial page is never called the full low-stock list', () => {
+  assert.equal(
+    withCompleteRestockNames('20 of 45 products are low on stock.', [{ name: 'Keychron K8 Pro' }], 2000, {
+      label: 'low-stock',
+      complete: false,
+    }),
+    '20 of 45 products are low on stock.',
+  );
 });
 
 test('AI-90: every returned restock product is named once', () => {
@@ -462,7 +488,8 @@ test('AI-90: a low-stock subtotal uses only returned rows and prices', () => {
     ],
     2000,
   );
-  assert.equal(answer, 'The total recorded value of the 3 low-stock items is PHP 950.');
+  // No currency was recorded on these rows, so the total carries no invented symbol.
+  assert.equal(answer, 'The total recorded value of the 3 low-stock items is 950.');
   assert.equal(lowStockValueAnswer([], 2000), null);
   assert.equal(lowStockValueAnswer([{ name: 'Unknown price', availableQuantity: 2 }], 2000), null);
 });
@@ -477,7 +504,7 @@ test('AI-90: the most expensive product is chosen by selling price, not stock va
     2000,
   );
   assert.match(answer, /Dell UltraSharp U2723QE/);
-  assert.match(answer, /PHP 38,990/);
+  assert.match(answer, /38,990/);
   assert.doesNotMatch(answer, /Sony|LG/);
 });
 
@@ -558,7 +585,7 @@ test('AI-90: partial and duplicate low-stock rows count once with merged fields'
     ],
     2000,
   );
-  assert.equal(answer, 'The total recorded value of the 3 low-stock items is PHP 60,930.');
+  assert.equal(answer, 'The total recorded value of the 3 low-stock items is 60,930.');
 });
 
 test('AI-90: malformed prices cannot create a most-expensive winner', () => {
@@ -590,7 +617,7 @@ test('AI-90: partial and duplicate product reads produce one most-expensive winn
   );
   assert.equal(
     answer,
-    'The product with the highest recorded selling price is **Dell UltraSharp U2723QE** at PHP 38,990.',
+    'The product with the highest recorded selling price is **Dell UltraSharp U2723QE** at 38,990.',
   );
 });
 
@@ -664,7 +691,74 @@ test('AI-90: the five low-stock rows produce the recorded subtotal', () => {
     ],
     2000,
   );
-  assert.equal(answer, 'The total recorded value of the 5 low-stock items is PHP 159,870.');
+  assert.equal(answer, 'The total recorded value of the 5 low-stock items is 159,870.');
+});
+
+test('AI-90: computed totals use the recorded currency and never add currencies', () => {
+  assert.equal(
+    lowStockValueAnswer(
+      [{ name: 'Dollar item', sellingPrice: 100, currency: 'USD', availableQuantity: 2 }],
+      2000,
+    ),
+    'The total recorded value of the 1 low-stock item is USD 200.',
+  );
+  assert.equal(
+    lowStockValueAnswer(
+      [
+        { name: 'Peso item', sellingPrice: 100, currency: 'PHP', availableQuantity: 2 },
+        { name: 'Dollar item', sellingPrice: 100, currency: 'USD', availableQuantity: 1 },
+      ],
+      2000,
+    ),
+    'The total recorded value of the 2 low-stock items is PHP 200 (1 item), USD 100 (1 item).',
+  );
+  // Comparing or summing across currencies is not a calculation the app can make.
+  assert.equal(
+    mostExpensiveProductAnswer(
+      [
+        { name: 'Peso item', sellingPrice: 100, currency: 'PHP' },
+        { name: 'Dollar item', sellingPrice: 99, currency: 'USD' },
+      ],
+      2000,
+    ),
+    null,
+  );
+  assert.equal(
+    productsUnderPriceAnswer(
+      [
+        { name: 'Peso item', sellingPrice: 100, currency: 'PHP' },
+        { name: 'Dollar item', sellingPrice: 100, currency: 'USD' },
+      ],
+      'Which products cost less than 5,000?',
+      2000,
+    ),
+    null,
+  );
+  assert.equal(
+    productsUnderPriceAnswer(
+      [{ name: 'Peso item', sellingPrice: 100, currency: 'PHP' }],
+      'Which products cost less than 5,000?',
+      2000,
+    ),
+    'The products with a recorded selling price under PHP 5,000 are **Peso item** (PHP 100).',
+  );
+  // A symbol in the question is a currency, not decoration on a peso ceiling.
+  assert.equal(
+    productsUnderPriceAnswer(
+      [{ name: 'Dollar item', sellingPrice: 400, currency: 'USD' }],
+      'Which products cost less than $500?',
+      2000,
+    ),
+    'The products with a recorded selling price under USD 500 are **Dollar item** (USD 400).',
+  );
+  assert.equal(
+    productsUnderPriceAnswer(
+      [{ name: 'Peso item', sellingPrice: 400, currency: 'PHP' }],
+      'Which products cost less than $500?',
+      2000,
+    ),
+    null,
+  );
 });
 
 test('AI-90: partial and duplicate brand reads do not inflate the range', () => {

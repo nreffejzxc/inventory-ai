@@ -37,21 +37,29 @@ import {
   withCompleteBrandList,
   canonicalBrandListAnswer,
   withCompleteRestockNames,
+  restockThreeAnswer,
+  asksForThreeRestockNames,
   lowStockValueAnswer,
   mostExpensiveProductAnswer,
+  highestStockValueAnswer,
+  topOutAnswer,
   brandStockRangeAnswer,
   asksForRestockList,
   asksForLowStockValue,
   asksForMostExpensive,
+  asksForHighestStockValue,
+  asksForTopOut,
   asksForBrandStockRange,
   asksForLocationTotals,
   locationTotalsAnswer,
+  asksForProductStockByLocation,
+  productStockByLocationAnswer,
   asksForStockOutCount,
   stockOutCountAnswer,
   asksForProductsUnderPrice,
   productsUnderPriceAnswer,
 } from './answerCompletion.ts';
-import type { CatalogueFact } from './answerCompletion.ts';
+import type { CatalogueFact, TopOutFact } from './answerCompletion.ts';
 import { locationService } from '../reference.service.ts';
 import { aiConfig } from './aiConfig.ts';
 import {
@@ -189,7 +197,11 @@ export type DegradedReason = CannedReason | 'OUTPUT_LIMIT';
  * useful half away. It is marked instead, and the mark is drawn as an annotation beside
  * the answer rather than in place of it.
  */
-type CannedReason = 'EMPTY_COMPLETION' | 'ITERATION_LIMIT' | 'UNGROUNDED_ANSWER';
+type CannedReason =
+  | 'EMPTY_COMPLETION'
+  | 'ITERATION_LIMIT'
+  | 'UNGROUNDED_ANSWER'
+  | 'UNVERIFIED_RESEARCH';
 
 /**
  * The canned outcomes, each with the sentence the member reads.
@@ -209,6 +221,11 @@ const DEGRADED: Record<CannedReason, string> = {
   // was measured on the phone as a final answer on 2026-11-05 5:29 PM.
   UNGROUNDED_ANSWER:
     'I could not read that from your records just now. Please ask again — or open the Inventory screen to check it directly.',
+  // AI-80 — an online question answered without a web read is not a finding. The member
+  // must be told the web was not consulted, so an invented price, review or URL cannot
+  // pass as verified research.
+  UNVERIFIED_RESEARCH:
+    "I couldn't verify current online information because web research was not available for this response. I did not use or invent any online prices, reviews, or source URLs; please try again when web research is available.",
 };
 
 interface ChatResult {
@@ -352,7 +369,7 @@ export function systemPrompt(
     // stripped whatever the model does; this rule is what keeps the answer readable in the
     // first place, because a stripped tag still leaves the bad shape behind.
     '26. Write in plain text and simple markdown only: never use HTML tags such as <br>, <b> or <p>, because the chat shows them as literal characters. When an answer carries source URLs or several prices, give ONE short line per item — "PC Express: PHP 205,995 — https://…" — rather than a two-column table, and never put a URL inside a table cell, where a phone wraps it to a few characters.',
-    '27. For what stock is worth, the most valuable stock, or what is tied up in inventory, call getStockValue once. Quote its totalValue as value at the recorded selling price, and say how many products had no recorded price (unpricedProducts) and are therefore excluded, rather than adding them up yourself from getInventory.',
+    '27. For what stock is worth, the most valuable stock, or what is tied up in inventory, call getStockValue once. Quote its totalValue as value at the recorded selling price, and say how many products had no recorded price (unpricedProducts) and are therefore excluded, rather than adding them up yourself from getInventory. The value is in the recorded currency: when `mixedCurrency` is true, `totalValue` is null because the catalogue holds more than one currency, so report each entry of `totalsByCurrency` separately with its own code and never add or convert them. When a row\'s `currency` is null, quote the bare number and do not invent a symbol.',
     // AI-58. Measured on the device 2026-11-05: asked what the stock was worth, the model
     // answered from getInventory rows, which carried no price at all, and invented one per
     // product (PHP 45,000 for a product recorded at PHP 139,995). The rows now carry the
@@ -588,6 +605,7 @@ export async function runAiChat({
   const inventoryFacts: CatalogueFact[] = [];
   const lowStockFacts: CatalogueFact[] = [];
   const reorderFacts: CatalogueFact[] = [];
+  const historyTopOutFacts: TopOutFact[] = [];
   const locationFacts: CatalogueFact[] = [];
   let locationPageComplete = false;
   let stockOutMovements: number | null = null;
@@ -1614,6 +1632,7 @@ export async function runAiChat({
         if (
           toolRuns === 0 &&
           nativeWebToolsUsed.size === 0 &&
+          !webResearchIntent &&
           answeredFromMemory &&
           asksForProductAdvice(message)
         ) {
@@ -1631,19 +1650,19 @@ export async function runAiChat({
         // calling either research tool; that is a false capability statement, not a
         // finding. Re-ask with the exact research path, then refuse the claim if it
         // still arrives without a research read.
-        const researchTools = ['researchInventoryProducts', 'researchMarketPrices'];
-        const nativeResearchRead = nativeWebToolsUsed.size > 0;
-        const answeredResearchWithoutRead =
-          webResearchIntent &&
-          !researchTools.some((tool) => toolsUsed.has(tool)) &&
-          !nativeResearchRead;
+        const researchReadSucceeded =
+          researchSources.length > 0 || nativeWebToolsUsed.size > 0;
+        const answeredResearchWithoutRead = webResearchIntent && !researchReadSucceeded;
         if (
           answeredResearchWithoutRead &&
           !isAnswerRound &&
           groundingRetries < MAX_GROUNDING_RETRIES
         ) {
           groundingRetries += 1;
-          const priceQuestion = /\b(?:prices?|charge|costs?|marketplace|shopee|lazada|amazon)\b/i.test(message);
+          const priceQuestion =
+            /\b(?:prices?|charge|costs?|marketplace|shopee|lazada|amazon|presyo|presyuhan|magkano)\b/i.test(
+              message,
+            );
           const researchTool = priceQuestion ? 'researchMarketPrices' : 'researchInventoryProducts';
           const useNativeNow = nativeWebActive && groundingRetries === 1;
           if (nativeWebActive && !useNativeNow) {
@@ -1683,8 +1702,8 @@ export async function runAiChat({
           continue;
         }
         if (answeredResearchWithoutRead) {
-          degraded = 'UNGROUNDED_ANSWER';
-          finalText = DEGRADED.UNGROUNDED_ANSWER;
+          degraded = 'UNVERIFIED_RESEARCH';
+          finalText = DEGRADED.UNVERIFIED_RESEARCH;
           break;
         }
         // AI-70 — a revenue figure is never presented as recorded fact.
@@ -1969,6 +1988,10 @@ export async function runAiChat({
           record.product && typeof record.product === 'object'
             ? (record.product as Record<string, unknown>)
             : record;
+        const location =
+          record.location && typeof record.location === 'object'
+            ? (record.location as Record<string, unknown>)
+            : null;
         const name = typeof product.name === 'string' ? product.name.trim() : '';
         if (!name) return null;
         const price = typeof product.sellingPrice === 'number' ? product.sellingPrice : null;
@@ -1979,12 +2002,30 @@ export async function runAiChat({
           name,
           brand: typeof product.brand === 'string' ? product.brand : null,
           sellingPrice: price,
+          currency: typeof product.currency === 'string' ? product.currency : null,
           availableQuantity: directQuantity ?? productQuantity,
+          locationName:
+            typeof location?.name === 'string' && location.name.trim()
+              ? location.name.trim()
+              : null,
+          stockValue: typeof record.value === 'number' ? record.value : null,
         };
       };
       if (name === 'getInventoryHistory') {
         const count = Number(resultRecord?.stockOutMovements);
         if (Number.isFinite(count) && count >= 0) stockOutMovements = count;
+        // Keep the exact names the history tool already ranked, so a follow-up or a ranking
+        // answer cannot substitute a different SKU that happens to share the same model name.
+        historyTopOutFacts.length = 0;
+        const topOut = Array.isArray(resultRecord?.topOut) ? (resultRecord.topOut as unknown[]) : [];
+        for (const raw of topOut) {
+          if (!raw || typeof raw !== 'object') continue;
+          const row = raw as Record<string, unknown>;
+          const productName = typeof row.product === 'string' ? row.product.trim() : '';
+          const unitsOut = Number(row.unitsOut);
+          if (!productName || !Number.isFinite(unitsOut) || unitsOut <= 0) continue;
+          historyTopOutFacts.push({ name: productName, unitsOut });
+        }
       }
       if (name === 'getProductsByLocation') {
         // Keep only the last location page: a complete page is the only one whose rows
@@ -2021,8 +2062,11 @@ export async function runAiChat({
         name === 'getReorderNeededProducts'
       ) {
         if (name === 'getReorderNeededProducts') {
+          // Same per-scope rule as the low-stock rows above: the last page and its total
+          // are the only pair that describe the same read.
+          reorderFacts.length = 0;
           const total = Number(resultRecord?.count);
-          if (Number.isFinite(total) && total >= 0) reorderTotal = total;
+          reorderTotal = Number.isFinite(total) && total >= 0 ? total : 0;
         }
         for (const raw of resultItems) {
           const fact = factFrom(raw);
@@ -2091,10 +2135,11 @@ export async function runAiChat({
     finalText = DEGRADED[degraded];
   }
   // Deterministic finalizers for the row-shaped answers the model is least reliable at:
-  // a restock list, a low-stock subtotal, the maximum price, and a product-level range.
-  // They only use rows returned in this turn; when the rows cannot support the answer they
-  // leave the model's text alone. A computed low-stock answer is allowed to rescue an
-  // OUTPUT_LIMIT turn because the value is already known from the rows.
+  // a restock list, a low-stock subtotal, the maximum price, the highest stock value, the
+  // top stock-out product, and a product-level range. They only use rows returned in this
+  // turn; when the rows cannot support the answer they leave the model's text alone. A
+  // computed low-stock answer is allowed to rescue an OUTPUT_LIMIT turn because the value
+  // is already known from the rows.
   if (asksForLowStockValue(message)) {
     // A restock read also returns the low-stock rows. Treating only the dedicated
     // low-stock tool as evidence made the same rows answer PHP 72,460 instead of the
@@ -2112,6 +2157,13 @@ export async function runAiChat({
     if (computed) {
       finalText = computed;
       console.warn('[ai] location product/unit total computed from the complete page');
+    }
+  }
+  if (!degraded && asksForProductStockByLocation(message)) {
+    const computed = productStockByLocationAnswer(inventoryFacts, message, cfg.maxMessageChars);
+    if (computed) {
+      finalText = computed;
+      console.warn('[ai] product stock by location computed from the returned rows');
     }
   }
   if (!degraded && stockOutMovements !== null && asksForStockOutCount(message)) {
@@ -2135,6 +2187,20 @@ export async function runAiChat({
       console.warn('[ai] maximum recorded price computed from the returned rows');
     }
   }
+  if (!degraded && asksForHighestStockValue(message)) {
+    const computed = highestStockValueAnswer(productFacts, cfg.maxMessageChars);
+    if (computed) {
+      finalText = computed;
+      console.warn('[ai] highest stock value computed from the returned rows');
+    }
+  }
+  if (!degraded && asksForTopOut(message)) {
+    const computed = topOutAnswer(historyTopOutFacts, cfg.maxMessageChars);
+    if (computed) {
+      finalText = computed;
+      console.warn('[ai] top stock-out product computed from the returned rows');
+    }
+  }
   if (!degraded && asksForBrandStockRange(message)) {
     const rangeRows = productFacts.length > 0 ? productFacts : inventoryFacts;
     const computed = brandStockRangeAnswer(rangeRows, message, cfg.maxMessageChars);
@@ -2155,7 +2221,15 @@ export async function runAiChat({
     // page. Naming those rows "the full list" would be the false-completeness failure this
     // finalizer exists to prevent, so a partial page is left to the model and its total.
     const complete = rows.length >= count;
-    let completed = withCompleteRestockNames(finalText, rows, cfg.maxMessageChars, {
+    let completed = finalText;
+    if (fromRestock && asksForThreeRestockNames(message)) {
+      const exact = restockThreeAnswer(rows, count, cfg.maxMessageChars);
+      if (exact) {
+        completed = exact;
+        console.warn('[ai] exact restock names taken from the returned rows');
+      }
+    }
+    completed = withCompleteRestockNames(completed, rows, cfg.maxMessageChars, {
       label: fromRestock ? 'restock' : 'low-stock',
       complete,
     });

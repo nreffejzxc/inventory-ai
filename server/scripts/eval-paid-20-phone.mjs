@@ -22,7 +22,8 @@ const EXPECTED_MODEL = process.env.EVAL_EXPECTED_MODEL || 'openai/gpt-oss-120b';
 const QUESTIONS = [
   // Bisaya (Cebuano) — 7
   { id: 'B1', lang: 'Bisaya', text: 'Pila ka aktibong produkto ang naa nato ug pila ka yunit ang tanan sa stock', expected: '1,000 active products; 241,159 units' },
-  { id: 'B2', lang: 'Bisaya', text: 'Pila ka produkto ang ubos na sa stock ug pila ang nahurot', expected: '92 low; 57 out of stock' },
+  // B2 — "nahurot" can mean consumed; ask explicitly for products with no stock.
+  { id: 'B2', lang: 'Bisaya', text: 'Pila ka produkto ang ubos na sa stock ug pila ka produkto ang wala nay stock', expected: '92 low; 57 out of stock' },
   { id: 'B3', lang: 'Bisaya', text: 'Asa nahimutang ang Logitech MX Master 3S 10663 ug pila ka yunit ang naa sa matag lokasyon', expected: 'Logitech MX Master 3S 10663; Main Warehouse 452; Shop Front 453' },
   { id: 'B4', lang: 'Bisaya', text: 'Tagpila ang Dell UltraSharp U2723QE 10232 ug pila ka yunit ang naa', expected: 'Dell UltraSharp U2723QE 10232; 38,990; 0 units / out of stock' },
   { id: 'B5', lang: 'Bisaya', text: 'Pila ka produkto ang naa sa Keyboards and Mice nga kategoriya ug pila ka yunit', expected: 'Keyboards & Mice: 432 products; 104,843 units' },
@@ -35,7 +36,8 @@ const QUESTIONS = [
   { id: 'T3', lang: 'Tagalog', text: 'Magkano ang Dell UltraSharp U2723QE 10232 at ilan ang stock nito', expected: 'Dell UltraSharp U2723QE 10232; 38,990; 0 units / out of stock' },
   { id: 'T4', lang: 'Tagalog', text: 'Magkano ang kabuuang halaga ng Keyboards and Mice category', expected: 'Keyboards & Mice value 787,504,593' },
   { id: 'T5', lang: 'Tagalog', text: 'Ihambing ang Logitech MX Master 3S 10663 at Dell UltraSharp U2723QE 10652 sa presyo at stock', expected: 'Logitech MX Master 3S 10663 5,490 / 905; Dell UltraSharp U2723QE 10652 38,990 / 818' },
-  { id: 'T6', lang: 'Tagalog', text: 'Anong produkto ang irerekomenda mo para sa maliit na opisina na may budget na 3,000', expected: 'Royal Kludge RK61 10004; 2,499; 218 units / in stock' },
+  // T6 — open-ended recommendation: accept any genuine in-stock product under 3,000.
+  { id: 'T6', lang: 'Tagalog', text: 'Anong produkto ang irerekomenda mo para sa maliit na opisina na may budget na 3,000', expected: 'Any active in-stock product under 3,000; verify recorded name, price, and stock (no invented quantity)' },
   { id: 'T7', lang: 'Tagalog', text: 'Maghanap ng online na presyo ng Samsung Portable SSD T7 Shield 1TB 10557 at magbigay ng sources', expected: 'Online price with source, or explicit unavailable' },
 
   // English — 6

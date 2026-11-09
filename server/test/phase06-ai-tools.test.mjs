@@ -70,6 +70,12 @@ let out; // business: exactly one out-of-stock product
 let sum; // business: controlled dashboard numbers
 let loc; // business: controlled location stock
 let hist; // business: controlled movement history
+let split; // business: low per location, healthy across the business
+let splitP;
+let splitUsd;
+let splitA;
+let splitB;
+let restock; // business: two products that need restocking
 
 let alpha;
 let alphaLoc;
@@ -123,6 +129,43 @@ dbSuite('Phase 06 — AI tools', dbOk, () => {
     const histL = await newLocation(hist);
     await stockIn(hist, hp, histL, 5);
     await stockOut(hist, hp, histL, 2);
+
+    // --- split: 3 + 3 units against a minimum of 5 -----------------------
+    // Low on either shelf, healthy across the business. An archived product that would
+    // otherwise match proves the tool returns the same ACTIVE-only rows as Restock.
+    split = await registerOwner(api, tracker);
+    splitP = await newProduct(split, {
+      name: 'Split Stock Product',
+      minimumStock: 5,
+      costPrice: 4,
+      sellingPrice: 100,
+      currency: 'PHP',
+    });
+    splitA = await newLocation(split);
+    splitB = await newLocation(split);
+    await stockIn(split, splitP, splitA, 3);
+    await stockIn(split, splitP, splitB, 3);
+    // A second, healthy product in another currency proves the valuation keeps the two
+    // totals apart instead of adding 600 and 400 into a number in no currency.
+    splitUsd = await newProduct(split, {
+      name: 'Dollar Stock Product',
+      minimumStock: 0,
+      sellingPrice: 200,
+      currency: 'USD',
+    });
+    await stockIn(split, splitUsd, splitA, 2);
+    const archived = await newProduct(split, { name: 'Archived Low Stock', minimumStock: 10 });
+    const archiveRes = await api('POST', `/api/products/${archived}/archive`, { token: split.token });
+    assert.equal(archiveRes.status, 200, JSON.stringify(archiveRes.json));
+
+    // --- restock: two products at or below their minimum -------------------
+    // Used for the complete-by-default guarantee and the short-page note.
+    restock = await registerOwner(api, tracker);
+    const restockL = await newLocation(restock);
+    for (const quantity of [1, 2]) {
+      const product = await newProduct(restock, { minimumStock: 5 });
+      await stockIn(restock, product, restockL, quantity);
+    }
   });
 
   after(async () => {
@@ -137,6 +180,7 @@ dbSuite('Phase 06 — AI tools', dbOk, () => {
     assert.equal(byName.count, 1);
     assert.equal(byName.items[0].id, alpha);
     assert.equal(byName.items[0].sku, 'SKU-ALPHA');
+    assert.ok(!('costPrice' in byName.items[0]), 'searchProducts must not expose costPrice');
 
     const bySku = ok(await executeTool('searchProducts', { q: 'SKU-ALPHA' }, ctxOf(A)));
     assert.equal(bySku.items[0].id, alpha);
@@ -155,6 +199,8 @@ dbSuite('Phase 06 — AI tools', dbOk, () => {
     assert.equal(byId.product.id, alpha);
     assert.equal(byId.product.sku, 'SKU-ALPHA');
     assert.equal(byId.product.stockRows, 1);
+    // Cost price is internal accounting data; the assistant's payload never carries it.
+    assert.ok(!('costPrice' in byId.product), 'getProduct must not expose costPrice');
     assert.equal(byId.product.stock[0].location.id, alphaLoc);
     assert.equal(byId.product.stock[0].quantity, 10);
     assert.equal(byId.product.stock[0].availableQuantity, 10);
@@ -175,6 +221,7 @@ dbSuite('Phase 06 — AI tools', dbOk, () => {
     const rows = ok(await executeTool('getInventory', { productId: alpha, locationId: alphaLoc, limit: 25 }, ctxOf(A)));
     assert.equal(rows.count, 1);
     assert.equal(rows.items[0].product.id, alpha);
+    assert.ok(!('costPrice' in rows.items[0].product), 'getInventory must not expose costPrice');
     assert.equal(rows.items[0].location.id, alphaLoc);
     assert.equal(rows.items[0].quantity, 10);
     assert.equal(rows.items[0].availableQuantity, 10);
@@ -189,6 +236,59 @@ dbSuite('Phase 06 — AI tools', dbOk, () => {
     assert.equal(res.count, 1);
     assert.equal(res.items[0].availableQuantity, 2);
     assert.equal(res.items[0].minimumStock, 5);
+  });
+
+  it('getLowStockProducts aggregates across locations and judges one place alone when asked', async () => {
+    // 3 + 3 units against a minimum of 5 is healthy business-wide, so a per-location low
+    // must not become a false product-level low. The archived low product stays out.
+    const wide = ok(await executeTool('getLowStockProducts', { limit: 50 }, ctxOf(split)));
+    assert.equal(wide.count, 0, JSON.stringify(wide.items));
+
+    for (const locationId of [splitA, splitB]) {
+      const scoped = ok(await executeTool('getLowStockProducts', { locationId, limit: 50 }, ctxOf(split)));
+      assert.equal(scoped.count, 1, locationId);
+      assert.equal(scoped.items[0].id, splitP);
+      assert.equal(scoped.items[0].availableQuantity, 3);
+      assert.equal(scoped.items[0].minimumStock, 5);
+      assert.equal(scoped.items[0].currency, 'PHP');
+      assert.ok(!('costPrice' in scoped.items[0]), 'low-stock rows must not expose costPrice');
+    }
+
+    // The archived low product also has zero stock; it must not appear as out of stock.
+    const archivedOut = ok(await executeTool('getOutOfStockProducts', { limit: 50 }, ctxOf(split)));
+    assert.equal(archivedOut.count, 0, JSON.stringify(archivedOut.items));
+  });
+
+  it('getStockValue keeps recorded currencies apart instead of adding them', async () => {
+    const value = ok(await executeTool('getStockValue', {}, ctxOf(split)));
+    assert.equal(value.mixedCurrency, true);
+    assert.equal(value.totalValue, null);
+    assert.equal(value.totalsByCurrency.length, 2);
+    const byCurrency = new Map(value.totalsByCurrency.map((row) => [row.currency, row.totalValue]));
+    assert.equal(byCurrency.get('PHP'), 600);
+    assert.equal(byCurrency.get('USD'), 400);
+  });
+
+  it('getReorderNeededProducts reports the whole total and marks a short page', async () => {
+    const full = ok(await executeTool('getReorderNeededProducts', {}, ctxOf(restock)));
+    assert.equal(full.count, 2);
+    assert.equal(full.returned, 2);
+    assert.equal(full.hasMore, false);
+    assert.equal(full.note, undefined);
+
+    const short = ok(await executeTool('getReorderNeededProducts', { limit: 1 }, ctxOf(restock)));
+    assert.equal(short.count, 2);
+    assert.equal(short.returned, 1);
+    assert.equal(short.hasMore, true);
+    assert.match(short.note, /only 1 of 2 products that need restocking/);
+  });
+
+  it('getReorderNeededProducts returns the complete restock total by default', async () => {
+    const res = ok(await executeTool('getReorderNeededProducts', {}, ctxOf(low)));
+    assert.equal(res.count, 1);
+    assert.equal(res.returned, 1);
+    assert.equal(res.hasMore, false);
+    assert.ok(!('costPrice' in res.items[0]), 'restock rows must not expose costPrice');
   });
 
   it('getOutOfStockProducts returns exactly the out-of-stock product', async () => {

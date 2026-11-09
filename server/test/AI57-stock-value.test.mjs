@@ -19,6 +19,9 @@ test('AI-57: the description says value is at recorded price and unpriced produc
   const { description } = aiToolsById.get('getStockValue');
   assert.match(description, /recorded selling price/i);
   assert.match(description, /NOT counted as zero/);
+  // Currency is part of the value: a total in two currencies is not one number.
+  assert.match(description, /mixedCurrency/);
+  assert.match(description, /totalsByCurrency/);
 });
 
 test('AI-57: a businessId smuggled into the arguments is refused', () => {
@@ -31,4 +34,5 @@ test('AI-57: the prompt routes valuation questions to getStockValue', () => {
   const prompt = systemPrompt();
   assert.match(prompt, /call getStockValue once/);
   assert.match(prompt, /unpricedProducts/);
+  assert.match(prompt, /mixedCurrency/);
 });

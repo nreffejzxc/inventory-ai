@@ -78,6 +78,13 @@ type ProductWritePayload = {
 type ProductListFilters = {
   q?: string;
   terms?: string[];
+  /**
+   * Exact name/SKU/barcode values. `findProducts` uses this for its exact-product
+   * fallback: a term like "Dell UltraSharp U2723QE 10232" must be able to bring
+   * that one row back even when the ordinary OR search fills its page with newer
+   * variants of the same family.
+   */
+  exactTerms?: string[];
   includeDescription?: boolean;
   status?: string;
   categoryId?: string;
@@ -122,19 +129,32 @@ const BRAND_DESCRIPTION_MAX = 160;
 function textSearchOr({
   q,
   terms,
+  exactTerms,
   includeDescription,
-}: Pick<ProductListFilters, 'q' | 'terms' | 'includeDescription'>) {
+}: Pick<ProductListFilters, 'q' | 'terms' | 'exactTerms' | 'includeDescription'>) {
   const values = [q, ...(terms ?? [])]
     .map((value) => value?.trim())
     .filter((value): value is string => Boolean(value));
-  if (values.length === 0) return null;
+  const exactValues = (exactTerms ?? [])
+    .map((value) => value?.trim())
+    .filter((value): value is string => Boolean(value));
+  if (values.length === 0 && exactValues.length === 0) return null;
   const fields = includeDescription
     ? (['name', 'brand', 'description', 'specifications', 'sku', 'barcode'] as const)
     : (['name', 'brand', 'sku', 'barcode'] as const);
-  return values.flatMap((value) => {
-    const re = { $regex: escapeRegExp(value), $options: 'i' };
-    return fields.map((field) => ({ [field]: re }));
-  });
+  // An exact term is anchored and deliberately does not search `brand` or free text:
+  // "Dell" is a brand, not the Dell UltraSharp U2723QE 10232 the member named.
+  const exactFields = ['name', 'sku', 'barcode'] as const;
+  return [
+    ...exactValues.flatMap((value) => {
+      const re = { $regex: `^${escapeRegExp(value)}$`, $options: 'i' };
+      return exactFields.map((field) => ({ [field]: re }));
+    }),
+    ...values.flatMap((value) => {
+      const re = { $regex: escapeRegExp(value), $options: 'i' };
+      return fields.map((field) => ({ [field]: re }));
+    }),
+  ];
 }
 
 function duplicateError(payload: { sku?: unknown; barcode?: unknown }) {
@@ -223,6 +243,9 @@ function reorderItemPublic(doc: ReorderItemSource) {
     minimumStock: base.minimumStock,
     category: base.category,
     sellingPrice: base.sellingPrice,
+    // The assistant's low-stock subtotal is computed from these rows, so the currency must
+    // travel with the price rather than being assumed from the business's locale.
+    currency: base.currency,
     availableQuantity: Number.isFinite(doc.available) ? doc.available : null,
     stockStatus: classifyStockStatus(doc.available, base.minimumStock),
   };
@@ -694,6 +717,7 @@ export const productService = {
     {
       q,
       terms,
+      exactTerms,
       includeDescription,
       status,
       categoryId,
@@ -710,7 +734,7 @@ export const productService = {
     // AI-71 — "which products never sold" must be answered by the database, not by a page
     // compared against another page: the exclusion set is every product that HAS moved.
     if (excludeIds?.length) filter._id = { $nin: excludeIds.map((id) => new ObjectId(id)) };
-    const textOr = textSearchOr({ q, terms, includeDescription });
+    const textOr = textSearchOr({ q, terms, exactTerms, includeDescription });
     if (textOr) filter.$or = textOr;
     const total = await Product.countDocuments(filter);
     const docs = await Product.find(filter)
@@ -737,6 +761,7 @@ export const productService = {
     {
       q,
       terms,
+      exactTerms,
       includeDescription,
       status,
       categoryId,
@@ -759,7 +784,7 @@ export const productService = {
     // AI-71 — same exclusion as `listSimple`, applied before the stock merge so the page
     // window only ever counts products that have not moved.
     if (excludeIds?.length) match._id = { $nin: excludeIds.map((id) => new ObjectId(id)) };
-    const textOr = textSearchOr({ q, terms, includeDescription });
+    const textOr = textSearchOr({ q, terms, exactTerms, includeDescription });
     if (textOr) match.$or = textOr;
 
     const pipeline: PipelineStage[] = [
@@ -907,21 +932,40 @@ export const productService = {
         [{ $match: productMatch }, ...availabilityIdStages(bizOid, locationId)],
         { allowDiskUse: true }
       ),
-      Product.find(productMatch).select({ name: 1, sku: 1, sellingPrice: 1 }).lean(),
+      Product.find(productMatch).select({ name: 1, sku: 1, sellingPrice: 1, currency: 1 }).lean(),
     ]);
     const byId = new Map(products.map((doc) => [String(doc._id), doc as Record<string, unknown>]));
 
-    let totalValue = 0;
     let unitsOnHand = 0;
     let productsCounted = 0;
     let unpricedProducts = 0;
     let unpricedUnits = 0;
-    const valued: Array<{ id: string; name: unknown; sku: unknown; sellingPrice: number; availableQuantity: number; value: number }> = [];
+    // Value is accumulated PER RECORDED CURRENCY. Adding a PHP price to a USD price gives
+    // a number in no currency at all, and the previous single total did exactly that as
+    // soon as a tenant recorded two. A single-currency tenant still gets the familiar
+    // `totalValue`; a mixed one gets `totalValue: null` plus the parts.
+    const totals = new Map<
+      string,
+      { currency: string | null; totalValue: number; productsCounted: number; unitsOnHand: number }
+    >();
+    const valued: Array<{
+      id: string;
+      name: unknown;
+      sku: unknown;
+      sellingPrice: number;
+      currency: string | null;
+      availableQuantity: number;
+      value: number;
+    }> = [];
     for (const row of stock) {
       const doc = byId.get(String(row._id));
       if (!doc) continue;
       const units = Math.max(Number(row.available) || 0, 0);
       const price = typeof doc.sellingPrice === 'number' ? doc.sellingPrice : 0;
+      const currency =
+        typeof doc.currency === 'string' && doc.currency.trim()
+          ? doc.currency.trim().toUpperCase()
+          : null;
       // AI-59 — a location-scoped read is about what that place holds, so a product with
       // nothing there is not "counted". The merge returns every ACTIVE product for the
       // location (zero when it has no row there), and counting those would report a shelf
@@ -932,13 +976,24 @@ export const productService = {
       unitsOnHand += units;
       if (price > 0) {
         const value = price * units;
-        totalValue += value;
+        const key = currency ?? '';
+        const group = totals.get(key) ?? {
+          currency,
+          totalValue: 0,
+          productsCounted: 0,
+          unitsOnHand: 0,
+        };
+        group.totalValue += value;
+        group.productsCounted += 1;
+        group.unitsOnHand += units;
+        totals.set(key, group);
         if (units > 0) {
           valued.push({
             id: String(row._id),
             name: doc.name,
             sku: doc.sku ?? null,
             sellingPrice: price,
+            currency,
             availableQuantity: units,
             value,
           });
@@ -949,9 +1004,16 @@ export const productService = {
       }
     }
     valued.sort((a, b) => b.value - a.value || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+    const totalsByCurrency = [...totals.values()].sort(
+      (a, b) => b.totalValue - a.totalValue || String(a.currency).localeCompare(String(b.currency)),
+    );
+    const mixedCurrency = totalsByCurrency.length > 1;
 
     return {
-      totalValue,
+      totalValue: mixedCurrency ? null : (totalsByCurrency[0]?.totalValue ?? 0),
+      currency: mixedCurrency ? null : (totalsByCurrency[0]?.currency ?? null),
+      mixedCurrency,
+      totalsByCurrency,
       productsCounted,
       unitsOnHand,
       unpricedProducts,
@@ -959,6 +1021,11 @@ export const productService = {
       topByValue: valued.slice(0, limit),
       // Echoed so an answer can say exactly what it is describing ("at Main Warehouse").
       scope: locationId || categoryId ? { locationId: locationId ?? null, categoryId: categoryId ?? null } : null,
+      // Stated in words because a null `totalValue` can otherwise read as "nothing is worth
+      // anything" rather than "these totals are in different currencies".
+      note: mixedCurrency
+        ? 'totalsByCurrency holds one total per recorded currency. Do not add or convert them; report each separately.'
+        : null,
     };
   },
 
@@ -1233,6 +1300,7 @@ export const productService = {
     const {
       q,
       terms,
+      exactTerms,
       includeDescription,
       status,
       categoryId,
@@ -1251,6 +1319,7 @@ export const productService = {
       return this.listWithStock(businessId, {
         q,
         terms,
+        exactTerms,
         includeDescription,
         status,
         categoryId,
@@ -1267,6 +1336,7 @@ export const productService = {
     return this.listSimple(businessId, {
       q,
       terms,
+      exactTerms,
       includeDescription,
       status,
       categoryId,

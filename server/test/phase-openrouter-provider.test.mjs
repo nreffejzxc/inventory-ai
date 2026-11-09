@@ -1751,7 +1751,7 @@ unitSuite('OpenRouter provider — AI loop compatibility (DB-free)', () => {
         fallbackTools.some((tool) => tool.name === 'researchInventoryProducts'),
         'the local research tool is available as the fallback',
       );
-      assert.match(value.content, /could not read that from your records/i);
+      assert.match(value.content, /couldn't verify current online information/i);
     } finally {
       restoreAll(restores);
     }
