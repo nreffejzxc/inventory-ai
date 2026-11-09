@@ -48,6 +48,7 @@ import {
   asksForBestSelling,
   bestSellingLimitsAnswer,
   replaceRestockCountClaims,
+  normaliseSkuTypography,
   stripModelGlitchPreamble,
   topOutAnswer,
   brandStockRangeAnswer,
@@ -2393,7 +2394,7 @@ export async function runAiChat({
       }
     }
   }
-  finalText = stripModelGlitchPreamble(finalText);
+  finalText = normaliseSkuTypography(stripModelGlitchPreamble(finalText));
   finalText = truncate(finalText, cfg.maxMessageChars);
   if (!degraded && researchSources.length > 0) {
     finalText = appendMissingSourceUrls(finalText, researchSources);

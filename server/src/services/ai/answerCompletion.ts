@@ -1385,11 +1385,28 @@ export function replaceRestockCountClaims(raw: string, count: number): string {
   if (!Number.isFinite(count) || count < 0) return text;
   const formatted = new Intl.NumberFormat('en-PH', { maximumFractionDigits: 0 }).format(count);
   return text
+    // Measured 2026-11-09 after AI-95 shipped: the model prefixed the repaired
+    // count with a stray list number (`2 1,535 products need restocking`). The
+    // count was right but the answer still read as a fragment. Strip only an
+    // extra marker at the very start; a legitimate count is never preceded by
+    // another bare number.
+    .replace(/^(\s*(?:\*\*|__)?)\d{1,3}[.)]?\s+(?=[\d,]+\s+products? need restocking\b)/i, '$1')
     .replace(/\b[\d,]+\s+products? need restocking\b/gi, `${formatted} products need restocking`)
     .replace(
       /\b[\d,]+\s+(?:products?|items?)\s+(?:are\s+)?(?:low(?:\s+on)?\s+stock|running low)\b/gi,
       `${formatted} ${count === 1 ? 'product is' : 'products are'} low on stock`,
     );
+}
+
+/**
+ * Keep emitted SKU punctuation copyable and consistent with the catalogue.
+ *
+ * Measured 2026-11-09: a grounded table rendered `SEEDSKU‑9979` with a
+ * non-breaking hyphen. Lookup already accepts either form, but an answer that
+ * is copied into search or an export should use the canonical ASCII hyphen.
+ */
+export function normaliseSkuTypography(raw: string): string {
+  return String(raw ?? '').replace(/\b([A-Z]{2,}[A-Z0-9]*)[\u2010-\u2015\u2212\uFF0D](?=\d)/g, '$1-');
 }
 
 /**

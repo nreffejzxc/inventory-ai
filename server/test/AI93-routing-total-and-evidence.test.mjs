@@ -7,6 +7,7 @@ import {
   asksForTotalStockValue,
   bestSellingLimitsAnswer,
   highestStockValueAnswer,
+  normaliseSkuTypography,
   replaceFalseToolClaims,
   replaceRestockCountClaims,
   stripModelGlitchPreamble,
@@ -146,6 +147,24 @@ test('AI-95: a malformed restock count is replaced, not partially matched', () =
     replaceRestockCountClaims('1535 products are low on stock', 1535),
     '1,535 products are low on stock',
   );
+  assert.equal(
+    replaceRestockCountClaims('2 1,535 products need restocking; the 5 most urgent are below.', 1535),
+    '1,535 products need restocking; the 5 most urgent are below.',
+  );
+  assert.equal(
+    replaceRestockCountClaims('2. 1,535 products need restocking.', 1535),
+    '1,535 products need restocking.',
+  );
+});
+
+test('AI-98: emitted SKUs use the catalogue ASCII hyphen', () => {
+  assert.equal(
+    normaliseSkuTypography('| Anker 737 Power Bank | SEEDSKU\u20119992 | 0 / 96 |'),
+    '| Anker 737 Power Bank | SEEDSKU-9992 | 0 / 96 |',
+  );
+  assert.equal(normaliseSkuTypography('SKU SEEDSKU\u2013979'), 'SKU SEEDSKU-979');
+  assert.equal(normaliseSkuTypography('SEEDSKU-344 is already canonical.'), 'SEEDSKU-344 is already canonical.');
+  assert.equal(normaliseSkuTypography('The 2024\u20132025 total is unchanged.'), 'The 2024\u20132025 total is unchanged.');
 });
 
 test('AI-95: a best-selling label becomes a movement statement', () => {
