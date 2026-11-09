@@ -23,7 +23,7 @@ not cancelled.
 | Branch protection | Pull request required; four required checks; strict; admins enforced; force pushes and deletions blocked; conversation resolution required |
 | Scanning | Secret scanning and push protection enabled; private vulnerability reporting enabled |
 | Git identity | `jeffernzxc` / `jefferndullamalinaozxc@gmail.com` |
-| Production | `/api/health` returns 200, `status: ok`, `db: connected`, commit `8b6353a` (AI-99 free-first simple inventory in PR #201; docs-only merges do not redeploy); free instance, so a cold start can delay the first response by 50 s or more |
+| Production | `/api/health` returns 200, `status: ok`, `db: connected`, commit `5b05307` (the AI-99 10k evidence/evaluator merge in PR #204; runtime unchanged from `8b6353a`; docs-only merges do not redeploy); free instance, so a cold start can delay the first response by 50 s or more |
 | EAS | Project `@jeffernqwes-team/inventory-ai` (ID `607eca05-1175-43ed-86a0-1829e91c9531`) is under the target Gmail's Expo account, not the current GitHub/Render account |
 | History | The approved metadata-only attribution rewrite is complete; no further rewrite is approved |
 | GitHub 2FA | Disabled by owner decision on 2026-10-31; deferred until a backup method and offline recovery codes exist |
