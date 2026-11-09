@@ -970,6 +970,16 @@ after the work that the log records.
   `main` level with it. A docs-only change still needs its own pull request; it does not need a
   Render deploy.
 
+## AI assistant testing
+
+- **All questions in one conversation.** A multi-question AI evaluation — the 20-question phone
+  matrix, a live prompt set, a regression run — starts one chat and asks every question there, in
+  order. Do not open a new chat per question, and do not switch between conversation windows during
+  the run. Record the conversation ID; a result gathered across multiple chats is invalid and must
+  be rerun.
+- **A clean context is a separate, labelled run.** If a question genuinely needs an empty history,
+  run that as its own explicitly named evaluation, not as a reset in the middle of a matrix.
+
 ## Expo EAS builds — one allowance, spent deliberately
 
 - **No build merely because code changed.** First ask: can the installed build test this? can an
