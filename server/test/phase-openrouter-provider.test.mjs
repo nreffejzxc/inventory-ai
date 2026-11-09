@@ -1933,7 +1933,13 @@ dbSuite('OpenRouter provider — real full-catalogue workload', dbOk, () => {
         message: 'Give me a full picture of my inventory and search online for product reviews',
       });
 
-      assert.equal(out.iterations, 2);
+      // Both research calls target an id that is not in this tenant, so they return
+      // available:false with no source. AI-80 therefore re-asks the unsourced answer
+      // twice and then refuses it — the tools still ran once and every result was fed
+      // back before those re-asks, which is what this test covers.
+      assert.equal(out.iterations, 4);
+      assert.equal(out.degraded, 'UNVERIFIED_RESEARCH');
+      assert.match(out.content, /couldn't verify current online information/i);
       assert.deepEqual([...out.toolsUsed].sort(), [...EXPECTED_TOOLS].sort());
 
       const results = parsedToolResults(requests[1].body);
