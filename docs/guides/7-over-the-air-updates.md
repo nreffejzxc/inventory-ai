@@ -112,9 +112,12 @@ npx eas-cli update:list --branch production --limit 5
 **The installed production APK is runtime `1.0.2` (versionName `1.0.2`, versionCode 10).** Build
 `820251b4-dc8a-46a3-9b25-0faa0a9c1529` was compiled with Expo 58.0.22 and React Native 0.88.1, and the
 development APK `76440404-167c-440c-be20-88801fe9b64b` shares fingerprint
-`f5a6fddec17c97c1dabfe2fb9428108a41d9bd6e`. Production OTA group `58ab8e76-0b18-4e73-8822-7766e6dad7e3`
-was published from `162db9c` and applied on the installed APK; the dashboard showed the new
-"Cleaner details you can copy" note after two cold starts.
+`f5a6fddec17c97c1dabfe2fb9428108a41d9bd6e`. The newest production OTA is group
+`0e4eca55-0e4f-47fc-b2d6-507f91b529b8` (Android update
+`01a1c19d-06e8-79c9-9a46-7302c4be1c69`), published from `8b6353a` with the message
+"Release notes: Clearer stock totals and restock counts"; its dashboard card has not yet been observed
+on a phone. The previous group `58ab8e76-0b18-4e73-8822-7766e6dad7e3` was published from `162db9c` and
+had shown "Cleaner details you can copy" after two cold starts.
 
 Older groups remain as history; installs move forward to the newest group for their runtime. Channels
 are unprotected because code signing is off; enabling it is a build-time change (§11).

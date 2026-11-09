@@ -8,9 +8,9 @@ of truth for *what actually happened*, and it is why this file is long.
 
 **How to read it.** Do not read it top to bottom. Either find a record by number (§27FJ, §27DM — the
 numbers are cited from `CLAUDE.md` and from source comments), or use the index: `CLAUDE.md` §7 lists
-all **226** records by the title each gives itself.
+all **227** records by the title each gives itself.
 
-**Current state:** V1 complete and in production testing. The records that answer *where are we now*are §27HT (AI-91/AI-92 exact product identity and per-location stock), §27HS (the AI-50–AI-84 increment register), §27HR (AI-48–AI-84 merged and deployed), §27HQ (grounded answers and scoped stock reads), §27HP (market prices from cited pages), §27HO (recorded specifications and the real seed catalogue), §27HN (inventory-only web research), §27HH (a transfer as one event to the assistant), §27HG (the stock-in link's product), §27HF (the single-location default's timing), §27HE (the stock-in link's location), §27HD (the movement fixes and the production device pass), §27HC (the assistant's local-time answers), §27FM (the V1 re-verification) and §27FJ (the two open advisories).
+**Current state:** V1 complete and in production testing. The records that answer *where are we now*are §27HU (AI-99 free-first simple inventory, deployed with the 1.0.2 OTA), §27HT (AI-91/AI-92 exact product identity and per-location stock), §27HS (the AI-50–AI-84 increment register), §27HR (AI-48–AI-84 merged and deployed), §27HQ (grounded answers and scoped stock reads), §27HP (market prices from cited pages), §27HO (recorded specifications and the real seed catalogue), §27HN (inventory-only web research), §27HH (a transfer as one event to the assistant), §27HG (the stock-in link's product), §27HF (the single-location default's timing), §27HE (the stock-in link's location), §27HD (the movement fixes and the production device pass), §27HC (the assistant's local-time answers), §27FM (the V1 re-verification) and §27FJ (the two open advisories).
 
 ---
 
@@ -24971,3 +24971,49 @@ the next phone matrix must verify B4, T4, T6, B7 and T7 again.
 [2026-11-08 phone matrix](evidence/paid20-2026-11-08/README.md),
 `AI91-product-identity-answer.test.mjs`, `AI92-product-stock-by-location.test.mjs`, and
 `git diff --check`.
+
+---
+
+# 27HU. AI-99 — free-first simple inventory, production verification and the 1.0.2 OTA (2026-11-10)
+
+**Why.** Five narrow stock questions — a plain stock total, one product's stock, a restock count,
+a low-stock list and an exact SKU — still spent the paid model whenever OpenRouter's free allowance
+could have answered them, and a stalled free attempt could consume the share of the turn the paid
+fallback needed. The 10k evaluator also restarted at request zero after a transport fault.
+
+**Changed.** The simple-inventory route in `server/src/services/ai/simpleInventory.ts` starts those
+shapes on the first tool-capable `:free` fallback with the same business-scoped tools. A draft
+without the required read is re-asked once on the free model, then escalated once to the paid
+primary on a timeout, empty completion, output limit, free-quota refusal or a second ungrounded
+draft. `simplePaidBudget.ts` bounds the daily paid spend and the per-turn reserve, and
+`AI_SIMPLE_FREE_ATTEMPT_MS` caps the free slice. A single product's total is computed only from a
+complete, unambiguous read; a restock count uses the tool's own total; an explicit SKU is an exact
+identifier. `eval:simple-inventory` and `eval:simple-10k` evaluate the route, with an atomic
+checkpoint that resumes only the same config and dataset fingerprint.
+
+**Tests.** The AI-99 suites pass **28/28** (`AI99-simple-inventory-routing`, `AI99-eval-checkpoint`);
+the server unit suite passes **2,008 tests: 1,947 pass, 0 fail, 61 skipped**; the docs guard and its
+**27/27** tests pass; mobile typecheck, lint and **1,205** tests pass; scoped server lint passes over
+`src`, `scripts` and `test`. The AI-18 paged-return guard was updated for the exact-SKU
+`getInventory` path, and the classifier now requires a product reference for the product-stock
+branch so aggregate and location quantity questions stay on the ordinary route.
+
+**Deployed.** PR [#201](https://github.com/nreffejzxc/inventory-ai/pull/201) passed all four required
+checks in run `42674969198` (the server job took 3m02s) and squash-merged as `8b6353a`. Render deploy
+`dep-dbp16ap42hec738c5b2g` reached `live`; `GET /api/health` returns `status: ok`, `db: connected`,
+`environment: production`, commit `8b6353a` and **0** server errors. Production OTA group
+`0e4eca55-0e4f-47fc-b2d6-507f91b529b8` (Android update
+`01a1c19d-06e8-79c9-9a46-7302c4be1c69`) was published from `8b6353a` with the message
+"Release notes: Clearer stock totals and restock counts"; `update:list` shows it as the newest
+production group and the What's New note carries the same title.
+
+**What this does not prove.** No live free or paid simple turn has been run: OpenRouter's free quota
+resets at `2026-11-10T00:00:00Z`. Installation of the new OTA and the on-device What's New card were
+not observed; only the published manifest, channel and group were verified. The 10k evaluator has
+not been run at production scale — its checkpoint and resume behavior are unit-tested, not measured
+against 10,000 live requests.
+
+**Evidence.** [PR #201](https://github.com/nreffejzxc/inventory-ai/pull/201),
+`GET /api/health`, `npx eas-cli update:list --branch production --limit 3 --non-interactive`,
+`AI99-simple-inventory-routing.test.mjs`, `AI99-eval-checkpoint.test.mjs`, and
+`docs/DEVELOPMENT_LOG.md`.
