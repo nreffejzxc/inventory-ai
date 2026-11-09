@@ -45,6 +45,20 @@ export interface ReleaseNote {
  */
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    id: '2026-11-09-assistant-totals-and-evidence',
+    date: '2026-11-09',
+    kind: 'fix',
+    title: 'More accurate totals and more grounded answers',
+    summary:
+      'The assistant now keeps a stock-value total together with the highest-value item, stays on the everyday model for stock comparisons, and avoids unsupported sales claims.',
+    points: [
+      'A combined value question shows both the total and the product worth the most.',
+      'Stock comparisons such as available stock versus minimum do not trigger paid web research.',
+      'Answers no longer say they used no tools when they read your inventory.',
+      'The assistant will not call a product best-selling without a sales record to support it.',
+    ],
+  },
+  {
     id: '2026-11-06-assistant-catalogue-update',
     date: '2026-11-06',
     kind: 'improvement',

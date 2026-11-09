@@ -14,7 +14,12 @@ import { readFileSync } from 'node:fs';
 import Product from '../src/models/product.model.ts';
 import Category from '../src/models/category.model.ts';
 import { seedTenant } from '../scripts/seed/lib.mjs';
-import { CATALOG_CATEGORIES, CATALOG_PRODUCTS } from '../scripts/seed/catalog.mjs';
+import {
+  BULK_CATEGORIES,
+  CATALOG_BULK_PRODUCTS,
+  CATALOG_CATEGORIES,
+  CATALOG_PRODUCTS,
+} from '../scripts/seed/catalog.mjs';
 import { DEMO_CATEGORIES, DEMO_PRODUCTS } from '../scripts/demo/fixture.mjs';
 import { startServer, makeApi, createTracker, registerOwner, disconnectDb } from './support.mjs';
 import { dbSuite, unitSuite } from './testEnv.mjs';
@@ -43,6 +48,15 @@ unitSuite('SEED-1 the curated catalogue is real and useful', () => {
     assert.ok(CATALOG_PRODUCTS.length >= 12, `only ${CATALOG_PRODUCTS.length} catalogue products`);
     assert.ok(new Set(CATALOG_PRODUCTS.map((product) => product.brand)).size >= 8, 'too few real brands');
     assert.equal(new Set(CATALOG_PRODUCTS.map((product) => product.category)).size, CATALOG_CATEGORIES.length);
+
+    // The bulk seed deliberately carries a wider, cross-category assortment than the
+    // fixed demo fixture: computer components, home appliances, tools and automotive.
+    assert.ok(CATALOG_BULK_PRODUCTS.length >= 30, `only ${CATALOG_BULK_PRODUCTS.length} bulk products`);
+    assert.ok(new Set(CATALOG_BULK_PRODUCTS.map((product) => product.brand)).size >= 20, 'too few bulk brands');
+    for (const category of BULK_CATEGORIES) {
+      const count = CATALOG_BULK_PRODUCTS.filter((product) => product.category === category.key).length;
+      assert.ok(count >= 6, `${category.name} has only ${count} bulk products`);
+    }
 
     const keys = new Set();
     const names = new Set();
@@ -109,8 +123,8 @@ dbSuite('SEED-1 the bulk seeder writes the curated catalogue', dbOk, () => {
 
     const products = await Product.find({ businessId: owner.businessId }).lean();
     assert.equal(products.length, 23);
-    const names = new Set(CATALOG_PRODUCTS.map((product) => product.name));
-    const categories = new Set(CATALOG_CATEGORIES.map((category) => category.name));
+    const names = new Set(CATALOG_BULK_PRODUCTS.map((product) => product.name));
+    const categories = new Set(BULK_CATEGORIES.map((category) => category.name));
 
     for (const product of products) {
       assert.ok(names.has(product.name), `generated placeholder product ${product.name}`);

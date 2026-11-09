@@ -27,14 +27,14 @@ import Supplier from '../../src/models/supplier.model.ts';
 import User from '../../src/models/user.model.ts';
 import { MAX_BARCODE_ATTEMPTS, internalEan13Candidates } from '../../src/utils/internalBarcode.ts';
 import { SeedSafetyError } from '../perf/lib.mjs';
-import { CATALOG_CATEGORIES, catalogProductAt } from './catalog.mjs';
+import { BULK_CATEGORIES, catalogProductAt } from './catalog.mjs';
 import { assertSeedFirebaseProject } from './guard.mjs';
 
 const LOCATION_NAMES = [
   'Main Warehouse', 'Shop Front', 'Overflow Store', 'Cold Room', 'Returns Bay', 'Transit Hub',
 ];
 const CATEGORY_NAMES = [
-  ...CATALOG_CATEGORIES.map((category) => category.name),
+  ...BULK_CATEGORIES.map((category) => category.name),
   'Beverages', 'Snacks', 'Household', 'Personal Care', 'Stationery', 'Hardware',
   'Electrical', 'Kitchen', 'Pet Supplies', 'Toys', 'Clothing', 'Garden',
   'Automotive', 'Baby', 'Sports', 'Office', 'Cleaning', 'Seasonal',
@@ -1046,7 +1046,7 @@ export async function seedTenant({
     // brand, description and specification for the assistant to read.
     const template = catalogProductAt(i);
     const categoryIndex = CATEGORY_NAMES.indexOf(
-      CATALOG_CATEGORIES.find((category) => category.key === template.category)?.name ?? '',
+      BULK_CATEGORIES.find((category) => category.key === template.category)?.name ?? '',
     );
     const doc = {
       // Pre-generated so the EAN-13 barcode can be derived from the product's own id, exactly

@@ -173,52 +173,6 @@ export function asksForSourceSensitiveQuestion(message: string): boolean {
   return SOURCE_SENSITIVE_INTENT.test(String(message ?? ''));
 }
 
-/**
- * A source lock is a constraint, not a preference. These are the shapes a member uses
- * when they want the answer taken from their own records only; none of them may be
- * overridden by another research-sounding word in the same message.
- */
-const INVENTORY_ONLY_INTENT = new RegExp(
-  [
-    String.raw`\b(?:using|use|from|based\s+on|according\s+to|check(?:ing)?|look(?:ing)?\s+at|search(?:ing)?)\s+only\s+(?:my|our|the)\s+(?:inventory|records?|stock|catalogue|catalog|database|app)\b`,
-    String.raw`\b(?:based|use|using)\s+(?:only|solely|exclusively)\s+on\s+(?:my|our|the)\s+(?:inventory|records?|stock|catalogue|catalog|database|app)\b`,
-    String.raw`\b(?:use|using)\s+only\s+(?:the\s+)?(?:data|information)\s+(?:in|from)\s+(?:my|our|the)\s+(?:inventory|records?|database|app)\b`,
-    String.raw`\b(?:only|solely|exclusively)\s+(?:use|using|from|check|look\s+at|search)\b[^.!?\n]{0,40}\b(?:my|our|the)\s+(?:inventory|records?|stock|catalogue|catalog|database|app)\b`,
-    String.raw`\b(?:only|solely|exclusively)\s+(?:my|our|the)\s+(?:inventory|records?|stock|catalogue|catalog|database|app)\b`,
-    String.raw`\b(?:my|our|the)\s+(?:inventory|records?|stock|catalogue|catalog|database|app)\s+only\b`,
-    String.raw`\b(?:inventory|records?|stock|catalogue|catalog)[- ]only\b`,
-    String.raw`\b(?:do\s+not|don't|dont|never)\s+(?:use|using|search|searching|check|checking|consult|consulting|look\s+up|looking\s+up|access|accessing|browse|browsing)\s+(?:the\s+)?(?:web|internet|online|google)\b`,
-    String.raw`\b(?:do\s+not|don't|dont|never)\s+(?:use|search|check|consult)\s+(?:the\s+)?(?:web|internet|online)\s+(?:prices?|data|sources?|research)\b`,
-    String.raw`\b(?:no|without|ignore|ignoring|excluding)\s+(?:the\s+)?(?:web|internet|online)\s+(?:data|prices?|research|search|sources?)\b`,
-    String.raw`\b(?:without|no)\s+(?:the\s+)?(?:web|internet|online)\b`,
-    String.raw`\b(?:recorded|inventory)\s+(?:data|records?|information)\s+only\b`,
-  ].join('|'),
-  'i',
-);
-
-export function asksForInventoryOnly(message: string): boolean {
-  const text = String(message ?? '');
-  return INVENTORY_ONLY_INTENT.test(text);
-}
-
-/**
- * Price, supplier and review questions are the shapes that were measured using the web
- * while the member was asking about their own business. They are inventory questions by
- * default; public-web research needs an explicit external cue ("online", "market price",
- * a named marketplace, a URL, or "product reviews"). This is intentionally stricter than
- * the old keyword gate: "current price", "supplier" and "quality" no longer opt a turn
- * into a paid web search on their own.
- */
-const SOURCE_SENSITIVE_INTENT =
-  /\b(?:prices?|pricing|costs?|cost\s+price|selling\s+price|charge|cheaper|affordab(?:le|ility)|suppliers?|vendors?|distributors?|wholesalers?|lead\s+times?|moq|minimum\s+order|reviews|ratings?|quality|reliability|well[- ]reviewed|feedback)\b/i;
-
-const EXPLICIT_EXTERNAL_SOURCE =
-  /\b(?:web|internet|online|google|public|external|market(?:place)?|market\s+prices?|market\s+pricing|retail|competitor|elsewhere|shopee|lazada|amazon|ebay|website|web\s*page|webpage)\b|\b(?:product|owner|customer|user|public)\s+reviews?\b|\b(?:search|look\s+up|check|find|fetch|read|browse)\b[^.!?\n]{0,40}\b(?:online|web|internet|site|url|page)\b|https?:\/\//i;
-
-export function asksForSourceSensitiveQuestion(message: string): boolean {
-  return SOURCE_SENSITIVE_INTENT.test(String(message ?? ''));
-}
-
 export function asksForWebResearch(message: string): boolean {
   const text = String(message ?? '');
   if (asksForInventoryOnly(text)) return false;
@@ -232,18 +186,30 @@ export function asksForWebResearch(message: string): boolean {
 /**
  * AI-87 — does this turn deserve the stronger research model?
  *
- * This is broader than the paid-tool gate only for comparisons and buying advice that
- * do not name the web. It is deliberately narrower than `asksForProductAdvice`: "best
- * selling product" is an inventory read, not research, and must stay on the cheaper
- * default. `asksForWebResearch` already covers reviews, market prices, recommendations
- * and explicit research.
+ * This is broader than the paid-tool gate only for product comparisons and buying
+ * advice that do not name the web. It is deliberately narrower than
+ * `asksForProductAdvice`: "best selling product" is an inventory read, not research,
+ * and must stay on the cheaper default. `asksForWebResearch` already covers reviews,
+ * market prices, recommendations and explicit research.
+ *
+ * MEASURED 2026-11-09: "show its available stock versus its minimum" matched the old
+ * `versus` branch and was sent to the research model even though every fact was in the
+ * tenant's own stock rows. A comparison between recorded inventory fields is an
+ * ordinary inventory operation. Only a comparison that is not about those fields — a
+ * product/brand comparison or buying advice — earns the stronger model.
  */
 const RESEARCH_MODEL_INTENT =
-  /\b(?:compare|comparison|versus|vs\.?)\b|\bwhich\b[^?.!]{0,60}\b(?:better|best)\b|\bshould\s+(?:i|we)\s+(?:buy|get|choose)\b/i;
+  /\b(?:compare|comparison)\b|\bwhich\b[^?.!]{0,60}\b(?:better|best)\b|\bshould\s+(?:i|we)\s+(?:buy|get|choose)\b/i;
+const RECORDED_INVENTORY_COMPARISON =
+  /\b(?:stock|inventory|quantit(?:y|ies)|minimum|units?|locations?|categories|suppliers?|prices?|costs?|values?)\b/i;
 
 export function asksForResearchModel(message: string): boolean {
   const text = String(message ?? '');
-  return asksForWebResearch(text) || RESEARCH_MODEL_INTENT.test(text);
+  if (asksForWebResearch(text)) return true;
+  if (!RESEARCH_MODEL_INTENT.test(text)) return false;
+  // "Compare the Sony and Bose headsets" has no recorded-inventory field and is a
+  // product comparison; "compare stock across locations" does, and is not.
+  return !RECORDED_INVENTORY_COMPARISON.test(text);
 }
 
 /**

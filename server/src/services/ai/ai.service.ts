@@ -42,6 +42,9 @@ import {
   lowStockValueAnswer,
   mostExpensiveProductAnswer,
   highestStockValueAnswer,
+  asksForTotalStockValue,
+  replaceFalseToolClaims,
+  stripUnsupportedSalesClaims,
   topOutAnswer,
   brandStockRangeAnswer,
   asksForRestockList,
@@ -59,7 +62,7 @@ import {
   asksForProductsUnderPrice,
   productsUnderPriceAnswer,
 } from './answerCompletion.ts';
-import type { CatalogueFact, TopOutFact } from './answerCompletion.ts';
+import type { CatalogueFact, StockValueSummary, TopOutFact } from './answerCompletion.ts';
 import { locationService } from '../reference.service.ts';
 import { aiConfig } from './aiConfig.ts';
 import {
@@ -431,6 +434,16 @@ export function systemPrompt(
     // know WHY the research tools are absent. This rule is deliberately exclusive of
     // native web: a locked turn never offers either path, so the two rules cannot occur
     // together.
+    // AI-93 — measured on 2026-11-09: the model said it repeated a total "without using any
+    // tools" while the turn log carried getInventorySummary. A member cannot verify the
+    // tool chip against that sentence, and a false process claim corrodes trust in the
+    // figures. The deterministic cleanup below is the backstop; this rule states the
+    // boundary in the prompt as well.
+    '40. Never say or imply that you answered without tools, without checking, or from memory when a tool result is present in this turn. Describe what you read in the member\'s terms — "from your recorded inventory" — rather than narrating tool use or denying it. If you did not read the data, say that instead of presenting a figure.',
+    // AI-94 — the second measured defect of the same pass: a restock answer called ASUS
+    // "best-selling" after reading stock levels only. Sales rankings live in the stock
+    // ledger; a display name or a large quantity is not evidence of units sold.
+    '41. Never call a product "best-selling", "top-selling" or "fastest-moving" unless this turn read a sales or stock-out ranking and that result supports the claim for that exact product. A restock or stock-level read is not sales evidence. When the member asks which product sells best, call getInventoryHistory with type STOCK_OUT (or the sales ranking tool) and answer from `topOut`; if the read does not support a ranking, say so plainly instead of guessing.',
     ...(sourceRestricted
       ? [
           '39. INVENTORY-ONLY SOURCE LOCK: This question must be answered from the business\'s own recorded data only. Do not search the web, fetch a page, call researchInventoryProducts or researchMarketPrices, or use any external price, supplier, review, rating or quality information. You have no supplier or purchase-order tool on this turn. Use inventory tool output for product names, recorded selling prices, currency, stock and movements. If a market price, cost price, supplier term, lead time, external review or quality rating is not in a tool result, say that it is not available from the inventory tools; do not substitute web data or fill the gap from memory. Do not present an external brand or product as a recommendation. This rule supersedes rules 21, 23, 35 and 36.',
@@ -611,6 +624,10 @@ export async function runAiChat({
   let stockOutMovements: number | null = null;
   let reorderTotal = 0;
   let lowStockTotal = 0;
+  // AI-93 — the total and highest-value item are two answers to the same tool read.
+  // Keeping the summary here prevents the finalizer from dropping a total the tool
+  // actually returned when the member asked for both in one question.
+  let stockValueSummary: StockValueSummary | null = null;
   // AI-28 — seeded from the provider's CONFIGURED model, so a turn whose every call failed still
   // names what it was trying. Before this, a provider-side 404 (a withdrawn or broken model,
   // 2026-10-21) produced `model=unknown` on the one line an operator reads to find out which model
@@ -2052,6 +2069,21 @@ export async function runAiChat({
           const fact = factFrom(raw);
           if (fact) productFacts.push(fact);
         }
+        const total = resultRecord?.totalValue;
+        const unpriced = resultRecord?.unpricedProducts;
+        const totals = Array.isArray(resultRecord?.totalsByCurrency)
+          ? (resultRecord.totalsByCurrency as Array<Record<string, unknown>>).map((entry) => ({
+              currency: typeof entry.currency === 'string' ? entry.currency : null,
+              totalValue: typeof entry.totalValue === 'number' ? entry.totalValue : null,
+            }))
+          : [];
+        stockValueSummary = {
+          totalValue: typeof total === 'number' && Number.isFinite(total) ? total : null,
+          currency: typeof resultRecord?.currency === 'string' ? resultRecord.currency : null,
+          mixedCurrency: resultRecord?.mixedCurrency === true,
+          totalsByCurrency: totals,
+          unpricedProducts: typeof unpriced === 'number' && Number.isFinite(unpriced) ? unpriced : 0,
+        };
       } else if (
         name === 'findProducts' ||
         name === 'searchProducts' ||
@@ -2193,7 +2225,11 @@ export async function runAiChat({
     }
   }
   if (!degraded && asksForHighestStockValue(message)) {
-    const computed = highestStockValueAnswer(productFacts, cfg.maxMessageChars);
+    const computed = highestStockValueAnswer(
+      productFacts,
+      cfg.maxMessageChars,
+      asksForTotalStockValue(message) ? (stockValueSummary ?? undefined) : undefined,
+    );
     if (computed) {
       finalText = computed;
       console.warn('[ai] highest stock value computed from the returned rows');
@@ -2278,6 +2314,22 @@ export async function runAiChat({
   // untangle. The prompt asks for the true minimum and maximum; this guard makes any slip
   // read in ascending order before the answer is stored or replayed.
   finalText = normaliseReversedQuantityRange(finalText);
+  // AI-93/AI-94 — deterministic cleanup for two measured process/evidence claims. Both
+  // run only on a grounded answer and only change text when the forbidden claim is present.
+  if (!degraded && toolsUsed.size > 0) {
+    const cleaned = replaceFalseToolClaims(finalText);
+    if (cleaned !== finalText) {
+      console.warn('[ai] removed a false no-tool claim from a grounded answer');
+      finalText = cleaned;
+    }
+  }
+  if (!degraded && !toolsUsed.has('getInventoryHistory')) {
+    const cleaned = stripUnsupportedSalesClaims(finalText);
+    if (cleaned !== finalText) {
+      console.warn('[ai] removed a sales-ranking claim without a sales read');
+      finalText = cleaned;
+    }
+  }
   // AI-76 — a brand-list answer must name every brand its own tool returned.
   if (!degraded && brandRows.length > 0 && asksForBrandList(message)) {
     const names = brandRows.map((row) => row.brand);

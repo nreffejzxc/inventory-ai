@@ -51,9 +51,11 @@ AI_FALLBACK_MODELS_OPENROUTER=nvidia/nemotron-3.5-lightning:free
 ```
 
 The turn is classified once, before any request. Plain inventory questions (stock, locations,
-history, recorded prices, catalogue fields) stay on the 20B model. Product comparisons, market
-pricing, reviews, recommendations, and explicit web research start on the 120B model. A research
-call that fails automatically falls back to the 20B primary, then to
+history, recorded prices, catalogue fields) stay on the 20B model. Product/brand comparisons,
+market pricing, reviews, recommendations, and explicit web research start on the 120B model. A
+comparison of recorded fields — for example, "available stock versus its minimum" — is an ordinary
+inventory read and stays on 20B; the words "compare" and "versus" alone do not buy a research call.
+A research call that fails automatically falls back to the 20B primary, then to
 `AI_FALLBACK_MODELS_OPENROUTER`; the research model is never promoted into the default slot.
 This is one request per round, not a second research run, so it does not duplicate native web
 searches or fetches.

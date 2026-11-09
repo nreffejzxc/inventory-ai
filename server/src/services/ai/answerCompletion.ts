@@ -1218,10 +1218,37 @@ export function mostExpensiveProductAnswer(
   return answer.length <= maxChars ? answer : answer.slice(0, maxChars);
 }
 
+/**
+ * The total `getStockValue` reported, kept beside its highest-value rows.
+ *
+ * A combined question ("what is our total stock value, and which product has the
+ * highest stock value?") was answered by `highestStockValueAnswer` with only the
+ * item. The tool result already carries the total, so losing it was a finalizer
+ * defect rather than a model omission. This shape is deliberately the tool's own
+ * fields, not a second calculation.
+ */
+export interface StockValueSummary {
+  totalValue: number | null;
+  currency?: string | null;
+  mixedCurrency?: boolean;
+  totalsByCurrency?: ReadonlyArray<{ currency?: string | null; totalValue?: number | null }>;
+  unpricedProducts?: number;
+}
+
+/** Does the member want the business (or scoped set)'s total stock value? */
+export function asksForTotalStockValue(question: string): boolean {
+  const text = String(question ?? '');
+  return (
+    /\b(?:total|overall|whole)\b[\s\S]{0,45}\b(?:stock|inventory)\s+value\b/i.test(text) ||
+    /\b(?:stock|inventory)\s+value\b[\s\S]{0,45}\b(?:total|overall|whole)\b/i.test(text)
+  );
+}
+
 /** The product with the greatest recorded quantity × sellingPrice, never a currency guess. */
 export function highestStockValueAnswer(
   rows: readonly CatalogueFact[],
   maxChars: number,
+  summary?: StockValueSummary,
 ): string | null {
   const facts = uniqueFacts(rows)
     .map((row) => {
@@ -1250,8 +1277,82 @@ export function highestStockValueAnswer(
     winners.length === 1
       ? ` (recorded selling price ${money(winners[0]!.price, currency)} × ${new Intl.NumberFormat('en-PH', { maximumFractionDigits: 0 }).format(winners[0]!.quantity)} units on hand)`
       : '';
-  const answer = `The item with the highest stock value is ${names} at ${money(max, currency)}${detail}.`;
+  const itemLine = `The item with the highest stock value is ${names} at ${money(max, currency)}${detail}.`;
+  if (!summary) {
+    return itemLine.length <= maxChars ? itemLine : itemLine.slice(0, maxChars);
+  }
+
+  // A mixed-currency business has no single total; report the tool's per-currency
+  // parts instead of adding numbers in different currencies.
+  let totalLine = '';
+  if (summary.mixedCurrency) {
+    const parts = (summary.totalsByCurrency ?? [])
+      .map((entry) => {
+        const value = finiteNumber(entry?.totalValue);
+        return value === null ? null : money(value, entry?.currency);
+      })
+      .filter((part): part is string => Boolean(part));
+    if (parts.length > 0) totalLine = `Stock value totals by recorded currency: ${parts.join('; ')}.`;
+  } else {
+    const total = finiteNumber(summary.totalValue);
+    if (total !== null) {
+      totalLine = `The total stock value at the recorded selling price is ${money(total, summary.currency)}.`;
+    }
+  }
+  if (!totalLine) {
+    return itemLine.length <= maxChars ? itemLine : itemLine.slice(0, maxChars);
+  }
+
+  const unpriced = finiteNumber(summary.unpricedProducts) ?? 0;
+  const unpricedLine =
+    unpriced > 0
+      ? ` ${unpriced} ${unpriced === 1 ? 'product had' : 'products had'} no recorded price and ${unpriced === 1 ? 'is' : 'are'} excluded.`
+      : '';
+  const answer = `${totalLine} ${itemLine}${unpricedLine}`;
   return answer.length <= maxChars ? answer : answer.slice(0, maxChars);
+}
+
+/**
+ * Remove a claim that the turn used no tools when the execution log proves it did.
+ *
+ * Measured 2026-11-09: the answer said it repeated the total "without using any
+ * tools" while the stored turn carried `toolsUsed: [getInventorySummary]`. The
+ * sentence is not a computation error, but it tells the member the opposite of
+ * what happened and cannot be left in a saved answer. This runs only when at
+ * least one tool actually ran.
+ */
+export function replaceFalseToolClaims(raw: string): string {
+  return String(raw ?? '')
+    .replace(
+      /\b(?:I\s+)?(?:did(?:n't| not)|haven't|have not)\s+(?:need\s+to\s+)?(?:use|used|call|called|run|ran)\s+(?:any\s+)?tools?\b/gi,
+      'I read your recorded inventory',
+    )
+    .replace(
+      /\b(?:without|with\s+no)\s+(?:using|calling|running|use|call|run)?\s*(?:any\s+)?tools?\b/gi,
+      'from your recorded inventory',
+    )
+    .replace(/\bno\s+tools?\s+(?:were|was)\s+(?:needed|used|called)\b/gi, 'your recorded inventory was read');
+}
+
+/**
+ * Remove unsupported sales-ranking wording when this turn did not read the ledger.
+ *
+ * Measured 2026-11-09: a restock-priority answer called the ASUS keyboard the
+ * "best-selling" product. The turn had read only stock levels; ASUS had no
+ * STOCK_OUT movement at all. "Best-selling" is a claim about sales, so it needs a
+ * sales/stock-out read. When one was not made, the phrase is removed rather than
+ * silently left as evidence the turn never had.
+ */
+export function stripUnsupportedSalesClaims(raw: string): string {
+  const text = String(raw ?? '');
+  if (!/\b(?:best|top|fastest)[- ]selling\b/i.test(text)) return text;
+  return text
+    .replace(
+      /\b(?:this|the)\s+(?:high[- ]value,\s*)?(?:best|top|fastest)[- ]selling\s+(?:product|item|sku)\b/gi,
+      'this product',
+    )
+    .replace(/\b(?:high[- ]value,\s*)?(?:best|top|fastest)[- ]selling\s+/gi, '')
+    .replace(/[ \t]{2,}/g, ' ');
 }
 
 /** The top stock-out product, using the exact recorded name returned by the history tool. */
