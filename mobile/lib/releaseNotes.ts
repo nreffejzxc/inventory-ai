@@ -45,6 +45,19 @@ export interface ReleaseNote {
  */
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    id: '2026-11-09-copyable-answer-details',
+    date: '2026-11-09',
+    kind: 'fix',
+    title: 'Cleaner details you can copy',
+    summary:
+      'SKUs stay in the same form as your catalogue, and restock answers no longer begin with stray numbering or a self-correction.',
+    points: [
+      'A product SKU can be copied straight into search with its normal hyphen.',
+      'Restock totals read cleanly, with no leftover model preamble.',
+      'A combined stock-value answer also includes the highest-value product’s SKU.',
+    ],
+  },
+  {
     id: '2026-11-09-assistant-totals-and-evidence',
     date: '2026-11-09',
     kind: 'fix',
