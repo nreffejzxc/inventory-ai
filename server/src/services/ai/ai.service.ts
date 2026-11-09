@@ -46,7 +46,9 @@ import {
   replaceFalseToolClaims,
   stripUnsupportedSalesClaims,
   asksForBestSelling,
+  bestSellingLimitsAnswer,
   replaceRestockCountClaims,
+  stripModelGlitchPreamble,
   topOutAnswer,
   brandStockRangeAnswer,
   asksForRestockList,
@@ -2061,6 +2063,7 @@ export async function runAiChat({
         return {
           id: typeof product.id === 'string' ? product.id : undefined,
           name,
+          sku: typeof product.sku === 'string' && product.sku.trim() ? product.sku.trim() : undefined,
           brand: typeof product.brand === 'string' ? product.brand : null,
           sellingPrice: price,
           currency: typeof product.currency === 'string' ? product.currency : null,
@@ -2286,6 +2289,13 @@ export async function runAiChat({
       console.warn('[ai] top stock-out product computed from the returned rows');
     }
   }
+  if (!degraded && asksForBestSelling(message)) {
+    const computed = bestSellingLimitsAnswer(historyTopOutFacts, cfg.maxMessageChars);
+    if (computed) {
+      finalText = computed;
+      console.warn('[ai] sales limitation and top stock-out computed from the returned rows');
+    }
+  }
   if (!degraded && asksForBrandStockRange(message)) {
     const rangeRows = productFacts.length > 0 ? productFacts : inventoryFacts;
     const computed = brandStockRangeAnswer(rangeRows, message, cfg.maxMessageChars);
@@ -2383,6 +2393,7 @@ export async function runAiChat({
       }
     }
   }
+  finalText = stripModelGlitchPreamble(finalText);
   finalText = truncate(finalText, cfg.maxMessageChars);
   if (!degraded && researchSources.length > 0) {
     finalText = appendMissingSourceUrls(finalText, researchSources);

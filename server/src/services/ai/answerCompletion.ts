@@ -1392,6 +1392,51 @@ export function replaceRestockCountClaims(raw: string, count: number): string {
     );
 }
 
+/**
+ * A sales-ranking question cannot be answered from stock movements alone.
+ *
+ * Measured 2026-11-09: the wording cleanup left the sentence starting "this product"
+ * after removing "best-selling". A deterministic sentence states the limitation and
+ * the movement fact separately, so the member is not given a sales claim or a fragment.
+ */
+export function bestSellingLimitsAnswer(
+  rows: readonly TopOutFact[],
+  maxChars: number,
+): string | null {
+  const facts = rows
+    .map((row) => ({ name: String(row?.name ?? '').trim(), unitsOut: finiteNumber(row?.unitsOut) }))
+    .filter(
+      (row): row is { name: string; unitsOut: number } =>
+        Boolean(row.name) && row.unitsOut !== null && row.unitsOut > 0,
+    )
+    .sort((a, b) => b.unitsOut - a.unitsOut || a.name.localeCompare(b.name));
+  const top = facts[0];
+  if (!top) return null;
+  const units = new Intl.NumberFormat('en-PH', { maximumFractionDigits: 0 }).format(top.unitsOut);
+  const answer =
+    "The inventory records do not contain a sales ranking, so I can't identify a best seller. " +
+    `The product with the most units out is **${top.name}**, with **${units} units** moved out; ` +
+    'stock-outs can include usage, damage or write-offs.';
+  return answer.length <= maxChars ? answer : answer.slice(0, maxChars);
+}
+
+/**
+ * Remove a model's self-correction preamble before the real answer.
+ *
+ * Measured 2026-11-09: a production restock answer began `9 542 MARCNG 3
+ * b110981?` followed by `(Ok, that was a glitch. Here is the correct answer.)`.
+ * The model had already recovered; shipping the discarded noise made the answer
+ * look corrupted. The marker is explicit, so keep what follows it.
+ */
+export function stripModelGlitchPreamble(raw: string): string {
+  const text = String(raw ?? '');
+  const marker = /\(\s*(?:ok(?:ay)?[,.!]?\s*)?(?:that|this)\s+was\s+a\s+glitch[^)]*\)\s*/i;
+  const match = marker.exec(text);
+  if (!match || match.index === undefined) return text;
+  const after = text.slice(match.index + match[0].length).trimStart();
+  return after || text;
+}
+
 /** The top stock-out product, using the exact recorded name returned by the history tool. */
 export function topOutAnswer(rows: readonly TopOutFact[], maxChars: number): string | null {
   const facts = rows
