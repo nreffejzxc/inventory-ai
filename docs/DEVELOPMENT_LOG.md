@@ -143,7 +143,7 @@ fresh run.
 failure, and is not fixed here. The evaluator did not touch production data or the production
 server.
 
-**Delivery.** Branch `docs/ai99-10k-gate-2026-11-10`; evidence
+**Delivery.** PR #204; evidence
 [README](evidence/simple-10k-2026-11-09/README.md). Resource use: two fresh gate runs (50
 requests) and **$0.029593753** provider-paid delta on the corrected run; the first run's delta
 was $0.027882885.
