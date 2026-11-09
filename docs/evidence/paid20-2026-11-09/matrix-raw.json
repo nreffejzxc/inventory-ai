@@ -1,0 +1,424 @@
+{
+  "startedAt": "2026-11-09T20:19:35.815Z",
+  "conversationId": "6af22ae9df2d0cea08b4d596",
+  "results": [
+    {
+      "id": "B1",
+      "lang": "Bisaya",
+      "text": "Pila ka aktibong produkto ang naa nato ug pila ka yunit ang tanan sa stock",
+      "expected": "10,000 active products; 2,446,801 units",
+      "index": 1,
+      "askedAt": "2026-11-09T20:19:36.842Z",
+      "answer": "Naa tay **10,000** ka aktibong produkto, ug ang tanan nga yunit sa stock kay **2,446,801**.",
+      "model": "openai/gpt-oss-20b",
+      "toolsUsed": [
+        "getCatalogOverview",
+        "getInventorySummary"
+      ],
+      "usage": {
+        "inputTokens": 30691,
+        "outputTokens": 331
+      },
+      "degraded": null,
+      "conversationId": "6af22ae9df2d0cea08b4d596",
+      "latencyMs": 17761,
+      "storedPrompt": "Pila ka aktibong produkto ang naa nato ug pila ka yunit ang tanan sa stock",
+      "finishedAt": "2026-11-09T20:19:54.674Z"
+    },
+    {
+      "id": "B2",
+      "lang": "Bisaya",
+      "text": "Pila ka produkto ang ubos na sa stock ug pila ka produkto ang wala nay stock",
+      "expected": "1,535 low; 632 out of stock",
+      "index": 2,
+      "askedAt": "2026-11-09T20:19:55.683Z",
+      "answer": "Mayroon tayong **1,535** na produktong nasa ilalim ng kanilang minimum na stock, at **632** na produktong wala nang natitirang yunit.",
+      "model": "openai/gpt-oss-20b",
+      "toolsUsed": [
+        "getLowStockProducts",
+        "getOutOfStockProducts"
+      ],
+      "usage": {
+        "inputTokens": 39107,
+        "outputTokens": 408
+      },
+      "degraded": null,
+      "conversationId": "6af22ae9df2d0cea08b4d596",
+      "latencyMs": 14063,
+      "storedPrompt": "Pila ka produkto ang ubos na sa stock ug pila ka produkto ang wala nay stock",
+      "finishedAt": "2026-11-09T20:20:09.814Z"
+    },
+    {
+      "id": "B3",
+      "lang": "Bisaya",
+      "text": "Asa nahimutang ang SKU SEEDSKU-5 ug pila ka yunit ang naa sa matag lokasyon",
+      "expected": "Logitech MX Master 3S; Main Warehouse 34",
+      "index": 3,
+      "askedAt": "2026-11-09T20:20:10.823Z",
+      "answer": "Ang SKU **SEEDSKU-5** (Logitech MX Master 3S) anaa ra sa **Main Warehouse** ug naa’y **34** ka yunit sa stock.",
+      "model": "openai/gpt-oss-20b",
+      "toolsUsed": [
+        "getInventory"
+      ],
+      "usage": {
+        "inputTokens": 19806,
+        "outputTokens": 272
+      },
+      "degraded": null,
+      "conversationId": "6af22ae9df2d0cea08b4d596",
+      "latencyMs": 13108,
+      "storedPrompt": "Asa nahimutang ang SKU SEEDSKU-5 ug pila ka yunit ang naa sa matag lokasyon",
+      "finishedAt": "2026-11-09T20:20:23.998Z"
+    },
+    {
+      "id": "B4",
+      "lang": "Bisaya",
+      "text": "Tagpila ang SKU SEEDSKU-0 ug pila ka yunit ang naa",
+      "expected": "Logitech MX Keys S; 6,290; 401 total (Main 200, Shop Front 201)",
+      "index": 4,
+      "askedAt": "2026-11-09T20:20:25.006Z",
+      "answer": "**Logitech MX Keys S (SKU SEEDSKU-0)**  \n- **Price:** PHP 6,290 (currency not recorded)  \n- **Stock by location**  \n  - **Shop Front:** 201 pcs  \n  - **Main Warehouse:** 200 pcs",
+      "model": "openai/gpt-oss-20b",
+      "toolsUsed": [
+        "getProduct"
+      ],
+      "usage": {
+        "inputTokens": 20384,
+        "outputTokens": 162
+      },
+      "degraded": null,
+      "conversationId": "6af22ae9df2d0cea08b4d596",
+      "latencyMs": 14192,
+      "storedPrompt": "Tagpila ang SKU SEEDSKU-0 ug pila ka yunit ang naa",
+      "finishedAt": "2026-11-09T20:20:39.267Z"
+    },
+    {
+      "id": "B5",
+      "lang": "Bisaya",
+      "text": "Pila ka produkto ang naa sa Keyboards and Mice nga kategoriya ug pila ka yunit",
+      "expected": "1,308 products; 320,250 units",
+      "index": 5,
+      "askedAt": "2026-11-09T20:20:40.277Z",
+      "answer": "Sa kategoriya **Keyboards & Mice** naa’y **1,308** ka aktibong produkto, ug ang tanan nga yunit nga naa sa stock kay **320,250**.",
+      "model": "openai/gpt-oss-20b",
+      "toolsUsed": [
+        "getCatalogOverview",
+        "getStockValue"
+      ],
+      "usage": {
+        "inputTokens": 31558,
+        "outputTokens": 670
+      },
+      "degraded": null,
+      "conversationId": "6af22ae9df2d0cea08b4d596",
+      "latencyMs": 18607,
+      "storedPrompt": "Pila ka produkto ang naa sa Keyboards and Mice nga kategoriya ug pila ka yunit",
+      "finishedAt": "2026-11-09T20:20:58.952Z"
+    },
+    {
+      "id": "B6",
+      "lang": "Bisaya",
+      "text": "Pila ka produkto ang naa sa Automotive and Car Care nga kategoriya",
+      "expected": "1,736 products",
+      "index": 6,
+      "askedAt": "2026-11-09T20:21:14.147Z",
+      "answer": "May **1,736** ka aktibong produkto sa kategoriya **Automotive & Car Care**.",
+      "model": "openai/gpt-oss-20b",
+      "toolsUsed": [
+        "getCatalogOverview"
+      ],
+      "usage": {
+        "inputTokens": 20525,
+        "outputTokens": 201
+      },
+      "degraded": null,
+      "conversationId": "6af22ae9df2d0cea08b4d596",
+      "latencyMs": 15296,
+      "storedPrompt": "Pila ka produkto ang naa sa Automotive and Car Care nga kategoriya",
+      "finishedAt": "2026-11-09T20:21:29.512Z"
+    },
+    {
+      "id": "B7",
+      "lang": "Bisaya",
+      "text": "Pangitaa ang online nga presyo sa Samsung Portable SSD T7 Shield 1TB SKU SEEDSKU-9993 ug ibutang ang mga source",
+      "expected": "Online price with source, or explicit unavailable",
+      "index": 7,
+      "askedAt": "2026-11-09T20:21:30.516Z",
+      "answer": "**Presyo nga nakit-an online para sa Samsung Portable SSD T7 Shield 1 TB (SKU SEEDSKU-9993)**  \n\n- PC Express: **₱13,500** — https://pcx.com.ph/products/samsung-1tb-t7-shield-portable-external-solid-state-drive-black  \n- DataBlitz: **₱14,995** — https://ecommerce.datablitz.com.ph/products/samsung-t7-shield-1tb-rugged-portable-ssd-black  \n- ELN Store: **₱11,500** — https://elnstore.com/products/samsung-t7-shield-black-mu-pe1t0s-ww-1tb-portable-ssd-t7-shield-usb-3-2-black  \n- Bluearm PH: **₱8,100** — https://bluearm.ph/products/samsung-t7-shield-1tb-portable-ssd-usb3-2  \n\n**Presyo nga nakarecord sa inyong inventaryo**  \n- **PHP 7,995** (walay gi‑record nga currency code)  \n\nMao kana ang mga online nga presyo nga nakuha nako, uban ang tagsa‑tagsa ka source.\n\nSource URLs:\n- Samsung T7 Shield Portable External SSD - [1TB, 2TB]: <https://gameone.ph/samsung-t7-shield-portable-external-ssd-2tb.html>",
+      "model": "openai/gpt-oss-120b",
+      "toolsUsed": [
+        "findProducts"
+      ],
+      "usage": {
+        "inputTokens": 37955,
+        "outputTokens": 555
+      },
+      "degraded": null,
+      "conversationId": "6af22ae9df2d0cea08b4d596",
+      "latencyMs": 21122,
+      "storedPrompt": "Pangitaa ang online nga presyo sa Samsung Portable SSD T7 Shield 1TB SKU SEEDSKU-9993 ug ibutang ang mga source",
+      "finishedAt": "2026-11-09T20:21:51.709Z"
+    },
+    {
+      "id": "T1",
+      "lang": "Tagalog",
+      "text": "Ilan ang active na produkto natin at ilan ang kabuuang units sa stock",
+      "expected": "10,000 active products; 2,446,801 units",
+      "index": 8,
+      "askedAt": "2026-11-09T20:21:52.722Z",
+      "answer": "Mayroon tayong **10,000** na aktibong produkto, at ang kabuuang bilang ng mga yunit sa stock ay **2,446,801**.",
+      "model": "openai/gpt-oss-20b",
+      "toolsUsed": [
+        "getInventorySummary"
+      ],
+      "usage": {
+        "inputTokens": 21535,
+        "outputTokens": 345
+      },
+      "degraded": null,
+      "conversationId": "6af22ae9df2d0cea08b4d596",
+      "latencyMs": 13635,
+      "storedPrompt": "Ilan ang active na produkto natin at Ilan ang kabuuang units sa stock",
+      "finishedAt": "2026-11-09T20:22:06.426Z"
+    },
+    {
+      "id": "T2",
+      "lang": "Tagalog",
+      "text": "Ilan ang mababa na sa stock at ilan ang out of stock",
+      "expected": "1,535 low; 632 out of stock",
+      "index": 9,
+      "askedAt": "2026-11-09T20:22:07.437Z",
+      "answer": "May **1,535** na produktong nasa ilalim ng minimum stock, at **632** na produktong wala nang natitirang yunit (out‑of‑stock).",
+      "model": "openai/gpt-oss-20b",
+      "toolsUsed": [
+        "getLowStockProducts",
+        "getOutOfStockProducts"
+      ],
+      "usage": {
+        "inputTokens": 41321,
+        "outputTokens": 502
+      },
+      "degraded": null,
+      "conversationId": "6af22ae9df2d0cea08b4d596",
+      "latencyMs": 16865,
+      "storedPrompt": "Ilan ang mababa na sa stock at Ilan ang out of stock",
+      "finishedAt": "2026-11-09T20:22:24.370Z"
+    },
+    {
+      "id": "T3",
+      "lang": "Tagalog",
+      "text": "Magkano ang SKU SEEDSKU-0 at ilan ang stock nito",
+      "expected": "6,290; 401 total (Main 200, Shop Front 201)",
+      "index": 10,
+      "askedAt": "2026-11-09T20:22:25.376Z",
+      "answer": "Ang **SKU SEEDSKU-0** (Logitech MX Keys S) ay nagkakahalaga ng **₱6,290** (walang nakarecord na currency code).  \nAng kabuuang stock nito ay **401** yunit, na nahahati sa:\n\n- **Shop Front:** 201 pcs  \n- **Main Warehouse:** 200 pcs",
+      "model": "openai/gpt-oss-20b",
+      "toolsUsed": [
+        "getProduct"
+      ],
+      "usage": {
+        "inputTokens": 21716,
+        "outputTokens": 328
+      },
+      "degraded": null,
+      "conversationId": "6af22ae9df2d0cea08b4d596",
+      "latencyMs": 13585,
+      "storedPrompt": "Magkano ang SKU SEEDSKU-0 at Ilan ang stock nito",
+      "finishedAt": "2026-11-09T20:22:39.031Z"
+    },
+    {
+      "id": "T4",
+      "lang": "Tagalog",
+      "text": "Magkano ang kabuuang halaga ng Keyboards and Mice category",
+      "expected": "2,444,247,590",
+      "index": 11,
+      "askedAt": "2026-11-09T20:22:49.558Z",
+      "answer": "Ang kabuuang halaga ng mga produktong nasa kategoryang **Keyboards & Mice** ay **2,444,247,590** (wala’y nakarecord na currency code), na kinakatawan ng 1,308 ka aktibong produkto at 320,250 yunit sa stock.",
+      "model": "openai/gpt-oss-20b",
+      "toolsUsed": [
+        "getStockValue"
+      ],
+      "usage": {
+        "inputTokens": 22007,
+        "outputTokens": 314
+      },
+      "degraded": null,
+      "conversationId": "6af22ae9df2d0cea08b4d596",
+      "latencyMs": 13532,
+      "storedPrompt": "Magkano ang kabuuang halaga ng Keyboards and Mice category",
+      "finishedAt": "2026-11-09T20:23:03.148Z"
+    },
+    {
+      "id": "T5",
+      "lang": "Tagalog",
+      "text": "Ihambing ang SKU SEEDSKU-5 at SKU SEEDSKU-51 sa presyo at stock",
+      "expected": "Both 5,490; 34 vs 182 units",
+      "index": 12,
+      "askedAt": "2026-11-09T20:23:04.161Z",
+      "answer": "We have data. Need to compare price and stock.**Logitech MX Master 3S – SKU SEEDSKU-5**  \n- **Selling price:** PHP 5,490  \n- **Total on‑hand stock:** 34 pcs (all at Main Warehouse)\n\n**Logitech MX Master 3S – SKU SEEDSKU-51**  \n- **Selling price:** PHP 5,490  \n- **Total on‑hand stock:** 182 pcs (all at Main Warehouse)\n\nBoth SKUs have the same recorded selling price, but SEEDSKU-51 has far more stock in hand (182 pcs versus 34 pcs).",
+      "model": "openai/gpt-oss-20b",
+      "toolsUsed": [
+        "getProduct"
+      ],
+      "usage": {
+        "inputTokens": 31657,
+        "outputTokens": 525
+      },
+      "degraded": null,
+      "conversationId": "6af22ae9df2d0cea08b4d596",
+      "latencyMs": 15664,
+      "storedPrompt": "Ihambing ang SKU SEEDSKU-5 at SKU SEEDSKU-51 sa presyo at stock",
+      "finishedAt": "2026-11-09T20:23:19.882Z"
+    },
+    {
+      "id": "T6",
+      "lang": "Tagalog",
+      "text": "Anong produkto ang irerekomenda mo para sa maliit na opisina na may budget na 3000",
+      "expected": "Any active in-stock product at or under 3,000; verify name, price and stock",
+      "index": 13,
+      "askedAt": "2026-11-09T20:23:20.891Z",
+      "answer": "**Pagkumpara ng SKU SEEDSKU-5 at SKU SEEDSKU-51**\n\n| Produkto | Presyo (bahaging naitala) | Stock ang Main Warehouse |\n|----------|---------------------------|--------------------------|\n| Logitech MX Master 3S – SEEDSKU-5 | ₱5 490 | 34 pcs |\n| Logitech MX Master 3S – SEEDSKU-51 | ₱5 490 | 182 pcs |\n\nIpinapakita ang parehong presyong ₱5 490, ngunit ang SKU SEEDSKU-51 ay may napakamaraming 18 kopya (182 pcs) na naka‐stock kumpara sa 34 pcs ng SEEDSKU-5.",
+      "model": "openai/gpt-oss-20b",
+      "toolsUsed": [
+        "findProducts",
+        "getProduct"
+      ],
+      "usage": {
+        "inputTokens": 51353,
+        "outputTokens": 896
+      },
+      "degraded": null,
+      "conversationId": "6af22ae9df2d0cea08b4d596",
+      "latencyMs": 25010,
+      "storedPrompt": "Anong produkto ang irerekomenda mo para sa maliit na opisina na may budget na 3000",
+      "finishedAt": "2026-11-09T20:23:45.958Z"
+    },
+    {
+      "id": "T7",
+      "lang": "Tagalog",
+      "text": "Maghanap ng online na presyo ng Samsung Portable SSD T7 Shield 1TB SKU SEEDSKU-9993 at magbigay ng sources",
+      "expected": "Online price with source, or explicit unavailable",
+      "index": 14,
+      "askedAt": "2026-11-09T20:23:46.963Z",
+      "answer": "**Online na presyo ng Samsung Portable SSD T7 Shield 1 TB (SKU SEEDSKU-9993)**  \n\n- **Micro Center (USA)** – $99.99 (promo) – https://www.microcenter.com/product/655913/samsung-t7-shield-1tb-external-ssd-usb-32-gen-2-solid-state-drive-blue?bvstate=pg%3A11%2Fct%3Ar&osfs=true&storeid=181  \n- **Walmart (USA)** – $224.99 – https://www.walmart.com/ip/SAMSUNG-T7-Shield-Portable-External-Solid-State-Drive-USB-3-2-1TB-IP65-Water-Resistant-Compatible-PC-Mac-Android-Gaming-Consoles-MUPE1T0K-AM-Beige/981896539  \n- **Amazon (USA)** – $351.78 – https://www.amazon.com/Samsung-Shield-External-Portable-MU-PE1T0R/dp/B09SB38KMD  \n- **ssd.live (price‑tracker)** – $249.99 (lowest recent price) – https://ssd.live/ssds/samsung-t7-shield-1tb-portable-ssd  \n\n*(All listed prices are in US dollars as shown on the sites.)*\n\nSource URLs:\n- Samsung Samsung T7 Shield 1TB External USB 3.2 Gen 2 • Price »: <https://www.klarna.com/us/shopping/pl/cl36/3378738203/Hard-Drives/Samsung-Samsung-T7-Shield-1TB-External-USB-3.2-Gen-2/>",
+      "model": "openai/gpt-oss-120b",
+      "toolsUsed": [
+        "findProducts"
+      ],
+      "usage": {
+        "inputTokens": 42016,
+        "outputTokens": 718
+      },
+      "degraded": null,
+      "conversationId": "6af22ae9df2d0cea08b4d596",
+      "latencyMs": 17637,
+      "storedPrompt": "Maghanap ng online na presyo ng Samsung Portable SSD T7 Shield 1TB SKU SEEDSKU-9993 at magbigay ng sources",
+      "finishedAt": "2026-11-09T20:24:04.658Z"
+    },
+    {
+      "id": "E1",
+      "lang": "English",
+      "text": "How many brands do we carry, and name three",
+      "expected": "37 brands; any three genuine names",
+      "index": 15,
+      "askedAt": "2026-11-09T20:24:05.675Z",
+      "answer": "May **37** ka brand na ina‑carry ng inyong negosyo, at tatlo sa mga brand na ito ay:\n\n1. **Logitech**  \n2. **ASUS ROG**  \n3. **Samsung**\n\nComplete recorded brand list: Logitech, ASUS ROG, Samsung, Bosch, LG, AMD, Anker, Dell, Elgato, Intel, Keychron, Razer, Royal Kludge, Sony, SteelSeries, ACDelco, Black+Decker, Castrol, Corsair, DeWalt, Denso, Dyson, Irwin, Lufkin, Makita.",
+      "model": "openai/gpt-oss-20b",
+      "toolsUsed": [
+        "listBrands"
+      ],
+      "usage": {
+        "inputTokens": 23864,
+        "outputTokens": 148
+      },
+      "degraded": null,
+      "conversationId": "6af22ae9df2d0cea08b4d596",
+      "latencyMs": 13216,
+      "storedPrompt": "How many brands do we carry, and name three",
+      "finishedAt": "2026-11-09T20:24:18.948Z"
+    },
+    {
+      "id": "E2",
+      "lang": "English",
+      "text": "How many products and units are at Main Warehouse",
+      "expected": "10,000 products; 1,490,818 units",
+      "index": 16,
+      "askedAt": "2026-11-09T20:24:19.956Z",
+      "answer": "At the **Main Warehouse** we have **10,000** distinct products and **1,490,818** units of stock.",
+      "model": "openai/gpt-oss-20b",
+      "toolsUsed": [
+        "getLocationBreakdown"
+      ],
+      "usage": {
+        "inputTokens": 31790,
+        "outputTokens": 302
+      },
+      "degraded": null,
+      "conversationId": "6af22ae9df2d0cea08b4d596",
+      "latencyMs": 14916,
+      "storedPrompt": "How many products and units are at Main Warehouse",
+      "finishedAt": "2026-11-09T20:24:34.928Z"
+    },
+    {
+      "id": "E3",
+      "lang": "English",
+      "text": "How many products need restocking and name three of them",
+      "expected": "1,535 products; any three genuine low/out names",
+      "index": 17,
+      "askedAt": "2026-11-09T20:24:35.930Z",
+      "answer": "At the **Main Warehouse** we have **10,000** distinct products and **1,490,818** units of stock.",
+      "model": "openai/gpt-oss-20b",
+      "toolsUsed": [
+        "getLocationBreakdown"
+      ],
+      "usage": {
+        "inputTokens": 31790,
+        "outputTokens": 302
+      },
+      "degraded": null,
+      "conversationId": "6af22ae9df2d0cea08b4d596",
+      "latencyMs": 10455,
+      "finishedAt": "2026-11-09T20:24:46.443Z"
+    },
+    {
+      "id": "E4",
+      "lang": "English",
+      "text": "Which item has the highest stock value",
+      "expected": "Samsung Bespoke RF29BB8600QL Refrigerator; SEEDSKU-344; 152,181,990",
+      "index": 18,
+      "askedAt": "2026-11-09T20:24:47.450Z",
+      "answer": "1,535 products need restocking; the 3 most urgent are **Anker 737 Power Bank** (out of stock), **SteelSeries Arctis Nova 7** (out of stock), **Turtle Wax Hybrid Solutions Ceramic Spray Coating** (out of stock).",
+      "model": "openai/gpt-oss-20b",
+      "toolsUsed": [
+        "getReorderNeededProducts"
+      ],
+      "usage": {
+        "inputTokens": 24686,
+        "outputTokens": 219
+      },
+      "degraded": null,
+      "conversationId": "6af22ae9df2d0cea08b4d596",
+      "latencyMs": 12876,
+      "finishedAt": "2026-11-09T20:25:00.383Z"
+    },
+    {
+      "id": "E5",
+      "lang": "English",
+      "text": "Show me the five most recent stock movements",
+      "expected": "Five latest movements with names and quantities",
+      "index": 19,
+      "askedAt": "2026-11-09T20:25:01.386Z",
+      "error": "Error: composer text did not match the question",
+      "finishedAt": "2026-11-09T20:25:31.582Z"
+    }
+  ],
+  "creditsBefore": {
+    "total_credits": 10,
+    "total_usage": 1.202738017
+  },
+  "creditsAfter": {
+    "total_credits": 10,
+    "total_usage": 1.245263572
+  },
+  "finishedAt": "2026-11-09T20:25:31.940Z"
+}
