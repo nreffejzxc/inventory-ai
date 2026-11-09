@@ -9,6 +9,7 @@ import { notFound } from '../utils/errors.ts';
 import { AUDIT_ACTIONS, AUDIT_ENTITY_TYPES } from '../constants/audit.ts';
 import { classifyStockStatus } from '../constants/stockStatus.ts';
 import { internalEan13Candidates } from '../utils/internalBarcode.ts';
+import { normaliseLookupText } from '../utils/lookupText.ts';
 
 /**
  * A business/user id as it arrives here: the request layer stringifies it
@@ -133,11 +134,11 @@ function textSearchOr({
   includeDescription,
 }: Pick<ProductListFilters, 'q' | 'terms' | 'exactTerms' | 'includeDescription'>) {
   const values = [q, ...(terms ?? [])]
-    .map((value) => value?.trim())
-    .filter((value): value is string => Boolean(value));
+    .map((value) => normaliseLookupText(value))
+    .filter((value) => Boolean(value));
   const exactValues = (exactTerms ?? [])
-    .map((value) => value?.trim())
-    .filter((value): value is string => Boolean(value));
+    .map((value) => normaliseLookupText(value))
+    .filter((value) => Boolean(value));
   if (values.length === 0 && exactValues.length === 0) return null;
   const fields = includeDescription
     ? (['name', 'brand', 'description', 'specifications', 'sku', 'barcode'] as const)
@@ -520,9 +521,9 @@ export const productService = {
       if (!/^[0-9a-fA-F]{24}$/.test(String(id))) return null;
       by = { _id: id };
     } else if (sku) {
-      by = { sku: String(sku) };
+      by = { sku: normaliseLookupText(sku) };
     } else if (barcode) {
-      by = { barcode: String(barcode) };
+      by = { barcode: normaliseLookupText(barcode) };
     } else {
       return null;
     }
@@ -866,8 +867,9 @@ export const productService = {
     const match: Record<string, unknown> = { businessId: bizOid };
     if (status === 'ACTIVE' || status === 'ARCHIVED') match.status = status;
     if (categoryId) match.categoryId = new ObjectId(categoryId);
-    if (q) {
-      const re = { $regex: escapeRegExp(q), $options: 'i' };
+    const lookup = normaliseLookupText(q);
+    if (lookup) {
+      const re = { $regex: escapeRegExp(lookup), $options: 'i' };
       match.$or = [{ name: re }, { brand: re }, { sku: re }, { barcode: re }];
     }
 

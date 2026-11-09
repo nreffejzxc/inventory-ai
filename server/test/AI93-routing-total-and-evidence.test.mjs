@@ -2,13 +2,17 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
+  asksForBestSelling,
   asksForHighestStockValue,
   asksForTotalStockValue,
   highestStockValueAnswer,
   replaceFalseToolClaims,
+  replaceRestockCountClaims,
   stripUnsupportedSalesClaims,
 } from '../src/services/ai/answerCompletion.ts';
 import { asksForResearchModel } from '../src/services/ai/webCapabilities.ts';
+import { answerSourceUrls, unreturnedSourceUrls } from '../src/services/ai/webResearch.ts';
+import { normaliseLookupText } from '../src/utils/lookupText.ts';
 
 // AI-93/AI-94 — the 2026-11-09 production/development conversation exposed four
 // defects that the configuration alone could not catch:
@@ -24,6 +28,7 @@ test('AI-93: ordinary stock comparisons stay on the default model', () => {
     'Compare the quantities at Main Warehouse and Shop Front.',
     'What is the price of the Sony headset?',
     'Which products are below their minimum?',
+    'Which product is our best-selling product? Use only our records, and do not guess if the data does not support a sales ranking.',
   ]) {
     assert.equal(asksForResearchModel(message), false, message);
   }
@@ -74,6 +79,21 @@ test('AI-93: a combined stock-value answer keeps the tool total and the top item
   );
   assert.match(answer, /1,132,408/);
   assert.match(answer, /239,880/);
+
+  const withSku = highestStockValueAnswer(
+    [
+      {
+        name: 'Samsung Bespoke RF29BB8600QL Refrigerator',
+        sku: 'SEEDSKU-344',
+        sellingPrice: 189990,
+        currency: null,
+        availableQuantity: 801,
+        stockValue: 152181990,
+      },
+    ],
+    2000,
+  );
+  assert.match(withSku, /\(SKU SEEDSKU-344\)/);
 });
 
 test('AI-93: a grounded answer cannot claim no tools were used', () => {
@@ -105,5 +125,47 @@ test('AI-94: unsupported best-selling wording is removed when no sales read occu
   assert.equal(
     stripUnsupportedSalesClaims('The recorded stock level is 0 units.'),
     'The recorded stock level is 0 units.',
+  );
+});
+
+test('AI-95: Unicode SKU punctuation is normalized for lookup', () => {
+  assert.equal(normaliseLookupText('SEEDSKU\u2011964'), 'SEEDSKU-964');
+  assert.equal(normaliseLookupText('SEEDSKU\u2013964'), 'SEEDSKU-964');
+  assert.equal(normaliseLookupText('  SEEDSKU\uFF0D964\u00a0'), 'SEEDSKU-964');
+  assert.equal(normaliseLookupText('SEEDSKU-964'), 'SEEDSKU-964');
+});
+
+test('AI-95: a malformed restock count is replaced, not partially matched', () => {
+  assert.equal(
+    replaceRestockCountClaims('**1,1535 products need restocking; the 5 most urgent are below.**', 1535),
+    '**1,535 products need restocking; the 5 most urgent are below.**',
+  );
+  assert.equal(
+    replaceRestockCountClaims('1535 products are low on stock', 1535),
+    '1,535 products are low on stock',
+  );
+});
+
+test('AI-95: a best-selling label becomes a movement statement', () => {
+  assert.equal(asksForBestSelling('Which product is our best-selling product?'), true);
+  assert.equal(asksForBestSelling('Which products are below their minimum?'), false);
+  assert.equal(
+    stripUnsupportedSalesClaims('**Best\u2011selling (most units out)**\n\nDenso moved 830 units.'),
+    '**Most units out**\n\nDenso moved 830 units.',
+  );
+});
+
+test('AI-96: web citations are checked against the sources the tools returned', () => {
+  const answer =
+    'See [Consumer Reports](https://www.consumerreports.org/a) and <https://www.reviewed.com/b>.';
+  assert.deepEqual(answerSourceUrls(answer), [
+    'https://www.consumerreports.org/a',
+    'https://www.reviewed.com/b',
+  ]);
+  assert.deepEqual(
+    unreturnedSourceUrls(answer, [
+      { title: 'Reviewed', url: 'https://www.reviewed.com/b' },
+    ]),
+    ['https://www.consumerreports.org/a'],
   );
 });
