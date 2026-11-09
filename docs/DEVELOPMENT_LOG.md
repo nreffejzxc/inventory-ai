@@ -134,8 +134,8 @@ seed, verification or cleanup command was executed.
 **Not done.** No phone run, EAS build, OTA or Render deployment has exercised this branch. The next
 phone matrix must re-check B4, T4, T6, B7, T7 and the AI-91/AI-92 cases after merge.
 
-**Delivery.** Branch `docs/seeding-fixture`, PR #193. Unit counts are from the local full unit suite;
-required CI checks have not yet completed for the final head.
+**Delivery.** Branch `docs/seeding-fixture`, PR #193. Counts are from the local unit suite; the PR
+records the required-check status for the final head.
 
 ---
 
