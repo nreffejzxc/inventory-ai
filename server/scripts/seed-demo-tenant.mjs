@@ -5,10 +5,10 @@
 // numbers on screen can be compared with the numbers this command prints.
 //
 // WHY A SEPARATE COMMAND FROM `seed:demo`. That seeder writes tens of thousands of
-// documents for measuring queries and refuses production, which is correct for it
-// and useless for a build that can only reach production. This one writes six
-// products, three locations and nine ledger rows — small enough that every figure
-// is known in advance, and safe enough to run where the build runs.
+// documents for measuring queries; this one writes a small fixed fixture of 14
+// curated products, three locations, 22 stock rows (136 units) and 30 ledger
+// movements — small enough that every figure is known in advance, and safe enough
+// to run where the build runs.
 //
 // SAFETY. The database must be NAMED on the command line and must equal the one
 // `config/env.ts` resolved; the test database is refused; a confirmation phrase is

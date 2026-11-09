@@ -73,6 +73,7 @@ dbSuite('AI-45 natural product discovery', dbOk, () => {
   let coolantId;
   let ssdId;
   let exactCeilingId;
+  let exactDellId;
 
   before(async () => {
     A = await registerOwner(api, tracker);
@@ -150,6 +151,26 @@ dbSuite('AI-45 natural product discovery', dbOk, () => {
     });
     exactCeilingId = exactCeiling.id;
 
+    // A family deep enough to fill a discovery page: the named 10232 is created first,
+    // so it is the OLDEST row and falls outside the newest-first 15-row page.
+    const exactDell = await makeProduct({
+      name: 'Dell UltraSharp U2723QE 10232',
+      brand: 'Dell',
+      sellingPrice: 38990,
+      unit: 'pcs',
+      minimumStock: 0,
+    });
+    exactDellId = exactDell.id;
+    for (let i = 0; i < 18; i += 1) {
+      await makeProduct({
+        name: `Dell UltraSharp U2723QE ${20000 + i * 7}`,
+        brand: 'Dell',
+        sellingPrice: 38990,
+        unit: 'pcs',
+        minimumStock: 0,
+      });
+    }
+
     for (const [productId, quantity] of [
       [oilId, 10],
       [coolantId, 5],
@@ -212,6 +233,21 @@ dbSuite('AI-45 natural product discovery', dbOk, () => {
     assert.equal(result.count, 1);
     assert.equal(result.items[0].id, ssdId);
     assert.equal(result.expandedTerms, true);
+  });
+
+  it('★ an exact product named past a page of variants is returned first', async () => {
+    // The model split the phrase the way B4 did: the family term fills the page with
+    // newer variants, and the numeric suffix is the product the member actually named.
+    const result = await ok(
+      'findProducts',
+      { keywords: 'Dell UltraSharp U2723QE, 10232' },
+      ctxOf(A),
+    );
+    assert.ok(result.count >= 19, `the family should exceed one page, got ${result.count}`);
+    assert.equal(result.items[0].id, exactDellId, 'the named row must lead the page');
+    assert.equal(result.items[0].exactMatch, true);
+    assert.match(result.exactMatchNote, /exactly/i);
+    assert.match(result.partialNote, /Do not say a named product is absent/i);
   });
 
   it('★ a price threshold is a filter, not a literal search phrase', async () => {

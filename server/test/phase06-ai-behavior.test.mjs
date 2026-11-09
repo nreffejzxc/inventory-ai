@@ -102,15 +102,25 @@ dbSuite('Phase 06 — AI chat behavior', dbOk, () => {
 
   it('Q1 "which products are low on stock?" returns the real low-stock set', async () => {
     let turn = 0;
+    // The model reads the rows but answers with only a count; the completion step must add
+    // the products it failed to name. The names come from the tool result, not the test.
+    const toolNames = [];
     setFakeScenario((ctx) => {
       turn += 1;
       if (turn === 1) return fakeCalls([{ id: 'c1', name: 'getLowStockProducts', input: { limit: 50 } }]);
       const res = lastToolResult(ctx);
+      toolNames.push(...(res.result.items || []).map((product) => product.name));
       return fakeText(`You have ${res.result.count} low-stock products.`);
     });
     const res = await chat(biz.token, { message: 'Which products are low on stock?' });
     assert.equal(res.status, 201);
-    assert.equal(res.json.assistantMessage.content, 'You have 2 low-stock products.');
+    const content = res.json.assistantMessage.content;
+    assert.match(content, /^You have 2 low-stock products\./);
+    assert.match(content, /The full low-stock list is: /);
+    assert.equal(toolNames.length, 2);
+    for (const name of toolNames) {
+      assert.ok(content.includes(name), `${name} must be named in the completed answer`);
+    }
     assert.deepEqual(res.json.assistantMessage.toolsUsed, ['getLowStockProducts']);
   });
 

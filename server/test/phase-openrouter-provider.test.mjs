@@ -28,7 +28,11 @@ import { AI_OUTPUT_LIMIT, AiNotConfigured, AiProviderError, AiOutputLimit, AiQuo
 import { createOpenrouterProvider } from '../src/services/ai/providers/openrouterProvider.ts';
 import { providerRequiredEnv, selectProvider } from '../src/services/ai/providers/index.ts';
 import { validateProductionConfig } from '../src/config/validateConfig.ts';
-import { asksForResearchModel, asksForWebResearch } from '../src/services/ai/webCapabilities.ts';
+import {
+  asksForInventoryOnly,
+  asksForResearchModel,
+  asksForWebResearch,
+} from '../src/services/ai/webCapabilities.ts';
 import { AI_TOOL_DEFS } from '../src/services/ai/tools.ts';
 import { runAiChat } from '../src/services/ai/ai.service.ts';
 import { isModelCooling, recordModelFailure, resetModelBreaker } from '../src/services/ai/modelBreaker.ts';
@@ -956,6 +960,12 @@ unitSuite('OpenRouter provider — configurable web tools', () => {
       'How many units are in Main Warehouse?',
       'Review my stock and tell me what is low.',
       'What is the price of the Sony headset?',
+      'What is the current price of the Sony headset?',
+      'Compare our suppliers and their lead times.',
+      'What do reviews say about this product?',
+      'Research the common quality issues with this product.',
+      'Using only my inventory records, what is the price of the Sony headset?',
+      'Do not use web prices. What is the market price of the Sony headset?',
       'Show me out-of-stock products.',
       'Find products for engine oil.',
       'Search our catalogue for keyboards.',
@@ -966,7 +976,8 @@ unitSuite('OpenRouter provider — configurable web tools', () => {
     for (const message of [
       'Search the web for current product prices.',
       'Find product reviews for the Sony headset.',
-      'Evaluate the quality and reliability of this brand.',
+      'What do online reviews say about the Sony headset?',
+      'Compare our suppliers online.',
       'Find product recommendations for a laptop.',
       'What is the market pricing for this headset?',
       'What is the current online price on Shopee?',
@@ -974,6 +985,23 @@ unitSuite('OpenRouter provider — configurable web tools', () => {
       'Research this product.',
     ]) {
       assert.equal(asksForWebResearch(message), true, message);
+    }
+  });
+
+  it('treats an explicit inventory-only source lock as final (AI-88)', () => {
+    for (const message of [
+      'Using only my inventory records, what is the price?',
+      'Use only our records and compare suppliers.',
+      'Do not use web prices; what is the market price?',
+      'Do not use the internet for this answer.',
+      'Answer without checking online prices.',
+      "Don't look online for this review.",
+      'Never use external sources for the price.',
+      'Inventory-only: what do reviews say?',
+      'My records only, please.',
+    ]) {
+      assert.equal(asksForInventoryOnly(message), true, message);
+      assert.equal(asksForWebResearch(message), false, message);
     }
   });
 
@@ -1579,6 +1607,56 @@ unitSuite('OpenRouter provider — AI loop compatibility (DB-free)', () => {
     }
   });
 
+  it('blocks both web paths on an explicit inventory-only price question (AI-88)', async () => {
+    const restores = [
+      ...useOpenrouter(),
+      withEnv('AI_WEB_SEARCH', 'enable'),
+      withEnv('AI_WEB_FETCH', 'enable'),
+    ];
+    try {
+      responder = (_body, turn) =>
+        turn === 1
+          ? okTools([
+              {
+                id: 'r1',
+                name: 'researchMarketPrices',
+                input: { productIds: ['64b000000000000000000010'] },
+              },
+            ])
+          : okText('The recorded selling price is 6,290.');
+
+      const { value } = await captureLogs(() =>
+        runAiChat({
+          ...ctx,
+          message:
+            'Using only my inventory records, what is the price of DEMOSKU-14? Do not use web prices.',
+        }),
+      );
+
+      assert.ok(requests.length >= 2, 'the turn answers after the blocked research call');
+      const firstTools = requests[0].body.tools ?? [];
+      assert.equal(
+        firstTools.some((tool) => tool.name === 'researchMarketPrices'),
+        false,
+        'the local web-priced research tool is not offered',
+      );
+      assert.equal(
+        firstTools.some(
+          (tool) => typeof tool?.type === 'string' && tool.type.startsWith('openrouter:'),
+        ),
+        false,
+        'the native web tools are not offered',
+      );
+      assert.match(requests[0].body.system, /INVENTORY-ONLY SOURCE LOCK/);
+
+      const [blocked] = parsedToolResults(requests[1].body);
+      assert.equal(blocked.reason, 'INVENTORY_ONLY');
+      assert.match(value.content, /6,290/);
+    } finally {
+      restoreAll(restores);
+    }
+  });
+
   it('appends native source URLs when the answer cites only source numbers', async () => {
     const restores = [
       ...useOpenrouter(),
@@ -1676,7 +1754,7 @@ unitSuite('OpenRouter provider — AI loop compatibility (DB-free)', () => {
         fallbackTools.some((tool) => tool.name === 'researchInventoryProducts'),
         'the local research tool is available as the fallback',
       );
-      assert.match(value.content, /could not read that from your records/i);
+      assert.match(value.content, /couldn't verify current online information/i);
     } finally {
       restoreAll(restores);
     }
@@ -1850,9 +1928,21 @@ dbSuite('OpenRouter provider — real full-catalogue workload', dbOk, () => {
       responder = (_body, turn) =>
         turn === 1 ? okTools(allToolCalls()) : okText('Every tool answered.');
       const ctx = { businessId: owner.businessId, userId: owner.userId, role: ROLES.OWNER };
-      const out = await runAiChat({ ...ctx, message: 'Give me a full picture of my inventory' });
+      // AI-88: the read-only research tools are offered only when the member explicitly
+      // asks for an external source, so the all-tools workload must say so; otherwise the
+      // turn is inventory-only and those two tools are correctly withheld.
+      const out = await runAiChat({
+        ...ctx,
+        message: 'Give me a full picture of my inventory and search online for product reviews',
+      });
 
-      assert.equal(out.iterations, 2);
+      // Both research calls target an id that is not in this tenant, so they return
+      // available:false with no source. AI-80 therefore re-asks the unsourced answer
+      // twice and then refuses it — the tools still ran once and every result was fed
+      // back before those re-asks, which is what this test covers.
+      assert.equal(out.iterations, 4);
+      assert.equal(out.degraded, 'UNVERIFIED_RESEARCH');
+      assert.match(out.content, /couldn't verify current online information/i);
       assert.deepEqual([...out.toolsUsed].sort(), [...EXPECTED_TOOLS].sort());
 
       const results = parsedToolResults(requests[1].body);

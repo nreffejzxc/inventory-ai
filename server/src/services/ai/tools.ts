@@ -258,6 +258,99 @@ const SEARCH_DESCRIPTION_NOTE =
   'No product name, recorded brand, SKU or barcode matched the query, so these rows are the ones whose recorded description or specifications contain its words. They are possible matches, not confirmed ones: name the match you relied on and ask before changing stock or price. If the member expected a different item, run findProducts with everyday synonyms before saying the catalogue has nothing.';
 const FIND_NOTE =
   'This is a discovery search, not a quality ranking. It matches the supplied terms against product name, recorded brand, recorded description, recorded specifications, SKU and barcode, and returns available stock. Compare only the recorded brand, specifications, description, price, unit and availability; never call an item best, trusted or suitable for a use unless the row states it. No match means none of these terms are recorded, not that the business cannot stock such a product.';
+
+/**
+ * The terms worth an exact-product follow-up when a discovery page is full of variants.
+ *
+ * A model asking for "Dell UltraSharp U2723QE 10232" may send that phrase, or split it
+ * into "Dell UltraSharp U2723QE, 10232". The ordinary OR search returns every matching
+ * family member, newest first, and the named 10232 can sit beyond the page. The full
+ * phrase and the numeric suffix are the two shapes that identify the row; a bare model
+ * code such as "U2723QE" identifies all 71 variants and is deliberately not used here.
+ */
+function exactProductTerms(requestedTerms: string[], rawKeywords: string): string[] {
+  const candidates: string[] = [];
+  const seen = new Set<string>();
+  const add = (value: string) => {
+    const term = value.replace(/\s+/g, ' ').trim();
+    if (!term || term.length > 100) return;
+    const key = term.toLowerCase();
+    if (seen.has(key)) return;
+    seen.add(key);
+    candidates.push(term);
+  };
+  for (const term of requestedTerms) {
+    add(term);
+    for (const token of term.split(/[^a-z0-9]+/i)) {
+      if (/^\d{4,}$/.test(token)) add(token);
+    }
+  }
+  add(rawKeywords);
+  // Full phrases first: one anchored name query is cheaper than a substring scan.
+  return candidates.sort((a, b) => Number(/\s/.test(b)) - Number(/\s/.test(a))).slice(0, 6);
+}
+
+/** Is this row the product the term names, rather than just another family variant? */
+function isExactProduct(row: ProductDTOSource, term: string): boolean {
+  const target = term.trim().toLowerCase();
+  const name = String(row.name ?? '').replace(/\s+/g, ' ').trim().toLowerCase();
+  const sku = String(row.sku ?? '').trim().toLowerCase();
+  const barcode = String(row.barcode ?? '').trim().toLowerCase();
+  if (!target) return false;
+  if (name === target || sku === target || barcode === target) return true;
+  // A long numeric suffix is an identifier even when the row's name carries a prefix.
+  // A bare model code is not: every variant shares it, so that would re-create the
+  // full-page problem this fallback exists to solve.
+  if (/^\d{4,}$/.test(target)) {
+    return (
+      new RegExp(`(^|[^0-9])${target}([^0-9]|$)`).test(name) ||
+      sku.includes(target) ||
+      barcode.includes(target)
+    );
+  }
+  return false;
+}
+
+/**
+ * Find the exact product a broad discovery page may have pushed past its limit.
+ *
+ * This is the `findProducts` -> `searchProducts` fallback: the exact-name query is the
+ * same anchored name/SKU/barcode read `searchProducts` uses, and a numeric suffix is
+ * then checked with the same q search. Every filter from the discovery call is carried
+ * through, so the fallback cannot surface an archived, out-of-stock or wrong-category row.
+ */
+async function exactProductMatches(
+  ctx: ToolContext,
+  terms: string[],
+  filters: { categoryId?: string; maxSellingPrice?: number; inStockOnly?: boolean; limit: number },
+): Promise<ProductDTOSource[]> {
+  const matches = new Map<string, ProductDTOSource>();
+  for (const term of terms) {
+    const base = {
+      status: 'ACTIVE',
+      categoryId: filters.categoryId,
+      maxSellingPrice: filters.maxSellingPrice,
+      inStockOnly: filters.inStockOnly,
+      withStock: true,
+      skip: 0,
+      limit: filters.limit,
+    };
+    const exact = await productService.list(ctx.businessId, { ...base, exactTerms: [term] });
+    for (const row of exact.items) {
+      if (isExactProduct(row, term)) matches.set(String(row._id), row);
+    }
+    if (matches.size > 0) break;
+    // "10232" is not the whole name; read the same q fields searchProducts reads and
+    // keep only the row whose name/SKU/barcode carries that identifier.
+    const broad = await productService.list(ctx.businessId, { ...base, q: term });
+    for (const row of broad.items) {
+      if (isExactProduct(row, term)) matches.set(String(row._id), row);
+    }
+    if (matches.size > 0) break;
+  }
+  return [...matches.values()].slice(0, filters.limit);
+}
+
 const LIST_DESCRIPTION_MAX = 160;
 const DETAIL_DESCRIPTION_MAX = 500;
 const LIST_SPECIFICATIONS_MAX = 300;
@@ -397,6 +490,22 @@ async function resolveLocation(ctx: ToolContext, args: LocationRef, { required =
 }
 
 /**
+ * "Keyboards and Mice" and "Keyboards & Mice" are the same member-facing category.
+ * A member should not have to reproduce the catalogue's punctuation, and the exact-name
+ * lookup alone cannot bridge the two spellings.
+ */
+function categoryNameAliases(name: string): string[] {
+  const base = name.replace(/\s+/g, ' ').trim();
+  const aliases = new Set([base]);
+  const withAnd = base.replace(/\s*&\s*/g, ' and ').replace(/\s+/g, ' ').trim();
+  const withAmp = base.replace(/\band\b/gi, '&').replace(/\s+/g, ' ').trim();
+  for (const alias of [withAnd, withAmp]) {
+    if (alias && alias.toLowerCase() !== base.toLowerCase()) aliases.add(alias);
+  }
+  return [...aliases];
+}
+
+/**
  * AI-16 — resolve the CATEGORY a tool call refers to, by id OR by exact name.
  *
  * The same defect AI-15 fixed for locations, one tool over: `searchProducts` and
@@ -452,11 +561,45 @@ async function resolveCategory(ctx: ToolContext, args: CategoryRef, { required =
       },
     };
   }
+
+  // The exact spelling missed. Try the member-facing alias ("and" <-> "&") before
+  // telling the model the category does not exist. Every alias is still an anchored,
+  // ACTIVE, business-scoped lookup; aliases are not substrings or guesses.
+  const aliases = categoryNameAliases(name);
+  if (aliases.length > 1) {
+    const matches = new Map<string, { id: string; name: string }>();
+    for (const alias of aliases) {
+      if (alias.toLowerCase() === name.toLowerCase()) continue;
+      const found = await categoryService.list(ctx.businessId, {
+        exactName: alias,
+        status: 'ACTIVE',
+        skip: 0,
+        limit: 2,
+      });
+      for (const row of found.items) {
+        matches.set(String(row.id), { id: String(row.id), name: String(row.name) });
+      }
+    }
+    const [only, ...rest] = [...matches.values()];
+    if (only && rest.length === 0) return { ok: true as const, id: only.id };
+    if (matches.size > 0) {
+      return {
+        ok: false as const,
+        result: {
+          found: false,
+          ambiguous: true,
+          message: `More than one active category matches "${name}" (treating "and" and "&" as the same word). Pass categoryId instead.`,
+          matches: [...matches.values()],
+        },
+      };
+    }
+  }
+
   return {
     ok: false as const,
     result: {
       found: false,
-      message: `No active category is named "${name}". Use listCategories to see the active categories.`,
+      message: `No active category is named "${name}" (treating "and" and "&" as the same word). Use listCategories to see the active categories.`,
     },
   };
 }
@@ -634,7 +777,7 @@ const tools: Tool[] = [
         category: {
           type: 'string',
           maxLength: 100,
-          description: 'Exact name of an ACTIVE category, e.g. "Beverages". Use instead of categoryId when no id is known.',
+          description: 'Exact name of an ACTIVE category, e.g. "Beverages"; "and" and "&" are treated as the same word. Use instead of categoryId when no id is known.',
         },
         limit: limitParam(15, 25),
       },
@@ -690,7 +833,7 @@ const tools: Tool[] = [
   {
     name: 'findProducts',
     description:
-      'Find products for an everyday use, maintenance task or kind of product. Pass several likely words or phrases separated by commas — for example "engine oil, motor oil, 10W-40" — because the recorded name, brand, description or specifications may use a different one. It searches name, recorded brand, recorded description, recorded specifications, SKU and barcode, returns available stock, and can filter to an exact category or to items currently in stock. Use this BEFORE concluding the catalogue has nothing for a request. When nothing matches, the result carries the ACTIVE categories and a stop instruction: answer from that result, do not run another search. This is discovery, not a quality ranking: never call a result best or trusted unless its recorded data says so.',
+      'Find products for an everyday use, maintenance task or kind of product. Pass several likely words or phrases separated by commas — for example "engine oil, motor oil, 10W-40" — because the recorded name, brand, description or specifications may use a different one. It searches name, recorded brand, recorded description, recorded specifications, SKU and barcode, returns available stock, and can filter to an exact category or to items currently in stock. Use this BEFORE concluding the catalogue has nothing for a request. When a broad term fills the page with variants, a product whose name, SKU or barcode exactly matches a supplied term is returned first and marked exactMatch; answer from that row instead of saying the named product is absent. When nothing matches, the result carries the ACTIVE categories and a stop instruction: answer from that result, do not run another search. This is discovery, not a quality ranking: never call a result best or trusted unless its recorded data says so.',
     permission: PERMISSIONS.PRODUCTS_VIEW,
     defaultLimit: 15,
     parameters: {
@@ -707,7 +850,7 @@ const tools: Tool[] = [
         category: {
           type: 'string',
           maxLength: 100,
-          description: 'Exact name of an ACTIVE category, e.g. "Automotive". Use instead of categoryId when no id is known.',
+          description: 'Exact name of an ACTIVE category, e.g. "Automotive"; "and" and "&" are treated as the same word. Use instead of categoryId when no id is known.',
         },
         inStockOnly: { type: 'boolean', description: 'When true, return only products with available stock above zero.' },
         limit: limitParam(15, 25),
@@ -811,6 +954,27 @@ const tools: Tool[] = [
         }
       }
       const { items, total } = result;
+      // A broad phrase such as "Dell UltraSharp U2723QE 10232" can match 71 family
+      // variants, so the named row falls beyond the first page and the model says it is
+      // absent. Before returning a truncated page, run the exact-product fallback the
+      // discovery tool otherwise lacks: the same anchored name/SKU/barcode read that
+      // searchProducts performs, plus the numeric suffix when the model split the phrase.
+      const fallbackTerms = exactProductTerms(requestedTerms, rawKeywords);
+      const exactItems =
+        total > items.length && fallbackTerms.length > 0
+          ? await exactProductMatches(ctx, fallbackTerms, {
+              categoryId: category.id,
+              maxSellingPrice,
+              inStockOnly: args.inStockOnly,
+              limit: pageLimit,
+            })
+          : [];
+      const exactIds = new Set(exactItems.map((row) => String(row._id)));
+      const merged = [
+        ...exactItems,
+        ...items.filter((row) => !exactIds.has(String(row._id))),
+      ].slice(0, pageLimit);
+      const exactFound = exactItems.length > 0;
       // A no-match result is the END of this search, not an invitation to try
       // one-word variants until the six-step budget dies. Return the catalogue’s
       // actual categories in the same payload, so the model can say what does
@@ -819,10 +983,25 @@ const tools: Tool[] = [
         total === 0
           ? await categoryService.list(ctx.businessId, { status: 'ACTIVE', skip: 0, limit: 50 })
           : null;
-      return page(total, items.map(stockCard), {
+      return page(total, merged.map((row) => ({
+        ...stockCard(row),
+        ...(exactIds.has(String(row._id)) ? { exactMatch: true } : {}),
+      })), {
         note: FIND_NOTE,
         terms: searchedTerms,
         ...(expandedTerms ? { expandedTerms: true } : {}),
+        ...(exactFound
+          ? {
+              exactMatchNote:
+                'A row marked exactMatch matches the requested name or identifier exactly. Answer from that row first; do not say the product is absent because the ordinary page showed only variants.',
+            }
+          : {}),
+        ...(total > merged.length
+          ? {
+              partialNote:
+                `This is only ${merged.length} of ${total} matches. Do not say a named product is absent from this page; narrow with its exact name or SKU.`,
+            }
+          : {}),
         ...(maxSellingPrice !== undefined ? { maxSellingPrice } : {}),
         ...(categories
           ? {
@@ -970,7 +1149,7 @@ const tools: Tool[] = [
   {
     name: 'getLowStockProducts',
     description:
-      'Products whose available quantity is at or below their configured minimum stock (availability summed across all locations by default), including products with nothing available. Pass `location`/`locationId` to judge each product against what ONE place holds — use that whenever the member asks what is low AT a named place, because a full store room otherwise hides a selling shelf that has run down. Returns the current page of matching products. For a restock list that flags each item as out-of-stock or low-stock, prefer getReorderNeededProducts.',
+      'ACTIVE products whose available quantity is at or below their configured minimum stock (availability summed across all locations by default), including products with nothing available. Pass `location`/`locationId` to judge each product against what ONE place holds — use that whenever the member asks what is low AT a named place, because a full store room otherwise hides a selling shelf that has run down. `count` is every matching product and `items` is the current page; when `hasMore` is true, say the list is partial and give the total. For a restock list that flags each item as out-of-stock or low-stock, prefer getReorderNeededProducts.',
     permission: PERMISSIONS.INVENTORY_VIEW,
     defaultLimit: 20,
     parameters: {
@@ -990,19 +1169,33 @@ const tools: Tool[] = [
       const location = await resolveLocation(ctx, args, { required: false });
       if (!location.ok) return location.result;
       const { items, total } = await productService.list(ctx.businessId, {
+        // Archived products stay in the catalogue but are not stock the member buys again.
+        // Without this, a low-stock answer counted rows the Restock screen never shows.
+        status: 'ACTIVE',
         lowStock: true,
         locationId: location.id,
         skip: 0,
         limit: Math.min(args.limit ?? 20, 50),
       });
-      return page(total, items.map(stockCard), location.id ? { locationId: location.id } : {});
+      return page(total, items.map(stockCard), {
+        ...(location.id ? { locationId: location.id } : {}),
+        // `hasMore` alone was read past on other lists, so a partial low-stock page says
+        // it is partial in words and carries the true total beside the rows.
+        ...(total > items.length
+          ? {
+              note:
+                `This is only ${items.length} of ${total} low-stock products. Say the list is ` +
+                'partial and give the total; raise `limit` (up to 50) only if the member asks for more.',
+            }
+          : {}),
+      });
     },
   },
 
   {
     name: 'getOutOfStockProducts',
     description:
-      'Products with no available stock (available quantity zero or below, summed across all locations by default). Pass `location`/`locationId` for what is sold out AT one place, which is a different question from what the business has run out of overall. Returns the current page of matching products. Use for "what products are out of stock". For a restock list that also includes low-stock items, prefer getReorderNeededProducts.',
+      'ACTIVE products with no available stock (available quantity zero or below, summed across all locations by default). Pass `location`/`locationId` for what is sold out AT one place, which is a different question from what the business has run out of overall. `count` is every matching product and `items` is the current page; when `hasMore` is true, say the list is partial and give the total. Use for "what products are out of stock". For a restock list that also includes low-stock items, prefer getReorderNeededProducts.',
     permission: PERMISSIONS.INVENTORY_VIEW,
     defaultLimit: 20,
     parameters: {
@@ -1022,12 +1215,24 @@ const tools: Tool[] = [
       const location = await resolveLocation(ctx, args, { required: false });
       if (!location.ok) return location.result;
       const { items, total } = await productService.list(ctx.businessId, {
+        // Archived products are not stock the member acts on; the Restock screen and the
+        // dashboard health counts are ACTIVE-only, so this list must agree with them.
+        status: 'ACTIVE',
         outOfStock: true,
         locationId: location.id,
         skip: 0,
         limit: Math.min(args.limit ?? 20, 50),
       });
-      return page(total, items.map(stockCard), location.id ? { locationId: location.id } : {});
+      return page(total, items.map(stockCard), {
+        ...(location.id ? { locationId: location.id } : {}),
+        ...(total > items.length
+          ? {
+              note:
+                `This is only ${items.length} of ${total} out-of-stock products. Say the list is ` +
+                'partial and give the total; raise `limit` (up to 50) only if the member asks for more.',
+            }
+          : {}),
+      });
     },
   },
 
@@ -1114,9 +1319,11 @@ const tools: Tool[] = [
   {
     name: 'getReorderNeededProducts',
     description:
-      'Products that need restocking: ACTIVE products whose available quantity (summed across all locations) is at or below their configured minimum stock. Each result is flagged stockStatus OUT_OF_STOCK when nothing is available, otherwise LOW_STOCK, and out-of-stock items are listed first. A category may be given as `categoryId` or as the exact `category` name (an ACTIVE category of this business). Use for "what products need restocking", "which products are low in stock or out of stock", "what should I reorder", or "what is running low".',
+      'Products that need restocking: ACTIVE products whose available quantity (summed across all locations) is at or below their configured minimum stock. Each result is flagged stockStatus OUT_OF_STOCK when nothing is available, otherwise LOW_STOCK, and out-of-stock items are listed first. A category may be given as `categoryId` or as the exact `category` name (an ACTIVE category of this business). `count` is every product that needs restocking and `items` is the current page; when `hasMore` is true, say the list is partial and give the total. Use for "what products need restocking", "which products are low in stock or out of stock", "what should I reorder", or "what is running low".',
     permission: PERMISSIONS.INVENTORY_VIEW,
-    defaultLimit: 20,
+    // The page is sized so an ordinary restock list is complete in ONE read. A 20-row
+    // default cut a 47-product answer to 20 and let the model call it the whole list.
+    defaultLimit: 50,
     parameters: {
       type: 'object',
       additionalProperties: false,
@@ -1126,9 +1333,9 @@ const tools: Tool[] = [
         category: {
           type: 'string',
           maxLength: 100,
-          description: 'Exact name of an ACTIVE category, e.g. "Beverages". Use instead of categoryId when no id is known.',
+          description: 'Exact name of an ACTIVE category, e.g. "Beverages"; "and" and "&" are treated as the same word. Use instead of categoryId when no id is known.',
         },
-        limit: limitParam(20, 50),
+        limit: limitParam(50, 50),
       },
     },
     async executor(ctx: ToolContext, args: ReorderArgs) {
@@ -1138,16 +1345,27 @@ const tools: Tool[] = [
         q: args.q,
         categoryId: category.id,
         skip: 0,
-        limit: Math.min(args.limit ?? 20, 50),
+        limit: Math.min(args.limit ?? 50, 50),
       });
-      return page(total, items.map(productService.reorderItemPublic));
+      // The count and the page are separate facts. Without this note a page of 50 read as
+      // the whole list whenever a tenant had more, which is the same false completeness the
+      // low-stock tool now states in words.
+      return page(total, items.map(productService.reorderItemPublic), {
+        ...(total > items.length
+          ? {
+              note:
+                `This is only ${items.length} of ${total} products that need restocking. Say the list ` +
+                'is partial and give the total; raise `limit` (up to 50) only if the member asks for more.',
+            }
+          : {}),
+      });
     },
   },
 
   {
     name: 'getStockValue',
     description:
-      'What the stock is WORTH at the recorded selling price: total value of on-hand stock (available quantity times sellingPrice, summed across locations) across ACTIVE products, the number of products and units counted, and the products with the highest value. Products with no recorded price are reported apart (unpricedProducts, unpricedUnits) and are NOT counted as zero value — say so when they exist. Use for "what is my stock worth", "what is my most valuable stock", "what is tied up in inventory". Narrow it with `location`/`locationId` for one place ("what is Main Warehouse worth", "how much is tied up in the storeroom") or `category`/`categoryId` for one kind of product ("what are our keyboards worth") — the tool then computes that subset itself, so never add up row prices yourself. `scope` echoes the filter that was applied and is null for the whole business. A location-scoped total counts only products actually holding stock there. The value is at the recorded price only, not at cost or market price, and the app records no cost basis or sale revenue.',
+      'What the stock is WORTH at the recorded selling price: total value of on-hand stock (available quantity times sellingPrice, summed across locations) across ACTIVE products, the number of products and units counted, and the products with the highest value. Products with no recorded price are reported apart (unpricedProducts, unpricedUnits) and are NOT counted as zero value — say so when they exist. Use for "what is my stock worth", "what is my most valuable stock", "what is tied up in inventory". Narrow it with `location`/`locationId` for one place ("what is Main Warehouse worth", "how much is tied up in the storeroom") or `category`/`categoryId` for one kind of product ("what are our keyboards worth") — the tool then computes that subset itself, so never add up row prices yourself. `scope` echoes the filter that was applied and is null for the whole business. A location-scoped total counts only products actually holding stock there. The value is at the recorded price only, not at cost or market price, and the app records no cost basis or sale revenue. Values are grouped by the recorded `currency`: when `mixedCurrency` is true, `totalValue` is null and `totalsByCurrency` lists one total per currency — never add or convert them, and report each separately. A null `currency` means none was recorded, so quote the bare number and do not invent a symbol.',
     permission: PERMISSIONS.INVENTORY_VIEW,
     defaultLimit: 10,
     parameters: {
@@ -1165,7 +1383,7 @@ const tools: Tool[] = [
         category: {
           type: 'string',
           maxLength: 100,
-          description: 'Exact name of an ACTIVE category, e.g. "Keyboards". Use instead of categoryId when no id is known.',
+          description: 'Exact name of an ACTIVE category, e.g. "Keyboards"; "and" and "&" are treated as the same word. Use instead of categoryId when no id is known.',
         },
       },
     },
@@ -1524,7 +1742,7 @@ const tools: Tool[] = [
         category: {
           type: 'string',
           maxLength: 100,
-          description: 'Exact name of an ACTIVE category, e.g. "Household". Use instead of categoryId when no id is known.',
+          description: 'Exact name of an ACTIVE category, e.g. "Household"; "and" and "&" are treated as the same word. Use instead of categoryId when no id is known.',
         },
         limit: limitParam(20, 50),
       },

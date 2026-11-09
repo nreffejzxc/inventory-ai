@@ -9,7 +9,7 @@
 // notion of an independent publisher. These cases pin the ranking and the accounting
 // that the next device run depends on, without calling a model or the web.
 
-import { it } from 'node:test';
+import { it, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { unitSuite } from './testEnv.mjs';
@@ -17,9 +17,24 @@ import {
   capResearchSourcesPerHost,
   rankResearchSources,
 } from '../src/services/ai/webResearch.ts';
-import { webToolsUsedFromResponse } from '../src/services/ai/webCapabilities.ts';
-import { systemPrompt } from '../src/services/ai/ai.service.ts';
+import {
+  asksForWebResearch,
+  webToolsUsedFromResponse,
+} from '../src/services/ai/webCapabilities.ts';
+import { runAiChat, systemPrompt } from '../src/services/ai/ai.service.ts';
+import { ROLES } from '../src/constants/roles.ts';
 import { readUsage } from '../src/services/ai/providers/anthropicWire.ts';
+import { registerFakeProvider, setFakeScenario, fakeText } from './fakes/aiProvider.mjs';
+
+process.env.AI_PROVIDER = 'fake';
+process.env.AI_RATE_LIMIT_MAX = '1000';
+process.env.AI_WEB_SEARCH = 'disable';
+process.env.AI_WEB_FETCH = 'disable';
+registerFakeProvider();
+
+afterEach(() => {
+  setFakeScenario(null);
+});
 
 const group = {
   brand: 'Logitech',
@@ -148,5 +163,69 @@ unitSuite('AI-86 native web tools are the primary research path', () => {
     const local = systemPrompt({ nativeWeb: false });
     assert.doesNotMatch(local, /OpenRouter native web search and web fetch are enabled/);
     assert.match(local, /call researchInventoryProducts/);
+  });
+});
+
+unitSuite('AI-80/AI-86 research is multilingual and never invented', () => {
+  it('★ Bisaya and Tagalog research requests reach the research path; inventory prices do not', () => {
+    for (const message of [
+      'Pangitaa ang mga review sa Logitech MX Master 3S 10663 ug ibutang ang mga source',
+      'Maghanap ng online na presyo ng Samsung Portable SSD T7 Shield 1TB 10557 at magbigay ng sources',
+      'Pangitaa ang mga presyo sa Shopee para sa Logitech MX Master 3S',
+    ]) {
+      assert.equal(asksForWebResearch(message), true, message);
+    }
+
+    for (const message of [
+      'Pila ang presyo ng Dell UltraSharp U2723QE 10232?',
+      'Ilan ang presyo ng Dell UltraSharp U2723QE 10232?',
+      'Hanapin ang mga keyboard sa ating catalogue.',
+      'Review my stock and tell me what is low.',
+      'What do reviews say about this product?',
+    ]) {
+      assert.equal(asksForWebResearch(message), false, message);
+    }
+  });
+
+  it('★ a research answer with no web read is refused, not shown', async () => {
+    setFakeScenario(() =>
+      fakeText(
+        'Owner reviews are very positive. The current price is PHP 4,999: https://invented.example/review',
+      ),
+    );
+
+    const result = await runAiChat({
+      businessId: 'b-dummy',
+      userId: 'u-dummy',
+      role: ROLES.OWNER,
+      message:
+        'Pangitaa ang mga review sa Logitech MX Master 3S 10663 ug ibutang ang mga source',
+    });
+
+    assert.equal(result.degraded, 'UNVERIFIED_RESEARCH');
+    assert.match(result.content, /couldn't verify current online information/i);
+    assert.doesNotMatch(result.content, /https?:\/\//);
+    assert.doesNotMatch(result.content, /PHP 4,999/);
+    assert.deepEqual(result.toolsUsed, []);
+  });
+
+  it('★ a research answer backed by a returned source is kept', async () => {
+    setFakeScenario(() =>
+      fakeText('A sourced review says the mouse is comfortable.', {
+        webSources: [{ title: 'Review', url: 'https://example.com/review' }],
+      }),
+    );
+
+    const result = await runAiChat({
+      businessId: 'b-dummy',
+      userId: 'u-dummy',
+      role: ROLES.OWNER,
+      message:
+        'Pangitaa ang mga review sa Logitech MX Master 3S 10663 ug ibutang ang mga source',
+    });
+
+    assert.equal(result.degraded, undefined);
+    assert.match(result.content, /A sourced review/);
+    assert.match(result.content, /https:\/\/example\.com\/review/);
   });
 });

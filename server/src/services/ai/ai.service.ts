@@ -37,21 +37,29 @@ import {
   withCompleteBrandList,
   canonicalBrandListAnswer,
   withCompleteRestockNames,
+  restockThreeAnswer,
+  asksForThreeRestockNames,
   lowStockValueAnswer,
   mostExpensiveProductAnswer,
+  highestStockValueAnswer,
+  topOutAnswer,
   brandStockRangeAnswer,
   asksForRestockList,
   asksForLowStockValue,
   asksForMostExpensive,
+  asksForHighestStockValue,
+  asksForTopOut,
   asksForBrandStockRange,
   asksForLocationTotals,
   locationTotalsAnswer,
+  asksForProductStockByLocation,
+  productStockByLocationAnswer,
   asksForStockOutCount,
   stockOutCountAnswer,
   asksForProductsUnderPrice,
   productsUnderPriceAnswer,
 } from './answerCompletion.ts';
-import type { CatalogueFact } from './answerCompletion.ts';
+import type { CatalogueFact, TopOutFact } from './answerCompletion.ts';
 import { locationService } from '../reference.service.ts';
 import { aiConfig } from './aiConfig.ts';
 import {
@@ -80,7 +88,9 @@ import { activeModel, promoteModel } from './modelSelection.ts';
 import { selectProvider, type ProviderMessage, type ProviderResponse, type ProviderUsage, type ToolDefinition } from './providers/index.ts';
 import { capToolResult } from './toolPayload.ts';
 import {
+  asksForInventoryOnly,
   asksForResearchModel,
+  asksForSourceSensitiveQuestion,
   asksForWebResearch,
   webToolLabel,
   type WebToolName,
@@ -187,7 +197,11 @@ export type DegradedReason = CannedReason | 'OUTPUT_LIMIT';
  * useful half away. It is marked instead, and the mark is drawn as an annotation beside
  * the answer rather than in place of it.
  */
-type CannedReason = 'EMPTY_COMPLETION' | 'ITERATION_LIMIT' | 'UNGROUNDED_ANSWER';
+type CannedReason =
+  | 'EMPTY_COMPLETION'
+  | 'ITERATION_LIMIT'
+  | 'UNGROUNDED_ANSWER'
+  | 'UNVERIFIED_RESEARCH';
 
 /**
  * The canned outcomes, each with the sentence the member reads.
@@ -207,6 +221,11 @@ const DEGRADED: Record<CannedReason, string> = {
   // was measured on the phone as a final answer on 2026-11-05 5:29 PM.
   UNGROUNDED_ANSWER:
     'I could not read that from your records just now. Please ask again — or open the Inventory screen to check it directly.',
+  // AI-80 — an online question answered without a web read is not a finding. The member
+  // must be told the web was not consulted, so an invented price, review or URL cannot
+  // pass as verified research.
+  UNVERIFIED_RESEARCH:
+    "I couldn't verify current online information because web research was not available for this response. I did not use or invent any online prices, reviews, or source URLs; please try again when web research is available.",
 };
 
 interface ChatResult {
@@ -239,7 +258,8 @@ export function systemPrompt(
     timeZone,
     now = new Date(),
     nativeWeb = false,
-  }: { timeZone?: string; now?: Date; nativeWeb?: boolean } = {},
+    sourceRestricted = false,
+  }: { timeZone?: string; now?: Date; nativeWeb?: boolean; sourceRestricted?: boolean } = {},
 ): string {
   const zone = resolveTimeZone(timeZone);
   return [
@@ -349,7 +369,7 @@ export function systemPrompt(
     // stripped whatever the model does; this rule is what keeps the answer readable in the
     // first place, because a stripped tag still leaves the bad shape behind.
     '26. Write in plain text and simple markdown only: never use HTML tags such as <br>, <b> or <p>, because the chat shows them as literal characters. When an answer carries source URLs or several prices, give ONE short line per item — "PC Express: PHP 205,995 — https://…" — rather than a two-column table, and never put a URL inside a table cell, where a phone wraps it to a few characters.',
-    '27. For what stock is worth, the most valuable stock, or what is tied up in inventory, call getStockValue once. Quote its totalValue as value at the recorded selling price, and say how many products had no recorded price (unpricedProducts) and are therefore excluded, rather than adding them up yourself from getInventory.',
+    '27. For what stock is worth, the most valuable stock, or what is tied up in inventory, call getStockValue once. Quote its totalValue as value at the recorded selling price, and say how many products had no recorded price (unpricedProducts) and are therefore excluded, rather than adding them up yourself from getInventory. The value is in the recorded currency: when `mixedCurrency` is true, `totalValue` is null because the catalogue holds more than one currency, so report each entry of `totalsByCurrency` separately with its own code and never add or convert them. When a row\'s `currency` is null, quote the bare number and do not invent a symbol.',
     // AI-58. Measured on the device 2026-11-05: asked what the stock was worth, the model
     // answered from getInventory rows, which carried no price at all, and invented one per
     // product (PHP 45,000 for a product recorded at PHP 139,995). The rows now carry the
@@ -407,15 +427,19 @@ export function systemPrompt(
     // language they think in; an English reply is not a translation of the answer,
     // and Tagalog is not a substitute for Bisaya.
     '38. Reply in the language of the member\'s latest message: English for English, Tagalog/Filipino for Tagalog, and Bisaya/Cebuano for Bisaya. These are different languages: never answer a Bisaya question in Tagalog or a Tagalog question in Bisaya. Do not switch to English because tool results, product names, field labels or the rest of the app are in English; translate the answer, but keep product names, SKUs, codes, numbers, URLs and necessary technical terms exactly as recorded.',
-    // AI-86 — when both native OpenRouter web tools are enabled they are the PRIMARY
-    // research path. Rules 21, 23 and 35 still describe the local research tools, so
-    // this rule must explicitly supersede them; without it the model keeps reaching
-    // for tools it was told to prefer even though they are not offered.
-    ...(nativeWeb
+    // AI-88 — a source lock is enforced by the tool table, but the model also needs to
+    // know WHY the research tools are absent. This rule is deliberately exclusive of
+    // native web: a locked turn never offers either path, so the two rules cannot occur
+    // together.
+    ...(sourceRestricted
       ? [
-          '39. OpenRouter native web search and web fetch are enabled for this deployment. For any public-web research, use those native tools directly; do NOT call researchInventoryProducts or researchMarketPrices, because they are not offered while both native tools are available. Rules 21, 23 and 35 are superseded for this turn. First identify the recorded product with findProducts. Then use web search for evidence and web fetch to read the specific source page. Never run the same search twice or fetch the same URL twice in one turn. Answer only from what the native tools returned, cite every source URL exactly, and state the retrieval date for prices. Quote a price only when it appears on a fetched page or in a search result, keep the recorded selling price separate, never convert currency, and never add a product or brand the business does not stock. If the native tools return an error or no usable source, say plainly that the web research is unavailable instead of filling the gap from memory.',
+          '39. INVENTORY-ONLY SOURCE LOCK: This question must be answered from the business\'s own recorded data only. Do not search the web, fetch a page, call researchInventoryProducts or researchMarketPrices, or use any external price, supplier, review, rating or quality information. You have no supplier or purchase-order tool on this turn. Use inventory tool output for product names, recorded selling prices, currency, stock and movements. If a market price, cost price, supplier term, lead time, external review or quality rating is not in a tool result, say that it is not available from the inventory tools; do not substitute web data or fill the gap from memory. Do not present an external brand or product as a recommendation. This rule supersedes rules 21, 23, 35 and 36.',
         ]
-      : []),
+      : nativeWeb
+        ? [
+            '39. OpenRouter native web search and web fetch are enabled for this deployment. For any public-web research, use those native tools directly; do NOT call researchInventoryProducts or researchMarketPrices, because they are not offered while both native tools are available. Rules 21, 23 and 35 are superseded for this turn. First identify the recorded product with findProducts. Then use web search for evidence and web fetch to read the specific source page. Never run the same search twice or fetch the same URL twice in one turn. Answer only from what the native tools returned, cite every source URL exactly, and state the retrieval date for prices. Quote a price only when it appears on a fetched page or in a search result, keep the recorded selling price separate, never convert currency, and never add a product or brand the business does not stock. If the native tools return an error or no usable source, say plainly that the web research is unavailable instead of filling the gap from memory.',
+          ]
+        : []),
   ].join('\n');
 }
 
@@ -522,23 +546,31 @@ export async function runAiChat({
   // Resolved once per turn: the prompt and every tool row in this turn must use
   // the same zone, and a turn's 60 s budget cannot span enough time to matter.
   const timeZone = resolveTimeZone(requestedTimeZone);
-  let prompt = systemPrompt({ timeZone, nativeWeb: cfg.nativeWebPrimary });
+  // AI-88 — decide the source boundary BEFORE the prompt or any tool list is built.
+  // A price, supplier or review question is inventory-only unless the member explicitly
+  // asks for an external source; an explicit "only my records" constraint is absolute.
+  const inventoryOnly = asksForInventoryOnly(message);
+  const webResearchIntent = asksForWebResearch(message);
+  const sourceRestricted =
+    inventoryOnly || (!webResearchIntent && asksForSourceSensitiveQuestion(message));
+  let prompt = systemPrompt({
+    timeZone,
+    nativeWeb: cfg.nativeWebPrimary && webResearchIntent,
+    sourceRestricted,
+  });
   const provider = selectProvider();
 
   const messages: ProviderMessage[] = history
     .slice(-cfg.contextMessages)
     .map((m) => ({ role: m.role === 'assistant' ? 'assistant' : 'user', content: m.content }));
   messages.push({ role: 'user', content: message });
-  // AI-86 — decide once, from the member's actual question. The paid OpenRouter web
-  // server tools are offered only when that question asks for public-web research;
-  // a normal inventory question keeps them out of every candidate request, including
-  // failover attempts. The model still chooses whether to call an offered tool.
-  const webResearchIntent = asksForWebResearch(message);
-  // AI-86 — native OpenRouter web tools are PRIMARY whenever both switches are on
-  // and the deployed provider is OpenRouter. The local research tools are withheld
-  // in that mode, so the model cannot quietly use the slower fallback while the
-  // native capabilities are available. They come back only after a native refusal.
-  let nativeWebActive = cfg.nativeWebPrimary;
+  // AI-86 — `webResearchIntent` is decided once from the member's actual question.
+  // AI-88 — it is also false for a source-locked or unqualified price/supplier/review
+  // question, so neither the paid native path nor the local research fallback can run.
+  // Native OpenRouter web tools remain PRIMARY when both switches are on and the turn
+  // genuinely asks for public-web research. The local research tools are withheld in
+  // that mode and come back only after a native refusal.
+  let nativeWebActive = cfg.nativeWebPrimary && webResearchIntent;
   let nativeWebFallbackTried = false;
   let nativeResearchToolBlocked = false;
   const nativeWebToolsUsed = new Set<WebToolName>();
@@ -546,6 +578,18 @@ export async function runAiChat({
   const toolDefsWithNativeWeb = AI_TOOL_DEFS.filter(
     (tool) => !localResearchToolNames.has(tool.name),
   ) as ToolDefinition[];
+  // AI-88 — without an explicit public-web request, the research tools are not offered
+  // at all. They are web reads (inventory-bound, but still network research), so a locked
+  // turn must not be able to reach them on a model's second attempt either.
+  const toolDefsWithoutLocalResearch = AI_TOOL_DEFS.filter(
+    (tool) => !localResearchToolNames.has(tool.name),
+  ) as ToolDefinition[];
+  const toolsForTurn = (): ToolDefinition[] =>
+    webResearchIntent
+      ? nativeWebActive
+        ? toolDefsWithNativeWeb
+        : (AI_TOOL_DEFS as ToolDefinition[])
+      : toolDefsWithoutLocalResearch;
 
   let finalText: string | null = null;
   const toolsUsed = new Set<string>();
@@ -561,10 +605,12 @@ export async function runAiChat({
   const inventoryFacts: CatalogueFact[] = [];
   const lowStockFacts: CatalogueFact[] = [];
   const reorderFacts: CatalogueFact[] = [];
+  const historyTopOutFacts: TopOutFact[] = [];
   const locationFacts: CatalogueFact[] = [];
   let locationPageComplete = false;
   let stockOutMovements: number | null = null;
   let reorderTotal = 0;
+  let lowStockTotal = 0;
   // AI-28 — seeded from the provider's CONFIGURED model, so a turn whose every call failed still
   // names what it was trying. Before this, a provider-side 404 (a withdrawn or broken model,
   // 2026-10-21) produced `model=unknown` on the one line an operator reads to find out which model
@@ -981,7 +1027,7 @@ export async function runAiChat({
           // AI-50 — the final round withholds the tools so the model has to answer from what
           // it already gathered instead of spending the last step on another search.
           ...(allowTools
-            ? { tools: (nativeWebActive ? toolDefsWithNativeWeb : (AI_TOOL_DEFS as ToolDefinition[])) }
+            ? { tools: toolsForTurn() }
             : {}),
           timeoutMs: budget,
           signal,
@@ -1251,7 +1297,7 @@ export async function runAiChat({
       ) {
         nativeWebFallbackTried = true;
         nativeWebActive = false;
-        prompt = systemPrompt({ timeZone, nativeWeb: false });
+        prompt = systemPrompt({ timeZone, nativeWeb: false, sourceRestricted });
         console.warn(
           `[ai] native web tools were refused (status=${err.status}) — retrying with the local research tools`,
         );
@@ -1586,6 +1632,7 @@ export async function runAiChat({
         if (
           toolRuns === 0 &&
           nativeWebToolsUsed.size === 0 &&
+          !webResearchIntent &&
           answeredFromMemory &&
           asksForProductAdvice(message)
         ) {
@@ -1603,19 +1650,19 @@ export async function runAiChat({
         // calling either research tool; that is a false capability statement, not a
         // finding. Re-ask with the exact research path, then refuse the claim if it
         // still arrives without a research read.
-        const researchTools = ['researchInventoryProducts', 'researchMarketPrices'];
-        const nativeResearchRead = nativeWebToolsUsed.size > 0;
-        const answeredResearchWithoutRead =
-          webResearchIntent &&
-          !researchTools.some((tool) => toolsUsed.has(tool)) &&
-          !nativeResearchRead;
+        const researchReadSucceeded =
+          researchSources.length > 0 || nativeWebToolsUsed.size > 0;
+        const answeredResearchWithoutRead = webResearchIntent && !researchReadSucceeded;
         if (
           answeredResearchWithoutRead &&
           !isAnswerRound &&
           groundingRetries < MAX_GROUNDING_RETRIES
         ) {
           groundingRetries += 1;
-          const priceQuestion = /\b(?:prices?|charge|costs?|marketplace|shopee|lazada|amazon)\b/i.test(message);
+          const priceQuestion =
+            /\b(?:prices?|charge|costs?|marketplace|shopee|lazada|amazon|presyo|presyuhan|magkano)\b/i.test(
+              message,
+            );
           const researchTool = priceQuestion ? 'researchMarketPrices' : 'researchInventoryProducts';
           const useNativeNow = nativeWebActive && groundingRetries === 1;
           if (nativeWebActive && !useNativeNow) {
@@ -1624,7 +1671,7 @@ export async function runAiChat({
             // prompt and the offered tools together, so the fallback is one path.
             nativeWebActive = false;
             nativeWebFallbackTried = true;
-            prompt = systemPrompt({ timeZone, nativeWeb: false });
+            prompt = systemPrompt({ timeZone, nativeWeb: false, sourceRestricted });
             console.warn(
               '[ai] native web tools did not run — falling back to the local research tools',
             );
@@ -1655,8 +1702,8 @@ export async function runAiChat({
           continue;
         }
         if (answeredResearchWithoutRead) {
-          degraded = 'UNGROUNDED_ANSWER';
-          finalText = DEGRADED.UNGROUNDED_ANSWER;
+          degraded = 'UNVERIFIED_RESEARCH';
+          finalText = DEGRADED.UNVERIFIED_RESEARCH;
           break;
         }
         // AI-70 — a revenue figure is never presented as recorded fact.
@@ -1757,6 +1804,28 @@ export async function runAiChat({
     for (let i = 0; i < calls.length; i += 1) {
       const call = calls[i];
       const name = String(call?.name ?? '');
+      // AI-88 — a model can name a tool that is not offered. A research tool is a web
+      // read even when it is inventory-bound, so a turn without explicit public-web
+      // intent must not run it on a retry. Refuse it as data and keep the turn grounded.
+      if (localResearchToolNames.has(name) && !webResearchIntent) {
+        console.warn(
+          `[ai] blocked ${name} — no explicit public-web research intent on an inventory-only turn`,
+        );
+        messages.push({
+          role: 'tool',
+          name,
+          toolCallId: String(call?.id ?? `call-${i + 1}`),
+          content: JSON.stringify({
+            available: false,
+            reason: 'INVENTORY_ONLY',
+            note:
+              'This turn is restricted to the business inventory records. The web research tool was not run. ' +
+              'Answer from inventory tool results; if the requested external fact is not recorded, say it is unavailable. ' +
+              'Do not use or describe web data.',
+          }),
+        });
+        continue;
+      }
       // AI-86 — a model can name a tool that is no longer offered. While the native
       // web tools are primary, running the local research tool would silently spend
       // the fallback path (and duplicate the research) behind the member's back.
@@ -1785,7 +1854,7 @@ export async function runAiChat({
         }
         nativeWebActive = false;
         nativeWebFallbackTried = true;
-        prompt = systemPrompt({ timeZone, nativeWeb: false });
+        prompt = systemPrompt({ timeZone, nativeWeb: false, sourceRestricted });
         console.warn(
           '[ai] native web tools were not used — falling back to the local research tools',
         );
@@ -1919,6 +1988,10 @@ export async function runAiChat({
           record.product && typeof record.product === 'object'
             ? (record.product as Record<string, unknown>)
             : record;
+        const location =
+          record.location && typeof record.location === 'object'
+            ? (record.location as Record<string, unknown>)
+            : null;
         const name = typeof product.name === 'string' ? product.name.trim() : '';
         if (!name) return null;
         const price = typeof product.sellingPrice === 'number' ? product.sellingPrice : null;
@@ -1929,18 +2002,44 @@ export async function runAiChat({
           name,
           brand: typeof product.brand === 'string' ? product.brand : null,
           sellingPrice: price,
+          currency: typeof product.currency === 'string' ? product.currency : null,
           availableQuantity: directQuantity ?? productQuantity,
+          locationName:
+            typeof location?.name === 'string' && location.name.trim()
+              ? location.name.trim()
+              : null,
+          stockValue: typeof record.value === 'number' ? record.value : null,
         };
       };
       if (name === 'getInventoryHistory') {
         const count = Number(resultRecord?.stockOutMovements);
         if (Number.isFinite(count) && count >= 0) stockOutMovements = count;
+        // Keep the exact names the history tool already ranked, so a follow-up or a ranking
+        // answer cannot substitute a different SKU that happens to share the same model name.
+        historyTopOutFacts.length = 0;
+        const topOut = Array.isArray(resultRecord?.topOut) ? (resultRecord.topOut as unknown[]) : [];
+        for (const raw of topOut) {
+          if (!raw || typeof raw !== 'object') continue;
+          const row = raw as Record<string, unknown>;
+          const productName = typeof row.product === 'string' ? row.product.trim() : '';
+          const unitsOut = Number(row.unitsOut);
+          if (!productName || !Number.isFinite(unitsOut) || unitsOut <= 0) continue;
+          historyTopOutFacts.push({ name: productName, unitsOut });
+        }
       }
       if (name === 'getProductsByLocation') {
         // Keep only the last location page: a complete page is the only one whose rows
         // can prove a product/unit total for the location the member asked about.
         locationFacts.length = 0;
         locationPageComplete = resultRecord?.hasMore === false;
+      }
+      if (name === 'getLowStockProducts') {
+        // Keep only the last low-stock page. A business-wide page and a location-scoped
+        // page are two different scopes, so appending both would count a product twice
+        // and measure one page against the other page's total.
+        lowStockFacts.length = 0;
+        const total = Number(resultRecord?.count);
+        lowStockTotal = Number.isFinite(total) && total >= 0 ? total : 0;
       }
       if (name === 'getInventory') {
         for (const raw of resultItems) {
@@ -1963,8 +2062,11 @@ export async function runAiChat({
         name === 'getReorderNeededProducts'
       ) {
         if (name === 'getReorderNeededProducts') {
+          // Same per-scope rule as the low-stock rows above: the last page and its total
+          // are the only pair that describe the same read.
+          reorderFacts.length = 0;
           const total = Number(resultRecord?.count);
-          if (Number.isFinite(total) && total >= 0) reorderTotal = total;
+          reorderTotal = Number.isFinite(total) && total >= 0 ? total : 0;
         }
         for (const raw of resultItems) {
           const fact = factFrom(raw);
@@ -2033,16 +2135,22 @@ export async function runAiChat({
     finalText = DEGRADED[degraded];
   }
   // Deterministic finalizers for the row-shaped answers the model is least reliable at:
-  // a restock list, a low-stock subtotal, the maximum price, and a product-level range.
-  // They only use rows returned in this turn; when the rows cannot support the answer they
-  // leave the model's text alone. A computed low-stock answer is allowed to rescue an
-  // OUTPUT_LIMIT turn because the value is already known from the rows.
+  // a restock list, a low-stock subtotal, the maximum price, the highest stock value, the
+  // top stock-out product, and a product-level range. They only use rows returned in this
+  // turn; when the rows cannot support the answer they leave the model's text alone. A
+  // computed low-stock answer is allowed to rescue an OUTPUT_LIMIT turn because the value
+  // is already known from the rows.
   if (asksForLowStockValue(message)) {
     // A restock read also returns the low-stock rows. Treating only the dedicated
     // low-stock tool as evidence made the same rows answer PHP 72,460 instead of the
     // five-row subtotal, so use whichever complete set this turn actually read.
-    const lowStockRows = lowStockFacts.length > 0 ? lowStockFacts : reorderFacts;
-    const computed = lowStockValueAnswer(lowStockRows, cfg.maxMessageChars);
+    const fromRestock = lowStockFacts.length === 0 && reorderFacts.length > 0;
+    const lowStockRows = fromRestock ? reorderFacts : lowStockFacts;
+    const lowStockRowsTotal = fromRestock ? reorderTotal : lowStockTotal;
+    // A page shorter than the read's own count is partial: its subtotal cannot be called
+    // the total of the low-stock set. Same rule as the restock list finalizer.
+    const complete = lowStockRowsTotal <= 0 || lowStockRows.length >= lowStockRowsTotal;
+    const computed = lowStockValueAnswer(lowStockRows, cfg.maxMessageChars, { complete });
     if (computed) {
       finalText = computed;
       degraded = null;
@@ -2054,6 +2162,13 @@ export async function runAiChat({
     if (computed) {
       finalText = computed;
       console.warn('[ai] location product/unit total computed from the complete page');
+    }
+  }
+  if (!degraded && asksForProductStockByLocation(message)) {
+    const computed = productStockByLocationAnswer(inventoryFacts, message, cfg.maxMessageChars);
+    if (computed) {
+      finalText = computed;
+      console.warn('[ai] product stock by location computed from the returned rows');
     }
   }
   if (!degraded && stockOutMovements !== null && asksForStockOutCount(message)) {
@@ -2077,6 +2192,20 @@ export async function runAiChat({
       console.warn('[ai] maximum recorded price computed from the returned rows');
     }
   }
+  if (!degraded && asksForHighestStockValue(message)) {
+    const computed = highestStockValueAnswer(productFacts, cfg.maxMessageChars);
+    if (computed) {
+      finalText = computed;
+      console.warn('[ai] highest stock value computed from the returned rows');
+    }
+  }
+  if (!degraded && asksForTopOut(message)) {
+    const computed = topOutAnswer(historyTopOutFacts, cfg.maxMessageChars);
+    if (computed) {
+      finalText = computed;
+      console.warn('[ai] top stock-out product computed from the returned rows');
+    }
+  }
   if (!degraded && asksForBrandStockRange(message)) {
     const rangeRows = productFacts.length > 0 ? productFacts : inventoryFacts;
     const computed = brandStockRangeAnswer(rangeRows, message, cfg.maxMessageChars);
@@ -2086,13 +2215,36 @@ export async function runAiChat({
     }
   }
   if (!degraded && asksForRestockList(message)) {
-    let completed = withCompleteRestockNames(finalText, reorderFacts, cfg.maxMessageChars);
-    if (reorderFacts.length > 0) {
-      const count = reorderTotal > 0 ? reorderTotal : reorderFacts.length;
-      completed = completed.replace(
-        /\b\d+\s+products? need restocking\b/i,
-        `${count} products need restocking`,
-      );
+    // The restock tool is the direct answer (it flags each row), but a plain "what is low on
+    // stock" turn reads getLowStockProducts instead. Use whichever rows this turn actually
+    // returned, together with that read's own total.
+    const fromRestock = reorderFacts.length > 0;
+    const rows = fromRestock ? reorderFacts : lowStockFacts;
+    const total = fromRestock ? reorderTotal : lowStockTotal;
+    const count = total > 0 ? total : rows.length;
+    // `page()` counts every product the filters matched, so a shorter row set is a partial
+    // page. Naming those rows "the full list" would be the false-completeness failure this
+    // finalizer exists to prevent, so a partial page is left to the model and its total.
+    const complete = rows.length >= count;
+    let completed = finalText;
+    if (fromRestock && asksForThreeRestockNames(message)) {
+      const exact = restockThreeAnswer(rows, count, cfg.maxMessageChars);
+      if (exact) {
+        completed = exact;
+        console.warn('[ai] exact restock names taken from the returned rows');
+      }
+    }
+    completed = withCompleteRestockNames(completed, rows, cfg.maxMessageChars, {
+      label: fromRestock ? 'restock' : 'low-stock',
+      complete,
+    });
+    if (rows.length > 0) {
+      completed = completed
+        .replace(/\b\d+\s+products? need restocking\b/i, `${count} products need restocking`)
+        .replace(
+          /\b\d+\s+(?:products?|items?)\s+(?:are\s+)?(?:low(?:\s+on)?\s+stock|running low)\b/i,
+          `${count} ${count === 1 ? 'product is' : 'products are'} low on stock`,
+        );
     }
     if (completed !== finalText) {
       finalText = completed;

@@ -60,8 +60,9 @@ reference), [README.md](../../README.md) (project front door),
 [docs/DEVELOPMENT_ROADMAP.md](../DEVELOPMENT_ROADMAP.md) (what shipped, with evidence) and
 [docs/AUTH_SECURITY_MASTER_CHECKLIST.md](../AUTH_SECURITY_MASTER_CHECKLIST.md) (security record).
 
-CLAUDE.md and the roadmap are **records**: dated, long because each entry carries its evidence, and
-append-only — a later entry supersedes an earlier one rather than editing it. Nothing in them is
-protected by a checksum, and the five protected *paths* are listed in the security checklist §8.
+The roadmap is a **record**: dated, long because each entry carries its evidence, and append-only — a
+later entry supersedes an earlier one rather than editing it. `CLAUDE.md` is the working contract and
+is revised when a rule or index changes. Nothing in either is protected by a checksum, and the five
+protected *paths* are listed in the security checklist §8.
 `docs/superpowers/plans/` holds dated plans that keep saying what they said then. This folder is the
 layer that summarises all of it for a reader who does not need the history.

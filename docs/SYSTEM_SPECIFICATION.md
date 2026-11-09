@@ -943,23 +943,35 @@ The AI must answer using controlled backend tools.
 
 # 22. AI Tool Architecture
 
-Initial V1 tools:
+Current read-only tools:
 
 ```text
 searchProducts
+findProducts
 getProduct
 getInventory
 getLowStockProducts
 getOutOfStockProducts
+getProductsNeverSold
+getReorderNeededProducts
+getStockValue
+getCatalogOverview
 getInventorySummary
+getLocationBreakdown
 getInventoryHistory
 getProductsByLocation
-getReorderNeededProducts
 listLocations
 listCategories
+listBrands
+researchInventoryProducts
+researchMarketPrices
 ```
 
-The list above is the V1 set as implemented. `getReorderNeededProducts` (Phase 11A)
+The list above is the current set as implemented, and no tool writes. `findProducts` adds exact
+identity lookup by name, SKU or barcode (AI-91); `getStockValue` groups value by recorded currency;
+`getProductsNeverSold`, `getCatalogOverview` and `getLocationBreakdown` complete the catalogue and
+location reads; `listBrands` is a reference lookup like `listLocations` and `listCategories`; and
+the two research tools are the gated web-research fallback described in Guide 17. `getReorderNeededProducts` (Phase 11A)
 returns the ACTIVE products at or below their minimum, flagged `OUT_OF_STOCK` or
 `LOW_STOCK`. `listLocations` and `listCategories` (AI-14) are reference lookups: they answer *"which
 locations/categories do I have"* and resolve a name whose exact form is unknown. They read the
@@ -1485,10 +1497,11 @@ password to verify) rather than reporting success; it was the **reset** flow tha
 writing an unusable credential, and `change-password` behaved as first described only for a linked
 account that still carries a hash.
 
-Two further facts are **UNVERIFIED** and gate later work rather than this one: whether Firebase's
-`auth:import` accepts bcrypt hashes (which decides whether a bulk migration is possible at all), and
-whether the React Native Firebase config plugin works with Expo SDK 57 (which decides whether M1 is
-viable). Neither has been tested against a real project.
+One further fact is **UNVERIFIED**: whether Firebase's `auth:import` accepts bcrypt hashes. That matters
+only to a bulk migration, which the locked direction below rules out for the current test-only users.
+The React Native Firebase config-plugin question is resolved: M1 is the shipped architecture, and the
+plugin runs on Expo SDK 58 (`@react-native-firebase/app` and auth in `mobile/app.json`), with a
+device-verified build (§27J, §27AZ).
 
 ## Server-Side Sessions
 

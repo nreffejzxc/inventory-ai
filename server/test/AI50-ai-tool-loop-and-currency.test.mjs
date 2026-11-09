@@ -149,7 +149,9 @@ unitSuite('AI-50 — research turns get room to reach the research tool', () => 
         }
         return fakeText('The research tool returned its result for the Keychron K8 Pro.');
       },
-      'Research the quality and reliability of the Keychron K8 Pro.',
+      // AI-88: a quality/reliability question is inventory-only unless the member names an
+      // external source, so the explicit "online" is what makes this a research turn.
+      'Research online the quality and reliability of the Keychron K8 Pro.',
     );
 
     assert.equal(seen.length, expandedRound, 'the research turn must reach its answer round');
@@ -162,8 +164,12 @@ unitSuite('AI-50 — research turns get room to reach the research tool', () => 
       'the research tool must be available on the expanded round',
     );
     assert.ok(result.toolsUsed.includes('researchInventoryProducts'));
-    assert.equal(result.degraded, undefined);
-    assert.match(result.content, /research tool returned its result/i);
+    // The malformed call was refused before it could read a source. Now that a research
+    // answer must be backed by a returned source, this is not a verified research turn:
+    // the guard re-asks twice and then refuses to show the unsourced model text.
+    assert.equal(result.degraded, 'UNVERIFIED_RESEARCH');
+    assert.match(result.content, /couldn't verify current online information/i);
+    assert.doesNotMatch(result.content, /research tool returned its result/i);
   });
 });
 

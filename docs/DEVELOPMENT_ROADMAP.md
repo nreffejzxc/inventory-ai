@@ -8,9 +8,9 @@ of truth for *what actually happened*, and it is why this file is long.
 
 **How to read it.** Do not read it top to bottom. Either find a record by number (§27FJ, §27DM — the
 numbers are cited from `CLAUDE.md` and from source comments), or use the index: `CLAUDE.md` §7 lists
-all **225** records by the title each gives itself.
+all **226** records by the title each gives itself.
 
-**Current state:** V1 complete and in production testing. The records that answer *where are we now*are §27HS (the AI-50–AI-84 increment register), §27HR (AI-48–AI-84 merged and deployed), §27HQ (grounded answers and scoped stock reads), §27HP (market prices from cited pages), §27HO (recorded specifications and the real seed catalogue), §27HN (inventory-only web research), §27HH (a transfer as one event to the assistant), §27HG (the stock-in link's product), §27HF (the single-location default's timing), §27HE (the stock-in link's location), §27HD (the movement fixes and the production device pass), §27HC (the assistant's local-time answers), §27FM (the V1 re-verification) and §27FJ (the two open advisories).
+**Current state:** V1 complete and in production testing. The records that answer *where are we now*are §27HT (AI-91/AI-92 exact product identity and per-location stock), §27HS (the AI-50–AI-84 increment register), §27HR (AI-48–AI-84 merged and deployed), §27HQ (grounded answers and scoped stock reads), §27HP (market prices from cited pages), §27HO (recorded specifications and the real seed catalogue), §27HN (inventory-only web research), §27HH (a transfer as one event to the assistant), §27HG (the stock-in link's product), §27HF (the single-location default's timing), §27HE (the stock-in link's location), §27HD (the movement fixes and the production device pass), §27HC (the assistant's local-time answers), §27FM (the V1 re-verification) and §27FJ (the two open advisories).
 
 ---
 
@@ -24936,3 +24936,38 @@ recorded.
 **Evidence.** [PR #151](https://github.com/nreffejzxc/inventory-ai/pull/151), the
 [AI-54–AI-60 battery](evidence/ai54-60-grounded-answers-2026-11-05/README.md), the
 [AI-61 tool audit](evidence/ai61-tool-audit-2026-11-05/README.md), and the test files named above.
+
+---
+
+# 27HT. AI-91/AI-92 — exact product identity and per-location stock (2026-11-09)
+
+**Why.** The 2026-11-08 20-question phone run found B4 saying a recorded Dell product was absent,
+T4 rejecting the stored category "Keyboards & Mice" when asked for "Keyboards and Mice", T6 dropping
+a product's numeric suffix, and B7/T7 returning unverified web prices and review URLs without a web
+read. AI-91 and AI-92 then measured two more phone failures: a top stock-out answer lost the
+recorded suffix, and a single-product location answer invented quantities instead of reading the
+inventory rows.
+
+**Changed.** Deterministic answer completion now takes exact product names from the tool rows for
+top stock-out, highest stock value and "name three" restock answers, and rebuilds a single named
+product's quantities across locations from the inventory rows, refusing a page with more than one
+candidate. The product search adds an exact name/SKU/barcode fallback; category lookup treats `and`
+and `&` as equivalent; out-of-stock lists are ACTIVE-only; and paged lists say when they are partial.
+Stock value is grouped by recorded currency, never sums different currencies, and leaves an
+unrecorded currency symbol-free. A research question that produces no source is re-asked with the
+correct research tool and then refused with the `UNVERIFIED_RESEARCH` sentence rather than
+presenting an unread price, review or URL.
+
+**Tests.** `AI91`, `AI92` and the updated AI-16, AI-45, AI-50, AI-57, AI-60, AI-86,
+`phase06-ai-tools` and `phase-openrouter-provider` suites. The full unit suite is **1,967 tests,
+1,906 pass, 0 fail, 61 skipped**; typecheck and lint exit 0; documentation tests are **11/11**;
+`git diff --check` is clean. Both new test files are registered in `server/scripts/run-tests.mjs`.
+
+**What this does not prove.** The fixes have not been re-run on a phone or deployed to production.
+No EAS build, OTA or Render deploy was made. The 20-question evidence still predates these changes;
+the next phone matrix must verify B4, T4, T6, B7 and T7 again.
+
+**Evidence.** [PR #193](https://github.com/nreffejzxc/inventory-ai/pull/193), the
+[2026-11-08 phone matrix](evidence/paid20-2026-11-08/README.md),
+`AI91-product-identity-answer.test.mjs`, `AI92-product-stock-by-location.test.mjs`, and
+`git diff --check`.

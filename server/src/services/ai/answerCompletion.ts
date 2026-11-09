@@ -782,15 +782,37 @@ export interface CatalogueFact {
   name: string;
   brand?: string | null;
   sellingPrice?: number | null;
+  /** The ISO-4217 code recorded on the product, or null when none was recorded. */
+  currency?: string | null;
   availableQuantity?: number | null;
+  /** The location whose inventory row supplied availableQuantity, when known. */
+  locationName?: string | null;
+  /** The recorded on-hand value when the stock-value tool supplied it. */
+  stockValue?: number | null;
 }
 
 function finiteNumber(value: unknown): number | null {
   return typeof value === 'number' && Number.isFinite(value) ? value : null;
 }
 
-function peso(value: number): string {
-  return `PHP ${new Intl.NumberFormat('en-PH', { maximumFractionDigits: 0 }).format(value)}`;
+/**
+ * A recorded amount, in the currency the row itself carries.
+ *
+ * This helper used to always write `PHP`. Production data measured on 2026-11-06 has
+ * `currency: null` on every product, so every computed total invented a currency the
+ * record never stated — and a product recorded in USD would have been mislabelled the
+ * other way. A recorded ISO code is shown beside the amount; with no code the bare number
+ * is shown, which is the same rule the prompt gives the model (rules 23 and 28).
+ */
+function money(value: number, currency?: string | null): string {
+  const amount = new Intl.NumberFormat('en-PH', { maximumFractionDigits: 0 }).format(value);
+  const code = currencyKey(currency);
+  return code ? `${code} ${amount}` : amount;
+}
+
+/** The normalized currency a row carries, or '' when none was recorded. */
+function currencyKey(currency?: string | null): string {
+  return typeof currency === 'string' ? currency.trim().toUpperCase() : '';
 }
 
 function uniqueFacts(rows: readonly CatalogueFact[]): CatalogueFact[] {
@@ -809,7 +831,9 @@ function uniqueFacts(rows: readonly CatalogueFact[]): CatalogueFact[] {
       ...prior,
       brand: prior.brand ?? raw.brand ?? null,
       sellingPrice: prior.sellingPrice ?? raw.sellingPrice ?? null,
+      currency: prior.currency ?? raw.currency ?? null,
       availableQuantity: prior.availableQuantity ?? raw.availableQuantity ?? null,
+      stockValue: prior.stockValue ?? raw.stockValue ?? null,
     });
   }
   return [...byKey.values()];
@@ -827,8 +851,39 @@ function appendWithRoom(body: string, line: string, maxChars: number): string {
   return kept ? `${kept}\u2026\n\n${line}` : line;
 }
 
+/**
+ * AI-90 — does the member want the rows that need buying again?
+ *
+ * The restock tool answers "what should I reorder", but members ask the same question in
+ * stock-level words. Measured on the phone 2026-11-06: *"What is low on stock at the Front
+ * Counter"* read `getLowStockProducts`, and the completion step never ran because the
+ * original predicate only matched `restock|reorder` — so a 19-product answer stayed at the
+ * five rows the model happened to type.
+ *
+ * Two shapes are excluded. A low-stock VALUE question ("what is the total value of low
+ * stock?") is answered by `lowStockValueAnswer`, and appending a name list to a peso total
+ * would answer a different question. A pure count ("how many products are low on stock?")
+ * asked for a number, not a list; it only counts as a list request when it also asks which
+ * products those are.
+ */
+const RESTOCK_LIST_WORDING =
+  /\b(?:restock(?:ing)?|reorder(?:ing)?|low(?:\s+on)?\s+stock|running low|run low|shortages?|below\s+(?:the\s+|their\s+)?(?:reorder\s+)?minimum)\b/i;
+const ASKS_ONLY_FOR_A_COUNT = /^\s*how\s+(?:many|much)\b/i;
+const ALSO_ASKS_WHICH_ONES = /\b(?:list|name|show|which|what\s+are|who)\b/i;
+
 export function asksForRestockList(question: string): boolean {
-  return /\b(?:restock(?:ing)?|reorder(?:ing)?)\b/i.test(String(question ?? ''));
+  const text = String(question ?? '');
+  if (!text || !RESTOCK_LIST_WORDING.test(text)) return false;
+  if (ASKS_ONLY_FOR_A_COUNT.test(text) && !ALSO_ASKS_WHICH_ONES.test(text)) return false;
+  return !asksForLowStockValue(text);
+}
+
+/** "How many need restocking and name three" — a count plus a short exact list. */
+export function asksForThreeRestockNames(question: string): boolean {
+  return (
+    asksForRestockList(question) &&
+    /\b(?:name|list|show|give)\b[\s\S]{0,20}\b(?:three|3)\b/i.test(String(question ?? ''))
+  );
 }
 
 export function asksForLowStockValue(question: string): boolean {
@@ -838,6 +893,29 @@ export function asksForLowStockValue(question: string): boolean {
 
 export function asksForMostExpensive(question: string): boolean {
   return /\b(?:most expensive|highest (?:recorded )?(?:price|price per unit))\b/i.test(String(question ?? ''));
+}
+
+export interface TopOutFact {
+  name: string;
+  unitsOut: number;
+}
+
+/** A question that ranks products by units leaving stock. */
+export function asksForTopOut(question: string): boolean {
+  const text = String(question ?? '');
+  return (
+    /\b(?:which|what)\s+(?:item|product|sku)\b[\s\S]{0,100}\b(?:most|highest|largest|top)\b[\s\S]{0,100}\b(?:units?|quantity|qty|stock)\b[\s\S]{0,120}\b(?:leave|left|out|move|moved|sold)\b/i.test(text) ||
+    /\b(?:most|highest|largest|top)\b[\s\S]{0,60}\b(?:units?|quantity|qty)\b[\s\S]{0,60}\b(?:leave|left|out|move|moved|sold)\b/i.test(text)
+  );
+}
+
+/** A question about which product is worth the most at the recorded selling price. */
+export function asksForHighestStockValue(question: string): boolean {
+  const text = String(question ?? '');
+  return (
+    /\b(?:highest|largest|greatest|most|top)\b[\s\S]{0,60}\b(?:stock|inventory)\s+value\b/i.test(text) ||
+    /\b(?:stock|inventory)\s+value\b[\s\S]{0,60}\b(?:highest|largest|greatest|most|top)\b/i.test(text)
+  );
 }
 
 export function asksForBrandStockRange(question: string): boolean {
@@ -875,6 +953,74 @@ export function locationTotalsAnswer(
   return answer.length <= maxChars ? answer : answer.slice(0, maxChars);
 }
 
+/** A question that asks for one named product's quantity at every location. */
+export function asksForProductStockByLocation(question: string): boolean {
+  const text = String(question ?? '');
+  return (
+    /\b(?:on[-\s]?hand|stock|quantity|qty|units?|available)\b/i.test(text) &&
+    /\b(?:each|every|all|per)\b[\s\S]{0,40}\b(?:locations?|branches?|stores?|warehouses?|shelves|shelf)\b/i.test(
+      text,
+    )
+  );
+}
+
+function formatUnits(value: number): string {
+  return new Intl.NumberFormat('en-PH', { maximumFractionDigits: 0 }).format(value);
+}
+
+/**
+ * Answer a single-product location question from the inventory rows themselves.
+ *
+ * The model was measured on 2026-11-09 returning 1,029 and 904 units for a product
+ * whose production product screen held 149 at each of two locations. The tool rows are
+ * authoritative; this finalizer refuses to choose when the read contains more than one
+ * candidate product, so it cannot turn an unrelated page into a confident answer.
+ */
+export function productStockByLocationAnswer(
+  rows: readonly CatalogueFact[],
+  question: string,
+  maxChars: number,
+): string | null {
+  const products = new Map<
+    string,
+    { name: string; locations: Map<string, number> }
+  >();
+  for (const row of rows) {
+    const name = typeof row?.name === 'string' ? row.name.trim() : '';
+    const location = typeof row?.locationName === 'string' ? row.locationName.trim() : '';
+    const quantity = finiteNumber(row?.availableQuantity);
+    if (!name || !location || quantity === null || quantity < 0) continue;
+    const key = row.id ? `id:${row.id}` : `name:${name.toLowerCase()}`;
+    const product = products.get(key) ?? { name, locations: new Map<string, number>() };
+    product.locations.set(location, quantity);
+    products.set(key, product);
+  }
+
+  const candidates = [...products.values()].filter((product) => product.locations.size >= 2);
+  if (candidates.length === 0) return null;
+  const text = String(question ?? '').toLowerCase();
+  const named = candidates.filter((product) =>
+    text.includes(product.name.toLowerCase()),
+  );
+  // A comparison question naming two products is not a single-product answer, and a page
+  // with several products and no name in the question is not evidence about any one of them.
+  const product =
+    named.length === 1
+      ? named[0]
+      : named.length === 0 && candidates.length === 1
+        ? candidates[0]
+        : null;
+  if (!product) return null;
+
+  const locations = [...product.locations.entries()];
+  const total = locations.reduce((sum, [, quantity]) => sum + quantity, 0);
+  const lines = locations.map(
+    ([location, quantity]) => `- ${location}: **${formatUnits(quantity)}**`,
+  );
+  const answer = `**${product.name}** on hand:\n\n${lines.join('\n')}\n\nTotal: **${formatUnits(total)}** units.`;
+  return answer.length <= maxChars ? answer : null;
+}
+
 export function asksForStockOutCount(question: string): boolean {
   return /\bhow many\b[\s\S]*\bstock[-\s]?out\b[\s\S]*\bmovements?\b/i.test(
     String(question ?? ''),
@@ -887,13 +1033,26 @@ export function stockOutCountAnswer(count: number, maxChars: number): string | n
   return answer.length <= maxChars ? answer : answer.slice(0, maxChars);
 }
 
-function priceCeilingFromQuestion(question: string): number | null {
+interface PriceCeiling {
+  amount: number;
+  /** The currency the member named, or null when they named none. */
+  currency: string | null;
+}
+
+function priceCeilingFromQuestion(question: string): PriceCeiling | null {
+  // The symbol matters: "under $500" is not a peso ceiling, so it is captured rather than
+  // read as a bare number and formatted as PHP.
   const match = String(question ?? '').match(
-    /\b(?:less than|under|below|cheaper than|up to|within)\s+(?:php|p|\u20b1)?\s*([\d,]+(?:\.\d+)?)\s*(k)?\b/i,
+    /\b(?:less than|under|below|cheaper than|up to|within)\s+(?:(php|usd|eur|gbp)\s*|([₱$€£])\s*)?([\d,]+(?:\.\d+)?)\s*(k)?\b/i,
   );
   if (!match) return null;
-  const amount = Number((match[1] ?? '').replace(/,/g, '')) * (match[2] ? 1000 : 1);
-  return Number.isFinite(amount) && amount > 0 ? amount : null;
+  const amount = Number((match[3] ?? '').replace(/,/g, '')) * (match[4] ? 1000 : 1);
+  if (!Number.isFinite(amount) || amount <= 0) return null;
+  const symbol = match[2] ?? '';
+  const currency =
+    (match[1] ?? '').toUpperCase() ||
+    (symbol === '₱' ? 'PHP' : symbol === '$' ? 'USD' : symbol === '€' ? 'EUR' : symbol === '£' ? 'GBP' : null);
+  return { amount, currency };
 }
 
 export function asksForProductsUnderPrice(question: string): boolean {
@@ -914,26 +1073,50 @@ export function productsUnderPriceAnswer(
 ): string | null {
   const ceiling = priceCeilingFromQuestion(question);
   if (ceiling === null) return null;
-  const facts = uniqueFacts(rows)
+  const priced = uniqueFacts(rows)
     .map((row) => ({ row, price: finiteNumber(row.sellingPrice) }))
     .filter((entry): entry is { row: CatalogueFact; price: number } =>
-      entry.price !== null && entry.price > 0 && entry.price < ceiling,
+      entry.price !== null && entry.price > 0 && entry.price < ceiling.amount,
     )
     .sort((a, b) => a.price - b.price || a.row.name.localeCompare(b.row.name));
+  // A currency named in the question excludes rows recorded in another currency — and a
+  // row whose currency was never recorded cannot be compared with a stated amount either.
+  const facts = ceiling.currency
+    ? priced.filter(({ row }) => currencyKey(row.currency) === ceiling.currency)
+    : priced;
   if (facts.length === 0) return null;
+  const currencies = new Set(facts.map(({ row }) => currencyKey(row.currency)));
+  // A ceiling is only meaningful inside one currency: 5,000 is a different amount in PHP
+  // and USD, so rows recorded in different currencies are not ranked against one number.
+  if (currencies.size > 1) return null;
+  const currency = ceiling.currency ?? [...currencies][0] ?? '';
   const shown = facts.slice(0, 8);
-  const list = shown.map(({ row, price }) => `**${row.name}** (${peso(price)})`).join(', ');
+  const list = shown.map(({ row, price }) => `**${row.name}** (${money(price, row.currency)})`).join(', ');
   const remainder = facts.length > shown.length ? `, and ${facts.length - shown.length} more` : '';
-  const answer = `The products with a recorded selling price under ${peso(ceiling)} are ${list}${remainder}.`;
+  const answer = `The products with a recorded selling price under ${money(ceiling.amount, currency)} are ${list}${remainder}.`;
   return answer.length <= maxChars ? answer : answer.slice(0, maxChars);
 }
 
-/** Add every product returned by getReorderNeededProducts, not just the first one. */
+export interface RestockListOptions {
+  /** What to call the list, so a low-stock answer does not say "restock". */
+  label?: string;
+  /**
+   * False when the rows are only one page of a larger result. A partial page cannot be
+   * presented as the full list — that was the measured failure (AI-90: five of nineteen
+   * rows labelled complete) — so the model's answer is left untouched instead.
+   */
+  complete?: boolean;
+}
+
+/** Add every product this turn returned, not just the ones the model typed. */
 export function withCompleteRestockNames(
   answer: string,
   rows: readonly CatalogueFact[],
   maxChars: number,
+  options: RestockListOptions = {},
 ): string {
+  const body = String(answer ?? '').trimEnd();
+  if (options.complete === false) return body;
   const names: string[] = [];
   const seen = new Set<string>();
   for (const row of rows) {
@@ -944,27 +1127,74 @@ export function withCompleteRestockNames(
     seen.add(key);
     names.push(name);
   }
-  if (names.length === 0) return String(answer ?? '');
-  const body = String(answer ?? '').trimEnd();
+  if (names.length === 0) return body;
   if (names.every((name) => new RegExp(`\\b${escapeRegExp(name)}\\b`, 'i').test(body))) return body;
-  return appendWithRoom(body, `The full restock list is: ${names.join(', ')}.`, maxChars);
+  const label = String(options.label ?? 'restock').trim() || 'restock';
+  return appendWithRoom(body, `The full ${label} list is: ${names.join(', ')}.`, maxChars);
+}
+
+/** A count plus three exact names, in the order the restock tool returned them. */
+export function restockThreeAnswer(
+  rows: readonly CatalogueFact[],
+  total: number,
+  maxChars: number,
+): string | null {
+  const facts = uniqueFacts(rows).slice(0, 3);
+  if (facts.length < 3) return null;
+  const count = Number.isFinite(total) && total > 0 ? total : rows.length;
+  const list = facts.map((row) => {
+    const quantity = finiteNumber(row.availableQuantity);
+    const status = quantity === null ? 'needs restocking' : quantity <= 0 ? 'out of stock' : 'low stock';
+    return `**${row.name}** (${status})`;
+  });
+  const answer = `${count} products need restocking; the 3 most urgent are ${list.join(', ')}.`;
+  return answer.length <= maxChars ? answer : answer.slice(0, maxChars);
+}
+
+export interface LowStockValueOptions {
+  /**
+   * False when the rows are only one page of a larger result. A subtotal over a partial
+   * page is not the total for the low-stock set, so the model's answer is left untouched
+   * rather than labelled complete. The restock finalizer makes the same distinction.
+   */
+  complete?: boolean;
 }
 
 /** Compute a low-stock subtotal only from the rows the low-stock tool returned. */
 export function lowStockValueAnswer(
   rows: readonly CatalogueFact[],
   maxChars: number,
+  options: LowStockValueOptions = {},
 ): string | null {
+  if (options.complete === false) return null;
   const facts = uniqueFacts(rows);
   if (facts.length === 0) return null;
-  let total = 0;
+  // Subtotals are kept apart by currency. A single total across PHP and USD would be a
+  // number in no currency; when the rows span currencies the sentence names each part.
+  const groups = new Map<string, { total: number; count: number }>();
   for (const row of facts) {
     const price = finiteNumber(row.sellingPrice);
     const quantity = finiteNumber(row.availableQuantity);
     if (price === null || quantity === null) return null;
-    total += Math.max(quantity, 0) * Math.max(price, 0);
+    const key = currencyKey(row.currency);
+    const group = groups.get(key) ?? { total: 0, count: 0 };
+    group.total += Math.max(quantity, 0) * Math.max(price, 0);
+    group.count += 1;
+    groups.set(key, group);
   }
-  const answer = `The total recorded value of the ${facts.length} low-stock ${facts.length === 1 ? 'item' : 'items'} is ${peso(total)}.`;
+  const ordered = [...groups.entries()].sort(([a], [b]) =>
+    a === '' ? 1 : b === '' ? -1 : a.localeCompare(b),
+  );
+  const head = `The total recorded value of the ${facts.length} low-stock ${facts.length === 1 ? 'item' : 'items'} is`;
+  const answer =
+    ordered.length === 1
+      ? `${head} ${money(ordered[0]![1].total, ordered[0]![0])}.`
+      : `${head} ${ordered
+          .map(([code, group]) => {
+            const note = code ? '' : ', currency not recorded';
+            return `${money(group.total, code)} (${group.count} ${group.count === 1 ? 'item' : 'items'}${note})`;
+          })
+          .join(', ')}.`;
   return answer.length <= maxChars ? answer : answer.slice(0, maxChars);
 }
 
@@ -978,10 +1208,67 @@ export function mostExpensiveProductAnswer(
     return price !== null && price > 0;
   });
   if (facts.length === 0) return null;
+  const currencies = new Set(facts.map((row) => currencyKey(row.currency)));
+  // A maximum across currencies would compare numbers that mean different things.
+  if (currencies.size > 1) return null;
   const max = Math.max(...facts.map((row) => finiteNumber(row.sellingPrice) ?? 0));
   const winners = facts.filter((row) => finiteNumber(row.sellingPrice) === max);
   const names = winners.map((row) => `**${row.name}**`).join(', ');
-  const answer = `The product with the highest recorded selling price is ${names} at ${peso(max)}.`;
+  const answer = `The product with the highest recorded selling price is ${names} at ${money(max, winners[0]?.currency)}.`;
+  return answer.length <= maxChars ? answer : answer.slice(0, maxChars);
+}
+
+/** The product with the greatest recorded quantity × sellingPrice, never a currency guess. */
+export function highestStockValueAnswer(
+  rows: readonly CatalogueFact[],
+  maxChars: number,
+): string | null {
+  const facts = uniqueFacts(rows)
+    .map((row) => {
+      const price = finiteNumber(row.sellingPrice);
+      const quantity = finiteNumber(row.availableQuantity);
+      const value = finiteNumber(row.stockValue) ?? (price !== null && quantity !== null ? price * quantity : null);
+      return { row, price, quantity, value };
+    })
+    .filter(
+      (entry): entry is { row: CatalogueFact; price: number; quantity: number; value: number } =>
+        entry.value !== null &&
+        entry.value > 0 &&
+        entry.price !== null &&
+        entry.price > 0 &&
+        entry.quantity !== null,
+    );
+  if (facts.length === 0) return null;
+  const currencies = new Set(facts.map(({ row }) => currencyKey(row.currency)));
+  // Totals in different currencies cannot be ranked against one another.
+  if (currencies.size > 1) return null;
+  const max = Math.max(...facts.map(({ value }) => value));
+  const winners = facts.filter(({ value }) => value === max);
+  const currency = winners[0]!.row.currency;
+  const names = winners.map(({ row }) => `**${row.name}**`).join(' and ');
+  const detail =
+    winners.length === 1
+      ? ` (recorded selling price ${money(winners[0]!.price, currency)} × ${new Intl.NumberFormat('en-PH', { maximumFractionDigits: 0 }).format(winners[0]!.quantity)} units on hand)`
+      : '';
+  const answer = `The item with the highest stock value is ${names} at ${money(max, currency)}${detail}.`;
+  return answer.length <= maxChars ? answer : answer.slice(0, maxChars);
+}
+
+/** The top stock-out product, using the exact recorded name returned by the history tool. */
+export function topOutAnswer(rows: readonly TopOutFact[], maxChars: number): string | null {
+  const facts = rows
+    .map((row) => ({ name: String(row?.name ?? '').trim(), unitsOut: finiteNumber(row?.unitsOut) }))
+    .filter((row): row is { name: string; unitsOut: number } => Boolean(row.name) && row.unitsOut !== null && row.unitsOut > 0)
+    .sort((a, b) => b.unitsOut - a.unitsOut || a.name.localeCompare(b.name));
+  if (facts.length === 0) return null;
+  const max = facts[0]!.unitsOut;
+  const winners = facts.filter((row) => row.unitsOut === max);
+  const names = winners.map((row) => `**${row.name}**`).join(' and ');
+  const units = new Intl.NumberFormat('en-PH', { maximumFractionDigits: 0 }).format(max);
+  const answer =
+    winners.length === 1
+      ? `The item with the most units out is ${names}, with **${units} units** moved out.`
+      : `The items with the most units out are ${names}, with **${units} units** each moved out.`;
   return answer.length <= maxChars ? answer : answer.slice(0, maxChars);
 }
 

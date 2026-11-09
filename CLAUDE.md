@@ -16,9 +16,10 @@ Inventory AI is a multi-tenant, AI-assisted inventory management system for Andr
 locations, stock movements, transfers, suppliers, purchase orders, a read-only AI assistant and an
 audit trail — one tenant per business, isolated by `businessId` at every layer.
 
-**V1 is complete and in production testing.** Mobile version `1.0.2`, runtime `1.0.2`, served by
-`https://ai-inventory-l1mi.onrender.com`. The production database holds test data only; there are no
-real customers yet, and the Play release has not been made.
+**V1 is complete and in production testing.** Mobile version `1.0.2`, runtime `1.0.2` in the tree;
+the last built production binary is `1.0.1`, served by `https://ai-inventory-l1mi.onrender.com`. The
+production database holds test data only; there are no real customers yet, and the Play release has
+not been made.
 
 `docs/SYSTEM_SPECIFICATION.md` is the primary source of truth for behaviour. Do not silently
 contradict it. If an intentional change is needed: explain the conflict, propose the change, get
@@ -249,9 +250,11 @@ The project is built in phases: one phase, one purpose, one verification record.
 | 32L | Firebase unlink — **superseded and removed** (Phase A / F-1) |
 | F1 / F2 / F2.9 | Retire the Firebase JS SDK and browser OAuth; retire browser deps, plugin and second scheme; verify on a device |
 | AUTH-01…AUTH-06 | Revocation checking, short-lived JWT + 14-day cap, renewal, verification codes, two-step recovery |
-| AI-1…AI-25 | Turn deadline, retries, answer rendering, cost line, quota, failover, streaming, one provider |
+| AI-1…AI-25 | Initial assistant delivery: turn deadline, retries, answer rendering, cost line, quota, failover, streaming, one provider |
+| AI-87/AI-88 | Ordinary/research model routing and a controlled research failover drill; deployed and recorded in `docs/DEVELOPMENT_LOG.md` |
+| AI-91/AI-92 | Exact product identity and per-location stock answers — §27HT, pending merge and phone verification |
 
-Letter-numbered increments are roadmap records, not phases; the index below is complete.
+Most letter-numbered increments are roadmap records; AI-87/AI-88 are log-only and AI-91/AI-92 are in §27HT. The index below is complete.
 
 ## Operational traps worth knowing
 
@@ -307,7 +310,7 @@ below has the measurement.
   artifacts now answer 400. Record an id only after `eas build:view <id>` resolves, and treat a
   published AAB that is not downloaded and kept as gone. See §27FN.
 
-## Open items (2026-11-07)
+## Open items (2026-11-09)
 
 This is a dated snapshot of the project's open work. The **living** version — updated every session,
 with what is in progress, verified or blocked — is [`docs/DEVELOPMENT_LOG.md`](docs/DEVELOPMENT_LOG.md).
@@ -321,9 +324,12 @@ with what is in progress, verified or blocked — is [`docs/DEVELOPMENT_LOG.md`]
   `zod@3.25.76`; `node-forge` is **fixed in the lockfile** at 1.4.2 (§27GX).
   `scripts/check-upgrade-watches.mjs` reports `deepmerge` `DEFERRED`, `zod` and `node-forge` `CLOSED`;
   the `glob` gate is in [`docs/SECURITY_DEPENDENCY_DECISIONS.md`](docs/SECURITY_DEPENDENCY_DECISIONS.md) §4.
-- **L-17 is OPEN**: the Firebase console's password-reset *Customize action URL* must point at
-  `https://ai-inventory-l1mi.onrender.com/auth/reset`. No code can set it, and it gates only the
-  AUTH-05 hosted-link path.
+- **L-17 is closed as not applicable (2026-11-07)**: the active reset is AUTH-06's Brevo six-digit
+  code, not Firebase's emailed action link. Firebase's Password Reset template remains hosted with
+  no custom action URL; if that link path is reintroduced, L-17 reopens.
+- **AI-91/AI-92 are on PR #193**, not merged, deployed or phone-verified: exact product identity
+  and per-location stock answers, with the seeding documentation. The pre-audit head passed all four
+  required checks; the documentation-audit head must do the same before merge.
 - **The Play release has not been made.** The AAB exists and was inspected; nothing has been uploaded,
   so Play App Signing and the store-installed build are unproven. **Both production build records
   (`09d77d3d…`, `4b133d62…`) were later deleted from EAS and their artifacts are gone** (§27FN), so the
@@ -565,6 +571,7 @@ anchor (`§27…`) in that file.
 - **§27HQ** — Grounded answers, scoped stock reads, and the member's language (2026-11-06)
 - **§27HR** — AI-48–AI-84 merged and deployed (2026-11-06)
 - **§27HS** — The AI-50–AI-84 increment register (2026-11-06)
+- **§27HT** — AI-91/AI-92 — exact product identity and per-location stock (2026-11-09)
 
 ---
 
@@ -638,27 +645,38 @@ Mobile UX should remain simple and practical.
 
 The AI assistant must use controlled tools.
 
-Initial tools may include:
+The current read-only tools are:
 
 ```text
 searchProducts
+findProducts
 getProduct
 getInventory
 getLowStockProducts
 getOutOfStockProducts
+getProductsNeverSold
+getReorderNeededProducts
+getStockValue
+getCatalogOverview
 getInventorySummary
+getLocationBreakdown
 getInventoryHistory
 getProductsByLocation
-getReorderNeededProducts
 listLocations
 listCategories
+listBrands
+researchInventoryProducts
+researchMarketPrices
 ```
 
-The last two are reference lookups (AI-14): `getProductsByLocation` and the
-category filters take IDs, and these are the only way to turn a name a member
-said into one. They read the same records as `GET /api/locations` and
-`GET /api/categories`, which are authentication-only, so they are gated on the
-read permission of the capability they serve and can narrow nobody.
+`listLocations`, `listCategories` and `listBrands` are reference lookups (AI-14):
+the inventory tools take IDs, and these are the only way to turn a name a member
+said into one. They read the same records as the locations, categories and brands
+read routes, which are authentication-only, so they are gated on the read
+permission of the capability they serve and can narrow nobody. `findProducts`
+adds exact identity lookup (AI-91); `getStockValue` groups by recorded currency;
+the two research tools are the gated web-research fallback described in Guide 17.
+No tool writes.
 
 AI tools must receive authenticated user context.
 

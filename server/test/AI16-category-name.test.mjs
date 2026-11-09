@@ -108,6 +108,10 @@ unitSuite('AI-16 the category-name argument is declared and bounded', () => {
     const list = aiToolsById.get('listCategories').description;
     assert.match(list, /searchProducts/);
     assert.match(list, /getReorderNeededProducts/);
+    // The model must know the alias is accepted, or it will keep translating it by hand.
+    for (const name of CATEGORY_TOOLS) {
+      assert.match(aiToolsById.get(name).parameters.properties.category.description, /"and" and "&"/i);
+    }
   });
 });
 
@@ -126,6 +130,8 @@ dbSuite('AI-16 a category name returns exactly what its id returns', dbOk, () =>
   let pretzels;
   let chips;
   let uncategorisedLow;
+  let ampCategory;
+  let ampProduct;
 
   before(async () => {
     A = await registerOwner(api, tracker);
@@ -133,6 +139,7 @@ dbSuite('AI-16 a category name returns exactly what its id returns', dbOk, () =>
 
     beverages = await newCategory(A, { name: 'Beverages' });
     snacks = await newCategory(A, { name: 'Snacks' });
+    ampCategory = await newCategory(A, { name: 'Keyboards & Mice' });
     archived = await newCategory(A, { name: 'Retired Line' });
     const arch = await api('POST', `/api/categories/${archived.id}/archive`, { token: A.token });
     assert.equal(arch.status, 200, JSON.stringify(arch.json));
@@ -157,6 +164,7 @@ dbSuite('AI-16 a category name returns exactly what its id returns', dbOk, () =>
     chips = await newProduct(A, { name: 'Chips Box', categoryId: snacks.id, minimumStock: 2 });
     pretzels = await newProduct(A, { name: 'Pretzel Bag', categoryId: snacks.id, minimumStock: 3 });
     uncategorisedLow = await newProduct(A, { name: 'Loose Nails', minimumStock: 4 });
+    ampProduct = await newProduct(A, { name: 'Amp Keyboard', categoryId: ampCategory.id });
 
     await stockIn(A, cola, location.id, 1);
     await stockIn(A, chips, location.id, 10);
@@ -187,6 +195,18 @@ dbSuite('AI-16 a category name returns exactly what its id returns', dbOk, () =>
   it('★ case and surrounding whitespace are forgiven, because they are not a different catalogue', async () => {
     const byName = await ok('searchProducts', { category: '  bevERAGES  ' }, ctxOf(A));
     assert.deepEqual(productIds(byName), productIds(await ok('searchProducts', { categoryId: beverages.id }, ctxOf(A))));
+  });
+
+  it('★ "and" and "&" resolve to the same active category', async () => {
+    const alias = ampCategory.name.replace('&', 'and');
+    const byAmp = await ok('searchProducts', { category: ampCategory.name }, ctxOf(A));
+    const byAnd = await ok('searchProducts', { category: alias }, ctxOf(A));
+    assert.deepEqual(productIds(byAnd), [ampProduct]);
+    assert.deepEqual(productIds(byAnd), productIds(byAmp));
+
+    // T4 asked the value tool, not searchProducts. The alias must resolve there too.
+    const valueByAnd = await ok('getStockValue', { category: alias }, ctxOf(A));
+    assert.equal(valueByAnd.scope.categoryId, ampCategory.id);
   });
 
   it('★ a PREFIX does not resolve — the name must be exact, not merely a start of one', async () => {

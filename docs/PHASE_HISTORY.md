@@ -89,16 +89,20 @@ Nothing was deleted that is not held, with more evidence, in that file.
 
 ## 6. Assistant, scale and V1 close-out
 
-`AI-1` … `AI-84` are recorded from §27BD through §27HS. `AI-48`–`AI-84` were delivered in §27HR;
-`AI-50`–`AI-84` are itemised in §27HS. The earlier assistant increments cover the turn deadline,
+`AI-1` … `AI-84` are **delivered** and recorded from §27BD through §27HS. `AI-48`–`AI-84` were delivered in §27HR;
+`AI-50`–`AI-84` are itemised in §27HS. `AI-87` and `AI-88` (ordinary/research model routing and a
+controlled research failover drill) were deployed on 2026-11-08; they are recorded in
+`DEVELOPMENT_LOG.md` because they were delivered without new numbered roadmap records. `AI-91`/`AI-92`
+(exact product identity and per-location stock answers) are recorded in §27HT but are not yet merged,
+deployed or phone-verified, so they are not counted as delivered above. The earlier assistant increments cover the turn deadline,
 retries, answer rendering, the cost line, quota, failover, streaming, and finally one provider
 (OpenRouter). The
 scale campaign measured the assistant and the list screens at 50 000–131 000 products (§27BX–§27DG),
 and later records cover invitations (§27FB), account deletion (§27EW), the privacy policy and terms
 (§27EV, §27FA), release notes (§27FE) and the V1 re-verification (§27FM).
 
-The newest records are not release-engineering ones: §27HQ records grounded answers, scoped stock
-reads and the member's language; §27HR records the AI-48–AI-84 merge and deploy; §27HS is the
-AI-50–AI-84 increment register. Release engineering remains in §27FN (EAS retention and the plan
+The newest delivered records are not release-engineering ones: §27HQ records grounded answers, scoped
+stock reads and the member's language; §27HR records the AI-48–AI-84 merge and deploy; §27HS is the
+AI-50–AI-84 increment register. §27HT is the pending AI-91/AI-92 record. Release engineering remains in §27FN (EAS retention and the plan
 gate on OTA signing), §27EZ (the production parity gate that stopped a store upload) and §27FK (the
 runtime boundary that made a stale process impossible to mistake for a server fault).

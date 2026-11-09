@@ -40,7 +40,7 @@ at the end of every development session, newest entry first.
 
 ## Current position
 
-**Updated:** 2026-11-08
+**Updated:** 2026-11-09
 **Goal:** finish and harden Inventory AI **V1** through production testing. No Play Store or App
 Store release is being prepared.
 
@@ -50,14 +50,14 @@ see the documentation entries below. The auth checklist and account runbook now 
 decisions; Guides 9, 11, 12 and 13 keep their commands and safety rules, with the phrase matrix owned
 by Guide 10 and dated measurements removed; the auth architecture and checklist keep one invariant
 register and one status owner, with overlapping client-authority and email clauses narrowed to one row
-each. On 2026-11-07 the account runbook's provider snapshot was re-measured: GitHub and Render remain on the current account, Render auto-deploy is limited to `server/`, and EAS is already on the target Gmail's Expo account. The AI-48–AI-84 work is recorded in §27HQ, §27HR and §27HS. On the same day the documentation map gained a maintenance loop: a root `check-docs` guard, a close-out `check-repo-state` script, [`CONTRIBUTING.md`](../CONTRIBUTING.md) and a pull-request template, delivered through PR #165. The living reference set now carries a review cadence enforced by the same guard, and the per-IP login limiter has a window-reset regression test, both delivered in PR #168. The server suite again carries the invariant-register guard after #166 was reopened, rebased and merged; the root guard remains the docs-only gate. `PHASE_HISTORY.md` now reaches AI-84, and the dependency record was re-measured at 15 server / 35 mobile entries before the minimatch merge; it now records 5 / 27. The runbook's production anchor was corrected from `98a4282` to `e18264e` after the dependency-only PR #162 merged. On 2026-11-07 the minimatch investigation ended in the reviewed D-13 override: #173 (mobile) and #174 (server) merged, the minimatch alerts closed, production moved to `8fe6403`, and the security record now carries D-13 plus post-merge evidence. PR #177 adds a weekly TypeScript 7 readiness watch so the deferred upgrade no longer depends on a manual check. On the same day the Firebase Admin API confirmed the production authorized domain and closed L-17 as not applicable to the Brevo six-digit reset flow.
+each. On 2026-11-07 the account runbook's provider snapshot was re-measured: GitHub and Render remain on the current account, Render auto-deploy is limited to `server/`, and EAS is already on the target Gmail's Expo account. The AI-48–AI-84 work is recorded in §27HQ, §27HR and §27HS. On the same day the documentation map gained a maintenance loop: a root `check-docs` guard, a close-out `check-repo-state` script, [`CONTRIBUTING.md`](../CONTRIBUTING.md) and a pull-request template, delivered through PR #165. The living reference set now carries a review cadence enforced by the same guard, and the per-IP login limiter has a window-reset regression test, both delivered in PR #168. The server suite again carries the invariant-register guard after #166 was reopened, rebased and merged; the root guard remains the docs-only gate. `PHASE_HISTORY.md` now records AI-84 as delivered, the deployed AI-87/AI-88 work, and pending AI-91/AI-92, and the dependency record was re-measured at 15 server / 35 mobile entries before the minimatch merge; it now records 5 / 27. The runbook's production anchor was corrected from `98a4282` to `e18264e` after the dependency-only PR #162 merged. On 2026-11-07 the minimatch investigation ended in the reviewed D-13 override: #173 (mobile) and #174 (server) merged, the minimatch alerts closed, production moved to `8fe6403`, and the security record now carries D-13 plus post-merge evidence. PR #177 adds a weekly TypeScript 7 readiness watch so the deferred upgrade no longer depends on a manual check. On the same day the Firebase Admin API confirmed the production authorized domain and closed L-17 as not applicable to the Brevo six-digit reset flow. A repository-wide documentation audit on 2026-11-09 reconciled the living references with the current tree: `PHASE_HISTORY.md` now records AI-84 as delivered, the deployed AI-87/AI-88 work, and pending AI-91/AI-92; the specification lists all 19 read-only tools; the security policy names the current glob/deepmerge alerts rather than the cleared zod set; and the account runbook records production at `04eb92c`.
 
 | | |
 | --- | --- |
-| **Working now** | AI-87 is deployed: ordinary turns use `openai/gpt-oss-20b`; research turns try `openai/gpt-oss-120b` first, with the 20B primary as fallback and no promotion of the research model. PR #185 merged as `47353af` and Render deployed it. Two live turns verified 20B/120B routing, native search, exact costs and `failovers=0`. PR #187 then added and executed a controlled research failover drill (AI-88): one OWNER request forced a simulated 120B `503` and the real 20B fallback answered (`failovers=1`, `$0.016796`). Firebase sign-in is **restored**: the credential was rotated on 2026-11-07 and the old key deleted. PR #179 carries the runbook, the checker and this record. Minimatch alerts #18/#19 are closed; L-17 is closed as not applicable to AUTH-06. Phone verification of the deployed AI behavior passed on 2026-11-08: the app's ordinary turn used `openai/gpt-oss-20b` (`failovers=0`, 6,583 ms) and its research turn used `openai/gpt-oss-120b` with native search (`failovers=0`, 11,681 ms). After PR #190 merged as `04eb92c`, a fresh streamed phone turn (low-stock question) logged `cost=$0.000567` on `openai/gpt-oss-20b` with `getLowStockProducts` and `failovers=0`; streamed turns now preserve the provider-reported cost and native source URLs. A phone-rendered FALLBACK answer is still unobserved. |
+| **Working now** | AI-87 is deployed: ordinary turns use `openai/gpt-oss-20b`; research turns try `openai/gpt-oss-120b` first, with the 20B primary as fallback and no promotion of the research model. PR #185 merged as `47353af` and Render deployed it. Two live turns verified 20B/120B routing, native search, exact costs and `failovers=0`. PR #187 then added and executed a controlled research failover drill (AI-88): one OWNER request forced a simulated 120B `503` and the real 20B fallback answered (`failovers=1`, `$0.016796`). Firebase sign-in is **restored**: the credential was rotated on 2026-11-07 and the old key deleted. PR #179 carries the runbook, the checker and this record. Minimatch alerts #18/#19 are closed; L-17 is closed as not applicable to AUTH-06. Phone verification of the deployed AI behavior passed on 2026-11-08: the app's ordinary turn used `openai/gpt-oss-20b` (`failovers=0`, 6,583 ms) and its research turn used `openai/gpt-oss-120b` with native search (`failovers=0`, 11,681 ms). After PR #190 merged as `04eb92c`, a fresh streamed phone turn (low-stock question) logged `cost=$0.000567` on `openai/gpt-oss-20b` with `getLowStockProducts` and `failovers=0`; streamed turns now preserve the provider-reported cost and native source URLs. A phone-rendered FALLBACK answer is still unobserved. On 2026-11-09, PR #193 is open with AI-91/AI-92 exact product identity and per-location answers plus the seeding documentation; all four required checks passed on `f67addc` (run `42569580835`), but the branch is not merged, deployed or phone-verified. The documentation-audit commits after that head must pass the same four checks. |
 | **Just verified** | On 2026-11-08, PR #190 merged as `04eb92c`; all four required checks passed on run `42480189959`; Render deploy `dep-dbo6m2ks728c739rl40g` reached `live`; a post-deploy streamed phone turn logged `cost=$0.000567` on `openai/gpt-oss-20b`; the two `cost=unknown` phone turns described next predate this fix. On 2026-11-08, PR #187 merged as `c98d688`; all four required checks passed on run `42451318595`; Render serves `c98d688` with `status: ok`, `db: connected` and **0** server errors. One OWNER drill forced a simulated 120B `503` and the 20B fallback answered (`201`, 28,214 ms, `failovers=1`, `$0.016796`). Two phone turns then ran: ordinary `20B` (`failovers=0`, 6,583 ms, `cost=unknown`) and research `120B` with native search (`failovers=0`, 11,681 ms, `cost=unknown`). PR #185 merged as `47353af`; all four required checks passed on run `42448637562`; Render deploy `dep-dbo028ks728c739m8d20` reached `live`; `/api/health` reports `status: ok`, `db: connected`, `environment: production`, and **0** server errors. One ordinary turn used `openai/gpt-oss-20b` (`$0.001749`, `failovers=0`); one research turn used `openai/gpt-oss-120b` with native search (`$0.008803`, `failovers=0`); total **$0.010552**. Live failover was not triggered. PR #162 was rebased onto `d313620` and merged as `e18264e`; all four required checks passed, Render deployed the merge, and `/api/health` returns 200 with `status: ok`, `db: connected` and the expected commit. PR #165 merged as `d313620` at `2026-11-07T06:17:42Z`, and its final head `5941956` passed all four required checks in run `42346155717`; documentation guards **39/39**; the root map guard indexes **27/27** active documents with **30** unique invariants and **10** living reference documents within cadence; the four documentation test files pass **27/27**; `git diff --check` clean. PR #168 merged as `c99760d` at `2026-11-07T07:22:01Z` after head `d901a2a` passed all four required checks in run `42350783903`; Render redeployed and `/api/health` reports `c99760d`, `status: ok`, `db: connected`, **0** server errors. PR #166 was reopened, rebased onto `783daf3`, and merged as `ebafae3` at `2026-11-07T07:49:57Z` after head `03a7418` passed all four required checks in run `42352706388`; Render redeployed and `/api/health` reports `ebafae3`, `status: ok`, `db: connected`, **0** server errors. On 2026-11-07 the minimatch override merged: #173 head `e7cc2d3` passed run `42355968583` and merged as `0eca990`; #174 head `608d811` passed run `42356272906` and merged as `8fe6403`; mobile Jest passed **101 suites / 1,203 tests**, and the server CI job ran the full suite and boot smoke. Render deployed `8fe6403`; `/api/health` reports `status: ok`, `db: connected`, **0** server errors. Minimatch alerts #18/#19 are closed; `glob` and `deepmerge` remain. On 2026-11-07 the TypeScript 7 watch self-test passed **32/32**; the live row is **DEFERRED** with both parser chains at `8.72.1` and peer `<6.1.0`; the extracted gate matrix and stubbed issue creation/deduplication passed; `check-docs` and `git diff --check` are clean. On 2026-11-07 the Firebase Admin API returned authorized domains `localhost`, `inventoryai-d0d20.firebaseapp.com`, `inventoryai-d0d20.web.app` and `ai-inventory-l1mi.onrender.com`; the Password Reset template is Firebase's default with callback `https://inventoryai-d0d20.firebaseapp.com/__/auth/action`, not the custom server URL. The mobile reset path is AUTH-06 (`/api/auth/password-reset/code` → `/verify` → `/confirm`), and `sendPasswordResetEmail` is absent from the mobile Firebase boundary. | On 2026-11-07 `npm run verify:firebase` was added and, run against `server/.env`, returned `400 invalid_grant: Invalid JWT Signature` (exit 1), detecting the production outage locally; `check-docs` and `secret-guard` are clean. On 2026-11-07 the Firebase credential was rotated end to end: `npm run verify:firebase` returned `VERIFIED`, `/api/health` reported 200 with no unexplained server errors, and production created session rows at 13:06:29Z, 13:07:33Z, 13:09:49Z and 13:15:03Z, the last after the old key was deleted.
 | **Blocked** | A phone-rendered fallback answer remains unobserved: the two phone turns needed no failover, so the AI-88 fallback answer was seen only in the server log and the terminal client. A live failover was not induced by a real upstream failure: the executed drill synthesised the 120B `503` inside the server, so a genuine outage is still unobserved, and the drill cannot fire when the research model is already cooling. The Render access review awaits the owner's plan and member list. No dependency decision is blocking; no EAS build or OTA was spent. |
-| **Next after this** | Begin planning the new major upgrade. A genuine upstream 120B outage remains unobserved; the executed drill covers the deployment's failover route, not a provider-side failure. |
+| **Next after this** | Merge PR #193 after the documentation-audit head passes its four required checks, then rerun the 20-question phone matrix to verify B4, T4, T6, B7 and T7 and the AI-91/AI-92 cases. A genuine upstream 120B outage remains unobserved; the executed drill covers the deployment's failover route, not a provider-side failure. |
 
 ### Open items carried forward
 
@@ -112,6 +112,62 @@ Known limits, checked before spending one of them:
   space that a backup or an index change would explain.
 - **Brevo** — used for verification codes, reset codes and invitations. Do not send test mail in
   bulk; a delivery failure is not a code regression until the provider log says so.
+
+---
+
+## 2026-11-09 — Documentation audit: living references reconciled with the tree
+
+**Why.** A repository-wide review compared every living guide and reference with the current code,
+package manifests, environment templates, dependency alerts and production health. Several statements
+had survived a feature change, and two living documents contradicted the auth and security records.
+
+**Changed.** `mobile/AGENTS.md` now points at Expo SDK 58; `mobile/.env.example` no longer claims the
+retired `com.inventoryai.app` scheme is still configured; `CLAUDE.md` corrects the source/runtime
+distinction, lists all 19 read-only AI tools, records the deployed AI-87/AI-88 work and the pending
+AI-91/AI-92 branch, and closes L-17 to match the auth records; `SYSTEM_SPECIFICATION.md` lists the
+current tools and removes the stale SDK 57 config-plugin gate; `SECURITY.md` names the live glob and
+deepmerge advisories; `SECURITY_DEPENDENCY_DECISIONS.md` records the 2026-11-09 re-measurement and the
+current production commit; `ACCOUNT_MIGRATION_RUNBOOK.md` records production `04eb92c`; `README.md`
+points current status at this log; `PHASE_HISTORY.md` and Guide 4 now carry the complete assistant and
+demo-fixture history; and the guides index again distinguishes the roadmap record from the CLAUDE
+working contract.
+
+**Verified.** `node scripts/check-docs.mjs`: **30** active documents, **30** invariant rows, **30**
+register rows and **11** living references within cadence. The four documentation test files:
+**27/27 pass**. `git diff --check` clean. `npm audit`: server `{low:0, moderate:5, high:0,
+critical:0, total:5}`; mobile `{low:1, moderate:26, high:0, critical:0, total:27}`. `GET
+/api/health`: `status: ok`, `db: connected`, environment `production`, commit `04eb92c`, **0** server
+errors.
+
+**Not done.** No application behaviour, code, dependency, deployment, EAS build, OTA or phone run was
+changed or performed. This entry records a documentation audit; the AI-91/AI-92 branch remains
+unmerged and unverified on a phone.
+
+**Delivery.** Branch `docs/seeding-fixture`, PR #193; the new head requires the four required checks.
+
+---
+
+## 2026-11-09 — AI-91/AI-92 exact identity and location answers; seeding docs aligned
+
+**Why.** The 2026-11-08 phone matrix still exposed exact-product false negatives, category aliasing,
+a lost numeric suffix, and unverified web answers. Follow-up phone observations on 2026-11-09 also
+showed a top stock-out name and single-product location quantities drifting from the recorded rows.
+
+**Changed.** The assistant now derives exact product identity and per-location quantities from tool
+rows; `findProducts` has an exact name/SKU/barcode fallback; category lookup treats `and` and `&` as
+equivalent; out-of-stock reads are ACTIVE-only; paged lists state when partial; stock value is grouped
+by recorded currency; and an unsourced research answer is re-asked or refused instead of presenting
+an unread price, review or URL. The seeding guides and seeder headers were aligned in the same branch.
+
+**Verified.** `npm run test:unit`: **1,967 tests, 1,906 pass, 0 fail, 61 skipped**. `npm run typecheck`
+and `npm run lint` exit 0. Documentation tests: **11/11**. `git diff --check` is clean. No production
+seed, verification or cleanup command was executed.
+
+**Not done.** No phone run, EAS build, OTA or Render deployment has exercised this branch. The next
+phone matrix must re-check B4, T4, T6, B7, T7 and the AI-91/AI-92 cases after merge.
+
+**Delivery.** Branch `docs/seeding-fixture`, PR #193. Counts are from the local unit suite; the PR
+records the required-check status for the final head.
 
 ---
 
