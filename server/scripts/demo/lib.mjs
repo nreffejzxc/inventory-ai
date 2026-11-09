@@ -1,14 +1,13 @@
 // The demo tenant's safety core and its I/O: seed, verify, remove.
 //
-// WHY THIS EXISTS SEPARATELY FROM `seed:demo`. `seed:demo` shares
-// `assertSafeTarget`, which REFUSES production and requires the development
-// database — deliberately, because it writes a large dataset for measuring queries.
+// WHY THIS EXISTS SEPARATELY FROM `seed:demo`. `seed:demo` uses the unified
+// `assertSeedTarget` (two phrases in development, three in production) and writes a
+// large dataset for measuring queries; it can target a named production database.
 // The preview APK talks to production and nothing else, so a demo tenant that can be
-// exercised from that build has to be seedable there. Rather than weaken that guard
-// for every caller, the seeder has its own named-database check (`assertDemoTarget`),
-// while the teardown uses the shared `assertScopedCleanupTarget` (two phrases in
-// development, three in production). The words in the seeder's guard are different on
-// purpose:
+// exercised from that build needs its own small fixed fixture and a one-phrase
+// named-database check (`assertDemoTarget`), while the teardown uses the shared
+// `assertScopedCleanupTarget` (two phrases in development, three in production).
+// The words in the seeder's guard are different on purpose:
 //
 //   * the DATABASE IS NAMED BY HAND, twice — `--database=<name>` must equal the
 //     database `config/env.ts` actually resolved (`dbName` on the connection comes

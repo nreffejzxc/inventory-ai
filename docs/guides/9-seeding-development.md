@@ -138,10 +138,12 @@ SEED_CONFIRM=seed-accounts SEED_DB_CONFIRM=inventoryai_dev_db \
   per-collection minimums (4 categories, 2 locations, 5 suppliers, 5 purchase orders), so a small plan
   can write more than its estimate. At the smallest size, 5 products plan 22 documents and write 34.
   The summary line was always labelled *estimated*; the per-entry and write lines now say it too.
-- **An address that already has a verified identity needs no `DEMO_ACCOUNT_PASSWORD`.** That variable
-  exists only to create an identity that does not exist yet. An account registered in the app is reused as
-  it is — the run reads its `uid` from Firebase and writes nothing back, so a Google-only login seeds
-  exactly like a password one and no credential is changed.
+- **An address that already has a verified identity needs no `DEMO_ACCOUNT_PASSWORD`.** In development,
+  supplying it also refreshes that identity's password; in production it is never applied to an existing
+  identity. Development can create a missing identity when the variable is supplied; production requires
+  the account to be registered in the app first. An account registered in the app is reused as it is —
+  the run reads its `uid` from Firebase and writes nothing back, so a Google-only login seeds exactly
+  like a password one when no password is supplied.
 - **Each account chooses its own SKUs and barcodes, and the two fields are independent.** `codes=both`
   writes both, `codes=sku` writes only the SKU, `codes=barcode` only the barcode, and `codes=none` omits
   both (which leaves the app's own barcode generation to assign the first code — deliberate, and worth one

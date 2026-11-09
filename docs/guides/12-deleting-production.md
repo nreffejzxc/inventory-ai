@@ -152,8 +152,9 @@ and keeps its Firebase identity, so the address stays usable.
 
 ## The fixed demo tenant (`cleanup:demo-tenant`)
 
-Deletes the demo tenant's inventory, ledger, products, categories, locations, suppliers, assistant rows,
-audit trail, its users and the business row. It keeps the Firebase identity, deliberately.
+Deletes the demo tenant's inventory, ledger, products, categories and locations, plus its assistant rows,
+audit trail, users and business row. The fixture seeds no supplier or purchase order. It keeps the
+Firebase identity, deliberately.
 
 ```bash
 # PREVIEW — counts every collection, deletes nothing

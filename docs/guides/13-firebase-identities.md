@@ -46,8 +46,8 @@ No command creates an identity on its own. The seeders do, as part of their own 
 
 | Command | Address | Password | Verified? |
 |---|---|---|---|
-| `seed --plan=demo` / `seed:demo` | the `--email=` you pass | `DEMO_ACCOUNT_PASSWORD`, on creation only | yes |
-| `seed --plan=accounts` | each address in `--accounts=` | `DEMO_ACCOUNT_PASSWORD` | yes |
+| `seed --plan=demo` / `seed:demo` | the `--email=` you pass | `DEMO_ACCOUNT_PASSWORD`; refreshed in development when supplied, creation only in production | yes |
+| `seed --plan=accounts` | each address in `--accounts=` | `DEMO_ACCOUNT_PASSWORD`; create/refresh in development when supplied, never in production | yes |
 | `seed --plan=roles` / `seed:roles` | the four `role-*@example.invalid` addresses | `ROLE_TEST_PASSWORD` | yes |
 | `seed:perf-tenant` | `perf-seed-ai@example.invalid` | `DEMO_ACCOUNT_PASSWORD`, refreshed when supplied | yes |
 | `seed:demo-tenant` | `demo-preview@example.invalid` | `DEMO_ACCOUNT_PASSWORD`, set when supplied | yes |
@@ -55,9 +55,10 @@ No command creates an identity on its own. The seeders do, as part of their own 
 
 - **`emailVerified: true`** is set through Firebase's admin interface, which is the same write the app
   makes after a real six-digit code. No rule is weakened, and the `.invalid` fixtures need no mailbox.
-- **An existing password is never rewritten by a production `seed --plan=demo`.** Only a brand-new
-  identity gets one. The four commands that own their addresses (`seed:roles`, `seed:perf-tenant`,
-  `seed:demo-tenant`) may rotate theirs, because the address exists only for that fixture.
+- **Production never rewrites an existing password.** In production, only a brand-new identity gets
+  one. In development, supplying `DEMO_ACCOUNT_PASSWORD` refreshes an existing identity as well. The
+  three fixture commands that own their addresses (`seed:roles`, `seed:perf-tenant`, `seed:demo-tenant`)
+  may rotate theirs, because the address exists only for that fixture.
 - **A password is never accepted on the command line, printed, or written to a file** — set
   `DEMO_ACCOUNT_PASSWORD` / `ROLE_TEST_PASSWORD` in the environment.
 - **The project is pinned.** Every seeder creates its identity in the approved project

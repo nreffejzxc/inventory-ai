@@ -204,11 +204,70 @@ by **OTA**, not a build — neither AAB contains them.
 
 ## 7. The review account
 
-Give Play reviewers, in "App access": an `OWNER` account on a **seeded demo tenant** (products, stock,
-a supplier, a purchase order, a low-stock product, so the assistant has something to answer), the
-steps sign in → dashboard → inventory → product → assistant, and a note that the data is disposable.
-Never give a real customer account. `server/scripts/seed-demo-tenant.mjs` creates this;
-`cleanup:demo-tenant` removes it.
+Give Play reviewers, in "App access", the `OWNER` login on the **fixed demo tenant**:
+`demo-preview@example.invalid`, owner **Demo Tester**, and the password you set below. The tenant is
+deliberately disposable and every figure is fixed: **14 curated products, 136 units across three
+locations, 9 in stock / 5 at or below minimum (1 out of stock), and 30 ledger movements**. It seeds no
+supplier or purchase order, so do not send reviewers to those screens expecting sample rows. Never
+give a real customer account.
+
+### Seed and verify it
+
+Run from `server/` against production:
+
+```bash
+# PREVIEW — names the database, writes nothing
+NODE_ENV=production MONGODB_DB_NAME=inventoryai_prod_db \
+  SEED_CONFIRM=seed-demo-tenant \
+  npm run seed:demo-tenant -- --database=inventoryai_prod_db --dry-run
+
+# EXECUTE — DEMO_ACCOUNT_PASSWORD becomes the reviewer's password
+NODE_ENV=production MONGODB_DB_NAME=inventoryai_prod_db \
+  DEMO_ACCOUNT_PASSWORD='choose-a-strong-password' SEED_CONFIRM=seed-demo-tenant \
+  npm run seed:demo-tenant -- --database=inventoryai_prod_db
+```
+
+Proceed only when the real run ends with `OK — … checks match the fixture`; a non-zero exit or any
+`FAIL` line means do not give the tenant to a reviewer. The command creates the identity if absent and
+refreshes that demo identity's password when
+`DEMO_ACCOUNT_PASSWORD` is supplied. It never touches a real account.
+
+Verify independently, without trusting the seeder's own report:
+
+```bash
+NODE_ENV=production MONGODB_DB_NAME=inventoryai_prod_db \
+  npm run verify:demo -- --database=inventoryai_prod_db \
+  --email=demo-preview@example.invalid --expect-products=14
+```
+
+Expect exit 0 and `Products : 14 — expected 14`, `Ledger : 30 rows — 0 bad, 0 negative`,
+`Integrity: 0 missing references`, `Stock : 5 low, 1 out of stock`, and `Result : SUCCESS`. The
+seeder's own checks are what verify the 136 units and the per-location breakdown; `verify:demo` reads
+the product count, ledger, references and stock health back from the database.
+
+### Give the reviewer a path
+
+1. Sign in with `demo-preview@example.invalid` and the `DEMO_ACCOUNT_PASSWORD` from the execute step.
+2. **Dashboard** — 14 products and 136 units on hand; 9 in stock, 5 at or below minimum (1 out of
+   stock).
+3. **Inventory** — Demo Warehouse (99 units / 12 products), Demo Shop (30 / 8), and Demo Van (7 / 2).
+4. **Product** — ASUS ROG Strix Flare II Animate is out of stock (0 available, minimum 3). The other
+   restock items are Keychron K8 Pro (6 vs 6), Logitech MX Master 3S (4 vs 5),
+   Dell UltraSharp U2723QE (2 vs 2), and Elgato Stream Deck MK.2 (2 vs 3).
+5. **Assistant** — ask "How many units are on hand?" and "Which products need reordering?" The first
+   should answer **136**; the second should list those five products, out-of-stock first.
+
+The data is disposable. A re-run resets only this tenant. After review, run the cleanup preview below:
+
+```bash
+NODE_ENV=production MONGODB_DB_NAME=inventoryai_prod_db \
+  CLEANUP_CONFIRM=cleanup:demo-tenant CLEANUP_DB_CONFIRM=inventoryai_prod_db \
+  CLEANUP_PROD_CONFIRM=DELETE-PRODUCTION-DATA \
+  npm run cleanup:demo-tenant -- --database=inventoryai_prod_db --dry-run
+```
+
+Remove `--dry-run` to delete. `cleanup:demo-tenant` keeps the Firebase identity, so the address can be
+reused by a later seed; never delete that identity while its MongoDB user row still exists.
 
 ## 8. Upload checklist
 
