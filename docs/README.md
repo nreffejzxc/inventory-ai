@@ -62,17 +62,17 @@ Reference documents are consulted rather than read once, so they are reviewed on
 
 | Document | Cadence | Last reviewed |
 | --- | --- | --- |
-| [`../CLAUDE.md`](../CLAUDE.md) | 90 days | 2026-11-07 |
-| [`SYSTEM_SPECIFICATION.md`](SYSTEM_SPECIFICATION.md) | 90 days | 2026-11-07 |
+| [`../CLAUDE.md`](../CLAUDE.md) | 90 days | 2026-11-09 |
+| [`SYSTEM_SPECIFICATION.md`](SYSTEM_SPECIFICATION.md) | 90 days | 2026-11-09 |
 | [`AUTHENTICATION_AND_USER_VERIFICATION_TARGET_ARCHITECTURE.md`](AUTHENTICATION_AND_USER_VERIFICATION_TARGET_ARCHITECTURE.md) | 90 days | 2026-11-07 |
 | [`AUTH_SECURITY_MASTER_CHECKLIST.md`](AUTH_SECURITY_MASTER_CHECKLIST.md) | 90 days | 2026-11-07 |
-| [`SECURITY_DEPENDENCY_DECISIONS.md`](SECURITY_DEPENDENCY_DECISIONS.md) | 30 days | 2026-11-07 |
+| [`SECURITY_DEPENDENCY_DECISIONS.md`](SECURITY_DEPENDENCY_DECISIONS.md) | 30 days | 2026-11-09 |
 | [`SOURCE_PROTECTION.md`](SOURCE_PROTECTION.md) | 90 days | 2026-11-07 |
-| [`ACCOUNT_MIGRATION_RUNBOOK.md`](ACCOUNT_MIGRATION_RUNBOOK.md) | 90 days | 2026-11-07 |
+| [`ACCOUNT_MIGRATION_RUNBOOK.md`](ACCOUNT_MIGRATION_RUNBOOK.md) | 90 days | 2026-11-09 |
 | [`FIREBASE_CREDENTIAL_RUNBOOK.md`](FIREBASE_CREDENTIAL_RUNBOOK.md) | 90 days | 2026-11-07 |
 | [`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md) | 90 days | 2026-11-07 |
 | [`DEVELOPING_ON_A_PHYSICAL_DEVICE.md`](DEVELOPING_ON_A_PHYSICAL_DEVICE.md) | 90 days | 2026-11-07 |
-| [`../README.md`](../README.md) | 90 days | 2026-11-07 |
+| [`../README.md`](../README.md) | 90 days | 2026-11-09 |
 
 The 2026-11-07 date starts each clock at adoption: it records when the cadence began, not that every
 document was re-read that day. A review updates the date; a change that materially rewrites a document

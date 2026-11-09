@@ -3,7 +3,7 @@
 **Status:** **paused.** GitHub and Render are back on the original account. EAS is already under the
 newer Gmail's Expo account; no further move is active, scheduled or authorised by this document.
 
-**Last verified:** 2026-11-07.
+**Last verified:** 2026-11-09 for production health; access settings were last verified 2026-11-07.
 **Current GitHub/Render owner:** `nreffejzxc` (`jefferndullamalinaozxc@gmail.com`).
 **Current repository:** [`nreffejzxc/inventory-ai`](https://github.com/nreffejzxc/inventory-ai), public.
 **Paused target:** `jeffernmalinaoqwe@gmail.com` / `jeffernqwerty`.
@@ -23,7 +23,7 @@ not cancelled.
 | Branch protection | Pull request required; four required checks; strict; admins enforced; force pushes and deletions blocked; conversation resolution required |
 | Scanning | Secret scanning and push protection enabled; private vulnerability reporting enabled |
 | Git identity | `jeffernzxc` / `jefferndullamalinaozxc@gmail.com` |
-| Production | `/api/health` returns 200, `status: ok`, `db: connected`, commit `8fe6403` (latest `server/` change, the D-13 minimatch override; docs-only merges do not redeploy); free instance, so a cold start can delay the first response by 50 s or more |
+| Production | `/api/health` returns 200, `status: ok`, `db: connected`, commit `04eb92c` (the streamed-cost/source fix in PR #190; docs-only merges do not redeploy); free instance, so a cold start can delay the first response by 50 s or more |
 | EAS | Project `@jeffernqwes-team/inventory-ai` (ID `607eca05-1175-43ed-86a0-1829e91c9531`) is under the target Gmail's Expo account, not the current GitHub/Render account |
 | History | The approved metadata-only attribution rewrite is complete; no further rewrite is approved |
 | GitHub 2FA | Disabled by owner decision on 2026-10-31; deferred until a backup method and offline recovery codes exist |

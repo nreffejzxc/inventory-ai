@@ -174,6 +174,7 @@ guides describe; start there.
 
 ## Status
 
-V1 is feature-complete and running in production testing. Known open items — iOS verification and the
-Play release — are tracked in the roadmap's latest section; push notifications and export/reporting
-are future scope, not built. Nothing in this README is a promise about a date.
+V1 is feature-complete and running in production testing. Current work, verified results and remaining
+blockers are in [`docs/DEVELOPMENT_LOG.md`](docs/DEVELOPMENT_LOG.md); the Play release and iOS
+verification are still open. Push notifications and export/reporting are future scope, not built.
+Nothing in this README is a promise about a date.
