@@ -45,6 +45,19 @@ export interface ReleaseNote {
  */
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    id: '2026-11-10-simple-stock-answers',
+    date: '2026-11-10',
+    kind: 'fix',
+    title: 'Clearer stock totals and restock counts',
+    summary:
+      'Simple stock questions now read your inventory first and answer with the combined quantity, not a guess or a partial page.',
+    points: [
+      'One product’s stock is shown as one total across all its locations.',
+      'A restock count comes from your recorded minimum, not from a short list of results.',
+      'If the assistant cannot read the record, it says so instead of inventing a number.',
+    ],
+  },
+  {
     id: '2026-11-09-copyable-answer-details',
     date: '2026-11-09',
     kind: 'fix',

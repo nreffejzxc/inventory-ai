@@ -939,6 +939,29 @@ Example questions:
 
 The AI must answer using controlled backend tools.
 
+### Simple inventory route
+
+Five narrow shapes are eligible for a free-first route when `AI_PROVIDER=openrouter` and a
+tool-capable `:free` fallback is configured: one product's stock, whether a product exists, what
+needs restocking, what is low, and how many products those are. The turn starts on that free
+fallback, but still uses the same business-scoped read tools; no tool, permission, or data scope
+changes. A success never promotes the free model into the configured primary.
+
+A draft written without the required read is discarded. The free model gets one re-ask; if it still
+has not read, the same turn escalates once to the paid primary. A free attempt that times out,
+returns an empty completion, spends its output budget, or is refused by the free daily allowance
+may also fall forward once. The paid fallback is bounded by a process-local UTC-day budget
+(`AI_SIMPLE_PAID_DAILY_BUDGET_USD`, default `$0.25`) with a per-turn reservation
+(`AI_SIMPLE_PAID_TURN_RESERVE_USD`, default `$0.01`); `0` disables the paid fallback. The free
+attempt may be capped separately by `AI_SIMPLE_FREE_ATTEMPT_MS` (default `15000` ms).
+
+A single product's stock total is summed by the server from the returned inventory rows, never by
+the model, and only when the read is complete and identifies one product. A pure restock count
+comes from the shortage tool's own total, not from counting a page. An explicitly named SKU is
+resolved as an exact identifier rather than a substring search. If the read is partial, ambiguous,
+or absent, the server does not present a computed total; the grounded answer remains, or the turn
+uses its ungrounded-answer sentence.
+
 ---
 
 # 22. AI Tool Architecture

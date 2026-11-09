@@ -83,6 +83,7 @@ Values live in the Render dashboard and the EAS dashboard; the repository holds 
 | `EMAIL_VERIFICATION_CODE_PEPPER` | required for the six-digit verification and in-app reset-code flows; those routes answer 503 without it |
 | `AI_PROVIDER` + `OPENROUTER_API_KEY` + `OPENROUTER_BASE_URL` + `AI_MODEL_OPENROUTER` | AI is disabled when unset; the model has **no default** |
 | `AI_FALLBACK_MODELS_OPENROUTER`, `AI_MODEL_FAILURE_THRESHOLD`, `AI_MODEL_COOLDOWN_MS`, `AI_MODEL_HEALTH_TTL_MS`, `AI_QUOTA_BLOCK_MS`, `AI_ATTEMPT_MAX_MS`, `AI_HEALTH_ALERT_EMAIL` (+ `AI_HEALTH_WATCH_*`) | optional failover, health and alerting tuning |
+| `AI_SIMPLE_FREE_ATTEMPT_MS`, `AI_SIMPLE_PAID_DAILY_BUDGET_USD`, `AI_SIMPLE_PAID_TURN_RESERVE_USD` | optional free-first simple-inventory controls: free-attempt cap (default `15000` ms), process-local UTC-day paid-fallback budget (default `$0.25`), and per-turn reservation (default `$0.01`); `0` disables the cap or the paid fallback — see Guide 16 |
 | `AI_REASONING` (**enable** / **disable**) | simple reasoning switch: `enable` for mandatory-reasoning models such as `openai/gpt-oss-*`, `disable` for free models; advanced per-model rules remain supported — see Guide 16 |
 | `AI_WEB_SEARCH`, `AI_WEB_FETCH` (**enable** / **disable**) | independent OpenRouter web tools; both default to disabled and can add provider charges — see Guide 17 |
 | `MAIL_PROVIDER`, `MAIL_FROM`, `BREVO_API_KEY`, `PASSWORD_RESET_URL` | optional; missing mail config disables recovery (503); `PASSWORD_RESET_URL` is only for the emailed-link path |

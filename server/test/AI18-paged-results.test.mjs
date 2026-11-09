@@ -31,7 +31,7 @@ import { systemPrompt } from '../src/services/ai/ai.service.ts';
 const here = dirname(fileURLToPath(import.meta.url));
 const TOOLS_SOURCE = readFileSync(join(here, '..', 'src', 'services', 'ai', 'tools.ts'), 'utf8');
 
-/** The nine list tools whose result is one page of a possibly larger set. */
+/** The twelve list tools whose result is one page of a possibly larger set. */
 const PAGED_TOOLS = [
   'searchProducts',
   'getInventory',
@@ -80,9 +80,10 @@ unitSuite('AI-18 the page marker cannot be dropped, and the prompt explains it',
     // Nine lists, nine `page(` calls. A new list tool added without one fails here rather
     // than on the next device run.
     const calls = TOOLS_SOURCE.match(/return page\(/g) ?? [];
-    // getInventory has two page paths (a catalogue search and a product's stock rows), so
-    // the source has one more paged return than there are distinct list tools.
-    assert.equal(calls.length, PAGED_TOOLS.length + 1, `expected ${PAGED_TOOLS.length + 1} paged returns, found ${calls.length}`);
+    // getInventory has three page paths: a catalogue search, the exact-SKU miss, and a
+    // product's stock rows. Every other listed tool has one, so the source has two more
+    // paged returns than there are distinct list tools.
+    assert.equal(calls.length, PAGED_TOOLS.length + 2, `expected ${PAGED_TOOLS.length + 2} paged returns, found ${calls.length}`);
     for (const name of PAGED_TOOLS) {
       assert.ok(aiToolsById.has(name), `${name} is no longer in the tool table`);
     }

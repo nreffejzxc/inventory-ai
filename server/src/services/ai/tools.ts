@@ -157,6 +157,7 @@ interface CategoryRef {
 interface GetInventoryArgs extends ToolArguments, LocationRef {
   productId?: string;
   q?: string;
+  exactSku?: string;
   status?: string;
   lowStock?: boolean;
   outOfStock?: boolean;
@@ -1078,6 +1079,12 @@ const tools: Tool[] = [
           description: 'Exact name of an ACTIVE location, e.g. "Main Warehouse". Use instead of locationId when no id is known.',
         },
         q: { type: 'string', maxLength: 100, description: 'Search product name/SKU/barcode.' },
+        exactSku: {
+          type: 'string',
+          maxLength: 100,
+          description:
+            'Exact product SKU. Use instead of q when the member gives a SKU, because q is a substring search and a short SKU can match other products.',
+        },
         status: statusEnum,
         lowStock: { type: 'boolean', description: 'Only rows where available is at or below the product minimum.' },
         outOfStock: { type: 'boolean', description: 'Only rows where available is zero or negative.' },
@@ -1087,10 +1094,37 @@ const tools: Tool[] = [
     async executor(ctx: ToolContext, args: GetInventoryArgs) {
       const location = await resolveLocation(ctx, args, { required: false });
       if (!location.ok) return location.result;
+      // AI-99 — an explicit SKU is an exact identifier, not a search phrase. Resolve it to
+      // one product before the inventory read so a page of lookalike SKUs cannot hide the
+      // rows the member asked for (or make a total look ambiguous to the finalizer).
+      const exactSku = typeof args.exactSku === 'string' ? args.exactSku.trim() : '';
+      let productId = args.productId;
+      let q = args.q;
+      if (exactSku) {
+        const matches = await productService.list(ctx.businessId, {
+          exactTerms: [exactSku],
+          status: 'ACTIVE',
+          skip: 0,
+          limit: 5,
+        });
+        const exactProduct = matches.items.find(
+          (product) => String(product?.sku ?? '').trim().toLowerCase() === exactSku.toLowerCase(),
+        );
+        if (!exactProduct) {
+          return page(0, [], {
+            exactSku,
+            note:
+              `No ACTIVE product has the exact SKU ${exactSku}. Report that the product is not ` +
+              'recorded; do not substitute a similarly named SKU.',
+          });
+        }
+        productId = String(exactProduct._id);
+        q = undefined;
+      }
       const { items, total } = await inventoryService.listRows(ctx.businessId, {
-        productId: args.productId,
+        productId,
         locationId: location.id,
-        q: args.q,
+        q,
         status: args.status,
         lowStock: args.lowStock,
         outOfStock: args.outOfStock,
@@ -1107,12 +1141,12 @@ const tools: Tool[] = [
         !args.status &&
         args.lowStock === undefined &&
         args.outOfStock === undefined &&
-        Boolean(args.productId || args.q?.trim());
+        Boolean(productId || q?.trim());
       if (total === 0 && exactProductRequest) {
-        const productDoc = args.productId
-          ? await productService.getByIdentifier(ctx.businessId, { id: args.productId })
+        const productDoc = productId
+          ? await productService.getByIdentifier(ctx.businessId, { id: productId })
           : await productService
-              .list(ctx.businessId, { q: args.q, skip: 0, limit: 2 })
+              .list(ctx.businessId, { q, skip: 0, limit: 2 })
               .then((matches) => (matches.total === 1 ? matches.items[0] : null));
         if (productDoc) {
           return page(0, [], {

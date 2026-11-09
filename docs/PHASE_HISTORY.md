@@ -95,6 +95,9 @@ controlled research failover drill) were deployed on 2026-11-08; they are record
 `DEVELOPMENT_LOG.md` because they were delivered without new numbered roadmap records. `AI-91`/`AI-92`
 (exact product identity and per-location stock answers) merged as `6d95168` and were production-verified;
 the follow-up `AI-93`–`AI-98` cleanups merged in PRs #196–#199 and are recorded in `DEVELOPMENT_LOG.md`.
+`AI-99` (free-first simple inventory, deterministic totals and a resumable 10k evaluator) is
+implemented and locally verified; its deployment and OTA are pending and recorded in
+`DEVELOPMENT_LOG.md`.
 The earlier assistant increments cover the turn deadline,
 retries, answer rendering, the cost line, quota, failover, streaming, and finally one provider
 (OpenRouter). The
