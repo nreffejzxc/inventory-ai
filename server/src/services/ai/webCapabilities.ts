@@ -200,12 +200,16 @@ export function asksForWebResearch(message: string): boolean {
  */
 const RESEARCH_MODEL_INTENT =
   /\b(?:compare|comparison)\b|\bwhich\b[^?.!]{0,60}\b(?:better|best)\b|\bshould\s+(?:i|we)\s+(?:buy|get|choose)\b/i;
+// "Best-selling" is a stock-movement question, not a product comparison. The
+// `which ... best` branch above otherwise sends it to the paid research model.
+const BEST_SELLING_QUERY = /(?:best|top|fastest)[\s\u2010-\u2015-]selling/i;
 const RECORDED_INVENTORY_COMPARISON =
   /\b(?:stock|inventory|quantit(?:y|ies)|minimum|units?|locations?|categories|suppliers?|prices?|costs?|values?)\b/i;
 
 export function asksForResearchModel(message: string): boolean {
   const text = String(message ?? '');
   if (asksForWebResearch(text)) return true;
+  if (BEST_SELLING_QUERY.test(text)) return false;
   if (!RESEARCH_MODEL_INTENT.test(text)) return false;
   // "Compare the Sony and Bose headsets" has no recorded-inventory field and is a
   // product comparison; "compare stock across locations" does, and is not.

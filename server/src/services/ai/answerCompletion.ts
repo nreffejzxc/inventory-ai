@@ -780,6 +780,7 @@ export function canonicalBrandListAnswer(
 export interface CatalogueFact {
   id?: string;
   name: string;
+  sku?: string | null;
   brand?: string | null;
   sellingPrice?: number | null;
   /** The ISO-4217 code recorded on the product, or null when none was recorded. */
@@ -830,6 +831,7 @@ function uniqueFacts(rows: readonly CatalogueFact[]): CatalogueFact[] {
     byKey.set(key, {
       ...prior,
       brand: prior.brand ?? raw.brand ?? null,
+      sku: prior.sku ?? raw.sku ?? null,
       sellingPrice: prior.sellingPrice ?? raw.sellingPrice ?? null,
       currency: prior.currency ?? raw.currency ?? null,
       availableQuantity: prior.availableQuantity ?? raw.availableQuantity ?? null,
@@ -1272,7 +1274,12 @@ export function highestStockValueAnswer(
   const max = Math.max(...facts.map(({ value }) => value));
   const winners = facts.filter(({ value }) => value === max);
   const currency = winners[0]!.row.currency;
-  const names = winners.map(({ row }) => `**${row.name}**`).join(' and ');
+  const names = winners
+    .map(({ row }) => {
+      const sku = typeof row.sku === 'string' ? row.sku.trim() : '';
+      return sku ? `**${row.name}** (SKU ${sku})` : `**${row.name}**`;
+    })
+    .join(' and ');
   const detail =
     winners.length === 1
       ? ` (recorded selling price ${money(winners[0]!.price, currency)} × ${new Intl.NumberFormat('en-PH', { maximumFractionDigits: 0 }).format(winners[0]!.quantity)} units on hand)`
@@ -1345,14 +1352,44 @@ export function replaceFalseToolClaims(raw: string): string {
  */
 export function stripUnsupportedSalesClaims(raw: string): string {
   const text = String(raw ?? '');
-  if (!/\b(?:best|top|fastest)[- ]selling\b/i.test(text)) return text;
+  if (!/(?:best|top|fastest)[\s\u2010-\u2015-]selling/i.test(text)) return text;
   return text
     .replace(
-      /\b(?:this|the)\s+(?:high[- ]value,\s*)?(?:best|top|fastest)[- ]selling\s+(?:product|item|sku)\b/gi,
+      /\*\*\s*(?:best|top|fastest)[\s\u2010-\u2015-]selling\s*\(\s*most units out\s*\)\s*\*\*/gi,
+      '**Most units out**',
+    )
+    .replace(/(?:best|top|fastest)[\s\u2010-\u2015-]selling\s*\(\s*most units out\s*\)/gi, 'most units out')
+    .replace(
+      /\b(?:this|the)\s+(?:high[- ]value,\s*)?(?:best|top|fastest)[\s\u2010-\u2015-]selling\s+(?:product|item|sku)\b/gi,
       'this product',
     )
-    .replace(/\b(?:high[- ]value,\s*)?(?:best|top|fastest)[- ]selling\s+/gi, '')
+    .replace(/\b(?:high[- ]value,\s*)?(?:best|top|fastest)[\s\u2010-\u2015-]selling\s+/gi, '')
     .replace(/[ \t]{2,}/g, ' ');
+}
+
+/** Does the member ask for a sales ranking rather than a stock movement? */
+export function asksForBestSelling(question: string): boolean {
+  return /(?:best|top|fastest)[\s\u2010-\u2015-]selling/i.test(String(question ?? ''));
+}
+
+/**
+ * Replace a restock count even when the model grouped its digits wrongly.
+ *
+ * Measured 2026-11-09: production returned `**1,1535 products need restocking`.
+ * The previous pattern started at `\d+`, which matched only the `1535` after the
+ * comma and therefore left the malformed `1,` in place. The shared formatter also
+ * keeps a corrected count in the same thousands-grouped style as the other answers.
+ */
+export function replaceRestockCountClaims(raw: string, count: number): string {
+  const text = String(raw ?? '');
+  if (!Number.isFinite(count) || count < 0) return text;
+  const formatted = new Intl.NumberFormat('en-PH', { maximumFractionDigits: 0 }).format(count);
+  return text
+    .replace(/\b[\d,]+\s+products? need restocking\b/gi, `${formatted} products need restocking`)
+    .replace(
+      /\b[\d,]+\s+(?:products?|items?)\s+(?:are\s+)?(?:low(?:\s+on)?\s+stock|running low)\b/gi,
+      `${formatted} ${count === 1 ? 'product is' : 'products are'} low on stock`,
+    );
 }
 
 /** The top stock-out product, using the exact recorded name returned by the history tool. */

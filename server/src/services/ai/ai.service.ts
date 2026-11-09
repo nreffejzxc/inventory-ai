@@ -45,6 +45,8 @@ import {
   asksForTotalStockValue,
   replaceFalseToolClaims,
   stripUnsupportedSalesClaims,
+  asksForBestSelling,
+  replaceRestockCountClaims,
   topOutAnswer,
   brandStockRangeAnswer,
   asksForRestockList,
@@ -99,7 +101,11 @@ import {
   type WebToolName,
 } from './webCapabilities.ts';
 import { executeTool, AI_TOOL_DEFS } from './tools.ts';
-import { appendMissingSourceUrls, type ResearchSource } from './webResearch.ts';
+import {
+  appendMissingSourceUrls,
+  unreturnedSourceUrls,
+  type ResearchSource,
+} from './webResearch.ts';
 import { localDate, localTime, resolveTimeZone, utcOffsetLabel } from '../../utils/timeZone.ts';
 
 /**
@@ -1723,6 +1729,44 @@ export async function runAiChat({
           finalText = DEGRADED.UNVERIFIED_RESEARCH;
           break;
         }
+        // AI-96 — a web answer may only cite the pages this turn actually returned.
+        //
+        // Measured 2026-11-09: the reviews answer put three plausible publication URLs in
+        // its comparison table and then listed a different set of URLs under "Source URLs".
+        // The search had returned the second set; the first came from model memory. The
+        // member cannot verify which claims those pages support, so the draft is re-asked
+        // once with the returned URLs and no table. If the retry still cites an unreturned
+        // URL, the normal source appender keeps the real URLs visible rather than silently
+        // treating the invented citation as evidence.
+        const unreturnedUrls =
+          researchSources.length > 0 ? unreturnedSourceUrls(candidate, researchSources) : [];
+        if (
+          webResearchIntent &&
+          unreturnedUrls.length > 0 &&
+          !isAnswerRound &&
+          groundingRetries < MAX_GROUNDING_RETRIES
+        ) {
+          groundingRetries += 1;
+          const returned = researchSources
+            .slice(0, 6)
+            .map((source) => `- ${source.title}: <${source.url}>`)
+            .join('\n');
+          console.warn(
+            `[ai] web answer cited ${unreturnedUrls.length} URL(s) the tools did not return — asking again (attempt ${groundingRetries})`,
+          );
+          messages.push({
+            role: 'user',
+            content:
+              'Your draft cited source URLs that this turn\u2019s web tools did not return: ' +
+              `${unreturnedUrls.join(', ')}. Do not use them. Rewrite the answer using only the ` +
+              'source URLs the tools returned, listed one per line and never in a table:\n' +
+              `${returned}\n` +
+              'Every URL in the answer must be one of those. If they do not support a claim, omit ' +
+              'that claim. Do not run the same search again.',
+          });
+          resetStreamedText('a web answer cited unreturned URLs and was discarded for a re-ask');
+          continue;
+        }
         // AI-70 — a revenue figure is never presented as recorded fact.
         //
         // Measured on the phone 2026-11-05 6:23 PM: "PHP 68,975 in revenue this week … the sum
@@ -2275,12 +2319,7 @@ export async function runAiChat({
       complete,
     });
     if (rows.length > 0) {
-      completed = completed
-        .replace(/\b\d+\s+products? need restocking\b/i, `${count} products need restocking`)
-        .replace(
-          /\b\d+\s+(?:products?|items?)\s+(?:are\s+)?(?:low(?:\s+on)?\s+stock|running low)\b/i,
-          `${count} ${count === 1 ? 'product is' : 'products are'} low on stock`,
-        );
+      completed = replaceRestockCountClaims(completed, count);
     }
     if (completed !== finalText) {
       finalText = completed;
@@ -2323,7 +2362,7 @@ export async function runAiChat({
       finalText = cleaned;
     }
   }
-  if (!degraded && !toolsUsed.has('getInventoryHistory')) {
+  if (!degraded && (!toolsUsed.has('getInventoryHistory') || asksForBestSelling(message))) {
     const cleaned = stripUnsupportedSalesClaims(finalText);
     if (cleaned !== finalText) {
       console.warn('[ai] removed a sales-ranking claim without a sales read');

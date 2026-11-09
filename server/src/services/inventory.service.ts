@@ -8,6 +8,7 @@ import Location from '../models/location.model.ts';
 import ApiError from '../utils/ApiError.ts';
 import { recordAudit } from './audit.service.ts';
 import { AUDIT_ACTIONS, AUDIT_ENTITY_TYPES } from '../constants/audit.ts';
+import { normaliseLookupText } from '../utils/lookupText.ts';
 
 const { ObjectId } = mongoose.Types;
 
@@ -891,6 +892,7 @@ export const inventoryService = {
    */
   async listRows(businessId: IdLike, { productId, locationId, q, status, lowStock, outOfStock, skip, limit }: InventoryListFilters) {
     const bizOid = oid(businessId);
+    const lookupQ = normaliseLookupText(q);
     // A MongoDB filter document whose keys are added conditionally below, so it
     // is a record rather than the single-key object literal it is seeded with.
     const match: Record<string, unknown> = { businessId: bizOid };
@@ -1060,8 +1062,8 @@ export const inventoryService = {
     if (!lowStock) {
       const productFilter: Record<string, unknown> = { businessId: bizOid };
       if (status === 'ACTIVE' || status === 'ARCHIVED') productFilter.status = status;
-      if (q) {
-        const re = { $regex: escapeRegExp(q), $options: 'i' };
+      if (lookupQ) {
+        const re = { $regex: escapeRegExp(lookupQ), $options: 'i' };
         productFilter.$or = [{ name: re }, { sku: re }, { barcode: re }];
       }
       const productIds = await Product.find(productFilter).select('_id').lean();
@@ -1122,8 +1124,8 @@ export const inventoryService = {
 
     const productMatch: Record<string, unknown> = { 'product.0': { $exists: true } };
     if (status === 'ACTIVE' || status === 'ARCHIVED') productMatch['product.status'] = status;
-    if (q) {
-      const re = { $regex: escapeRegExp(q), $options: 'i' };
+    if (lookupQ) {
+      const re = { $regex: escapeRegExp(lookupQ), $options: 'i' };
       productMatch.$or = [{ 'product.name': re }, { 'product.sku': re }, { 'product.barcode': re }];
     }
     pipeline.push({ $match: productMatch });

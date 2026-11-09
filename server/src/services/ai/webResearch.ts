@@ -1200,6 +1200,43 @@ export function appendMissingSourceUrls(text: string, sources: ResearchSource[])
   return `${text}\n${lines.join('\n')}`;
 }
 
+/** The public URLs a model wrote into one answer, normalised and de-duplicated. */
+export function answerSourceUrls(text: string): string[] {
+  const matches = String(text ?? '').match(/https?:\/\/[^\s<>\])"'`]+/gi) ?? [];
+  const urls: string[] = [];
+  const seen = new Set<string>();
+  for (const match of matches) {
+    const trimmed = match.replace(/[.,;:!?]+$/, '');
+    let parsed: URL;
+    try {
+      parsed = new URL(trimmed);
+    } catch {
+      continue;
+    }
+    parsed.hash = '';
+    const href = parsed.toString();
+    if (seen.has(href)) continue;
+    seen.add(href);
+    urls.push(href);
+  }
+  return urls;
+}
+
+/** URLs in the draft that the web tools did not return this turn. */
+export function unreturnedSourceUrls(text: string, sources: ResearchSource[]): string[] {
+  const known = new Set<string>();
+  for (const source of sources) {
+    try {
+      const parsed = new URL(source.url);
+      parsed.hash = '';
+      known.add(parsed.toString());
+    } catch {
+      // An invalid source cannot legitimise a URL in the model's draft.
+    }
+  }
+  return answerSourceUrls(text).filter((url) => !known.has(url));
+}
+
 export default {
   researchInventoryWeb,
   chatCompletionsUrlFromBase,
