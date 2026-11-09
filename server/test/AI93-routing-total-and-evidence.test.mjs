@@ -5,9 +5,11 @@ import {
   asksForBestSelling,
   asksForHighestStockValue,
   asksForTotalStockValue,
+  bestSellingLimitsAnswer,
   highestStockValueAnswer,
   replaceFalseToolClaims,
   replaceRestockCountClaims,
+  stripModelGlitchPreamble,
   stripUnsupportedSalesClaims,
 } from '../src/services/ai/answerCompletion.ts';
 import { asksForResearchModel } from '../src/services/ai/webCapabilities.ts';
@@ -152,6 +154,29 @@ test('AI-95: a best-selling label becomes a movement statement', () => {
   assert.equal(
     stripUnsupportedSalesClaims('**Best\u2011selling (most units out)**\n\nDenso moved 830 units.'),
     '**Most units out**\n\nDenso moved 830 units.',
+  );
+});
+
+test('AI-97: a sales question gets a limitation, not a rewritten fragment', () => {
+  assert.equal(
+    bestSellingLimitsAnswer([{ name: 'Denso Air Filter', unitsOut: 830 }], 2000),
+    "The inventory records do not contain a sales ranking, so I can't identify a best seller. " +
+      'The product with the most units out is **Denso Air Filter**, with **830 units** moved out; ' +
+      'stock-outs can include usage, damage or write-offs.',
+  );
+  assert.equal(bestSellingLimitsAnswer([], 2000), null);
+});
+
+test('AI-97: a model self-correction preamble is removed', () => {
+  assert.equal(
+    stripModelGlitchPreamble(
+      '9 542 MARCNG 3 b110981?  \n\n(Ok, that was a glitch. Here is the correct answer.)  \n\n**1,535 products need restocking.**',
+    ),
+    '**1,535 products need restocking.**',
+  );
+  assert.equal(
+    stripModelGlitchPreamble('**1,535 products need restocking.**'),
+    '**1,535 products need restocking.**',
   );
 });
 
