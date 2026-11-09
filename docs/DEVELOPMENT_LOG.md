@@ -40,7 +40,7 @@ at the end of every development session, newest entry first.
 
 ## Current position
 
-**Updated:** 2026-11-08
+**Updated:** 2026-11-09
 **Goal:** finish and harden Inventory AI **V1** through production testing. No Play Store or App
 Store release is being prepared.
 
@@ -54,10 +54,10 @@ each. On 2026-11-07 the account runbook's provider snapshot was re-measured: Git
 
 | | |
 | --- | --- |
-| **Working now** | AI-87 is deployed: ordinary turns use `openai/gpt-oss-20b`; research turns try `openai/gpt-oss-120b` first, with the 20B primary as fallback and no promotion of the research model. PR #185 merged as `47353af` and Render deployed it. Two live turns verified 20B/120B routing, native search, exact costs and `failovers=0`. PR #187 then added and executed a controlled research failover drill (AI-88): one OWNER request forced a simulated 120B `503` and the real 20B fallback answered (`failovers=1`, `$0.016796`). Firebase sign-in is **restored**: the credential was rotated on 2026-11-07 and the old key deleted. PR #179 carries the runbook, the checker and this record. Minimatch alerts #18/#19 are closed; L-17 is closed as not applicable to AUTH-06. Phone verification of the deployed AI behavior passed on 2026-11-08: the app's ordinary turn used `openai/gpt-oss-20b` (`failovers=0`, 6,583 ms) and its research turn used `openai/gpt-oss-120b` with native search (`failovers=0`, 11,681 ms). After PR #190 merged as `04eb92c`, a fresh streamed phone turn (low-stock question) logged `cost=$0.000567` on `openai/gpt-oss-20b` with `getLowStockProducts` and `failovers=0`; streamed turns now preserve the provider-reported cost and native source URLs. A phone-rendered FALLBACK answer is still unobserved. |
+| **Working now** | AI-87 is deployed: ordinary turns use `openai/gpt-oss-20b`; research turns try `openai/gpt-oss-120b` first, with the 20B primary as fallback and no promotion of the research model. PR #185 merged as `47353af` and Render deployed it. Two live turns verified 20B/120B routing, native search, exact costs and `failovers=0`. PR #187 then added and executed a controlled research failover drill (AI-88): one OWNER request forced a simulated 120B `503` and the real 20B fallback answered (`failovers=1`, `$0.016796`). Firebase sign-in is **restored**: the credential was rotated on 2026-11-07 and the old key deleted. PR #179 carries the runbook, the checker and this record. Minimatch alerts #18/#19 are closed; L-17 is closed as not applicable to AUTH-06. Phone verification of the deployed AI behavior passed on 2026-11-08: the app's ordinary turn used `openai/gpt-oss-20b` (`failovers=0`, 6,583 ms) and its research turn used `openai/gpt-oss-120b` with native search (`failovers=0`, 11,681 ms). After PR #190 merged as `04eb92c`, a fresh streamed phone turn (low-stock question) logged `cost=$0.000567` on `openai/gpt-oss-20b` with `getLowStockProducts` and `failovers=0`; streamed turns now preserve the provider-reported cost and native source URLs. A phone-rendered FALLBACK answer is still unobserved. On 2026-11-09, PR #193 is open with AI-91/AI-92 exact product identity and per-location answers plus the seeding documentation; unit, typecheck and lint are green, but the branch is not merged, deployed or phone-verified. |
 | **Just verified** | On 2026-11-08, PR #190 merged as `04eb92c`; all four required checks passed on run `42480189959`; Render deploy `dep-dbo6m2ks728c739rl40g` reached `live`; a post-deploy streamed phone turn logged `cost=$0.000567` on `openai/gpt-oss-20b`; the two `cost=unknown` phone turns described next predate this fix. On 2026-11-08, PR #187 merged as `c98d688`; all four required checks passed on run `42451318595`; Render serves `c98d688` with `status: ok`, `db: connected` and **0** server errors. One OWNER drill forced a simulated 120B `503` and the 20B fallback answered (`201`, 28,214 ms, `failovers=1`, `$0.016796`). Two phone turns then ran: ordinary `20B` (`failovers=0`, 6,583 ms, `cost=unknown`) and research `120B` with native search (`failovers=0`, 11,681 ms, `cost=unknown`). PR #185 merged as `47353af`; all four required checks passed on run `42448637562`; Render deploy `dep-dbo028ks728c739m8d20` reached `live`; `/api/health` reports `status: ok`, `db: connected`, `environment: production`, and **0** server errors. One ordinary turn used `openai/gpt-oss-20b` (`$0.001749`, `failovers=0`); one research turn used `openai/gpt-oss-120b` with native search (`$0.008803`, `failovers=0`); total **$0.010552**. Live failover was not triggered. PR #162 was rebased onto `d313620` and merged as `e18264e`; all four required checks passed, Render deployed the merge, and `/api/health` returns 200 with `status: ok`, `db: connected` and the expected commit. PR #165 merged as `d313620` at `2026-11-07T06:17:42Z`, and its final head `5941956` passed all four required checks in run `42346155717`; documentation guards **39/39**; the root map guard indexes **27/27** active documents with **30** unique invariants and **10** living reference documents within cadence; the four documentation test files pass **27/27**; `git diff --check` clean. PR #168 merged as `c99760d` at `2026-11-07T07:22:01Z` after head `d901a2a` passed all four required checks in run `42350783903`; Render redeployed and `/api/health` reports `c99760d`, `status: ok`, `db: connected`, **0** server errors. PR #166 was reopened, rebased onto `783daf3`, and merged as `ebafae3` at `2026-11-07T07:49:57Z` after head `03a7418` passed all four required checks in run `42352706388`; Render redeployed and `/api/health` reports `ebafae3`, `status: ok`, `db: connected`, **0** server errors. On 2026-11-07 the minimatch override merged: #173 head `e7cc2d3` passed run `42355968583` and merged as `0eca990`; #174 head `608d811` passed run `42356272906` and merged as `8fe6403`; mobile Jest passed **101 suites / 1,203 tests**, and the server CI job ran the full suite and boot smoke. Render deployed `8fe6403`; `/api/health` reports `status: ok`, `db: connected`, **0** server errors. Minimatch alerts #18/#19 are closed; `glob` and `deepmerge` remain. On 2026-11-07 the TypeScript 7 watch self-test passed **32/32**; the live row is **DEFERRED** with both parser chains at `8.72.1` and peer `<6.1.0`; the extracted gate matrix and stubbed issue creation/deduplication passed; `check-docs` and `git diff --check` are clean. On 2026-11-07 the Firebase Admin API returned authorized domains `localhost`, `inventoryai-d0d20.firebaseapp.com`, `inventoryai-d0d20.web.app` and `ai-inventory-l1mi.onrender.com`; the Password Reset template is Firebase's default with callback `https://inventoryai-d0d20.firebaseapp.com/__/auth/action`, not the custom server URL. The mobile reset path is AUTH-06 (`/api/auth/password-reset/code` → `/verify` → `/confirm`), and `sendPasswordResetEmail` is absent from the mobile Firebase boundary. | On 2026-11-07 `npm run verify:firebase` was added and, run against `server/.env`, returned `400 invalid_grant: Invalid JWT Signature` (exit 1), detecting the production outage locally; `check-docs` and `secret-guard` are clean. On 2026-11-07 the Firebase credential was rotated end to end: `npm run verify:firebase` returned `VERIFIED`, `/api/health` reported 200 with no unexplained server errors, and production created session rows at 13:06:29Z, 13:07:33Z, 13:09:49Z and 13:15:03Z, the last after the old key was deleted.
 | **Blocked** | A phone-rendered fallback answer remains unobserved: the two phone turns needed no failover, so the AI-88 fallback answer was seen only in the server log and the terminal client. A live failover was not induced by a real upstream failure: the executed drill synthesised the 120B `503` inside the server, so a genuine outage is still unobserved, and the drill cannot fire when the research model is already cooling. The Render access review awaits the owner's plan and member list. No dependency decision is blocking; no EAS build or OTA was spent. |
-| **Next after this** | Begin planning the new major upgrade. A genuine upstream 120B outage remains unobserved; the executed drill covers the deployment's failover route, not a provider-side failure. |
+| **Next after this** | Merge PR #193 once its four required checks pass, then rerun the 20-question phone matrix to verify B4, T4, T6, B7 and T7 and the AI-91/AI-92 cases. A genuine upstream 120B outage remains unobserved; the executed drill covers the deployment's failover route, not a provider-side failure. |
 
 ### Open items carried forward
 
@@ -112,6 +112,30 @@ Known limits, checked before spending one of them:
   space that a backup or an index change would explain.
 - **Brevo** — used for verification codes, reset codes and invitations. Do not send test mail in
   bulk; a delivery failure is not a code regression until the provider log says so.
+
+---
+
+## 2026-11-09 — AI-91/AI-92 exact identity and location answers; seeding docs aligned
+
+**Why.** The 2026-11-08 phone matrix still exposed exact-product false negatives, category aliasing,
+a lost numeric suffix, and unverified web answers. Follow-up phone observations on 2026-11-09 also
+showed a top stock-out name and single-product location quantities drifting from the recorded rows.
+
+**Changed.** The assistant now derives exact product identity and per-location quantities from tool
+rows; `findProducts` has an exact name/SKU/barcode fallback; category lookup treats `and` and `&` as
+equivalent; out-of-stock reads are ACTIVE-only; paged lists state when partial; stock value is grouped
+by recorded currency; and an unsourced research answer is re-asked or refused instead of presenting
+an unread price, review or URL. The seeding guides and seeder headers were aligned in the same branch.
+
+**Verified.** `npm run test:unit`: **1,967 tests, 1,906 pass, 0 fail, 61 skipped**. `npm run typecheck`
+and `npm run lint` exit 0. Documentation tests: **11/11**. `git diff --check` is clean. No production
+seed, verification or cleanup command was executed.
+
+**Not done.** No phone run, EAS build, OTA or Render deployment has exercised this branch. The next
+phone matrix must re-check B4, T4, T6, B7, T7 and the AI-91/AI-92 cases after merge.
+
+**Delivery.** Branch `docs/seeding-fixture`, PR #193. Unit counts are from the local full unit suite;
+required CI checks have not yet completed for the final head.
 
 ---
 

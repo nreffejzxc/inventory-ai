@@ -565,6 +565,7 @@ anchor (`§27…`) in that file.
 - **§27HQ** — Grounded answers, scoped stock reads, and the member's language (2026-11-06)
 - **§27HR** — AI-48–AI-84 merged and deployed (2026-11-06)
 - **§27HS** — The AI-50–AI-84 increment register (2026-11-06)
+- **§27HT** — AI-91/AI-92 — exact product identity and per-location stock (2026-11-09)
 
 ---
 
