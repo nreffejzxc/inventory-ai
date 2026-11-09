@@ -174,8 +174,10 @@ function existenceCheck(answer, present) {
     );
   // A negative STOCK statement ("none are out of stock", "not low stock") or an
   // unrelated missing field ("price not recorded") is not a denial of existence.
+  // The 2026-11-10 gate produced "not present in our inventory" for a correctly absent
+  // SKU; the older pattern did not recognise it, so that correct answer was scored a failure.
   const denial =
-    /\b(?:we (?:do not|don't) (?:have|carry|stock)|does not exist|doesn't exist|not in (?:our|the) (?:inventory|catalog(?:ue)?)|not carried|not stocked|not found|no such (?:product|item|sku)|not recorded in (?:our|the) (?:inventory|catalog(?:ue)?))\b/i.test(
+      /\b(?:we (?:do not|don't) (?:have|carry|stock)|does not exist|doesn't exist|not (?:present )?in (?:our|the) (?:inventory|catalog(?:ue)?)|not carried|not stocked|not found|no such (?:product|item|sku)|not recorded in (?:our|the) (?:inventory|catalog(?:ue)?))\b/i.test(
       text,
     );
   const reasons = [];

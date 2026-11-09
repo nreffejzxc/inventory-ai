@@ -1,0 +1,1275 @@
+{
+  "generatedAt": "2026-11-09T19:44:01.719Z",
+  "phase": "gate",
+  "config": {
+    "size": 10256,
+    "seed": 1,
+    "transport": "service",
+    "baseUrl": null,
+    "primary": "openai/gpt-oss-20b",
+    "free": "nvidia/nemotron-3.5-lightning:free",
+    "concurrency": 1,
+    "requests": 25,
+    "waves": 25,
+    "gapMs": 1000,
+    "warmupMs": 0
+  },
+  "dataset": {
+    "products": 10256,
+    "inventoryRows": 20539,
+    "restockCount": 5,
+    "restockNames": [
+      "ASUS ROG Strix GeForce RTX 4070 SUPER OC",
+      "Samsung 990 PRO 1TB NVMe SSD",
+      "Corsair Vengeance RGB 32GB DDR5-6000",
+      "ASUS ROG Strix B650E-F Gaming WiFi",
+      "Seasonic Focus GX-850"
+    ],
+    "lowSkus": [
+      "SEEDSKU-5000",
+      "SEEDSKU-5001",
+      "SEEDSKU-5002",
+      "SEEDSKU-5003",
+      "SEEDSKU-5004"
+    ],
+    "stockSamples": [
+      {
+        "sku": "SEEDSKU-5000",
+        "name": "ASUS ROG Strix GeForce RTX 4070 SUPER OC",
+        "expected": 0
+      },
+      {
+        "sku": "SEEDSKU-0",
+        "name": "Logitech MX Keys S",
+        "expected": 75
+      },
+      {
+        "sku": "SEEDSKU-1",
+        "name": "Keychron K8 Pro",
+        "expected": 107
+      },
+      {
+        "sku": "SEEDSKU-2",
+        "name": "ASUS ROG Strix Flare II Animate",
+        "expected": 84
+      },
+      {
+        "sku": "SEEDSKU-3",
+        "name": "Razer BlackWidow V4 Pro",
+        "expected": 58
+      },
+      {
+        "sku": "SEEDSKU-4",
+        "name": "Royal Kludge RK61",
+        "expected": 53
+      },
+      {
+        "sku": "SEEDSKU-5",
+        "name": "Logitech MX Master 3S",
+        "expected": 61
+      },
+      {
+        "sku": "SEEDSKU-6",
+        "name": "Sony WH-1000XM5",
+        "expected": 88
+      },
+      {
+        "sku": "SEEDSKU-7",
+        "name": "SteelSeries Arctis Nova 7",
+        "expected": 19
+      },
+      {
+        "sku": "SEEDSKU-8",
+        "name": "Dell UltraSharp U2723QE",
+        "expected": 91
+      },
+      {
+        "sku": "SEEDSKU-9",
+        "name": "LG UltraGear 27GP850-B",
+        "expected": 78
+      },
+      {
+        "sku": "SEEDSKU-10",
+        "name": "Anker 737 Power Bank",
+        "expected": 33
+      },
+      {
+        "sku": "SEEDSKU-11",
+        "name": "Samsung Portable SSD T7 Shield 1TB",
+        "expected": 88
+      },
+      {
+        "sku": "SEEDSKU-12",
+        "name": "Logitech C920s HD Pro Webcam",
+        "expected": 87
+      },
+      {
+        "sku": "SEEDSKU-13",
+        "name": "Elgato Stream Deck MK.2",
+        "expected": 54
+      }
+    ],
+    "loadSamples": [
+      {
+        "sku": "SEEDSKU-0",
+        "expected": 75
+      },
+      {
+        "sku": "SEEDSKU-1",
+        "expected": 107
+      },
+      {
+        "sku": "SEEDSKU-2",
+        "expected": 84
+      },
+      {
+        "sku": "SEEDSKU-3",
+        "expected": 58
+      },
+      {
+        "sku": "SEEDSKU-4",
+        "expected": 53
+      },
+      {
+        "sku": "SEEDSKU-5",
+        "expected": 61
+      },
+      {
+        "sku": "SEEDSKU-6",
+        "expected": 88
+      },
+      {
+        "sku": "SEEDSKU-7",
+        "expected": 19
+      },
+      {
+        "sku": "SEEDSKU-8",
+        "expected": 91
+      },
+      {
+        "sku": "SEEDSKU-9",
+        "expected": 78
+      },
+      {
+        "sku": "SEEDSKU-10",
+        "expected": 33
+      },
+      {
+        "sku": "SEEDSKU-11",
+        "expected": 88
+      },
+      {
+        "sku": "SEEDSKU-12",
+        "expected": 87
+      },
+      {
+        "sku": "SEEDSKU-13",
+        "expected": 54
+      },
+      {
+        "sku": "SEEDSKU-14",
+        "expected": 84
+      },
+      {
+        "sku": "SEEDSKU-15",
+        "expected": 40
+      },
+      {
+        "sku": "SEEDSKU-16",
+        "expected": 37
+      },
+      {
+        "sku": "SEEDSKU-17",
+        "expected": 53
+      },
+      {
+        "sku": "SEEDSKU-18",
+        "expected": 106
+      },
+      {
+        "sku": "SEEDSKU-19",
+        "expected": 103
+      },
+      {
+        "sku": "SEEDSKU-20",
+        "expected": 26
+      },
+      {
+        "sku": "SEEDSKU-21",
+        "expected": 99
+      },
+      {
+        "sku": "SEEDSKU-22",
+        "expected": 82
+      },
+      {
+        "sku": "SEEDSKU-23",
+        "expected": 106
+      },
+      {
+        "sku": "SEEDSKU-24",
+        "expected": 52
+      },
+      {
+        "sku": "SEEDSKU-25",
+        "expected": 78
+      },
+      {
+        "sku": "SEEDSKU-26",
+        "expected": 22
+      },
+      {
+        "sku": "SEEDSKU-27",
+        "expected": 41
+      },
+      {
+        "sku": "SEEDSKU-28",
+        "expected": 100
+      },
+      {
+        "sku": "SEEDSKU-29",
+        "expected": 77
+      },
+      {
+        "sku": "SEEDSKU-30",
+        "expected": 26
+      },
+      {
+        "sku": "SEEDSKU-31",
+        "expected": 43
+      },
+      {
+        "sku": "SEEDSKU-32",
+        "expected": 26
+      },
+      {
+        "sku": "SEEDSKU-33",
+        "expected": 35
+      },
+      {
+        "sku": "SEEDSKU-34",
+        "expected": 110
+      },
+      {
+        "sku": "SEEDSKU-35",
+        "expected": 15
+      },
+      {
+        "sku": "SEEDSKU-36",
+        "expected": 109
+      },
+      {
+        "sku": "SEEDSKU-37",
+        "expected": 98
+      },
+      {
+        "sku": "SEEDSKU-38",
+        "expected": 98
+      },
+      {
+        "sku": "SEEDSKU-39",
+        "expected": 36
+      }
+    ]
+  },
+  "allowanceBefore": {
+    "status": "OK",
+    "isFreeTier": false,
+    "daily": {
+      "used": 1005,
+      "limit": 1000,
+      "remaining": 0
+    },
+    "paidUsage": 0.98408932,
+    "paidUsageDaily": 0.32410923,
+    "paidUsageMonthly": 0.98408932,
+    "creditLimit": null,
+    "creditRemaining": null
+  },
+  "allowanceAfter": {
+    "status": "OK",
+    "isFreeTier": false,
+    "daily": {
+      "used": 1005,
+      "limit": 1000,
+      "remaining": 0
+    },
+    "paidUsage": 1.011972205,
+    "paidUsageDaily": 0.351992115,
+    "paidUsageMonthly": 1.011972205,
+    "creditLimit": null,
+    "creditRemaining": null
+  },
+  "summary": {
+    "phase": "gate",
+    "requests": 25,
+    "concurrency": 1,
+    "waves": 25,
+    "gapMs": 1000,
+    "answered": 25,
+    "accurate": 24,
+    "accuracyRate": 0.96,
+    "answeredAccuracy": 0.96,
+    "errors": 0,
+    "errorRate": 0,
+    "degraded": 0,
+    "freeServed": 0,
+    "paidServed": 25,
+    "freeSuccessRate": 0,
+    "paidFallbackRate": 1,
+    "medianMs": 4252,
+    "p95Ms": 12175,
+    "meanMs": 5649.2,
+    "minMs": 2452,
+    "maxMs": 15893,
+    "totalCostUsd": 0.016724449999999995,
+    "costComplete": true,
+    "resumedRows": 0,
+    "executedThisRun": 25,
+    "startedAt": "2026-11-09T19:41:16.219Z",
+    "finishedAt": "2026-11-09T19:44:01.689Z",
+    "durationMs": 165470,
+    "throughputRps": 0.1510847887834653,
+    "throughputPerMinute": 9.07,
+    "providerPaidUsageDelta": 0.027882884999999913,
+    "freeRequestsRemainingBefore": 0,
+    "freeRequestsRemainingAfter": 0
+  },
+  "rows": [
+    {
+      "id": "stock-SEEDSKU-5000",
+      "operation": "product_stock",
+      "sku": "SEEDSKU-5000",
+      "message": "How many units of the product with SKU SEEDSKU-5000 are in stock?",
+      "expected": 0,
+      "answer": "**ASUS ROG Strix GeForce RTX 4070 SUPER OC** has **0** units on hand across all locations.",
+      "check": {
+        "ok": true,
+        "reasons": []
+      },
+      "model": "openai/gpt-oss-20b",
+      "freeServed": false,
+      "totalMs": 12175,
+      "usage": {
+        "inputTokens": 19248,
+        "outputTokens": 496
+      },
+      "toolsUsed": [
+        "getInventory"
+      ],
+      "degraded": null,
+      "error": null,
+      "costUsd": 0.0006419199999999999,
+      "workIndex": 0,
+      "wave": 1,
+      "sequence": 1
+    },
+    {
+      "id": "stock-SEEDSKU-0",
+      "operation": "product_stock",
+      "sku": "SEEDSKU-0",
+      "message": "How many units of the product with SKU SEEDSKU-0 are in stock?",
+      "expected": 75,
+      "answer": "**Logitech MX Keys S** has **75** units on hand across all locations.",
+      "check": {
+        "ok": true,
+        "reasons": []
+      },
+      "model": "openai/gpt-oss-20b",
+      "freeServed": false,
+      "totalMs": 4252,
+      "usage": {
+        "inputTokens": 19905,
+        "outputTokens": 442
+      },
+      "toolsUsed": [
+        "getInventory"
+      ],
+      "degraded": null,
+      "error": null,
+      "costUsd": 0.0006546099999999999,
+      "workIndex": 1,
+      "wave": 2,
+      "sequence": 2
+    },
+    {
+      "id": "stock-SEEDSKU-1",
+      "operation": "product_stock",
+      "sku": "SEEDSKU-1",
+      "message": "How many units of the product with SKU SEEDSKU-1 are in stock?",
+      "expected": 107,
+      "answer": "**Keychron K8 Pro** has **107** units on hand across all locations.",
+      "check": {
+        "ok": true,
+        "reasons": []
+      },
+      "model": "openai/gpt-oss-20b",
+      "freeServed": false,
+      "totalMs": 6675,
+      "usage": {
+        "inputTokens": 20033,
+        "outputTokens": 1410
+      },
+      "toolsUsed": [
+        "getInventory"
+      ],
+      "degraded": null,
+      "error": null,
+      "costUsd": 0.00078429,
+      "workIndex": 2,
+      "wave": 3,
+      "sequence": 3
+    },
+    {
+      "id": "stock-SEEDSKU-2",
+      "operation": "product_stock",
+      "sku": "SEEDSKU-2",
+      "message": "How many units of the product with SKU SEEDSKU-2 are in stock?",
+      "expected": 84,
+      "answer": "**ASUS ROG Strix Flare II Animate** has **84** units on hand across all locations.",
+      "check": {
+        "ok": true,
+        "reasons": []
+      },
+      "model": "openai/gpt-oss-20b",
+      "freeServed": false,
+      "totalMs": 3438,
+      "usage": {
+        "inputTokens": 20051,
+        "outputTokens": 718
+      },
+      "toolsUsed": [
+        "getInventory"
+      ],
+      "degraded": null,
+      "error": null,
+      "costUsd": 0.00069487,
+      "workIndex": 3,
+      "wave": 4,
+      "sequence": 4
+    },
+    {
+      "id": "stock-SEEDSKU-3",
+      "operation": "product_stock",
+      "sku": "SEEDSKU-3",
+      "message": "How many units of the product with SKU SEEDSKU-3 are in stock?",
+      "expected": 58,
+      "answer": "**Razer BlackWidow V4 Pro** has **58** units on hand across all locations.",
+      "check": {
+        "ok": true,
+        "reasons": []
+      },
+      "model": "openai/gpt-oss-20b",
+      "freeServed": false,
+      "totalMs": 12149,
+      "usage": {
+        "inputTokens": 19225,
+        "outputTokens": 473
+      },
+      "toolsUsed": [
+        "getInventory"
+      ],
+      "degraded": null,
+      "error": null,
+      "costUsd": 0.0006382399999999999,
+      "workIndex": 4,
+      "wave": 5,
+      "sequence": 5
+    },
+    {
+      "id": "stock-SEEDSKU-4",
+      "operation": "product_stock",
+      "sku": "SEEDSKU-4",
+      "message": "How many units of the product with SKU SEEDSKU-4 are in stock?",
+      "expected": 53,
+      "answer": "**Royal Kludge RK61** has **53** units on hand at **Main Warehouse**.",
+      "check": {
+        "ok": true,
+        "reasons": []
+      },
+      "model": "openai/gpt-oss-20b",
+      "freeServed": false,
+      "totalMs": 2662,
+      "usage": {
+        "inputTokens": 19782,
+        "outputTokens": 259
+      },
+      "toolsUsed": [
+        "getInventory"
+      ],
+      "degraded": null,
+      "error": null,
+      "costUsd": 0.0006271299999999999,
+      "workIndex": 5,
+      "wave": 6,
+      "sequence": 6
+    },
+    {
+      "id": "stock-SEEDSKU-5",
+      "operation": "product_stock",
+      "sku": "SEEDSKU-5",
+      "message": "How many units of the product with SKU SEEDSKU-5 are in stock?",
+      "expected": 61,
+      "answer": "**Logitech MX Master 3S** has **61** units on hand across all locations.",
+      "check": {
+        "ok": true,
+        "reasons": []
+      },
+      "model": "openai/gpt-oss-20b",
+      "freeServed": false,
+      "totalMs": 15893,
+      "usage": {
+        "inputTokens": 19093,
+        "outputTokens": 759
+      },
+      "toolsUsed": [
+        "getInventory"
+      ],
+      "degraded": null,
+      "error": null,
+      "costUsd": 0.00067146,
+      "workIndex": 6,
+      "wave": 7,
+      "sequence": 7
+    },
+    {
+      "id": "stock-SEEDSKU-6",
+      "operation": "product_stock",
+      "sku": "SEEDSKU-6",
+      "message": "How many units of the product with SKU SEEDSKU-6 are in stock?",
+      "expected": 88,
+      "answer": "**Sony WH-1000XM5** has **88** units on hand across all locations.",
+      "check": {
+        "ok": true,
+        "reasons": []
+      },
+      "model": "openai/gpt-oss-20b",
+      "freeServed": false,
+      "totalMs": 6204,
+      "usage": {
+        "inputTokens": 19910,
+        "outputTokens": 475
+      },
+      "toolsUsed": [
+        "getInventory"
+      ],
+      "degraded": null,
+      "error": null,
+      "costUsd": 0.0006590499999999999,
+      "workIndex": 7,
+      "wave": 8,
+      "sequence": 8
+    },
+    {
+      "id": "stock-SEEDSKU-7",
+      "operation": "product_stock",
+      "sku": "SEEDSKU-7",
+      "message": "How many units of the product with SKU SEEDSKU-7 are in stock?",
+      "expected": 19,
+      "answer": "**SteelSeries Arctis Nova 7** has **19** units on hand across all locations.",
+      "check": {
+        "ok": true,
+        "reasons": []
+      },
+      "model": "openai/gpt-oss-20b",
+      "freeServed": false,
+      "totalMs": 3137,
+      "usage": {
+        "inputTokens": 19912,
+        "outputTokens": 292
+      },
+      "toolsUsed": [
+        "getInventory"
+      ],
+      "degraded": null,
+      "error": null,
+      "costUsd": 0.0006353199999999999,
+      "workIndex": 8,
+      "wave": 9,
+      "sequence": 9
+    },
+    {
+      "id": "stock-SEEDSKU-8",
+      "operation": "product_stock",
+      "sku": "SEEDSKU-8",
+      "message": "How many units of the product with SKU SEEDSKU-8 are in stock?",
+      "expected": 91,
+      "answer": "**Dell UltraSharp U2723QE** has **91** units on hand across all locations.",
+      "check": {
+        "ok": true,
+        "reasons": []
+      },
+      "model": "openai/gpt-oss-20b",
+      "freeServed": false,
+      "totalMs": 4386,
+      "usage": {
+        "inputTokens": 20042,
+        "outputTokens": 738
+      },
+      "toolsUsed": [
+        "getInventory"
+      ],
+      "degraded": null,
+      "error": null,
+      "costUsd": 0.0006971999999999999,
+      "workIndex": 9,
+      "wave": 10,
+      "sequence": 10
+    },
+    {
+      "id": "stock-SEEDSKU-9",
+      "operation": "product_stock",
+      "sku": "SEEDSKU-9",
+      "message": "How many units of the product with SKU SEEDSKU-9 are in stock?",
+      "expected": 78,
+      "answer": "**LG UltraGear 27GP850-B** has **78** units on hand across all locations.",
+      "check": {
+        "ok": true,
+        "reasons": []
+      },
+      "model": "openai/gpt-oss-20b",
+      "freeServed": false,
+      "totalMs": 5379,
+      "usage": {
+        "inputTokens": 20049,
+        "outputTokens": 1453
+      },
+      "toolsUsed": [
+        "getInventory"
+      ],
+      "degraded": null,
+      "error": null,
+      "costUsd": 0.0007903599999999999,
+      "workIndex": 10,
+      "wave": 11,
+      "sequence": 11
+    },
+    {
+      "id": "stock-SEEDSKU-10",
+      "operation": "product_stock",
+      "sku": "SEEDSKU-10",
+      "message": "How many units of the product with SKU SEEDSKU-10 are in stock?",
+      "expected": 33,
+      "answer": "**Anker 737 Power Bank** has **33** units on hand across all locations.",
+      "check": {
+        "ok": true,
+        "reasons": []
+      },
+      "model": "openai/gpt-oss-20b",
+      "freeServed": false,
+      "totalMs": 2452,
+      "usage": {
+        "inputTokens": 20039,
+        "outputTokens": 514
+      },
+      "toolsUsed": [
+        "getInventory"
+      ],
+      "degraded": null,
+      "error": null,
+      "costUsd": 0.0006679899999999999,
+      "workIndex": 11,
+      "wave": 12,
+      "sequence": 12
+    },
+    {
+      "id": "stock-SEEDSKU-11",
+      "operation": "product_stock",
+      "sku": "SEEDSKU-11",
+      "message": "How many units of the product with SKU SEEDSKU-11 are in stock?",
+      "expected": 88,
+      "answer": "**Samsung Portable SSD T7 Shield 1TB** has **88** units on hand across all locations.",
+      "check": {
+        "ok": true,
+        "reasons": []
+      },
+      "model": "openai/gpt-oss-20b",
+      "freeServed": false,
+      "totalMs": 2904,
+      "usage": {
+        "inputTokens": 20046,
+        "outputTokens": 405
+      },
+      "toolsUsed": [
+        "getInventory"
+      ],
+      "degraded": null,
+      "error": null,
+      "costUsd": 0.00065403,
+      "workIndex": 12,
+      "wave": 13,
+      "sequence": 13
+    },
+    {
+      "id": "stock-SEEDSKU-12",
+      "operation": "product_stock",
+      "sku": "SEEDSKU-12",
+      "message": "How many units of the product with SKU SEEDSKU-12 are in stock?",
+      "expected": 87,
+      "answer": "**Logitech C920s HD Pro Webcam** has **87** units on hand across all locations.",
+      "check": {
+        "ok": true,
+        "reasons": []
+      },
+      "model": "openai/gpt-oss-20b",
+      "freeServed": false,
+      "totalMs": 11027,
+      "usage": {
+        "inputTokens": 19229,
+        "outputTokens": 936
+      },
+      "toolsUsed": [
+        "getInventory"
+      ],
+      "degraded": null,
+      "error": null,
+      "costUsd": 0.0006985499999999999,
+      "workIndex": 13,
+      "wave": 14,
+      "sequence": 14
+    },
+    {
+      "id": "stock-SEEDSKU-13",
+      "operation": "product_stock",
+      "sku": "SEEDSKU-13",
+      "message": "How many units of the product with SKU SEEDSKU-13 are in stock?",
+      "expected": 54,
+      "answer": "**Elgato Stream Deck MK.2** has **54** units on hand at **Main Warehouse**.",
+      "check": {
+        "ok": true,
+        "reasons": []
+      },
+      "model": "openai/gpt-oss-20b",
+      "freeServed": false,
+      "totalMs": 3211,
+      "usage": {
+        "inputTokens": 19779,
+        "outputTokens": 492
+      },
+      "toolsUsed": [
+        "getInventory"
+      ],
+      "degraded": null,
+      "error": null,
+      "costUsd": 0.00065733,
+      "workIndex": 14,
+      "wave": 15,
+      "sequence": 15
+    },
+    {
+      "id": "exists-SEEDSKU-0",
+      "operation": "product_existence",
+      "sku": "SEEDSKU-0",
+      "message": "Do we have the product with SKU SEEDSKU-0 in our inventory?",
+      "expected": true,
+      "answer": "Yes. The SKU SEEDSKU-0 (Logitech MX Keys S) is in stock – 38 units at Shop Front and 37 units at Main Warehouse.",
+      "check": {
+        "ok": true,
+        "reasons": []
+      },
+      "model": "openai/gpt-oss-20b",
+      "freeServed": false,
+      "totalMs": 3244,
+      "usage": {
+        "inputTokens": 19903,
+        "outputTokens": 625
+      },
+      "toolsUsed": [
+        "getInventory"
+      ],
+      "degraded": null,
+      "error": null,
+      "costUsd": 0.0006783399999999999,
+      "workIndex": 15,
+      "wave": 16,
+      "sequence": 16
+    },
+    {
+      "id": "exists-SEEDSKU-1",
+      "operation": "product_existence",
+      "sku": "SEEDSKU-1",
+      "message": "Do we have the product with SKU SEEDSKU-1 in our inventory?",
+      "expected": true,
+      "answer": "Yes, the product with SKU SEEDSKU-1 is in our catalogue – it is the **Keychron K8 Pro**.  \nIt is stocked in three locations: **Overflow Store 37 units**, **Shop Front 35 units**, and **Main Warehouse 35 units**.  \nThat gives a total of 107 units on hand.",
+      "check": {
+        "ok": true,
+        "reasons": []
+      },
+      "model": "openai/gpt-oss-20b",
+      "freeServed": false,
+      "totalMs": 4781,
+      "usage": {
+        "inputTokens": 20348,
+        "outputTokens": 953
+      },
+      "toolsUsed": [
+        "getProduct"
+      ],
+      "degraded": null,
+      "error": null,
+      "costUsd": 0.0007343299999999999,
+      "workIndex": 16,
+      "wave": 17,
+      "sequence": 17
+    },
+    {
+      "id": "exists-SEEDSKU-5000",
+      "operation": "product_existence",
+      "sku": "SEEDSKU-5000",
+      "message": "Do we have the product with SKU SEEDSKU-5000 in our inventory?",
+      "expected": true,
+      "answer": "Yes, the SKU SEEDSKU-5000 is in our catalogue – it is the ASUS ROG Strix GeForce RTX 4070 SUPER OC.  \nAll three inventory records show 0 units on hand, so the item is out of stock at every location.",
+      "check": {
+        "ok": true,
+        "reasons": []
+      },
+      "model": "openai/gpt-oss-20b",
+      "freeServed": false,
+      "totalMs": 2905,
+      "usage": {
+        "inputTokens": 20383,
+        "outputTokens": 520
+      },
+      "toolsUsed": [
+        "getProduct"
+      ],
+      "degraded": null,
+      "error": null,
+      "costUsd": 0.0006790899999999999,
+      "workIndex": 17,
+      "wave": 18,
+      "sequence": 18
+    },
+    {
+      "id": "exists-SEEDSKU-2",
+      "operation": "product_existence",
+      "sku": "SEEDSKU-2",
+      "message": "Do we have the product with SKU SEEDSKU-2 in our inventory?",
+      "expected": true,
+      "answer": "Yes, the product ASUS ROG Strix Flare II Animate (SKU SEEDSKU-2) exists in our inventory. It is held in three locations—Overflow Store, Shop Front, and Main Warehouse—each with 28 units available.",
+      "check": {
+        "ok": true,
+        "reasons": []
+      },
+      "model": "openai/gpt-oss-20b",
+      "freeServed": false,
+      "totalMs": 3891,
+      "usage": {
+        "inputTokens": 20385,
+        "outputTokens": 464
+      },
+      "toolsUsed": [
+        "getProduct"
+      ],
+      "degraded": null,
+      "error": null,
+      "costUsd": 0.00067187,
+      "workIndex": 18,
+      "wave": 19,
+      "sequence": 19
+    },
+    {
+      "id": "exists-SEEDSKU-3",
+      "operation": "product_existence",
+      "sku": "SEEDSKU-3",
+      "message": "Do we have the product with SKU SEEDSKU-3 in our inventory?",
+      "expected": true,
+      "answer": "Yes, the product with SKU SEEDSKU-3 (Razer BlackWidow V4 Pro) is in the catalogue and in stock. It currently has 20 units at Overflow Store, 19 units at Shop Front and 19 units at Main Warehouse. The product is active and available for sale.",
+      "check": {
+        "ok": true,
+        "reasons": []
+      },
+      "model": "openai/gpt-oss-20b",
+      "freeServed": false,
+      "totalMs": 3399,
+      "usage": {
+        "inputTokens": 20358,
+        "outputTokens": 300
+      },
+      "toolsUsed": [
+        "getProduct"
+      ],
+      "degraded": null,
+      "error": null,
+      "costUsd": 0.0006497399999999999,
+      "workIndex": 19,
+      "wave": 20,
+      "sequence": 20
+    },
+    {
+      "id": "exists-absent",
+      "operation": "product_existence",
+      "sku": "SEEDSKU-999999",
+      "message": "Do we have the product with SKU SEEDSKU-999999 in our inventory?",
+      "expected": false,
+      "answer": "No, the SKU SEEDSKU-999999 is not present in our inventory.",
+      "check": {
+        "ok": false,
+        "reasons": [
+          "missing a denial"
+        ]
+      },
+      "model": "openai/gpt-oss-20b",
+      "freeServed": false,
+      "totalMs": 6082,
+      "usage": {
+        "inputTokens": 18826,
+        "outputTokens": 367
+      },
+      "toolsUsed": [
+        "getProduct"
+      ],
+      "degraded": null,
+      "error": null,
+      "costUsd": 0.0006124899999999999,
+      "workIndex": 20,
+      "wave": 21,
+      "sequence": 21
+    },
+    {
+      "id": "restock-list-1",
+      "operation": "restock_list",
+      "sku": null,
+      "message": "Which products need to be restocked?",
+      "expected": [
+        "ASUS ROG Strix GeForce RTX 4070 SUPER OC",
+        "Samsung 990 PRO 1TB NVMe SSD",
+        "Corsair Vengeance RGB 32GB DDR5-6000",
+        "ASUS ROG Strix B650E-F Gaming WiFi",
+        "Seasonic Focus GX-850"
+      ],
+      "answer": "Five products need restocking.  \n- Seasonic Focus GX-850 – 0 pcs available  \n- ASUS ROG Strix B650E‑F Gaming WiFi – 0 pcs available  \n- Corsair Vengeance RGB 32GB DDR5-6000 – 0 pcs available  \n- Samsung 990 PRO 1 TB NVMe SSD – 0 pcs available  \n- ASUS ROG Strix GeForce RTX 4070 SUPER OC – 0 pcs available\n\nThe full restock list is: Seasonic Focus GX-850, ASUS ROG Strix B650E-F Gaming WiFi, Corsair Vengeance RGB 32GB DDR5-6000, Samsung 990 PRO 1TB NVMe SSD, ASUS ROG Strix GeForce RTX 4070 SUPER OC.",
+      "check": {
+        "ok": true,
+        "reasons": []
+      },
+      "model": "openai/gpt-oss-20b",
+      "freeServed": false,
+      "totalMs": 3706,
+      "usage": {
+        "inputTokens": 19394,
+        "outputTokens": 408
+      },
+      "toolsUsed": [
+        "getReorderNeededProducts"
+      ],
+      "degraded": null,
+      "error": null,
+      "costUsd": 0.0006348599999999999,
+      "workIndex": 21,
+      "wave": 22,
+      "sequence": 22
+    },
+    {
+      "id": "restock-list-2",
+      "operation": "restock_list",
+      "sku": null,
+      "message": "Which products are at or below their minimum stock?",
+      "expected": [
+        "ASUS ROG Strix GeForce RTX 4070 SUPER OC",
+        "Samsung 990 PRO 1TB NVMe SSD",
+        "Corsair Vengeance RGB 32GB DDR5-6000",
+        "ASUS ROG Strix B650E-F Gaming WiFi",
+        "Seasonic Focus GX-850"
+      ],
+      "answer": "There are 5 products that are at or below their minimum stock. They are:\n\n- Seasonic Focus GX-850 (0 units)  \n- ASUS ROG Strix B650E‑F Gaming WiFi (0 units)  \n- Corsair Vengeance RGB 32GB DDR5-6000 (0 units)  \n- Samsung 990 PRO 1TB NVMe SSD (0 units)  \n- ASUS ROG Strix GeForce RTX 4070 SUPER OC (0 units)\n\nThe full restock list is: Seasonic Focus GX-850, ASUS ROG Strix B650E-F Gaming WiFi, Corsair Vengeance RGB 32GB DDR5-6000, Samsung 990 PRO 1TB NVMe SSD, ASUS ROG Strix GeForce RTX 4070 SUPER OC.",
+      "check": {
+        "ok": true,
+        "reasons": []
+      },
+      "model": "openai/gpt-oss-20b",
+      "freeServed": false,
+      "totalMs": 3364,
+      "usage": {
+        "inputTokens": 20208,
+        "outputTokens": 373
+      },
+      "toolsUsed": [
+        "getReorderNeededProducts"
+      ],
+      "degraded": null,
+      "error": null,
+      "costUsd": 0.00065473,
+      "workIndex": 22,
+      "wave": 23,
+      "sequence": 23
+    },
+    {
+      "id": "restock-count-1",
+      "operation": "restock_count",
+      "sku": null,
+      "message": "How many products need restocking?",
+      "expected": 5,
+      "answer": "5 products need restocking.",
+      "check": {
+        "ok": true,
+        "reasons": []
+      },
+      "model": "openai/gpt-oss-20b",
+      "freeServed": false,
+      "totalMs": 5011,
+      "usage": {
+        "inputTokens": 20196,
+        "outputTokens": 120
+      },
+      "toolsUsed": [
+        "getReorderNeededProducts"
+      ],
+      "degraded": null,
+      "error": null,
+      "costUsd": 0.00062148,
+      "workIndex": 23,
+      "wave": 24,
+      "sequence": 24
+    },
+    {
+      "id": "restock-count-2",
+      "operation": "restock_count",
+      "sku": null,
+      "message": "How many items are below their minimum stock?",
+      "expected": 5,
+      "answer": "5 products need restocking.",
+      "check": {
+        "ok": true,
+        "reasons": []
+      },
+      "model": "openai/gpt-oss-20b",
+      "freeServed": false,
+      "totalMs": 8903,
+      "usage": {
+        "inputTokens": 18586,
+        "outputTokens": 443
+      },
+      "toolsUsed": [
+        "getReorderNeededProducts"
+      ],
+      "degraded": null,
+      "error": null,
+      "costUsd": 0.00061517,
+      "workIndex": 24,
+      "wave": 25,
+      "sequence": 25
+    }
+  ],
+  "logs": [
+    "[ai:openrouter] upstream rate/quota limit reached (HTTP 429)",
+    "[ai:openrouter] upstream HTTP error diagnostics\nstatus=429\ncontentType=application/json\ncontentLength=none\nlocation=none\nbodyLength=511\nclassification=JSON_LIKE\nbodyPrefix=\"{\\\"type\\\":\\\"error\\\",\\\"error\\\":{\\\"type\\\":\\\"rate_limit_error\\\",\\\"message\\\":\\\"Rate limit exceeded: free-models-per-day-high-balance. \\\",\\\"error_type\\\":\\\"rate_limit_exceeded\\\"},\\\"request_id\\\":\\\"gen-1794253276-k9BONKwKFIx2OETi7XRX\\\",\\\"metadata\\\":{\\\"headers\\\":{\\\"X-RateLimit-Limit\\\":\\\"1000\\\",\\\"X-RateLimit-Remaining\\\":\\\"0\\\",\\\"X-RateLimit-Res\"",
+    "[ai] simple route: paid fallback reserved $0.010000 of the $0.250000 daily budget (free quota refusal)",
+    "[ai] simple route: free model nvidia/nemotron-3.5-lightning:free was refused by quota — falling forward to the paid primary once",
+    "[ai:openrouter] web tools enabled=search,fetch offered=none used=none intent=inventory model=openai/gpt-oss-20b",
+    "[ai:openrouter] web tools enabled=search,fetch offered=none used=none intent=inventory model=openai/gpt-oss-20b",
+    "[ai] single-product stock total computed from the returned rows",
+    "[ai] simple route: paid fallback settled at $0.001051 ($0.000000 still reserved today)",
+    "[ai] turn outcome=ok total=12159ms providerMs=11789ms calls=3 toolMs=359ms toolRuns=1 tools=getInventory empty=0 failovers=1 route=simple simpleEscalations=1 quota=0/1000 in=19248 out=496 cost=$0.001051 web=none model=openai/gpt-oss-20b iterations=2",
+    "[ai:openrouter] upstream rate/quota limit reached (HTTP 429)",
+    "[ai:openrouter] upstream HTTP error diagnostics\nstatus=429\ncontentType=application/json\ncontentLength=none\nlocation=none\nbodyLength=511\nclassification=JSON_LIKE\nbodyPrefix=\"{\\\"type\\\":\\\"error\\\",\\\"error\\\":{\\\"type\\\":\\\"rate_limit_error\\\",\\\"message\\\":\\\"Rate limit exceeded: free-models-per-day-high-balance. \\\",\\\"error_type\\\":\\\"rate_limit_exceeded\\\"},\\\"request_id\\\":\\\"gen-1794253289-nE4HCbdwUYLf9zQqgvdY\\\",\\\"metadata\\\":{\\\"headers\\\":{\\\"X-RateLimit-Limit\\\":\\\"1000\\\",\\\"X-RateLimit-Remaining\\\":\\\"0\\\",\\\"X-RateLimit-Res\"",
+    "[ai] simple route: paid fallback reserved $0.010000 of the $0.250000 daily budget (free quota refusal)",
+    "[ai] simple route: free model nvidia/nemotron-3.5-lightning:free was refused by quota — falling forward to the paid primary once",
+    "[ai:openrouter] web tools enabled=search,fetch offered=none used=none intent=inventory model=openai/gpt-oss-20b",
+    "[ai:openrouter] web tools enabled=search,fetch offered=none used=none intent=inventory model=openai/gpt-oss-20b",
+    "[ai] single-product stock total computed from the returned rows",
+    "[ai] simple route: paid fallback settled at $0.002677 ($0.000000 still reserved today)",
+    "[ai] turn outcome=ok total=4250ms providerMs=3897ms calls=3 toolMs=351ms toolRuns=1 tools=getInventory empty=0 failovers=1 route=simple simpleEscalations=1 quota=0/1000 in=19905 out=442 cost=$0.001625 web=none model=openai/gpt-oss-20b iterations=2",
+    "[ai:openrouter] upstream rate/quota limit reached (HTTP 429)",
+    "[ai:openrouter] upstream HTTP error diagnostics\nstatus=429\ncontentType=application/json\ncontentLength=none\nlocation=none\nbodyLength=511\nclassification=JSON_LIKE\nbodyPrefix=\"{\\\"type\\\":\\\"error\\\",\\\"error\\\":{\\\"type\\\":\\\"rate_limit_error\\\",\\\"message\\\":\\\"Rate limit exceeded: free-models-per-day-high-balance. \\\",\\\"error_type\\\":\\\"rate_limit_exceeded\\\"},\\\"request_id\\\":\\\"gen-1794253294-WI7ulWL2XBussVhf2Hka\\\",\\\"metadata\\\":{\\\"headers\\\":{\\\"X-RateLimit-Limit\\\":\\\"1000\\\",\\\"X-RateLimit-Remaining\\\":\\\"0\\\",\\\"X-RateLimit-Res\"",
+    "[ai] simple route: paid fallback reserved $0.010000 of the $0.250000 daily budget (free quota refusal)",
+    "[ai] simple route: free model nvidia/nemotron-3.5-lightning:free was refused by quota — falling forward to the paid primary once",
+    "[ai:openrouter] web tools enabled=search,fetch offered=none used=none intent=inventory model=openai/gpt-oss-20b",
+    "[ai:openrouter] web tools enabled=search,fetch offered=none used=none intent=inventory model=openai/gpt-oss-20b",
+    "[ai] single-product stock total computed from the returned rows",
+    "[ai] simple route: paid fallback settled at $0.004602 ($0.000000 still reserved today)",
+    "[ai] turn outcome=ok total=6674ms providerMs=6331ms calls=3 toolMs=343ms toolRuns=1 tools=getInventory empty=0 failovers=1 route=simple simpleEscalations=1 quota=0/1000 in=20033 out=1410 cost=$0.001925 web=none model=openai/gpt-oss-20b iterations=2",
+    "[ai:openrouter] upstream rate/quota limit reached (HTTP 429)",
+    "[ai:openrouter] upstream HTTP error diagnostics\nstatus=429\ncontentType=application/json\ncontentLength=none\nlocation=none\nbodyLength=511\nclassification=JSON_LIKE\nbodyPrefix=\"{\\\"type\\\":\\\"error\\\",\\\"error\\\":{\\\"type\\\":\\\"rate_limit_error\\\",\\\"message\\\":\\\"Rate limit exceeded: free-models-per-day-high-balance. \\\",\\\"error_type\\\":\\\"rate_limit_exceeded\\\"},\\\"request_id\\\":\\\"gen-1794253302-84qb9KtKJ4cGEqEWpRR3\\\",\\\"metadata\\\":{\\\"headers\\\":{\\\"X-RateLimit-Limit\\\":\\\"1000\\\",\\\"X-RateLimit-Remaining\\\":\\\"0\\\",\\\"X-RateLimit-Res\"",
+    "[ai] simple route: paid fallback reserved $0.010000 of the $0.250000 daily budget (free quota refusal)",
+    "[ai] simple route: free model nvidia/nemotron-3.5-lightning:free was refused by quota — falling forward to the paid primary once",
+    "[ai:openrouter] web tools enabled=search,fetch offered=none used=none intent=inventory model=openai/gpt-oss-20b",
+    "[ai:openrouter] web tools enabled=search,fetch offered=none used=none intent=inventory model=openai/gpt-oss-20b",
+    "[ai] single-product stock total computed from the returned rows",
+    "[ai] simple route: paid fallback settled at $0.005957 ($0.000000 still reserved today)",
+    "[ai] turn outcome=ok total=3436ms providerMs=3090ms calls=3 toolMs=346ms toolRuns=1 tools=getInventory empty=0 failovers=1 route=simple simpleEscalations=1 quota=0/1000 in=20051 out=718 cost=$0.001354 web=none model=openai/gpt-oss-20b iterations=2",
+    "[ai:openrouter] upstream rate/quota limit reached (HTTP 429)",
+    "[ai:openrouter] upstream HTTP error diagnostics\nstatus=429\ncontentType=application/json\ncontentLength=none\nlocation=none\nbodyLength=511\nclassification=JSON_LIKE\nbodyPrefix=\"{\\\"type\\\":\\\"error\\\",\\\"error\\\":{\\\"type\\\":\\\"rate_limit_error\\\",\\\"message\\\":\\\"Rate limit exceeded: free-models-per-day-high-balance. \\\",\\\"error_type\\\":\\\"rate_limit_exceeded\\\"},\\\"request_id\\\":\\\"gen-1794253306-ClHKK9ziZ6HtnJpI2D8c\\\",\\\"metadata\\\":{\\\"headers\\\":{\\\"X-RateLimit-Limit\\\":\\\"1000\\\",\\\"X-RateLimit-Remaining\\\":\\\"0\\\",\\\"X-RateLimit-Res\"",
+    "[ai] simple route: paid fallback reserved $0.010000 of the $0.250000 daily budget (free quota refusal)",
+    "[ai] simple route: free model nvidia/nemotron-3.5-lightning:free was refused by quota — falling forward to the paid primary once",
+    "[ai:openrouter] web tools enabled=search,fetch offered=none used=none intent=inventory model=openai/gpt-oss-20b",
+    "[ai:openrouter] web tools enabled=search,fetch offered=none used=none intent=inventory model=openai/gpt-oss-20b",
+    "[ai] single-product stock total computed from the returned rows",
+    "[ai] simple route: paid fallback settled at $0.007010 ($0.000000 still reserved today)",
+    "[ai] turn outcome=ok total=12148ms providerMs=11805ms calls=3 toolMs=342ms toolRuns=1 tools=getInventory empty=0 failovers=1 route=simple simpleEscalations=1 quota=0/1000 in=19225 out=473 cost=$0.001053 web=none model=openai/gpt-oss-20b iterations=2",
+    "[ai:openrouter] upstream rate/quota limit reached (HTTP 429)",
+    "[ai:openrouter] upstream HTTP error diagnostics\nstatus=429\ncontentType=application/json\ncontentLength=none\nlocation=none\nbodyLength=511\nclassification=JSON_LIKE\nbodyPrefix=\"{\\\"type\\\":\\\"error\\\",\\\"error\\\":{\\\"type\\\":\\\"rate_limit_error\\\",\\\"message\\\":\\\"Rate limit exceeded: free-models-per-day-high-balance. \\\",\\\"error_type\\\":\\\"rate_limit_exceeded\\\"},\\\"request_id\\\":\\\"gen-1794253319-U0q9djREddydS6M1buZe\\\",\\\"metadata\\\":{\\\"headers\\\":{\\\"X-RateLimit-Limit\\\":\\\"1000\\\",\\\"X-RateLimit-Remaining\\\":\\\"0\\\",\\\"X-RateLimit-Res\"",
+    "[ai] simple route: paid fallback reserved $0.010000 of the $0.250000 daily budget (free quota refusal)",
+    "[ai] simple route: free model nvidia/nemotron-3.5-lightning:free was refused by quota — falling forward to the paid primary once",
+    "[ai:openrouter] web tools enabled=search,fetch offered=none used=none intent=inventory model=openai/gpt-oss-20b",
+    "[ai:openrouter] web tools enabled=search,fetch offered=none used=none intent=inventory model=openai/gpt-oss-20b",
+    "[ai] single-product stock total computed from the returned rows",
+    "[ai] simple route: paid fallback settled at $0.007841 ($0.000000 still reserved today)",
+    "[ai] turn outcome=ok total=2660ms providerMs=2316ms calls=3 toolMs=344ms toolRuns=1 tools=getInventory empty=0 failovers=1 route=simple simpleEscalations=1 quota=0/1000 in=19782 out=259 cost=$0.000832 web=none model=openai/gpt-oss-20b iterations=2",
+    "[ai:openrouter] upstream rate/quota limit reached (HTTP 429)",
+    "[ai:openrouter] upstream HTTP error diagnostics\nstatus=429\ncontentType=application/json\ncontentLength=none\nlocation=none\nbodyLength=511\nclassification=JSON_LIKE\nbodyPrefix=\"{\\\"type\\\":\\\"error\\\",\\\"error\\\":{\\\"type\\\":\\\"rate_limit_error\\\",\\\"message\\\":\\\"Rate limit exceeded: free-models-per-day-high-balance. \\\",\\\"error_type\\\":\\\"rate_limit_exceeded\\\"},\\\"request_id\\\":\\\"gen-1794253323-71jpdf3CYak4YnOMkGkg\\\",\\\"metadata\\\":{\\\"headers\\\":{\\\"X-RateLimit-Limit\\\":\\\"1000\\\",\\\"X-RateLimit-Remaining\\\":\\\"0\\\",\\\"X-RateLimit-Res\"",
+    "[ai] simple route: paid fallback reserved $0.010000 of the $0.250000 daily budget (free quota refusal)",
+    "[ai] simple route: free model nvidia/nemotron-3.5-lightning:free was refused by quota — falling forward to the paid primary once",
+    "[ai:openrouter] web tools enabled=search,fetch offered=none used=none intent=inventory model=openai/gpt-oss-20b",
+    "[ai:openrouter] web tools enabled=search,fetch offered=none used=none intent=inventory model=openai/gpt-oss-20b",
+    "[ai] single-product stock total computed from the returned rows",
+    "[ai] simple route: paid fallback settled at $0.008873 ($0.000000 still reserved today)",
+    "[ai] turn outcome=ok total=15891ms providerMs=15504ms calls=3 toolMs=387ms toolRuns=1 tools=getInventory empty=0 failovers=1 route=simple simpleEscalations=1 quota=0/1000 in=19093 out=759 cost=$0.001031 web=none model=openai/gpt-oss-20b iterations=2",
+    "[ai:openrouter] upstream rate/quota limit reached (HTTP 429)",
+    "[ai:openrouter] upstream HTTP error diagnostics\nstatus=429\ncontentType=application/json\ncontentLength=none\nlocation=none\nbodyLength=511\nclassification=JSON_LIKE\nbodyPrefix=\"{\\\"type\\\":\\\"error\\\",\\\"error\\\":{\\\"type\\\":\\\"rate_limit_error\\\",\\\"message\\\":\\\"Rate limit exceeded: free-models-per-day-high-balance. \\\",\\\"error_type\\\":\\\"rate_limit_exceeded\\\"},\\\"request_id\\\":\\\"gen-1794253340-vBi1Zit4AUSIDCwUnJCD\\\",\\\"metadata\\\":{\\\"headers\\\":{\\\"X-RateLimit-Limit\\\":\\\"1000\\\",\\\"X-RateLimit-Remaining\\\":\\\"0\\\",\\\"X-RateLimit-Res\"",
+    "[ai] simple route: paid fallback reserved $0.010000 of the $0.250000 daily budget (free quota refusal)",
+    "[ai] simple route: free model nvidia/nemotron-3.5-lightning:free was refused by quota — falling forward to the paid primary once",
+    "[ai:openrouter] web tools enabled=search,fetch offered=none used=none intent=inventory model=openai/gpt-oss-20b",
+    "[ai:openrouter] web tools enabled=search,fetch offered=none used=none intent=inventory model=openai/gpt-oss-20b",
+    "[ai] single-product stock total computed from the returned rows",
+    "[ai] simple route: paid fallback settled at $0.010489 ($0.000000 still reserved today)",
+    "[ai] turn outcome=ok total=6202ms providerMs=5860ms calls=3 toolMs=341ms toolRuns=1 tools=getInventory empty=0 failovers=1 route=simple simpleEscalations=1 quota=0/1000 in=19910 out=475 cost=$0.001617 web=none model=openai/gpt-oss-20b iterations=2",
+    "[ai:openrouter] upstream rate/quota limit reached (HTTP 429)",
+    "[ai:openrouter] upstream HTTP error diagnostics\nstatus=429\ncontentType=application/json\ncontentLength=none\nlocation=none\nbodyLength=511\nclassification=JSON_LIKE\nbodyPrefix=\"{\\\"type\\\":\\\"error\\\",\\\"error\\\":{\\\"type\\\":\\\"rate_limit_error\\\",\\\"message\\\":\\\"Rate limit exceeded: free-models-per-day-high-balance. \\\",\\\"error_type\\\":\\\"rate_limit_exceeded\\\"},\\\"request_id\\\":\\\"gen-1794253347-gRmsVq2juQ0TBDKEHcKP\\\",\\\"metadata\\\":{\\\"headers\\\":{\\\"X-RateLimit-Limit\\\":\\\"1000\\\",\\\"X-RateLimit-Remaining\\\":\\\"0\\\",\\\"X-RateLimit-Res\"",
+    "[ai] simple route: paid fallback reserved $0.010000 of the $0.250000 daily budget (free quota refusal)",
+    "[ai] simple route: free model nvidia/nemotron-3.5-lightning:free was refused by quota — falling forward to the paid primary once",
+    "[ai:openrouter] web tools enabled=search,fetch offered=none used=none intent=inventory model=openai/gpt-oss-20b",
+    "[ai:openrouter] web tools enabled=search,fetch offered=none used=none intent=inventory model=openai/gpt-oss-20b",
+    "[ai] single-product stock total computed from the returned rows",
+    "[ai] simple route: paid fallback settled at $0.012070 ($0.000000 still reserved today)",
+    "[ai] turn outcome=ok total=3136ms providerMs=2793ms calls=3 toolMs=343ms toolRuns=1 tools=getInventory empty=0 failovers=1 route=simple simpleEscalations=1 quota=0/1000 in=19912 out=292 cost=$0.001581 web=none model=openai/gpt-oss-20b iterations=2",
+    "[ai:openrouter] upstream rate/quota limit reached (HTTP 429)",
+    "[ai:openrouter] upstream HTTP error diagnostics\nstatus=429\ncontentType=application/json\ncontentLength=none\nlocation=none\nbodyLength=511\nclassification=JSON_LIKE\nbodyPrefix=\"{\\\"type\\\":\\\"error\\\",\\\"error\\\":{\\\"type\\\":\\\"rate_limit_error\\\",\\\"message\\\":\\\"Rate limit exceeded: free-models-per-day-high-balance. \\\",\\\"error_type\\\":\\\"rate_limit_exceeded\\\"},\\\"request_id\\\":\\\"gen-1794253351-O5QcBEjNFhzwqwvUaGna\\\",\\\"metadata\\\":{\\\"headers\\\":{\\\"X-RateLimit-Limit\\\":\\\"1000\\\",\\\"X-RateLimit-Remaining\\\":\\\"0\\\",\\\"X-RateLimit-Res\"",
+    "[ai] simple route: paid fallback reserved $0.010000 of the $0.250000 daily budget (free quota refusal)",
+    "[ai] simple route: free model nvidia/nemotron-3.5-lightning:free was refused by quota — falling forward to the paid primary once",
+    "[ai:openrouter] web tools enabled=search,fetch offered=none used=none intent=inventory model=openai/gpt-oss-20b",
+    "[ai:openrouter] web tools enabled=search,fetch offered=none used=none intent=inventory model=openai/gpt-oss-20b",
+    "[ai] single-product stock total computed from the returned rows",
+    "[ai] simple route: paid fallback settled at $0.013420 ($0.000000 still reserved today)",
+    "[ai] turn outcome=ok total=4384ms providerMs=4043ms calls=3 toolMs=340ms toolRuns=1 tools=getInventory empty=0 failovers=1 route=simple simpleEscalations=1 quota=0/1000 in=20042 out=738 cost=$0.001350 web=none model=openai/gpt-oss-20b iterations=2",
+    "[ai:openrouter] upstream rate/quota limit reached (HTTP 429)",
+    "[ai:openrouter] upstream HTTP error diagnostics\nstatus=429\ncontentType=application/json\ncontentLength=none\nlocation=none\nbodyLength=511\nclassification=JSON_LIKE\nbodyPrefix=\"{\\\"type\\\":\\\"error\\\",\\\"error\\\":{\\\"type\\\":\\\"rate_limit_error\\\",\\\"message\\\":\\\"Rate limit exceeded: free-models-per-day-high-balance. \\\",\\\"error_type\\\":\\\"rate_limit_exceeded\\\"},\\\"request_id\\\":\\\"gen-1794253357-GTCfl4wGYKqo7ffAkFom\\\",\\\"metadata\\\":{\\\"headers\\\":{\\\"X-RateLimit-Limit\\\":\\\"1000\\\",\\\"X-RateLimit-Remaining\\\":\\\"0\\\",\\\"X-RateLimit-Res\"",
+    "[ai] simple route: paid fallback reserved $0.010000 of the $0.250000 daily budget (free quota refusal)",
+    "[ai] simple route: free model nvidia/nemotron-3.5-lightning:free was refused by quota — falling forward to the paid primary once",
+    "[ai:openrouter] web tools enabled=search,fetch offered=none used=none intent=inventory model=openai/gpt-oss-20b",
+    "[ai:openrouter] web tools enabled=search,fetch offered=none used=none intent=inventory model=openai/gpt-oss-20b",
+    "[ai] single-product stock total computed from the returned rows",
+    "[ai] simple route: paid fallback settled at $0.015360 ($0.000000 still reserved today)",
+    "[ai] turn outcome=ok total=5377ms providerMs=5033ms calls=3 toolMs=342ms toolRuns=1 tools=getInventory empty=0 failovers=1 route=simple simpleEscalations=1 quota=0/1000 in=20049 out=1453 cost=$0.001940 web=none model=openai/gpt-oss-20b iterations=2",
+    "[ai:openrouter] upstream rate/quota limit reached (HTTP 429)",
+    "[ai:openrouter] upstream HTTP error diagnostics\nstatus=429\ncontentType=application/json\ncontentLength=none\nlocation=none\nbodyLength=511\nclassification=JSON_LIKE\nbodyPrefix=\"{\\\"type\\\":\\\"error\\\",\\\"error\\\":{\\\"type\\\":\\\"rate_limit_error\\\",\\\"message\\\":\\\"Rate limit exceeded: free-models-per-day-high-balance. \\\",\\\"error_type\\\":\\\"rate_limit_exceeded\\\"},\\\"request_id\\\":\\\"gen-1794253363-2FozIv6uBYvirOZO1YUH\\\",\\\"metadata\\\":{\\\"headers\\\":{\\\"X-RateLimit-Limit\\\":\\\"1000\\\",\\\"X-RateLimit-Remaining\\\":\\\"0\\\",\\\"X-RateLimit-Res\"",
+    "[ai] simple route: paid fallback reserved $0.010000 of the $0.250000 daily budget (free quota refusal)",
+    "[ai] simple route: free model nvidia/nemotron-3.5-lightning:free was refused by quota — falling forward to the paid primary once",
+    "[ai:openrouter] web tools enabled=search,fetch offered=none used=none intent=inventory model=openai/gpt-oss-20b",
+    "[ai:openrouter] web tools enabled=search,fetch offered=none used=none intent=inventory model=openai/gpt-oss-20b",
+    "[ai] single-product stock total computed from the returned rows",
+    "[ai] simple route: paid fallback settled at $0.016287 ($0.000000 still reserved today)",
+    "[ai] turn outcome=ok total=2451ms providerMs=2096ms calls=3 toolMs=355ms toolRuns=1 tools=getInventory empty=0 failovers=1 route=simple simpleEscalations=1 quota=0/1000 in=20039 out=514 cost=$0.000928 web=none model=openai/gpt-oss-20b iterations=2",
+    "[ai:openrouter] upstream rate/quota limit reached (HTTP 429)",
+    "[ai:openrouter] upstream HTTP error diagnostics\nstatus=429\ncontentType=application/json\ncontentLength=none\nlocation=none\nbodyLength=511\nclassification=JSON_LIKE\nbodyPrefix=\"{\\\"type\\\":\\\"error\\\",\\\"error\\\":{\\\"type\\\":\\\"rate_limit_error\\\",\\\"message\\\":\\\"Rate limit exceeded: free-models-per-day-high-balance. \\\",\\\"error_type\\\":\\\"rate_limit_exceeded\\\"},\\\"request_id\\\":\\\"gen-1794253366-3rCR1zosjqww7Ow8ScfZ\\\",\\\"metadata\\\":{\\\"headers\\\":{\\\"X-RateLimit-Limit\\\":\\\"1000\\\",\\\"X-RateLimit-Remaining\\\":\\\"0\\\",\\\"X-RateLimit-Res\"",
+    "[ai] simple route: paid fallback reserved $0.010000 of the $0.250000 daily budget (free quota refusal)",
+    "[ai] simple route: free model nvidia/nemotron-3.5-lightning:free was refused by quota — falling forward to the paid primary once",
+    "[ai:openrouter] web tools enabled=search,fetch offered=none used=none intent=inventory model=openai/gpt-oss-20b",
+    "[ai:openrouter] web tools enabled=search,fetch offered=none used=none intent=inventory model=openai/gpt-oss-20b",
+    "[ai] single-product stock total computed from the returned rows",
+    "[ai] simple route: paid fallback settled at $0.017538 ($0.000000 still reserved today)",
+    "[ai] turn outcome=ok total=2903ms providerMs=2560ms calls=3 toolMs=343ms toolRuns=1 tools=getInventory empty=0 failovers=1 route=simple simpleEscalations=1 quota=0/1000 in=20046 out=405 cost=$0.001251 web=none model=openai/gpt-oss-20b iterations=2",
+    "[ai:openrouter] upstream rate/quota limit reached (HTTP 429)",
+    "[ai:openrouter] upstream HTTP error diagnostics\nstatus=429\ncontentType=application/json\ncontentLength=none\nlocation=none\nbodyLength=511\nclassification=JSON_LIKE\nbodyPrefix=\"{\\\"type\\\":\\\"error\\\",\\\"error\\\":{\\\"type\\\":\\\"rate_limit_error\\\",\\\"message\\\":\\\"Rate limit exceeded: free-models-per-day-high-balance. \\\",\\\"error_type\\\":\\\"rate_limit_exceeded\\\"},\\\"request_id\\\":\\\"gen-1794253370-oE7gjfV5hTFBzBW6f4wg\\\",\\\"metadata\\\":{\\\"headers\\\":{\\\"X-RateLimit-Limit\\\":\\\"1000\\\",\\\"X-RateLimit-Remaining\\\":\\\"0\\\",\\\"X-RateLimit-Res\"",
+    "[ai] simple route: paid fallback reserved $0.010000 of the $0.250000 daily budget (free quota refusal)",
+    "[ai] simple route: free model nvidia/nemotron-3.5-lightning:free was refused by quota — falling forward to the paid primary once",
+    "[ai:openrouter] web tools enabled=search,fetch offered=none used=none intent=inventory model=openai/gpt-oss-20b",
+    "[ai:openrouter] web tools enabled=search,fetch offered=none used=none intent=inventory model=openai/gpt-oss-20b",
+    "[ai] single-product stock total computed from the returned rows",
+    "[ai] simple route: paid fallback settled at $0.018424 ($0.000000 still reserved today)",
+    "[ai] turn outcome=ok total=11026ms providerMs=10677ms calls=3 toolMs=349ms toolRuns=1 tools=getInventory empty=0 failovers=1 route=simple simpleEscalations=1 quota=0/1000 in=19229 out=936 cost=$0.000886 web=none model=openai/gpt-oss-20b iterations=2",
+    "[ai:openrouter] upstream rate/quota limit reached (HTTP 429)",
+    "[ai:openrouter] upstream HTTP error diagnostics\nstatus=429\ncontentType=application/json\ncontentLength=none\nlocation=none\nbodyLength=511\nclassification=JSON_LIKE\nbodyPrefix=\"{\\\"type\\\":\\\"error\\\",\\\"error\\\":{\\\"type\\\":\\\"rate_limit_error\\\",\\\"message\\\":\\\"Rate limit exceeded: free-models-per-day-high-balance. \\\",\\\"error_type\\\":\\\"rate_limit_exceeded\\\"},\\\"request_id\\\":\\\"gen-1794253382-j1eEe94yp7KNr5mTWXyA\\\",\\\"metadata\\\":{\\\"headers\\\":{\\\"X-RateLimit-Limit\\\":\\\"1000\\\",\\\"X-RateLimit-Remaining\\\":\\\"0\\\",\\\"X-RateLimit-Res\"",
+    "[ai] simple route: paid fallback reserved $0.010000 of the $0.250000 daily budget (free quota refusal)",
+    "[ai] simple route: free model nvidia/nemotron-3.5-lightning:free was refused by quota — falling forward to the paid primary once",
+    "[ai:openrouter] web tools enabled=search,fetch offered=none used=none intent=inventory model=openai/gpt-oss-20b",
+    "[ai:openrouter] web tools enabled=search,fetch offered=none used=none intent=inventory model=openai/gpt-oss-20b",
+    "[ai] single-product stock total computed from the returned rows",
+    "[ai] simple route: paid fallback settled at $0.020045 ($0.000000 still reserved today)",
+    "[ai] turn outcome=ok total=3209ms providerMs=2866ms calls=3 toolMs=343ms toolRuns=1 tools=getInventory empty=0 failovers=1 route=simple simpleEscalations=1 quota=0/1000 in=19779 out=492 cost=$0.001621 web=none model=openai/gpt-oss-20b iterations=2",
+    "[ai:openrouter] upstream rate/quota limit reached (HTTP 429)",
+    "[ai:openrouter] upstream HTTP error diagnostics\nstatus=429\ncontentType=application/json\ncontentLength=none\nlocation=none\nbodyLength=511\nclassification=JSON_LIKE\nbodyPrefix=\"{\\\"type\\\":\\\"error\\\",\\\"error\\\":{\\\"type\\\":\\\"rate_limit_error\\\",\\\"message\\\":\\\"Rate limit exceeded: free-models-per-day-high-balance. \\\",\\\"error_type\\\":\\\"rate_limit_exceeded\\\"},\\\"request_id\\\":\\\"gen-1794253387-4tK5Up49dXNfBvXcmnQm\\\",\\\"metadata\\\":{\\\"headers\\\":{\\\"X-RateLimit-Limit\\\":\\\"1000\\\",\\\"X-RateLimit-Remaining\\\":\\\"0\\\",\\\"X-RateLimit-Res\"",
+    "[ai] simple route: paid fallback reserved $0.010000 of the $0.250000 daily budget (free quota refusal)",
+    "[ai] simple route: free model nvidia/nemotron-3.5-lightning:free was refused by quota — falling forward to the paid primary once",
+    "[ai:openrouter] web tools enabled=search,fetch offered=none used=none intent=inventory model=openai/gpt-oss-20b",
+    "[ai:openrouter] web tools enabled=search,fetch offered=none used=none intent=inventory model=openai/gpt-oss-20b",
+    "[ai] simple route: paid fallback settled at $0.021524 ($0.000000 still reserved today)",
+    "[ai] turn outcome=ok total=3241ms providerMs=2895ms calls=3 toolMs=346ms toolRuns=1 tools=getInventory empty=0 failovers=1 route=simple simpleEscalations=1 quota=0/1000 in=19903 out=625 cost=$0.001479 web=none model=openai/gpt-oss-20b iterations=2",
+    "[ai:openrouter] upstream rate/quota limit reached (HTTP 429)",
+    "[ai:openrouter] upstream HTTP error diagnostics\nstatus=429\ncontentType=application/json\ncontentLength=none\nlocation=none\nbodyLength=511\nclassification=JSON_LIKE\nbodyPrefix=\"{\\\"type\\\":\\\"error\\\",\\\"error\\\":{\\\"type\\\":\\\"rate_limit_error\\\",\\\"message\\\":\\\"Rate limit exceeded: free-models-per-day-high-balance. \\\",\\\"error_type\\\":\\\"rate_limit_exceeded\\\"},\\\"request_id\\\":\\\"gen-1794253391-jkujmtDg7ssSDJ943SPD\\\",\\\"metadata\\\":{\\\"headers\\\":{\\\"X-RateLimit-Limit\\\":\\\"1000\\\",\\\"X-RateLimit-Remaining\\\":\\\"0\\\",\\\"X-RateLimit-Res\"",
+    "[ai] simple route: paid fallback reserved $0.010000 of the $0.250000 daily budget (free quota refusal)",
+    "[ai] simple route: free model nvidia/nemotron-3.5-lightning:free was refused by quota — falling forward to the paid primary once",
+    "[ai:openrouter] web tools enabled=search,fetch offered=none used=none intent=inventory model=openai/gpt-oss-20b",
+    "[ai:openrouter] web tools enabled=search,fetch offered=none used=none intent=inventory model=openai/gpt-oss-20b",
+    "[ai] simple route: paid fallback settled at $0.023316 ($0.000000 still reserved today)",
+    "[ai] turn outcome=ok total=4781ms providerMs=4566ms calls=3 toolMs=214ms toolRuns=1 tools=getProduct empty=0 failovers=1 route=simple simpleEscalations=1 quota=0/1000 in=20348 out=953 cost=$0.001793 web=none model=openai/gpt-oss-20b iterations=2",
+    "[ai:openrouter] upstream rate/quota limit reached (HTTP 429)",
+    "[ai:openrouter] upstream HTTP error diagnostics\nstatus=429\ncontentType=application/json\ncontentLength=none\nlocation=none\nbodyLength=511\nclassification=JSON_LIKE\nbodyPrefix=\"{\\\"type\\\":\\\"error\\\",\\\"error\\\":{\\\"type\\\":\\\"rate_limit_error\\\",\\\"message\\\":\\\"Rate limit exceeded: free-models-per-day-high-balance. \\\",\\\"error_type\\\":\\\"rate_limit_exceeded\\\"},\\\"request_id\\\":\\\"gen-1794253397-tbTfd44f0U0TgzXljv9O\\\",\\\"metadata\\\":{\\\"headers\\\":{\\\"X-RateLimit-Limit\\\":\\\"1000\\\",\\\"X-RateLimit-Remaining\\\":\\\"0\\\",\\\"X-RateLimit-Res\"",
+    "[ai] simple route: paid fallback reserved $0.010000 of the $0.250000 daily budget (free quota refusal)",
+    "[ai] simple route: free model nvidia/nemotron-3.5-lightning:free was refused by quota — falling forward to the paid primary once",
+    "[ai:openrouter] web tools enabled=search,fetch offered=none used=none intent=inventory model=openai/gpt-oss-20b",
+    "[ai:openrouter] web tools enabled=search,fetch offered=none used=none intent=inventory model=openai/gpt-oss-20b",
+    "[ai] simple route: paid fallback settled at $0.024636 ($0.000000 still reserved today)",
+    "[ai] turn outcome=ok total=2904ms providerMs=2682ms calls=3 toolMs=222ms toolRuns=1 tools=getProduct empty=0 failovers=1 route=simple simpleEscalations=1 quota=0/1000 in=20383 out=520 cost=$0.001320 web=none model=openai/gpt-oss-20b iterations=2",
+    "[ai:openrouter] upstream rate/quota limit reached (HTTP 429)",
+    "[ai:openrouter] upstream HTTP error diagnostics\nstatus=429\ncontentType=application/json\ncontentLength=none\nlocation=none\nbodyLength=511\nclassification=JSON_LIKE\nbodyPrefix=\"{\\\"type\\\":\\\"error\\\",\\\"error\\\":{\\\"type\\\":\\\"rate_limit_error\\\",\\\"message\\\":\\\"Rate limit exceeded: free-models-per-day-high-balance. \\\",\\\"error_type\\\":\\\"rate_limit_exceeded\\\"},\\\"request_id\\\":\\\"gen-1794253401-Hz4UgUDxUUjMlOczYSYL\\\",\\\"metadata\\\":{\\\"headers\\\":{\\\"X-RateLimit-Limit\\\":\\\"1000\\\",\\\"X-RateLimit-Remaining\\\":\\\"0\\\",\\\"X-RateLimit-Res\"",
+    "[ai] simple route: paid fallback reserved $0.010000 of the $0.250000 daily budget (free quota refusal)",
+    "[ai] simple route: free model nvidia/nemotron-3.5-lightning:free was refused by quota — falling forward to the paid primary once",
+    "[ai:openrouter] web tools enabled=search,fetch offered=none used=none intent=inventory model=openai/gpt-oss-20b",
+    "[ai:openrouter] web tools enabled=search,fetch offered=none used=none intent=inventory model=openai/gpt-oss-20b",
+    "[ai] simple route: paid fallback settled at $0.026285 ($0.000000 still reserved today)",
+    "[ai] turn outcome=ok total=3890ms providerMs=3671ms calls=3 toolMs=219ms toolRuns=1 tools=getProduct empty=0 failovers=1 route=simple simpleEscalations=1 quota=0/1000 in=20385 out=464 cost=$0.001649 web=none model=openai/gpt-oss-20b iterations=2",
+    "[ai:openrouter] upstream rate/quota limit reached (HTTP 429)",
+    "[ai:openrouter] upstream HTTP error diagnostics\nstatus=429\ncontentType=application/json\ncontentLength=none\nlocation=none\nbodyLength=511\nclassification=JSON_LIKE\nbodyPrefix=\"{\\\"type\\\":\\\"error\\\",\\\"error\\\":{\\\"type\\\":\\\"rate_limit_error\\\",\\\"message\\\":\\\"Rate limit exceeded: free-models-per-day-high-balance. \\\",\\\"error_type\\\":\\\"rate_limit_exceeded\\\"},\\\"request_id\\\":\\\"gen-1794253405-ZJTFFrvzCpzxo0NCu7O5\\\",\\\"metadata\\\":{\\\"headers\\\":{\\\"X-RateLimit-Limit\\\":\\\"1000\\\",\\\"X-RateLimit-Remaining\\\":\\\"0\\\",\\\"X-RateLimit-Res\"",
+    "[ai] simple route: paid fallback reserved $0.010000 of the $0.250000 daily budget (free quota refusal)",
+    "[ai] simple route: free model nvidia/nemotron-3.5-lightning:free was refused by quota — falling forward to the paid primary once",
+    "[ai:openrouter] web tools enabled=search,fetch offered=none used=none intent=inventory model=openai/gpt-oss-20b",
+    "[ai:openrouter] web tools enabled=search,fetch offered=none used=none intent=inventory model=openai/gpt-oss-20b",
+    "[ai] simple route: paid fallback settled at $0.027883 ($0.000000 still reserved today)",
+    "[ai] turn outcome=ok total=3397ms providerMs=3183ms calls=3 toolMs=214ms toolRuns=1 tools=getProduct empty=0 failovers=1 route=simple simpleEscalations=1 quota=0/1000 in=20358 out=300 cost=$0.001598 web=none model=openai/gpt-oss-20b iterations=2",
+    "[ai:openrouter] upstream rate/quota limit reached (HTTP 429)",
+    "[ai:openrouter] upstream HTTP error diagnostics\nstatus=429\ncontentType=application/json\ncontentLength=none\nlocation=none\nbodyLength=511\nclassification=JSON_LIKE\nbodyPrefix=\"{\\\"type\\\":\\\"error\\\",\\\"error\\\":{\\\"type\\\":\\\"rate_limit_error\\\",\\\"message\\\":\\\"Rate limit exceeded: free-models-per-day-high-balance. \\\",\\\"error_type\\\":\\\"rate_limit_exceeded\\\"},\\\"request_id\\\":\\\"gen-1794253410-w8MQI3ajYsp68pIz9gWs\\\",\\\"metadata\\\":{\\\"headers\\\":{\\\"X-RateLimit-Limit\\\":\\\"1000\\\",\\\"X-RateLimit-Remaining\\\":\\\"0\\\",\\\"X-RateLimit-Res\"",
+    "[ai] simple route: paid fallback reserved $0.010000 of the $0.250000 daily budget (free quota refusal)",
+    "[ai] simple route: free model nvidia/nemotron-3.5-lightning:free was refused by quota — falling forward to the paid primary once",
+    "[ai:openrouter] web tools enabled=search,fetch offered=none used=none intent=inventory model=openai/gpt-oss-20b",
+    "[ai:openrouter] web tools enabled=search,fetch offered=none used=none intent=inventory model=openai/gpt-oss-20b",
+    "[ai] simple route: paid fallback settled at $0.028763 ($0.000000 still reserved today)",
+    "[ai] turn outcome=ok total=6080ms providerMs=5902ms calls=3 toolMs=176ms toolRuns=1 tools=getProduct empty=0 failovers=1 route=simple simpleEscalations=1 quota=0/1000 in=18826 out=367 cost=$0.000880 web=none model=openai/gpt-oss-20b iterations=2",
+    "[ai:openrouter] upstream rate/quota limit reached (HTTP 429)",
+    "[ai:openrouter] upstream HTTP error diagnostics\nstatus=429\ncontentType=application/json\ncontentLength=none\nlocation=none\nbodyLength=511\nclassification=JSON_LIKE\nbodyPrefix=\"{\\\"type\\\":\\\"error\\\",\\\"error\\\":{\\\"type\\\":\\\"rate_limit_error\\\",\\\"message\\\":\\\"Rate limit exceeded: free-models-per-day-high-balance. \\\",\\\"error_type\\\":\\\"rate_limit_exceeded\\\"},\\\"request_id\\\":\\\"gen-1794253417-hAlO1a3B9PRk9tdXD3lW\\\",\\\"metadata\\\":{\\\"headers\\\":{\\\"X-RateLimit-Limit\\\":\\\"1000\\\",\\\"X-RateLimit-Remaining\\\":\\\"0\\\",\\\"X-RateLimit-Res\"",
+    "[ai] simple route: paid fallback reserved $0.010000 of the $0.250000 daily budget (free quota refusal)",
+    "[ai] simple route: free model nvidia/nemotron-3.5-lightning:free was refused by quota — falling forward to the paid primary once",
+    "[ai:openrouter] web tools enabled=search,fetch offered=none used=none intent=inventory model=openai/gpt-oss-20b",
+    "[ai:openrouter] web tools enabled=search,fetch offered=none used=none intent=inventory model=openai/gpt-oss-20b",
+    "[ai] restock answer completed from the returned rows",
+    "[ai] simple route: paid fallback settled at $0.029734 ($0.000000 still reserved today)",
+    "[ai] turn outcome=ok total=3705ms providerMs=3317ms calls=3 toolMs=386ms toolRuns=1 tools=getReorderNeededProducts empty=0 failovers=1 route=simple simpleEscalations=1 quota=0/1000 in=19394 out=408 cost=$0.000971 web=none model=openai/gpt-oss-20b iterations=2",
+    "[ai:openrouter] upstream rate/quota limit reached (HTTP 429)",
+    "[ai:openrouter] upstream HTTP error diagnostics\nstatus=429\ncontentType=application/json\ncontentLength=none\nlocation=none\nbodyLength=511\nclassification=JSON_LIKE\nbodyPrefix=\"{\\\"type\\\":\\\"error\\\",\\\"error\\\":{\\\"type\\\":\\\"rate_limit_error\\\",\\\"message\\\":\\\"Rate limit exceeded: free-models-per-day-high-balance. \\\",\\\"error_type\\\":\\\"rate_limit_exceeded\\\"},\\\"request_id\\\":\\\"gen-1794253422-wrVM8q7Ai9Hm6BF9kSHJ\\\",\\\"metadata\\\":{\\\"headers\\\":{\\\"X-RateLimit-Limit\\\":\\\"1000\\\",\\\"X-RateLimit-Remaining\\\":\\\"0\\\",\\\"X-RateLimit-Res\"",
+    "[ai] simple route: paid fallback reserved $0.010000 of the $0.250000 daily budget (free quota refusal)",
+    "[ai] simple route: free model nvidia/nemotron-3.5-lightning:free was refused by quota — falling forward to the paid primary once",
+    "[ai:openrouter] web tools enabled=search,fetch offered=none used=none intent=inventory model=openai/gpt-oss-20b",
+    "[ai:openrouter] web tools enabled=search,fetch offered=none used=none intent=inventory model=openai/gpt-oss-20b",
+    "[ai] restock answer completed from the returned rows",
+    "[ai] simple route: paid fallback settled at $0.030977 ($0.000000 still reserved today)",
+    "[ai] turn outcome=ok total=3363ms providerMs=2983ms calls=3 toolMs=379ms toolRuns=1 tools=getReorderNeededProducts empty=0 failovers=1 route=simple simpleEscalations=1 quota=0/1000 in=20208 out=373 cost=$0.001244 web=none model=openai/gpt-oss-20b iterations=2",
+    "[ai:openrouter] upstream rate/quota limit reached (HTTP 429)",
+    "[ai:openrouter] upstream HTTP error diagnostics\nstatus=429\ncontentType=application/json\ncontentLength=none\nlocation=none\nbodyLength=511\nclassification=JSON_LIKE\nbodyPrefix=\"{\\\"type\\\":\\\"error\\\",\\\"error\\\":{\\\"type\\\":\\\"rate_limit_error\\\",\\\"message\\\":\\\"Rate limit exceeded: free-models-per-day-high-balance. \\\",\\\"error_type\\\":\\\"rate_limit_exceeded\\\"},\\\"request_id\\\":\\\"gen-1794253426-vFtyfK21Alu4XdXfTbBF\\\",\\\"metadata\\\":{\\\"headers\\\":{\\\"X-RateLimit-Limit\\\":\\\"1000\\\",\\\"X-RateLimit-Remaining\\\":\\\"0\\\",\\\"X-RateLimit-Res\"",
+    "[ai] simple route: paid fallback reserved $0.010000 of the $0.250000 daily budget (free quota refusal)",
+    "[ai] simple route: free model nvidia/nemotron-3.5-lightning:free was refused by quota — falling forward to the paid primary once",
+    "[ai:openrouter] web tools enabled=search,fetch offered=none used=none intent=inventory model=openai/gpt-oss-20b",
+    "[ai:openrouter] web tools enabled=search,fetch offered=none used=none intent=inventory model=openai/gpt-oss-20b",
+    "[ai] restock count read from the returned tool total",
+    "[ai] simple route: paid fallback settled at $0.032326 ($0.000000 still reserved today)",
+    "[ai] turn outcome=ok total=5009ms providerMs=4632ms calls=3 toolMs=375ms toolRuns=1 tools=getReorderNeededProducts empty=0 failovers=1 route=simple simpleEscalations=1 quota=0/1000 in=20196 out=120 cost=$0.001349 web=none model=openai/gpt-oss-20b iterations=2",
+    "[ai:openrouter] upstream rate/quota limit reached (HTTP 429)",
+    "[ai:openrouter] upstream HTTP error diagnostics\nstatus=429\ncontentType=application/json\ncontentLength=none\nlocation=none\nbodyLength=511\nclassification=JSON_LIKE\nbodyPrefix=\"{\\\"type\\\":\\\"error\\\",\\\"error\\\":{\\\"type\\\":\\\"rate_limit_error\\\",\\\"message\\\":\\\"Rate limit exceeded: free-models-per-day-high-balance. \\\",\\\"error_type\\\":\\\"rate_limit_exceeded\\\"},\\\"request_id\\\":\\\"gen-1794253432-vYIjNzB0BYobfwraIIvK\\\",\\\"metadata\\\":{\\\"headers\\\":{\\\"X-RateLimit-Limit\\\":\\\"1000\\\",\\\"X-RateLimit-Remaining\\\":\\\"0\\\",\\\"X-RateLimit-Res\"",
+    "[ai] simple route: paid fallback reserved $0.010000 of the $0.250000 daily budget (free quota refusal)",
+    "[ai] simple route: free model nvidia/nemotron-3.5-lightning:free was refused by quota — falling forward to the paid primary once",
+    "[ai:openrouter] web tools enabled=search,fetch offered=none used=none intent=inventory model=openai/gpt-oss-20b",
+    "[ai:openrouter] web tools enabled=search,fetch offered=none used=none intent=inventory model=openai/gpt-oss-20b",
+    "[ai] restock count read from the returned tool total",
+    "[ai] simple route: paid fallback settled at $0.032946 ($0.000000 still reserved today)",
+    "[ai] turn outcome=ok total=8902ms providerMs=8514ms calls=3 toolMs=387ms toolRuns=1 tools=getReorderNeededProducts empty=0 failovers=1 route=simple simpleEscalations=1 quota=0/1000 in=18586 out=443 cost=$0.000620 web=none model=openai/gpt-oss-20b iterations=2"
+  ]
+}

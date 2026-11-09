@@ -8,9 +8,9 @@ of truth for *what actually happened*, and it is why this file is long.
 
 **How to read it.** Do not read it top to bottom. Either find a record by number (§27FJ, §27DM — the
 numbers are cited from `CLAUDE.md` and from source comments), or use the index: `CLAUDE.md` §7 lists
-all **227** records by the title each gives itself.
+all **228** records by the title each gives itself.
 
-**Current state:** V1 complete and in production testing. The records that answer *where are we now*are §27HU (AI-99 free-first simple inventory, deployed with the 1.0.2 OTA), §27HT (AI-91/AI-92 exact product identity and per-location stock), §27HS (the AI-50–AI-84 increment register), §27HR (AI-48–AI-84 merged and deployed), §27HQ (grounded answers and scoped stock reads), §27HP (market prices from cited pages), §27HO (recorded specifications and the real seed catalogue), §27HN (inventory-only web research), §27HH (a transfer as one event to the assistant), §27HG (the stock-in link's product), §27HF (the single-location default's timing), §27HE (the stock-in link's location), §27HD (the movement fixes and the production device pass), §27HC (the assistant's local-time answers), §27FM (the V1 re-verification) and §27FJ (the two open advisories).
+**Current state:** V1 complete and in production testing. The records that answer *where are we now* are §27HV (AI-99 10,256-product gate, 24/25 with one output-limit finding), §27HU (AI-99 free-first simple inventory, deployed with the 1.0.2 OTA), §27HT (AI-91/AI-92 exact product identity and per-location stock), §27HS (the AI-50–AI-84 increment register), §27HR (AI-48–AI-84 merged and deployed), §27HQ (grounded answers and scoped stock reads), §27HP (market prices from cited pages), §27HO (recorded specifications and the real seed catalogue), §27HN (inventory-only web research), §27HH (a transfer as one event to the assistant), §27HG (the stock-in link's product), §27HF (the single-location default's timing), §27HE (the stock-in link's location), §27HD (the movement fixes and the production device pass), §27HC (the assistant's local-time answers), §27FM (the V1 re-verification) and §27FJ (the two open advisories).
 
 ---
 
@@ -25017,3 +25017,33 @@ against 10,000 live requests.
 `GET /api/health`, `npx eas-cli update:list --branch production --limit 3 --non-interactive`,
 `AI99-simple-inventory-routing.test.mjs`, `AI99-eval-checkpoint.test.mjs`, and
 `docs/DEVELOPMENT_LOG.md`.
+
+---
+
+# 27HV. AI-99 10,256-product simple-inventory gate (2026-11-10)
+
+**Why.** The AI-99 resumable evaluator had checkpoint unit coverage but no production-scale
+gate record. The owner asked for the 10,256-product gate to be run and its results recorded.
+
+**Result.** Two fresh `--phase=gate` runs used a disposable `inventoryai_dev_db` tenant with
+10,256 products and 20,539 inventory rows, checkpointed each request, and removed the tenant.
+The 19:38 UTC run scored 24/25 with 25 paid answers; its sole failure was a false-negative
+absent-SKU check, not a bad answer. The corrected 19:48 UTC run scored **24/25**: 24 accurate,
+0 free, 24 paid, 0 degraded, and **1 `AiOutputLimit`** on `stock-SEEDSKU-0` after 23,374 ms;
+median 4,519.5 ms, p95 8,071 ms. OpenRouter reported **0/1000** free requests before and after
+both runs, so no fresh answer could be free-served. The corrected run moved provider paid usage
+$1.017035355 → $1.046629108 (**$0.029593753**); its known per-row cost was $0.015825, but the
+failed row had no cost, so the artifact's total is deliberately `unknown`. A pre-existing same-day
+15:19 UTC artifact recorded 25/25 with **4 free / 21 paid** before the allowance reached zero.
+
+**Changed.** `existenceCheck` now accepts "not present in our inventory" as a denial; the older
+pattern missed that correct wording. This is an evaluator correction, not a production-route
+change. The `AiOutputLimit` is a real, intermittent model reliability finding and is not fixed.
+
+**What this does not prove.** The fresh runs do not prove free-served answers, because the
+allowance was already at zero. The evaluator runs only against a disposable development tenant;
+no production data or production server was involved. The one output-limit failure remains open.
+
+**Evidence.** [10k evidence README](evidence/simple-10k-2026-11-09/README.md),
+`gate-2026-11-09T1519Z.json`, `gate-2026-11-09T1938Z.json`,
+`gate-2026-11-09T1948Z.json`, and `server/scripts/eval-simple-inventory-scale.mjs`.

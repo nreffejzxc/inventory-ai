@@ -96,9 +96,9 @@ controlled research failover drill) were deployed on 2026-11-08; they are record
 (exact product identity and per-location stock answers) merged as `6d95168` and were production-verified;
 the follow-up `AI-93`–`AI-98` cleanups merged in PRs #196–#199 and are recorded in `DEVELOPMENT_LOG.md`.
 `AI-99` (free-first simple inventory, deterministic totals and a resumable 10k evaluator) merged as
-`8b6353a`, was deployed to Render and was published as production OTA group `0e4eca55`; the live
-free/paid turn and the on-device What's New card remain unobserved and are recorded in
-`DEVELOPMENT_LOG.md`.
+`8b6353a`, was deployed to Render and was published as production OTA group `0e4eca55`; a live
+simple turn and a 10,256-product gate are recorded in `DEVELOPMENT_LOG.md`, and the on-device
+What's New card remains unobserved.
 The earlier assistant increments cover the turn deadline,
 retries, answer rendering, the cost line, quota, failover, streaming, and finally one provider
 (OpenRouter). The
