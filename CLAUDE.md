@@ -253,9 +253,9 @@ The project is built in phases: one phase, one purpose, one verification record.
 | AI-1…AI-25 | Initial assistant delivery: turn deadline, retries, answer rendering, cost line, quota, failover, streaming, one provider |
 | AI-87/AI-88 | Ordinary/research model routing and a controlled research failover drill; deployed and recorded in `docs/DEVELOPMENT_LOG.md` |
 | AI-91/AI-92 | Exact product identity and per-location stock answers — §27HT, merged as `6d95168` and production-verified |
-| AI-99 | Free-first simple inventory route, deterministic stock totals and restock counts, bounded paid fallback, resumable 10k evaluator — in delivery |
+| AI-99 | Free-first simple inventory route, deterministic stock totals and restock counts, bounded paid fallback, resumable 10k evaluator — merged as `8b6353a`, deployed and OTA-published (§27HU) |
 
-Most letter-numbered increments are roadmap records; AI-87/AI-88 are log-only and AI-91/AI-92 are in §27HT. AI-99 is recorded in this delivery; the index below is complete.
+Most letter-numbered increments are roadmap records; AI-87/AI-88 are log-only and AI-91/AI-92 are in §27HT. AI-99 is in §27HU; the index below is complete.
 
 ## Operational traps worth knowing
 
@@ -573,6 +573,7 @@ anchor (`§27…`) in that file.
 - **§27HR** — AI-48–AI-84 merged and deployed (2026-11-06)
 - **§27HS** — The AI-50–AI-84 increment register (2026-11-06)
 - **§27HT** — AI-91/AI-92 — exact product identity and per-location stock (2026-11-09)
+- **§27HU** — AI-99 — free-first simple inventory, deployed with the 1.0.2 OTA (2026-11-10)
 
 ---
 

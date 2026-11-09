@@ -95,8 +95,9 @@ controlled research failover drill) were deployed on 2026-11-08; they are record
 `DEVELOPMENT_LOG.md` because they were delivered without new numbered roadmap records. `AI-91`/`AI-92`
 (exact product identity and per-location stock answers) merged as `6d95168` and were production-verified;
 the follow-up `AI-93`–`AI-98` cleanups merged in PRs #196–#199 and are recorded in `DEVELOPMENT_LOG.md`.
-`AI-99` (free-first simple inventory, deterministic totals and a resumable 10k evaluator) is
-implemented and locally verified; its deployment and OTA are pending and recorded in
+`AI-99` (free-first simple inventory, deterministic totals and a resumable 10k evaluator) merged as
+`8b6353a`, was deployed to Render and was published as production OTA group `0e4eca55`; the live
+free/paid turn and the on-device What's New card remain unobserved and are recorded in
 `DEVELOPMENT_LOG.md`.
 The earlier assistant increments cover the turn deadline,
 retries, answer rendering, the cost line, quota, failover, streaming, and finally one provider
@@ -107,6 +108,7 @@ and later records cover invitations (§27FB), account deletion (§27EW), the pri
 
 The newest delivered records are not release-engineering ones: §27HQ records grounded answers, scoped
 stock reads and the member's language; §27HR records the AI-48–AI-84 merge and deploy; §27HS is the
-AI-50–AI-84 increment register. §27HT is the delivered AI-91/AI-92 record. Release engineering remains in §27FN (EAS retention and the plan
+AI-50–AI-84 increment register. §27HT is the delivered AI-91/AI-92 record, and §27HU is the delivered
+AI-99 record. Release engineering remains in §27FN (EAS retention and the plan
 gate on OTA signing), §27EZ (the production parity gate that stopped a store upload) and §27FK (the
 runtime boundary that made a stale process impossible to mistake for a server fault).
