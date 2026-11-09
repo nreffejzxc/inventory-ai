@@ -109,11 +109,12 @@ npx eas-cli branch:list
 npx eas-cli update:list --branch production --limit 5
 ```
 
-**The installed production APK is runtime `1.0.1`; the tree is `1.0.2`.** Build `1158f2ef-…` was
-compiled with Expo 58.0.19 and React Native 0.88.0, while this tree and the 2026-11-02 preview build
-use Expo 58.0.22 and React Native 0.88.1. A publish from this tree would reach a binary compiled for
-different native modules, so **a new production build is required**; the old APK then stops listening.
-`npm run check:ota` refuses until `mobile/ota-native-runtime.json` records the new build — §10 and §12.
+**The installed production APK is runtime `1.0.2` (versionName `1.0.2`, versionCode 10).** Build
+`820251b4-dc8a-46a3-9b25-0faa0a9c1529` was compiled with Expo 58.0.22 and React Native 0.88.1, and the
+development APK `76440404-167c-440c-be20-88801fe9b64b` shares fingerprint
+`f5a6fddec17c97c1dabfe2fb9428108a41d9bd6e`. Production OTA group `58ab8e76-0b18-4e73-8822-7766e6dad7e3`
+was published from `162db9c` and applied on the installed APK; the dashboard showed the new
+"Cleaner details you can copy" note after two cold starts.
 
 Older groups remain as history; installs move forward to the newest group for their runtime. Channels
 are unprotected because code signing is off; enabling it is a build-time change (§11).
@@ -375,18 +376,18 @@ after install. With it, the new build stops listening to `1.0.0` — the point.
 `npm run check:ota` also reads `mobile/ota-native-runtime.json`, a committed record of the versions the
 **last build** was compiled with. It refuses to publish when `expo`, `expo-modules-core` or
 `react-native` differ from that record, because EAS labels a bundle by `appVersion` and cannot see
-which native modules the phone actually has. It currently records the `1.0.1` preview build; after the
-`1.0.2` production build it must name `1.0.2` and add that build's id before any publish:
+which native modules the phone actually has. It currently records the two `1.0.2` builds:
 
 ```json
 {
-  "appVersion": "1.0.1",
+  "appVersion": "1.0.2",
   "expo": "58.0.22",
   "expoModulesCore": "58.0.29",
   "reactNative": "0.88.1",
-  "recordedAt": "2026-11-02",
+  "recordedAt": "2026-11-09",
   "builds": {
-    "preview": "5500e6be-bc45-46f9-a334-f738f4bd1bea"
+    "development": "76440404-167c-440c-be20-88801fe9b64b",
+    "production-apk": "820251b4-dc8a-46a3-9b25-0faa0a9c1529"
   }
 }
 ```
@@ -438,17 +439,17 @@ a bundle to an unsigned install. Revisit at the Play release, not on a date.
 
 ## 12. Current gaps
 
-1. **The handset runs a development build** — debuggable `1.0.0`, versionCode 1, installed by PC. A
-   development client runs Metro and never receives OTA. Install the `1.0.2` production APK once built.
+1. **The handset runs the production APK** — `1.0.2`, versionCode 10, signed in as the test user and
+   receiving production OTA. The development APK was built and fingerprinted but is not installed; it
+   would replace the production install and needs Metro.
 2. **Code signing is off, blocked by plan** — Expo allows it on Production/Enterprise only; it waits on
    a paid-plan decision, not on work (§27FN).
 3. **CLI is a major version behind** — `24.7.0`; re-read `--help` after upgrading.
 4. **`EXPO_PUBLIC_API_URL` is defined twice** — harmless while identical.
 5. **The Play path is unproven** — an OTA to store users needs a store build containing `expo-updates`.
 6. **`update:list` cannot be joined to git** — hence the clean-tree preflight.
-7. **A new production build is required** — the installed `1.0.1` APK carries Expo 58.0.19 / RN 0.88.0
-   while the tree is 58.0.22 / 0.88.1. `expo.version` is `1.0.2`; build `production-apk`, install it,
-   record the build id, then publish.
+7. **No matching 1.0.2 preview install was exercised** — production OTA was published directly to the
+   installed `1.0.2` APK; the older preview build is runtime `1.0.1` and cannot receive it.
 
 ## 13. Limits
 
