@@ -367,26 +367,30 @@ Authorization: Bearer <OWNER or ADMIN token>
 **OWNER/ADMIN only**; a MANAGER or STAFF token gets `403`, and an unauthenticated request gets
 `401`. The business scope comes from the authenticated session, never from a query parameter.
 
-The response separates the things that are easy to conflate:
+The response has `range` (`from`, `to`, `days` and `timeZone: UTC`), `totals` and `daily`, and it
+separates the things that are easy to conflate:
 
-- `totals.turns`, `freeTurns`, `paidTurns` and `unknownTierTurns` count **turns**, not provider
-  requests. A turn with three calls is still one turn.
-- `failoverTurns` is a count of turns in which the model changed. `failovers` is the total number
-  of model changes, while `retries` and `reasks` are tracked separately and do not increment the
-  failover count.
-- `latency` reports average (mean), median, p95, min and max over the turns that recorded a
+- `totals.turns`, `totals.freeTurns`, `totals.paidTurns` and `totals.unknownTierTurns` count
+  **turns**, not provider requests. A turn with three calls is still one turn.
+- `totals.failoverTurns` is a count of turns in which the model changed. `totals.failovers` is the
+  total number of model changes, while `totals.retries` and `totals.reasks` are tracked separately
+  and do not increment the failover count.
+- `totals.latency` reports average (mean), median, p95, min and max over the turns that recorded a
   duration. Percentiles use MongoDB's `$percentile` approximation and are not exact
   order-statistics.
-- `cost.providerReportedUsd` is **only** the sum of costs the provider actually reported. It is
-  `null` when no turn reported one. `reportedCostTurns`, `completeCostTurns`, `partialCostTurns` and
-  `unknownCostTurns` show how much of the window is covered. `cost.complete` is false when any turn
-  is partial or unknown, so a partial sum can never be mistaken for the full spend.
-- `cost.estimatedUsd` is `null` and `cost.estimatedAvailable` is `false`: the endpoint does not
-  invent a price for a model or a call whose cost was not reported. An estimate can be added later
-  without changing the meaning of the provider figures.
-- `daily` has one row for every UTC calendar day in the window, including days with zero turns.
-  Daily cost uses the same provider-only rule. UTC is deliberate: it matches the provider billing
-  day and avoids a local-midnight bucket that moves with daylight saving.
+- `totals.cost.providerReportedUsd` is **only** the sum of costs the provider actually reported. It
+  is `null` when no turn reported one. `totals.cost.reportedCostTurns`,
+  `totals.cost.completeCostTurns`, `totals.cost.partialCostTurns` and
+  `totals.cost.unknownCostTurns` show how much of the window is covered. `totals.cost.complete` is
+  false when any turn is partial or unknown, so a partial sum can never be mistaken for the full
+  spend.
+- `totals.cost.estimatedUsd` is `null` and `totals.cost.estimatedAvailable` is `false`: the endpoint
+  does not invent a price for a model or a call whose cost was not reported. An estimate can be
+  added later without changing the meaning of the provider figures.
+- `daily` has one row for every UTC calendar day in the window, including days with zero turns. Each
+  row carries the same turn/count/latency fields and the provider-only cost fields at its own level.
+  UTC is deliberate: it matches the provider billing day and avoids a local-midnight bucket that
+  moves with daylight saving.
 
 The metrics row contains operational metadata only — turn id, business/user ids, route, model,
 provider, durations, counts, token counts, quota/web labels and cost provenance. It does not store

@@ -998,8 +998,9 @@ from the authenticated business. An unauthenticated request gets `401`, and a MA
 gets `403`. The response separates turns from provider calls, reports free/paid/unknown turns,
 failovers, retries/re-asks, latency mean/median/p95/min/max, and daily UTC buckets including empty
 days. Cost is provider-reported only: a missing charge stays unknown, partial coverage is explicit,
-`complete` is false unless every cost was reported, and no estimate is fabricated (`estimatedUsd` is
-`null`). The response is `Cache-Control: no-store`. Guide 16 §10 holds the full field reference.
+`totals.cost.complete` is false unless every cost was reported, and no estimate is fabricated
+(`totals.cost.estimatedUsd` is `null`, `totals.cost.estimatedAvailable` is `false`). The response is
+`Cache-Control: no-store`. Guide 16 §10 holds the full field reference.
 
 ---
 
