@@ -985,7 +985,8 @@ Each completed turn — success, degraded or failed — also writes one operatio
 `ai_turn_metrics`. The row is keyed by `{ businessId, turnId, startedAt }`, so a retried report
 updates one row while two real turns that share a short id remain distinct. It records counts,
 durations, model/tier, upstream, tokens, quota/web labels and provider-cost provenance; it stores no
-prompt, answer, tool argument or tool result. The aggregate is available to OWNER and ADMIN only:
+prompt, answer, tool argument or tool result. The aggregate is available to OWNER and ADMIN
+only, through the `ai.metrics.view` capability:
 
 ```http
 GET /api/ai/metrics?days=7
@@ -2282,7 +2283,7 @@ change flows straight through to the cells. The matrix resolves to three invoked
 
 | Tier | Holders | Representative capabilities |
 |---|---|---|
-| A | OWNER, ADMIN | `users.manage`, `audit.view`, `categories.manage`, `locations.manage` |
+| A | OWNER, ADMIN | `users.manage`, `audit.view`, `ai.metrics.view`, `categories.manage`, `locations.manage` |
 | B | OWNER, ADMIN, MANAGER | `products.manage`, `suppliers.manage`, `purchase-orders.manage`, `inventory.manage`, `dashboard.view` |
 | C | every role | every `*.view`, `inventory.stock-in`/`stock-out`, `inventory.history.view`, `purchase-orders.receive`, `ai.use` |
 

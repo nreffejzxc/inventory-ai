@@ -146,8 +146,8 @@ re-asks never become extra turns; two real turns that collide on the short turn 
 The row records counts, durations, model/tier, upstream, tokens, quota/web labels and provider cost
 provenance. It never records a prompt, answer, tool argument or tool result.
 
-`GET /api/ai/metrics?days=7` (OWNER/ADMIN only; `days` 1–90, default 7) aggregates the caller's
-business in MongoDB with a `{ businessId, completedAt }`-indexed `$match` and a single `$facet`.
+`GET /api/ai/metrics?days=7` (permission `ai.metrics.view`, granted only to OWNER/ADMIN; `days` 1–90,
+default 7) aggregates the caller's business in MongoDB with a `{ businessId, completedAt }`-indexed `$match` and a single `$facet`.
 It reports free/paid/unknown turns, failover turns and total failovers separately from retries and
 re-asks, latency mean/median/p95/min/max, and daily spend for every UTC day in the window. Cost is
 **provider-reported only**: `providerReportedUsd` is `null` when nothing was reported, partial and

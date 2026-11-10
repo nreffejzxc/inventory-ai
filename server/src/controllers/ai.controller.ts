@@ -42,9 +42,9 @@ import { ROLES } from '../constants/roles.ts';
  * would make that `Request` unassignable and every route registration a type
  * error. The reads below assert it with `!` instead, which is justified by the
  * route table — every route in `routes/ai.routes.ts` is registered with
- * `requireAuth` plus either `requirePermission(PERMISSIONS.AI_USE)` or, for the
- * operator-only metrics route, `requireRole(ROLES.OWNER, ROLES.ADMIN)`, so the
- * middleware has always run by the time these handlers execute. Optional
+ * `requireAuth` plus `requirePermission(...)` (`ai.use` for member routes, or
+ * `ai.metrics.view` for the operator-only metrics route), so the middleware has
+ * always run by the time these handlers execute. Optional
  * chaining was NOT used: it would silently pass `undefined` where the code
  * would previously have thrown, which is a behaviour change.
  *
@@ -573,9 +573,10 @@ const aiController = {
   /**
    * GET /api/ai/metrics -> the business's own turn metrics for the last N UTC days.
    *
-   * This is an operator read, not a member feature: the route is OWNER/ADMIN only. The
-   * business scope comes from `req.user`, never from the query string, and the response is
-   * marked no-store because it describes internal usage and spend.
+   * This is an operator read, not a member feature: the route binds `ai.metrics.view`,
+   * held only by OWNER and ADMIN. The business scope comes from `req.user`, never from the
+   * query string, and the response is marked no-store because it describes internal usage
+   * and spend.
    */
   async metrics(req: AuthenticatedRequest, res: Response) {
     const parsed = parseAiMetricsDays(req.query.days);

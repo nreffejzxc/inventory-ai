@@ -41,6 +41,7 @@ export const PERMISSIONS = Object.freeze({
   TRANSACTIONS_VIEW: 'transactions.view',
   DASHBOARD_VIEW: 'dashboard.view',
   AI_USE: 'ai.use',
+  AI_METRICS_VIEW: 'ai.metrics.view',
   AUDIT_VIEW: 'audit.view',
 });
 
@@ -82,6 +83,7 @@ export const ROLE_PERMISSIONS: Readonly<Record<Role, readonly Permission[]>> = O
     PERMISSIONS.TRANSACTIONS_VIEW,
     PERMISSIONS.DASHBOARD_VIEW,
     PERMISSIONS.AI_USE,
+    PERMISSIONS.AI_METRICS_VIEW,
     PERMISSIONS.AUDIT_VIEW,
   ]),
   MANAGER: Object.freeze([
