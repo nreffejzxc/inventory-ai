@@ -1465,6 +1465,42 @@ unitSuite('OpenRouter provider — AI loop compatibility (DB-free)', () => {
     }
   });
 
+  // AI-102 — the production metrics row stored `getInventorySummarycommentary` after
+  // gpt-oss-20b put its Harmony channel suffix in the tool name. Pin both shapes here:
+  // the raw `<|channel|>…` form and the run-together form, plus a plain name as the
+  // positive control that nothing changes on an ordinary turn.
+  it('records only the offered tool name when the model appends channel metadata (AI-102)', async () => {
+    const restores = useOpenrouter();
+    try {
+      for (const rawName of [
+        'getInventorySummary',
+        'getInventorySummary<|channel|>commentary',
+        'getInventorySummarycommentary',
+        'getInventorySummary<|channel|>analysis',
+      ]) {
+        requests.length = 0;
+        responder = (_body, turn) =>
+          turn === 1
+            ? okTools([{ id: 'meta1', name: rawName, input: { plantedBusinessId: 'attacker' } }])
+            : okText('I could not read that.');
+        const out = await runAiChat({ ...ctx, message: 'Compare inventory totals across all locations.' });
+
+        assert.deepEqual(out.toolsUsed, ['getInventorySummary'], rawName);
+        assert.equal(out.iterations, 2, rawName);
+        // The continuation names the real tool, so the provider sees a matching tool_use.
+        assert.deepEqual(
+          assistantToolUseBlocks(requests[1].body).map((block) => block.name),
+          ['getInventorySummary'],
+          rawName,
+        );
+        const [result] = parsedToolResults(requests[1].body);
+        assert.equal(result.code, 'TOOL_INVALID_ARGUMENTS', rawName);
+      }
+    } finally {
+      restoreAll(restores);
+    }
+  });
+
   it('soft-denies malformed tool arguments without touching the database', async () => {
     const restores = useOpenrouter();
     try {
