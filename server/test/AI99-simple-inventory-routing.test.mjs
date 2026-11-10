@@ -436,9 +436,9 @@ test('AI-99: a simple question starts free, re-asks free, then escalates to the 
   assert.ok(
     lines.some(
       (line) =>
-        line.includes('free-model reasoning=disabled') &&
-        line.includes('env=AI_REASONING_FREE_MODELS') &&
-        line.includes(`freeModel=${FREE}`),
+        line.includes('AI request') &&
+        line.includes('reasoning-free=disabled') &&
+        line.includes(`model=${FREE}`),
     ),
     'every submitted question states the effective free-model policy',
   );

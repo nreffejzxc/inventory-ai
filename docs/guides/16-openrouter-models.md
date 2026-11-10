@@ -151,17 +151,17 @@ deliberate: the simple switch must not be silently defeated by an old rule. Free
 
 ## 3A. Read the reasoning log
 
-Every submitted question writes one turn-level line before any provider request:
+Every submitted question writes one request record before any provider request:
 
 ```text
-[ai] free-model reasoning=disabled source=AI_REASONING_FREE_MODELS env=AI_REASONING_FREE_MODELS paid-model reasoning=enabled source=AI_REASONING_PAID_MODELS route=simple freeModel=nvidia/nemotron-3.5-lightning:free
+AI request intent=inventory:product_stock route=simple model=nvidia/nemotron-3.5-lightning:free tier=free reasoning-free=disabled reasoning-free-source=AI_REASONING_FREE_MODELS reasoning-paid=enabled reasoning-paid-source=AI_REASONING_PAID_MODELS reasoning-legacy=unset web-search=disabled web-fetch=disabled tools=inventory turn=4f2a9c1e
 ```
 
-Every provider request writes a line with the exact field it sent. A free request and a paid request:
+Every provider request writes `AI model call` with the exact field it sent. A free request and a paid request:
 
 ```text
-[ai:openrouter] free-model reasoning=disabled field=disabled source=AI_REASONING_FREE_MODELS model=nvidia/nemotron-3.5-lightning:free
-[ai:openrouter] paid-model reasoning=enabled field=omitted source=AI_REASONING_PAID_MODELS model=openai/gpt-oss-20b
+AI model call provider=openrouter model=nvidia/nemotron-3.5-lightning:free tier=free reasoning=disabled field=disabled source=AI_REASONING_FREE_MODELS turn=4f2a9c1e
+AI model call provider=openrouter model=openai/gpt-oss-20b tier=paid reasoning=enabled field=omitted source=AI_REASONING_PAID_MODELS turn=4f2a9c1e
 ```
 
 `reasoning=disabled field=disabled` is the proof that hidden reasoning was turned off.
@@ -171,7 +171,7 @@ explicit thinking budget. `source=default` means the variable is unset; free rea
 to `disable`, while a paid model falls back to its advanced rule or the safe default. For a paid
 model, `source=AI_REASONING_PAID_MODELS` means the paid switch was used; `source=model` or
 `source=default` means an advanced rule or the advanced default decided it. Search Render's logs for
-`free-model reasoning=` or `paid-model reasoning=`; the lines contain only configuration labels and
+`AI request` or `AI model call`; the lines contain only configuration labels and
 the model id, never a prompt or a key. On 2026-11-10, production commit `27873ca` logged all three free states (`disabled field=disabled`, `enabled field=omitted`, then `disabled field=disabled` after restore) and kept the paid request at `enabled field=omitted source=AI_REASONING_PAID_MODELS` on `openai/gpt-oss-20b`. The development log carries the timestamps and turn results.
 
 ## 4. Switch models
@@ -336,10 +336,10 @@ A passing run reports the answer and the model that produced it:
 Confirm in the server log that the failure was **simulated**, not a real outage:
 
 ```text
-[ai] failover drill armed: user=… research=openai/gpt-oss-120b fallback=openai/gpt-oss-20b
-[ai] failover drill: simulated HTTP 503 from openai/gpt-oss-120b; no provider request
-[ai] failover attempt=1 model=openai/gpt-oss-120b -> openai/gpt-oss-20b reason=HTTP 503 remaining=…ms
-[ai] turn outcome=… calls=1 … failovers=1 … model=openai/gpt-oss-20b …
+AI failover drill armed: user=… research=openai/gpt-oss-120b fallback=openai/gpt-oss-20b
+AI failover drill: simulated HTTP 503 from openai/gpt-oss-120b; no provider request
+AI failover attempt=1 model=openai/gpt-oss-120b -> openai/gpt-oss-20b reason=HTTP 503 remaining=…ms
+AI turn outcome=… calls=1 … failovers=1 … model=openai/gpt-oss-20b …
 ```
 
 What it proves: the research turn starts on the research model, the model-level failover path

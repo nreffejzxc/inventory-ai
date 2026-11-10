@@ -547,7 +547,7 @@ function noteEngineBlock(engine: string, detail: string): void {
   engineStrikes.delete(engine);
   engineBlockedUntil.set(engine, Date.now() + ENGINE_BLOCK_COOLDOWN_MS);
   console.warn(
-    `[ai:freeweb] ${engine} refused the search twice in a row (${detail}) — using the other keyless engine` +
+    `AI web research ${engine} refused the search twice in a row (${detail}) — using the other keyless engine` +
       ` and skipping ${engine} for ${Math.round(ENGINE_BLOCK_COOLDOWN_MS / 60_000)} min`,
   );
 }

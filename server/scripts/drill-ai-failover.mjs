@@ -14,8 +14,8 @@
 // that the model-level failover path runs, and that the fallback model really answers. It does
 // NOT create a real upstream outage: the failure is synthesised inside the server, so an
 // OpenRouter outage, a revoked key or a withdrawn 120B is still a separate question. The server
-// log is the authority on the simulated 503 — grep for `[ai] failover drill:` and
-// `[ai] failover attempt=1`.
+// log is the authority on the simulated 503 — grep for `AI failover drill:` and
+// `AI failover attempt=1`.
 //
 // AUTH. `AI_ACCESS_TOKEN` must be an OWNER session token for the target server. The drill is
 // OWNER-only by design, and the token is never printed.
@@ -135,10 +135,10 @@ async function main() {
   console.log('');
   console.log(`[drill] PASS — the fallback model answered this turn (${expectModel}).`);
   console.log('[drill] Confirm the failure was SIMULATED, in the server log:');
-  console.log('[drill]   [ai] failover drill armed: user=… research=<research model> fallback=<fallback model>');
-  console.log('[drill]   [ai] failover drill: simulated HTTP 503 from <research model>; no provider request');
-  console.log('[drill]   [ai] failover attempt=1 model=<research model> -> <fallback model> reason=HTTP 503 …');
-  console.log('[drill]   [ai] turn outcome=… calls=1 … failovers=1 … model=<fallback model> …');
+  console.log('[drill]   AI failover drill armed: user=… research=<research model> fallback=<fallback model>');
+  console.log('[drill]   AI failover drill: simulated HTTP 503 from <research model>; no provider request');
+  console.log('[drill]   AI failover attempt=1 model=<research model> -> <fallback model> reason=HTTP 503 …');
+  console.log('[drill]   AI turn outcome=… calls=1 … failovers=1 … model=<fallback model> …');
   return 0;
 }
 

@@ -12,7 +12,7 @@
  *
  * WHAT IT DOES WITH THE READING.
  *
- *   * every reading is kept, so `[ai] turn …` can report `quota=12/50` and an operator can watch
+ *   * every reading is kept, so `AI turn …` can report `quota=12/50` and an operator can watch
  *     the budget instead of discovering its exhaustion;
  *   * a refusal that reports **zero** remaining blocks further provider calls for a short window
  *     (`AI_QUOTA_BLOCK_MS`, default 30 s). That is the only reading strong enough to act on: a

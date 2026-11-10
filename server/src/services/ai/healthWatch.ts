@@ -541,20 +541,20 @@ async function defaultSendAlert(
 ): Promise<AlertDelivery> {
   const to = (env.AI_HEALTH_ALERT_EMAIL || '').trim();
   if (!to) {
-    logger.error(`[ai:watchdog] ${alert.subject} — AI_HEALTH_ALERT_EMAIL is not set; the report is in this log.`);
+    logger.error(`AI watchdog: ${alert.subject} — AI_HEALTH_ALERT_EMAIL is not set; the report is in this log.`);
     return 'log';
   }
   if (!isMailConfigured()) {
-    logger.error(`[ai:watchdog] ${alert.subject} — mail is not configured; the report is in this log.`);
+    logger.error(`AI watchdog: ${alert.subject} — mail is not configured; the report is in this log.`);
     return 'log';
   }
   try {
     await sendOperationalAlertEmail({ to, subject: alert.subject, text: alert.text });
-    logger.error(`[ai:watchdog] ${alert.subject} — alert emailed to the configured recipient.`);
+    logger.error(`AI watchdog: ${alert.subject} — alert emailed to the configured recipient.`);
     return 'email';
   } catch {
     // No upstream message, no recipient and no key in the log. The report above is the alert.
-    logger.error(`[ai:watchdog] ${alert.subject} — the alert email could not be sent; the report is in this log.`);
+    logger.error(`AI watchdog: ${alert.subject} — the alert email could not be sent; the report is in this log.`);
     return 'log';
   }
 }
@@ -599,7 +599,7 @@ export function createHealthWatcher(options: HealthWatcherOptions = {}): HealthW
         // The endpoint-health API this watchdog reads belongs to OpenRouter. A deployment with
         // no AI, or with a different provider, must not be reported as "cannot verify" twice an
         // hour — there is simply nothing here to ask.
-        logger.log('[ai:watchdog] no OpenRouter model is configured, so there is nothing to watch');
+        logger.log('AI watchdog no OpenRouter model is configured, so there is nothing to watch');
         return {
           verdicts: [],
           changes: [],
@@ -611,7 +611,7 @@ export function createHealthWatcher(options: HealthWatcherOptions = {}): HealthW
 
       const models = configuredModels(env);
       if (models.length === 0) {
-        logger.log('[ai:watchdog] no AI model is configured, so there is nothing to watch');
+        logger.log('AI watchdog no AI model is configured, so there is nothing to watch');
         return {
           verdicts: [],
           changes: [],
@@ -642,7 +642,7 @@ export function createHealthWatcher(options: HealthWatcherOptions = {}): HealthW
       primaryOkStreak = primaryVerdict?.level === 'ok' ? primaryOkStreak + 1 : 0;
       if (configuredPrimary && primaryOkStreak >= recoveryChecks && returnToPrimary()) {
         logger.error(
-          `[ai:watchdog] the configured model is healthy again (${primaryOkStreak} consecutive` +
+          `AI watchdog the configured model is healthy again (${primaryOkStreak} consecutive` +
             ` check(s)) — returning to it: ${configuredPrimary}`,
         );
       }
@@ -669,7 +669,7 @@ export function createHealthWatcher(options: HealthWatcherOptions = {}): HealthW
         : `${allowance.remaining === null ? 'unknown' : allowance.remaining}` +
           (allowance.limit === null ? '' : `/${allowance.limit}`);
       logger.log(
-        `[ai:watchdog] checked ${verdicts.length} model(s): ${counts.ok} ok, ` +
+        `AI watchdog checked ${verdicts.length} model(s): ${counts.ok} ok, ` +
           `${counts.degraded} degraded, ${counts.unavailable} unavailable, ${counts.unknown} unknown` +
           `; active=${active} (configured=${configuredLabel})` +
           ` cooling=${cooling.join(',') || 'none'} quota=${quotaText}` +
@@ -687,7 +687,7 @@ export function createHealthWatcher(options: HealthWatcherOptions = {}): HealthW
       } catch {
         // A transport failure must never be the reason the watchdog stops running.
         delivered = 'log';
-        logger.error('[ai:watchdog] the alert could not be delivered; the report is in this log.');
+        logger.error('AI watchdog: the alert could not be delivered; the report is in this log.');
       }
       return { verdicts, changes, alert, delivered };
     },
@@ -775,7 +775,7 @@ export async function refreshModelHealthGate(
   if (outcome.blocked.length > 0 || outcome.cleared.length > 0) {
     const logger = options.logger ?? console;
     logger.log(
-      `[ai:health] model selection: unavailable=${outcome.blocked.join(',') || 'none'}` +
+      `AI model health model selection: unavailable=${outcome.blocked.join(',') || 'none'}` +
         ` recovered=${outcome.cleared.join(',') || 'none'}` +
         (outcome.released.length > 0
           ? ` (released the configured primary so the assistant still has one attempt: ${outcome.released.join(', ')})`
@@ -828,7 +828,7 @@ export function startAiHealthWatch(options: HealthWatchScheduleOptions = {}): He
       try {
         return await run();
       } catch {
-        logger.error('[ai:watchdog] the scheduled check failed; the next run is still scheduled.');
+        logger.error('AI watchdog the scheduled check failed; the next run is still scheduled.');
         return { verdicts: [], changes: [], alert: null, delivered: 'none' };
       } finally {
         inFlight = null;

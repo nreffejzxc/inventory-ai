@@ -1051,7 +1051,7 @@ unitSuite('OpenRouter provider — configurable web tools', () => {
       const body = lastRequest().body;
       assert.deepEqual(serverTools(body), []);
       assert.equal(body.tools.length, AI_TOOL_DEFS.length, 'the local tools remain available');
-      const line = lines.find((entry) => entry.includes('[ai:openrouter] web tools'));
+      const line = lines.find((entry) => entry.includes('AI model web tools'));
       assert.ok(line);
       assert.match(line, /enabled=search,fetch/);
       assert.match(line, /offered=none/);
@@ -1104,7 +1104,7 @@ unitSuite('OpenRouter provider — configurable web tools', () => {
           tools: AI_TOOL_DEFS,
         }),
       );
-      const line = lines.find((entry) => entry.includes('[ai:openrouter] web tools'));
+      const line = lines.find((entry) => entry.includes('AI model web tools'));
       assert.ok(line, 'the request must write one web-tool line');
       assert.match(line, /enabled=search,fetch/);
       assert.match(line, /offered=search,fetch/);
@@ -1131,7 +1131,7 @@ unitSuite('OpenRouter provider — configurable web tools', () => {
           tools: AI_TOOL_DEFS,
         }),
       );
-      const toolLine = withTools.lines.find((entry) => entry.includes('[ai:openrouter] web tools'));
+      const toolLine = withTools.lines.find((entry) => entry.includes('AI model web tools'));
       assert.ok(toolLine);
       assert.match(toolLine, /enabled=search,fetch/);
       assert.match(toolLine, /offered=search,fetch/);
@@ -1143,7 +1143,7 @@ unitSuite('OpenRouter provider — configurable web tools', () => {
           messages: [{ role: 'user', content: 'hi' }],
         }),
       );
-      const answerLine = answerOnly.lines.find((entry) => entry.includes('[ai:openrouter] web tools'));
+      const answerLine = answerOnly.lines.find((entry) => entry.includes('AI model web tools'));
       assert.ok(answerLine);
       assert.match(answerLine, /enabled=search,fetch/);
       assert.match(answerLine, /offered=none/);
@@ -1199,7 +1199,7 @@ unitSuite('OpenRouter provider — configurable web tools', () => {
       );
       assert.equal(deltas.join(''), 'Fetched answer');
       assert.deepEqual(result.webSources, [{ title: 'private.example', url }]);
-      const line = lines.find((entry) => entry.includes('[ai:openrouter] web tools'));
+      const line = lines.find((entry) => entry.includes('AI model web tools'));
       assert.ok(line);
       assert.match(line, /enabled=fetch/);
       assert.match(line, /offered=fetch/);
@@ -1383,19 +1383,19 @@ unitSuite('OpenRouter provider — AI loop compatibility (DB-free)', () => {
       assert.ok(
         lines.some((line) =>
           line.includes(
-            `[ai] failover drill: simulated HTTP 503 from ${RESEARCH_MODEL}; no provider request`,
+            `AI failover drill: simulated HTTP 503 from ${RESEARCH_MODEL}; no provider request`,
           ),
         ),
         'the simulated failure names the model it stood in for',
       );
-      const failoverLine = lines.find((line) => line.includes('[ai] failover attempt=1'));
+      const failoverLine = lines.find((line) => line.includes('AI failover attempt=1'));
       assert.ok(failoverLine, 'the real failover line was emitted');
       assert.ok(
         failoverLine.includes(`model=${RESEARCH_MODEL} -> ${MODEL}`),
         'the fallback walks from the research model to the primary',
       );
       assert.match(failoverLine, /reason=HTTP 503/);
-      const turnLine = lines.find((line) => line.includes('[ai] turn outcome='));
+      const turnLine = lines.find((line) => line.includes('AI turn outcome='));
       assert.match(turnLine, /failovers=1/);
       assert.match(turnLine, /calls=1/);
       assert.ok(turnLine.includes(`model=${MODEL}`), 'the turn line names the model that answered');
@@ -1560,7 +1560,7 @@ unitSuite('OpenRouter provider — AI loop compatibility (DB-free)', () => {
           'the local inventory tools are still offered',
         );
       }
-      const line = lines.find((entry) => entry.includes('[ai:openrouter] web tools'));
+      const line = lines.find((entry) => entry.includes('AI model web tools'));
       assert.ok(line, 'the request log still reports that the switches are on');
       assert.match(line, /enabled=search,fetch/);
       assert.match(line, /offered=none/);
@@ -1608,7 +1608,7 @@ unitSuite('OpenRouter provider — AI loop compatibility (DB-free)', () => {
         );
       }
       assert.ok(tools.some((tool) => tool.name === 'findProducts'), 'catalogue discovery stays available');
-      const turnLine = lines.find((entry) => entry.startsWith('[ai] turn outcome='));
+      const turnLine = lines.find((entry) => entry.startsWith('AI turn outcome='));
       assert.ok(turnLine);
       assert.match(turnLine, /web=search/);
     } finally {

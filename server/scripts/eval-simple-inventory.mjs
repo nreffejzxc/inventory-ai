@@ -693,7 +693,7 @@ async function runTurn(question, phase, { business, user, pricing }) {
   }
 
   const totalMs = Date.now() - started;
-  const turnLine = lines.find((line) => line.startsWith('[ai] turn')) ?? null;
+  const turnLine = lines.find((line) => line.startsWith('AI turn')) ?? null;
   const metrics = parseTurnLine(turnLine);
   const answer = result?.content ?? '';
   const check = error
@@ -759,7 +759,7 @@ async function runTurn(question, phase, { business, user, pricing }) {
     quotaFallForward: lines.some((line) => line.includes('refused by quota')),
     readEscalation: lines.some((line) => line.includes('escalating to the paid primary')),
     turnLine,
-    routeWarnings: lines.filter((line) => line.startsWith('[ai] simple route')),
+    routeWarnings: lines.filter((line) => line.startsWith('AI simple route')),
   };
 }
 

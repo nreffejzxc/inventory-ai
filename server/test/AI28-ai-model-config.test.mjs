@@ -5,9 +5,9 @@
  * `502 AI_UNAVAILABLE` — *"The AI service is temporarily unavailable. Please try again in a
  * moment."* — and the server log could not say which model had failed:
  *
- *   [ai:openrouter] upstream HTTP 404
+ *   AI provider openrouter upstream HTTP 404
  *   bodyPrefix="… not_found_error … Function '<uuid>': Not found for account '<uuid>' … provider_name":"Nvidia" …"
- *   [ai] turn outcome=AI_UNAVAILABLE … calls=1 … model=unknown iterations=1
+ *   AI turn outcome=AI_UNAVAILABLE … calls=1 … model=unknown iterations=1
  *
  * Direct measurement showed the model ID was still listed by the gateway while its upstream
  * refused every call, and that a different free model answered the same request with a tool use.

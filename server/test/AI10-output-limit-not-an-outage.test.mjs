@@ -30,7 +30,7 @@
 // service adopts it before writing the line — which is what the four ★ cases below pin,
 // the last of them through the real wire so the hand-thrown case cannot be the only proof.
 //
-// AFTER. `AiOutputLimit` / `AI_OUTPUT_LIMIT`, its own sentence, and one `[ai]` line
+// AFTER. `AiOutputLimit` / `AI_OUTPUT_LIMIT`, its own sentence, and one `AI turn` line
 // naming the cap. It is deliberately NOT an `AiProviderError`, for the same reason
 // `AiTimeout`, `AiAbandoned` and `AiQuotaExceeded` are not: "we gave up waiting", "the
 // caller left", "an allowance is spent" and "the model ran out of room" are four
@@ -234,7 +234,7 @@ unitSuite('AI-10 the output limit is its own failure (DB-free)', () => {
       process.env.AI_PROVIDER = 'openrouter';
     }
 
-    const cost = logLines.find((l) => l.includes('[ai] turn'));
+    const cost = logLines.find((l) => l.includes('AI turn'));
     assert.ok(cost, 'the turn must still report what it spent');
     assert.match(cost, /in=1200 out=800/, 'the model spent its whole budget: the line must not say it spent nothing');
     assert.match(cost, /model=stub-model/, 'and must name the model the cap was spent on');
@@ -283,7 +283,7 @@ unitSuite('AI-10 the output limit is its own failure (DB-free)', () => {
       process.env.AI_PROVIDER = 'openrouter';
     }
 
-    const cost = logLines.find((l) => l.includes('[ai] turn'));
+    const cost = logLines.find((l) => l.includes('AI turn'));
     assert.ok(cost, 'the turn must still report what it spent');
     assert.match(cost, /outcome=AI_OUTPUT_LIMIT/);
     assert.ok(!cost.includes('outcome=AI_UNAVAILABLE'), 'a limit is not an outage in the log either');
@@ -459,7 +459,7 @@ dbSuite('AI-10 the limit reaches the client as its own code, never as an outage'
 
     // The whole chain: stub gateway → postJson → parseAnthropicResponse → AiOutputLimit →
     // the service's catch → the cost line. A hand-thrown error would prove only the last hop.
-    const cost = logLines.find((l) => l.includes('[ai] turn') && l.includes('AI_OUTPUT_LIMIT'));
+    const cost = logLines.find((l) => l.includes('AI turn') && l.includes('AI_OUTPUT_LIMIT'));
     assert.ok(cost, 'the turn must report itself');
     assert.match(cost, /in=1200 out=800/, 'the gateway reported 1200 in / 800 out and the line must carry it');
     assert.match(cost, /model=stub-model/, 'the model that spent the cap is named');

@@ -1,7 +1,7 @@
 // The AI usage report — read-only, and the instrument the provider decision needs.
 //
 // WHY THIS EXISTS. `perf:turns` measures real turns and **spends** provider quota (~50 free
-// requests a day IN TOTAL, §27BF); the per-turn cost line (`[ai] turn …`, AI-5) records what
+// requests a day IN TOTAL, §27BF); the per-turn cost line (`AI turn …`, AI-5) records what
 // every real turn actually cost, but nothing read those lines back, so "how much of the
 // allowance are we using, and what is failing?" could only be answered by spending more of
 // it. That is the question ISS-22 is waiting on, and it is the opposite of a measurement
@@ -44,11 +44,11 @@ const PLANTED_KEY = 'sk-or-v1-PLANTED-0000000000000000000000000000000000000000';
 const FIXTURE = [
   `{"ts":"2026-10-17T02:39:29.638Z","level":"info","type":"http","method":"POST","path":"/api/ai/chat","status":201}`,
   `OPENROUTER_API_KEY=${PLANTED_KEY}`,
-  `[ai] degraded turn reason=EMPTY_COMPLETION attempts=3 empty=2 model=stub/model calls=3`,
-  `[ai] turn outcome=ok total=12598ms providerMs=11973ms calls=3 toolMs=625ms toolRuns=1 tools=getInventorySummary empty=1 in=3399 out=499 model=stub/model iterations=3`,
-  `[ai] turn outcome=AI_ABANDONED total=12794ms providerMs=12794ms calls=1 toolMs=0ms toolRuns=0 tools=none empty=0 in=0 out=0 model=unknown iterations=1`,
-  `[ai] turn outcome=AI_OUTPUT_LIMIT total=213ms providerMs=213ms calls=1 toolMs=0ms toolRuns=0 tools=none empty=0 in=1200 out=800 model=stub/model iterations=1`,
-  `[ai] turn outcome=ok total=905ms providerMs=900ms calls=2 toolMs=5ms toolRuns=1 tools=`,
+  `AI degraded turn reason=EMPTY_COMPLETION attempts=3 empty=2 model=stub/model calls=3`,
+  `AI turn outcome=ok total=12598ms providerMs=11973ms calls=3 toolMs=625ms toolRuns=1 tools=getInventorySummary empty=1 in=3399 out=499 model=stub/model iterations=3`,
+  `AI turn outcome=AI_ABANDONED total=12794ms providerMs=12794ms calls=1 toolMs=0ms toolRuns=0 tools=none empty=0 in=0 out=0 model=unknown iterations=1`,
+  `AI turn outcome=AI_OUTPUT_LIMIT total=213ms providerMs=213ms calls=1 toolMs=0ms toolRuns=0 tools=none empty=0 in=1200 out=800 model=stub/model iterations=1`,
+  `AI turn outcome=ok total=905ms providerMs=900ms calls=2 toolMs=5ms toolRuns=1 tools=`,
 ].join('\n');
 
 let dir = '';
@@ -246,7 +246,7 @@ unitSuite('the AI usage report reads the log it is given, and nothing else', () 
     const report = json(res);
     // The degraded warning and the access-log line are not turns. A count that included
     // either would overstate usage on exactly the turns that had trouble.
-    assert.equal(report.turns, 4, 'only the four `[ai] turn` lines are turns');
+    assert.equal(report.turns, 4, 'only the four `AI turn` lines are turns');
     assert.deepEqual(report.outcomes, { ok: 2, AI_ABANDONED: 1, AI_OUTPUT_LIMIT: 1 });
     assert.equal(report.providerRequests, 7, '3 + 1 + 1 + 2 provider calls');
     assert.equal(report.toolRuns, 2);

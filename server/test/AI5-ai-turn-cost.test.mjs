@@ -17,11 +17,11 @@
 //
 // WHAT THIS PINS. One line per turn, on EVERY exit path:
 //
-//   [ai] turn outcome=ok total=15211ms providerMs=14800ms calls=2 toolMs=180ms
+//   AI turn outcome=ok total=15211ms providerMs=14800ms calls=2 toolMs=180ms
 //        toolRuns=1 tools=getInventorySummary empty=0 in=3399 out=427
 //        cost=$0.007192 web=none model=... iterations=2
 //
-// `grep -c '[ai] turn'` is then the turn count, and `outcome=` splits the healthy
+// `grep -c 'AI turn'` is then the turn count, and `outcome=` splits the healthy
 // turns from the four ways one can end badly (AI_TIMEOUT, AI_ABANDONED,
 // AI_UNAVAILABLE, AI_NOT_CONFIGURED) plus `degraded` and `ERROR`. The value is not
 // the line: it is that the next latency question is answered by asking the
@@ -80,13 +80,13 @@ async function turnCapturingLogs(scenario, over = {}) {
     console.log = realLog;
     console.warn = realWarn;
   }
-  return { lines, costLines: lines.filter((line) => line.includes('[ai] turn')), result, error };
+  return { lines, costLines: lines.filter((line) => line.includes('AI turn')), result, error };
 }
 
 /** `key=value` pairs of the cost line, as a map. */
 function fields(line) {
   const out = {};
-  for (const part of line.replace('[ai] turn', '').trim().split(/\s+/)) {
+  for (const part of line.replace('AI turn', '').trim().split(/\s+/)) {
     const at = part.indexOf('=');
     if (at > 0) out[part.slice(0, at)] = part.slice(at + 1);
   }

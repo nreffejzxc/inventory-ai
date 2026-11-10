@@ -348,7 +348,7 @@ npm start > logs/server.log 2>&1
 
 npm run ai:usage -- --log=logs/server.log
 npm start | npm run ai:usage --silent --      # or straight off a running server's output
-grep '\[ai\] turn outcome=' logs/server.log | grep -v outcome=ok
+grep 'AI turn outcome=' logs/server.log | grep -v outcome=ok
 grep 'empty completion' logs/server.log
 ```
 
