@@ -214,6 +214,32 @@ test('AI-99: advanced questions stay on the existing route', () => {
   }
 });
 
+test('AI-99: aggregate inventory totals stay on the existing route', () => {
+  for (const question of [
+    'How many total units do we have?',
+    'How many units do we have in total?',
+    'How many units in total do we have?',
+    'How many total products do we have?',
+    'How many units of inventory do we have?',
+    'How many inventory units do we have?',
+    'How many pieces do we have?',
+    'How many total pieces do we have?',
+  ]) {
+    assert.equal(simpleInventoryIntent(question), null, question);
+  }
+
+  assert.equal(
+    simpleInventoryIntent('How many units of the Logitech MX Master 3S are in stock?').operation,
+    'product_stock',
+  );
+  assert.equal(
+    simpleInventoryIntent(
+      'How many total units of the product with SKU SEEDSKU-0 are in stock?',
+    ).operation,
+    'product_stock',
+  );
+});
+
 test('AI-99: only a tool-capable free model is selected', () => {
   assert.equal(selectSimpleModel([PRIMARY, FREE, FREE_2]), FREE);
   assert.equal(selectSimpleModel([PRIMARY, FREE_2], (id) => id !== FREE_2), null);
