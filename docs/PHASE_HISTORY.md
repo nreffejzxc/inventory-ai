@@ -98,7 +98,11 @@ the follow-up `AI-93`–`AI-98` cleanups merged in PRs #196–#199 and are recor
 `AI-99` (free-first simple inventory, deterministic totals and a resumable 10k evaluator) merged as
 `8b6353a`, was deployed to Render and was published as production OTA group `0e4eca55`; a live
 simple turn and a 10,256-product gate are recorded in `DEVELOPMENT_LOG.md`, and the on-device
-What's New card remains unobserved.
+What's New card was observed on 2026-11-10.
+`AI-101` and `AI-102` are delivered: stored assistant answers carry a selectable turn reference, and
+durable turn metrics plus the OWNER/ADMIN metrics endpoint are live as `eda08d0`. The matching
+answer-reference What's New bundle is production OTA group `e38e07bf`; the device observation is
+still pending. Both are recorded in `DEVELOPMENT_LOG.md`.
 The earlier assistant increments cover the turn deadline,
 retries, answer rendering, the cost line, quota, failover, streaming, and finally one provider
 (OpenRouter). The
