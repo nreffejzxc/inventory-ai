@@ -14,9 +14,11 @@ complete and the local research tools remain available.
 | `AI_WEB_SEARCH` | The assistant may search the web for current information. | The search tool is not sent. |
 | `AI_WEB_FETCH` | The assistant may fetch a URL and read its page or PDF content. | The fetch tool is not sent. |
 
-Set each variable to `enable` or `disable`. The fallback chain uses the same two
-settings; changing the model does not change them. `AI_REASONING` is separate and still
-applies per model.
+Set each variable to `enable` or `disable`; only those two words are accepted.
+`true`, `on`, `yes` and `1` are invalid and keep the tool disabled. The fallback chain
+uses the same two settings; changing the model does not change them. Reasoning is
+separate: `AI_REASONING_PAID_MODELS` governs paid models, while `AI_REASONING_FREE_MODELS` governs
+every `:free` model and defaults to `disable`.
 
 Research-heavy turns can also start on a stronger model through
 [`AI_RESEARCH_MODEL_OPENROUTER`](16-openrouter-models.md): ordinary inventory questions stay
@@ -145,9 +147,9 @@ AI_WEB_FETCH=disable
    request log should show `used=search` and/or `used=fetch`. If the tool is disabled, it
    is not sent to OpenRouter, so the assistant cannot use that capability on the turn.
 
-An invalid value makes `npm run ai:check` exit 1 and name the variable. The server also
-keeps the tool disabled and logs a warning at boot; it never turns a paid tool on because
-of a typo.
+An invalid value (anything other than `enable` or `disable`, including `true` or `on`) makes
+`npm run ai:check` exit 1 and name the variable. The server also keeps the tool disabled and
+logs a warning at boot; it never turns a paid tool on because of a typo.
 
 ## Read the logs
 

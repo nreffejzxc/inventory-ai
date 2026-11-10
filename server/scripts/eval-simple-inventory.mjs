@@ -31,8 +31,8 @@
 // (git-ignored by `.tmp-*`). Set SIMPLE_EVAL_OUT to keep a run separate.
 //
 // For a free-only reasoning-policy comparison, skip the paid baseline and set the
-// advanced policy explicitly (an empty AI_REASONING lets it apply):
-//   AI_REASONING= AI_REASONING_DEFAULT=off \
+// advanced policy explicitly (an empty AI_REASONING_PAID_MODELS lets it apply):
+//   AI_REASONING_PAID_MODELS= AI_REASONING_DEFAULT=off \
 //     AI_REASONING_MODELS_OPENROUTER='openai/gpt-oss-*=auto' \
 //     AI_TEST_ALLOW_PAID_MODELS=true SIMPLE_EVAL_OUT=.tmp-simple-inventory-live-off.json \
 //     node scripts/eval-simple-inventory.mjs --free-only --limit=25
@@ -965,7 +965,7 @@ try {
       free: freeModel,
       research: cfg.openrouterResearchModel || null,
       reasoning: {
-        AI_REASONING: process.env.AI_REASONING ?? null,
+        AI_REASONING_PAID_MODELS: process.env.AI_REASONING_PAID_MODELS ?? null,
         AI_REASONING_DEFAULT: process.env.AI_REASONING_DEFAULT ?? null,
         AI_REASONING_MODELS_OPENROUTER: process.env.AI_REASONING_MODELS_OPENROUTER ?? null,
         settings: cfg.reasoning,

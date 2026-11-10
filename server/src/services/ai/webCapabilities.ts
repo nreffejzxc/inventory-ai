@@ -238,17 +238,17 @@ const WEB_FETCH_TOOL: OpenRouterServerTool = {
 const SEARCH_VARIABLE = 'AI_WEB_SEARCH';
 const FETCH_VARIABLE = 'AI_WEB_FETCH';
 
-const ENABLED = new Set(['enable', 'enabled', 'on', 'true', 'yes', '1']);
-const DISABLED = new Set(['disable', 'disabled', 'off', 'false', 'no', '0']);
-
 function parseSwitch(
   variable: string,
   raw: string | undefined,
 ): { enabled: boolean; problem?: WebCapabilityProblem } {
   const value = String(raw ?? '').trim().toLowerCase();
   if (!value) return { enabled: false };
-  if (ENABLED.has(value)) return { enabled: true };
-  if (DISABLED.has(value)) return { enabled: false };
+  // Strict by design: only the two documented values are accepted. `true`, `on`,
+  // `yes` and `1` used to enable a billable tool; a misspelling must fail the
+  // production check and `ai:check` rather than silently spend credits.
+  if (value === 'enable') return { enabled: true };
+  if (value === 'disable') return { enabled: false };
   return {
     enabled: false,
     problem: {

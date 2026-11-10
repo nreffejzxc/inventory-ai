@@ -14,7 +14,12 @@
  */
 
 import { aiConfig } from '../aiConfig.ts';
-import { resolveReasoningPolicy, thinkingFieldFor } from '../reasoningPolicy.ts';
+import {
+  isFreeModel,
+  reasoningState,
+  resolveReasoningPolicy,
+  thinkingFieldFor,
+} from '../reasoningPolicy.ts';
 import { AiNotConfigured, AiOutputLimit, AiProviderError } from '../aiErrors.ts';
 import {
   webToolLabel,
@@ -646,6 +651,12 @@ export function createAnthropicCompatibleProvider(opts: AnthropicCompatibleOptio
       // parameter rather than a second environment variable so the request itself
       // records which model answered, and the parsed response reports that model.
       const model = requestedModel || cfg[modelKey] || defaultModel;
+      // AI-100 — resolve the policy for THIS model before building the request. Free
+      // endpoints use their own switch; paid endpoints keep AI_REASONING_PAID_MODELS and the
+      // advanced per-model rules. The resolved field is also what the free-model log
+      // reports, so the log and the wire body cannot disagree.
+      const resolvedReasoning = resolveReasoningPolicy(model, cfg.reasoning);
+      const thinkingField = thinkingFieldFor(resolvedReasoning.policy, cfg.maxOutputTokens);
       // The turn's remaining budget when the orchestrator supplied one, so a
       // call can never outlive the turn's single deadline (AI-1).
       const budget = timeoutMs ?? cfg.requestTimeoutMs;
@@ -680,11 +691,23 @@ export function createAnthropicCompatibleProvider(opts: AnthropicCompatibleOptio
         // response contract changes, because a disabled model simply returns text.
         // AI-55 — the policy is resolved for THIS request's model, not for the deployment, so a
         // failover candidate that requires reasoning does not inherit the primary's `off`.
-        ...thinkingFieldFor(
-          resolveReasoningPolicy(model, cfg.reasoning).policy,
-          cfg.maxOutputTokens,
-        ),
+        ...thinkingField,
       };
+      // AI-100 — every provider request gets its own line, before the network call, so
+      // Render shows the policy that was actually sent even when the provider then
+      // refuses the request. `field=disabled` is the observable proof that reasoning
+      // was turned off; `field=omitted` means the model's own default is enabled.
+      const free = isFreeModel(model);
+      const reasoningField = 'thinking' in thinkingField ? thinkingField.thinking.type : 'omitted';
+      const reasoningSource = free
+        ? cfg.reasoning.freeSource
+        : resolvedReasoning.source === 'paid'
+          ? cfg.reasoning.paidSource
+          : resolvedReasoning.source;
+      console.log(
+        `[ai:${name}] ${free ? 'free' : 'paid'}-model reasoning=${reasoningState(resolvedReasoning.policy)}` +
+          ` field=${reasoningField} source=${reasoningSource} model=${model}`,
+      );
       const requestHeaders = { ...(authHeaders ? authHeaders(apiKey) : {}), ...extraHeaders };
 
       /**

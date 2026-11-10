@@ -92,6 +92,13 @@ legacy login can be retired.
   `AI_PROVIDER=claude|gemini` is refused as unsupported. The retired AgentRouter gateway must not be
   reintroduced.
 - AI credentials stay server-side.
+- Reasoning is split by model class: `AI_REASONING_PAID_MODELS` governs paid models, and
+  `AI_REASONING_FREE_MODELS` governs every model id ending in `:free` (default `disable`). Both
+  switches, and `AI_WEB_SEARCH`/`AI_WEB_FETCH`, accept only `enable` or `disable`; aliases fail
+  production validation. Every provider request logs the model class, source and reasoning field
+  it actually sends, and every submitted turn logs both effective policies before any provider
+  call. The old `AI_REASONING` name is a deprecated fallback for one release; the new name wins
+  when both are set, so rename it at the next deploy.
 
 ---
 
