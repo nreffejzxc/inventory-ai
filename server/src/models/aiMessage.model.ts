@@ -26,6 +26,16 @@ const aiMessageSchema = new Schema(
       type: String,
       trim: true,
     },
+    /**
+     * The per-turn correlation id (AI monitoring) this answer was produced under. It is
+     * written on the ASSISTANT message so a conversation read back later can still name the
+     * turn whose `AI request` / `AI model call` / `AI turn` lines are in the logs. Absent on
+     * every message stored before the id was returned, exactly like `degraded`.
+     */
+    turnId: {
+      type: String,
+      trim: true,
+    },
     toolsUsed: [
       {
         type: String,
