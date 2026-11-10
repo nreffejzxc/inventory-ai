@@ -39,6 +39,7 @@ import { checkModelCatalogue } from '../services/ai/modelCheck.ts';
 import type { CatalogueResult } from '../services/ai/modelCheck.ts';
 import { refreshModelCapabilities, declaresToolSupport } from '../services/ai/modelCapabilities.ts';
 import { aiConfig } from '../services/ai/aiConfig.ts';
+import { reasoningState } from '../services/ai/reasoningPolicy.ts';
 import {
   healthWatchConfig,
   healthWatchEnabled,
@@ -412,6 +413,24 @@ export async function startServer({
   // configuration problems never stop a server — and neither contacts a provider.
   if (ai.openrouterModel) {
     logger.log(`[ai] chain order: ${[ai.openrouterModel, ...ai.fallbackModels].join(' -> ')}`);
+  }
+  // AI-100 — state the free-model policy once at boot. The per-turn line and the
+  // per-request provider line prove the policy actually applied; this one lets an
+  // operator verify a Render environment change before a member asks a question.
+  logger.log(
+    `[ai] free-model reasoning: ${reasoningState(ai.reasoning.freePolicy)}` +
+      ` (${ai.reasoning.freeSource === 'AI_REASONING_FREE_MODELS' ? 'AI_REASONING_FREE_MODELS' : 'default'})`,
+  );
+  logger.log(
+    `[ai] paid-model reasoning: ${
+      ai.reasoning.simplePolicy ? reasoningState(ai.reasoning.simplePolicy) : 'advanced'
+    } (${ai.reasoning.paidSource === 'advanced' ? 'advanced rules' : ai.reasoning.paidSource})`,
+  );
+  if (ai.reasoning.paidSource === 'AI_REASONING') {
+    logger.error('[config] warning: AI_REASONING is deprecated; rename it to AI_REASONING_PAID_MODELS.');
+  }
+  for (const problem of [ai.reasoning.simpleProblem, ai.reasoning.freeProblem]) {
+    if (problem) logger.error(`[config] warning: ${problem}`);
   }
   // AI-85 — say when the opt-in web tools are on, and name an invalid switch
   // without ever enabling it. These are configuration lines, not refusals: the

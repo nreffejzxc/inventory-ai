@@ -188,12 +188,13 @@ export function aiConfig() {
     // Set AI_THINKING_DISABLED=false only to restore the provider's own default (its
     // extended thinking on, if it has any) for an experiment; everything else, including an
     // empty or malformed value, keeps it off.
-    // AI-55 — `AI_REASONING` is the simple switch: `enable` sends no reasoning field and lets
-    // the model use its own default (required by openai/gpt-oss-*); `disable` sends
+    // AI-55 — `AI_REASONING_PAID_MODELS` is the PAID-model switch: `enable` sends no reasoning field and
+    // lets the model use its own default (required by openai/gpt-oss-*); `disable` sends
     // `thinking: { type: 'disabled' }` so the answer owns the output budget. It overrides the
-    // advanced `AI_REASONING_MODELS_OPENROUTER` rules and `AI_REASONING_DEFAULT`; those remain
-    // for per-model policies. `AI_THINKING_DISABLED=false` still means `auto` when the new
-    // default is unset, so an existing deployment behaves as it did.
+    // advanced `AI_REASONING_MODELS_OPENROUTER` rules and `AI_REASONING_DEFAULT` for paid
+    // models. AI-100 — every id ending in `:free` uses `AI_REASONING_FREE_MODELS` instead,
+    // defaulting to off and never inheriting the paid value. `AI_THINKING_DISABLED=false` still
+    // means `auto` for paid models when the new default is unset.
     reasoning: reasoningSettings(process.env),
     // AI-85 — OpenRouter's built-in web tools. Each switch is independent and
     // OFF by default so an existing deployment sends exactly the same request it

@@ -37,6 +37,7 @@ import jwt from 'jsonwebtoken';
 import type { SignOptions } from 'jsonwebtoken';
 
 import { providerRequiredEnv } from '../services/ai/providers/index.ts';
+import { reasoningConfigProblems } from '../services/ai/reasoningPolicy.ts';
 import { webCapabilities } from '../services/ai/webCapabilities.ts';
 import { serviceAccountProblems } from './firebase.ts';
 import { emailVerificationPepperProblems } from './emailVerification.ts';
@@ -135,6 +136,10 @@ export function validateProductionConfig(
       // value is a production configuration error rather than a silent no-op;
       // the tools remain disabled until the operator fixes the value.
       problems.push(...webCapabilities(values).problems);
+      // AI-100 — the reasoning switches are strict enable/disable settings. An
+      // invalid value must fail the deploy instead of silently choosing a policy
+      // for a paid model or a free fallback.
+      problems.push(...reasoningConfigProblems(values));
     }
   }
 

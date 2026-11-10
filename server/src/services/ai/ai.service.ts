@@ -76,6 +76,7 @@ import {
 import type { CatalogueFact, StockValueSummary, TopOutFact } from './answerCompletion.ts';
 import { locationService } from '../reference.service.ts';
 import { aiConfig } from './aiConfig.ts';
+import { reasoningState } from './reasoningPolicy.ts';
 import {
   AI_UNAVAILABLE,
   AiAbandoned,
@@ -970,6 +971,21 @@ export async function runAiChat({
   // Research outranks the simple route if both patterns ever match. The classifier already
   // refuses every research cue, so this only keeps the log honest for an edge case.
   if (researchTurn) route = 'research';
+
+  // AI-100 — one line before any provider request, for EVERY submitted question. It
+  // states the free-model switch even when this turn will not use a free model, so a
+  // Render operator can verify the environment value independently of routing. The
+  // provider request line later proves the actual `thinking` field sent to a free model.
+  const paidReasoning = cfg.reasoning.simplePolicy
+    ? reasoningState(cfg.reasoning.simplePolicy)
+    : 'advanced';
+  console.log(
+    `[ai] free-model reasoning=${reasoningState(cfg.reasoning.freePolicy)}` +
+      ` source=${cfg.reasoning.freeSource} env=AI_REASONING_FREE_MODELS` +
+      ` paid-model reasoning=${paidReasoning}` +
+      ` source=${cfg.reasoning.paidSource}` +
+      ` route=${route} freeModel=${simpleTurn && simpleStartModel ? simpleStartModel : 'none'}`,
+  );
 
   /**
    * Whether THIS turn injects the drill's simulated failure.

@@ -40,6 +40,7 @@ import { aiConfig, MAX_FALLBACK_MODELS } from '../src/services/ai/aiConfig.ts';
 import { webCapabilities } from '../src/services/ai/webCapabilities.ts';
 import {
   describeReasoningPolicy,
+  isFreeModel,
   reasoningSettings,
   resolveReasoningPolicy,
 } from '../src/services/ai/reasoningPolicy.ts';
@@ -59,18 +60,33 @@ const catalogue = await checkModelCatalogue();
 line('model', catalogue.model || '(unset)');
 line('catalogue', `${catalogue.status} — ${catalogue.message}`);
 
-// AI-55 — `AI_REASONING` is the simple switch (`enable`/`disable`); when it is unset, the
+// AI-55 — `AI_REASONING_PAID_MODELS` is the simple switch (`enable`/`disable`); when it is unset, the
 // check prints the advanced rule or default the assistant will actually send. A model that
 // REQUIRES reasoning fails the probe when its policy is `off`, which is the failure this line
 // exists to make visible before a member meets it.
 const reasoning = reasoningSettings();
 const primaryReasoning = resolveReasoningPolicy(catalogue.model, reasoning);
 let sourceLabel = 'default';
-if (primaryReasoning.source === 'simple') sourceLabel = 'AI_REASONING';
+if (primaryReasoning.source === 'paid') sourceLabel = reasoning.paidSource;
 else if (primaryReasoning.source === 'model') sourceLabel = 'model rule';
+else if (primaryReasoning.source === 'free') {
+  sourceLabel = reasoning.freeSource === 'AI_REASONING_FREE_MODELS' ? 'AI_REASONING_FREE_MODELS' : 'free default';
+}
 line(
   'reasoning',
   `${describeReasoningPolicy(primaryReasoning.policy)} — ${sourceLabel}`,
+);
+line(
+  'paid reason',
+  `${reasoning.simplePolicy ? describeReasoningPolicy(reasoning.simplePolicy) : 'advanced rules'} — ${
+    reasoning.paidSource
+  }`,
+);
+line(
+  'free reason',
+  `${describeReasoningPolicy(reasoning.freePolicy)} — ${
+    reasoning.freeSource === 'AI_REASONING_FREE_MODELS' ? 'AI_REASONING_FREE_MODELS' : 'default'
+  }`,
 );
 if (reasoning.ignored.length > 0) {
   line('ignored', `${reasoning.ignored.length} malformed reasoning rule(s): ${reasoning.ignored.join('; ')}`);
@@ -78,6 +94,10 @@ if (reasoning.ignored.length > 0) {
 if (reasoning.defaultProblem) line('warning', reasoning.defaultProblem);
 if (reasoning.simpleProblem) {
   console.error(`[ai:check] FAILED — ${reasoning.simpleProblem}`);
+  process.exit(1);
+}
+if (reasoning.freeProblem) {
+  console.error(`[ai:check] FAILED — ${reasoning.freeProblem}`);
   process.exit(1);
 }
 
@@ -124,11 +144,14 @@ const mandatoryReasoning = [catalogue.model, ...candidates].find(
   (id) => /gpt-oss/i.test(id) && resolveReasoningPolicy(id, reasoning).policy.mode === 'off',
 );
 if (mandatoryReasoning) {
+  const variable = isFreeModel(mandatoryReasoning)
+    ? 'AI_REASONING_FREE_MODELS'
+    : 'AI_REASONING_PAID_MODELS';
   console.error(
     `[ai:check] FAILED — ${mandatoryReasoning} requires reasoning, but its policy is off.`,
   );
   console.error(
-    '[ai:check] Set AI_REASONING=enable, or add a model rule such as openai/gpt-oss-*=auto.',
+    `[ai:check] Set ${variable}=enable, or add a model rule such as openai/gpt-oss-*=auto.`,
   );
   process.exit(1);
 }

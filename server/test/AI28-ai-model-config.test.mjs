@@ -347,7 +347,9 @@ unitSuite('AI-28 model configuration check (DB-free)', () => {
       await boot(async () => ({ status: 'missing', model: MODEL, message: `model ${MODEL} is not listed` }), lines);
       await new Promise((resolve) => setTimeout(resolve, 20));
 
-      const warnings = lines.filter((line) => line.includes('model'));
+      // AI-100's boot line names `free-model reasoning`; match the check's own warning text,
+      // not every line that happens to contain the word "model".
+      const warnings = lines.filter((line) => line.includes('is not listed'));
       assert.equal(warnings.length, 1, `expected exactly one warning, got:\n${lines.join('\n')}`);
       assert.match(warnings[0], new RegExp(MODEL.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
     });
@@ -358,9 +360,9 @@ unitSuite('AI-28 model configuration check (DB-free)', () => {
         await boot(async () => ({ status, model: MODEL, message: 'irrelevant' }), lines);
         await new Promise((resolve) => setTimeout(resolve, 20));
         assert.equal(
-          lines.filter((line) => line.includes('model')).length,
+          lines.filter((line) => line.includes('is not listed')).length,
           0,
-          `status ${status} must be silent, got:\n${lines.join('\n')}`
+          `model-check status ${status} must be silent, got:\n${lines.join('\n')}`
         );
       }
     });

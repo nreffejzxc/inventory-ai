@@ -83,6 +83,9 @@ async function runTurn(scenario, { message, fallback = `${FREE},${FREE_2}`, rese
     'AI_MODEL_OPENROUTER',
     'AI_FALLBACK_MODELS_OPENROUTER',
     'AI_RESEARCH_MODEL_OPENROUTER',
+    'AI_REASONING_PAID_MODELS',
+    'AI_REASONING',
+    'AI_REASONING_FREE_MODELS',
     'AI_SIMPLE_FREE_ATTEMPT_MS',
     'AI_SIMPLE_PAID_DAILY_BUDGET_USD',
     'AI_SIMPLE_PAID_TURN_RESERVE_USD',
@@ -92,6 +95,9 @@ async function runTurn(scenario, { message, fallback = `${FREE},${FREE_2}`, rese
 
   process.env.AI_PROVIDER = 'openrouter';
   process.env.AI_MODEL_OPENROUTER = PRIMARY;
+  delete process.env.AI_REASONING_PAID_MODELS;
+  delete process.env.AI_REASONING;
+  delete process.env.AI_REASONING_FREE_MODELS;
   if (fallback === null) delete process.env.AI_FALLBACK_MODELS_OPENROUTER;
   else process.env.AI_FALLBACK_MODELS_OPENROUTER = fallback;
   if (research === null) delete process.env.AI_RESEARCH_MODEL_OPENROUTER;
@@ -130,6 +136,9 @@ afterEach(() => {
   setFakeScenario(null);
   delete process.env.AI_FALLBACK_MODELS_OPENROUTER;
   delete process.env.AI_RESEARCH_MODEL_OPENROUTER;
+  delete process.env.AI_REASONING_PAID_MODELS;
+  delete process.env.AI_REASONING;
+  delete process.env.AI_REASONING_FREE_MODELS;
   delete process.env.AI_SIMPLE_FREE_ATTEMPT_MS;
   delete process.env.AI_SIMPLE_PAID_DAILY_BUDGET_USD;
   delete process.env.AI_SIMPLE_PAID_TURN_RESERVE_USD;
@@ -398,6 +407,15 @@ test('AI-99: a simple question starts free, re-asks free, then escalates to the 
   assert.match(systems[0], /SIMPLE INVENTORY READ FOR THIS TURN/);
   assert.match(systems[0], /getInventory/);
   assert.ok(lines.some((line) => line.includes('route=simple')));
+  assert.ok(
+    lines.some(
+      (line) =>
+        line.includes('free-model reasoning=disabled') &&
+        line.includes('env=AI_REASONING_FREE_MODELS') &&
+        line.includes(`freeModel=${FREE}`),
+    ),
+    'every submitted question states the effective free-model policy',
+  );
   assert.ok(lines.some((line) => line.includes('escalating to the paid primary')));
   // The invented draft must never ship, and neither may an ungrounded "there are none".
   assert.match(result.content, /could not read that from your records/);

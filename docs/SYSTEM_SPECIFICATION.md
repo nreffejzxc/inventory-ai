@@ -955,6 +955,14 @@ may also fall forward once. The paid fallback is bounded by a process-local UTC-
 (`AI_SIMPLE_PAID_TURN_RESERVE_USD`, default `$0.01`); `0` disables the paid fallback. The free
 attempt may be capped separately by `AI_SIMPLE_FREE_ATTEMPT_MS` (default `15000` ms).
 
+Reasoning is split by model class. `AI_REASONING_PAID_MODELS` governs paid models; every model id
+ending in `:free` uses the independent `AI_REASONING_FREE_MODELS` switch, which defaults to
+`disable` and never inherits the paid model's value. Both switches accept only `enable` or
+`disable`. The turn log states both effective policies before any provider request, and every
+provider request logs the model class, source and actual `thinking` field sent. The old
+`AI_REASONING` name is a deprecated fallback for one release; `AI_REASONING_PAID_MODELS` wins
+when both are set, and the boot log warns while the old name is in use.
+
 A single product's stock total is summed by the server from the returned inventory rows, never by
 the model, and only when the read is complete and identifies one product. A pure restock count
 comes from the shortage tool's own total, not from counting a page. An explicitly named SKU is
@@ -2449,6 +2457,10 @@ AI_PROVIDER
 OPENROUTER_API_KEY
 OPENROUTER_BASE_URL
 AI_MODEL_OPENROUTER
+AI_REASONING_PAID_MODELS
+AI_REASONING_FREE_MODELS
+AI_WEB_SEARCH
+AI_WEB_FETCH
 ```
 
 ## Firebase Configuration

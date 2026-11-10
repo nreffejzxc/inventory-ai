@@ -773,7 +773,7 @@ unitSuite('OpenRouter provider — configurable web tools', () => {
     const restores = [
       withEnv('AI_WEB_SEARCH', 'enable'),
       withEnv('AI_WEB_FETCH', 'enable'),
-      withEnv('AI_REASONING', 'disable'),
+      withEnv('AI_REASONING_PAID_MODELS', 'disable'),
     ];
     try {
       const provider = providerFor(`http://127.0.0.1:${port}/api`);
@@ -804,6 +804,7 @@ unitSuite('OpenRouter provider — configurable web tools', () => {
     const restores = [
       withEnv('AI_WEB_SEARCH', 'enable'),
       withEnv('AI_WEB_FETCH', 'disable'),
+      withEnv('AI_REASONING_PAID_MODELS', undefined),
       withEnv('AI_REASONING', undefined),
       withEnv('AI_REASONING_MODELS_OPENROUTER', 'fallback/*=auto'),
     ];

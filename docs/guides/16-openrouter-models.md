@@ -4,13 +4,14 @@ The assistant can use any tool-capable model OpenRouter serves — free or paid 
 it in `server/.env`. Switching between the two is a change to two values; no source change is
 needed.
 
-## 1. The two switches
+## 1. The three switches
 
 | Variable | Values | What it does | Example |
 | --- | --- | --- | --- |
 | `AI_MODEL_OPENROUTER` | a provider/model id | The default model for ordinary inventory turns. Required; there is no default. | `openai/gpt-oss-20b` |
 | `AI_RESEARCH_MODEL_OPENROUTER` | a provider/model id, optional | Research-heavy turns start here; the primary remains the default and the fallback. Unset or identical means every turn uses the primary. | `openai/gpt-oss-120b` |
-| `AI_REASONING` | `enable` or `disable` | `enable` lets the model use its own reasoning (required by the gpt-oss family). `disable` asks OpenRouter to turn reasoning off. | `enable` |
+| `AI_REASONING_PAID_MODELS` | `enable` or `disable` | `enable` lets a paid model use its own reasoning (required by the gpt-oss family). `disable` asks OpenRouter to turn reasoning off. | `enable` |
+| `AI_REASONING_FREE_MODELS` | `enable` or `disable` | The same choice for any model id ending in `:free`, independent of `AI_REASONING_PAID_MODELS`. Unset means `disable`. | `disable` |
 
 The connection settings are still required:
 
@@ -23,7 +24,9 @@ The connection settings are still required:
 | `AI_MAX_OUTPUT_TOKENS` | Optional answer cap (default `1200`). | `1200` |
 
 A model id ending in `:free` costs nothing. Any other id charges your OpenRouter balance for the
-tokens it uses. `AI_REASONING` applies to the primary and to every failover model in the chain.
+tokens it uses. `AI_REASONING_PAID_MODELS` applies to paid models. A `:free` model uses
+`AI_REASONING_FREE_MODELS` instead, which defaults to `disable`; it never inherits the paid
+model's value.
 
 ## 2A. Free-first simple inventory
 
@@ -33,6 +36,9 @@ needs restocking, what is low, and how many products those are. The turn still c
 business-scoped tools, so the free model can only answer from records the paid model would read.
 The free success is not promoted into the primary slot; ordinary and research turns keep their
 configured routing.
+
+The free start model follows `AI_REASONING_FREE_MODELS`, not the paid model's `AI_REASONING_PAID_MODELS`, so
+the paid requirement cannot spend the free answer's budget on hidden reasoning.
 
 The paid primary finishes the same turn only when the free attempt times out, returns an empty
 completion, spends its output budget, is refused by the free daily allowance, or repeatedly drafts
@@ -58,7 +64,8 @@ AI_PROVIDER=openrouter
 OPENROUTER_BASE_URL=https://openrouter.ai/api
 OPENROUTER_API_KEY=replace-with-your-key
 AI_MODEL_OPENROUTER=nvidia/nemotron-3.5-lightning:free
-AI_REASONING=disable
+AI_REASONING_PAID_MODELS=disable
+AI_REASONING_FREE_MODELS=disable
 AI_FALLBACK_MODELS_OPENROUTER=nvidia/nemotron-3-ultra-550b-a55b:free,nvidia/nemotron-3.5-super-vl:free
 ```
 
@@ -70,7 +77,8 @@ OPENROUTER_BASE_URL=https://openrouter.ai/api
 OPENROUTER_API_KEY=replace-with-your-key
 AI_MODEL_OPENROUTER=openai/gpt-oss-20b
 AI_RESEARCH_MODEL_OPENROUTER=openai/gpt-oss-120b
-AI_REASONING=enable
+AI_REASONING_PAID_MODELS=enable
+AI_REASONING_FREE_MODELS=disable
 AI_FALLBACK_MODELS_OPENROUTER=nvidia/nemotron-3.5-lightning:free
 ```
 
@@ -91,54 +99,93 @@ AI_PROVIDER=openrouter
 OPENROUTER_BASE_URL=https://openrouter.ai/api
 OPENROUTER_API_KEY=replace-with-your-key
 AI_MODEL_OPENROUTER=openai/gpt-oss-120b
-AI_REASONING=enable
+AI_REASONING_PAID_MODELS=enable
+AI_REASONING_FREE_MODELS=disable
 AI_FALLBACK_MODELS_OPENROUTER=nvidia/nemotron-3.5-lightning:free
 ```
 
 `openai/gpt-oss-120b` and `openai/gpt-oss-20b` **require** reasoning. With
-`AI_REASONING=disable`, OpenRouter answers:
+`AI_REASONING_PAID_MODELS=disable`, OpenRouter answers:
 
 ```text
 invalid_request_error: "Reasoning is mandatory for this endpoint and cannot be disabled."
 ```
 
-Change the switch to `enable` when the primary or any fallback model has that requirement. One
-value covers the whole chain, so you do not need a separate rule for each model.
+Change `AI_REASONING_PAID_MODELS` to `enable` when a **paid** model has that requirement. A free fallback is
+separate: keep `AI_REASONING_FREE_MODELS=disable` so it does not inherit the paid requirement and
+spend its answer budget on hidden reasoning.
 
-## 3. What the two values send
+## 3. What the values send
 
-| `AI_REASONING` | Request sent | Use it for |
+Paid models (`AI_REASONING_PAID_MODELS`):
+
+| Value | Request sent | Use it for |
 | --- | --- | --- |
 | `enable` | No reasoning field; the model uses its own default | Models that require reasoning, such as `openai/gpt-oss-*` |
-| `disable` | `thinking: { type: 'disabled' }` | Free models; the visible answer owns the output budget |
+| `disable` | `thinking: { type: 'disabled' }` | A paid model whose visible answer should own the output budget |
+
+Free models (`AI_REASONING_FREE_MODELS`):
+
+| Value | Request sent | Use it for |
+| --- | --- | --- |
+| `enable` | No reasoning field; the free model uses its own default | A free model that needs reasoning |
+| `disable` | `thinking: { type: 'disabled' }` | The default; the visible answer owns the output budget |
 
 `enable` is not a request to force extra thinking. It simply leaves the decision to the model,
 which is what a mandatory-reasoning endpoint needs.
 
-`disable` is the safe choice for the free chain: on some models hidden reasoning shares
-`max_tokens` with the answer, so it can consume the whole budget and return no text.
+`AI_REASONING_FREE_MODELS=disable` is the safe choice for the free chain: on some models hidden
+reasoning shares `max_tokens` with the answer, so it can consume the whole budget and return no
+text.
 
 Web Search and Web Fetch are separate, independent switches; see
 [Guide 17](17-web-search-and-fetch.md).
 
-If the setting is not `enable` or `disable`, `npm run ai:check` prints the accepted values and
-exits 1. The assistant keeps a safe fallback for the turn, but the typo must be fixed.
+If either reasoning setting is not exactly `enable` or `disable`, `npm run ai:check` prints the
+accepted values and exits 1. Production validation fails the boot too. Aliases such as `enabled`,
+`on`, `true`, `yes` and `1` are rejected.
 
-`AI_REASONING` overrides the advanced per-model settings described in §7. That is deliberate: the
-simple switch must not be silently defeated by an old rule.
+For paid models, `AI_REASONING_PAID_MODELS` overrides the advanced per-model settings described in §7. That is
+deliberate: the simple switch must not be silently defeated by an old rule. Free models always use
+`AI_REASONING_FREE_MODELS`; the advanced rules do not override it.
+
+## 3A. Read the reasoning log
+
+Every submitted question writes one turn-level line before any provider request:
+
+```text
+[ai] free-model reasoning=disabled source=AI_REASONING_FREE_MODELS env=AI_REASONING_FREE_MODELS paid-model reasoning=enabled source=AI_REASONING_PAID_MODELS route=simple freeModel=nvidia/nemotron-3.5-lightning:free
+```
+
+Every provider request writes a line with the exact field it sent. A free request and a paid request:
+
+```text
+[ai:openrouter] free-model reasoning=disabled field=disabled source=AI_REASONING_FREE_MODELS model=nvidia/nemotron-3.5-lightning:free
+[ai:openrouter] paid-model reasoning=enabled field=omitted source=AI_REASONING_PAID_MODELS model=openai/gpt-oss-20b
+```
+
+`reasoning=disabled field=disabled` is the proof that hidden reasoning was turned off.
+`reasoning=enabled field=omitted` means the switch is `enable`: no reasoning field was sent, so the
+model uses its own default. `field=enabled` appears only when an advanced `budget:N` rule sends an
+explicit thinking budget. `source=default` means the variable is unset; free reasoning then defaults
+to `disable`, while a paid model falls back to its advanced rule or the safe default. For a paid
+model, `source=AI_REASONING_PAID_MODELS` means the paid switch was used; `source=model` or
+`source=default` means an advanced rule or the advanced default decided it. Search Render's logs for
+`free-model reasoning=` or `paid-model reasoning=`; the lines contain only configuration labels and
+the model id, never a prompt or a key.
 
 ## 4. Switch models
 
 1. Find a tool-capable id with `npm run ai:models`, or copy it from OpenRouter.
-2. Edit these two lines in `server/.env`:
+2. Edit the model line and the matching reasoning switch in `server/.env`:
 
    ```bash
    AI_MODEL_OPENROUTER=<new model id>
-   AI_REASONING=enable
+   AI_REASONING_PAID_MODELS=enable
    ```
 
-   Use `AI_REASONING=disable` instead when the new model is a free model that does not
-   require reasoning.
+   Use `AI_REASONING_FREE_MODELS=disable` for a free model that does not require reasoning;
+   leave `AI_REASONING_PAID_MODELS` for the paid models.
 3. Restart the server: stop it and run `npm start`. `.env` is read at boot.
 4. Run the checks in §5.
 
@@ -160,12 +207,16 @@ A working free setup prints:
 ```text
 [ai:check] model      : nvidia/nemotron-3.5-lightning:free
 [ai:check] catalogue  : ok — the configured model is listed: nvidia/nemotron-3.5-lightning:free
-[ai:check] reasoning  : off — AI_REASONING
+[ai:check] reasoning  : off — AI_REASONING_FREE_MODELS
+[ai:check] paid reason : off — AI_REASONING_PAID_MODELS
+[ai:check] free reason : off — AI_REASONING_FREE_MODELS
 [ai:check] probe      : usable (HTTP 200) — nvidia/nemotron-3.5-lightning:free
 [ai:check] VERIFIED — the model answered a tool-shaped request.
 ```
 
-A working paid gpt-oss setup prints the same lines with `reasoning : auto — AI_REASONING`.
+A working paid gpt-oss setup prints `reasoning : auto — AI_REASONING_PAID_MODELS` and
+`paid reason : auto — AI_REASONING_PAID_MODELS`; its free fallback still prints
+`free reason : off — AI_REASONING_FREE_MODELS` (or `— default` when the variable is unset).
 
 `--probe` sends the **same reasoning setting the assistant will send**, to the primary and to
 each candidate, so a model whose setting is wrong fails here rather than on a member's turn. It
@@ -178,28 +229,37 @@ unreachable or AI not configured). A `2` is never a pass.
 
 | What you see | Cause | Fix |
 | --- | --- | --- |
-| `Reasoning is mandatory for this endpoint and cannot be disabled` | The model requires reasoning but `AI_REASONING=disable` | Set `AI_REASONING=enable` |
-| `AI_REASONING must be enable or disable` | A typo or an old mode was put in the switch | Use `enable` or `disable` |
+| `Reasoning is mandatory for this endpoint and cannot be disabled` | A paid model requires reasoning but `AI_REASONING_PAID_MODELS=disable`, or a `:free` gpt-oss requires it but `AI_REASONING_FREE_MODELS=disable` | Set the matching switch to `enable` |
+| `AI_REASONING_PAID_MODELS must be enable or disable` | A typo or an old mode was put in the paid switch | Use `enable` or `disable` |
+| `AI_REASONING_FREE_MODELS must be enable or disable` | A typo or an alias was put in the free switch | Use `enable` or `disable` |
 | `402` or `429` | No credits, or the free daily allowance is spent | Top up, or use a `:free` model and wait for the reset |
 | `404` / "not listed" | Wrong model id | Copy the id from `npm run ai:models` |
 | Model answers prose but never reads the inventory | The model cannot call tools | Choose a tool-capable model; `ai:check` reports declared tool support |
 | Answers are empty or cut off | The output budget is too small, especially with reasoning enabled | Raise `AI_MAX_OUTPUT_TOKENS` |
-| `AI_TIMEOUT` | The model is too slow for the turn deadline | Use a faster model, or raise `AI_TURN_DEADLINE_MS` |
+| `AI_TIMEOUT` | The model is too slow for the turn deadline | Use a faster model, or raise `AI_TURN_DEADLINE_MS``AI_REASONING` is the old name for `AI_REASONING_PAID_MODELS`. It remains a deprecated fallback for one
+release, read only when the new name is absent; the boot log warns and provider logs show
+`source=AI_REASONING` while it is in use. The new name always wins when both are set, so rename the
+old variable rather than relying on the fallback.
 
-If the primary and a fallback have different requirements, remember that `AI_REASONING` is one
-value for the whole chain. Set `enable` if **any** model in the chain requires it. If you truly
-need different policies per model, use the advanced settings in §7 instead of `AI_REASONING`.
+`AI_REASONING_PAID_MODELS` is one value for all paid models. Free models are separate, so a paid primary that
+requires reasoning can keep `AI_REASONING_PAID_MODELS=enable` while `AI_REASONING_FREE_MODELS=disable` protects
+the free fallback's answer budget. If paid models need different policies, use the advanced
+settings in §7; those do not override the free switch.
 
 ## 7. Advanced and legacy settings
 
-Most deployments do not need these. When `AI_REASONING` is set, the advanced settings are
-ignored.
+Most deployments do not need these. For paid models, when `AI_REASONING_PAID_MODELS` is set, the advanced
+settings are ignored. Free models always use `AI_REASONING_FREE_MODELS`.
 
 | Variable | What it does |
 | --- | --- |
-| `AI_REASONING_DEFAULT` | Reasoning when no rule matches: `off`, `auto`, or `budget:<tokens>`. |
-| `AI_REASONING_MODELS_OPENROUTER` | Comma-separated `pattern=mode` rules. First match wins; `*` is a wildcard. |
-| `AI_THINKING_DISABLED` | Legacy. `false` means `auto` when `AI_REASONING_DEFAULT` is unset. |
+| `AI_REASONING_DEFAULT` | A paid model's reasoning when no rule matches: `off`, `auto`, or `budget:<tokens>`. |
+| `AI_REASONING_MODELS_OPENROUTER` | Comma-separated `pattern=mode` rules for paid models. First match wins; `*` is a wildcard. |
+| `AI_THINKING_DISABLED` | Legacy. `false` means `auto` for paid models when `AI_REASONING_DEFAULT` is unset. |
+| `AI_REASONING` | Deprecated fallback for `AI_REASONING_PAID_MODELS`; replace it with the new name. |
+
+These advanced settings do not apply to a model id ending in `:free`; the free switch above always
+wins for those models.
 
 Example for a chain that needs different policies:
 
@@ -208,7 +268,7 @@ AI_REASONING_DEFAULT=off
 AI_REASONING_MODELS_OPENROUTER=openai/gpt-oss-*=auto,anthropic/claude-*=budget:1024
 ```
 
-Leave `AI_REASONING` unset when using that example. A `budget:` must be at least `1024` and
+Leave `AI_REASONING_PAID_MODELS` unset when using that example. A `budget:` must be at least `1024` and
 below `AI_MAX_OUTPUT_TOKENS`; raise the cap above the budget, for example
 `AI_MAX_OUTPUT_TOKENS=4096`. A malformed rule is reported by `npm run ai:check` and is never
 applied silently.
