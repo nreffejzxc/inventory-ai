@@ -263,6 +263,35 @@ const DEGRADED: Record<CannedReason, string> = {
     "I couldn't verify current online information because web research was not available for this response. I did not use or invent any online prices, reviews, or source URLs; please try again when web research is available.",
 };
 
+/**
+ * AI-102 — a model can append its channel metadata to a tool name.
+ *
+ * Measured in production on 2026-11-10: gpt-oss-20b through OpenRouter named the tool
+ * `getInventorySummary<|channel|>commentary`, and the stored attempt was the run-together
+ * `getInventorySummarycommentary`. The control token and the channel label are wire
+ * metadata, not part of the tool's name — recording them made one read look like two
+ * tools in `ai_turn_metrics` and sent an unknown name to `executeTool`.
+ *
+ * The suffix is removed ONLY when the remaining name is one this server offers, so a
+ * legitimate tool whose name happens to end in a channel word can never be truncated.
+ * A `<|...|>` control token is always metadata and is cut at the first one.
+ */
+const TOOL_CHANNEL_SUFFIXES = ['commentary', 'analysis', 'final'] as const;
+const OFFERED_TOOL_NAMES = new Set(AI_TOOL_DEFS.map((tool) => tool.name));
+
+function normaliseToolCallName(raw: unknown): string {
+  let name = String(raw ?? '').trim();
+  const controlToken = name.indexOf('<|');
+  if (controlToken !== -1) name = name.slice(0, controlToken).trim();
+  if (!name || OFFERED_TOOL_NAMES.has(name)) return name;
+  for (const suffix of TOOL_CHANNEL_SUFFIXES) {
+    if (!name.endsWith(suffix)) continue;
+    const candidate = name.slice(0, -suffix.length);
+    if (OFFERED_TOOL_NAMES.has(candidate)) return candidate;
+  }
+  return name;
+}
+
 interface ChatResult {
   content: string;
   /**
@@ -1771,6 +1800,17 @@ export async function runAiChat({
       researchSources.push(source);
     }
     let calls = Array.isArray(response?.toolCalls) ? response.toolCalls : [];
+    // AI-102 — separate channel metadata from the name BEFORE anything reads it: the
+    // `toolsUsed` set that becomes the metrics row, `executeTool`, and the assistant
+    // message replayed on the next provider call.
+    calls = calls.map((call) => {
+      const name = normaliseToolCallName(call?.name);
+      if (name === call?.name) return call;
+      console.warn(
+        `AI tool call name carried model channel metadata — using the offered tool name instead turn=${turnId}`,
+      );
+      return { ...call, name };
+    });
     // Reasoning blocks are bound to the exact tool calls that followed them. Keep the original
     // call shape so a locally rewritten/added call does not replay a signature that covers a
     // different assistant turn.
