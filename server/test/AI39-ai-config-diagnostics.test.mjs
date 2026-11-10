@@ -143,7 +143,7 @@ unitSuite('AI-39 boot configuration is stated', () => {
       const { result, lines } = await boot();
       assert.ok(result, 'a configuration problem must never stop the server');
 
-      const chain = lines.find((line) => line.includes('[ai] chain order:'));
+      const chain = lines.find((line) => line.includes('AI configuration'));
       assert.ok(chain, 'the order the turn loop will use is stated once at boot');
       assert.ok(chain.includes(PRIMARY));
       assert.ok(chain.indexOf(PRIMARY) < chain.indexOf(FALLBACK), 'the configured primary is first');
@@ -161,7 +161,7 @@ unitSuite('AI-39 boot configuration is stated', () => {
     try {
       const { result, lines } = await boot();
       assert.ok(result);
-      assert.equal(lines.filter((line) => line.includes('[ai] chain order:')).length, 0);
+      assert.equal(lines.filter((line) => line.includes('AI configuration')).length, 0);
       assert.equal(lines.filter((line) => line.includes('ignored')).length, 0);
     } finally {
       restore();
@@ -199,7 +199,7 @@ unitSuite('AI-39 live state on the watchdog line', () => {
     const lines = [];
     await watcherWith(lines).run();
 
-    const summary = lines.find((line) => line.includes('[ai:watchdog] checked'));
+    const summary = lines.find((line) => line.includes('AI watchdog checked'));
     assert.ok(summary, 'the run states what it saw');
     assert.ok(summary.includes(`active=${FALLBACK}`), 'a promotion is visible without grepping history');
     assert.ok(summary.includes(`configured=${PRIMARY}`));
@@ -211,7 +211,7 @@ unitSuite('AI-39 live state on the watchdog line', () => {
     const lines = [];
     await watcherWith(lines).run();
 
-    const summary = lines.find((line) => line.includes('[ai:watchdog] checked'));
+    const summary = lines.find((line) => line.includes('AI watchdog checked'));
     assert.ok(summary.includes('quota=unknown'));
     assert.ok(summary.includes('cooling=none'));
   });

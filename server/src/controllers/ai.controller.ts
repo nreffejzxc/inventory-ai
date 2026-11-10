@@ -238,7 +238,7 @@ function readResearchDrill(
     );
   }
   console.log(
-    `[ai] failover drill armed: user=${req.user!.id} research=${researchModel}` +
+    `AI failover drill armed: user=${req.user!.id} research=${researchModel}` +
       ` fallback=${cfg.openrouterModel || 'unset'}`,
   );
   return true;

@@ -415,7 +415,7 @@ describe('Phase 06 — OpenRouter (Anthropic-compatible) wire mapping', () => {
     assert.equal(err.message, 'The AI service returned an error. Please try again.');
     assert.ok(!err.message.includes('invalid credentials'), 'the upstream body never reaches the client');
     // The pre-existing one-line status log is still emitted, ahead of the detail.
-    assert.ok(lines.includes('[ai:openrouter] upstream HTTP 401'));
+    assert.ok(lines.includes('AI provider openrouter upstream HTTP 401'));
   });
 
   it('parses a BOM-prefixed JSON body exactly as res.json() did', async () => {

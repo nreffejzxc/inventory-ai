@@ -108,7 +108,7 @@ async function turn(scenario, options = {}) {
       lines,
       calls,
       skipLines: lines.filter((line) => line.includes('unavailable by the provider')),
-      failoverLines: lines.filter((line) => line.includes('[ai] failover')),
+      failoverLines: lines.filter((line) => line.includes('AI failover')),
     };
   } finally {
     setFakeScenario(null);

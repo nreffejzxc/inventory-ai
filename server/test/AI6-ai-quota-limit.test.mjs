@@ -213,7 +213,7 @@ unitSuite('AI-6 the quota refusal reaches the turn unchanged, and is never retri
     });
     await assert.rejects(ask(), (err) => err.code === AI_QUOTA_EXCEEDED);
 
-    const cost = logLines.find((l) => l.includes('[ai] turn'));
+    const cost = logLines.find((l) => l.includes('AI turn'));
     assert.ok(cost, 'the turn must still report what it spent');
     assert.match(cost, /outcome=AI_QUOTA_EXCEEDED/, 'AI-5 vocabulary: the code names the outcome');
     assert.ok(!cost.includes('outcome=AI_UNAVAILABLE'), 'a limit is not an outage in the log either');
@@ -225,7 +225,7 @@ unitSuite('AI-6 the quota refusal reaches the turn unchanged, and is never retri
     });
     await assert.rejects(ask(), (err) => err.code === AI_UNAVAILABLE);
 
-    const cost = logLines.find((l) => l.includes('[ai] turn'));
+    const cost = logLines.find((l) => l.includes('AI turn'));
     assert.ok(cost);
     assert.match(cost, /outcome=AI_UNAVAILABLE/);
   });

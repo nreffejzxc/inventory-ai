@@ -4,12 +4,12 @@
 // the free tier) needs one kind of evidence: how much of the allowance real turns spend, and
 // what is failing. The tools that existed could not supply it. `perf:turns` measures real
 // turns and SPENDS quota (~50 free requests a day IN TOTAL, §27BF) — the instrument consumes
-// the thing being measured; the per-turn cost line (`[ai] turn …`, AI-5) records what every
+// the thing being measured; the per-turn cost line (`AI turn …`, AI-5) records what every
 // real turn actually cost, but nothing read those lines back. This script reads them, and
 // asks the provider's own account how much of the allowance is left.
 //
 // IT MEASURES TWO THINGS AND JOINS THEM:
-//   1. THE LOG, from `[ai] turn …` lines (AI-5) — turns, outcomes, provider requests, tool
+//   1. THE LOG, from `AI turn …` lines (AI-5) — turns, outcomes, provider requests, tool
 //      rounds, empty completions, tokens, the model, and the provider/tool time split. The
 //      number that matters most for a REQUEST-counting allowance is `calls`, summed: a
 //      single member turn costs 1–3 provider requests (a tool round costs another call), so
@@ -53,7 +53,7 @@ import env from '../src/config/env.ts';
 // what the sibling measurement scripts found they needed the hard way.
 import { AIMessage } from '../src/models/index.ts';
 
-/** Every field a complete `[ai] turn` line carries (AI-5's shape, in ai.service.ts). */
+/** Every field a complete `AI turn` line carries (AI-5's shape, in ai.service.ts). */
 const TURN_FIELDS = [
   'outcome',
   'total',
@@ -92,12 +92,12 @@ function numField(line, name) {
 /**
  * Parse a log (or any text) into the turns it recorded.
  *
- * A `[ai] turn` line is counted even when it is incomplete — a restart can cut one in half,
+ * A `AI turn` line is counted even when it is incomplete — a restart can cut one in half,
  * and dropping it would UNDERSTATE usage, which is the one direction a quota report must not
  * err in. Its present fields are used; its absent ones contribute nothing; and it is named in
  * `malformed` so a reader knows some columns are partial.
  *
- * `[ai] degraded turn …` (AI-2) is deliberately NOT a turn: it is a second line about a turn
+ * `AI degraded turn …` (AI-2) is deliberately NOT a turn: it is a second line about a turn
  * already recorded, so counting it would inflate the turn count on exactly the turns that had
  * trouble.
  */
@@ -108,11 +108,11 @@ export function parseLog(text) {
   let degradedWarnings = 0;
 
   for (const line of lines) {
-    if (line.includes('[ai] degraded turn')) {
+    if (line.includes('AI degraded turn')) {
       degradedWarnings += 1;
       continue;
     }
-    if (!line.includes('[ai] turn outcome=')) continue;
+    if (!line.includes('AI turn outcome=')) continue;
 
     const record = {};
     for (const name of TURN_FIELDS) record[name] = name === 'tools' ? (field(line, 'tools') ?? null) : numField(line, name);
@@ -473,7 +473,7 @@ function runControls() {
   };
 
   const healthy =
-    '[ai] turn outcome=ok total=12598ms providerMs=11973ms calls=3 toolMs=625ms toolRuns=1 tools=getInventorySummary empty=1 in=3399 out=499 model=stub/model iterations=3';
+    'AI turn outcome=ok total=12598ms providerMs=11973ms calls=3 toolMs=625ms toolRuns=1 tools=getInventorySummary empty=1 in=3399 out=499 model=stub/model iterations=3';
 
   mustFireCase('a complete turn line is parsed', () => {
     const s = summarize(parseLog(healthy));
@@ -484,7 +484,7 @@ function runControls() {
   });
 
   mustNotFireCase('a degraded warning is not a second turn', () => {
-    const p = parseLog(`[ai] degraded turn reason=EMPTY_COMPLETION attempts=3 empty=2 model=stub/model\n${healthy}`);
+    const p = parseLog(`AI degraded turn reason=EMPTY_COMPLETION attempts=3 empty=2 model=stub/model\n${healthy}`);
     eq(p.turns.length, 1, 'turns');
     eq(p.degradedWarnings, 1, 'degraded warnings');
   });
@@ -495,37 +495,37 @@ function runControls() {
 
   mustFireCase('a turn with no provider call (an abandoned turn) still counts', () => {
     const s = summarize(
-      parseLog('[ai] turn outcome=AI_ABANDONED total=12794ms providerMs=12794ms calls=0 toolMs=0ms toolRuns=0 tools=none empty=0 in=0 out=0 model=unknown iterations=1'),
+      parseLog('AI turn outcome=AI_ABANDONED total=12794ms providerMs=12794ms calls=0 toolMs=0ms toolRuns=0 tools=none empty=0 in=0 out=0 model=unknown iterations=1'),
     );
     eq(s.turns, 1, 'turns');
     eq(s.outcomes, { AI_ABANDONED: 1 }, 'outcomes');
   });
 
   mustFireCase('a truncated turn line is counted AND reported malformed', () => {
-    const p = parseLog('[ai] turn outcome=ok total=905ms providerMs=900ms calls=2 toolMs=5ms toolRuns=1 tools=');
+    const p = parseLog('AI turn outcome=ok total=905ms providerMs=900ms calls=2 toolMs=5ms toolRuns=1 tools=');
     eq(p.turns.length, 1, 'turns');
     eq(p.malformed, 1, 'malformed');
     eq(summarize(p).providerRequests, 2, 'requests');
   });
 
   mustNotFireCase('an absent field contributes nothing to a sum (absent, never zeroed)', () => {
-    const p = parseLog('[ai] turn outcome=ok total=905ms providerMs=900ms calls=2 toolMs=5ms toolRuns=1 tools=');
+    const p = parseLog('AI turn outcome=ok total=905ms providerMs=900ms calls=2 toolMs=5ms toolRuns=1 tools=');
     eq(summarize(p).tokens, { input: 0, output: 0 }, 'tokens');
   });
 
   mustFireCase('an unknown outcome is still counted as a turn', () => {
-    eq(summarize(parseLog('[ai] turn outcome=SOMETHING_NEW total=1ms providerMs=1ms calls=1 toolMs=0ms toolRuns=0 tools=none empty=0 in=1 out=1 model=m iterations=1')).outcomes, { SOMETHING_NEW: 1 }, 'outcomes');
+    eq(summarize(parseLog('AI turn outcome=SOMETHING_NEW total=1ms providerMs=1ms calls=1 toolMs=0ms toolRuns=0 tools=none empty=0 in=1 out=1 model=m iterations=1')).outcomes, { SOMETHING_NEW: 1 }, 'outcomes');
   });
 
   mustFireCase('requests per turn is the measured ratio', () => {
-    const seven = `${healthy}\n[ai] turn outcome=ok total=1ms providerMs=1ms calls=1 toolMs=0ms toolRuns=0 tools=none empty=0 in=1 out=1 model=m iterations=1`;
-    const four = `${seven}\n[ai] turn outcome=ok total=1ms providerMs=1ms calls=1 toolMs=0ms toolRuns=0 tools=none empty=0 in=1 out=1 model=m iterations=1\n[ai] turn outcome=ok total=1ms providerMs=1ms calls=2 toolMs=0ms toolRuns=0 tools=none empty=0 in=1 out=1 model=m iterations=1`;
+    const seven = `${healthy}\nAI turn outcome=ok total=1ms providerMs=1ms calls=1 toolMs=0ms toolRuns=0 tools=none empty=0 in=1 out=1 model=m iterations=1`;
+    const four = `${seven}\nAI turn outcome=ok total=1ms providerMs=1ms calls=1 toolMs=0ms toolRuns=0 tools=none empty=0 in=1 out=1 model=m iterations=1\nAI turn outcome=ok total=1ms providerMs=1ms calls=2 toolMs=0ms toolRuns=0 tools=none empty=0 in=1 out=1 model=m iterations=1`;
     // 3+1+1+2 requests over four turns.
     eq(summarize(parseLog(four)).requestsPerTurn, 1.75, 'requests per turn');
   });
 
   mustFireCase('the provider share is the ratio of the sums, not an average of shares', () => {
-    const log = `${healthy}\n[ai] turn outcome=AI_ABANDONED total=12794ms providerMs=12794ms calls=1 toolMs=0ms toolRuns=0 tools=none empty=0 in=0 out=0 model=unknown iterations=1\n[ai] turn outcome=AI_OUTPUT_LIMIT total=213ms providerMs=213ms calls=1 toolMs=0ms toolRuns=0 tools=none empty=0 in=1200 out=800 model=stub/model iterations=1\n[ai] turn outcome=ok total=905ms providerMs=900ms calls=2 toolMs=5ms toolRuns=1 tools=`;
+    const log = `${healthy}\nAI turn outcome=AI_ABANDONED total=12794ms providerMs=12794ms calls=1 toolMs=0ms toolRuns=0 tools=none empty=0 in=0 out=0 model=unknown iterations=1\nAI turn outcome=AI_OUTPUT_LIMIT total=213ms providerMs=213ms calls=1 toolMs=0ms toolRuns=0 tools=none empty=0 in=1200 out=800 model=stub/model iterations=1\nAI turn outcome=ok total=905ms providerMs=900ms calls=2 toolMs=5ms toolRuns=1 tools=`;
     const s = summarize(parseLog(log));
     eq(s.providerShare, 0.9762, 'provider share');
     eq(s.turns, 4, 'turns');

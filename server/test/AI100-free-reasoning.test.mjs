@@ -192,7 +192,7 @@ unitSuite('AI-100 free-model reasoning is independent and observable', () => {
         try {
           await ask('nvidia/free:free');
           assert.deepEqual(stub.bodies[0].thinking, { type: 'disabled' });
-          const line = logs.find((entry) => entry.includes('[ai:test] free-model reasoning'));
+          const line = logs.find((entry) => entry.includes('AI model call') && entry.includes('tier=free'));
           assert.ok(line, 'the free-model request must write one line');
           assert.match(line, /reasoning=disabled/);
           assert.match(line, /field=disabled/);
@@ -224,12 +224,12 @@ unitSuite('AI-100 free-model reasoning is independent and observable', () => {
           await ask('paid/model');
           assert.equal('thinking' in stub.bodies[0], false);
           assert.deepEqual(stub.bodies[1].thinking, { type: 'disabled' });
-          const line = logs.find((entry) => entry.includes('[ai:test] free-model reasoning'));
+          const line = logs.find((entry) => entry.includes('AI model call') && entry.includes('tier=free'));
           assert.ok(line);
           assert.match(line, /reasoning=enabled/);
           assert.match(line, /field=omitted/);
           assert.match(line, /source=AI_REASONING_FREE_MODELS/);
-          const paidLine = logs.find((entry) => entry.includes('[ai:test] paid-model reasoning'));
+          const paidLine = logs.find((entry) => entry.includes('AI model call') && entry.includes('tier=paid'));
           assert.ok(paidLine, 'the paid-model request must write one line too');
           assert.match(paidLine, /reasoning=disabled/);
           assert.match(paidLine, /field=disabled/);

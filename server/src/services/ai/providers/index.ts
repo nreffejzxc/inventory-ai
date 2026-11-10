@@ -129,6 +129,13 @@ export interface ProviderRequest {
    */
   signal?: AbortSignal;
   /**
+   * AI-101 — the monitoring id of the turn this request belongs to.
+   *
+   * Optional so a direct provider call (a test or a drill) needs no invented turn; the turn
+   * loop always supplies one, and the wire prints `turn=none` when it is absent.
+   */
+  turnId?: string;
+  /**
    * AI-40 — ask the provider to deliver the answer while it is being written.
    *
    * OPTIONAL BY CONTRACT. A provider that cannot stream simply ignores both fields and returns
@@ -165,6 +172,16 @@ export interface ProviderUsage {
 /** What one completion returns, normalised across providers. */
 export interface ProviderResponse {
   model: string;
+  /**
+   * AI-101 — the UPSTREAM provider that actually served this response, when the gateway names
+   * one (OpenRouter routes a model id across several hosts and reports which one ran).
+   *
+   * It is separate from the configured provider name on purpose: `openrouter` is the gateway
+   * this server calls, while the upstream is the host that answered — the fact an operator
+   * needs when one host is slow or degraded. Optional because not every wire reports it, and
+   * absent must stay an absence rather than being printed as a name.
+   */
+  provider?: string;
   text: string;
   toolCalls: ToolCall[];
   /**

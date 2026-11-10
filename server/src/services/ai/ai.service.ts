@@ -76,7 +76,7 @@ import {
 import type { CatalogueFact, StockValueSummary, TopOutFact } from './answerCompletion.ts';
 import { locationService } from '../reference.service.ts';
 import { aiConfig } from './aiConfig.ts';
-import { reasoningState } from './reasoningPolicy.ts';
+import { newTurnId, turnRequestLine, turnResultLine } from './aiMonitor.ts';
 import {
   AI_UNAVAILABLE,
   AiAbandoned,
@@ -634,6 +634,11 @@ export async function runAiChat({
   let simplePaidSettled = false;
   let simplePaidBudgetBlocked = false;
   /**
+   * AI-101 — one id for every record this turn writes. It is created before any budget or
+   * provider work so a turn that is refused, abandoned or fails still correlates.
+   */
+  const turnId = newTurnId();
+  /**
    * Reserve the paid fallback before any request is sent. A failed reservation ends the turn
    * with a quota error: the route has reached its own daily paid budget, and sending the paid
    * request anyway would defeat the guard. The reservation is settled in `reportTurn` from the
@@ -648,9 +653,9 @@ export async function runAiChat({
     if (!reserved.ok) {
       simplePaidBudgetBlocked = true;
       console.error(
-        `[ai] simple route: paid fallback blocked by daily budget (${reason}; ` +
+        `AI simple route: paid fallback blocked by daily budget (${reason}; ` +
           `spent=$${reserved.spentUsd.toFixed(6)}, reserved=$${reserved.reservedUsd.toFixed(6)}, ` +
-          `budget=$${reserved.budgetUsd.toFixed(6)})`,
+          `budget=$${reserved.budgetUsd.toFixed(6)}, turn=${turnId})`,
       );
       throw new AiQuotaExceeded(
         'The simple inventory assistant has reached its daily paid-fallback budget. Please try again tomorrow.',
@@ -658,8 +663,8 @@ export async function runAiChat({
     }
     simplePaidReservation = reserved.reservation ?? null;
     console.warn(
-      `[ai] simple route: paid fallback reserved $${(simplePaidReservation?.reservedUsd ?? 0).toFixed(6)} ` +
-        `of the $${reserved.budgetUsd.toFixed(6)} daily budget (${reason})`,
+      `AI simple route: paid fallback reserved $${(simplePaidReservation?.reservedUsd ?? 0).toFixed(6)} ` +
+        `of the $${reserved.budgetUsd.toFixed(6)} daily budget (${reason}, turn=${turnId})`,
     );
   }
   let prompt = systemPrompt({
@@ -737,6 +742,8 @@ export async function runAiChat({
   // 2026-10-21) produced `model=unknown` on the one line an operator reads to find out which model
   // to change. A successful response still overwrites this with the model the provider reported.
   let model: string | null = provider.model ?? null;
+  // AI-101 — the upstream host the gateway named on its last response, for the turn record.
+  let upstreamProvider: string | null = null;
   let usage: ProviderUsage | null = null;
   // The provider's own charge for the whole turn, in USD. Kept separate from the
   // token counters because a missing cost is not zero: `costMissingCalls` lets the
@@ -814,7 +821,7 @@ export async function runAiChat({
   const resetStreamedText = (reason: string): void => {
     if (!onTextReset || !displayedText) return;
     displayedText = '';
-    console.warn(`[ai] clearing streamed text — ${reason}`);
+    console.warn(`AI clearing streamed text — ${reason}`);
     onTextReset();
   };
 
@@ -902,19 +909,35 @@ export async function runAiChat({
           : turnCostUsd;
       const spent = settleSimplePaidFallback(simplePaidReservation, settledTurnCost);
       console.log(
-        `[ai] simple route: paid fallback settled at $${spent.spentUsd.toFixed(6)} ` +
-          `($${spent.reservedUsd.toFixed(6)} still reserved today)`,
+        `AI simple route: paid fallback settled at $${spent.spentUsd.toFixed(6)} ` +
+          `($${spent.reservedUsd.toFixed(6)} still reserved today, turn=${turnId})`,
       );
     }
     console.log(
-      `[ai] turn outcome=${outcome} total=${Date.now() - turnStartedAt}ms` +
-        ` providerMs=${providerMs}ms calls=${providerCalls}` +
-        ` toolMs=${toolMs}ms toolRuns=${toolRuns} tools=${[...toolsUsed].join(',') || 'none'}` +
-        ` empty=${emptyResponses} failovers=${failovers} route=${route}` +
-        ` simpleEscalations=${simpleEscalations} quota=${quotaLabel()}` +
-        ` in=${usage?.inputTokens ?? 0} out=${usage?.outputTokens ?? 0} cost=${costLabel()}` +
-        ` web=${nativeWebToolsUsed.size ? webToolLabel([...nativeWebToolsUsed]) : 'none'}` +
-        ` model=${model ?? 'unknown'} iterations=${steps}`,
+      turnResultLine({
+        turn: turnId,
+        outcome,
+        totalMs: Date.now() - turnStartedAt,
+        providerMs,
+        toolMs,
+        calls: providerCalls,
+        emptyResponses,
+        retries: emptyResponses + groundingRetries,
+        failovers,
+        reasks: simpleReadReasks,
+        tools: [...toolsUsed],
+        toolRuns,
+        inputTokens: usage?.inputTokens ?? 0,
+        outputTokens: usage?.outputTokens ?? 0,
+        cost: costLabel(),
+        quota: quotaLabel(),
+        web: nativeWebToolsUsed.size ? webToolLabel([...nativeWebToolsUsed]) : 'none',
+        upstream: upstreamProvider,
+        model,
+        route,
+        escalations: simpleEscalations,
+        iterations: steps,
+      }),
     );
   };
 
@@ -931,7 +954,7 @@ export async function runAiChat({
   const quotaBlockedFor = quotaBlockRemainingMs();
   if (quotaBlockedFor > 0) {
     console.error(
-      `[ai] quota was reported spent (${Math.ceil(quotaBlockedFor / 1000)}s left on the block)` +
+      `AI quota was reported spent (${Math.ceil(quotaBlockedFor / 1000)}s left on the block)` +
         ' — failing fast without a provider call',
     );
     reportTurn('AI_QUOTA_EXCEEDED');
@@ -972,19 +995,34 @@ export async function runAiChat({
   // refuses every research cue, so this only keeps the log honest for an edge case.
   if (researchTurn) route = 'research';
 
-  // AI-100 — one line before any provider request, for EVERY submitted question. It
-  // states the free-model switch even when this turn will not use a free model, so a
-  // Render operator can verify the environment value independently of routing. The
-  // provider request line later proves the actual `thinking` field sent to a free model.
-  const paidReasoning = cfg.reasoning.simplePolicy
-    ? reasoningState(cfg.reasoning.simplePolicy)
-    : 'advanced';
+  /**
+   * AI-101 — what this question is FOR, as the assistant decided it. The distinction an
+   * operator needs is whether the turn had to leave the business's records (`web-research`)
+   * or could be answered from inventory reads alone; a simple read also names its operation,
+   * so a rise in `inventory:restock_list` is visible without reading the question.
+   */
+  const intentLabel =
+    simpleTurn && simpleIntent
+      ? `inventory:${simpleIntent.operation}`
+      : webResearchIntent && !sourceRestricted
+        ? 'web-research'
+        : 'inventory';
+  // AI-101 — one record before any provider request, for EVERY submitted question. It states
+  // the reasoning and web switches even when this turn will not use them, so an operator can
+  // verify a Render environment value independently of routing. The provider request line
+  // later proves the actual `thinking` field sent to each model.
   console.log(
-    `[ai] free-model reasoning=${reasoningState(cfg.reasoning.freePolicy)}` +
-      ` source=${cfg.reasoning.freeSource} env=AI_REASONING_FREE_MODELS` +
-      ` paid-model reasoning=${paidReasoning}` +
-      ` source=${cfg.reasoning.paidSource}` +
-      ` route=${route} freeModel=${simpleTurn && simpleStartModel ? simpleStartModel : 'none'}`,
+    turnRequestLine({
+      turn: turnId,
+      intent: intentLabel,
+      route,
+      model: simpleTurn && simpleStartModel ? simpleStartModel : primaryModel,
+      reasoning: cfg.reasoning,
+      legacyReasoning: (process.env.AI_REASONING ?? '').trim(),
+      webSearch: cfg.webSearchEnabled,
+      webFetch: cfg.webFetchEnabled,
+      researchTools: webResearchIntent,
+    }),
   );
 
   /**
@@ -1040,7 +1078,7 @@ export async function runAiChat({
       out.push(id);
     }
     if (skipped.length > 0) {
-      console.error(`[ai] fallback skipped (no declared tool support): ${skipped.join(', ')}`);
+      console.error(`AI fallback skipped (no declared tool support): ${skipped.join(', ')}`);
     }
     return out;
   })();
@@ -1087,7 +1125,7 @@ export async function runAiChat({
     if (!responder || !activeInChain || responder === activeInChain) return;
     if (!activeCoolingAtStart && !isModelCooling(activeInChain)) return;
     if (promoteModel(responder, activeInChain)) {
-      console.log(`[ai] promoted model: ${activeInChain} -> ${responder}`);
+      console.log(`AI promoted model: ${activeInChain} -> ${responder}`);
     }
   };
 
@@ -1098,7 +1136,7 @@ export async function runAiChat({
   const coolingNow = coolingModels(turnChain);
   if (coolingNow.length > 0) {
     console.error(
-      `[ai] model cooling down, skipped: ${coolingNow
+      `AI model cooling down, skipped: ${coolingNow
         .map((id) => `${id} (${Math.ceil(modelCooldownRemainingMs(id) / 1000)}s left)`)
         .join(', ')}`,
     );
@@ -1112,7 +1150,7 @@ export async function runAiChat({
   const healthBlockedNow = turnChain.filter((id) => isModelHealthBlocked(id));
   if (healthBlockedNow.length > 0) {
     console.error(
-      `[ai] model unavailable by the provider, skipped: ${healthBlockedNow
+      `AI model unavailable by the provider, skipped: ${healthBlockedNow
         .map((id) => `${id} (${Math.ceil(modelHealthBlockRemainingMs(id) / 1000)}s left)`)
         .join(', ')}`,
     );
@@ -1125,7 +1163,7 @@ export async function runAiChat({
     // exactly the repeated waiting these two mechanisms exist to stop, so the turn ends here —
     // with the same honest sentence a failed provider call would produce.
     const what = coolingNow.length === turnChain.length ? 'cooling down' : 'unavailable';
-    console.error(`[ai] every configured model is ${what} — failing fast without a provider call`);
+    console.error(`AI every configured model is ${what} — failing fast without a provider call`);
     reportTurn('AI_UNAVAILABLE');
     throw new AiProviderError('The AI service is temporarily unavailable. Please try again in a moment.');
   }
@@ -1159,7 +1197,7 @@ export async function runAiChat({
   // is to read the log, and a silent ordinary turn would look exactly like a successful drill.
   if (researchDrillTurn && startModel !== researchModel) {
     console.error(
-      `[ai] failover drill: ${researchModel} is not this turn's start model` +
+      `AI failover drill: ${researchModel} is not this turn's start model` +
         ` (start=${startModel ?? 'none'}); no failure was simulated`,
     );
   }
@@ -1185,7 +1223,7 @@ export async function runAiChat({
     if (researchDrillTurn && !drillFailureInjected && currentModel === researchModel) {
       drillFailureInjected = true;
       console.error(
-        `[ai] failover drill: simulated HTTP 503 from ${currentModel}; no provider request`,
+        `AI failover drill: simulated HTTP 503 from ${currentModel}; no provider request turn=${turnId}`,
       );
       throw Object.assign(
         new AiProviderError('The AI service could not be reached.', AI_UNAVAILABLE, 503),
@@ -1202,7 +1240,7 @@ export async function runAiChat({
       // neutral `ToolDefinition` shape, which the frozen entries already satisfy
       // (their `parameters` are JSON Schema objects). The assertion is
       // compiler-only — no runtime conversion, no copy of the array.
-      return await withBudget(
+      const response = await withBudget(
         provider.complete({
           system: prompt,
           messages,
@@ -1215,6 +1253,7 @@ export async function runAiChat({
           signal,
           webResearch: webResearchIntent,
           nativeWeb: nativeWebActive,
+          turnId,
           ...(currentModel ? { model: currentModel } : {}),
           // AI-40 — streaming is requested ONLY when someone is listening. A provider that
           // does not support it ignores these and answers whole, and the turn is unchanged.
@@ -1223,6 +1262,10 @@ export async function runAiChat({
         capped ? budget + ATTEMPT_TIMEOUT_GRACE_MS : budget,
         signal,
       );
+      // AI-101 — the gateway may name the upstream host that served this response. Keep the
+      // last one seen; the turn record reports it, and absence stays `unknown`.
+      if (response.provider) upstreamProvider = response.provider;
+      return response;
     } finally {
       providerMs += Date.now() - startedAt;
       providerCalls += 1;
@@ -1299,7 +1342,7 @@ export async function runAiChat({
     model = primaryModel;
     failovers += 1;
     console.warn(
-      `[ai] simple route: free model ${simpleStartModel} ${reason} — falling back to the paid primary once`,
+      `AI simple route: free model ${simpleStartModel} ${reason} — falling back to the paid primary once turn=${turnId}`,
     );
   };
 
@@ -1370,7 +1413,7 @@ export async function runAiChat({
         });
         if (outcome.opened) {
           console.error(
-            `[ai] model cooling down for ${Math.round(outcome.cooldownMs / 1000)}s after ` +
+            `AI model cooling down for ${Math.round(outcome.cooldownMs / 1000)}s after ` +
               `${outcome.failures} consecutive failure(s): ${attempted}`,
           );
         }
@@ -1399,8 +1442,8 @@ export async function runAiChat({
         failovers += 1;
         simpleEscalations += 1;
         console.warn(
-          `[ai] simple route: free model ${simpleStartModel} was refused by quota — ` +
-            'falling forward to the paid primary once',
+          `AI simple route: free model ${simpleStartModel} was refused by quota — ` +
+            `falling forward to the paid primary once turn=${turnId}`,
         );
         return completeWithFailover(allowTools);
       }
@@ -1449,20 +1492,20 @@ export async function runAiChat({
         // again would re-pay the same request. The quota-refused free model is skipped for
         // the same reason: its allowance, not its health, is what refused.
         if (candidate === attempted || quotaRefusedModels.has(candidate)) {
-          console.error(`[ai] failover skipped (already attempted this turn): ${candidate}`);
+          console.error(`AI failover skipped (already attempted this turn): ${candidate}`);
           continue;
         }
         // AI-30 — a candidate inside its cooldown is not worth a request. The primary is
         // skipped before this loop (it would not be this turn's start model), so this is the
         // normal case for a fallback that has been failing too.
         if (isModelCooling(candidate)) {
-          console.error(`[ai] failover skipped (cooling down): ${candidate}`);
+          console.error(`AI failover skipped (cooling down): ${candidate}`);
           continue;
         }
         // AI-35 — a candidate the provider reports as unavailable is not worth a request here
         // either; the walk exists to find a model that is serving, not to re-check a known one.
         if (isModelHealthBlocked(candidate)) {
-          console.error(`[ai] failover skipped (reported unavailable): ${candidate}`);
+          console.error(`AI failover skipped (reported unavailable): ${candidate}`);
           continue;
         }
         const remaining = deadlineAt - Date.now();
@@ -1481,7 +1524,7 @@ export async function runAiChat({
         // sent it there and what was left of the budget. Model ids and an HTTP status only:
         // no credential, no prompt and no upstream body is ever on it.
         console.error(
-          `[ai] failover attempt=${failovers} model=${from} -> ${candidate}` +
+          `AI failover attempt=${failovers} model=${from} -> ${candidate}` +
             ` reason=${failureReason(lastError)} remaining=${remaining}ms`,
         );
         from = candidate;
@@ -1512,7 +1555,7 @@ export async function runAiChat({
             });
             if (outcome.opened) {
               console.error(
-                `[ai] model cooling down for ${Math.round(outcome.cooldownMs / 1000)}s after ` +
+                `AI model cooling down for ${Math.round(outcome.cooldownMs / 1000)}s after ` +
                   `${outcome.failures} consecutive failure(s): ${candidate}`,
               );
             }
@@ -1603,7 +1646,7 @@ export async function runAiChat({
         nativeWebActive = false;
         prompt = systemPrompt({ timeZone, nativeWeb: false, sourceRestricted });
         console.warn(
-          `[ai] native web tools were refused (status=${err.status}) — retrying with the local research tools`,
+          `AI native web tools were refused (status=${err.status}) — retrying with the local research tools`,
         );
         messages.push({
           role: 'user',
@@ -1626,7 +1669,7 @@ export async function runAiChat({
         emptyResponses += 1;
         lastWasEmpty = true;
         console.warn(
-          `[ai] output limit reached with no content — resending the request once` +
+          `AI output limit reached with no content — resending the request once` +
             ` model=${err.model ?? model} out=${err.usage?.outputTokens ?? '?'}`,
         );
         // AI-53 — the retry asks for something different, not the same thing again.
@@ -1664,7 +1707,7 @@ export async function runAiChat({
         reportTurn((err as { code?: string }).code ?? 'AI_ERROR');
         throw err;
       }
-      console.error('[ai] provider call failed', (err as { message?: unknown })?.message ?? err);
+      console.error(`AI provider call failed turn=${turnId}`, (err as { message?: unknown })?.message ?? err);
       reportTurn('AI_UNAVAILABLE');
       throw new AiProviderError('The AI service failed unexpectedly. Please try again.');
     }
@@ -1712,7 +1755,7 @@ export async function runAiChat({
           if (!isAnswerRound && groundingRetries < MAX_GROUNDING_RETRIES) {
             groundingRetries += 1;
             console.warn(
-              `[ai] the model returned an error notice instead of an answer — asking again (attempt ${groundingRetries})`,
+              `AI the model returned an error notice instead of an answer — asking again (attempt ${groundingRetries})`,
             );
             messages.push({
               role: 'user',
@@ -1748,8 +1791,8 @@ export async function runAiChat({
               simpleReadReasks += 1;
               groundingRetries += 1;
               console.warn(
-                `[ai] simple route (${simpleIntent.operation}) answered without its ` +
-                  `${simpleIntent.readLabel} — asking again`,
+                `AI simple route (${simpleIntent.operation}) answered without its ` +
+                  `${simpleIntent.readLabel} — asking again turn=${turnId}`,
               );
               messages.push({ role: 'user', content: simpleInventoryReask(simpleIntent) });
               resetStreamedText(
@@ -1772,8 +1815,8 @@ export async function runAiChat({
               failovers += 1;
               groundingRetries += 1;
               console.warn(
-                `[ai] simple route (${simpleIntent.operation}) still has no ` +
-                  `${simpleIntent.readLabel} — escalating to the paid primary`,
+                `AI simple route (${simpleIntent.operation}) still has no ` +
+                  `${simpleIntent.readLabel} — escalating to the paid primary turn=${turnId}`,
               );
               messages.push({
                 role: 'user',
@@ -1797,7 +1840,7 @@ export async function runAiChat({
         for (const place of droppedPlaces) {
           const relabelled = relabelBusinessWideScope(answerText, place);
           if (relabelled !== answerText) {
-            console.warn(`[ai] business-wide answer still named ${place} — relabelled to all locations`);
+            console.warn(`AI business-wide answer still named ${place} — relabelled to all locations`);
             answerText = relabelled;
           }
         }
@@ -1816,13 +1859,13 @@ export async function runAiChat({
             );
             if (place) {
               console.warn(
-                `[ai] business-wide answer scoped to ${place} that the turn never read — relabelled to all locations`,
+                `AI business-wide answer scoped to ${place} that the turn never read — relabelled to all locations`,
               );
               answerText = relabelBusinessWideScope(answerText, place);
             }
           } catch (err) {
             // The check must never cost the member the answer it is checking.
-            console.warn('[ai] could not read location names for the scope check', (err as Error)?.message ?? err);
+            console.warn('AI could not read location names for the scope check', (err as Error)?.message ?? err);
           }
         }
         // AI-60 — an answer that states money without reading anything.
@@ -1857,7 +1900,7 @@ export async function runAiChat({
         ) {
           groundingRetries += 1;
           console.warn(
-            `[ai] no tool read for a ${narrated ? 'tool-narrating' : statedFigure ? 'figure-stating' : 'recorded-data'} answer — asking the model for the data (attempt ${groundingRetries})`,
+            `AI no tool read for a ${narrated ? 'tool-narrating' : statedFigure ? 'figure-stating' : 'recorded-data'} answer — asking the model for the data (attempt ${groundingRetries})`,
           );
           messages.push({
             role: 'user',
@@ -1908,7 +1951,7 @@ export async function runAiChat({
         ) {
           groundingRetries += 1;
           console.warn(
-            `[ai] stock answer without a stock read — asking for the stock tool (attempt ${groundingRetries})`,
+            `AI stock answer without a stock read — asking for the stock tool (attempt ${groundingRetries})`,
           );
           messages.push({
             role: 'user',
@@ -1930,7 +1973,7 @@ export async function runAiChat({
         if (sawPartialPage && claimsEmptyElsewhere(candidate) && groundingRetries < MAX_GROUNDING_RETRIES) {
           groundingRetries += 1;
           console.warn(
-            `[ai] a partial page was answered as a complete roster — asking for the missing rows (attempt ${groundingRetries})`,
+            `AI a partial page was answered as a complete roster — asking for the missing rows (attempt ${groundingRetries})`,
           );
           messages.push({
             role: 'user',
@@ -1970,7 +2013,7 @@ export async function runAiChat({
         ) {
           groundingRetries += 1;
           console.warn(
-            `[ai] empty-window answer dropped ${fallbackMoves.length} earlier movements — asking again (attempt ${groundingRetries})`,
+            `AI empty-window answer dropped ${fallbackMoves.length} earlier movements — asking again (attempt ${groundingRetries})`,
           );
           const list = fallbackMoves
             .slice(0, 3)
@@ -2036,7 +2079,7 @@ export async function runAiChat({
             nativeWebFallbackTried = true;
             prompt = systemPrompt({ timeZone, nativeWeb: false, sourceRestricted });
             console.warn(
-              '[ai] native web tools did not run — falling back to the local research tools',
+              'AI native web tools did not run — falling back to the local research tools',
             );
           }
           const knownProducts = productFacts
@@ -2045,7 +2088,7 @@ export async function runAiChat({
             .map((fact) => `${fact.name} (${fact.id})`)
             .join(', ');
           console.warn(
-            `[ai] research answer without a web read — asking for ${
+            `AI research answer without a web read — asking for ${
               useNativeNow ? 'the native web tools' : researchTool
             } (attempt ${groundingRetries})`,
           );
@@ -2092,7 +2135,7 @@ export async function runAiChat({
             .map((source) => `- ${source.title}: <${source.url}>`)
             .join('\n');
           console.warn(
-            `[ai] web answer cited ${unreturnedUrls.length} URL(s) the tools did not return — asking again (attempt ${groundingRetries})`,
+            `AI web answer cited ${unreturnedUrls.length} URL(s) the tools did not return — asking again (attempt ${groundingRetries})`,
           );
           messages.push({
             role: 'user',
@@ -2116,7 +2159,7 @@ export async function runAiChat({
         // the model to reword it produced a worse turn: 6 iterations, then "I could not finish
         // that request within the allowed number of steps" (6:27 PM).
         if (asksForRevenue(message) && statesUnqualifiedMoney(candidate)) {
-          console.warn('[ai] revenue question answered with unqualified money — qualification appended');
+          console.warn('AI revenue question answered with unqualified money — qualification appended');
           // Room is reserved for the note inside the cap, so the sentence that explains the
           // figure is never the part that gets cut (see `withRevenueQualifier`).
           finalText = withRevenueQualifier(answerText, REVENUE_QUALIFIER, cfg.maxMessageChars);
@@ -2168,7 +2211,7 @@ export async function runAiChat({
       const routed = routeDeadStockReads(calls, message);
       if (routed !== calls) {
         console.warn(
-          `[ai] dead-stock question — reads routed to getProductsNeverSold (model asked: ${calls.map((call) => String(call?.name ?? '')).filter(Boolean).join(',') || 'none'})`,
+          `AI dead-stock question — reads routed to getProductsNeverSold (model asked: ${calls.map((call) => String(call?.name ?? '')).filter(Boolean).join(',') || 'none'})`,
         );
         calls = routed;
       }
@@ -2187,7 +2230,7 @@ export async function runAiChat({
           ...calls,
           { id: 'call-ai-brand-range', name: 'findProducts', input: { keywords: brand } },
         ];
-        console.warn(`[ai] stock-range question — added findProducts for ${brand}`);
+        console.warn(`AI stock-range question — added findProducts for ${brand}`);
       }
     }
 
@@ -2210,7 +2253,7 @@ export async function runAiChat({
       // intent must not run it on a retry. Refuse it as data and keep the turn grounded.
       if (localResearchToolNames.has(name) && !webResearchIntent) {
         console.warn(
-          `[ai] blocked ${name} — no explicit public-web research intent on an inventory-only turn`,
+          `AI blocked ${name} — no explicit public-web research intent on an inventory-only turn`,
         );
         messages.push({
           role: 'tool',
@@ -2237,7 +2280,7 @@ export async function runAiChat({
         if (!nativeResearchToolBlocked) {
           nativeResearchToolBlocked = true;
           console.warn(
-            `[ai] blocked ${name} while native web tools are primary — asking for the native tools`,
+            `AI blocked ${name} while native web tools are primary — asking for the native tools`,
           );
           messages.push({
             role: 'tool',
@@ -2257,7 +2300,7 @@ export async function runAiChat({
         nativeWebFallbackTried = true;
         prompt = systemPrompt({ timeZone, nativeWeb: false, sourceRestricted });
         console.warn(
-          '[ai] native web tools were not used — falling back to the local research tools',
+          'AI native web tools were not used — falling back to the local research tools',
         );
       }
       if (name) toolsUsed.add(name);
@@ -2277,7 +2320,7 @@ export async function runAiChat({
         toolInput = rest;
         droppedPlaces.push(namedPlace);
         console.warn(
-          `[ai] business-wide question — dropped the location "${namedPlace}" carried over from an earlier turn`,
+          `AI business-wide question — dropped the location "${namedPlace}" carried over from an earlier turn`,
         );
       }
       // AI-99 — a stock total must read every location, not a page the model capped at one
@@ -2564,21 +2607,21 @@ export async function runAiChat({
     if (computed) {
       finalText = computed;
       degraded = null;
-      console.warn('[ai] low-stock value computed from the returned rows');
+      console.warn('AI low-stock value computed from the returned rows');
     }
   }
   if (!degraded && locationPageComplete && asksForLocationTotals(message)) {
     const computed = locationTotalsAnswer(locationFacts, message, cfg.maxMessageChars);
     if (computed) {
       finalText = computed;
-      console.warn('[ai] location product/unit total computed from the complete page');
+      console.warn('AI location product/unit total computed from the complete page');
     }
   }
   if (!degraded && asksForProductStockByLocation(message)) {
     const computed = productStockByLocationAnswer(inventoryFacts, message, cfg.maxMessageChars);
     if (computed) {
       finalText = computed;
-      console.warn('[ai] product stock by location computed from the returned rows');
+      console.warn('AI product stock by location computed from the returned rows');
     }
   }
   if (!degraded && asksForProductStockTotal(message)) {
@@ -2593,7 +2636,7 @@ export async function runAiChat({
     const computed = productStockTotalAnswer(rows, message, cfg.maxMessageChars);
     if (computed) {
       finalText = computed;
-      console.warn('[ai] single-product stock total computed from the returned rows');
+      console.warn('AI single-product stock total computed from the returned rows');
     }
   }
   if (!degraded && asksForRestockCount(message)) {
@@ -2604,28 +2647,28 @@ export async function runAiChat({
     const computed = total === null ? null : restockCountAnswer(total, cfg.maxMessageChars);
     if (computed) {
       finalText = computed;
-      console.warn('[ai] restock count read from the returned tool total');
+      console.warn('AI restock count read from the returned tool total');
     }
   }
   if (!degraded && stockOutMovements !== null && asksForStockOutCount(message)) {
     const computed = stockOutCountAnswer(stockOutMovements, cfg.maxMessageChars);
     if (computed) {
       finalText = computed;
-      console.warn('[ai] stock-out movement count read from the ledger totals');
+      console.warn('AI stock-out movement count read from the ledger totals');
     }
   }
   if (!degraded && asksForProductsUnderPrice(message)) {
     const computed = productsUnderPriceAnswer(productFacts, message, cfg.maxMessageChars);
     if (computed) {
       finalText = computed;
-      console.warn('[ai] price-threshold products computed from the returned rows');
+      console.warn('AI price-threshold products computed from the returned rows');
     }
   }
   if (!degraded && asksForMostExpensive(message)) {
     const computed = mostExpensiveProductAnswer(productFacts, cfg.maxMessageChars);
     if (computed) {
       finalText = computed;
-      console.warn('[ai] maximum recorded price computed from the returned rows');
+      console.warn('AI maximum recorded price computed from the returned rows');
     }
   }
   if (!degraded && asksForHighestStockValue(message)) {
@@ -2636,21 +2679,21 @@ export async function runAiChat({
     );
     if (computed) {
       finalText = computed;
-      console.warn('[ai] highest stock value computed from the returned rows');
+      console.warn('AI highest stock value computed from the returned rows');
     }
   }
   if (!degraded && asksForTopOut(message)) {
     const computed = topOutAnswer(historyTopOutFacts, cfg.maxMessageChars);
     if (computed) {
       finalText = computed;
-      console.warn('[ai] top stock-out product computed from the returned rows');
+      console.warn('AI top stock-out product computed from the returned rows');
     }
   }
   if (!degraded && asksForBestSelling(message)) {
     const computed = bestSellingLimitsAnswer(historyTopOutFacts, cfg.maxMessageChars);
     if (computed) {
       finalText = computed;
-      console.warn('[ai] sales limitation and top stock-out computed from the returned rows');
+      console.warn('AI sales limitation and top stock-out computed from the returned rows');
     }
   }
   if (!degraded && asksForBrandStockRange(message)) {
@@ -2658,7 +2701,7 @@ export async function runAiChat({
     const computed = brandStockRangeAnswer(rangeRows, message, cfg.maxMessageChars);
     if (computed) {
       finalText = computed;
-      console.warn('[ai] product-level stock range computed from the returned rows');
+      console.warn('AI product-level stock range computed from the returned rows');
     }
   }
   if (!degraded && asksForRestockList(message)) {
@@ -2678,7 +2721,7 @@ export async function runAiChat({
       const exact = restockThreeAnswer(rows, count, cfg.maxMessageChars);
       if (exact) {
         completed = exact;
-        console.warn('[ai] exact restock names taken from the returned rows');
+        console.warn('AI exact restock names taken from the returned rows');
       }
     }
     completed = withCompleteRestockNames(completed, rows, cfg.maxMessageChars, {
@@ -2690,7 +2733,7 @@ export async function runAiChat({
     }
     if (completed !== finalText) {
       finalText = completed;
-      console.warn('[ai] restock answer completed from the returned rows');
+      console.warn('AI restock answer completed from the returned rows');
     }
   }
   if (degraded) {
@@ -2699,9 +2742,10 @@ export async function runAiChat({
     // failure rate could not be measured, let alone fixed. One line, so it is
     // greppable and countable: `grep -c 'degraded turn'`.
     console.warn(
-      `[ai] degraded turn reason=${degraded} attempts=${steps} empty=${emptyResponses}` +
+      `AI degraded turn reason=${degraded} attempts=${steps} empty=${emptyResponses}` +
         ` trimmed=${trimmedChars}` +
-        ` model=${model ?? 'unknown'} tools=${[...toolsUsed].join(',') || 'none'}`,
+        ` model=${model ?? 'unknown'} tools=${[...toolsUsed].join(',') || 'none'}` +
+        ` turn=${turnId}`,
     );
   }
   // The healthy path's report, and the last of the six: a turn that answered, or
@@ -2725,14 +2769,14 @@ export async function runAiChat({
   if (!degraded && toolsUsed.size > 0) {
     const cleaned = replaceFalseToolClaims(finalText);
     if (cleaned !== finalText) {
-      console.warn('[ai] removed a false no-tool claim from a grounded answer');
+      console.warn('AI removed a false no-tool claim from a grounded answer');
       finalText = cleaned;
     }
   }
   if (!degraded && (!toolsUsed.has('getInventoryHistory') || asksForBestSelling(message))) {
     const cleaned = stripUnsupportedSalesClaims(finalText);
     if (cleaned !== finalText) {
-      console.warn('[ai] removed a sales-ranking claim without a sales read');
+      console.warn('AI removed a sales-ranking claim without a sales read');
       finalText = cleaned;
     }
   }
@@ -2742,10 +2786,10 @@ export async function runAiChat({
     const completed = withCompleteBrandList(finalText, names, cfg.maxMessageChars);
     if (completed !== finalText) {
       if (asksForBrandListOnly(message)) {
-        console.warn('[ai] brand-list answer omitted a returned brand — replacing with the complete list');
+        console.warn('AI brand-list answer omitted a returned brand — replacing with the complete list');
         finalText = canonicalBrandListAnswer(brandRows, cfg.maxMessageChars);
       } else {
-        console.warn('[ai] brand-list answer omitted a returned brand — complete list appended');
+        console.warn('AI brand-list answer omitted a returned brand — complete list appended');
         finalText = completed;
       }
     }

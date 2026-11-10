@@ -54,7 +54,7 @@ each. On 2026-11-07 the account runbook's provider snapshot was re-measured: Git
 
 | | |
 | --- | --- |
-| **Working now** | AI-99 aggregate routing is live as `87041c3`; the AI-100 free-reasoning switch remains live in the same deployment, with OFF, ON and restored OFF verified. The aggregate question now uses the paid default route and reports the full 2,446,801 units. AI-99 is merged as `8b6353a`; Render serves `87041c3`, and production OTA group `0e4eca55` was published from that commit with the note "Clearer stock totals and restock counts". After the 2026-11-10 quota reset, three live simple turns were served by `nvidia/nemotron-3.5-lightning:free` (reasoning OFF, ON and restored OFF) for the correct 401-unit answer; the earlier pre-reset attempt had fallen forward to `openai/gpt-oss-20b`; the on-device What's New card was observed on 2026-11-10; the 20-question 10k phone matrix scored 15 PASS / 3 PARTIAL / 2 FAIL, with research grounding and language still open; the AI-99 aggregate-question false positive found during that audit is fixed in `87041c3`; three live free-served turns succeeded on 2026-11-10. AI-87 remains deployed: ordinary turns use `openai/gpt-oss-20b`; research turns try `openai/gpt-oss-120b` first, with the 20B primary as fallback and no promotion of the research model. PR #185 merged as `47353af` and Render deployed it. Two live turns verified 20B/120B routing, native search, exact costs and `failovers=0`. PR #187 then added and executed a controlled research failover drill (AI-88): one OWNER request forced a simulated 120B `503` and the real 20B fallback answered (`failovers=1`, `$0.016796`). Firebase sign-in is **restored**: the credential was rotated on 2026-11-07 and the old key deleted. PR #179 carries the runbook, the checker and this record. Minimatch alerts #18/#19 are closed; L-17 is closed as not applicable to AUTH-06. Phone verification of the deployed AI behavior passed on 2026-11-08: the app's ordinary turn used `openai/gpt-oss-20b` (`failovers=0`, 6,583 ms) and its research turn used `openai/gpt-oss-120b` with native search (`failovers=0`, 11,681 ms). After PR #190 merged as `04eb92c`, a fresh streamed phone turn (low-stock question) logged `cost=$0.000567` on `openai/gpt-oss-20b` with `getLowStockProducts` and `failovers=0`; streamed turns now preserve the provider-reported cost and native source URLs. A phone-rendered FALLBACK answer is still unobserved. On 2026-11-09, PR #193 merged as `6d95168`; PR #196 (`67e8dbc`), #197 (`787c2b3`), #198 (`72e225c`) and #199 (`162db9c`) closed the production assistant defects found in the same conversation. Production now serves `5b05307`; the production APK is 1.0.2 (versionCode 10), and OTA group `0e4eca55` is the newest group on the production channel. |
+| **Working now** | AI-101 assistant monitoring now writes one complete record per turn with a shared `turn=` id (model/tier, the free/paid/legacy reasoning switches and sources, web switches, intent, duration in ms and seconds, status, upstream provider, tools, tokens/credits, retries/failovers/re-asks), and the 25-question simple-inventory gate passed 25/25 for $0.003269; AI-99 aggregate routing is live as `87041c3`; the AI-100 free-reasoning switch remains live in the same deployment, with OFF, ON and restored OFF verified. The aggregate question now uses the paid default route and reports the full 2,446,801 units. AI-99 is merged as `8b6353a`; Render serves `87041c3`, and production OTA group `0e4eca55` was published from that commit with the note "Clearer stock totals and restock counts". After the 2026-11-10 quota reset, three live simple turns were served by `nvidia/nemotron-3.5-lightning:free` (reasoning OFF, ON and restored OFF) for the correct 401-unit answer; the earlier pre-reset attempt had fallen forward to `openai/gpt-oss-20b`; the on-device What's New card was observed on 2026-11-10; the 20-question 10k phone matrix scored 15 PASS / 3 PARTIAL / 2 FAIL, with research grounding and language still open; the AI-99 aggregate-question false positive found during that audit is fixed in `87041c3`; three live free-served turns succeeded on 2026-11-10. AI-87 remains deployed: ordinary turns use `openai/gpt-oss-20b`; research turns try `openai/gpt-oss-120b` first, with the 20B primary as fallback and no promotion of the research model. PR #185 merged as `47353af` and Render deployed it. Two live turns verified 20B/120B routing, native search, exact costs and `failovers=0`. PR #187 then added and executed a controlled research failover drill (AI-88): one OWNER request forced a simulated 120B `503` and the real 20B fallback answered (`failovers=1`, `$0.016796`). Firebase sign-in is **restored**: the credential was rotated on 2026-11-07 and the old key deleted. PR #179 carries the runbook, the checker and this record. Minimatch alerts #18/#19 are closed; L-17 is closed as not applicable to AUTH-06. Phone verification of the deployed AI behavior passed on 2026-11-08: the app's ordinary turn used `openai/gpt-oss-20b` (`failovers=0`, 6,583 ms) and its research turn used `openai/gpt-oss-120b` with native search (`failovers=0`, 11,681 ms). After PR #190 merged as `04eb92c`, a fresh streamed phone turn (low-stock question) logged `cost=$0.000567` on `openai/gpt-oss-20b` with `getLowStockProducts` and `failovers=0`; streamed turns now preserve the provider-reported cost and native source URLs. A phone-rendered FALLBACK answer is still unobserved. On 2026-11-09, PR #193 merged as `6d95168`; PR #196 (`67e8dbc`), #197 (`787c2b3`), #198 (`72e225c`) and #199 (`162db9c`) closed the production assistant defects found in the same conversation. Production now serves `5b05307`; the production APK is 1.0.2 (versionCode 10), and OTA group `0e4eca55` is the newest group on the production channel. |
 | **Just verified** | AI-99 aggregate routing is live as `87041c3`; the AI-100 free switch logged `field=disabled` with OFF, `field=omitted` with ON, and `field=disabled` again after restore; paid reasoning logged `field=omitted source=AI_REASONING_PAID_MODELS` on `openai/gpt-oss-20b`. At 08:41 UTC, `How many total units do we have?` logged `route=default`, used `getInventorySummary`, and answered 2,446,801 units on `openai/gpt-oss-20b` for `$0.001073`. On 2026-11-10, two fresh 10,256-product gates recorded 24/25 each; the first exposed and fixed a false-negative absent-SKU check, and the corrected rerun passed that question but hit one real `AiOutputLimit`. With 0/1000 free requests left, all 24 answers were paid; median 4.5 s, p95 8.1 s. See [the 10k evidence](evidence/simple-10k-2026-11-09/README.md). The installed 1.0.2 app showed the "Clearer stock totals and restock counts" card, and [the 20-question phone matrix](evidence/paid20-2026-11-09/README.md) recorded 15 PASS / 3 PARTIAL / 2 FAIL in one 10k-tenant conversation. The merge auto-deployed as `5b05307`; `/api/health` reports `status: ok`, `db: connected` and 0 server errors. On 2026-11-10, PR #201 passed all four required checks in run `42674969198` and squash-merged as `8b6353a`; Render deploy `dep-dbp16ap42hec738c5b2g` reached `live`, and `/api/health` reports `8b6353a`, `status: ok`, `db: connected`, environment `production` and **0** server errors. Production OTA group `0e4eca55-0e4f-47fc-b2d6-507f91b529b8` (Android update `01a1c19d-06e8-79c9-9a46-7302c4be1c69`) was published from `8b6353a` and is the newest production group; `update:list` confirms it. On 2026-11-09, PRs #193 and #196–#199 passed all four required checks and merged. A 10,000-product production tenant was seeded and checked against DB totals; one continuous conversation verified 20B ordinary routing, 120B research with returned sources, SKU-bearing value answers, the no-sales-ranking limitation, and a clean 1,535-item restock answer. The final PR #199 check run was `42595929652`; Render serves `162db9c`. OTA group `58ab8e76` was published from that commit and applied on the installed APK. On 2026-11-08, PR #190 merged as `04eb92c`; all four required checks passed on run `42480189959`; Render deploy `dep-dbo6m2ks728c739rl40g` reached `live`; a post-deploy streamed phone turn logged `cost=$0.000567` on `openai/gpt-oss-20b`; the two `cost=unknown` phone turns described next predate this fix. On 2026-11-08, PR #187 merged as `c98d688`; all four required checks passed on run `42451318595`; Render serves `c98d688` with `status: ok`, `db: connected` and **0** server errors. One OWNER drill forced a simulated 120B `503` and the 20B fallback answered (`201`, 28,214 ms, `failovers=1`, `$0.016796`). Two phone turns then ran: ordinary `20B` (`failovers=0`, 6,583 ms, `cost=unknown`) and research `120B` with native search (`failovers=0`, 11,681 ms, `cost=unknown`). PR #185 merged as `47353af`; all four required checks passed on run `42448637562`; Render deploy `dep-dbo028ks728c739m8d20` reached `live`; `/api/health` reports `status: ok`, `db: connected`, `environment: production`, and **0** server errors. One ordinary turn used `openai/gpt-oss-20b` (`$0.001749`, `failovers=0`); one research turn used `openai/gpt-oss-120b` with native search (`$0.008803`, `failovers=0`); total **$0.010552**. Live failover was not triggered. PR #162 was rebased onto `d313620` and merged as `e18264e`; all four required checks passed, Render deployed the merge, and `/api/health` returns 200 with `status: ok`, `db: connected` and the expected commit. PR #165 merged as `d313620` at `2026-11-07T06:17:42Z`, and its final head `5941956` passed all four required checks in run `42346155717`; documentation guards **39/39**; the root map guard indexes **27/27** active documents with **30** unique invariants and **10** living reference documents within cadence; the four documentation test files pass **27/27**; `git diff --check` clean. PR #168 merged as `c99760d` at `2026-11-07T07:22:01Z` after head `d901a2a` passed all four required checks in run `42350783903`; Render redeployed and `/api/health` reports `c99760d`, `status: ok`, `db: connected`, **0** server errors. PR #166 was reopened, rebased onto `783daf3`, and merged as `ebafae3` at `2026-11-07T07:49:57Z` after head `03a7418` passed all four required checks in run `42352706388`; Render redeployed and `/api/health` reports `ebafae3`, `status: ok`, `db: connected`, **0** server errors. On 2026-11-07 the minimatch override merged: #173 head `e7cc2d3` passed run `42355968583` and merged as `0eca990`; #174 head `608d811` passed run `42356272906` and merged as `8fe6403`; mobile Jest passed **101 suites / 1,203 tests**, and the server CI job ran the full suite and boot smoke. Render deployed `8fe6403`; `/api/health` reports `status: ok`, `db: connected`, **0** server errors. Minimatch alerts #18/#19 are closed; `glob` and `deepmerge` remain. On 2026-11-07 the TypeScript 7 watch self-test passed **32/32**; the live row is **DEFERRED** with both parser chains at `8.72.1` and peer `<6.1.0`; the extracted gate matrix and stubbed issue creation/deduplication passed; `check-docs` and `git diff --check` are clean. On 2026-11-07 the Firebase Admin API returned authorized domains `localhost`, `inventoryai-d0d20.firebaseapp.com`, `inventoryai-d0d20.web.app` and `ai-inventory-l1mi.onrender.com`; the Password Reset template is Firebase's default with callback `https://inventoryai-d0d20.firebaseapp.com/__/auth/action`, not the custom server URL. The mobile reset path is AUTH-06 (`/api/auth/password-reset/code` → `/verify` → `/confirm`), and `sendPasswordResetEmail` is absent from the mobile Firebase boundary. | On 2026-11-07 `npm run verify:firebase` was added and, run against `server/.env`, returned `400 invalid_grant: Invalid JWT Signature` (exit 1), detecting the production outage locally; `check-docs` and `secret-guard` are clean. On 2026-11-07 the Firebase credential was rotated end to end: `npm run verify:firebase` returned `VERIFIED`, `/api/health` reported 200 with no unexplained server errors, and production created session rows at 13:06:29Z, 13:07:33Z, 13:09:49Z and 13:15:03Z, the last after the old key was deleted.
 | **Blocked** | A phone-rendered fallback answer remains unobserved: the two phone turns needed no failover, so the AI-88 fallback answer was seen only in the server log and the terminal client. A live failover was not induced by a real upstream failure: the executed drill synthesised the 120B `503` inside the server, so a genuine outage is still unobserved, and the drill cannot fire when the research model is already cooling. The Render access review awaits the owner's plan and member list. No dependency decision is blocking; two Android builds and one production OTA were spent on 2026-11-09, and a further production OTA was published on 2026-11-10. Free-served answers and the paid aggregate route are verified: three live free-model turns succeeded on 2026-11-10, and the aggregate question used `getInventorySummary` on `openai/gpt-oss-20b` for 2,446,801 units. The corrected 10k gate's one `AiOutputLimit` failure remains open. Render environment values still cannot be read with CLI v2.28.0; the console was used for the switch and legacy-key cleanup. |
 | **Next after this** | The free-served answer and the AI-99 aggregate fix are verified: three live free-model turns succeeded on 2026-11-10, and the aggregate question at 08:41 UTC answered 2,446,801 units on the paid default route. The next check is the 25-question production gate after the routing change; The installed 1.0.2 app already showed the "Clearer stock totals and restock counts" card, and the 20-question 10k phone matrix is complete. The optional acceptance step remains installing the development APK on a spare device without replacing the production install. A genuine upstream 120B outage remains unobserved; the executed drill covers the deployment's failover route, not a provider-side failure. |
@@ -115,6 +115,86 @@ Known limits, checked before spending one of them:
 
 ---
 
+## 2026-11-10 — AI-101 one `turn=` id joins a request to its model calls
+
+**Why.** The monitoring records stated what happened but not which turn it belonged to. A
+multi-call turn wrote one `AI request`, several `AI model call` lines and one `AI turn`; joining
+them meant matching model ids and timestamps, and two concurrent turns on the same model were
+indistinguishable.
+
+**Changed.** `newTurnId()` mints an eight-character hex id once per `runAiChat` turn. It travels on
+`AI request`, every `AI model call` (through `ProviderRequest.turnId`), the turn's web-tool,
+empty-completion, output-limit and ignored-stream records, the simple-route warnings, and
+`AI turn` / `AI degraded turn`. Direct provider calls print `turn=none`. The id is a label only:
+no prompt, tenant or user data is derived from it, and `AI101-ai-monitor.test.mjs` pins its shape,
+its presence on every record and the uniqueness of two turns.
+
+**Verified.** `npm run typecheck` and changed-file ESLint passed. The focused suites passed 198
+tests (194 passed, 4 intentionally skipped, 0 failed), including the wire, OpenRouter-provider,
+usage-report, failover and simple-routing suites. The guide samples and the scripts' `AI turn`
+anchors still match because `turn=` is appended at the end of each line.
+
+**Not done.** Nothing was committed or deployed; the records remain text logs, not a metrics
+endpoint.
+
+## 2026-11-10 — AI-101 assistant monitoring records, and a 25/25 gate
+
+**Why.** The assistant's operational facts were spread across four lines with two shapes — a turn
+cost line, a per-request reasoning line, a web-tool line and three boot lines. Answering "which
+model answered, was it free, did reasoning or the web run, which upstream served it, how long did it
+take, what did it cost and did it retry" meant joining them by model id and time. This session also
+ran the full 25-question simple-inventory gate after the AI-99 routing fix.
+
+**Changed.** Added `server/src/services/ai/aiMonitor.ts` with one formatter per record:
+`AI request` (intent, route, model tier, the free/paid/legacy reasoning switches and the variable
+that supplied each, web switches, allowed tools), `AI model call` (provider, model, tier, reasoning
+field actually sent), `AI turn` (outcome, status, duration in ms and seconds, provider/tool time,
+calls, attempts, empty completions, retries, failovers, re-asks, tools, tokens, credits, quota, web
+use, upstream provider, model, route, iterations) and one `AI configuration` boot record. The
+provider contract now carries the upstream provider OpenRouter reports; a live probe answered
+`provider=Groq`. The generic `[ai]` prefixes were replaced with descriptive `AI …` labels across the
+service, providers, watchdog and CLI output, and `scripts/ai-usage.mjs` plus the focused tests were
+updated to the new anchors.
+
+**Verified.** `npm run typecheck` passed and changed-file ESLint passed. The 25-question gate ran to
+completion with exit 0: **25/25 accurate, 0 errors, 0 degraded**, all 25 on `route=simple`, 20 served
+free by `nvidia/nemotron-3.5-lightning:free` and 5 by `openai/gpt-oss-20b` (20% paid fallback), median
+5,132 ms, p95 8,284 ms, estimated cost **$0.003269** (provider-reported paid delta $0.002579). The
+seeded 10,256-product dev tenant was removed afterwards (0 seed tenants/users remain). The new
+`AI101-ai-monitor.test.mjs` and the focused AI suites passed (178/180, 53/57 and 73/74, with the
+remainder intentionally skipped); the full unit suite reported 2,017 tests, 1,955 passed, 61 skipped
+and one failure — the documentation fact-drift guard, because the new module changed the stated
+count from 171 to 172; the count is corrected here and the guard was rerun.
+
+**Not done.** Nothing was deployed or committed; the gate ran the service in-process against the
+disposable development tenant, not against the deployed Render URL, and no mobile, OTA or provider
+configuration changed.
+
+## 2026-11-10 — 25-question simple-inventory gate passed 25/25 after AI-99
+
+**Why.** AI-99 widened the aggregate guard so whole-inventory questions stay on the paid route, and
+its entry recorded that the full gate had not been rerun. The gate was then run against a disposable
+10,256-product development tenant to measure the assistant end to end after that change.
+
+**Ran.** `SEED_CONFIRM=seed-perf-ai AI_TEST_ALLOW_PAID_MODELS=true NODE_ENV=development
+AI_REASONING_FREE_MODELS=disable AI_REASONING_PAID_MODELS=enable npm run eval:simple-10k --
+--phase=gate` — 25 requests, one per wave with a 1,000 ms gap, service transport, primary
+`openai/gpt-oss-20b` and free start `nvidia/nemotron-3.5-lightning:free`. The run started at
+08:55:10Z, finished at 08:57:45Z (155.1 s) and wrote
+`server/.tmp-simple-inventory-scale-gate.json`.
+
+**Result.** **25/25 answered and accurate (100%), 0 errors, 0 degraded**, exit 0. 20 turns were
+served by the free model and 5 by the paid primary (20% paid fallback; free success 80%). Latency:
+median **5,132 ms**, p95 **8,284 ms**, mean 5,235.72 ms, min 2,850 ms, max 10,647 ms. Estimated cost
+**$0.003269** with complete cost reporting; the provider-reported paid-usage delta was **$0.002579**.
+The free allowance moved 991 → 949 requests, so retries and the five paid fallbacks are included in
+that spend. Dataset: 10,256 products, 20,539 inventory rows, 5 low-stock SKUs. The disposable seed
+tenant was removed after the run.
+
+**Not done.** This was an in-process gate against a development tenant, not the deployed Render URL,
+and it did not exercise the mobile client. No mobile, OTA or provider-configuration change was made,
+and nothing was committed or deployed for the run.
+
 ## 2026-11-10 — AI-99 aggregate totals stay on the paid route
 
 **Why.** The AI-100 production audit found that "How many total units do we have?" matched the
@@ -137,9 +217,9 @@ and 0 server errors. The live aggregate turn at 08:41 UTC logged `route=default`
 `paid-model reasoning=enabled field=omitted source=AI_REASONING_PAID_MODELS` for `$0.001073`; no
 free-model line was emitted for that turn.
 
-**Not done.** The full 25-question production gate was not rerun; this fix is covered by the
-focused classifier suite and the live aggregate turn. No mobile, OTA or provider-config change was
-made.
+**Not done.** No mobile, OTA or provider-config change was made. The 25-question gate that followed
+is recorded in the entry above; it ran in-process against a disposable development tenant, not
+production.
 
 ## 2026-11-10 — AI-100 free-model reasoning is a separate, observable switch
 

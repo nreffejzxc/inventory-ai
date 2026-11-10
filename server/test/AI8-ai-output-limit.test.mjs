@@ -118,7 +118,7 @@ unitSuite('AI-8 a truncated answer is marked (DB-free)', () => {
   it('names the reason in the one greppable degraded line', async () => {
     const { warnings } = await ask(() => fakeText('1. something', { truncated: true }));
 
-    const lines = warnings.filter((w) => w.includes('[ai] degraded turn'));
+    const lines = warnings.filter((w) => w.includes('AI degraded turn'));
     assert.equal(lines.length, 1, 'exactly one line per degraded turn');
     assert.match(lines[0], /reason=OUTPUT_LIMIT/, 'the rate must be countable by reason');
   });
@@ -128,7 +128,7 @@ unitSuite('AI-8 a truncated answer is marked (DB-free)', () => {
 
     assert.equal(result.degraded, undefined, 'absent, not null — a healthy turn stays distinguishable');
     assert.equal(
-      warnings.filter((w) => w.includes('[ai] degraded turn')).length,
+      warnings.filter((w) => w.includes('AI degraded turn')).length,
       0,
       'a complete answer must not be reported as degraded',
     );
