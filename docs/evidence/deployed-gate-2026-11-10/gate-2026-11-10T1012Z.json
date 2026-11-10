@@ -1,0 +1,890 @@
+{
+  "generatedAt": "2026-11-10T10:12:27.391Z",
+  "phase": "gate",
+  "partial": false,
+  "target": "https://ai-inventory-l1mi.onrender.com",
+  "config": {
+    "transport": "http",
+    "baseUrl": "https://ai-inventory-l1mi.onrender.com",
+    "size": 10000,
+    "seed": 1,
+    "primary": "openai/gpt-oss-20b",
+    "free": "nvidia/nemotron-3.5-lightning:free",
+    "concurrency": 1,
+    "requests": 25,
+    "gapMs": 1000
+  },
+  "dataset": {
+    "products": 10000,
+    "inventoryRows": 20006,
+    "restockCount": 5,
+    "restockNames": [
+      "Bosch GWS 060 Angle Grinder",
+      "Stanley 65-Piece Socket Set",
+      "Milwaukee M18 FUEL Circular Saw",
+      "Black+Decker 20V MAX Cordless Drill BDCDD220C",
+      "Irwin Vise-Grip 10-Inch Curved Jaw Locking Pliers"
+    ],
+    "lowSkus": [
+      "SEEDSKU-5000",
+      "SEEDSKU-5001",
+      "SEEDSKU-5002",
+      "SEEDSKU-5003",
+      "SEEDSKU-5004"
+    ],
+    "stockSamples": [
+      {
+        "sku": "SEEDSKU-5000",
+        "name": "Bosch GWS 060 Angle Grinder",
+        "expected": 0
+      },
+      {
+        "sku": "SEEDSKU-0",
+        "name": "Logitech MX Keys S",
+        "expected": 92
+      },
+      {
+        "sku": "SEEDSKU-1",
+        "name": "Keychron K8 Pro",
+        "expected": 32
+      },
+      {
+        "sku": "SEEDSKU-2",
+        "name": "ASUS ROG Strix Flare II Animate",
+        "expected": 50
+      },
+      {
+        "sku": "SEEDSKU-3",
+        "name": "Razer BlackWidow V4 Pro",
+        "expected": 64
+      },
+      {
+        "sku": "SEEDSKU-4",
+        "name": "Royal Kludge RK61",
+        "expected": 53
+      },
+      {
+        "sku": "SEEDSKU-5",
+        "name": "Logitech MX Master 3S",
+        "expected": 18
+      },
+      {
+        "sku": "SEEDSKU-6",
+        "name": "Sony WH-1000XM5",
+        "expected": 68
+      },
+      {
+        "sku": "SEEDSKU-7",
+        "name": "SteelSeries Arctis Nova 7",
+        "expected": 41
+      },
+      {
+        "sku": "SEEDSKU-8",
+        "name": "Dell UltraSharp U2723QE",
+        "expected": 75
+      },
+      {
+        "sku": "SEEDSKU-9",
+        "name": "LG UltraGear 27GP850-B",
+        "expected": 52
+      },
+      {
+        "sku": "SEEDSKU-10",
+        "name": "Anker 737 Power Bank",
+        "expected": 66
+      },
+      {
+        "sku": "SEEDSKU-11",
+        "name": "Samsung Portable SSD T7 Shield 1TB",
+        "expected": 15
+      },
+      {
+        "sku": "SEEDSKU-12",
+        "name": "Logitech C920s HD Pro Webcam",
+        "expected": 71
+      },
+      {
+        "sku": "SEEDSKU-13",
+        "name": "Elgato Stream Deck MK.2",
+        "expected": 73
+      }
+    ]
+  },
+  "deployedCommit": "6924c50dc843c3bcebca9c702ce90571f2558161",
+  "allowanceBefore": {
+    "status": "OK",
+    "isFreeTier": false,
+    "daily": {
+      "used": 67,
+      "limit": 1000,
+      "remaining": 933
+    },
+    "paidUsage": 1.134583617,
+    "paidUsageDaily": 0.005783529,
+    "paidUsageMonthly": 1.134583617,
+    "creditLimit": null,
+    "creditRemaining": null
+  },
+  "allowanceAfter": {
+    "status": "OK",
+    "isFreeTier": false,
+    "daily": {
+      "used": 118,
+      "limit": 1000,
+      "remaining": 882
+    },
+    "paidUsage": 1.137068067,
+    "paidUsageDaily": 0.008267979,
+    "paidUsageMonthly": 1.137068067,
+    "creditLimit": null,
+    "creditRemaining": null
+  },
+  "summary": {
+    "phase": "gate",
+    "requests": 25,
+    "concurrency": 1,
+    "waves": 25,
+    "gapMs": 1000,
+    "answered": 25,
+    "accurate": 24,
+    "accuracyRate": 0.96,
+    "answeredAccuracy": 0.96,
+    "errors": 0,
+    "errorRate": 0,
+    "degraded": 0,
+    "freeServed": 21,
+    "paidServed": 4,
+    "freeSuccessRate": 0.84,
+    "paidFallbackRate": 0.16,
+    "medianMs": 3933,
+    "p95Ms": 6501,
+    "meanMs": 4142.36,
+    "minMs": 2749,
+    "maxMs": 7244,
+    "totalCostUsd": 0.00295702,
+    "costComplete": true,
+    "startedAt": "2026-11-10T10:09:31.578Z",
+    "finishedAt": "2026-11-10T10:11:39.299Z",
+    "durationMs": 127721,
+    "providerPaidUsageDelta": 0.0024844499999998604,
+    "freeRequestsRemainingBefore": 933,
+    "freeRequestsRemainingAfter": 882
+  },
+  "rows": [
+    {
+      "id": "stock-SEEDSKU-5000",
+      "operation": "product_stock",
+      "sku": "SEEDSKU-5000",
+      "message": "How many units of the product with SKU SEEDSKU-5000 are in stock?",
+      "expected": 0,
+      "answer": "**Bosch GWS 060 Angle Grinder** has **0** units on hand across all locations.",
+      "check": {
+        "ok": true,
+        "reasons": []
+      },
+      "model": "nvidia/nemotron-3.5-lightning:free",
+      "freeServed": true,
+      "totalMs": 4051,
+      "usage": {
+        "inputTokens": 24186,
+        "outputTokens": 91
+      },
+      "toolsUsed": [
+        "getInventory"
+      ],
+      "degraded": null,
+      "error": null,
+      "workIndex": 0,
+      "wave": 1,
+      "sequence": 1,
+      "costUsd": 0
+    },
+    {
+      "id": "stock-SEEDSKU-0",
+      "operation": "product_stock",
+      "sku": "SEEDSKU-0",
+      "message": "How many units of the product with SKU SEEDSKU-0 are in stock?",
+      "expected": 92,
+      "answer": "**Logitech MX Keys S** has **92** units on hand across all locations.",
+      "check": {
+        "ok": true,
+        "reasons": []
+      },
+      "model": "nvidia/nemotron-3.5-lightning:free",
+      "freeServed": true,
+      "totalMs": 3976,
+      "usage": {
+        "inputTokens": 35881,
+        "outputTokens": 134
+      },
+      "toolsUsed": [
+        "getInventory"
+      ],
+      "degraded": null,
+      "error": null,
+      "workIndex": 1,
+      "wave": 2,
+      "sequence": 2,
+      "costUsd": 0
+    },
+    {
+      "id": "stock-SEEDSKU-1",
+      "operation": "product_stock",
+      "sku": "SEEDSKU-1",
+      "message": "How many units of the product with SKU SEEDSKU-1 are in stock?",
+      "expected": 32,
+      "answer": "**Keychron K8 Pro** has **32** units on hand across all locations.",
+      "check": {
+        "ok": true,
+        "reasons": []
+      },
+      "model": "nvidia/nemotron-3.5-lightning:free",
+      "freeServed": true,
+      "totalMs": 3785,
+      "usage": {
+        "inputTokens": 36059,
+        "outputTokens": 120
+      },
+      "toolsUsed": [
+        "getInventory"
+      ],
+      "degraded": null,
+      "error": null,
+      "workIndex": 2,
+      "wave": 3,
+      "sequence": 3,
+      "costUsd": 0
+    },
+    {
+      "id": "stock-SEEDSKU-2",
+      "operation": "product_stock",
+      "sku": "SEEDSKU-2",
+      "message": "How many units of the product with SKU SEEDSKU-2 are in stock?",
+      "expected": 50,
+      "answer": "**ASUS ROG Strix Flare II Animate** has **50** units on hand at **Main Warehouse**.",
+      "check": {
+        "ok": true,
+        "reasons": []
+      },
+      "model": "nvidia/nemotron-3.5-lightning:free",
+      "freeServed": true,
+      "totalMs": 3618,
+      "usage": {
+        "inputTokens": 35706,
+        "outputTokens": 89
+      },
+      "toolsUsed": [
+        "getInventory"
+      ],
+      "degraded": null,
+      "error": null,
+      "workIndex": 3,
+      "wave": 4,
+      "sequence": 4,
+      "costUsd": 0
+    },
+    {
+      "id": "stock-SEEDSKU-3",
+      "operation": "product_stock",
+      "sku": "SEEDSKU-3",
+      "message": "How many units of the product with SKU SEEDSKU-3 are in stock?",
+      "expected": 64,
+      "answer": "**Razer BlackWidow V4 Pro** has **64** units on hand across all locations.",
+      "check": {
+        "ok": true,
+        "reasons": []
+      },
+      "model": "nvidia/nemotron-3.5-lightning:free",
+      "freeServed": true,
+      "totalMs": 3069,
+      "usage": {
+        "inputTokens": 23988,
+        "outputTokens": 92
+      },
+      "toolsUsed": [
+        "getInventory"
+      ],
+      "degraded": null,
+      "error": null,
+      "workIndex": 4,
+      "wave": 5,
+      "sequence": 5,
+      "costUsd": 0
+    },
+    {
+      "id": "stock-SEEDSKU-4",
+      "operation": "product_stock",
+      "sku": "SEEDSKU-4",
+      "message": "How many units of the product with SKU SEEDSKU-4 are in stock?",
+      "expected": 53,
+      "answer": "**Royal Kludge RK61** has **53** units on hand across all locations.",
+      "check": {
+        "ok": true,
+        "reasons": []
+      },
+      "model": "nvidia/nemotron-3.5-lightning:free",
+      "freeServed": true,
+      "totalMs": 3971,
+      "usage": {
+        "inputTokens": 35881,
+        "outputTokens": 120
+      },
+      "toolsUsed": [
+        "getInventory"
+      ],
+      "degraded": null,
+      "error": null,
+      "workIndex": 5,
+      "wave": 6,
+      "sequence": 6,
+      "costUsd": 0
+    },
+    {
+      "id": "stock-SEEDSKU-5",
+      "operation": "product_stock",
+      "sku": "SEEDSKU-5",
+      "message": "How many units of the product with SKU SEEDSKU-5 are in stock?",
+      "expected": 18,
+      "answer": "**Logitech MX Master 3S** has **18** units on hand at **Main Warehouse**.",
+      "check": {
+        "ok": true,
+        "reasons": []
+      },
+      "model": "nvidia/nemotron-3.5-lightning:free",
+      "freeServed": true,
+      "totalMs": 5357,
+      "usage": {
+        "inputTokens": 35701,
+        "outputTokens": 114
+      },
+      "toolsUsed": [
+        "getInventory"
+      ],
+      "degraded": null,
+      "error": null,
+      "workIndex": 6,
+      "wave": 7,
+      "sequence": 7,
+      "costUsd": 0
+    },
+    {
+      "id": "stock-SEEDSKU-6",
+      "operation": "product_stock",
+      "sku": "SEEDSKU-6",
+      "message": "How many units of the product with SKU SEEDSKU-6 are in stock?",
+      "expected": 68,
+      "answer": "**Sony WH-1000XM5** has **68** units on hand across all locations.",
+      "check": {
+        "ok": true,
+        "reasons": []
+      },
+      "model": "nvidia/nemotron-3.5-lightning:free",
+      "freeServed": true,
+      "totalMs": 3727,
+      "usage": {
+        "inputTokens": 24177,
+        "outputTokens": 94
+      },
+      "toolsUsed": [
+        "getInventory"
+      ],
+      "degraded": null,
+      "error": null,
+      "workIndex": 7,
+      "wave": 8,
+      "sequence": 8,
+      "costUsd": 0
+    },
+    {
+      "id": "stock-SEEDSKU-7",
+      "operation": "product_stock",
+      "sku": "SEEDSKU-7",
+      "message": "How many units of the product with SKU SEEDSKU-7 are in stock?",
+      "expected": 41,
+      "answer": "**SteelSeries Arctis Nova 7** has **41** units on hand at **Main Warehouse**.",
+      "check": {
+        "ok": true,
+        "reasons": []
+      },
+      "model": "nvidia/nemotron-3.5-lightning:free",
+      "freeServed": true,
+      "totalMs": 5128,
+      "usage": {
+        "inputTokens": 42847,
+        "outputTokens": 97
+      },
+      "toolsUsed": [
+        "searchProducts",
+        "getInventory"
+      ],
+      "degraded": null,
+      "error": null,
+      "workIndex": 8,
+      "wave": 9,
+      "sequence": 9,
+      "costUsd": 0
+    },
+    {
+      "id": "stock-SEEDSKU-8",
+      "operation": "product_stock",
+      "sku": "SEEDSKU-8",
+      "message": "How many units of the product with SKU SEEDSKU-8 are in stock?",
+      "expected": 75,
+      "answer": "**Dell UltraSharp U2723QE** has **75** units on hand across all locations.",
+      "check": {
+        "ok": true,
+        "reasons": []
+      },
+      "model": "nvidia/nemotron-3.5-lightning:free",
+      "freeServed": true,
+      "totalMs": 4201,
+      "usage": {
+        "inputTokens": 36080,
+        "outputTokens": 152
+      },
+      "toolsUsed": [
+        "getInventory"
+      ],
+      "degraded": null,
+      "error": null,
+      "workIndex": 9,
+      "wave": 10,
+      "sequence": 10,
+      "costUsd": 0
+    },
+    {
+      "id": "stock-SEEDSKU-9",
+      "operation": "product_stock",
+      "sku": "SEEDSKU-9",
+      "message": "How many units of the product with SKU SEEDSKU-9 are in stock?",
+      "expected": 52,
+      "answer": "**LG UltraGear 27GP850-B** has **52** units on hand across all locations.",
+      "check": {
+        "ok": true,
+        "reasons": []
+      },
+      "model": "nvidia/nemotron-3.5-lightning:free",
+      "freeServed": true,
+      "totalMs": 3933,
+      "usage": {
+        "inputTokens": 36083,
+        "outputTokens": 77
+      },
+      "toolsUsed": [
+        "getInventory"
+      ],
+      "degraded": null,
+      "error": null,
+      "workIndex": 10,
+      "wave": 11,
+      "sequence": 11,
+      "costUsd": 0
+    },
+    {
+      "id": "stock-SEEDSKU-10",
+      "operation": "product_stock",
+      "sku": "SEEDSKU-10",
+      "message": "How many units of the product with SKU SEEDSKU-10 are in stock?",
+      "expected": 66,
+      "answer": "**Anker 737 Power Bank** has **66** units on hand at **Main Warehouse**.",
+      "check": {
+        "ok": true,
+        "reasons": []
+      },
+      "model": "openai/gpt-oss-20b",
+      "freeServed": false,
+      "totalMs": 3765,
+      "usage": {
+        "inputTokens": 21755,
+        "outputTokens": 207
+      },
+      "toolsUsed": [
+        "getInventory"
+      ],
+      "degraded": null,
+      "error": null,
+      "workIndex": 11,
+      "wave": 12,
+      "sequence": 12,
+      "costUsd": 0.00067956
+    },
+    {
+      "id": "stock-SEEDSKU-11",
+      "operation": "product_stock",
+      "sku": "SEEDSKU-11",
+      "message": "How many units of the product with SKU SEEDSKU-11 are in stock?",
+      "expected": 15,
+      "answer": "**Samsung Portable SSD T7 Shield 1TB** has **15** units on hand across all locations.",
+      "check": {
+        "ok": true,
+        "reasons": []
+      },
+      "model": "nvidia/nemotron-3.5-lightning:free",
+      "freeServed": true,
+      "totalMs": 4080,
+      "usage": {
+        "inputTokens": 24383,
+        "outputTokens": 127
+      },
+      "toolsUsed": [
+        "getProduct"
+      ],
+      "degraded": null,
+      "error": null,
+      "workIndex": 12,
+      "wave": 13,
+      "sequence": 13,
+      "costUsd": 0
+    },
+    {
+      "id": "stock-SEEDSKU-12",
+      "operation": "product_stock",
+      "sku": "SEEDSKU-12",
+      "message": "How many units of the product with SKU SEEDSKU-12 are in stock?",
+      "expected": 71,
+      "answer": "**Logitech C920s HD Pro Webcam** has **71** units on hand at **Main Warehouse**.",
+      "check": {
+        "ok": true,
+        "reasons": []
+      },
+      "model": "nvidia/nemotron-3.5-lightning:free",
+      "freeServed": true,
+      "totalMs": 2783,
+      "usage": {
+        "inputTokens": 23807,
+        "outputTokens": 65
+      },
+      "toolsUsed": [
+        "getInventory"
+      ],
+      "degraded": null,
+      "error": null,
+      "workIndex": 13,
+      "wave": 14,
+      "sequence": 14,
+      "costUsd": 0
+    },
+    {
+      "id": "stock-SEEDSKU-13",
+      "operation": "product_stock",
+      "sku": "SEEDSKU-13",
+      "message": "How many units of the product with SKU SEEDSKU-13 are in stock?",
+      "expected": 73,
+      "answer": "**Elgato Stream Deck MK.2** has **73** units on hand across all locations.",
+      "check": {
+        "ok": true,
+        "reasons": []
+      },
+      "model": "nvidia/nemotron-3.5-lightning:free",
+      "freeServed": true,
+      "totalMs": 3756,
+      "usage": {
+        "inputTokens": 23987,
+        "outputTokens": 92
+      },
+      "toolsUsed": [
+        "getInventory"
+      ],
+      "degraded": null,
+      "error": null,
+      "workIndex": 14,
+      "wave": 15,
+      "sequence": 15,
+      "costUsd": 0
+    },
+    {
+      "id": "exists-SEEDSKU-0",
+      "operation": "product_existence",
+      "sku": "SEEDSKU-0",
+      "message": "Do we have the product with SKU SEEDSKU-0 in our inventory?",
+      "expected": true,
+      "answer": "Yes, we have the product with SKU SEEDSKU-0: **Logitech MX Keys S** keyboard. It is currently recorded in two locations:\n\n- **Shop Front**: 46 units available  \n- **Main Warehouse**: 46 units available  \n\nThe product has a recorded selling price of **PHP 6,290** per unit, though the currency was not specified in the record.",
+      "check": {
+        "ok": true,
+        "reasons": []
+      },
+      "model": "nvidia/nemotron-3.5-lightning:free",
+      "freeServed": true,
+      "totalMs": 5000,
+      "usage": {
+        "inputTokens": 24355,
+        "outputTokens": 119
+      },
+      "toolsUsed": [
+        "getProduct"
+      ],
+      "degraded": null,
+      "error": null,
+      "workIndex": 15,
+      "wave": 16,
+      "sequence": 16,
+      "costUsd": 0
+    },
+    {
+      "id": "exists-SEEDSKU-1",
+      "operation": "product_existence",
+      "sku": "SEEDSKU-1",
+      "message": "Do we have the product with SKU SEEDSKU-1 in our inventory?",
+      "expected": true,
+      "answer": "Yes. The SKU **SEEDSKU-1** is in the catalogue as the Keychron K8 Pro keyboard. Across our locations the stock shows 12 units in Overflow Store, 10 in Shop Front and 10 in Main Warehouse, for a total of 32 units on hand.",
+      "check": {
+        "ok": true,
+        "reasons": []
+      },
+      "model": "openai/gpt-oss-20b",
+      "freeServed": false,
+      "totalMs": 5895,
+      "usage": {
+        "inputTokens": 19551,
+        "outputTokens": 296
+      },
+      "toolsUsed": [
+        "getProduct"
+      ],
+      "degraded": null,
+      "error": null,
+      "workIndex": 16,
+      "wave": 17,
+      "sequence": 17,
+      "costUsd": 0.00062501
+    },
+    {
+      "id": "exists-SEEDSKU-5000",
+      "operation": "product_existence",
+      "sku": "SEEDSKU-5000",
+      "message": "Do we have the product with SKU SEEDSKU-5000 in our inventory?",
+      "expected": true,
+      "answer": "Yes, the Bosch GWS 060 Angle Grinder with SKU SEEDSKU-5000 is in the catalogue, but all stock rows show 0 units on hand at every location.",
+      "check": {
+        "ok": true,
+        "reasons": []
+      },
+      "model": "openai/gpt-oss-20b",
+      "freeServed": false,
+      "totalMs": 7244,
+      "usage": {
+        "inputTokens": 18741,
+        "outputTokens": 353
+      },
+      "toolsUsed": [
+        "getProduct"
+      ],
+      "degraded": null,
+      "error": null,
+      "workIndex": 17,
+      "wave": 18,
+      "sequence": 18,
+      "costUsd": 0.00060812
+    },
+    {
+      "id": "exists-SEEDSKU-2",
+      "operation": "product_existence",
+      "sku": "SEEDSKU-2",
+      "message": "Do we have the product with SKU SEEDSKU-2 in our inventory?",
+      "expected": true,
+      "answer": "Yes, we have that product. It's the ASUS ROG Strix Flare II Animate keyboard, SKU SEEDSKU-2. We have 50 units on hand at the Main Warehouse, available for sale (none reserved). The recorded selling price is PHP 11,995 per unit.",
+      "check": {
+        "ok": true,
+        "reasons": []
+      },
+      "model": "nvidia/nemotron-3.5-lightning:free",
+      "freeServed": true,
+      "totalMs": 3571,
+      "usage": {
+        "inputTokens": 24196,
+        "outputTokens": 99
+      },
+      "toolsUsed": [
+        "getProduct"
+      ],
+      "degraded": null,
+      "error": null,
+      "workIndex": 18,
+      "wave": 19,
+      "sequence": 19,
+      "costUsd": 0
+    },
+    {
+      "id": "exists-SEEDSKU-3",
+      "operation": "product_existence",
+      "sku": "SEEDSKU-3",
+      "message": "Do we have the product with SKU SEEDSKU-3 in our inventory?",
+      "expected": true,
+      "answer": "Yes, we carry the Razer BlackWidow V4 Pro (SKU: SEEDSKU-3). It is recorded as ACTIVE and has stock at two locations:\n\n- **Shop Front**: 32 units available\n- **Main Warehouse**: 32 units available\n\nBoth locations show the product as low stock (below the minimum of 54 units) but not out of stock. The recorded selling price is 12,995 with no currency specified.",
+      "check": {
+        "ok": true,
+        "reasons": []
+      },
+      "model": "nvidia/nemotron-3.5-lightning:free",
+      "freeServed": true,
+      "totalMs": 3124,
+      "usage": {
+        "inputTokens": 24348,
+        "outputTokens": 132
+      },
+      "toolsUsed": [
+        "getProduct"
+      ],
+      "degraded": null,
+      "error": null,
+      "workIndex": 19,
+      "wave": 20,
+      "sequence": 20,
+      "costUsd": 0
+    },
+    {
+      "id": "exists-absent",
+      "operation": "product_existence",
+      "sku": "SEEDSKU-999999",
+      "message": "Do we have the product with SKU SEEDSKU-999999 in our inventory?",
+      "expected": false,
+      "answer": "No product with SKU SEEDSKU-999999 is recorded in your inventory.",
+      "check": {
+        "ok": false,
+        "reasons": [
+          "missing a denial"
+        ]
+      },
+      "model": "nvidia/nemotron-3.5-lightning:free",
+      "freeServed": true,
+      "totalMs": 2749,
+      "usage": {
+        "inputTokens": 23611,
+        "outputTokens": 57
+      },
+      "toolsUsed": [
+        "getProduct"
+      ],
+      "degraded": null,
+      "error": null,
+      "workIndex": 20,
+      "wave": 21,
+      "sequence": 21,
+      "costUsd": 0
+    },
+    {
+      "id": "restock-list-1",
+      "operation": "restock_list",
+      "sku": null,
+      "message": "Which products need to be restocked?",
+      "expected": [
+        "Bosch GWS 060 Angle Grinder",
+        "Stanley 65-Piece Socket Set",
+        "Milwaukee M18 FUEL Circular Saw",
+        "Black+Decker 20V MAX Cordless Drill BDCDD220C",
+        "Irwin Vise-Grip 10-Inch Curved Jaw Locking Pliers"
+      ],
+      "answer": "5 products need restocking; the 5 most urgent are below.\n\nThe full restock list is: Irwin Vise-Grip 10-Inch Curved Jaw Locking Pliers, Black+Decker 20V MAX Cordless Drill BDCDD220C, Milwaukee M18 FUEL Circular Saw, Stanley 65-Piece Socket Set, Bosch GWS 060 Angle Grinder.",
+      "check": {
+        "ok": true,
+        "reasons": []
+      },
+      "model": "nvidia/nemotron-3.5-lightning:free",
+      "freeServed": true,
+      "totalMs": 3131,
+      "usage": {
+        "inputTokens": 24400,
+        "outputTokens": 44
+      },
+      "toolsUsed": [
+        "getReorderNeededProducts"
+      ],
+      "degraded": null,
+      "error": null,
+      "workIndex": 21,
+      "wave": 22,
+      "sequence": 22,
+      "costUsd": 0
+    },
+    {
+      "id": "restock-list-2",
+      "operation": "restock_list",
+      "sku": null,
+      "message": "Which products are at or below their minimum stock?",
+      "expected": [
+        "Bosch GWS 060 Angle Grinder",
+        "Stanley 65-Piece Socket Set",
+        "Milwaukee M18 FUEL Circular Saw",
+        "Black+Decker 20V MAX Cordless Drill BDCDD220C",
+        "Irwin Vise-Grip 10-Inch Curved Jaw Locking Pliers"
+      ],
+      "answer": "5 products need restocking; the 5 most urgent are below.\n\n- Irwin Vise-Grip 10-Inch Curved Jaw Locking Pliers — OUT OF STOCK, 0 units available (minimum 90)\n- Black+Decker 20V MAX Cordless Drill BDCDD220C — OUT OF STOCK, 0 units available (minimum 65)\n- Milwaukee M18 FUEL Circular Saw — OUT OF STOCK, 0 units available (minimum 59)\n- Stanley 65-Piece Socket Set — OUT OF STOCK, 0 units available (minimum 85)\n- Bosch GWS 060 Angle Grinder — OUT OF STOCK, 0 units available (minimum 51)",
+      "check": {
+        "ok": true,
+        "reasons": []
+      },
+      "model": "nvidia/nemotron-3.5-lightning:free",
+      "freeServed": true,
+      "totalMs": 4168,
+      "usage": {
+        "inputTokens": 24402,
+        "outputTokens": 193
+      },
+      "toolsUsed": [
+        "getReorderNeededProducts"
+      ],
+      "degraded": null,
+      "error": null,
+      "workIndex": 22,
+      "wave": 23,
+      "sequence": 23,
+      "costUsd": 0
+    },
+    {
+      "id": "restock-count-1",
+      "operation": "restock_count",
+      "sku": null,
+      "message": "How many products need restocking?",
+      "expected": 5,
+      "answer": "5 products need restocking.",
+      "check": {
+        "ok": true,
+        "reasons": []
+      },
+      "model": "openai/gpt-oss-20b",
+      "freeServed": false,
+      "totalMs": 6501,
+      "usage": {
+        "inputTokens": 33303,
+        "outputTokens": 348
+      },
+      "toolsUsed": [
+        "getReorderNeededProducts"
+      ],
+      "degraded": null,
+      "error": null,
+      "workIndex": 23,
+      "wave": 24,
+      "sequence": 24,
+      "costUsd": 0.00104433
+    },
+    {
+      "id": "restock-count-2",
+      "operation": "restock_count",
+      "sku": null,
+      "message": "How many items are below their minimum stock?",
+      "expected": 5,
+      "answer": "5 products need restocking.",
+      "check": {
+        "ok": true,
+        "reasons": []
+      },
+      "model": "nvidia/nemotron-3.5-lightning:free",
+      "freeServed": true,
+      "totalMs": 2976,
+      "usage": {
+        "inputTokens": 24392,
+        "outputTokens": 44
+      },
+      "toolsUsed": [
+        "getReorderNeededProducts"
+      ],
+      "degraded": null,
+      "error": null,
+      "workIndex": 24,
+      "wave": 25,
+      "sequence": 25,
+      "costUsd": 0
+    }
+  ]
+}
