@@ -45,6 +45,18 @@ export interface ReleaseNote {
  */
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    id: '2026-11-10-ai-answer-reference',
+    date: '2026-11-10',
+    kind: 'feature',
+    title: 'AI answers now include a support reference',
+    summary:
+      'Each assistant answer shows a short reference you can copy, so support can find the exact answer if you ask for help.',
+    points: [
+      'Select a reference to copy it into a support message.',
+      'The reference stays with the answer when you reopen the conversation.',
+    ],
+  },
+  {
     id: '2026-11-10-simple-stock-answers',
     date: '2026-11-10',
     kind: 'fix',

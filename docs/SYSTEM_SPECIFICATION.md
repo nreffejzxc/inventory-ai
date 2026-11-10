@@ -1,6 +1,6 @@
 # Inventory AI — System Specification
 
-**Version:** 1.0 (this specification) · the tree is **1.0.2**; the shipped production binary is **1.0.1** · **Status:** implemented for
+**Version:** 1.0 (this specification) · the tree is **1.0.2**; the installed production binary is **1.0.2** · **Status:** implemented for
 V1 — every behaviour below is live or marked as a non-goal · **Platforms:** Android + iOS (iOS is
 unverified: no macOS host) · **Architecture:** React Native + Expo + Node.js + Express + MongoDB Atlas
 
@@ -969,6 +969,37 @@ comes from the shortage tool's own total, not from counting a page. An explicitl
 resolved as an exact identifier rather than a substring search. If the read is partial, ambiguous,
 or absent, the server does not present a computed total; the grounded answer remains, or the turn
 uses its ungrounded-answer sentence.
+
+### Answer reference
+
+Every stored assistant answer carries the eight-character `turnId` of the turn that produced it. The
+API returns it as `turnId` on the assistant message and the mobile thread renders it as selectable
+`Ref: <id>` text; it survives reopening the conversation because it is stored on the message, not
+re-derived. It is an opaque correlation label for the server's AI records and grants no access: it
+is not an authorization token, a resource id, or a substitute for `businessId` scoping. User messages
+and messages written before the field existed have no reference.
+
+### Turn metrics
+
+Each completed turn — success, degraded or failed — also writes one operational row to
+`ai_turn_metrics`. The row is keyed by `{ businessId, turnId, startedAt }`, so a retried report
+updates one row while two real turns that share a short id remain distinct. It records counts,
+durations, model/tier, upstream, tokens, quota/web labels and provider-cost provenance; it stores no
+prompt, answer, tool argument or tool result. The aggregate is available to OWNER and ADMIN
+only, through the `ai.metrics.view` capability:
+
+```http
+GET /api/ai/metrics?days=7
+Authorization: Bearer <OWNER or ADMIN token>
+```
+
+`days` is optional, defaults to `7`, and must be an integer from `1` to `90`; the scope always comes
+from the authenticated business. An unauthenticated request gets `401`, and a MANAGER or STAFF token
+gets `403`. The response separates turns from provider calls, reports free/paid/unknown turns,
+failovers, retries/re-asks, latency mean/median/p95/min/max, and daily UTC buckets including empty
+days. Cost is provider-reported only: a missing charge stays unknown, partial coverage is explicit,
+`complete` is false unless every cost was reported, and no estimate is fabricated (`estimatedUsd` is
+`null`). The response is `Cache-Control: no-store`. Guide 16 §10 holds the full field reference.
 
 ---
 
@@ -2252,7 +2283,7 @@ change flows straight through to the cells. The matrix resolves to three invoked
 
 | Tier | Holders | Representative capabilities |
 |---|---|---|
-| A | OWNER, ADMIN | `users.manage`, `audit.view`, `categories.manage`, `locations.manage` |
+| A | OWNER, ADMIN | `users.manage`, `audit.view`, `ai.metrics.view`, `categories.manage`, `locations.manage` |
 | B | OWNER, ADMIN, MANAGER | `products.manage`, `suppliers.manage`, `purchase-orders.manage`, `inventory.manage`, `dashboard.view` |
 | C | every role | every `*.view`, `inventory.stock-in`/`stock-out`, `inventory.history.view`, `purchase-orders.receive`, `ai.use` |
 
@@ -2365,6 +2396,7 @@ GET    /api/transactions
 GET    /api/dashboard
 
 POST   /api/ai/chat
+GET    /api/ai/metrics
 GET    /api/ai/conversations
 GET    /api/ai/conversations/:id
 

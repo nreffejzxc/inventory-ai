@@ -38,7 +38,7 @@ count the check).
 | **Channel** | compiled into the binary: `development`, `preview`, `production`. An install listens to exactly one. |
 | **Branch** | where a group is stored; here each branch is named after its channel. |
 | **Update group** | one publish: bundle, assets, message, commit, group id. What you roll back or republish. |
-| **Runtime version** | the compatibility label; under `appVersion` policy it is `expo.version` — `1.0.2` in the tree, `1.0.1` in the shipped production and preview builds. The older production group is `1.0.0` (§3). Delivered only on an **exact** match. |
+| **Runtime version** | the compatibility label; under `appVersion` policy it is `expo.version` — `1.0.2` in the tree and in the installed production APK; the older preview build is `1.0.1`. The older production group is `1.0.0` (§3). Delivered only on an **exact** match. |
 | **Embedded bundle** | the JavaScript inside the APK; the fallback that always exists. |
 
 An install receives an update when its **channel** points at the branch **and** its **runtime**

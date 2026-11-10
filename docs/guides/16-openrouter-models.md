@@ -350,3 +350,47 @@ separate question.
 
 Exit codes: `0` the fallback answered, `1` the drill did not pass (wrong status or model), `2`
 refused before sending (no token, or a remote base without `AI_DRILL_CONFIRM`).
+
+## 10. AI metrics endpoint
+
+Text logs are diagnostics, not a durable metric store. The server therefore writes one document
+per completed assistant turn to the `ai_turn_metrics` collection and exposes the aggregate over
+HTTP. The same id is printed beneath an assistant answer as selectable `Ref: <turnId>` text, so a
+support message can name the turn without exposing a tenant id or a resource id:
+
+```http
+GET /api/ai/metrics?days=7
+Authorization: Bearer <OWNER or ADMIN token>
+```
+
+`days` is optional, defaults to `7`, and must be an integer from `1` to `90`. The route is
+**OWNER/ADMIN only**; a MANAGER or STAFF token gets `403`, and an unauthenticated request gets
+`401`. The business scope comes from the authenticated session, never from a query parameter.
+
+The response separates the things that are easy to conflate:
+
+- `totals.turns`, `freeTurns`, `paidTurns` and `unknownTierTurns` count **turns**, not provider
+  requests. A turn with three calls is still one turn.
+- `failoverTurns` is a count of turns in which the model changed. `failovers` is the total number
+  of model changes, while `retries` and `reasks` are tracked separately and do not increment the
+  failover count.
+- `latency` reports average (mean), median, p95, min and max over the turns that recorded a
+  duration. Percentiles use MongoDB's `$percentile` approximation and are not exact
+  order-statistics.
+- `cost.providerReportedUsd` is **only** the sum of costs the provider actually reported. It is
+  `null` when no turn reported one. `reportedCostTurns`, `completeCostTurns`, `partialCostTurns` and
+  `unknownCostTurns` show how much of the window is covered. `cost.complete` is false when any turn
+  is partial or unknown, so a partial sum can never be mistaken for the full spend.
+- `cost.estimatedUsd` is `null` and `cost.estimatedAvailable` is `false`: the endpoint does not
+  invent a price for a model or a call whose cost was not reported. An estimate can be added later
+  without changing the meaning of the provider figures.
+- `daily` has one row for every UTC calendar day in the window, including days with zero turns.
+  Daily cost uses the same provider-only rule. UTC is deliberate: it matches the provider billing
+  day and avoids a local-midnight bucket that moves with daylight saving.
+
+The metrics row contains operational metadata only — turn id, business/user ids, route, model,
+provider, durations, counts, token counts, quota/web labels and cost provenance. It does not store
+prompts, answers, tool arguments or tool results. A unique compound index on
+`{ businessId, turnId, startedAt }` makes a retried report an upsert instead of a second turn, while
+still keeping two real turns that happen to share a short turn id. The aggregation is indexed by
+`{ businessId, completedAt }`; it does not read or parse retained Render logs.
