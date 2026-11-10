@@ -557,6 +557,10 @@ dbSuite('AI-40 the streamed turn reaches the phone as it is written', dbOk, () =
     const done = events.filter((event) => event.event === 'done');
     assert.equal(done.length, 1, 'the stream must end with exactly one done event');
     assert.equal(done[0].data.assistantMessage.content, 'Hello there.');
+    // The per-turn id every monitoring line carries travels with the answer, so a member
+    // can quote it without reading the server logs.
+    assert.match(done[0].data.turnId, /^[0-9a-f]{8}$/);
+    assert.equal(done[0].data.assistantMessage.turnId, done[0].data.turnId);
     assert.ok(done[0].data.conversation.id, 'the conversation is created and named');
     assert.ok(done[0].data.userMessage.id, 'the question is stored and returned');
 
@@ -571,6 +575,7 @@ dbSuite('AI-40 the streamed turn reaches the phone as it is written', dbOk, () =
       messages.json.items.map((m) => m.content),
       ['say hello in one sentence', 'Hello there.'],
     );
+    assert.equal(messages.json.items[1].turnId, done[0].data.turnId, 'a reopened thread still names the turn');
   });
 
   it('sends a reset before the stored answer when a guard rewrote the streamed copy (AI-74)', async () => {
@@ -603,6 +608,8 @@ dbSuite('AI-40 the streamed turn reaches the phone as it is written', dbOk, () =
     const res = await api('POST', '/api/ai/chat', { token: owner.token, body: { message: 'anything' } });
     assert.equal(res.status, 201);
     assert.equal(res.json.assistantMessage.content, 'plain answer');
+    assert.match(res.json.turnId, /^[0-9a-f]{8}$/, 'the JSON response carries the turn id');
+    assert.equal(res.json.assistantMessage.turnId, res.json.turnId);
     assert.equal(res.json.conversation.id !== undefined, true);
   });
 

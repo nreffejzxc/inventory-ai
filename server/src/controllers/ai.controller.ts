@@ -76,6 +76,9 @@ function messagePublic(msg: MessageDoc) {
     role: msg.role,
     content: msg.content,
     model: msg.model || undefined,
+    // The per-turn id the answer was produced under. Stored with the message, so a thread
+    // reopened tomorrow can still name the turn in the server logs.
+    turnId: msg.turnId || undefined,
     toolsUsed: Array.isArray(msg.toolsUsed) && msg.toolsUsed.length ? msg.toolsUsed : undefined,
     usage,
     // AI-8 — the mark travels with the message, so a conversation read back from the
@@ -415,6 +418,7 @@ async function persistTurn({
     role: 'ASSISTANT',
     content: result.content,
     model: result.model || undefined,
+    turnId: result.turnId,
     toolsUsed: result.toolsUsed?.length ? result.toolsUsed : undefined,
     usage: result.usage || undefined,
     // AI-8 — a degraded turn is still a completed turn (AI-2), so it is still stored;
@@ -449,6 +453,9 @@ function turnPayload(saved: SavedTurn, result: Awaited<ReturnType<typeof runAiCh
     conversation: conversationPublic(saved.conversation),
     userMessage: messagePublic(saved.userMessage),
     assistantMessage: messagePublic(saved.assistantMessage),
+    // The per-turn id every monitoring line for this answer carries, returned top-level as
+    // well as on the message so a client can record it without reaching into the message.
+    turnId: result.turnId,
     // AI-2 — a degraded turn is a COMPLETED turn: the member did read an answer,
     // so it stays a 201 and is marked rather than turned into an error. The mark
     // is what makes the failure countable at the boundary for the first time.
@@ -467,7 +474,7 @@ function turnPayload(saved: SavedTurn, result: Awaited<ReturnType<typeof runAiCh
  *   delta  { text }                     one piece of answer text, in order
  *   reset  {}                           discard the text shown so far; a corrected answer
  *                                       follows (or `done` replaces it)
- *   done   { conversation, userMessage, assistantMessage, degraded }
+ *   done   { conversation, userMessage, assistantMessage, degraded, turnId }
  *                                        the stored turn — identical to the JSON response
  *   error  { status, code, message }    the same mapping the JSON path uses, after headers
  *

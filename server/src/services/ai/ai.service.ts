@@ -262,6 +262,11 @@ const DEGRADED: Record<CannedReason, string> = {
 
 interface ChatResult {
   content: string;
+  /**
+   * The per-turn correlation id every monitoring line for this turn carries. Returned to
+   * the client so support can trace one answer back to its request, model calls and cost.
+   */
+  turnId: string;
   model?: string;
   toolsUsed: string[];
   usage?: ProviderUsage;
@@ -2821,6 +2826,7 @@ export async function runAiChat({
 
   return {
     content: finalText,
+    turnId,
     model: model ?? undefined,
     toolsUsed: [...toolsUsed],
     usage: usage ?? undefined,

@@ -180,6 +180,14 @@ export interface ChatRow {
    * noise. Absent on a healthy answer.
    */
   degraded?: string;
+  /**
+   * The per-turn id the server logged this answer under, when the server returned one.
+   *
+   * Support's handle on a single turn: the request, every model call and the result share
+   * it. It rides the stored message, so an answer reopened days later still names its turn
+   * rather than only the live reply being traceable.
+   */
+  turnId?: string;
 }
 
 /**
@@ -201,6 +209,7 @@ export function toRow(m: ApiResponse): ChatRow {
     messageId: m.id,
     toolsUsed: m.toolsUsed,
     degraded: m.degraded,
+    turnId: m.turnId,
   };
 }
 
@@ -320,6 +329,14 @@ export function MessageBubble({ item }: { item: ChatRow }) {
             a suffix, so it reads as a time on sight. The owner chose the bare time over a
             "Sent"/"Answered" prefix — the words were tried on the device and cluttered the
             bubble, while "2:58 AM" needs no label to be understood. */}
+        {/* The turn's reference, selectable so it can be copied into a support message.
+            Only on an assistant answer the server returned it for: a question has no turn
+            of its own, and a message stored before the id existed shows nothing extra. */}
+        {!user && item.turnId ? (
+          <Text selectable testID="chat-turn-ref" style={styles.turnRef}>
+            Ref: {item.turnId}
+          </Text>
+        ) : null}
         {item.createdAt ? (
           <Text
             testID={user ? 'chat-time-user' : 'chat-time-assistant'}
@@ -765,6 +782,7 @@ const createStyles = (colors: Palette) =>
     incomplete: { ...type.caption, color: colors.warning, marginTop: spacing.sm },
     incompleteLink: { ...type.caption, color: colors.primary, fontWeight: '700', marginTop: spacing.xs },
 
+    turnRef: { ...type.caption, color: colors.textMuted, marginTop: 4, opacity: 0.75 },
     time: { ...type.caption, color: colors.textMuted, marginTop: 4, textAlign: 'right' },
     // On the primary-filled user bubble: readable in both themes without a
     // hardcoded white, which would vanish against the dark theme's light blue.
