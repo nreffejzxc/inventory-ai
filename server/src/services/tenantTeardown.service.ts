@@ -31,6 +31,7 @@ import mongoose from 'mongoose';
 
 import AIConversation from '../models/aiConversation.model.ts';
 import AIMessage from '../models/aiMessage.model.ts';
+import AiTurnMetric from '../models/aiTurnMetric.model.ts';
 import AuditLog from '../models/auditLog.model.ts';
 import Business from '../models/business.model.ts';
 import Category from '../models/category.model.ts';
@@ -76,6 +77,10 @@ export const TENANT_DATA_COLLECTIONS: Array<[string, TenantModel]> = [
   ['locations', Location],
   ['suppliers', Supplier],
   ['audit_logs', AuditLog],
+  // AI-102 — one operational row per assistant turn. It carries businessId, so a tenant
+  // teardown must remove it with the rest of that tenant's data rather than leave metrics
+  // that can no longer be tied to a business.
+  ['ai_turn_metrics', AiTurnMetric],
   // Invitation-based onboarding (2026-10-25). An invitation carries a real address and a
   // working token, so it is data, not history: closing a tenant without removing its
   // pending invitations would leave emails that promise a business that no longer exists.

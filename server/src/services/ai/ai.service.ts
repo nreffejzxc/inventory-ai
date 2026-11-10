@@ -7,9 +7,11 @@
  * to the provider — bounded by AI_MAX_TOOL_ITERATIONS so a misbehaving model
  * can never loop forever or burn unbounded tokens.
  *
- * The service never touches the database itself and never lets the model pick
+ * The service never reads business data itself and never lets the model pick
  * a tool argument it did not declare. businessId/userId/role always come from
- * the authenticated session passed in by the caller.
+ * the authenticated session passed in by the caller. AI-102 adds one operational
+ * write: the per-turn metrics row in `ai_turn_metrics`, which contains counts and
+ * provider-reported cost only — never a prompt, answer, tool result or credential.
  */
 
 import {
@@ -77,6 +79,7 @@ import type { CatalogueFact, StockValueSummary, TopOutFact } from './answerCompl
 import { locationService } from '../reference.service.ts';
 import { aiConfig } from './aiConfig.ts';
 import { newTurnId, turnRequestLine, turnResultLine } from './aiMonitor.ts';
+import { recordAiTurnMetric } from './aiMetrics.service.ts';
 import {
   AI_UNAVAILABLE,
   AiAbandoned,
@@ -918,25 +921,31 @@ export async function runAiChat({
           `($${spent.reservedUsd.toFixed(6)} still reserved today, turn=${turnId})`,
       );
     }
+    const completedAt = Date.now();
+    const totalMs = completedAt - turnStartedAt;
+    const tools = [...toolsUsed];
+    const web = nativeWebToolsUsed.size ? webToolLabel([...nativeWebToolsUsed]) : 'none';
+    const quota = quotaLabel();
+    const retries = emptyResponses + groundingRetries;
     console.log(
       turnResultLine({
         turn: turnId,
         outcome,
-        totalMs: Date.now() - turnStartedAt,
+        totalMs,
         providerMs,
         toolMs,
         calls: providerCalls,
         emptyResponses,
-        retries: emptyResponses + groundingRetries,
+        retries,
         failovers,
         reasks: simpleReadReasks,
-        tools: [...toolsUsed],
+        tools,
         toolRuns,
         inputTokens: usage?.inputTokens ?? 0,
         outputTokens: usage?.outputTokens ?? 0,
         cost: costLabel(),
-        quota: quotaLabel(),
-        web: nativeWebToolsUsed.size ? webToolLabel([...nativeWebToolsUsed]) : 'none',
+        quota,
+        web,
         upstream: upstreamProvider,
         model,
         route,
@@ -944,6 +953,40 @@ export async function runAiChat({
         iterations: steps,
       }),
     );
+    // AI-102 — the durable row behind the metrics endpoint. It is written from the same
+    // exit as the closing line, so the two cannot disagree about a turn's counts. The write
+    // is deliberately fire-and-forget: a metrics-store problem must never change an answer
+    // or turn a successful chat into a failure. `recordAiTurnMetric` swallows and logs its
+    // own errors for the same reason.
+    void recordAiTurnMetric({
+      turnId,
+      businessId,
+      userId,
+      startedAt: new Date(turnStartedAt),
+      completedAt: new Date(completedAt),
+      outcome,
+      route,
+      model,
+      upstream: upstreamProvider,
+      durationMs: totalMs,
+      providerMs,
+      toolMs,
+      calls: providerCalls,
+      emptyResponses,
+      retries,
+      failovers,
+      reasks: simpleReadReasks,
+      escalations: simpleEscalations,
+      iterations: steps,
+      toolRuns,
+      tools,
+      inputTokens: usage?.inputTokens ?? 0,
+      outputTokens: usage?.outputTokens ?? 0,
+      providerCostUsd: turnCostUsd,
+      unknownCostCalls: costMissingCalls,
+      quota,
+      web,
+    });
   };
 
   // ONE deadline for the whole turn (AI-1). It is derived once, here, and every

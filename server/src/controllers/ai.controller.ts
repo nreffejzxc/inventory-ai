@@ -26,6 +26,7 @@ import {
   AiTimeout,
 } from '../services/ai/aiErrors.ts';
 import { runAiChat, type ChatTurn } from '../services/ai/ai.service.ts';
+import { getAiMetrics, parseAiMetricsDays } from '../services/ai/aiMetrics.service.ts';
 import { asksForResearchModel } from '../services/ai/webCapabilities.ts';
 import { ROLES } from '../constants/roles.ts';
 
@@ -40,8 +41,9 @@ import { ROLES } from '../constants/roles.ts';
  * `RequestHandler`, whose parameter is a plain `Request`; a required `user`
  * would make that `Request` unassignable and every route registration a type
  * error. The reads below assert it with `!` instead, which is justified by the
- * route table — every route in `routes/ai.routes.ts` is registered
- * `requireAuth, requirePermission(PERMISSIONS.AI_USE), controller`, so the
+ * route table — every route in `routes/ai.routes.ts` is registered with
+ * `requireAuth` plus either `requirePermission(PERMISSIONS.AI_USE)` or, for the
+ * operator-only metrics route, `requireRole(ROLES.OWNER, ROLES.ADMIN)`, so the
  * middleware has always run by the time these handlers execute. Optional
  * chaining was NOT used: it would silently pass `undefined` where the code
  * would previously have thrown, which is a behaviour change.
@@ -568,6 +570,21 @@ function sseFailure(err: unknown): { status: number; code: string | null; messag
 }
 
 const aiController = {
+  /**
+   * GET /api/ai/metrics -> the business's own turn metrics for the last N UTC days.
+   *
+   * This is an operator read, not a member feature: the route is OWNER/ADMIN only. The
+   * business scope comes from `req.user`, never from the query string, and the response is
+   * marked no-store because it describes internal usage and spend.
+   */
+  async metrics(req: AuthenticatedRequest, res: Response) {
+    const parsed = parseAiMetricsDays(req.query.days);
+    if (parsed.problem) throwValidation([{ field: 'days', message: parsed.problem }]);
+    const report = await getAiMetrics(req.user!.businessId, { days: parsed.days });
+    res.setHeader('Cache-Control', 'no-store');
+    res.json(report);
+  },
+
   /** POST /api/ai/conversations -> start an (empty) conversation. */
   async createConversation(req: AuthenticatedRequest, res: Response) {
     const title = typeof req.body?.title === 'string' ? req.body.title.trim().slice(0, TITLE_MAX) : '';

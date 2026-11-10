@@ -37,6 +37,7 @@ import Supplier from '../src/models/supplier.model.ts';
 import User from '../src/models/user.model.ts';
 import AIConversation from '../src/models/aiConversation.model.ts';
 import AIMessage from '../src/models/aiMessage.model.ts';
+import AiTurnMetric from '../src/models/aiTurnMetric.model.ts';
 import { formatCollectionCounts } from '../scripts/cleanup/lib.mjs';
 import {
   clearTenantData,
@@ -135,6 +136,40 @@ async function seedEveryCleanupCollection(businessId, userId) {
     invitedBy: userId,
     expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
   });
+  await AiTurnMetric.insertMany(
+    Array.from({ length: 12 }, (_, i) => ({
+      businessId,
+      userId,
+      turnId: `preview-metric-${i}`,
+      startedAt: new Date(Date.now() - (i + 1) * 1000),
+      completedAt: new Date(Date.now() - i * 1000),
+      outcome: 'ok',
+      status: 'ok',
+      route: 'default',
+      model: 'preview/free:free',
+      tier: 'free',
+      durationMs: 1000 + i,
+      providerMs: 900,
+      toolMs: 100,
+      calls: 1,
+      emptyResponses: 0,
+      retries: 0,
+      failovers: 0,
+      reasks: 0,
+      escalations: 0,
+      iterations: 1,
+      toolRuns: 0,
+      tools: [],
+      inputTokens: 10,
+      outputTokens: 5,
+      providerCostUsd: 0,
+      providerCostComplete: true,
+      unknownCostCalls: 0,
+      costStatus: 'provider',
+      quota: 'unknown',
+      web: 'none',
+    })),
+  );
 
   return {
     ai_messages: 7,
@@ -148,6 +183,7 @@ async function seedEveryCleanupCollection(businessId, userId) {
     suppliers: 10,
     audit_logs: 11,
     invitations: 1,
+    ai_turn_metrics: 12,
   };
 }
 
