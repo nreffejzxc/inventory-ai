@@ -172,7 +172,7 @@ to `disable`, while a paid model falls back to its advanced rule or the safe def
 model, `source=AI_REASONING_PAID_MODELS` means the paid switch was used; `source=model` or
 `source=default` means an advanced rule or the advanced default decided it. Search Render's logs for
 `free-model reasoning=` or `paid-model reasoning=`; the lines contain only configuration labels and
-the model id, never a prompt or a key.
+the model id, never a prompt or a key. On 2026-11-10, production commit `27873ca` logged all three free states (`disabled field=disabled`, `enabled field=omitted`, then `disabled field=disabled` after restore) and kept the paid request at `enabled field=omitted source=AI_REASONING_PAID_MODELS` on `openai/gpt-oss-20b`. The development log carries the timestamps and turn results.
 
 ## 4. Switch models
 
