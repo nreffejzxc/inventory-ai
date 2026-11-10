@@ -78,12 +78,15 @@ const EXISTENCE_WORDING =
   /\b(?:do|does|did)\s+(?:we|you|i)\s+(?:have|carry|stock)\b|\bis\s+there\s+(?:an?\s+|any\s+)?\S|\bexist(?:s|ed|ing)?\b|\bin\s+(?:our|the)\s+inventory\b/i;
 
 /**
- * "How many products do we have?" is a catalogue count, not a single product's stock. It
- * is a fine question, but it does not belong on a route whose read requirement is a
- * product stock read, so it stays with the configured model.
+ * "How many products do we have?" is a catalogue count, and "how many total units do we
+ * have?" is a whole-inventory stock total. Neither is a single product's stock. They are
+ * fine questions, but they do not belong on a route whose read requirement is a product
+ * stock read, so they stay with the configured model. The negative lookahead keeps a
+ * named-product question such as "how many units of the Logitech MX Keys S are in stock?"
+ * on the simple route.
  */
 const AGGREGATE_NOUN =
-  /^\s*how\s+(?:many|much)\s+(?:products?|items?|skus?|categories?|locations?|brands?|users?|accounts?|suppliers?|orders?|customers?|movements?|transactions?)\b(?!\s+of\b)/i;
+  /^\s*how\s+(?:many|much)\s+(?:total\s+)?(?:(?:inventory|stock)\s+)?(?:products?|items?|skus?|units?|pieces?|pcs|categories?|locations?|brands?|users?|accounts?|suppliers?|orders?|customers?|movements?|transactions?)\b(?:\s+in\s+total|\s+of\s+(?:inventory|stock|merchandise))?(?!(?:\s+(?:in\s+)?total)?\s+of\b)/i;
 
 /**
  * Everything that makes a question more than a simple read. Price and value questions need
