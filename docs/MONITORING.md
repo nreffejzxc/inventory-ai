@@ -92,10 +92,10 @@ on invalid configuration. It never prints a response body, a token or a tenant v
 uses the same command, creates one issue titled `[production-health] Production endpoint is
 unhealthy`, does not duplicate an already-open alert, comments and closes the issue on recovery.
 The workflow can be dispatched with `ready_url` and `health_url` inputs to test the alert path without
-touching production; the scheduled run always uses the production defaults. As of 2026-11-11 GitHub
-still has not emitted a scheduled run for v2 even after the stepped-cron change. UptimeRobot is the
-primary automatic path; use `gh workflow run production-health-watch-v2.yml` for a controlled manual
-probe or a GitHub issue-path test.
+touching production; a manual run uses the production defaults unless inputs override them. GitHub
+never emitted a scheduled run for v2, and its unused schedule trigger was removed during the
+2026-11-11 cleanup. UptimeRobot is the primary automatic path; use
+`gh workflow run production-health-watch-v2.yml` for a controlled manual probe or issue-path test.
 
 ### Windows fallback (disabled)
 
@@ -126,12 +126,17 @@ UptimeRobot provides the five-minute automatic checks. The two monitors are:
 | Readiness | `https://ai-inventory-l1mi.onrender.com/api/health/ready` | HTTP `200` | 5 minutes | **Up** |
 | Health keyword | `https://ai-inventory-l1mi.onrender.com/api/health` | incident when `"db":"connected"` is absent | 5 minutes | **Up** |
 
-The UptimeRobot email contact accepted a test alert during onboarding. The monitor IDs are
-`804639237` (readiness) and `804639270` (health keyword). No credential, token or account secret is
-stored in the repository. The Windows task is disabled; see above.
+The UptimeRobot email contact was verified during onboarding; the account inbox received both the
+built-in DOWN and UP test messages. The monitor IDs are `804639237` (readiness) and `804639270`
+(health keyword). On 2026-11-12 a temporary `httpbin.org/status/500` monitor produced a real DOWN
+email at 03:49 and an UP email at 03:51 after it was switched to `/200`; the incident lasted 2m09s
+and the temporary monitor was then deleted. Only one email destination is configured; add a second
+independent contact when one is available. No credential, token or account secret is stored in the
+repository. The Windows task is disabled; see above.
 
-GitHub's own schedule still has not fired for v2, the dispatcher, the separate watch repository, or
-the shared TypeScript schedule. Those workflows remain manual/fallback paths. Evidence:
+GitHub's scheduler never fired for the experiments. The unused dispatcher was deleted, the separate
+private watch repository was archived, the TypeScript watch is weekly-only again, and v2 is
+manual-dispatch-only. The evidence remains:
 [`production-health-scheduler-hosted-2026-11-12`](evidence/production-health-scheduler-hosted-2026-11-12/README.md).
 
 ---
@@ -291,10 +296,8 @@ grep "AI turn" <log> | grep -oE "model=[^ ]+ tier=[^ ]+" | sort | uniq -c
 | External scheduler wrapper | `scripts/trigger-production-health-watch.ps1` |
 | External scheduler registration | `scripts/register-production-health-scheduler.ps1` |
 | Hosted uptime monitor | UptimeRobot, two five-minute checks (monitor IDs `804639237`, `804639270`) |
-| Hosted dispatcher | `.github/workflows/production-health-dispatch.yml` |
-| Hosted watch repository | `nreffejzxc/inventory-ai-health-watch` |
-| Shared hosted dispatch | `.github/workflows/typescript-7-watch.yml` |
+| Archived scheduling experiments | Dispatcher removed; private watch repository archived; TypeScript watch weekly-only; v2 manual-only |
 | Scheduler evidence | `docs/evidence/production-health-scheduler-2026-11-11/README.md` |
-| Hosted attempt evidence | `docs/evidence/production-health-scheduler-hosted-2026-11-12/README.md` |
+| Hosted scheduler evidence | `docs/evidence/production-health-scheduler-hosted-2026-11-12/README.md` |
 | Probe tests | `server/test/ops-production-health.test.mjs` |
 | Recorded design | `docs/DEVELOPMENT_ROADMAP.md` §27DI (the pulse), §27HU–§27HX (AI-99 through the external watch) |
