@@ -165,14 +165,16 @@ describe('AI-40 — the assistant streams its answer', () => {
       allowReset.resolve();
     });
 
-    // The replaced copy is gone before the stored answer arrives; the screen shows the wait
-    // again rather than a version the server has already discarded.
+    // The replaced copy is gone before the stored answer arrives; the screen says the
+    // answer is being corrected, not that the original analysis has restarted.
     await waitFor(() => expect(view.queryByText('Draft: OUT_OF_STOCK')).toBeNull());
-    expect(view.getByText(/Analyzing your inventory/)).toBeTruthy();
+    expect(view.getByText(/Correcting the answer/)).toBeTruthy();
+    expect(view.queryByText(/Analyzing your inventory/)).toBeNull();
     await act(async () => {
       allowReplacement.resolve();
     });
     await waitFor(() => expect(view.getByText('Draft: Out of stock')).toBeTruthy());
+    expect(view.queryByText(/Correcting the answer/)).toBeNull();
 
     await act(async () => {
       gate.resolve(TURN);

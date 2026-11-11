@@ -350,7 +350,7 @@ export function MessageBubble({ item }: { item: ChatRow }) {
   );
 }
 
-function ThinkingRow() {
+function ThinkingRow({ correcting = false }: { correcting?: boolean }) {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   return (
@@ -358,9 +358,13 @@ function ThinkingRow() {
       <View style={[styles.bubble, styles.bubbleAssistant, styles.thinking]}>
         <ActivityIndicator size="small" color={colors.primary} />
         <Text style={styles.thinkingText}>
-          Analyzing your inventory…
+          {correcting ? 'Correcting the answer…' : 'Analyzing your inventory…'}
           {'\n'}
-          <Text style={styles.thinkingHint}>A full answer can take up to a minute.</Text>
+          <Text style={styles.thinkingHint}>
+            {correcting
+              ? 'The earlier draft was replaced with the final answer.'
+              : 'A full answer can take up to a minute.'}
+          </Text>
         </Text>
       </View>
     </View>
@@ -454,6 +458,15 @@ export default function AiChat({ conversationId = null }: AiChatProps) {
    */
   const [streamingText, setStreamingText] = useState('');
   /**
+   * AI-74 — the server discarded the draft currently shown and is sending a replacement.
+   *
+   * A reset is not the original analysis starting over: the model has already answered once
+   * and the server is correcting or replacing that draft. Without this flag the bubble falls
+   * back to the generic "Analyzing your inventory" row, which makes a deliberate correction
+   * look like a failed or restarted turn.
+   */
+  const [correcting, setCorrecting] = useState(false);
+  /**
    * AI-9 — a turn the member stopped. Kept apart from `sendError` on purpose: a stop
    * is not a failure, has no sentence to show, and must survive long enough to be read
    * (the turn it belongs to is gone the moment it is aborted, so the note IS the
@@ -532,6 +545,7 @@ export default function AiChat({ conversationId = null }: AiChatProps) {
     setSendError(null);
     setStopped(false);
     setStreamingText('');
+    setCorrecting(false);
     // AI-24 — the member's own message gets a time, so the question and the answer can be
     // read as two clock times a member can subtract by eye.
     //
@@ -559,6 +573,7 @@ export default function AiChat({ conversationId = null }: AiChatProps) {
     let streamed = '';
     const onDelta = (text: string): void => {
       streamed += text;
+      setCorrecting(false);
       setStreamingText(streamed);
     };
     try {
@@ -578,6 +593,7 @@ export default function AiChat({ conversationId = null }: AiChatProps) {
             onReset: () => {
               streamed = '';
               setStreamingText('');
+              setCorrecting(true);
             },
           },
         );
@@ -654,6 +670,7 @@ export default function AiChat({ conversationId = null }: AiChatProps) {
       setSendError(sendErrorMessage(err));
     } finally {
       stopRef.current = null;
+      setCorrecting(false);
       setSending(false);
     }
   }
@@ -702,8 +719,13 @@ export default function AiChat({ conversationId = null }: AiChatProps) {
         ListEmptyComponent={<Welcome onAsk={send} />}
         ListFooterComponent={
           // AI-40 — the thinking row is for the wait BEFORE any text; once words are arriving
-          // there is nothing left to indicate.
-          sending && !streamingText ? <ThinkingRow /> : stopped ? <StoppedRow /> : undefined
+          // there is nothing left to indicate. AI-74 — after a reset the wait is labelled as
+          // a correction, not as the original analysis starting over.
+          sending && !streamingText ? (
+            <ThinkingRow correcting={correcting} />
+          ) : stopped ? (
+            <StoppedRow />
+          ) : undefined
         }
         contentContainerStyle={styles.listContent}
         onContentSizeChange={scrollToEnd}

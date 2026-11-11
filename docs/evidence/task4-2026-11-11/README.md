@@ -55,6 +55,15 @@ The 19 is independently confirmed by the Restock screen:
 [`bisaya-count-after-fix.png`](bisaya-count-after-fix.png), and
 [`restock-count-19.png`](restock-count-19.png).
 
+## Streaming reset — observed and fixed
+
+A live Tagalog count turn showed the reported sequence: a draft appeared, the bubble fell back to
+**“Analyzing your inventory…”**, then the final **“May 19 na produktong mababa ang stock.”** The
+final answer was the server's stored deterministic count (19, matching the Restock screen), not a
+truncation. The reset is AI-74: the server invalidated a draft and replayed the stored answer. The
+client now labels the wait **“Correcting the answer…”** and says the earlier draft was replaced.
+The installed app needs the next OTA to show this label; the focused Jest AI-40 suite passes 11/11.
+
 ## Limits
 
 - Only Android was tested; iOS remains an external verification item.

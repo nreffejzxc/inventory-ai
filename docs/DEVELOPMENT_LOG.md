@@ -166,11 +166,13 @@ fresh answer rendered **`Ref: 566f6d71`**. The live Bisaya and Tagalog count tur
 documents; the upgrade-watch self-test is **32/32**; `git diff --check` is clean. The full server
 database suite is left to CI because the local Mongo connection is not reliable at this hour.
 
-**Still open.** Run the workflow once against deliberately bad URLs, confirm the issue is created,
-then run it against production and confirm the issue is commented and closed. Deploy the server
-change, then ask the installed app in Bisaya and Tagalog and inspect the replies. Confirm Dependabot
-closes #20–#24 and production stays healthy. Do not describe those as complete before the evidence
-exists.
+**Streaming reset UX (2026-11-11).** A phone reproduction showed the sequence the owner reported:
+a draft was streamed, then the bubble showed **“Analyzing your inventory…”**, then the shorter final
+answer. The server had deliberately discarded the draft (`reset`) and replayed the stored answer;
+the final Tagalog count was **19**, matching the Restock screen, so the response was not truncated.
+The client now labels this state **“Correcting the answer…”** and says the earlier draft was
+replaced. The focused AI-40 streaming suite passes **11/11**; mobile typecheck and lint pass. The
+installed app needs the next OTA to show the new label.
 
 ---
 
