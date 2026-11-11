@@ -50,12 +50,16 @@ hosting account.
 ## 2. What to alert on
 
 These are the rules worth waking someone for. They are written for an outside uptime watcher
-(UptimeRobot, Better Stack, a scheduled `curl`, or the hosting provider's own check); this repository
-does not provision a pager.
+(UptimeRobot, Better Stack, a scheduled `curl`, or the hosting provider's own check). This repository
+now ships one: `.github/workflows/production-health-watch.yml` runs the read-only
+`scripts/check-production-health.mjs` every five minutes from GitHub, outside Render and outside the
+development laptop. It opens a GitHub issue after **two consecutive failures** and closes it when
+both endpoints recover. GitHub's issue notifications are the delivery channel; there is still no
+hosted pager or dashboard.
 
 | Signal | Rule | Why it matters |
 | --- | --- | --- |
-| Readiness | `/api/health/ready` returns `503` twice, 60 s apart | The API cannot reach MongoDB; requests will fail even though the process is alive |
+| Readiness | `/api/health/ready` returns `503` twice, 20 s apart | The API cannot reach MongoDB; requests will fail even though the process is alive |
 | Server errors | `counters.serverErrors` increases by 2 or more within 5 minutes | Two consecutive 5xx answers are a failure, not a blip |
 | Posture | `environment` is not `production` on the production host | A deployment booted into the wrong posture and is probably using the wrong database |
 | Build | `commit` is not the commit that was merged | A stale build or a failed deploy is serving traffic |
@@ -71,6 +75,22 @@ failing. The counters separate them for exactly this reason.
 **Thresholds are starting points, not law.** A single-instance deployment on the free tier can cold
 start after a spin-down; one slow first request is not an incident. Two consecutive `503`s on
 `/ready`, or two `5xx` answers, are.
+
+### The external watch
+
+```sh
+cd C:/Users/jeffe/inventory-ai
+node scripts/check-production-health.mjs --attempts=2 --delay-ms=20000
+gh workflow run production-health-watch.yml
+```
+
+The script exits **0** only when `/api/health/ready` is `200` and `/api/health` is `200` with
+`status: ok` and `db: connected`; it exits **1** after the configured consecutive failures and **2**
+on invalid configuration. It never prints a response body, a token or a tenant value. The workflow
+uses the same command, creates one issue titled `[production-health] Production endpoint is
+unhealthy`, does not duplicate an already-open alert, comments and closes the issue on recovery.
+The workflow can be dispatched with `ready_url` and `health_url` inputs to test the alert path without
+touching production; the scheduled run always uses the production defaults.
 
 ---
 
@@ -203,9 +223,10 @@ grep "AI turn" <log> | grep -oE "model=[^ ]+ tier=[^ ]+" | sort | uniq -c
   never zero. The endpoint does not estimate.
 - **Log retention is the host's.** A turn's text record can disappear before the aggregate does; the
   durable row is the reason the aggregate survives.
-- **No pager, no dashboard.** This repository publishes signals and documents the rules; delivery is
-  an operator-side uptime check. If a hosted alert integration is added later, record it here rather
-  than assuming the next person knows.
+- **No hosted pager or dashboard.** The GitHub Actions watch is the external delivery channel; it
+  opens and closes a GitHub issue. Its schedule is best-effort (GitHub can delay scheduled jobs), and
+  delivery follows each watcher's GitHub notification settings. A dedicated pager can replace it
+  later; record the integration here rather than assuming the next person knows.
 - **`/api/health` is public.** It publishes a commit id, a posture name and counts. It never
   publishes a path, a tenant, a member, a duration or a message.
 
@@ -223,4 +244,7 @@ grep "AI turn" <log> | grep -oE "model=[^ ]+ tier=[^ ]+" | sort | uniq -c
 | AI metrics route | `server/src/routes/ai.routes.ts`, `server/src/controllers/ai.controller.ts` |
 | Metrics DB tests | `server/test/AI102-ai-metrics.test.mjs` |
 | Counters tests | `server/test/OPS2-operational-counters.test.mjs` |
-| Recorded design | `docs/DEVELOPMENT_ROADMAP.md` §27DI (the pulse), §27HU–§27HW (AI-99 to the 10k gate and the monitoring runbook) |
+| External uptime probe | `scripts/check-production-health.mjs` |
+| External watch workflow | `.github/workflows/production-health-watch.yml` |
+| Probe tests | `server/test/ops-production-health.test.mjs` |
+| Recorded design | `docs/DEVELOPMENT_ROADMAP.md` §27DI (the pulse), §27HU–§27HX (AI-99 through the external watch) |

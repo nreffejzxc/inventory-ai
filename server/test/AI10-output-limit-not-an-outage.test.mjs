@@ -380,6 +380,62 @@ unitSuite('AI-10 the output limit is its own failure (DB-free)', () => {
     assert.match(String(final.content), /under 120 words/, 'it names a length the model can meet');
   });
 
+  it('the output-limit retry raises ONLY that call’s cap and reserves reasoning space', async () => {
+    process.env.AI_PROVIDER = 'fake';
+    const original = aiConfig().maxOutputTokens;
+    let calls = 0;
+    let secondRequest = null;
+    const warn = console.warn;
+    console.warn = () => {};
+    try {
+      setFakeScenario((ctx) => {
+        calls += 1;
+        if (calls === 1) throw new AiOutputLimit(undefined, { model: 'openai/gpt-oss-20b' });
+        secondRequest = ctx;
+        return fakeText('here is the answer.');
+      });
+      await runAiChat({
+        businessId: 'b-dummy',
+        userId: 'u-dummy',
+        role: ROLES.OWNER,
+        message: 'say hello in one sentence',
+      });
+    } finally {
+      console.warn = warn;
+      process.env.AI_PROVIDER = 'openrouter';
+    }
+
+    assert.equal(calls, 2, 'still one retry');
+    assert.equal(secondRequest.maxOutputTokens, original + Math.max(original, 1200));
+    assert.equal(secondRequest.reasoningBudgetTokens, Math.max(1024, original));
+    assert.notEqual(secondRequest.maxOutputTokens, original, 'the normal cap is not changed globally');
+  });
+
+  it('the real wire receives the retry cap and the reasoning budget', async () => {
+    respond = {
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ model: 'stub-model', content: [{ type: 'text', text: 'ok' }], stop_reason: 'end_turn' }),
+    };
+    const provider = createOpenrouterProvider();
+    const out = await provider.complete({
+      system: 's',
+      messages: [{ role: 'user', content: 'q' }],
+      tools: [],
+      maxOutputTokens: 2400,
+      reasoningBudgetTokens: 1200,
+    });
+
+    assert.equal(out.text, 'ok');
+    assert.equal(lastBody.max_tokens, 2400, 'the retry cap reaches the gateway');
+    assert.deepEqual(
+      lastBody.thinking,
+      { type: 'enabled', budget_tokens: 1200 },
+      'the retry reserves reasoning space instead of re-spending the answer budget',
+    );
+    assert.equal(aiConfig().maxOutputTokens, 1200, 'the normal configured cap is untouched');
+  });
+
   it('leaves AI-8 alone: a truncated answer that ARRIVED keeps its text', async () => {
     respond = {
       status: 200,

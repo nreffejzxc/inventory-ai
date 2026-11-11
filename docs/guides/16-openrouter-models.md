@@ -138,6 +138,15 @@ which is what a mandatory-reasoning endpoint needs.
 reasoning shares `max_tokens` with the answer, so it can consume the whole budget and return no
 text.
 
+**The one output-limit retry (AI-105).** A paid gpt-oss model can still spend the entire
+`AI_MAX_OUTPUT_TOKENS` budget on mandatory reasoning and return neither text nor a tool call. The
+assistant retries that empty limit **once**, on the same model, with a larger cap and an explicit
+`thinking: { type: 'enabled', budget_tokens: <original cap> }` field. With the default 1,200 this
+means `max_tokens: 2400` and a 1,200-token reasoning ceiling, so the answer has 1,200 tokens of its
+own. The configured cap is unchanged for every ordinary turn; a free model gets the larger cap but
+no reasoning field. The retry is visible as `AI output limit retry: cap=… reasoningBudget=…` and the
+turn still reports `AI_OUTPUT_LIMIT` if the second attempt also returns nothing.
+
 Web Search and Web Fetch are separate, independent switches; see
 [Guide 17](17-web-search-and-fetch.md).
 
@@ -235,7 +244,7 @@ unreachable or AI not configured). A `2` is never a pass.
 | `402` or `429` | No credits, or the free daily allowance is spent | Top up, or use a `:free` model and wait for the reset |
 | `404` / "not listed" | Wrong model id | Copy the id from `npm run ai:models` |
 | Model answers prose but never reads the inventory | The model cannot call tools | Choose a tool-capable model; `ai:check` reports declared tool support |
-| Answers are empty or cut off | The output budget is too small, especially with reasoning enabled | Raise `AI_MAX_OUTPUT_TOKENS` |
+| Answers are empty or cut off | The output budget is too small, especially with reasoning enabled; the first empty limit is retried automatically with a reserved reasoning budget | If it still fails, raise `AI_MAX_OUTPUT_TOKENS` or choose a model with a smaller reasoning requirement |
 | `AI_TIMEOUT` | The model is too slow for the turn deadline | Use a faster model, or raise `AI_TURN_DEADLINE_MS``AI_REASONING` is the old name for `AI_REASONING_PAID_MODELS`. It remains a deprecated fallback for one
 release, read only when the new name is absent; the boot log warns and provider logs show
 `source=AI_REASONING` while it is in use. The new name always wins when both are set, so rename the

@@ -647,6 +647,8 @@ export function createAnthropicCompatibleProvider(opts: AnthropicCompatibleOptio
       timeoutMs,
       signal,
       model: requestedModel,
+      maxOutputTokens: requestedMaxOutputTokens,
+      reasoningBudgetTokens,
       stream,
       onTextDelta,
       webResearch,
@@ -662,8 +664,22 @@ export function createAnthropicCompatibleProvider(opts: AnthropicCompatibleOptio
       // endpoints use their own switch; paid endpoints keep AI_REASONING_PAID_MODELS and the
       // advanced per-model rules. The resolved field is also what the free-model log
       // reports, so the log and the wire body cannot disagree.
-      const resolvedReasoning = resolveReasoningPolicy(model, cfg.reasoning);
-      const thinkingField = thinkingFieldFor(resolvedReasoning.policy, cfg.maxOutputTokens);
+      // AI-105 — the turn loop's output-limit retry may raise the cap and reserve
+      // reasoning space for this call only. Both values are absent on every normal
+      // request, so the configured cap and per-model policy remain the defaults.
+      const maxOutputTokens =
+        typeof requestedMaxOutputTokens === 'number' &&
+        Number.isFinite(requestedMaxOutputTokens) &&
+        requestedMaxOutputTokens > 0
+          ? Math.floor(requestedMaxOutputTokens)
+          : cfg.maxOutputTokens;
+      const resolvedReasoning = reasoningBudgetTokens
+        ? {
+            policy: { mode: 'budget' as const, budgetTokens: reasoningBudgetTokens },
+            source: 'model' as const,
+          }
+        : resolveReasoningPolicy(model, cfg.reasoning);
+      const thinkingField = thinkingFieldFor(resolvedReasoning.policy, maxOutputTokens);
       // The turn's remaining budget when the orchestrator supplied one, so a
       // call can never outlive the turn's single deadline (AI-1).
       const budget = timeoutMs ?? cfg.requestTimeoutMs;
@@ -685,7 +701,7 @@ export function createAnthropicCompatibleProvider(opts: AnthropicCompatibleOptio
       ];
       const requestBody = {
         model,
-        max_tokens: cfg.maxOutputTokens,
+        max_tokens: maxOutputTokens,
         system,
         messages: toAnthropicMessages(messages),
         // AI-50 — a turn's answer round passes no tools, and an empty `tools: []` is not the
@@ -776,7 +792,7 @@ export function createAnthropicCompatibleProvider(opts: AnthropicCompatibleOptio
           if (err instanceof AiOutputLimit) {
             console.warn(
               `AI model hit its output limit with nothing usable (provider=${name}, model=${model},` +
-                ` maxTokens=${cfg.maxOutputTokens}, stop=max_tokens) — the model spent its` +
+                ` maxTokens=${maxOutputTokens}, stop=max_tokens) — the model spent its` +
                 ` whole output budget before answering turn=${turnId ?? 'none'}`
             );
           }

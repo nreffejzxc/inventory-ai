@@ -78,6 +78,8 @@ import {
 import type { CatalogueFact, StockValueSummary, TopOutFact } from './answerCompletion.ts';
 import { locationService } from '../reference.service.ts';
 import { aiConfig } from './aiConfig.ts';
+import { languageDirective } from './language.ts';
+import { MIN_REASONING_BUDGET, isFreeModel } from './reasoningPolicy.ts';
 import { newTurnId, turnRequestLine, turnResultLine } from './aiMonitor.ts';
 import { recordAiTurnMetric } from './aiMetrics.service.ts';
 import {
@@ -710,8 +712,13 @@ export async function runAiChat({
     sourceRestricted,
   });
   if (simpleTurn && simpleIntent) {
-    prompt += `\n\n${simpleInventoryPrompt(simpleIntent)}`;
+    prompt += `\n\n${simpleInventoryPrompt(simpleIntent, message)}`;
   }
+  // AI-84 — the rule in the system prompt is not enough on a long English tool transcript.
+  // Put a direct reminder next to the answer instruction as well, so the language is a
+  // property of this turn rather than a rule the model has to recall from 38 numbered lines.
+  const languageReminder = languageDirective(message);
+  if (languageReminder) prompt += `\n\n${languageReminder}`;
 
   const messages: ProviderMessage[] = history
     .slice(-cfg.contextMessages)
@@ -823,6 +830,16 @@ export async function runAiChat({
   let degraded: DegradedReason | null = null;
   let emptyResponses = 0;
   let lastWasEmpty = false;
+  /**
+   * AI-105 — the one retry after an output-limit failure with nothing usable.
+   *
+   * The measured 10k failure was not a too-small normal cap: gpt-oss-20b spent all
+   * 1,200 tokens on mandatory reasoning on BOTH attempts, so the answer had nowhere to
+   * go. The retry keeps the normal cap for every ordinary turn, but asks for a larger
+   * cap and reserves the original amount for reasoning, leaving a full answer budget.
+   * Free models get the larger cap without the budget (their reasoning switch is off).
+   */
+  let outputLimitRetry: { maxOutputTokens: number; reasoningBudgetTokens?: number } | null = null;
   // AI-26 — how much of a truncated answer the incomplete-unit trim removed. Reported
   // beside the reason so the effect is measurable from the log instead of inferred.
   let trimmedChars = 0;
@@ -1332,6 +1349,7 @@ export async function runAiChat({
           nativeWeb: nativeWebActive,
           turnId,
           ...(currentModel ? { model: currentModel } : {}),
+          ...(outputLimitRetry ?? {}),
           // AI-40 — streaming is requested ONLY when someone is listening. A provider that
           // does not support it ignores these and answers whole, and the turn is unchanged.
           ...(onTextDelta ? { stream: true, onTextDelta: emitText } : {}),
@@ -1700,7 +1718,8 @@ export async function runAiChat({
           'No further tools are available in this turn. Answer the request now in your own ' +
           'words, using only the tool results already above. State the recorded facts you ' +
           'found and say plainly anything you could not verify; do not claim to have looked ' +
-          'up something you did not.',
+          'up something you did.' +
+          (languageReminder ? ` ${languageReminder}` : ''),
       });
     }
     let response: ProviderResponse;
@@ -1745,6 +1764,27 @@ export async function runAiChat({
       if (err instanceof AiOutputLimit && emittedChars === 0 && emptyResponses < cfg.emptyRetryMax) {
         emptyResponses += 1;
         lastWasEmpty = true;
+        if (!outputLimitRetry) {
+          const base = cfg.maxOutputTokens;
+          // The error carries the model the gateway actually spent the budget on; a
+          // hand-thrown limit in a test may not, so the turn's current model is the
+          // fallback. Keep the normal cap for every ordinary turn. This retry gets the
+          // original answer budget back, plus a reasoning allowance only for a paid
+          // model: the measured failure spent 1,200/1,200 on hidden reasoning and
+          // returned no text.
+          const retryModel = err.model ?? currentModel;
+          outputLimitRetry = {
+            maxOutputTokens: base + Math.max(base, 1200),
+            ...(retryModel && !isFreeModel(retryModel)
+              ? { reasoningBudgetTokens: Math.max(MIN_REASONING_BUDGET, base) }
+              : {}),
+          };
+          console.warn(
+            `AI output limit retry: cap=${outputLimitRetry.maxOutputTokens}` +
+              ` reasoningBudget=${outputLimitRetry.reasoningBudgetTokens ?? 'off'}` +
+              ` model=${retryModel ?? model}`,
+          );
+        }
         console.warn(
           `AI output limit reached with no content — resending the request once` +
             ` model=${err.model ?? model} out=${err.usage?.outputTokens ?? '?'}`,

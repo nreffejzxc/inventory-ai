@@ -1,6 +1,6 @@
 # Security Dependency Decisions
 
-**Status:** living decision record · **Advisories re-measured 2026-11-11** at `main`; the node-forge lockfile fix is from 2026-10-30, the zod fix from 2026-11-02, and the minimatch override from 2026-11-07. Minimatch alerts #18/#19 are closed; the remaining alerts are `glob` (#14/#16) and `deepmerge` (#13). Production served `e15136a` at the 2026-11-11 close-out; the 2026-11-10 anchor was `eda08d0`; the `8fe6403` sentence in D-13 records the state when that override merged. Verify the current serving commit at `/api/health` rather than treating a dated anchor as live.
+**Status:** living decision record · **Advisories re-measured 2026-11-11** at `main`; the node-forge 1.4.3 and fast-xml-parser 5.12.0 lockfile fixes are from this session, the earlier node-forge 1.4.2 fix from 2026-10-30, the zod fix from 2026-11-02, and the minimatch override from 2026-11-07. The 2026-11-11 Dependabot read had **8 open alerts**; #20–#24 are patched by this session’s lockfiles, leaving `glob` (#14/#16) and `deepmerge` (#13). Production served `e15136a` before this session’s deploy; verify the current serving commit at `/api/health` rather than treating a dated anchor as live.
 
 An advisory that is not being fixed is **named, evidenced and dispositioned**, never left implied.
 This file covers dependency advisories only; application security decisions are in
@@ -27,16 +27,24 @@ server through `firebase-admin`'s production chain (`google-gax → rimraf → g
 entries and **35** mobile entries; the post-merge result is **5** and **27**, with two advisories
 remaining, because `npm audit` counts dependents.
 
-On 2026-10-30 the **third** mobile advisory — `node-forge` (GHSA-86w9-cpqp-85rv, high) — was fixed in
-the lockfile by a bump from `1.4.0` to `1.4.2`, inside its consumer's `^1.4.0` range. That fix stands.
+On 2026-10-30 the earlier mobile `node-forge` advisory was fixed in the lockfile by a bump from
+`1.4.0` to `1.4.2`, inside its consumer's `^1.4.0` range. On 2026-11-11 the four newer node-forge
+advisories (#20–#23, three medium and one low) were fixed by a second lockfile-only bump to
+**1.4.3**, again inside `@expo/code-signing-certificates` / `@expo/cli`'s declared `^1.4.0` range.
+The four alerts stay open until this lockfile reaches the default branch; Dependabot then closes them.
+
+On 2026-11-11 the low `fast-xml-parser` advisory (#24, GHSA-474x-hrwr-fgx4) was fixed by a
+lockfile-only bump to **5.12.0** under `@google-cloud/storage@8.3.0`, which declares `^5.3.4`.
+The nested `@nodable/entities`, `fast-xml-builder`, `is-unsafe` and `strnum` packages were updated
+with it; `server/package.json` was not changed.
 
 On 2026-11-02 the **zod** high advisory was cleared by the Expo 58.0.22 patch: `expo@58.0.22` installs `@expo/cli@58.1.18`, whose manifest no longer declares `zod`, and the nested `zod@3.25.76` is gone. The only `zod` in the tree is `4.6.7`, outside the advisory range.
 
 `npm audit` counts **dependents, not distinct defects**. The server's 5 entries are one advisory
 seen through its parents; the mobile's 27 entries are two advisories, with **no high entry**.
-At the 2026-11-02 measurement, Dependabot grouped them into five package alerts across the two
-manifests; after D-13 the minimatch pair (#18/#19) is closed and the remaining alerts are glob
-(#14/#16) and deepmerge (#13).
+The 2026-11-11 Dependabot read grouped the vulnerable packages into **8 open alerts** across the two
+manifests: #20–#23 node-forge, #24 fast-xml-parser, #14/#16 glob and #13 deepmerge. This session’s
+lockfiles patch the first five; the remaining three stay under D-10 and D-4.
 
 The counts above describe `main` after #173/#174 merged. Both lockfiles resolve one
 `minimatch@11.0.5`, and the minimatch finding is gone. D-13 records the accepted override and its
@@ -49,6 +57,8 @@ post-merge evidence.
 | Advisory | Severity | Installed | Pulled in by | Patched / state |
 | --- | --- | --- | --- | --- |
 | **GHSA-mrhx-c7xc-m3w5** — `zod` exhausts memory validating an oversized array against a length-unconstrained schema (CWE-770) | high, 7.5 | **none** — the nested `3.25.76` was removed | Was `expo@58.0.19 → @expo/cli@58.1.15`; **cleared** by `expo@58.0.22 → @expo/cli@58.1.18`, which declares no `zod` | **CLEARED 2026-11-02** — only `zod@4.6.7` remains, via `eslint-plugin-react-hooks` |
+| **GHSA-j8rw-jp99-435v**, **GHSA-6cv4-p8m7-4r25**, **GHSA-w4xr-hqv8-ch44**, **GHSA-6889-vf6x-f3g5** — `node-forge` TLS/HTTP denial-of-service and Ed25519 verification advisories | medium ×3, low ×1 | `1.4.3` (was `1.4.2`) | `@expo/code-signing-certificates@0.0.7` and `@expo/cli@58.1.18`; both declare `node-forge ^1.4.0` | **FIXED IN LOCKFILE 2026-11-11** — Dependabot #20–#23; no `package.json` change |
+| **GHSA-474x-hrwr-fgx4** — `fast-xml-parser` quadratic CPU consumption scanning unterminated stop-node tags | low | `5.12.0` (was `5.11.1`) | `@google-cloud/storage@8.3.0`, which declares `fast-xml-parser ^5.3.4` | **FIXED IN LOCKFILE 2026-11-11** — Dependabot #24; no `package.json` change |
 | **GHSA-gcqx-w48m-w2h4** — `deepmerge` `mergeObject()` allows prototype poisoning of the returned object (CWE-1321) | low, 5.3 | `4.3.1` | `expo@58.0.22 → @expo/config@58.0.10`, and `jest@30.5.2 → jest-config@30.5.2`; both declare `deepmerge: ^4.2.2` | **none published** — `4.3.1` is both the newest release and inside `>= 4.2.0 <= 4.3.1` |
 | **GHSA-3g3m-2fjr-6pw4** — `glob` abort-signal cancellation bypass allows post-timeout filesystem traversal | medium | `13.0.6` (mobile), `10.5.0` (both) | `expo-updates@58.0.20`, `@expo/cli`, `@expo/config`, `@expo/metro-config`, Jest reporters; server `google-gax@5.0.8 → rimraf@5.0.10` | `>= 14.0.2` |
 | **GHSA-g3hv-75wg-m249** — `minimatch` denial of service via globparts amplification | medium | `11.0.5` (both; was `10.2.6`, `9.0.9`, `3.1.5`) | `eslint`, `@eslint/config-array`, `@typescript-eslint/typescript-estree`, `eslint-plugin-import` and `eslint-plugin-react`; every `glob` row above; Jest's `test-exclude` | **FIXED 2026-11-07** — D-13 override to `11.0.5`; alerts #18/#19 closed |
@@ -81,7 +91,7 @@ post-merge evidence.
 
 | ID | Decision | State |
 | --- | --- | --- |
-| **D-9** | **`node-forge` is FIXED IN THE LOCKFILE** by a bump to `1.4.2`. That change did not alter `mobile/package.json`; no override, no package added or removed. The consumer already admits the patched release, and the mobile suite passes on the new tree. The GitHub alert stays open until this change reaches the default branch. | **FIXED IN LOCKFILE 2026-10-30** |
+| **D-9** | **`node-forge` is FIXED IN THE LOCKFILE** by a bump to `1.4.3` for the four 2026-11-10 advisories (#20–#23). The earlier 1.4.2 fix remains history. Neither change altered `mobile/package.json`; no override, no package added or removed. The consumers (`@expo/code-signing-certificates@0.0.7` and `@expo/cli@58.1.18`) already admit `^1.4.0`, and the mobile checks pass on the new tree. The GitHub alerts stay open until this change reaches the default branch. | **FIXED IN LOCKFILE 2026-11-11** |
 | **D-4** | **The remaining D-4 mobile advisory is ACCEPTED AND DOCUMENTED** as residual risk — the low `deepmerge` advisory. `zod` is closed (D-11); no remediation is applied to `deepmerge`, and `glob` remains under D-10; `minimatch` is fixed by D-13. | **ACCEPTED — deepmerge only** |
 | **D-5** | **`npm audit fix` is NOT run.** Its proposal is `expo@51.0.39` — a **downgrade of seven SDK majors** from the installed 58.0.22. That is not a fix; it would replace the whole supported SDK line with an older one. | **REJECTED** |
 | **D-6** | **npm `overrides` are NOT used** to force `zod` 4.x into `@expo/cli` or to replace `deepmerge`. Both would install a dependency the parent never declared, against a consumer that has not been tested with it. | **REJECTED** |
@@ -91,13 +101,14 @@ post-merge evidence.
 | **D-11** | **The `zod` high advisory is FIXED IN THE LOCKFILE** by the Expo 58.0.22 patch. `mobile/package.json` moves `expo` from `~58.0.19` to `~58.0.22`; `npm install` resolves `@expo/cli@58.1.18`, which no longer declares `zod`, and removes the nested `zod@3.25.76`. No override and no `npm audit fix` were used. | **FIXED IN LOCKFILE 2026-11-02** |
 | **D-12** | **The minimatch override is UNDER REVIEW, not accepted.** Draft PRs #173 (mobile) and #174 (server) add `overrides.minimatch: "^11.0.1"`; both trees resolve `11.0.5`, and local typecheck/lint plus all four CI checks pass. The override crosses D-6/D-10 and is not merged. Merging requires an explicit owner decision and a dated amendment to D-10 (or a separate acceptance); until then the counts and alert state above are unchanged. | **CLOSED — SUPERSEDED BY D-13 (2026-11-07)** |
 | **D-13** | **The minimatch override is ACCEPTED AND MERGED as a narrow exception to D-10.** PR #173 (mobile) and #174 (server) add `overrides.minimatch: "^11.0.1"`; both lockfiles resolve one `11.0.5`. #173 merged as `0eca990`; #174 merged as `8fe6403` after all four checks passed in runs `42355968583` and `42356272906`. Render served `8fe6403` with `status: ok`, `db: connected` and 0 server errors when that override merged; production had advanced to `e15136a` by the 2026-11-11 close-out. Alerts #18/#19 are closed. `glob` remains under D-10; `deepmerge` remains D-4. | **FIXED 2026-11-07** |
+| **D-14** | **`fast-xml-parser` is FIXED IN THE LOCKFILE** by a bump to `5.12.0` (Dependabot #24). The consumer already declares `^5.3.4`; `server/package.json` was not changed. The package is a transitive dependency of `@google-cloud/storage`, not an application import. The server’s full checks pass on the new tree. The GitHub alert stays open until this change reaches the default branch. | **FIXED IN LOCKFILE 2026-11-11** |
 
 The reasoning for the remaining advisories is the same: the vulnerable API is never invoked by
 application code, the package is confined to build or library-internal tooling, and every available
 "fix" trades a non-exploitable advisory for a major that the consumer never declared. **A dependency
 upgrade for a non-reachable advisory is a real risk taken to remove a theoretical one.** The upgrades
-that were both patched and inside their consumer's ranges — `node-forge` 1.4.2 and the `expo` 58.0.22
-patch that removed the nested `zod` 3.x — were taken.
+that were both patched and inside their consumer's ranges — `node-forge` 1.4.3, `fast-xml-parser`
+5.12.0, and the `expo` 58.0.22 patch that removed the nested `zod` 3.x — were taken.
 
 ---
 
@@ -170,5 +181,8 @@ pre-merge 2026-11-07 measurement; rows 23–24 are merge evidence; rows 25–27 
 | 26 | `curl -fsS https://ai-inventory-l1mi.onrender.com/api/health` (2026-11-07) | 200; `status: ok`, `db: connected`, `environment: production`, commit `8fe6403`, **0** server errors |
 | 27 | `gh api repos/nreffejzxc/inventory-ai/dependabot/alerts` (2026-11-07) | #18/#19 minimatch **closed**; #14/#16 glob and #13 deepmerge open |
 | 28 | `npm audit --json` in `server/` and `mobile/`; `gh api repos/nreffejzxc/inventory-ai/dependabot/alerts` (2026-11-09) | server `{low:0, moderate:5, high:0, critical:0, total:5}`; mobile `{low:1, moderate:26, high:0, critical:0, total:27}`; #14/#16 glob and #13 deepmerge open; #18/#19 minimatch closed |
+| 29 | `gh api repos/nreffejzxc/inventory-ai/dependabot/alerts` (2026-11-11) | **8 open**: #20–#23 `node-forge` (GHSA-j8rw-jp99-435v, GHSA-6cv4-p8m7-4r25, GHSA-w4xr-hqv8-ch44, GHSA-6889-vf6x-f3g5), #24 `fast-xml-parser` (GHSA-474x-hrwr-fgx4), #14/#16 `glob`, #13 `deepmerge` |
+| 30 | `cd mobile && npm ls node-forge`; `cd server && npm ls fast-xml-parser`; `npm audit --json` in both (2026-11-11) | mobile resolves `node-forge@1.4.3` under `@expo/code-signing-certificates@0.0.7` and `@expo/cli@58.1.18`; server resolves `fast-xml-parser@5.12.0` under `@google-cloud/storage@8.3.0`; audits are server `{low:0, moderate:5, high:0, critical:0, total:5}` (only `glob`) and mobile `{low:1, moderate:26, high:0, critical:0, total:27}` (`glob`, `deepmerge`) |
+| 31 | `cd server && npm run typecheck && npm run lint && npm run test:unit`; `cd mobile && npm run typecheck && npm run lint && npm test -- --runInBand` (2026-11-11) | server typecheck/lint exit 0; **2,038 unit tests: 1,976 pass, 62 skipped, 0 fail**; mobile typecheck/lint exit 0; **102 suites / 1,208 tests**, all pass |
 
 No credential, token or secret value appears in this record.

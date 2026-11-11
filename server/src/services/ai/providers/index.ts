@@ -116,6 +116,23 @@ export interface ProviderRequest {
    */
   model?: string;
   /**
+   * An optional output cap for THIS call, used by the turn loop's one
+   * output-limit retry. Absent on every normal request, so the configured
+   * `AI_MAX_OUTPUT_TOKENS` remains the single default. A provider that ignores
+   * it keeps its configured cap.
+   */
+  maxOutputTokens?: number;
+  /**
+   * An optional reasoning budget for THIS call. It exists only for the
+   * output-limit retry: the paid gpt-oss route was measured spending the whole
+   * output cap on hidden reasoning and returning no answer, so the retry asks
+   * the gateway to reserve part of the larger cap for the visible answer.
+   *
+   * Free models do not receive it (their reasoning switch stays off). Absent on
+   * every normal request.
+   */
+  reasoningBudgetTokens?: number;
+  /**
    * Wall-clock budget for THIS call, in ms (AI-1). runAiChat passes the time
    * remaining in the turn's single deadline, so the turn's total cost is bounded
    * by that deadline rather than by (per-call cap x tool iterations). Optional:

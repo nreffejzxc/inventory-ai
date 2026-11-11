@@ -16,6 +16,7 @@
  * every advanced cue below leaves the turn exactly as it was before this feature.
  */
 
+import { languageDirective } from './language.ts';
 import { declaresToolSupport } from './modelCapabilities.ts';
 import { asksForResearchModel, asksForWebResearch } from './webCapabilities.ts';
 
@@ -240,8 +241,8 @@ const DESCRIPTIONS: Record<SimpleInventoryOperation, string> = {
  * answer), 12 (answer only what was asked) and 38 (reply in the member's language) still
  * apply. The last line keeps the free model's answer the size of the question.
  */
-export function simpleInventoryPrompt(intent: SimpleInventoryIntent): string {
-  return [
+export function simpleInventoryPrompt(intent: SimpleInventoryIntent, message = ''): string {
+  const lines = [
     'SIMPLE INVENTORY READ FOR THIS TURN.',
     `The member asked for ${DESCRIPTIONS[intent.operation]}.`,
     `Call ${intent.readTools.join(' or ')} once, then answer only from the rows it returns.`,
@@ -249,7 +250,10 @@ export function simpleInventoryPrompt(intent: SimpleInventoryIntent): string {
     'Quote the product names, quantities and count exactly as the result states them.',
     'If the result has no matching product or no shortage rows, say that plainly in one sentence.',
     'Keep the answer to at most three sentences; no table, no recommendation and no extra section.',
-  ].join(' ');
+  ];
+  const language = languageDirective(message);
+  if (language) lines.push(language);
+  return lines.join(' ');
 }
 
 /** The first re-ask stays on the free model. */
