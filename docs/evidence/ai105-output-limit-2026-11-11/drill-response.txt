@@ -1,0 +1,24 @@
+Production drill response summary
+================================
+Endpoint: https://ai-inventory-l1mi.onrender.com/api/ai/chat
+Production commit: c3bd692
+Drill header: x-ai-output-limit-drill: retry
+Conversation history before request: 12 stored messages
+Request message: say hello in one sentence
+
+HTTP status: 201
+Turn: 2d856074
+Model: openai/gpt-oss-20b
+Tools: getInventorySummary, getStockValue
+Degraded: none
+Answer: The value of all on-hand inventory is 266,383,708.
+
+Render closing record:
+AI turn outcome=ok status=ok duration=5.41s total=5410ms providerMs=5168ms toolMs=231ms
+calls=3 attempts=3 empty=1 retries=1 failovers=0 reasks=0
+tools=getInventorySummary,getStockValue toolRuns=2 turn=2d856074
+
+Render trim record:
+AI output limit retry: trimmed 8 prior message(s), kept the current turn
+
+No token, credential, user id, tenant id, or message history is included here.
