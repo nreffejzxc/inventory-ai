@@ -50,16 +50,14 @@ hosting account.
 ## 2. What to alert on
 
 These are the rules worth waking someone for. They are written for an outside uptime watcher
-(UptimeRobot, Better Stack, a scheduled `curl`, or the hosting provider's own check). This repository
-ships a GitHub-hosted probe: `.github/workflows/production-health-watch-v2.yml` runs the read-only
-`scripts/check-production-health.mjs` from GitHub, outside Render. GitHub has not emitted a
-`schedule` event for this workflow. A separate hosted dispatcher
-(`.github/workflows/production-health-dispatch.yml`), a separate private watch repository, and a
-five-minute dispatch guard in the working TypeScript watch also exist, but none produced a scheduled
-run through 2026-11-11T19:21Z. The Windows task remains the
-only automatic trigger for now. It opens a GitHub issue after **two consecutive failures** and
-closes it when both endpoints recover. GitHub's issue notifications are the delivery channel; there is still no
-hosted pager or dashboard.
+(UptimeRobot, Better Stack, a scheduled `curl`, or the hosting provider's own check). Production is
+now watched by **UptimeRobot** with two five-minute monitors: readiness requires
+`/api/health/ready` to return `200`, and the health keyword monitor alerts when `"db":"connected"` is
+absent from `/api/health`. Both were **Up** after creation, and UptimeRobot accepted a test alert to
+the account's email contact. The repository also ships a GitHub-hosted probe:
+`.github/workflows/production-health-watch-v2.yml` runs the read-only
+`scripts/check-production-health.mjs`; GitHub still has not emitted a `schedule` event, so its manual
+dispatch and the GitHub issue path remain a fallback. The Windows task is disabled.
 
 | Signal | Rule | Why it matters |
 | --- | --- | --- |
@@ -95,50 +93,46 @@ uses the same command, creates one issue titled `[production-health] Production 
 unhealthy`, does not duplicate an already-open alert, comments and closes the issue on recovery.
 The workflow can be dispatched with `ready_url` and `health_url` inputs to test the alert path without
 touching production; the scheduled run always uses the production defaults. As of 2026-11-11 GitHub
-still has not emitted a scheduled run for v2 even after the stepped-cron change. The manual fallback
-remains: use `gh workflow run production-health-watch-v2.yml`; the probe and issue path are identical, and the
-manual dispatch is the supported fallback.
+still has not emitted a scheduled run for v2 even after the stepped-cron change. UptimeRobot is the
+primary automatic path; use `gh workflow run production-health-watch-v2.yml` for a controlled manual
+probe or a GitHub issue-path test.
 
-### External scheduler on the operator laptop
+### Windows fallback (disabled)
 
-GitHub still emits no `event=schedule` run for v2. A Windows Task Scheduler job now dispatches the
-workflow every five minutes:
+UptimeRobot is the primary automatic trigger. The Windows Task Scheduler job is retained as a
+manual fallback and was **disabled** on 2026-11-11T19:32:14Z, after both UptimeRobot monitors were up.
+Its last run at 19:31:36Z succeeded with task result `0`; no further dispatch is scheduled while the
+task is disabled.
 
 - **Task:** `InventoryAI Production Health Watch`
 - **Wrapper:** `scripts/trigger-production-health-watch.ps1`
 - **Registration:** `scripts/register-production-health-scheduler.ps1`
 - **Log:** `%LOCALAPPDATA%\InventoryAI\production-health-scheduler.log`
-- **First automatic run:** 2026-11-12 01:36:35 +08:00, task result `0`; workflow run
+- **Prior automatic run:** 2026-11-12 01:36:35 +08:00, task result `0`; workflow run
   [`43069829375`](https://github.com/nreffejzxc/inventory-ai/actions/runs/43069829375)
   (`workflow_dispatch`) succeeded in 14 seconds. Evidence:
   [`production-health-scheduler-2026-11-11`](evidence/production-health-scheduler-2026-11-11/README.md).
 
-The wrapper skips a dispatch while a v2 run is queued or active. It uses the operator's existing
-`gh` login; **no token is stored in the repository or the task.** This trigger is external to
-GitHub's schedule and to Render, but it is not a hosted scheduler: it runs only while the operator
-is signed in and the laptop is awake and online. If the laptop is offline, no check is dispatched;
-use `gh workflow run production-health-watch-v2.yml` manually. A hosted scheduler with a scoped
-`workflow` token is the durable replacement; do not commit that token.
+The wrapper uses the operator's existing `gh` login and stores no token. Re-enable the task only if
+UptimeRobot is unavailable; `gh workflow run production-health-watch-v2.yml` remains the manual
+fallback.
 
-### Hosted scheduler attempts — not active
+### Hosted scheduler: UptimeRobot
 
-Three credential-free hosted attempts were merged on 2026-11-11:
+UptimeRobot provides the five-minute automatic checks. The two monitors are:
 
-- `.github/workflows/production-health-dispatch.yml` uses the repository `GITHUB_TOKEN` with
-  `actions: write` to dispatch v2. Its manual run `43078454582` succeeded and dispatched v2
-  `43078473387`; it has produced no `event=schedule` run.
-- `nreffejzxc/inventory-ai-health-watch` is a separate private repository with the same read-only
-  probe and issue alert path. Its manual run `43080451330` succeeded; it has produced no scheduled
-  run either.
-- `.github/workflows/typescript-7-watch.yml` now carries a `*/5` schedule with a guarded job that
-  dispatches v2. That workflow's prior weekly schedule had fired on 2026-11-09, but no fresh
-  scheduled run appeared through 2026-11-11T19:21Z.
+| Check | Target | Rule | Interval | State at cutover |
+| --- | --- | --- | --- | --- |
+| Readiness | `https://ai-inventory-l1mi.onrender.com/api/health/ready` | HTTP `200` | 5 minutes | **Up** |
+| Health keyword | `https://ai-inventory-l1mi.onrender.com/api/health` | incident when `"db":"connected"` is absent | 5 minutes | **Up** |
 
-GitHub reported Actions operational and the dispatcher and watch workflow active, with no scheduled
-run through 2026-11-11T19:21Z. The laptop task was therefore **not disabled**. Evidence:
+The UptimeRobot email contact accepted a test alert during onboarding. The monitor IDs are
+`804639237` (readiness) and `804639270` (health keyword). No credential, token or account secret is
+stored in the repository. The Windows task is disabled; see above.
+
+GitHub's own schedule still has not fired for v2, the dispatcher, the separate watch repository, or
+the shared TypeScript schedule. Those workflows remain manual/fallback paths. Evidence:
 [`production-health-scheduler-hosted-2026-11-12`](evidence/production-health-scheduler-hosted-2026-11-12/README.md).
-The next step is an independent hosted uptime monitor; its account credential is not in the
-repository.
 
 ---
 
@@ -271,13 +265,10 @@ grep "AI turn" <log> | grep -oE "model=[^ ]+ tier=[^ ]+" | sort | uniq -c
   never zero. The endpoint does not estimate.
 - **Log retention is the host's.** A turn's text record can disappear before the aggregate does; the
   durable row is the reason the aggregate survives.
-- **No hosted pager or dashboard.** The GitHub Actions workflow is the delivery channel; it
-  opens and closes a GitHub issue. Its GitHub `schedule` trigger has not fired. Three credential-free
-  hosted attempts also produced no scheduled run through 2026-11-11T19:21Z, so a Windows task on the
-  operator laptop is still the only automatic trigger, dispatching every five minutes. That task
-  stops when the laptop is signed out, asleep or offline, and has no independent alert if dispatch
-  fails. Delivery follows each watcher's GitHub notification settings. A hosted scheduler and a
-  dedicated pager can replace these limits later; record the integration here.
+- **No hosted pager or dashboard.** UptimeRobot's email contact is the automatic delivery
+  channel: two five-minute checks cover readiness and the `db: connected` keyword. The Windows fallback
+  is disabled, and the GitHub workflow is a manual/fallback path. A dedicated pager or a hosted
+  dashboard is still absent; record the integration here if one is added.
 - **`/api/health` is public.** It publishes a commit id, a posture name and counts. It never
   publishes a path, a tenant, a member, a duration or a message.
 
@@ -299,6 +290,7 @@ grep "AI turn" <log> | grep -oE "model=[^ ]+ tier=[^ ]+" | sort | uniq -c
 | External watch workflow | `.github/workflows/production-health-watch-v2.yml` |
 | External scheduler wrapper | `scripts/trigger-production-health-watch.ps1` |
 | External scheduler registration | `scripts/register-production-health-scheduler.ps1` |
+| Hosted uptime monitor | UptimeRobot, two five-minute checks (monitor IDs `804639237`, `804639270`) |
 | Hosted dispatcher | `.github/workflows/production-health-dispatch.yml` |
 | Hosted watch repository | `nreffejzxc/inventory-ai-health-watch` |
 | Shared hosted dispatch | `.github/workflows/typescript-7-watch.yml` |
