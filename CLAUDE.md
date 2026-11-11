@@ -262,8 +262,9 @@ The project is built in phases: one phase, one purpose, one verification record.
 | AI-91/AI-92 | Exact product identity and per-location stock answers — §27HT, merged as `6d95168` and production-verified |
 | AI-99 | Free-first simple inventory route, deterministic stock totals and restock counts, bounded paid fallback, resumable 10k evaluator — merged as `8b6353a`, deployed and OTA-published (§27HU) |
 | AI-99 10k gate | 10,256-product gate: 24/25, one real output-limit failure; free allowance at 0/1000 — §27HV |
+| AI-103 / OPS-3 | Whole-set receipt and transfer totals in history answers; the operator monitoring runbook — §27HW |
 
-Most letter-numbered increments are roadmap records; AI-87/AI-88 are log-only and AI-91/AI-92 are in §27HT. AI-99 is in §27HU and its 10k gate is in §27HV; the index below is complete.
+Most letter-numbered increments are roadmap records; AI-87/AI-88 are log-only and AI-91/AI-92 are in §27HT. AI-99 is in §27HU, its 10k gate is in §27HV, and AI-103/OPS-3 is in §27HW; the index below is complete.
 
 ## Operational traps worth knowing
 
@@ -319,7 +320,7 @@ below has the measurement.
   artifacts now answer 400. Record an id only after `eas build:view <id>` resolves, and treat a
   published AAB that is not downloaded and kept as gone. See §27FN.
 
-## Open items (2026-11-09)
+## Open items (2026-11-11)
 
 This is a dated snapshot of the project's open work. The **living** version — updated every session,
 with what is in progress, verified or blocked — is [`docs/DEVELOPMENT_LOG.md`](docs/DEVELOPMENT_LOG.md).
@@ -333,6 +334,11 @@ with what is in progress, verified or blocked — is [`docs/DEVELOPMENT_LOG.md`]
   `zod@3.25.76`; `node-forge` is **fixed in the lockfile** at 1.4.2 (§27GX).
   `scripts/check-upgrade-watches.mjs` reports `deepmerge` `DEFERRED`, `zod` and `node-forge` `CLOSED`;
   the `glob` gate is in [`docs/SECURITY_DEPENDENCY_DECISIONS.md`](docs/SECURITY_DEPENDENCY_DECISIONS.md) §4.
+- **Server monitoring is observable, not paged (2026-11-11).** [`docs/MONITORING.md`](docs/MONITORING.md)
+  documents the three health endpoints, the OPS-2 response pulse, the AI turn records, the
+  OWNER/ADMIN `GET /api/ai/metrics` aggregate, the alert thresholds and the incident procedure.
+  No hosted pager, dashboard or shared counter exists; the OPS-2 counters are process-local and
+  the runbook says so.
 - **L-17 is closed as not applicable (2026-11-07)**: the active reset is AUTH-06's Brevo six-digit
   code, not Firebase's emailed action link. Firebase's Password Reset template remains hosted with
   no custom action URL; if that link path is reintroduced, L-17 reopens.
@@ -583,6 +589,7 @@ anchor (`§27…`) in that file.
 - **§27HT** — AI-91/AI-92 — exact product identity and per-location stock (2026-11-09)
 - **§27HU** — AI-99 — free-first simple inventory, deployed with the 1.0.2 OTA (2026-11-10)
 - **§27HV** — AI-99 10,256-product simple-inventory gate (2026-11-10)
+- **§27HW** — AI-103 / OPS-3 — whole-set history totals and the operator monitoring runbook (2026-11-11)
 
 ---
 

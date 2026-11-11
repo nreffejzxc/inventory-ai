@@ -223,4 +223,4 @@ grep "AI turn" <log> | grep -oE "model=[^ ]+ tier=[^ ]+" | sort | uniq -c
 | AI metrics route | `server/src/routes/ai.routes.ts`, `server/src/controllers/ai.controller.ts` |
 | Metrics DB tests | `server/test/AI102-ai-metrics.test.mjs` |
 | Counters tests | `server/test/OPS2-operational-counters.test.mjs` |
-| Recorded design | `docs/DEVELOPMENT_ROADMAP.md` §27DI (the pulse), §27HU–§27HV (AI-99 to the 10k gate) |
+| Recorded design | `docs/DEVELOPMENT_ROADMAP.md` §27DI (the pulse), §27HU–§27HW (AI-99 to the 10k gate and the monitoring runbook) |

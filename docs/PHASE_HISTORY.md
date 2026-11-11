@@ -103,6 +103,9 @@ What's New card was observed on 2026-11-10.
 durable turn metrics plus the OWNER/ADMIN metrics endpoint are live as `eda08d0`. The matching
 answer-reference What's New bundle is production OTA group `e38e07bf`; the device observation is
 still pending. Both are recorded in `DEVELOPMENT_LOG.md`.
+`AI-103` (whole-set receipt and transfer totals in history answers) and `OPS-3` (the operator
+monitoring runbook) were delivered on 2026-11-11; two test-isolation defects found by the local
+database run were fixed in the same session. See `DEVELOPMENT_LOG.md` and §27HW.
 The earlier assistant increments cover the turn deadline,
 retries, answer rendering, the cost line, quota, failover, streaming, and finally one provider
 (OpenRouter). The
