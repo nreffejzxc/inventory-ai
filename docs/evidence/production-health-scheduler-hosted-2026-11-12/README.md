@@ -4,7 +4,7 @@
 
 **No cutover. The Windows Task Scheduler job remains the only automatic trigger.** GitHub has not
 emitted an `event=schedule` run for any of the hosted paths attempted here, through
-**2026-11-11T19:01Z**. A manual hosted run succeeds, but that is not continuous monitoring and does
+**2026-11-11T19:21Z**. A manual hosted run succeeds, but that is not continuous monitoring and does
 not justify disabling the laptop task.
 
 The 10K gate rerun is a separate, completed result: **24/25 written, 25/25 semantically correct, 0
@@ -18,6 +18,7 @@ errors, 0 degraded, $0.000000**. See
 | v2 cron corrected from `2-59/5` to `*/5` | PR #239, merged as `83a9f26` | Workflow active; **0** `event=schedule` runs through 19:01Z |
 | Hosted dispatcher in the main repository | PR #240, merged as `66b0929`; workflow `415018961` | Manual run [`43078454582`](https://github.com/nreffejzxc/inventory-ai/actions/runs/43078454582) succeeded and dispatched v2 [`43078473387`](https://github.com/nreffejzxc/inventory-ai/actions/runs/43078473387); v2 succeeded. **0** scheduled dispatcher runs |
 | Separate private watch repository | `nreffejzxc/inventory-ai-health-watch`, commit `1d627de` | Manual run [`43080451330`](https://github.com/nreffejzxc/inventory-ai-health-watch/actions/runs/43080451330) succeeded; **0** scheduled runs |
+| Shared schedule in the working TypeScript watch | PR #242, merged as `8a89a53` | Added a `*/5` schedule and guarded dispatch job; the workflow's previous weekly schedule had fired 2026-11-09, but **0** fresh scheduled runs appeared through 19:21Z |
 
 The separate repository runs the same read-only probe as the main workflow and opens/closes a GitHub
 issue on the two-consecutive-failure rule. Its manual run reported:
@@ -31,7 +32,7 @@ issue on the two-consecutive-failure rule. Its manual run reported:
 | Check | State |
 | --- | --- |
 | Windows task | `InventoryAI Production Health Watch`, state `Ready` |
-| Latest fallback v2 run | [`43082520164`](https://github.com/nreffejzxc/inventory-ai/actions/runs/43082520164), `workflow_dispatch`, success at 18:56:40Z |
+| Latest fallback v2 run | [`43085684883`](https://github.com/nreffejzxc/inventory-ai/actions/runs/43085684883), `workflow_dispatch`, success at 19:16:40Z |
 | Hosted scheduled run | none observed |
 | GitHub Actions status | operational during the checks |
 | New repository workflow | active, default branch `main`, Actions enabled |
