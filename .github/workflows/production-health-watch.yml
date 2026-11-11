@@ -14,7 +14,12 @@ name: Production health watch
 on:
   schedule:
     # GitHub may delay scheduled runs; this is detection, not a 99.999% SLA.
-    - cron: '*/5 * * * *'
+    # Offset from :00 deliberately: GitHub's scheduler drops queued runs at the
+    # top of the hour, and this workflow's first schedule was never registered
+    # after it was added on 2026-11-11 (manual dispatch worked, but event=schedule
+    # stayed at zero). Committing a changed cron line is GitHub's documented way
+    # to re-register a schedule; 2,7,… keeps the five-minute cadence.
+    - cron: '2,7,12,17,22,27,32,37,42,47,52,57 * * * *'
   workflow_dispatch:
     inputs:
       ready_url:
