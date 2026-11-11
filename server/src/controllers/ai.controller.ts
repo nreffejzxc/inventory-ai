@@ -191,6 +191,9 @@ function wantsEventStream(req: Request): boolean {
 /** The request header that arms a controlled failover drill (Guide 16 §9). */
 const FAILOVER_DRILL_HEADER = 'x-ai-failover-drill';
 
+/** The request header that arms a controlled output-limit retry drill (AI-105). */
+const OUTPUT_LIMIT_DRILL_HEADER = 'x-ai-output-limit-drill';
+
 /**
  * Read the controlled failover drill, or refuse it with a reason.
  *
@@ -249,6 +252,42 @@ function readResearchDrill(
   return true;
 }
 
+/**
+ * Read the controlled output-limit retry drill, or refuse it with a reason.
+ *
+ * The drill is OWNER-only and request-scoped. It makes the FIRST provider round throw the same
+ * empty-limit error a real `max_tokens` response raises, so the next round is the real AI-105
+ * retry: larger cap, reserved reasoning budget, and compact-history trimming. It changes no
+ * deployment setting and every other turn takes the ordinary path.
+ */
+function readOutputLimitDrill(req: AuthenticatedRequest, cfg: ReturnType<typeof aiConfig>): boolean {
+  const requested = String(req.headers?.[OUTPUT_LIMIT_DRILL_HEADER] ?? '')
+    .trim()
+    .toLowerCase();
+  if (!requested) return false;
+  if (req.user!.role !== ROLES.OWNER) {
+    throw new ApiError(403, 'The output-limit drill is available to the owner only.', 'AI_DRILL_FORBIDDEN');
+  }
+  if (requested !== 'retry') {
+    throw new ApiError(
+      400,
+      `Unknown output-limit drill "${requested}". The only supported drill is "retry".`,
+      'AI_DRILL_UNKNOWN',
+    );
+  }
+  if (cfg.provider !== 'openrouter') {
+    throw new ApiError(
+      400,
+      'The output-limit drill needs AI_PROVIDER=openrouter.',
+      'AI_DRILL_NOT_CONFIGURED',
+    );
+  }
+  console.log(
+    `AI output-limit drill armed: user=${req.user!.id} model=${cfg.openrouterModel || 'unset'}`,
+  );
+  return true;
+}
+
 /** The turn's inputs, resolved and validated, before any model call is made. */
 interface PreparedTurn {
   cfg: ReturnType<typeof aiConfig>;
@@ -268,6 +307,8 @@ interface PreparedTurn {
    * whose research model differs from the primary.
    */
   researchDrill: boolean;
+  /** A controlled output-limit retry drill for THIS request only (AI-105). */
+  outputLimitDrill: boolean;
   clientGone: AbortController;
   onResponseClose: () => void;
 }
@@ -356,6 +397,7 @@ async function prepareTurn(req: AuthenticatedRequest, res: Response): Promise<Pr
   // AI-88 — an OWNER-only, request-scoped failover drill. Read last: the drill needs a validated
   // message, because it only applies to a turn that would start on the research model.
   const researchDrill = readResearchDrill(req, message, cfg);
+  const outputLimitDrill = readOutputLimitDrill(req, cfg);
 
   return {
     cfg,
@@ -365,6 +407,7 @@ async function prepareTurn(req: AuthenticatedRequest, res: Response): Promise<Pr
     askedAt,
     timeZone,
     researchDrill,
+    outputLimitDrill,
     clientGone,
     onResponseClose,
   };
@@ -538,6 +581,7 @@ async function sendStreamedTurn(req: AuthenticatedRequest, res: Response): Promi
       signal: turn.clientGone.signal,
       timeZone: turn.timeZone,
       researchDrill: turn.researchDrill,
+      outputLimitDrill: turn.outputLimitDrill,
       onTextDelta: (text) => write('delta', { text }),
       onTextReset: () => write('reset', {}),
     });
@@ -665,6 +709,7 @@ const aiController = {
         signal: turn.clientGone.signal,
         timeZone: turn.timeZone,
         researchDrill: turn.researchDrill,
+        outputLimitDrill: turn.outputLimitDrill,
       });
     } catch (err) {
       // Nothing was persisted yet, so a failed request leaves no trace and a

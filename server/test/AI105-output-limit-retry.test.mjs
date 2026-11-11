@@ -84,6 +84,56 @@ test('AI-105: a free-model limit does not enable reasoning on the retry', async 
   assert.equal(secondRequest.reasoningBudgetTokens, undefined, 'the free switch stays off');
 });
 
+test('AI-105: the output-limit drill runs the real retry and trims the long thread', async () => {
+  process.env.AI_PROVIDER = 'fake';
+  registerFakeProvider();
+  const history = [];
+  for (let i = 0; i < 9; i += 1) {
+    history.push({ role: 'user', content: `older question ${i}` });
+    history.push({ role: 'assistant', content: `older answer ${i}` });
+  }
+  history.push({ role: 'user', content: 'How many products are low on stock?' });
+  history.push({ role: 'assistant', content: '19 products need restocking.' });
+  assert.equal(history.length, 20);
+
+  let calls = 0;
+  let secondRequest = null;
+  const warnings = [];
+  const warn = console.warn;
+  console.warn = (...args) => warnings.push(args.join(' '));
+  let result;
+  try {
+    setFakeScenario((ctx) => {
+      calls += 1;
+      secondRequest = { ...ctx, messages: ctx.messages.map((message) => ({ ...message })) };
+      return fakeText('here is the answer.');
+    });
+    result = await runAiChat({
+      businessId: 'b-dummy',
+      userId: 'u-dummy',
+      role: ROLES.OWNER,
+      history,
+      message: 'say hello in one sentence',
+      outputLimitDrill: true,
+    });
+  } finally {
+    console.warn = warn;
+    setFakeScenario(null);
+    process.env.AI_PROVIDER = 'openrouter';
+  }
+
+  assert.equal(calls, 1, 'the simulated limit replaces the first provider call, not the retry');
+  assert.equal(result.content, 'here is the answer.');
+  assert.ok(secondRequest.maxOutputTokens > aiConfig().maxOutputTokens);
+  const sent = secondRequest.messages.map((message) => message.content);
+  assert.ok(!sent.includes('older question 0'), 'the drill retry trims the rest of the thread');
+  assert.ok(sent.includes('19 products need restocking.'), 'the immediate prior answer is retained');
+  assert.ok(
+    warnings.some((line) => line.includes('trimmed')),
+    `the retry logged the trim: ${warnings.join(' | ')}`,
+  );
+});
+
 test('AI-105: the retry trims a long same-thread history but keeps the current turn', async () => {
   process.env.AI_PROVIDER = 'fake';
   registerFakeProvider();
