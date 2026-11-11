@@ -495,7 +495,7 @@ const ASKS_DEAD_STOCK =
 
 /** Wording that asks about shortage levels, which the dead-stock tool does not answer. */
 const ASKS_STOCK_LEVEL =
-  /\b(?:low(?:\s+(?:on|in))?\s+stock|out of stock|running low|run low|low|reorder|restock|below minimum|at minimum|shortage)\b/i;
+  /\b(?:low(?:[\s-]+(?:on|in))?[\s-]+stock|out of stock|running low|run low|low|reorder|restock|below minimum|at minimum|shortage)\b/i;
 
 export function asksForDeadStock(question: string): boolean {
   if (!question) return false;
@@ -944,8 +944,10 @@ function appendWithRoom(body: string, line: string, maxChars: number): string {
  * products those are.
  */
 const RESTOCK_LIST_WORDING =
-  /\b(?:restock(?:ing|ed)?|reorder(?:ing|ed)?|low(?:\s+on)?\s+stock|running low|run low|shortages?|below\s+(?:the\s+|their\s+)?(?:reorder\s+)?minimum|(?:reached|reaches|at)\s+(?:the\s+|their\s+)?(?:configured\s+)?(?:reorder\s+)?minimum(?:\s+(?:stock|level|levels|quantity))?)\b/i;
-const ASKS_ONLY_FOR_A_COUNT = /^\s*(?:how\s+(?:many|much)|pila|ilan)\b/i;
+  /\b(?:restock(?:ing|ed)?|reorder(?:ing|ed)?|low(?:[\s-]+on)?[\s-]+stock|running low|run low|shortages?|below\s+(?:the\s+|their\s+)?(?:reorder\s+)?minimum|(?:reached|reaches|at)\s+(?:the\s+|their\s+)?(?:configured\s+)?(?:reorder\s+)?minimum(?:\s+(?:stock|level|levels|quantity))?)\b/i;
+// A member may lead with a short preamble ("You already told me.") before the count
+// question. The other list predicates still keep "show me ... and how many" out.
+const ASKS_ONLY_FOR_A_COUNT = /\b(?:how\s+(?:many|much)|pila|ilan)\b/i;
 const ALSO_ASKS_WHICH_ONES = /\b(?:list|name|show|which|what\s+are|who)\b/i;
 
 export function asksForRestockList(question: string): boolean {
@@ -972,6 +974,10 @@ export function asksForRestockCount(question: string): boolean {
   const text = String(question ?? '');
   if (!RESTOCK_LIST_WORDING.test(text)) return false;
   if (!ASKS_ONLY_FOR_A_COUNT.test(text)) return false;
+  // A count is one of the two facts in "how many are low on stock and what is their total
+  // value?". The value finalizer's sentence already states the count, so the count finalizer
+  // must not run after it and overwrite the value with a bare number.
+  if (asksForLowStockValue(text)) return false;
   return !ALSO_ASKS_WHICH_ONES.test(text);
 }
 
@@ -1003,13 +1009,55 @@ export function restockCountAnswer(
   return answer.length <= maxChars ? answer : null;
 }
 
+/**
+ * AI-106 — does the member ask for a second, independently answerable fact?
+ *
+ * The single-fact finalizers below replace the model's whole draft with one computed
+ * sentence. That is correct for "which product is the most expensive?", but when the member
+ * asked "... and how many units are in stock?" the replacement deletes the second fact the
+ * model had already written. The draft is grounded in the same rows, so leaving it intact is
+ * safer than shipping a shorter answer that silently drops part of the request.
+ *
+ * The conjunction must be followed by a request marker, not merely a product name. "Sandisk
+ * and Samsung products" is one request; "... and which one has the most stock?" is two.
+ * Ranked-count wording ("top 3") is also a second shape: the single-winner finalizers must
+ * not answer a top-N question with one row.
+ */
+const SECOND_REQUEST =
+  /\b(?:and|also|plus|as well as)\b[\s\S]{0,80}\b(?:how\s+(?:many|much)|what(?:'s|\s+is|\s+are)|which|where|when|who|list|name|show|give|tell\s+me|total|value|worth|prices?|units?|quantit(?:y|ies)|locations?|brands?|skus?)\b/i;
+/** "... and are in stock" / "... and low on stock" is a second condition, not a product name. */
+const SECOND_AVAILABILITY =
+  /\b(?:and|also|plus)\s+(?:(?:is|are)\s+)?(?:in\s+stock|available|out\s+of\s+stock|low(?:\s+on)?\s+stock|running\s+low|below\s+(?:the\s+)?minimum)\b/i;
+const RANKED_COUNT = /\b(?:top|first|best)\s+(?:\d+|one|two|three|four|five|six|seven|eight|nine|ten)\b/i;
+
+export function asksForMultipleFacts(question: string): boolean {
+  const text = String(question ?? '').trim();
+  if (!text) return false;
+  return SECOND_REQUEST.test(text) || SECOND_AVAILABILITY.test(text) || RANKED_COUNT.test(text);
+}
+
+/** Wording that asks for the names as well as the low-stock total. */
+const ASKS_LOW_STOCK_LIST =
+  /\b(?:which|what\s+are|who)\b|\b(?:name|list|show)\b[\s\S]{0,40}\b(?:products?|items?|ones?|skus?)\b/i;
+
 export function asksForLowStockValue(question: string): boolean {
   const text = String(question ?? '');
-  return /\blow[\s-]?stock\b/i.test(text) && /\b(?:total|value|worth)\b/i.test(text);
+  // "low on stock" is the common member wording; it used to miss this predicate entirely.
+  if (!/\blow(?:[\s-]+on)?[\s-]+stock\b/i.test(text)) return false;
+  // "How many low-stock products are there in total?" is a COUNT. A bare "total" is not
+  // enough: the money answer requires the member to name value or worth. Measured on the
+  // phone 2026-11-11, the old predicate answered that count question with "The total
+  // recorded value of the 19 low-stock items is 1,633,025."
+  if (!/\b(?:value|worth)\b/i.test(text)) return false;
+  // A total plus "which products" needs the list finalizer, which appends the names to the
+  // model's draft instead of replacing its value sentence with a name-free one.
+  return !ASKS_LOW_STOCK_LIST.test(text);
 }
 
 export function asksForMostExpensive(question: string): boolean {
-  return /\b(?:most expensive|highest (?:recorded )?(?:price|price per unit))\b/i.test(String(question ?? ''));
+  const text = String(question ?? '');
+  if (asksForMultipleFacts(text)) return false;
+  return /\b(?:most expensive|highest (?:recorded )?(?:price|price per unit))\b/i.test(text);
 }
 
 export interface TopOutFact {
@@ -1020,6 +1068,7 @@ export interface TopOutFact {
 /** A question that ranks products by units leaving stock. */
 export function asksForTopOut(question: string): boolean {
   const text = String(question ?? '');
+  if (asksForMultipleFacts(text)) return false;
   return (
     /\b(?:which|what)\s+(?:item|product|sku)\b[\s\S]{0,100}\b(?:most|highest|largest|top)\b[\s\S]{0,100}\b(?:units?|quantity|qty|stock)\b[\s\S]{0,120}\b(?:leave|left|out|move|moved|sold)\b/i.test(text) ||
     /\b(?:most|highest|largest|top)\b[\s\S]{0,60}\b(?:units?|quantity|qty)\b[\s\S]{0,60}\b(?:leave|left|out|move|moved|sold)\b/i.test(text)
@@ -1029,6 +1078,11 @@ export function asksForTopOut(question: string): boolean {
 /** A question about which product is worth the most at the recorded selling price. */
 export function asksForHighestStockValue(question: string): boolean {
   const text = String(question ?? '');
+  // The total-plus-highest-item shape has its own combined finalizer, so it is the one
+  // multi-fact question that must keep running.
+  if (asksForMultipleFacts(text) && !/\b(?:total|overall|whole)\b[\s\S]{0,45}\b(?:stock|inventory)\s+value\b/i.test(text)) {
+    return false;
+  }
   return (
     /\b(?:highest|largest|greatest|most|top)\b[\s\S]{0,60}\b(?:stock|inventory)\s+value\b/i.test(text) ||
     /\b(?:stock|inventory)\s+value\b[\s\S]{0,60}\b(?:highest|largest|greatest|most|top)\b/i.test(text)
@@ -1036,7 +1090,9 @@ export function asksForHighestStockValue(question: string): boolean {
 }
 
 export function asksForBrandStockRange(question: string): boolean {
-  return /\bstock range\b/i.test(String(question ?? '')) && !/\bacross\s+skus?\b/i.test(String(question ?? ''));
+  const text = String(question ?? '');
+  if (asksForMultipleFacts(text)) return false;
+  return /\bstock range\b/i.test(text) && !/\bacross\s+skus?\b/i.test(text);
 }
 
 function locationFromTotalsQuestion(question: string): string | null {
@@ -1073,6 +1129,7 @@ export function locationTotalsAnswer(
 /** A question that asks for one named product's quantity at every location. */
 export function asksForProductStockByLocation(question: string): boolean {
   const text = String(question ?? '');
+  if (asksForMultipleFacts(text)) return false;
   return (
     /\b(?:on[-\s]?hand|stock|quantity|qty|units?|available)\b/i.test(text) &&
     /\b(?:each|every|all|per)\b[\s\S]{0,40}\b(?:locations?|branches?|stores?|warehouses?|shelves|shelf)\b/i.test(
@@ -1149,6 +1206,7 @@ export function productStockByLocationAnswer(
 export function asksForProductStockTotal(question: string): boolean {
   const text = String(question ?? '');
   if (!text) return false;
+  if (asksForMultipleFacts(text)) return false;
   if (
     /\b(?:each|every|per|all)\s+(?:locations?|branches?|stores?|warehouses?|shelves|shelf)\b/i.test(
       text,
@@ -1238,9 +1296,9 @@ export function productStockTotalAnswer(
 }
 
 export function asksForStockOutCount(question: string): boolean {
-  return /\bhow many\b[\s\S]*\bstock[-\s]?out\b[\s\S]*\bmovements?\b/i.test(
-    String(question ?? ''),
-  );
+  const text = String(question ?? '');
+  if (asksForMultipleFacts(text)) return false;
+  return /\bhow many\b[\s\S]*\bstock[-\s]?out\b[\s\S]*\bmovements?\b/i.test(text);
 }
 
 export function stockOutCountAnswer(count: number, maxChars: number): string | null {
@@ -1273,6 +1331,7 @@ function priceCeilingFromQuestion(question: string): PriceCeiling | null {
 
 export function asksForProductsUnderPrice(question: string): boolean {
   const text = String(question ?? '');
+  if (asksForMultipleFacts(text)) return false;
   return (
     priceCeilingFromQuestion(text) !== null &&
     /\b(?:which|what|list|show)\b[\s\S]*\b(?:products?|items?)\b[\s\S]*\b(?:cost|costs|priced|price)\b[\s\S]*\b(?:less than|under|below)\b/i.test(
@@ -1583,7 +1642,9 @@ export function stripUnsupportedSalesClaims(raw: string): string {
 
 /** Does the member ask for a sales ranking rather than a stock movement? */
 export function asksForBestSelling(question: string): boolean {
-  return /(?:best|top|fastest)[\s\u2010-\u2015-]selling/i.test(String(question ?? ''));
+  const text = String(question ?? '');
+  if (asksForMultipleFacts(text)) return false;
+  return /(?:best|top|fastest)[\s\u2010-\u2015-]selling/i.test(text);
 }
 
 /**
