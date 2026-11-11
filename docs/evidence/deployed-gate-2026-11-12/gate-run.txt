@@ -1,0 +1,35 @@
+[deployed-gate] database=inventoryai_prod_db target=https://ai-inventory-l1mi.onrender.com
+[deployed-gate] snapshot: 20006 inventory row(s) -> .tmp-deployed-gate-inventory-backup.json
+[deployed-gate] tenant=6af18628a9a409131a84235b products=10000 inventoryRows=20006 restock=5
+[deployed-gate] low SKUs: SEEDSKU-5000, SEEDSKU-5001, SEEDSKU-5002, SEEDSKU-5003, SEEDSKU-5004
+[deployed-gate] samples: SEEDSKU-5000=0, SEEDSKU-0=92, SEEDSKU-1=32, SEEDSKU-2=50, SEEDSKU-3=64
+[deployed-gate] restock names: Bosch GWS 060 Angle Grinder; Stanley 65-Piece Socket Set; Milwaukee M18 FUEL Circular Saw; Black+Decker 20V MAX Cordless Drill BDCDD220C; Irwin Vise-Grip 10-Inch Curved Jaw Locking Pliers
+[deployed-gate] pricing: $0.030/M input, $0.130/M output
+[deployed-gate] auth=firebase custom token -> /api/auth/firebase/exchange (token not logged)
+[deployed-gate] deployed commit=c3bd6924a0a83d4d147270a869fccc3ba920ee07 status=ok
+[deployed-gate] allowance before: 913 free requests left; paid usage 1.167566006
+[deployed-gate] gate 01/25 OK stock-SEEDSKU-5000 model=nvidia/nemotron-3.5-lightning:free 18332ms cost=$0.000000
+[deployed-gate] gate 02/25 OK stock-SEEDSKU-0 model=nvidia/nemotron-3.5-lightning:free 17724ms cost=$0.000000
+[deployed-gate] gate 03/25 OK stock-SEEDSKU-1 model=nvidia/nemotron-3.5-lightning:free 11577ms cost=$0.000000
+[deployed-gate] gate 04/25 OK stock-SEEDSKU-2 model=nvidia/nemotron-3.5-lightning:free 5270ms cost=$0.000000
+[deployed-gate] gate 05/25 OK stock-SEEDSKU-3 model=nvidia/nemotron-3.5-lightning:free 4572ms cost=$0.000000
+[deployed-gate] gate 06/25 OK stock-SEEDSKU-4 model=nvidia/nemotron-3.5-lightning:free 5964ms cost=$0.000000
+[deployed-gate] gate 07/25 OK stock-SEEDSKU-5 model=nvidia/nemotron-3.5-lightning:free 5495ms cost=$0.000000
+[deployed-gate] gate 08/25 OK stock-SEEDSKU-6 model=nvidia/nemotron-3.5-lightning:free 8208ms cost=$0.000000
+[deployed-gate] gate 09/25 OK stock-SEEDSKU-7 model=nvidia/nemotron-3.5-lightning:free 6949ms cost=$0.000000
+[deployed-gate] gate 10/25 OK stock-SEEDSKU-8 model=nvidia/nemotron-3.5-lightning:free 7895ms cost=$0.000000
+[deployed-gate] gate 11/25 OK stock-SEEDSKU-9 model=nvidia/nemotron-3.5-lightning:free 7886ms cost=$0.000000
+[deployed-gate] gate 12/25 OK stock-SEEDSKU-10 model=nvidia/nemotron-3.5-lightning:free 7612ms cost=$0.000000
+[deployed-gate] gate 13/25 OK stock-SEEDSKU-11 model=nvidia/nemotron-3.5-lightning:free 8598ms cost=$0.000000
+[deployed-gate] gate 14/25 OK stock-SEEDSKU-12 model=nvidia/nemotron-3.5-lightning:free 3500ms cost=$0.000000
+[deployed-gate] gate 15/25 OK stock-SEEDSKU-13 model=nvidia/nemotron-3.5-lightning:free 4030ms cost=$0.000000
+[deployed-gate] gate 16/25 OK exists-SEEDSKU-0 model=nvidia/nemotron-3.5-lightning:free 7719ms cost=$0.000000
+[deployed-gate] gate 17/25 OK exists-SEEDSKU-1 model=nvidia/nemotron-3.5-lightning:free 4479ms cost=$0.000000
+[deployed-gate] gate 18/25 OK exists-SEEDSKU-5000 model=nvidia/nemotron-3.5-lightning:free 7473ms cost=$0.000000
+[deployed-gate] gate 19/25 OK exists-SEEDSKU-2 model=nvidia/nemotron-3.5-lightning:free 9205ms cost=$0.000000
+[deployed-gate] gate 20/25 OK exists-SEEDSKU-3 model=nvidia/nemotron-3.5-lightning:free 6954ms cost=$0.000000
+[deployed-gate] gate 21/25 FAIL exists-absent model=nvidia/nemotron-3.5-lightning:free 3227ms cost=$0.000000 missing a denial
+[deployed-gate] gate 22/25 OK restock-list-1 model=nvidia/nemotron-3.5-lightning:free 7102ms cost=$0.000000
+[deployed-gate] gate 23/25 OK restock-list-2 model=nvidia/nemotron-3.5-lightning:free 5042ms cost=$0.000000
+[deployed-gate] gate 24/25 OK restock-count-1 model=nvidia/nemotron-3.5-lightning:free 5557ms cost=$0.000000
+[deployed-gate] gate 25/25 OK restock-count-2 model=nvidia/nemotron-3.5-lightning:free 7649ms cost=$0.000000

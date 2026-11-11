@@ -70,6 +70,6 @@ ACTIVE products, 20,006 rows, 1,535 products at or below minimum, `SEEDSKU-0 = 4
 - [`gate-2026-11-11T1801Z.json`](gate-2026-11-11T1801Z.json) — all 25 rows, answers, model, tools,
   checks, token usage and timings. It is the complete per-row artifact written after question 25;
   the process was killed before the post-loop allowance and `RESULTS` fields were added.
-- [`gate-run.log`](gate-run.log) — the 25 progress lines and the runner setup. No token or
+- [`gate-run.log`](gate-run.txt) — the 25 progress lines and the runner setup. No token or
   credential is present.
 - [`restore-verification.txt`](restore-verification.txt) — the verified post-run shape.
