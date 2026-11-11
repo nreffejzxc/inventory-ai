@@ -25282,7 +25282,7 @@ launched `MainActivity`. The app is signed out; Google sign-in returned “Unabl
 Google. Please try again.”, so the `Ref:` line and What's New card were **not observed**. The APK
 is left installed for a manual sign-in; this part remains unverified.
 
-**AI-105 staging — passed.** `server/scripts/staging-ai105-retry.mjs` ran the real `runAiChat` loop
+**AI-105 staging — passed.** `scripts/staging-ai105-retry.mjs` ran the real `runAiChat` loop
 against a local stub OpenRouter endpoint. The first request used `max_tokens=1200`; the retry used
 `max_tokens=2400` and `thinking: {type: enabled, budget_tokens: 1200}`; the returned answer was
 “Staging retry produced a readable answer.” The script exited 0. No production AI configuration or

@@ -101,11 +101,15 @@ simple turn and a 10,256-product gate are recorded in `DEVELOPMENT_LOG.md`, and 
 What's New card was observed on 2026-11-10.
 `AI-101` and `AI-102` are delivered: stored assistant answers carry a selectable turn reference, and
 durable turn metrics plus the OWNER/ADMIN metrics endpoint are live as `eda08d0`. The matching
-answer-reference What's New bundle is production OTA group `e38e07bf`; the device observation is
-still pending. Both are recorded in `DEVELOPMENT_LOG.md`.
+answer-reference What's New bundle is production OTA group `e38e07bf`; its `Ref:` line and What's
+New card were observed on 2026-11-11 (task-4 evidence). Both are recorded in `DEVELOPMENT_LOG.md`.
 `AI-103` (whole-set receipt and transfer totals in history answers) and `OPS-3` (the operator
 monitoring runbook) were delivered on 2026-11-11; two test-isolation defects found by the local
-database run were fixed in the same session. See `DEVELOPMENT_LOG.md` and §27HW.
+database run were fixed in the same session. See `DEVELOPMENT_LOG.md` and §27HW. `AI-106` (finalizer
+detail preservation and the reset-UX OTA) merged as `26eb0d4` and is the current production commit;
+the count and compound turns are live-verified with refs `4cef1383` and `771dc31f`. Production OTA
+`58f75323` carries the reset-UX label, which remains unobserved live. See `DEVELOPMENT_LOG.md` and
+§27HY.
 The earlier assistant increments cover the turn deadline,
 retries, answer rendering, the cost line, quota, failover, streaming, and finally one provider
 (OpenRouter). The
@@ -116,6 +120,8 @@ and later records cover invitations (§27FB), account deletion (§27EW), the pri
 The newest delivered records are not release-engineering ones: §27HQ records grounded answers, scoped
 stock reads and the member's language; §27HR records the AI-48–AI-84 merge and deploy; §27HS is the
 AI-50–AI-84 increment register. §27HT is the delivered AI-91/AI-92 record, and §27HU is the delivered
-AI-99 record. Release engineering remains in §27FN (EAS retention and the plan
-gate on OTA signing), §27EZ (the production parity gate that stopped a store upload) and §27FK (the
-runtime boundary that made a stale process impossible to mistake for a server fault).
+AI-99 record. AI-103/OPS-3 is §27HW, AI-106 is §27HY, and the close-out follow-ups are §27HZ;
+production currently serves `26eb0d4` and the newest OTA is `58f75323`. Release engineering remains in
+§27FN (EAS retention and the plan gate on OTA signing), §27EZ (the production parity gate that
+stopped a store upload) and §27FK (the runtime boundary that made a stale process impossible to
+mistake for a server fault).
