@@ -80,3 +80,11 @@ provider setting was changed.
   as recorded in the OTA evidence.
 - The same-thread compound output-limit failure is a separate, pre-existing limitation, not a
   finalizer pass. The clean fresh-chat compound turn is the acceptance turn for this report.
+
+## Follow-up — 2026-11-11
+
+The same-thread output-limit retry was fixed in PR [#232](https://github.com/nreffejzxc/inventory-ai/pull/232)
+(`3b275df`). The exact count-then-compound sequence then passed in one thread (`bf777146` and
+`e4570da9`), and the “Correcting the answer…” label was observed live at `008a1583`. See
+[`../ai105-production-2026-11-11/README.md`](../ai105-production-2026-11-11/README.md). This
+addendum supersedes the two limits above; the original observations remain as recorded.

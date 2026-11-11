@@ -106,10 +106,12 @@ New card were observed on 2026-11-11 (task-4 evidence). Both are recorded in `DE
 `AI-103` (whole-set receipt and transfer totals in history answers) and `OPS-3` (the operator
 monitoring runbook) were delivered on 2026-11-11; two test-isolation defects found by the local
 database run were fixed in the same session. See `DEVELOPMENT_LOG.md` and §27HW. `AI-106` (finalizer
-detail preservation and the reset-UX OTA) merged as `26eb0d4` and is the current production commit;
-the count and compound turns are live-verified with refs `4cef1383` and `771dc31f`. Production OTA
-`58f75323` carries the reset-UX label, which remains unobserved live. See `DEVELOPMENT_LOG.md` and
-§27HY.
+detail preservation and the reset-UX OTA) merged as `26eb0d4`; the AI-105 same-thread retry fix
+merged as `3b275df` and is the current production commit. The exact same-thread count/compound
+turns returned **19** and **19 / 1,633,025** with refs `bf777146` and `e4570da9`; the “Correcting
+the answer…” label was observed live at `008a1583`. Production OTA `58f75323` carries the reset-UX
+label. See `DEVELOPMENT_LOG.md` and
+[`evidence/ai105-production-2026-11-11`](evidence/ai105-production-2026-11-11/README.md).
 The earlier assistant increments cover the turn deadline,
 retries, answer rendering, the cost line, quota, failover, streaming, and finally one provider
 (OpenRouter). The
@@ -121,7 +123,9 @@ The newest delivered records are not release-engineering ones: §27HQ records gr
 stock reads and the member's language; §27HR records the AI-48–AI-84 merge and deploy; §27HS is the
 AI-50–AI-84 increment register. §27HT is the delivered AI-91/AI-92 record, and §27HU is the delivered
 AI-99 record. AI-103/OPS-3 is §27HW, AI-106 is §27HY, and the close-out follow-ups are §27HZ;
-production currently serves `26eb0d4` and the newest OTA is `58f75323`. Release engineering remains in
+production currently serves `3b275df` and the newest OTA is `58f75323`. The AI-105 retry fix and the
+live label are recorded in `DEVELOPMENT_LOG.md` and
+[`evidence/ai105-production-2026-11-11`](evidence/ai105-production-2026-11-11/README.md). Release engineering remains in
 §27FN (EAS retention and the plan gate on OTA signing), §27EZ (the production parity gate that
 stopped a store upload) and §27FK (the runtime boundary that made a stale process impossible to
 mistake for a server fault).
