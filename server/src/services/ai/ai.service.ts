@@ -29,6 +29,8 @@ import {
   relabelBusinessWideScope,
   scopedPlaceIn,
   routeDeadStockReads,
+  routeLowStockReads,
+  asksForLowStockShare,
   asksForRevenue,
   statesUnqualifiedMoney,
   withRevenueQualifier,
@@ -2369,6 +2371,18 @@ export async function runAiChat({
         calls = routed;
       }
     }
+    // AI-106 — a low-stock value/share question must use product-level shortage rows, not a
+    // page of product-at-location inventory rows. The model's call is rewritten before it
+    // runs; a share question also gets the total-value denominator.
+    {
+      const routed = routeLowStockReads(calls, message);
+      if (routed !== calls) {
+        console.warn(
+          `AI low-stock value question — reads routed to product-level shortage rows (model asked: ${calls.map((call) => String(call?.name ?? '')).filter(Boolean).join(',') || 'none'})`,
+        );
+        calls = routed;
+      }
+    }
     // A brand stock-range answer needs product rows, not just the brand list. The measured
     // “What is the stock range across Logitech products?” turn called listBrands and then
     // stopped with a plan to call getInventory. Add the discovery read before execution so
@@ -2756,7 +2770,13 @@ export async function runAiChat({
     // A page shorter than the read's own count is partial: its subtotal cannot be called
     // the total of the low-stock set. Same rule as the restock list finalizer.
     const complete = lowStockRowsTotal <= 0 || lowStockRows.length >= lowStockRowsTotal;
-    const computed = lowStockValueAnswer(lowStockRows, cfg.maxMessageChars, { complete });
+    const computed = lowStockValueAnswer(lowStockRows, cfg.maxMessageChars, {
+      complete,
+      share: asksForLowStockShare(message),
+      totalStockValue: stockValueSummary?.totalValue ?? null,
+      totalCurrency: stockValueSummary?.currency ?? null,
+      mixedCurrency: stockValueSummary?.mixedCurrency === true,
+    });
     if (computed) {
       finalText = computed;
       degraded = null;

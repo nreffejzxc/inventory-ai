@@ -560,6 +560,86 @@ export function routeDeadStockReads<T extends { name?: string; input?: unknown }
   return replaced ? routed : [...calls, added];
 }
 
+/** Product-level reads whose rows the low-stock value finalizer can use. */
+const LOW_STOCK_SOURCE_READS = new Set(['getLowStockProducts', 'getReorderNeededProducts']);
+
+/** The only arguments a low-stock read may carry from the model's original call. */
+function lowStockScope(raw: unknown): Record<string, unknown> {
+  const input = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {};
+  const scope: Record<string, unknown> = {};
+  if (typeof input.location === 'string' && input.location.trim()) scope.location = input.location;
+  if (typeof input.locationId === 'string' && input.locationId.trim()) scope.locationId = input.locationId;
+  return scope;
+}
+
+/**
+ * AI-106 — a low-stock value/share question must read products, not inventory rows.
+ *
+ * Measured on the phone 2026-11-11: the paid model answered "how many products are low
+ * on stock and what percentage of total inventory value is that" with 41 `getInventory`
+ * rows and the business-wide stock value. Inventory rows are product-at-location rows;
+ * they are not the product-level low-stock set, so 41 rows read as 41 products and the
+ * value finalizer had no `lowStockFacts` to use. The CALLS are rewritten before they run:
+ * a paged inventory read becomes `getLowStockProducts` with its maximum page, and a share
+ * question also gets `getStockValue` for the denominator. A correct turn is untouched.
+ */
+export function routeLowStockReads<T extends { name?: string; input?: unknown }>(
+  calls: T[],
+  question: string,
+): T[] {
+  if (!asksForLowStockValue(question)) return calls;
+  const share = asksForLowStockShare(question);
+  const existingLow = calls.find((call) => LOW_STOCK_SOURCE_READS.has(String(call?.name ?? '')));
+  const existingStockValue = calls.find((call) => String(call?.name ?? '') === 'getStockValue');
+  const inventoryCalls = calls.filter((call) => String(call?.name ?? '') === 'getInventory');
+  const needsLowRead = !existingLow;
+  const needsInventoryRewrite = inventoryCalls.length > 0;
+  const needsLimit =
+    String(existingLow?.name ?? '') === 'getLowStockProducts' &&
+    Number((existingLow?.input as Record<string, unknown> | undefined)?.limit) !== 50;
+  const needsDenominator = share && !existingStockValue;
+  if (!needsLowRead && !needsInventoryRewrite && !needsLimit && !needsDenominator) return calls;
+
+  const scope = lowStockScope(existingLow?.input ?? inventoryCalls[0]?.input);
+  const lowStockInput = { ...scope, limit: 50 };
+  const out: T[] = [];
+  let lowAdded = false;
+  for (const call of calls) {
+    const name = String(call?.name ?? '');
+    if (name === 'getInventory') {
+      if (!lowAdded) {
+        out.push({ ...call, name: 'getLowStockProducts', input: lowStockInput } as unknown as T);
+        lowAdded = true;
+      }
+      continue;
+    }
+    if (name === 'getLowStockProducts') {
+      out.push({ ...call, input: lowStockInput } as unknown as T);
+      lowAdded = true;
+      continue;
+    }
+    if (LOW_STOCK_SOURCE_READS.has(name)) {
+      lowAdded = true;
+    }
+    out.push(call);
+  }
+  if (!lowAdded) {
+    out.push({ id: 'call-ai-lowstock-value', name: 'getLowStockProducts', input: lowStockInput } as unknown as T);
+  }
+  if (share) {
+    const stockValueInput = scope;
+    if (!out.some((call) => String(call?.name ?? '') === 'getStockValue')) {
+      out.push({ id: 'call-ai-lowstock-total', name: 'getStockValue', input: stockValueInput } as unknown as T);
+    } else {
+      for (let i = 0; i < out.length; i += 1) {
+        if (String(out[i]?.name ?? '') !== 'getStockValue') continue;
+        out[i] = { ...out[i], input: stockValueInput } as unknown as T;
+      }
+    }
+  }
+  return out;
+}
+
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
@@ -1054,6 +1134,22 @@ export function asksForLowStockValue(question: string): boolean {
   return !ASKS_LOW_STOCK_LIST.test(text);
 }
 
+/**
+ * Does the member want the low-stock subtotal as a share of total stock value?
+ *
+ * Measured on the phone 2026-11-11: "what percentage of total inventory value is that"
+ * was answered from a paged getInventory read (41 rows) and a total stock value, with no
+ * supported percentage. The deterministic value finalizer needs this predicate so it can
+ * include the share when a same-currency denominator is available.
+ */
+export function asksForLowStockShare(question: string): boolean {
+  const text = String(question ?? '');
+  if (!/\blow(?:[\s-]+on)?[\s-]+stock\b/i.test(text)) return false;
+  const share = /\b(?:percentage|percent|share|portion|fraction)\b/i.test(text);
+  const total = /\b(?:total|overall|whole|all)?\s*(?:inventory|stock)\s+value\b/i.test(text);
+  return share && total;
+}
+
 export function asksForMostExpensive(question: string): boolean {
   const text = String(question ?? '');
   if (asksForMultipleFacts(text)) return false;
@@ -1433,6 +1529,14 @@ export interface LowStockValueOptions {
    * rather than labelled complete. The restock finalizer makes the same distinction.
    */
   complete?: boolean;
+  /** The tool's total stock value, used only when the member asked for a share. */
+  totalStockValue?: number | null;
+  /** The currency of that total; a share is computed only when it matches the rows. */
+  totalCurrency?: string | null;
+  /** True when the business has more than one recorded currency. */
+  mixedCurrency?: boolean;
+  /** Append the low-stock subtotal as a percentage of total stock value. */
+  share?: boolean;
 }
 
 /** Compute a low-stock subtotal only from the rows the low-stock tool returned. */
@@ -1461,7 +1565,7 @@ export function lowStockValueAnswer(
     a === '' ? 1 : b === '' ? -1 : a.localeCompare(b),
   );
   const head = `The total recorded value of the ${facts.length} low-stock ${facts.length === 1 ? 'item' : 'items'} is`;
-  const answer =
+  let answer =
     ordered.length === 1
       ? `${head} ${money(ordered[0]![1].total, ordered[0]![0])}.`
       : `${head} ${ordered
@@ -1470,6 +1574,21 @@ export function lowStockValueAnswer(
             return `${money(group.total, code)} (${group.count} ${group.count === 1 ? 'item' : 'items'}${note})`;
           })
           .join(', ')}.`;
+  if (options.share) {
+    const total = finiteNumber(options.totalStockValue);
+    const sameCurrency =
+      ordered.length === 1 && ordered[0]![0] === (options.totalCurrency ?? '');
+    if (total !== null && total > 0 && sameCurrency && options.mixedCurrency !== true) {
+      const percent = new Intl.NumberFormat('en-PH', { maximumFractionDigits: 2 }).format(
+        (ordered[0]![1].total / total) * 100,
+      );
+      answer += ` That is ${percent}% of the total recorded stock value of ${money(total, options.totalCurrency ?? ordered[0]![0])}.`;
+    } else if (options.mixedCurrency) {
+      answer += ' A single percentage cannot be calculated because the catalogue records more than one currency.';
+    } else {
+      answer += ' The percentage of total inventory value could not be calculated from the available total.';
+    }
+  }
   return answer.length <= maxChars ? answer : answer.slice(0, maxChars);
 }
 

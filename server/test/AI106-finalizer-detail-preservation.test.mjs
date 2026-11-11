@@ -25,6 +25,7 @@ import {
   asksForBestSelling,
   asksForBrandStockRange,
   asksForHighestStockValue,
+  asksForLowStockShare,
   asksForLowStockValue,
   asksForMostExpensive,
   asksForMultipleFacts,
@@ -37,6 +38,7 @@ import {
   asksForTopOut,
   lowStockValueAnswer,
   restockCountAnswer,
+  routeLowStockReads,
   withCompleteRestockNames,
 } from '../src/services/ai/answerCompletion.ts';
 
@@ -119,6 +121,80 @@ test('AI-106: single-fact replacement finalizers leave compound drafts alone', (
 
   assert.equal(asksForProductStockTotal('How many units of X are in stock?'), true);
   assert.equal(asksForProductStockTotal('How many units of X are in stock and what is its price?'), false);
+});
+
+test('AI-106: low-stock value share uses product rows and a same-currency total', () => {
+  const question =
+    'How many products are low on stock what is their total value and what percentage of total inventory value is that';
+  assert.equal(asksForLowStockValue(question), true);
+  assert.equal(asksForLowStockShare(question), true);
+
+  const answer = lowStockValueAnswer(
+    ROWS.map((row) => ({ ...row, currency: 'PHP' })),
+    2000,
+    { share: true, totalStockValue: 100000, totalCurrency: 'PHP' },
+  );
+  assert.match(answer, /2 low-stock items/);
+  assert.match(answer, /950/);
+  assert.match(answer, /0\.95%/);
+  assert.match(answer, /100,000/);
+});
+
+test('AI-106: the measured 19-product / 1,633,025 / 0.47% answer is preserved', () => {
+  // The bad turn read 41 getInventory rows and reported PHP 346,118,013. The product-level
+  // low-stock read has 19 products; 18 x (80,000 x 1) plus 193,025 is the measured subtotal.
+  const rows = Array.from({ length: 19 }, (_, index) => ({
+    id: `product-${index}`,
+    name: `Low-stock product ${index + 1}`,
+    sellingPrice: index === 18 ? 193025 : 80000,
+    availableQuantity: 1,
+    currency: 'PHP',
+  }));
+  const answer = lowStockValueAnswer(rows, 2000, {
+    share: true,
+    totalStockValue: 346118013,
+    totalCurrency: 'PHP',
+  });
+  assert.match(answer, /19 low-stock items/);
+  assert.match(answer, /1,633,025/);
+  assert.match(answer, /0\.47%/);
+  assert.match(answer, /346,118,013/);
+  assert.doesNotMatch(answer, /41/);
+});
+
+test('AI-106: the low-stock router replaces a paged inventory read with product rows', () => {
+  const question =
+    'How many products are low on stock what is their total value and what percentage of total inventory value is that';
+  const calls = [
+    { id: 'call-value', name: 'getStockValue', input: {} },
+    { id: 'call-inventory', name: 'getInventory', input: { limit: 15 } },
+  ];
+  const routed = routeLowStockReads(calls, question);
+  assert.deepEqual(routed.map((call) => call.name), ['getStockValue', 'getLowStockProducts']);
+  assert.deepEqual(routed[1].input, { limit: 50 });
+});
+
+test('AI-106: the low-stock router adds the denominator and keeps the location scope', () => {
+  const question =
+    'How many products are low on stock what is their total value and what percentage of total inventory value is that';
+  const calls = [{ id: 'call-inventory', name: 'getInventory', input: { location: 'Main Warehouse' } }];
+  const routed = routeLowStockReads(calls, question);
+  assert.deepEqual(routed.map((call) => call.name), ['getLowStockProducts', 'getStockValue']);
+  assert.deepEqual(routed[0].input, { location: 'Main Warehouse', limit: 50 });
+  assert.deepEqual(routed[1].input, { location: 'Main Warehouse' });
+});
+
+test('AI-106: a correct read and a non-value question are untouched', () => {
+  const question =
+    'How many products are low on stock what is their total value and what percentage of total inventory value is that';
+  const correct = [
+    { id: 'call-low', name: 'getLowStockProducts', input: { limit: 50 } },
+    { id: 'call-value', name: 'getStockValue', input: {} },
+  ];
+  assert.equal(routeLowStockReads(correct, question), correct);
+
+  const count = [{ id: 'call-inventory', name: 'getInventory', input: {} }];
+  assert.equal(routeLowStockReads(count, 'How many products are low on stock?'), count);
 });
 
 test('AI-106: the combined total-plus-highest finalizer still runs', () => {
