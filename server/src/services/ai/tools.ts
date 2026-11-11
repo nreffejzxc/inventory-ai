@@ -761,6 +761,51 @@ function rowResult(r: InventoryRow) {
   };
 }
 
+/** AI-103 — one history read's whole-set movement totals, independent of each other. */
+type MovementTotals = Awaited<ReturnType<typeof transactionsService.totals>>;
+type TopOutRow = { product: string | null; productId: string; unitsOut: number };
+
+interface MovementSummary {
+  unitsSold?: number;
+  sales?: number;
+  unitsReceived?: number;
+  deliveries?: number;
+  transferLegs?: number;
+  stockOutMovements?: number;
+  topOut?: TopOutRow[];
+  totalsNote?: string;
+}
+
+/**
+ * AI-103 — the whole-set totals a history answer reads.
+ *
+ * This used to be built only when `topOut.length > 0`, so a history read that
+ * contained receipts or transfers but no stock-out returned no `unitsReceived`
+ * and no `transferLegs` at all. The model then had only page rows to add up —
+ * the exact arithmetic AI-68 moved into the database to prevent. Each total now
+ * appears whenever its own movement type has rows, independently of the others.
+ */
+export function historyMovementSummary(
+  totals: MovementTotals,
+  topOut: readonly TopOutRow[],
+): MovementSummary {
+  const stockOut = totals.byType.STOCK_OUT;
+  const stockIn = totals.byType.STOCK_IN;
+  const transfer = totals.byType.TRANSFER;
+  if (!stockOut && !stockIn && !transfer) return {};
+  const hasTopOut = topOut.length > 0;
+  return {
+    ...(stockOut ? { unitsSold: stockOut.units, sales: stockOut.rows } : {}),
+    ...(stockIn ? { unitsReceived: stockIn.units, deliveries: stockIn.rows } : {}),
+    ...(transfer ? { transferLegs: transfer.rows } : {}),
+    stockOutMovements: stockOut?.rows ?? 0,
+    ...(hasTopOut ? { topOut: [...topOut] } : {}),
+    totalsNote: hasTopOut
+      ? 'topOut is computed over EVERY row matching the filters, not just this page, so it is the answer to "which sold the most" and to "how many units sold": read the figure, do not add the rows up yourself. unitsSold counts STOCK_OUT units only; transferLegs is movement between locations and is NOT part of sales.'
+      : 'unitsReceived, deliveries and transferLegs are computed over EVERY row matching the filters, not just this page: read the figure, do not add the rows up yourself. transferLegs is movement between locations and is NOT part of sales.',
+  };
+}
+
 const tools: Tool[] = [
   {
     name: 'searchProducts',
@@ -1046,11 +1091,14 @@ const tools: Tool[] = [
         limit: 20,
       });
       const noStockRows = rows.total === 0;
+      const partialStockRows = rows.total > rows.items.length;
       return {
         found: true,
         note: noStockRows
           ? `${CATALOG_GROUNDING_NOTE} This product has no inventory rows at all: on-hand quantity is 0 and it is out of stock. Report that, not an unreadable quantity.`
-          : CATALOG_GROUNDING_NOTE,
+          : partialStockRows
+            ? `${CATALOG_GROUNDING_NOTE} Only ${rows.items.length} of ${rows.total} location rows are shown; do not say another location has none.`
+            : CATALOG_GROUNDING_NOTE,
         product: {
           ...productDetailCore(doc),
           stock: rows.items.map(rowResult),
@@ -1567,21 +1615,7 @@ const tools: Tool[] = [
         .slice(0, 5)
         .map((p) => ({ product: p.name, productId: p.productId, unitsOut: p.unitsOut }));
       const stockOutMovements = totals.byType.STOCK_OUT?.rows ?? 0;
-      const soldSummary =
-        topOut.length > 0
-          ? {
-              ...(totals.byType.STOCK_OUT ? { unitsSold: totals.byType.STOCK_OUT.units, sales: totals.byType.STOCK_OUT.rows } : {}),
-              ...(totals.byType.STOCK_IN ? { unitsReceived: totals.byType.STOCK_IN.units, deliveries: totals.byType.STOCK_IN.rows } : {}),
-              ...(totals.byType.TRANSFER ? { transferLegs: totals.byType.TRANSFER.rows } : {}),
-              stockOutMovements,
-              topOut,
-              totalsNote:
-                'topOut is computed over EVERY row matching the filters, not just this page, ' +
-                'so it is the answer to "which sold the most" and to "how many units sold": read ' +
-                'the figure, do not add the rows up yourself. unitsSold counts STOCK_OUT units ' +
-                'only; transferLegs is movement between locations and is NOT part of sales.',
-            }
-          : {};
+      const movementSummary = historyMovementSummary(totals, topOut);
 
       // AI-65 — an empty window is an answer, but a dead-end one.
       //
@@ -1624,7 +1658,7 @@ const tools: Tool[] = [
       return page(logicalTotal, folded.items, {
         ...(location.id ? { locationId: location.id } : {}),
         stockOutMovements,
-        ...soldSummary,
+        ...movementSummary,
         ...(windowEmpty
           ? {
               windowEmpty: true,
