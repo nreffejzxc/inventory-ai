@@ -342,7 +342,7 @@ with what is in progress, verified or blocked — is [`docs/DEVELOPMENT_LOG.md`]
 - **Server monitoring is observable and externally watched (2026-11-11).** [`docs/MONITORING.md`](docs/MONITORING.md)
   documents the three health endpoints, the OPS-2 response pulse, the AI turn records, the
   OWNER/ADMIN `GET /api/ai/metrics` aggregate, the alert thresholds and the incident procedure.
-  `.github/workflows/production-health-watch.yml` probes both production health endpoints every five
+  `.github/workflows/production-health-watch-v2.yml` probes both production health endpoints every five
   minutes from GitHub, opens one issue after two consecutive failures and closes it on recovery.
   There is still no hosted pager, dashboard or shared counter; the OPS-2 counters are process-local
   and the runbook says so.
