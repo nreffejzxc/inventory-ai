@@ -723,6 +723,11 @@ export async function runAiChat({
   const messages: ProviderMessage[] = history
     .slice(-cfg.contextMessages)
     .map((m) => ({ role: m.role === 'assistant' ? 'assistant' : 'user', content: m.content }));
+  // AI-105 — how many messages belong to PRIOR turns. The output-limit retry keeps
+  // the current turn and only a short recent prefix of this history, so the retry is
+  // not sent the same full context that just spent its answer budget on reasoning.
+  const historyMessageCount = messages.length;
+  const RETRY_HISTORY_MESSAGES = 4;
   messages.push({ role: 'user', content: message });
   // AI-86 — `webResearchIntent` is decided once from the member's actual question.
   // AI-88 — it is also false for a source-locked or unqualified price/supplier/review
@@ -1784,6 +1789,26 @@ export async function runAiChat({
               ` reasoningBudget=${outputLimitRetry.reasoningBudgetTokens ?? 'off'}` +
               ` model=${retryModel ?? model}`,
           );
+          // AI-105 — the clean fresh-chat compound answer succeeded with no prior turns,
+          // while the same question in a long thread failed with 17,950 input tokens. The
+          // retry used to replay all 20 stored turns, including the count answer, and spent
+          // the larger cap on reasoning again. Keep the immediate recent exchange for
+          // follow-ups, but do not re-send the rest of the thread. Current-turn tool calls
+          // and results sit AFTER `historyMessageCount`, so they are never trimmed.
+          const keepFrom = Math.max(0, historyMessageCount - RETRY_HISTORY_MESSAGES);
+          let trimCount = keepFrom;
+          // A provider conversation should start with a user turn. If the recent slice
+          // begins on an assistant answer, drop that one too rather than sending an
+          // assistant-only prefix.
+          while (trimCount < historyMessageCount && messages[trimCount]?.role === 'assistant') {
+            trimCount += 1;
+          }
+          if (trimCount > 0) {
+            messages.splice(0, trimCount);
+            console.warn(
+              `AI output limit retry: trimmed ${trimCount} prior message(s), kept the current turn`,
+            );
+          }
         }
         console.warn(
           `AI output limit reached with no content — resending the request once` +
