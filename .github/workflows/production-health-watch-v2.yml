@@ -17,13 +17,13 @@ name: Production health watch v2
 # is the remaining documented registration path. The minute offset avoids the top-of-hour load
 # spike that can drop queued scheduled runs.
 #
-# Use the standard stepped form. The original long comma list was valid cron, but it is the
-# only material difference from the repository's scheduled TypeScript watch, which does run.
-# Manual dispatch remains the fallback if GitHub still does not register this schedule.
+# 2026-11-12: use GitHub's canonical */5 stepped form. The previous 2-59/5 range-step never
+# produced an event=schedule run, while the simple-cron TypeScript watch does fire. The probe
+# and issue path are unchanged. Manual dispatch remains available for an explicit run.
 
 on:
   schedule:
-    - cron: '2-59/5 * * * *'
+    - cron: '*/5 * * * *'
   workflow_dispatch:
     inputs:
       ready_url:
