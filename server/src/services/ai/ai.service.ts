@@ -78,7 +78,7 @@ import {
 import type { CatalogueFact, StockValueSummary, TopOutFact } from './answerCompletion.ts';
 import { locationService } from '../reference.service.ts';
 import { aiConfig } from './aiConfig.ts';
-import { languageDirective } from './language.ts';
+import { languageDirective, replyLanguageOf } from './language.ts';
 import { MIN_REASONING_BUDGET, isFreeModel } from './reasoningPolicy.ts';
 import { newTurnId, turnRequestLine, turnResultLine } from './aiMonitor.ts';
 import { recordAiTurnMetric } from './aiMetrics.service.ts';
@@ -2772,7 +2772,8 @@ export async function runAiChat({
     const readRestock = toolsSucceeded.has('getReorderNeededProducts');
     const readLow = toolsSucceeded.has('getLowStockProducts');
     const total = readRestock ? reorderTotal : readLow ? lowStockTotal : null;
-    const computed = total === null ? null : restockCountAnswer(total, cfg.maxMessageChars);
+    const computed =
+      total === null ? null : restockCountAnswer(total, cfg.maxMessageChars, replyLanguageOf(message));
     if (computed) {
       finalText = computed;
       console.warn('AI restock count read from the returned tool total');

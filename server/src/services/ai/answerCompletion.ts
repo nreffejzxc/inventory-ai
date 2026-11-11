@@ -945,7 +945,7 @@ function appendWithRoom(body: string, line: string, maxChars: number): string {
  */
 const RESTOCK_LIST_WORDING =
   /\b(?:restock(?:ing|ed)?|reorder(?:ing|ed)?|low(?:\s+on)?\s+stock|running low|run low|shortages?|below\s+(?:the\s+|their\s+)?(?:reorder\s+)?minimum|(?:reached|reaches|at)\s+(?:the\s+|their\s+)?(?:configured\s+)?(?:reorder\s+)?minimum(?:\s+(?:stock|level|levels|quantity))?)\b/i;
-const ASKS_ONLY_FOR_A_COUNT = /^\s*how\s+(?:many|much)\b/i;
+const ASKS_ONLY_FOR_A_COUNT = /^\s*(?:how\s+(?:many|much)|pila|ilan)\b/i;
 const ALSO_ASKS_WHICH_ONES = /\b(?:list|name|show|which|what\s+are|who)\b/i;
 
 export function asksForRestockList(question: string): boolean {
@@ -975,12 +975,31 @@ export function asksForRestockCount(question: string): boolean {
   return !ALSO_ASKS_WHICH_ONES.test(text);
 }
 
-export function restockCountAnswer(count: number, maxChars: number): string | null {
+/**
+ * A count answer in the language the member used.
+ *
+ * The count itself is always the tool's total, so translating the sentence cannot change
+ * the fact. Product names and numbers are deliberately absent from these templates: only
+ * the count is stated, exactly as the recorded read returned it.
+ */
+export function restockCountAnswer(
+  count: number,
+  maxChars: number,
+  language: 'Bisaya' | 'Tagalog' | null = null,
+): string | null {
   if (!Number.isFinite(count) || count < 0) return null;
   const answer =
-    count === 0
-      ? 'No products need restocking right now.'
-      : `${formatUnits(count)} ${count === 1 ? 'product needs' : 'products need'} restocking.`;
+    language === 'Tagalog'
+      ? count === 0
+        ? 'Wala nang produktong mababa ang stock ngayon.'
+        : `May ${formatUnits(count)} na produktong mababa ang stock.`
+      : language === 'Bisaya'
+        ? count === 0
+          ? 'Wala nay produktong ubos ang stock karon.'
+          : `Adunay ${formatUnits(count)} ka produkto nga ubos ang stock.`
+        : count === 0
+          ? 'No products need restocking right now.'
+          : `${formatUnits(count)} ${count === 1 ? 'product needs' : 'products need'} restocking.`;
   return answer.length <= maxChars ? answer : null;
 }
 
