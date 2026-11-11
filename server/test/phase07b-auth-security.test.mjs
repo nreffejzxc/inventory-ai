@@ -547,7 +547,12 @@ dbSuite('Phase 07B — H1 authentication rate limiting', dbOk, () => {
     // failure budget must be the FULL loginIpMax in the fresh window: a success
     // charged to it would make the second post-reset failure a 429, and an undo
     // that crossed the boundary would push the lock out to a fourth.
-    const windowMs = 900;
+    //
+    // The window is seconds, not a few hundred milliseconds: two sequential
+    // failed logins can take longer than that on a busy machine, and a window
+    // that resets between them turns the final assertion into a 401 for a reason
+    // the test is not about. The boundary is still crossed after the wait.
+    const windowMs = 5000;
     await build(
       { loginWindowMs: 60000, loginMax: 100, loginIpWindowMs: windowMs, loginIpMax: 2 },
       async (url2) => {
