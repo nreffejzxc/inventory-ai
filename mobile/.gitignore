@@ -40,6 +40,9 @@ yarn-error.*
 /ios
 /android
 
+# local standalone build artifacts
+/build/
+
 # Firebase native configuration (Phase 1 — owner decision P-1: injected into an
 # EAS build as file environment variables, never committed).
 google-services.json

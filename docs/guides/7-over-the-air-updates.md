@@ -113,10 +113,14 @@ npx eas-cli update:list --branch production --limit 5
 `820251b4-dc8a-46a3-9b25-0faa0a9c1529` was compiled with Expo 58.0.22 and React Native 0.88.1, and the
 development APK `76440404-167c-440c-be20-88801fe9b64b` shares fingerprint
 `f5a6fddec17c97c1dabfe2fb9428108a41d9bd6e`. The newest production OTA is group
+`58f75323-eeab-4aee-b48d-5f3c38e2396a` (Android update
+`01a1ca6c-b450-7def-ab6f-b013782918fe`), published from `7bfec39` with the message
+"Show 'Correcting the answer...' when AI replaces a draft". It is loaded on the production OPPO;
+the new **“Correcting the answer…”** label has not yet been observed live. The previous group
 `e38e07bf-6eab-4b71-be90-c3604cab5c3a` (Android update
-`01a1c524-5ae0-71d8-af9e-6e6711da6ba6`), published from `eda08d0` with the message
-"Release notes: AI answers now include a support reference". It carries the selectable `Ref:` answer
-reference and the matching What's New card; neither has been observed on a phone yet. The previous group
+`01a1c524-5ae0-71d8-af9e-6e6711da6ba6`) was published from `eda08d0` with
+"Release notes: AI answers now include a support reference"; its selectable `Ref:` line and What's
+New card were observed on the phone in the 2026-11-11 task-4 evidence. The earlier group
 `0e4eca55-0e4f-47fc-b2d6-507f91b529b8` was published from `8b6353a` with "Clearer stock totals and
 restock counts", and its dashboard card was observed on 2026-11-10.
 

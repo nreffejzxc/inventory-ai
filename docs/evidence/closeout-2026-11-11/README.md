@@ -103,7 +103,7 @@ manual sign-in; this part of Task 2 is blocked, not passed.
 
 ## 3. Controlled staging AI-105 retry
 
-`node server/scripts/staging-ai105-retry.mjs` exited 0 against a local stub OpenRouter endpoint, using
+`node scripts/staging-ai105-retry.mjs` exited 0 against a local stub OpenRouter endpoint, using
 the real `runAiChat` turn loop. The observed request sequence was:
 
 ```json
@@ -118,7 +118,7 @@ The first response was empty at the output limit; the retry returned
 
 ## Verification commands
 
-- `node server/scripts/staging-ai105-retry.mjs` — exit 0.
+- `node scripts/staging-ai105-retry.mjs` — exit 0.
 - `adb install -r mobile/build/standalone/app-release.apk` — Success.
 - `adb shell pm list packages com.inventoryai` — both packages present.
 - `gh api .../workflows/414656117/runs?event=schedule` — zero schedule runs.

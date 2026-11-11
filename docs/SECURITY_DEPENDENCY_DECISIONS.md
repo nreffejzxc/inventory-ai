@@ -1,6 +1,6 @@
 # Security Dependency Decisions
 
-**Status:** living decision record · **Advisories re-measured 2026-11-11** at `main`; the node-forge 1.4.3 and fast-xml-parser 5.12.0 lockfile fixes are from this session, the earlier node-forge 1.4.2 fix from 2026-10-30, the zod fix from 2026-11-02, and the minimatch override from 2026-11-07. The 2026-11-11 Dependabot read had **8 open alerts**; #20–#24 are now **closed** after the lockfile fixes reached `main`, leaving `glob` (#14/#16) and `deepmerge` (#13). Production served **`32b5aca`** at the close-out; verify the current serving commit at `/api/health` rather than treating a dated anchor as live.
+**Status:** living decision record · **Advisories re-measured 2026-11-11** at `main`; the node-forge 1.4.3 and fast-xml-parser 5.12.0 lockfile fixes are from this session, the earlier node-forge 1.4.2 fix from 2026-10-30, the zod fix from 2026-11-02, and the minimatch override from 2026-11-07. The 2026-11-11 Dependabot read had **8 open alerts**; #20–#24 are now **closed** after the lockfile fixes reached `main`, leaving `glob` (#14/#16) and `deepmerge` (#13). Production currently serves **`26eb0d4`** (the AI-106 deployment); verify the current serving commit at `/api/health` rather than treating a dated anchor as live.
 
 An advisory that is not being fixed is **named, evidenced and dispositioned**, never left implied.
 This file covers dependency advisories only; application security decisions are in
