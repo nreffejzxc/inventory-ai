@@ -1,51 +1,50 @@
-# Hosted production-health scheduler attempts — 2026-11-11
+# Hosted production-health watch — UptimeRobot cutover
 
 ## Outcome
 
-**No cutover. The Windows Task Scheduler job remains the only automatic trigger.** GitHub has not
-emitted an `event=schedule` run for any of the hosted paths attempted here, through
-**2026-11-11T19:21Z**. A manual hosted run succeeds, but that is not continuous monitoring and does
-not justify disabling the laptop task.
+**Complete.** Production is now watched by an independent UptimeRobot account with two five-minute
+monitors. The Windows Task Scheduler fallback was disabled only after both monitors were up and
+UptimeRobot accepted an email test alert.
 
-The 10K gate rerun is a separate, completed result: **24/25 written, 25/25 semantically correct, 0
-errors, 0 degraded, $0.000000**. See
-[`../deployed-gate-2026-11-12/README.md`](../deployed-gate-2026-11-12/README.md).
-
-## Attempts
-
-| Attempt | Commit / run | Result |
-| --- | --- | --- |
-| v2 cron corrected from `2-59/5` to `*/5` | PR #239, merged as `83a9f26` | Workflow active; **0** `event=schedule` runs through 19:01Z |
-| Hosted dispatcher in the main repository | PR #240, merged as `66b0929`; workflow `415018961` | Manual run [`43078454582`](https://github.com/nreffejzxc/inventory-ai/actions/runs/43078454582) succeeded and dispatched v2 [`43078473387`](https://github.com/nreffejzxc/inventory-ai/actions/runs/43078473387); v2 succeeded. **0** scheduled dispatcher runs |
-| Separate private watch repository | `nreffejzxc/inventory-ai-health-watch`, commit `1d627de` | Manual run [`43080451330`](https://github.com/nreffejzxc/inventory-ai-health-watch/actions/runs/43080451330) succeeded; **0** scheduled runs |
-| Shared schedule in the working TypeScript watch | PR #242, merged as `8a89a53` | Added a `*/5` schedule and guarded dispatch job; the workflow's previous weekly schedule had fired 2026-11-09, but **0** fresh scheduled runs appeared through 19:21Z |
-
-The separate repository runs the same read-only probe as the main workflow and opens/closes a GitHub
-issue on the two-consecutive-failure rule. Its manual run reported:
-
-- `/api/health/ready`: `200`
-- `/api/health`: `200`, `status: ok`, `db: connected`
-- no open alert issue was created
-
-## Why the laptop stays enabled
-
-| Check | State |
+| Field | Value |
 | --- | --- |
-| Windows task | `InventoryAI Production Health Watch`, state `Ready` |
-| Latest fallback v2 run | [`43085684883`](https://github.com/nreffejzxc/inventory-ai/actions/runs/43085684883), `workflow_dispatch`, success at 19:16:40Z |
-| Hosted scheduled run | none observed |
-| GitHub Actions status | operational during the checks |
-| New repository workflow | active, default branch `main`, Actions enabled |
+| Cutover | 2026-11-11T19:32:14Z |
+| UptimeRobot monitor 1 | Readiness URL `/api/health/ready`, HTTP 200, 5-minute interval, **Up** |
+| UptimeRobot monitor 2 | Keyword `/api/health`, incident when `"db":"connected"` is absent, 5-minute interval, **Up** |
+| Monitor IDs | `804639237` (readiness), `804639270` (health keyword) |
+| Alert channel | UptimeRobot email contact; **test alert accepted** during onboarding |
+| Windows task | `InventoryAI Production Health Watch`, state **Disabled** |
+| Last Windows run | 2026-11-11T19:31:36Z, task result `0` |
 
-Disabling the laptop task now would leave production without an automatic health check. The task
-remains active until a hosted scheduled run is actually observed and successful.
+The two monitors were both **Up** when the task was disabled. The readiness check covers an
+unreachable MongoDB, and the keyword check covers a health response that no longer reports
+`db: connected` even if the HTTP status is 200. The test alert exercises the delivery path; no
+production outage was induced.
 
-## Next action
+## What this replaces
 
-An independent hosted monitor is still required. GitHub Actions scheduling did not fire in either
-repository, including a newly created repository with a minimal `*/5` workflow. The practical next
-step is a hosted uptime service that checks `/api/health/ready` and `/api/health` on a five-minute
-interval and sends an alert outside this laptop; its account/API credential is not present in this
-workspace. Do not store that credential in the repository.
+The previous scheduler was a Windows Task Scheduler job that dispatched
+`production-health-watch-v2.yml` every five minutes from the operator laptop. It has been disabled;
+the task definition and wrapper remain on disk for a deliberate manual fallback. Re-enable it only if
+UptimeRobot is unavailable. `gh workflow run production-health-watch-v2.yml` is the manual fallback.
 
-No credentials, tokens, tenant data, prompts or answers are included in this record.
+## GitHub schedule attempts
+
+GitHub never emitted an `event=schedule` run for any of these paths through 2026-11-11T19:21Z:
+
+- v2 with the corrected `*/5` cron (PR #239, `83a9f26`)
+- the token-free dispatcher (PR #240, `66b0929`)
+- the separate private watch repository (`nreffejzxc/inventory-ai-health-watch`, `1d627de`)
+- the guarded `*/5` dispatch added to the TypeScript watch (PR #242, `8a89a53`)
+
+Manual runs of the first three paths succeeded; the scheduled trigger did not. UptimeRobot is the
+primary path now, not these workflows. Their code remains as a manual/fallback path.
+
+## Limits
+
+- UptimeRobot's free plan checks every five minutes; a faster interval requires a paid plan.
+- The email contact and account are external to the repository; no credential, token or email address
+  is stored here.
+- The Windows fallback is disabled, not deleted. Its next-run value is stale while disabled.
+
+No credentials, tokens, account secrets, tenant data, prompts or answers are included in this record.
