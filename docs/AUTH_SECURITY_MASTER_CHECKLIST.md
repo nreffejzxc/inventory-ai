@@ -95,7 +95,7 @@ records the invariants and controls that test that design; it does not restate t
 | MFA | `[ ]` | deferred |
 | Security notifications | `[ ]` | deferred |
 | Firebase → Mongo disable sync | `[ ]` | revocation is checked at verification; no mirroring |
-| Monitoring / incident runbook | `[ ]` | no repository-specified integration or runbook |
+| Monitoring / incident runbook | `[✓]` | health/live/ready, the OPS-2 response pulse and `GET /api/ai/metrics`, with alert rules and an incident procedure in [`MONITORING.md`](MONITORING.md); alert *delivery* is an operator-side uptime check, not a hosted pager |
 
 ---
 
@@ -161,7 +161,7 @@ assumed.
 | Sessions | `jti` rows, revocation, 14-day cap, 20-session bound |
 | Audit | trail plus read-only viewer |
 | Backups | `backup:db` writes a manifest with per-file SHA-256 and refuses a corrupt restore; tested on a scratch database, but a **full restore on the real tier has never been observed** (§27DH) |
-| Monitoring | `GET /health/live` and `/ready`; an outside watcher reads the pulse (§27DI) |
+| Monitoring | `GET /api/health/live`, `/ready` and `/api/health`; the OPS-2 pulse (§27DI); AI turn records and the OWNER/ADMIN metrics aggregate; runbook in [`MONITORING.md`](MONITORING.md) |
 | Dependency guard | `scripts/check-secrets.mjs` in CI, every rule with a canary |
 | Open | iOS; Play release not made; OTA code signing blocked by plan (§27FN) |
 
