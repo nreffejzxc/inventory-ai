@@ -467,8 +467,9 @@ gh workflow run production-health-watch-v2.yml
 `/api/health/ready` answers 200 only when the database is reachable now; `/api/health` must also say
 `status: ok` and `db: connected`. The counters remain per process (reset on restart), public, and free
 of names, paths, users or messages. GitHub can delay scheduled runs, so this is detection rather than a
-five-minute SLA. If no scheduled run has been emitted, dispatch `production-health-watch-v2.yml` by
-hand with the command above; it uses the same probe and alert path.
+five-minute SLA. GitHub has not emitted a scheduled run for v2 as of 2026-11-11, so dispatch
+`production-health-watch-v2.yml` by hand with the command above; it uses the same probe and alert
+path.
 
 ## Part 8 — The whole list
 

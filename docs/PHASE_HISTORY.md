@@ -112,6 +112,11 @@ turns returned **19** and **19 / 1,633,025** with refs `bf777146` and `e4570da9`
 the answer…” label was observed live at `008a1583`. Production OTA `58f75323` carries the reset-UX
 label. See `DEVELOPMENT_LOG.md` and
 [`evidence/ai105-production-2026-11-11`](evidence/ai105-production-2026-11-11/README.md).
+The deployed 10K gate rerun on 2026-11-11 passed **25/25** (0 errors, 0 degraded, $0) with no
+output-limit event and a verified tenant restore (10,000 / 20,006 / 1,535 low); the long-thread
+production test answered the compound question correctly but did not trigger the compact-history
+trim, so that live proof remains open. GitHub still emitted no `event=schedule` run for the v2
+health workflow after the stepped-cron change; manual dispatch works and is documented.
 The earlier assistant increments cover the turn deadline,
 retries, answer rendering, the cost line, quota, failover, streaming, and finally one provider
 (OpenRouter). The

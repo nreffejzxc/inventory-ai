@@ -90,9 +90,9 @@ on invalid configuration. It never prints a response body, a token or a tenant v
 uses the same command, creates one issue titled `[production-health] Production endpoint is
 unhealthy`, does not duplicate an already-open alert, comments and closes the issue on recovery.
 The workflow can be dispatched with `ready_url` and `health_url` inputs to test the alert path without
-touching production; the scheduled run always uses the production defaults. If GitHub has not emitted
-a scheduled run, use `gh workflow run production-health-watch-v2.yml`; the probe and issue path are
-identical, so the manual dispatch is the supported fallback.
+touching production; the scheduled run always uses the production defaults. As of 2026-11-11 GitHub has not emitted a scheduled run for v2 even after the stepped-cron change, so
+use `gh workflow run production-health-watch-v2.yml`; the probe and issue path are identical, and the
+manual dispatch is the supported fallback.
 
 ---
 
