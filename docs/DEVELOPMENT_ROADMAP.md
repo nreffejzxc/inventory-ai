@@ -8,7 +8,7 @@ of truth for *what actually happened*, and it is why this file is long.
 
 **How to read it.** Do not read it top to bottom. Either find a record by number (§27FJ, §27DM — the
 numbers are cited from `CLAUDE.md` and from source comments), or use the index: `CLAUDE.md` §7 lists
-all **229** records by the title each gives itself.
+all **230** records by the title each gives itself.
 
 **Current state:** V1 complete and in production testing. The records that answer *where are we now* are §27HV (AI-99 10,256-product gate, 24/25 with one output-limit finding), §27HU (AI-99 free-first simple inventory, deployed with the 1.0.2 OTA), §27HT (AI-91/AI-92 exact product identity and per-location stock), §27HS (the AI-50–AI-84 increment register), §27HR (AI-48–AI-84 merged and deployed), §27HQ (grounded answers and scoped stock reads), §27HP (market prices from cited pages), §27HO (recorded specifications and the real seed catalogue), §27HN (inventory-only web research), §27HH (a transfer as one event to the assistant), §27HG (the stock-in link's product), §27HF (the single-location default's timing), §27HE (the stock-in link's location), §27HD (the movement fixes and the production device pass), §27HC (the assistant's local-time answers), §27FM (the V1 re-verification) and §27FJ (the two open advisories).
 
@@ -25098,3 +25098,64 @@ after the test fixes; the required `server` CI job ran the full suite on #218 an
 **Evidence.** PRs #217, #194 and #218; [`MONITORING.md`](MONITORING.md);
 `server/test/AI68-history-totals.test.mjs`; `server/.tmp-ai103-live-smoke.json` (git-ignored);
 `GET /api/health`, `/api/health/ready` and `/api/ai/metrics`.
+
+---
+
+# 27HX. Dependency lockfile pass, AI-84/AI-105, and the external production watch (2026-11-11)
+
+**Why.** A fresh review found **8 open Dependabot alerts**, not the three documented before this
+session. The assistant also still had two open findings from the 10k gate: a paid gpt-oss turn
+could spend the whole 1,200-token output cap on mandatory reasoning twice and return no text, and
+Bisaya/Tagalog replies remained inconsistent despite the AI-84 prompt rule. Separately, production
+had no external watcher: a Render outage could only be noticed by someone looking at the host.
+
+**Dependencies.** Two lockfile-only fixes stayed inside their consumers' declared ranges:
+`node-forge` `1.4.2 → 1.4.3` under `@expo/code-signing-certificates`/`@expo/cli` (alerts #20–#23;
+three medium, one low) and `fast-xml-parser` `5.11.1 → 5.12.0` under
+`@google-cloud/storage@8.3.0` (alert #24; low). Neither `package.json` changed. The remaining three
+alerts are `glob` #14/#16 and `deepmerge` #13, still under D-10/D-4; `npm audit` reports the same
+5 server / 27 mobile entries and only those two distinct advisories, because node-forge and
+fast-xml-parser are now outside their vulnerable ranges. The five patched alerts close after the
+lockfiles reach the default branch.
+
+**AI-105.** `ProviderRequest` gained optional `maxOutputTokens` and `reasoningBudgetTokens`
+overrides. An empty `AiOutputLimit` retry now raises only that call's cap from 1,200 to 2,400 and,
+for a paid model, sends `thinking: { type: 'enabled', budget_tokens: 1200 }`, reserving the original
+amount for the answer. Free models get the larger cap without a reasoning field. The normal
+configured cap is unchanged, and a second limit is still reported. The new DB-free
+`AI105-output-limit-retry.test.mjs` passes both the paid and free cases; the real-wire test also
+proves the request body carries `max_tokens: 2400` and the 1,200-token budget.
+
+**AI-84.** A deterministic Bisaya/Tagalog classifier in `server/src/services/ai/language.ts` now
+adds a direct `LANGUAGE FOR THIS ANSWER` instruction to the system prompt and to the final answer
+round, and to the simple-route prompt. It keeps product names, SKUs, codes, numbers, URLs and
+technical terms recorded, and leaves English turns unchanged. `AI84-language-policy.test.mjs` covers
+five Bisaya and five Tagalog questions, two English controls, the exact-directive assertions, the
+simple route, and a fake-provider turn proving the directive reaches the request.
+
+**OPS-4.** `scripts/check-production-health.mjs` probes `/api/health/ready` and `/api/health`, requires
+`status: ok` and `db: connected`, and exits 1 only after two consecutive failures.
+`.github/workflows/production-health-watch.yml` runs every five minutes from GitHub, opens one
+issue titled `[production-health] Production endpoint is unhealthy`, and comments/closes it on
+recovery. GitHub issue notifications are the delivery channel; there is no hosted pager. The local
+probe returned healthy against production on 2026-11-11 (`e15136a`, `/ready` 200, `db: connected`),
+and `ops-production-health.test.mjs` covers healthy, readiness-down, degraded/database-down and
+transient-recovery decisions.
+
+**Phone evidence.** The installed 1.0.2 production app (`PV4DDMIZZLTCIVSK`) showed the live
+**`Ref: 74ef2707`** line under the newest assistant answer, with `Read: Stock movements` and the
+truncation notice. After clearing only the app's local data through Android Settings and signing
+back in through the existing Google account, the dashboard showed the newest
+**“What's new — More accurate totals and more grounded answers”** card; **Got it** removed it
+without layout clipping. Screenshots and the UI transcript are in
+[`evidence/task4-2026-11-11/README.md`](evidence/task4-2026-11-11/README.md).
+
+**Checks.** Server typecheck, lint, `check:extensions` and `check:specifiers` exit 0; the focused
+AI-105/AI-84/OPS-4 tests pass 12/12; mobile typecheck/lint pass and Jest is **102 suites / 1,208
+tests**; `check-docs` reports 31 active documents and `git diff --check` is clean. The full server
+unit suite is rerun after this record is declared.
+
+**What remains.** The workflow's real failure → issue → recovery cycle and the live production
+language turns are post-merge checks; this record will be amended with their results. The output
+limit retry is proven at the unit and wire level; a fresh live occurrence is not guaranteed because
+the failure is intermittent.

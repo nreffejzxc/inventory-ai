@@ -1,0 +1,111 @@
+name: Production health watch
+
+# OPS-4 — an EXTERNAL watcher for the deployed service.
+#
+# Why GitHub Actions: it runs outside Render and outside this laptop, so a Render outage
+# cannot silence the thing that reports it. The workflow only reads the two public health
+# endpoints and needs no secret. A real outage opens a GitHub issue; recovery closes it.
+# GitHub then delivers the issue notification according to each watcher's notification
+# settings (email, web, mobile), which is the external alert channel for this repository.
+#
+# The probe requires TWO consecutive failures. One failed request is not an outage, and a
+# transient Render cold start must not page anyone.
+
+on:
+  schedule:
+    # GitHub may delay scheduled runs; this is detection, not a 99.999% SLA.
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+    inputs:
+      ready_url:
+        description: Readiness endpoint to probe
+        required: false
+        default: https://ai-inventory-l1mi.onrender.com/api/health/ready
+      health_url:
+        description: Health endpoint to probe
+        required: false
+        default: https://ai-inventory-l1mi.onrender.com/api/health
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: production-health-watch
+  cancel-in-progress: false
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out the probe script
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Probe production (two consecutive failures required)
+        id: probe
+        continue-on-error: true
+        env:
+          READY_URL: ${{ inputs.ready_url || 'https://ai-inventory-l1mi.onrender.com/api/health/ready' }}
+          HEALTH_URL: ${{ inputs.health_url || 'https://ai-inventory-l1mi.onrender.com/api/health' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/check-production-health.mjs \
+            --ready-url="$READY_URL" \
+            --health-url="$HEALTH_URL" \
+            --attempts=2 \
+            --delay-ms=20000 \
+            --timeout-ms=20000 \
+            > "$RUNNER_TEMP/production-health.json"
+          cat "$RUNNER_TEMP/production-health.json" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Open or keep the production health alert
+        if: steps.probe.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          number=$(gh issue list --state open --limit 100 \
+            --json number,title \
+            --jq '.[] | select(.title | startswith("[production-health]")) | .number' | head -n 1)
+          if [ -z "$number" ]; then
+            {
+              echo "The external production health probe failed twice in a row."
+              echo
+              echo "- Readiness: \`/api/health/ready\` must answer 200."
+              echo "- Health: \`/api/health\` must answer 200 with \`status: ok\` and \`db: connected\`."
+              echo "- Run: $RUN_URL"
+              echo
+              echo '```json'
+              cat "$RUNNER_TEMP/production-health.json"
+              echo '```'
+            } > "$RUNNER_TEMP/alert-body.md"
+            gh issue create \
+              --title "[production-health] Production endpoint is unhealthy" \
+              --body-file "$RUNNER_TEMP/alert-body.md"
+          else
+            echo "Production health alert #$number is already open; no duplicate issue created."
+          fi
+
+      - name: Close the alert after recovery
+        if: steps.probe.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          number=$(gh issue list --state open --limit 100 \
+            --json number,title \
+            --jq '.[] | select(.title | startswith("[production-health]")) | .number' | head -n 1)
+          if [ -n "$number" ]; then
+            gh issue comment "$number" --body "Recovery confirmed: both production health endpoints are healthy again. Run: $RUN_URL"
+            gh issue close "$number"
+          else
+            echo "Production is healthy; no open alert to close."
+          fi

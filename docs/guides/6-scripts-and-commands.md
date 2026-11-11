@@ -454,10 +454,20 @@ when the gate itself cannot be read, rather than treating that as deferred, and 
 dependency. Start it by hand with `gh workflow run typescript-7-watch.yml`; the exact issue title and
 the #32 ledger live in the workflow.
 
-**Nothing watches the deployment.** `/api/health/ready` answers 200 only when the database is reachable
-now; poll it every 5 minutes, alert after two non-200 answers, and optionally watch `/api/health` for a
-climbing `counters.serverErrors` (the 2026-10-18 failure shape readiness cannot see). The counters are per
-process (reset on restart) and public but contain no names, paths, users or messages.
+The **production health watch** runs every five minutes from GitHub Actions, outside Render and this
+laptop. It probes `/api/health/ready` and `/api/health`; two consecutive failures open one GitHub issue
+(the external notification), and recovery closes it. The same check can be run by hand:
+
+```bash
+cd C:/Users/jeffe/inventory-ai
+node scripts/check-production-health.mjs --attempts=2 --delay-ms=20000
+gh workflow run production-health-watch.yml
+```
+
+`/api/health/ready` answers 200 only when the database is reachable now; `/api/health` must also say
+`status: ok` and `db: connected`. The counters remain per process (reset on restart), public, and free
+of names, paths, users or messages. GitHub can delay scheduled runs, so this is detection rather than a
+five-minute SLA.
 
 ## Part 8 — The whole list
 
