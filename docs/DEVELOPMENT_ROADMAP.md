@@ -25155,7 +25155,15 @@ AI-105/AI-84/OPS-4 tests pass 12/12; mobile typecheck/lint pass and Jest is **10
 tests**; `check-docs` reports 31 active documents and `git diff --check` is clean. The full server
 unit suite is rerun after this record is declared.
 
-**What remains.** The workflow's real failure → issue → recovery cycle and the live production
-language turns are post-merge checks; this record will be amended with their results. The output
-limit retry is proven at the unit and wire level; a fresh live occurrence is not guaranteed because
-the failure is intermittent.
+**Post-merge verification (2026-11-11).** PR #222 merged as `6d94b29`; the external watch created
+issue **#223** from deliberately bad URLs (run `42997930724`) and commented on and closed it after
+the production probe recovered (run `42998077450`). Dependabot closed **#20–#24**; only `glob`
+#14/#16 and `deepmerge` #13 remain under D-10/D-4. On the phone, the 1.0.2 app's Nov 9 embedded
+bundle was replaced by the production OTA bundle; a fresh answer then showed **`Ref: 566f6d71`**,
+and the OTA What's New card (“AI answers now include a support reference”) was dismissed with
+**Got it**. The first Tagalog count turn still answered with an English list, so PR #224 (`32b5aca`)
+recognized `pila`/`ilan` as count wording and localized the deterministic count finalizer. The live
+Tagalog retest answered **“May 19 na produktong mababa ang stock.”**, the live Bisaya retest answered
+**“Adunay 19 ka produkto nga ubos ang stock.”**, and the Restock screen independently showed
+**“19 products at or below minimum stock.”** The output limit retry is proven at the unit and wire
+level; a fresh live occurrence is not guaranteed because the failure is intermittent.

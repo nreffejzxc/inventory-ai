@@ -1,43 +1,64 @@
-# Task 4 — installed Android app: `Ref:` line and What's New card (2026-11-11)
+# Task 4 — installed Android app: `Ref:` line, What's New card, and live language turns (2026-11-11)
 
 This report records the production Android app (`com.inventoryai.app`, versionName `1.0.2`,
 versionCode `10`) on the OPPO `CPH1969`, Android 11, ADB serial `PV4DDMIZZLTCIVSK`. The signed-in
 tenant was **joffy steelseries / Owner** (`jaffyfreebuff6183@gmail.com`; 113 active products,
 26,974 units on hand). No tenant data, product record or server configuration was changed.
 
-## `Ref:` line — observed
+## `Ref:` line — observed after the production OTA bundle was restored
 
-The newest stored AI answer, opened from the AI Assistant conversation list, rendered:
+The first observation (**`Ref: 74ef2707`**, with `Read: Stock movements` and the truncation notice)
+came from the production OTA bundle. Clearing only the app's local data left the app on its
+embedded Nov 9 bundle, which predates the ref feature, so a fresh answer showed no ref. A
+force-stop/relaunch let the production OTA update download and apply, and the dashboard then showed
+the OTA **What's new — AI answers now include a support reference** card. After **Got it**, a fresh
+answer rendered:
 
-- the answer text and its truncation notice,
-- **`Read: Stock movements`**, and
-- **`Ref: 74ef2707`** (selectable, under the answer, above the timestamp).
+- the answer text,
+- **`Read: Inventory summary · Stock value`**, and
+- **`Ref: 566f6d71`** (selectable, under the answer, above the timestamp).
 
-The line is not clipped or overlapped by the answer card, and the `Ref:` label is legible. See
-[`ref-line.png`](ref-line.png).
+The later live language turns rendered **`Ref: 9adeefa7`** (Tagalog) and **`Ref: 0d1ed88c`**
+(Bisaya). See [`ref-line-ota.png`](ref-line-ota.png) and the language screenshots below.
 
-## What's New card — observed on a fresh install
+## What's New card — observed
 
-The app's local data was cleared through the phone's own **Settings → Apps → Inventory AI →
-Storage → Clear data** confirmation (the shell `pm clear` command is refused by this OPPO build),
-then the app was signed back in with the existing Google account. On first launch after sign-in,
-the dashboard rendered the newest release note:
+The embedded bundle's card (**“More accurate totals and more grounded answers”**) was observed
+first; after the OTA bundle applied, the dashboard showed the newer
+**“AI answers now include a support reference”** card:
 
 > **What's new**
-> **More accurate totals and more grounded answers**
-> The assistant now keeps a stock-value total together with the highest-value item, stays on the
-> everyday model for stock comparisons, and avoids unsupported sales claims.
+> **AI answers now include a support reference**
+> Each assistant answer shows a short reference you can copy, so support can find the exact answer
+> if you ask for help.
 > **Got it** · **See what's new**
 
-The card's title wraps to two lines without clipping, the summary is fully visible, both controls
-have their own tap rows, and the card sits below the greeting and above the **Overview** section.
-Tapping **Got it** removed the card immediately; a fresh UI dump then contained no `What's new`,
-`Got it`, or note title. See [`whats-new-card.png`](whats-new-card.png).
+Tapping **Got it** removed the card immediately. See
+[`whats-new-card.png`](whats-new-card.png) for the earlier card; the OTA card's text is recorded in
+the UI transcript above.
+
+## Live language turns
+
+All three turns ran against the deployed server, not a local build.
+
+| Language | Question | Answer | Reference |
+| --- | --- | --- | --- |
+| Bisaya | `Pila ka units ang naa sa stock?` | **“26,974 ka units ang naa sa pag-imbentaryo sa tanan nga lokasyon.”** | — |
+| Tagalog (before the fix) | `Ilan ang low stock na produkto?` | English low-stock list (the defect this task recorded) | — |
+| Tagalog (after the fix) | `Ilan ang low stock na produkto?` | **“May 19 na produktong mababa ang stock.”** | `9adeefa7` |
+| Bisaya (after the fix) | `Pila ka low stock nga butang?` | **“Adunay 19 ka produkto nga ubos ang stock.”** | `0d1ed88c` |
+
+The 19 is independently confirmed by the Restock screen:
+**“19 products at or below minimum stock, most urgent first.”** See
+[`tagalog-answer.png`](tagalog-answer.png) for the pre-fix English answer,
+[`tagalog-count-after-fix.png`](tagalog-count-after-fix.png),
+[`bisaya-count-after-fix.png`](bisaya-count-after-fix.png), and
+[`restock-count-19.png`](restock-count-19.png).
 
 ## Limits
 
 - Only Android was tested; iOS remains an external verification item.
 - The screenshots contain the tenant's business name and aggregate stock figures, which are already
   visible on the signed-in dashboard; no credential, token or personal data is included.
-- The card test used a fresh local app state. It does not re-verify an over-the-air update
-  application; the installed bundle is the current production 1.0.2 build.
+- The output-limit retry (AI-105) is verified at unit and real-wire level; the live occurrence is
+  intermittent and was not reproduced in this session.
