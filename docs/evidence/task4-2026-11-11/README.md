@@ -68,6 +68,15 @@ The installed app needs the next OTA to show this label; the focused Jest AI-40 
 
 - Only Android was tested; iOS remains an external verification item.
 - The screenshots contain the tenant's business name and aggregate stock figures, which are already
-  visible on the signed-in dashboard; no credential, token or personal data is included.
-- The output-limit retry (AI-105) is verified at unit and real-wire level; the live occurrence is
-  intermittent and was not reproduced in this session.
+  visible on the signed-in dashboard; no credential, token or personal data is included.- The output-limit retry (AI-105) is verified at unit and real-wire level; the live occurrence is intermittent and was not reproduced in this session.
+
+## 2026-11-11 follow-up — the reset-label OTA
+
+The next production OTA (group `58f75323-eeab-4aee-b48d-5f3c38e2396a`, runtime `1.0.2`) was
+published and loaded on the same phone, but the **“Correcting the answer…”** label was not observed
+live: the phone turns took the ordinary tool-read route rather than the server reset/re-ask path.
+See [`../ai106-ota-2026-11-11/README.md`](../ai106-ota-2026-11-11/README.md) for the OTA details,
+the count/value audit finding, and the exact references. This addendum does not rewrite the earlier
+observation; it records that the label remains unverified. The server-side AI-106 fix was later
+deployed as `26eb0d4`; its production count and compound turns are in
+[`../ai106-production-2026-11-11/README.md`](../ai106-production-2026-11-11/README.md).
