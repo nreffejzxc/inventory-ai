@@ -263,6 +263,13 @@ function useOpenrouter({ model = MODEL, key = TEST_KEY } = {}) {
     withEnv('OPENROUTER_API_KEY', key),
     withEnv('OPENROUTER_BASE_URL', `http://127.0.0.1:${port}`),
     withEnv('AI_MODEL_OPENROUTER', model),
+    // The full-catalogue case below asserts the LOCAL research tools run. A
+    // developer's `.env` may enable OpenRouter's native web tools, which
+    // deliberately withhold those local tools; the test must not inherit that
+    // deployment choice or it fails on a machine whose server is configured
+    // correctly. The native path has its own suites.
+    withEnv('AI_WEB_SEARCH', 'disable'),
+    withEnv('AI_WEB_FETCH', 'disable'),
   ];
 }
 
