@@ -1,0 +1,9 @@
+snapshotRows: 20006
+modified: 0
+actualRows: 20006
+activeProducts: 10000
+expectedLow: 1535
+actualLow: 1535
+SEEDSKU_0: 401
+SEEDSKU_5000: 331
+[deployed-gate] restore verified; backup removed
