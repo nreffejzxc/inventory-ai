@@ -51,10 +51,11 @@ hosting account.
 
 These are the rules worth waking someone for. They are written for an outside uptime watcher
 (UptimeRobot, Better Stack, a scheduled `curl`, or the hosting provider's own check). This repository
-now ships one: `.github/workflows/production-health-watch-v2.yml` runs the read-only
-`scripts/check-production-health.mjs` every five minutes from GitHub, outside Render and outside the
-development laptop. It opens a GitHub issue after **two consecutive failures** and closes it when
-both endpoints recover. GitHub's issue notifications are the delivery channel; there is still no
+ships a GitHub-hosted probe: `.github/workflows/production-health-watch-v2.yml` runs the read-only
+`scripts/check-production-health.mjs` from GitHub, outside Render. GitHub has not emitted a
+`schedule` event for this workflow, so an external Windows scheduled task on the operator laptop
+dispatches it every five minutes. It opens a GitHub issue after **two consecutive failures** and
+closes it when both endpoints recover. GitHub's issue notifications are the delivery channel; there is still no
 hosted pager or dashboard.
 
 | Signal | Rule | Why it matters |
@@ -90,9 +91,31 @@ on invalid configuration. It never prints a response body, a token or a tenant v
 uses the same command, creates one issue titled `[production-health] Production endpoint is
 unhealthy`, does not duplicate an already-open alert, comments and closes the issue on recovery.
 The workflow can be dispatched with `ready_url` and `health_url` inputs to test the alert path without
-touching production; the scheduled run always uses the production defaults. As of 2026-11-11 GitHub has not emitted a scheduled run for v2 even after the stepped-cron change, so
-use `gh workflow run production-health-watch-v2.yml`; the probe and issue path are identical, and the
+touching production; the scheduled run always uses the production defaults. As of 2026-11-11 GitHub
+still has not emitted a scheduled run for v2 even after the stepped-cron change. The manual fallback
+remains: use `gh workflow run production-health-watch-v2.yml`; the probe and issue path are identical, and the
 manual dispatch is the supported fallback.
+
+### External scheduler on the operator laptop
+
+GitHub still emits no `event=schedule` run for v2. A Windows Task Scheduler job now dispatches the
+workflow every five minutes:
+
+- **Task:** `InventoryAI Production Health Watch`
+- **Wrapper:** `scripts/trigger-production-health-watch.ps1`
+- **Registration:** `scripts/register-production-health-scheduler.ps1`
+- **Log:** `%LOCALAPPDATA%\InventoryAI\production-health-scheduler.log`
+- **First automatic run:** 2026-11-12 01:36:35 +08:00, task result `0`; workflow run
+  [`43069829375`](https://github.com/nreffejzxc/inventory-ai/actions/runs/43069829375)
+  (`workflow_dispatch`) succeeded in 14 seconds. Evidence:
+  [`production-health-scheduler-2026-11-11`](evidence/production-health-scheduler-2026-11-11/README.md).
+
+The wrapper skips a dispatch while a v2 run is queued or active. It uses the operator's existing
+`gh` login; **no token is stored in the repository or the task.** This trigger is external to
+GitHub's schedule and to Render, but it is not a hosted scheduler: it runs only while the operator
+is signed in and the laptop is awake and online. If the laptop is offline, no check is dispatched;
+use `gh workflow run production-health-watch-v2.yml` manually. A hosted scheduler with a scoped
+`workflow` token is the durable replacement; do not commit that token.
 
 ---
 
@@ -225,10 +248,12 @@ grep "AI turn" <log> | grep -oE "model=[^ ]+ tier=[^ ]+" | sort | uniq -c
   never zero. The endpoint does not estimate.
 - **Log retention is the host's.** A turn's text record can disappear before the aggregate does; the
   durable row is the reason the aggregate survives.
-- **No hosted pager or dashboard.** The GitHub Actions watch is the external delivery channel; it
-  opens and closes a GitHub issue. Its schedule is best-effort (GitHub can delay scheduled jobs), and
-  delivery follows each watcher's GitHub notification settings. A dedicated pager can replace it
-  later; record the integration here rather than assuming the next person knows.
+- **No hosted pager or dashboard.** The GitHub Actions workflow is the delivery channel; it
+  opens and closes a GitHub issue. Its GitHub `schedule` trigger has not fired, so a Windows task on
+  the operator laptop dispatches it every five minutes. That task stops when the laptop is signed
+  out, asleep or offline, and has no independent alert if dispatch fails. Delivery follows each
+  watcher's GitHub notification settings. A hosted scheduler and a dedicated pager can replace these
+  limits later; record the integration here.
 - **`/api/health` is public.** It publishes a commit id, a posture name and counts. It never
   publishes a path, a tenant, a member, a duration or a message.
 
@@ -248,5 +273,8 @@ grep "AI turn" <log> | grep -oE "model=[^ ]+ tier=[^ ]+" | sort | uniq -c
 | Counters tests | `server/test/OPS2-operational-counters.test.mjs` |
 | External uptime probe | `scripts/check-production-health.mjs` |
 | External watch workflow | `.github/workflows/production-health-watch-v2.yml` |
+| External scheduler wrapper | `scripts/trigger-production-health-watch.ps1` |
+| External scheduler registration | `scripts/register-production-health-scheduler.ps1` |
+| Scheduler evidence | `docs/evidence/production-health-scheduler-2026-11-11/README.md` |
 | Probe tests | `server/test/ops-production-health.test.mjs` |
 | Recorded design | `docs/DEVELOPMENT_ROADMAP.md` §27DI (the pulse), §27HU–§27HX (AI-99 through the external watch) |

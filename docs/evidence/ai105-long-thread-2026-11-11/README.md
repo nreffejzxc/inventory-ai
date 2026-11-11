@@ -1,5 +1,9 @@
 # AI-105 long-thread production test — 2026-11-11
 
+> Superseded for the compact-history trim proof by
+> [`../ai105-output-limit-2026-11-11/README.md`](../ai105-output-limit-2026-11-11/README.md),
+> which records a production drill that logged the real `trimmed` retry on turn `2d856074`.
+
 This was the live long-conversation follow-up to the AI-105 compact-history retry fix, run on the
 production OPPO `CPH1969` against Render commit `3b275df`. The thread was built in one chat and
 contains more than four prior messages before the compound questions, so a retry would have trimmed
