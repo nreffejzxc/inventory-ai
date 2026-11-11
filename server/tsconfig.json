@@ -28,7 +28,9 @@
 {
   "compilerOptions": {
     "target": "ES2023",
-    "lib": ["ES2023"],
+    // TypeScript 6 + @types/node 26 resolves the global Console interface through
+    // the DOM lib. This is type-only; the server still runs on Node.
+    "lib": ["ES2023", "DOM"],
     "module": "nodenext",
     "moduleResolution": "nodenext",
     "types": ["node"],
