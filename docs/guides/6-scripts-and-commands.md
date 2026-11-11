@@ -461,13 +461,14 @@ laptop. It probes `/api/health/ready` and `/api/health`; two consecutive failure
 ```bash
 cd C:/Users/jeffe/inventory-ai
 node scripts/check-production-health.mjs --attempts=2 --delay-ms=20000
-gh workflow run production-health-watch.yml
+gh workflow run production-health-watch-v2.yml
 ```
 
 `/api/health/ready` answers 200 only when the database is reachable now; `/api/health` must also say
 `status: ok` and `db: connected`. The counters remain per process (reset on restart), public, and free
 of names, paths, users or messages. GitHub can delay scheduled runs, so this is detection rather than a
-five-minute SLA.
+five-minute SLA. If no scheduled run has been emitted, dispatch `production-health-watch-v2.yml` by
+hand with the command above; it uses the same probe and alert path.
 
 ## Part 8 — The whole list
 

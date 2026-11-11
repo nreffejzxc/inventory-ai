@@ -51,7 +51,7 @@ hosting account.
 
 These are the rules worth waking someone for. They are written for an outside uptime watcher
 (UptimeRobot, Better Stack, a scheduled `curl`, or the hosting provider's own check). This repository
-now ships one: `.github/workflows/production-health-watch.yml` runs the read-only
+now ships one: `.github/workflows/production-health-watch-v2.yml` runs the read-only
 `scripts/check-production-health.mjs` every five minutes from GitHub, outside Render and outside the
 development laptop. It opens a GitHub issue after **two consecutive failures** and closes it when
 both endpoints recover. GitHub's issue notifications are the delivery channel; there is still no
@@ -81,7 +81,7 @@ start after a spin-down; one slow first request is not an incident. Two consecut
 ```sh
 cd C:/Users/jeffe/inventory-ai
 node scripts/check-production-health.mjs --attempts=2 --delay-ms=20000
-gh workflow run production-health-watch.yml
+gh workflow run production-health-watch-v2.yml
 ```
 
 The script exits **0** only when `/api/health/ready` is `200` and `/api/health` is `200` with
@@ -90,7 +90,9 @@ on invalid configuration. It never prints a response body, a token or a tenant v
 uses the same command, creates one issue titled `[production-health] Production endpoint is
 unhealthy`, does not duplicate an already-open alert, comments and closes the issue on recovery.
 The workflow can be dispatched with `ready_url` and `health_url` inputs to test the alert path without
-touching production; the scheduled run always uses the production defaults.
+touching production; the scheduled run always uses the production defaults. If GitHub has not emitted
+a scheduled run, use `gh workflow run production-health-watch-v2.yml`; the probe and issue path are
+identical, so the manual dispatch is the supported fallback.
 
 ---
 
@@ -245,6 +247,6 @@ grep "AI turn" <log> | grep -oE "model=[^ ]+ tier=[^ ]+" | sort | uniq -c
 | Metrics DB tests | `server/test/AI102-ai-metrics.test.mjs` |
 | Counters tests | `server/test/OPS2-operational-counters.test.mjs` |
 | External uptime probe | `scripts/check-production-health.mjs` |
-| External watch workflow | `.github/workflows/production-health-watch.yml` |
+| External watch workflow | `.github/workflows/production-health-watch-v2.yml` |
 | Probe tests | `server/test/ops-production-health.test.mjs` |
 | Recorded design | `docs/DEVELOPMENT_ROADMAP.md` §27DI (the pulse), §27HU–§27HX (AI-99 through the external watch) |

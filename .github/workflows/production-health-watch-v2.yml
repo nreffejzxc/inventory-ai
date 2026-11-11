@@ -16,10 +16,14 @@ name: Production health watch v2
 # stayed at zero through the merge, a cron change, and a disable/enable). A new workflow file
 # is the remaining documented registration path. The minute offset avoids the top-of-hour load
 # spike that can drop queued scheduled runs.
+#
+# Use the standard stepped form. The original long comma list was valid cron, but it is the
+# only material difference from the repository's scheduled TypeScript watch, which does run.
+# Manual dispatch remains the fallback if GitHub still does not register this schedule.
 
 on:
   schedule:
-    - cron: '4,9,14,19,24,29,34,39,44,49,54,59 * * * *'
+    - cron: '2-59/5 * * * *'
   workflow_dispatch:
     inputs:
       ready_url:
