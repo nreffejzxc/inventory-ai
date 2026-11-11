@@ -54,8 +54,9 @@ These are the rules worth waking someone for. They are written for an outside up
 ships a GitHub-hosted probe: `.github/workflows/production-health-watch-v2.yml` runs the read-only
 `scripts/check-production-health.mjs` from GitHub, outside Render. GitHub has not emitted a
 `schedule` event for this workflow. A separate hosted dispatcher
-(`.github/workflows/production-health-dispatch.yml`) and a separate private watch repository also
-exist, but neither produced a scheduled run through 2026-11-11T19:01Z. The Windows task remains the
+(`.github/workflows/production-health-dispatch.yml`), a separate private watch repository, and a
+five-minute dispatch guard in the working TypeScript watch also exist, but none produced a scheduled
+run through 2026-11-11T19:21Z. The Windows task remains the
 only automatic trigger for now. It opens a GitHub issue after **two consecutive failures** and
 closes it when both endpoints recover. GitHub's issue notifications are the delivery channel; there is still no
 hosted pager or dashboard.
@@ -121,7 +122,7 @@ use `gh workflow run production-health-watch-v2.yml` manually. A hosted schedule
 
 ### Hosted scheduler attempts — not active
 
-Two credential-free hosted attempts were merged on 2026-11-11:
+Three credential-free hosted attempts were merged on 2026-11-11:
 
 - `.github/workflows/production-health-dispatch.yml` uses the repository `GITHUB_TOKEN` with
   `actions: write` to dispatch v2. Its manual run `43078454582` succeeded and dispatched v2
@@ -129,9 +130,12 @@ Two credential-free hosted attempts were merged on 2026-11-11:
 - `nreffejzxc/inventory-ai-health-watch` is a separate private repository with the same read-only
   probe and issue alert path. Its manual run `43080451330` succeeded; it has produced no scheduled
   run either.
+- `.github/workflows/typescript-7-watch.yml` now carries a `*/5` schedule with a guarded job that
+  dispatches v2. That workflow's prior weekly schedule had fired on 2026-11-09, but no fresh
+  scheduled run appeared through 2026-11-11T19:21Z.
 
-GitHub reported Actions operational and both workflows active, with no scheduled run through
-2026-11-11T19:01Z. The laptop task was therefore **not disabled**. Evidence:
+GitHub reported Actions operational and the dispatcher and watch workflow active, with no scheduled
+run through 2026-11-11T19:21Z. The laptop task was therefore **not disabled**. Evidence:
 [`production-health-scheduler-hosted-2026-11-12`](evidence/production-health-scheduler-hosted-2026-11-12/README.md).
 The next step is an independent hosted uptime monitor; its account credential is not in the
 repository.
@@ -268,8 +272,8 @@ grep "AI turn" <log> | grep -oE "model=[^ ]+ tier=[^ ]+" | sort | uniq -c
 - **Log retention is the host's.** A turn's text record can disappear before the aggregate does; the
   durable row is the reason the aggregate survives.
 - **No hosted pager or dashboard.** The GitHub Actions workflow is the delivery channel; it
-  opens and closes a GitHub issue. Its GitHub `schedule` trigger has not fired. Two credential-free
-  hosted attempts also produced no scheduled run through 2026-11-11T19:01Z, so a Windows task on the
+  opens and closes a GitHub issue. Its GitHub `schedule` trigger has not fired. Three credential-free
+  hosted attempts also produced no scheduled run through 2026-11-11T19:21Z, so a Windows task on the
   operator laptop is still the only automatic trigger, dispatching every five minutes. That task
   stops when the laptop is signed out, asleep or offline, and has no independent alert if dispatch
   fails. Delivery follows each watcher's GitHub notification settings. A hosted scheduler and a
@@ -297,6 +301,7 @@ grep "AI turn" <log> | grep -oE "model=[^ ]+ tier=[^ ]+" | sort | uniq -c
 | External scheduler registration | `scripts/register-production-health-scheduler.ps1` |
 | Hosted dispatcher | `.github/workflows/production-health-dispatch.yml` |
 | Hosted watch repository | `nreffejzxc/inventory-ai-health-watch` |
+| Shared hosted dispatch | `.github/workflows/typescript-7-watch.yml` |
 | Scheduler evidence | `docs/evidence/production-health-scheduler-2026-11-11/README.md` |
 | Hosted attempt evidence | `docs/evidence/production-health-scheduler-hosted-2026-11-12/README.md` |
 | Probe tests | `server/test/ops-production-health.test.mjs` |
