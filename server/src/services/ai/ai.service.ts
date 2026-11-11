@@ -201,6 +201,13 @@ interface ChatParams {
    * nothing was actually wrong with the real research model.
    */
   researchDrill?: boolean;
+  /**
+   * A controlled output-limit drill: throw the empty `max_tokens` error ONCE on this turn,
+   * before the first provider call, so the real AI-105 retry and history-trim path can be
+   * observed in production. Set only by the controller for an OWNER request that sent
+   * `x-ai-output-limit-drill: retry`; ordinary turns are untouched.
+   */
+  outputLimitDrill?: boolean;
 }
 
 /**
@@ -624,6 +631,7 @@ export async function runAiChat({
   onTextReset,
   timeZone: requestedTimeZone,
   researchDrill,
+  outputLimitDrill,
 }: ChatParams): Promise<ChatResult> {
   const cfg = aiConfig();
   // Resolved once per turn: the prompt and every tool row in this turn must use
@@ -847,6 +855,7 @@ export async function runAiChat({
    * Free models get the larger cap without the budget (their reasoning switch is off).
    */
   let outputLimitRetry: { maxOutputTokens: number; reasoningBudgetTokens?: number } | null = null;
+  let outputLimitDrillInjected = false;
   // AI-26 — how much of a truncated answer the incomplete-unit trim removed. Reported
   // beside the reason so the effect is measurable from the log instead of inferred.
   let trimmedChars = 0;
@@ -1731,6 +1740,17 @@ export async function runAiChat({
     }
     let response: ProviderResponse;
     try {
+      // AI-105 drill — one request-scoped empty limit, thrown where a provider would have
+      // returned no text and no tool call. The ordinary catch below arms the real retry and
+      // trims the same history; the next round is a real provider request.
+      if (outputLimitDrill && !outputLimitDrillInjected) {
+        outputLimitDrillInjected = true;
+        const drillModel = currentModel ?? model;
+        console.warn(
+          `AI output-limit drill: simulating an empty max_tokens response model=${drillModel ?? 'unknown'}`,
+        );
+        throw new AiOutputLimit(undefined, { model: drillModel ?? undefined });
+      }
       response = await completeWithFailover(!isAnswerRound);
     } catch (err) {
       // AI-86 — a gateway or workspace that refuses the native server tools must not
