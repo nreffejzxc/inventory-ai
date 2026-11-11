@@ -20,6 +20,7 @@ import assert from 'node:assert/strict';
 import { systemPrompt, runAiChat } from '../src/services/ai/ai.service.ts';
 import { languageDirective, replyLanguageOf } from '../src/services/ai/language.ts';
 import { simpleInventoryPrompt } from '../src/services/ai/simpleInventory.ts';
+import { restockCountAnswer } from '../src/services/ai/answerCompletion.ts';
 import { ROLES } from '../src/constants/roles.ts';
 import { registerFakeProvider, setFakeScenario, fakeText } from './fakes/aiProvider.mjs';
 
@@ -92,6 +93,15 @@ test('AI-84: the directive names the exact language and protects recorded facts'
   const tagalog = languageDirective('Ilan ang natitira sa stock?');
   assert.match(tagalog, /Tagalog\/Filipino/);
   assert.doesNotMatch(tagalog, /Bisaya/);
+});
+
+test('AI-84: the deterministic restock count answers in the question language', () => {
+  assert.equal(restockCountAnswer(19, 1000, 'Tagalog'), 'May 19 na produktong mababa ang stock.');
+  assert.equal(restockCountAnswer(19, 1000, 'Bisaya'), 'Adunay 19 ka produkto nga ubos ang stock.');
+  assert.equal(restockCountAnswer(19, 1000, null), '19 products need restocking.');
+  assert.equal(restockCountAnswer(0, 1000, 'Tagalog'), 'Wala nang produktong mababa ang stock ngayon.');
+  assert.equal(restockCountAnswer(0, 1000, 'Bisaya'), 'Wala nay produktong ubos ang stock karon.');
+  assert.equal(restockCountAnswer(19, 10, 'Tagalog'), null);
 });
 
 test('AI-84: the simple route carries the same language lock', () => {

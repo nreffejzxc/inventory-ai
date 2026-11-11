@@ -181,6 +181,17 @@ test('AI-99: a pure restock count is its own operation', () => {
   );
 });
 
+test('AI-99: Tagalog and Bisaya count wording is a count, not a list', () => {
+  assert.equal(
+    simpleInventoryIntent('Ilan ang low stock na produkto?').operation,
+    'restock_count',
+  );
+  assert.equal(
+    simpleInventoryIntent('Pila ka low stock nga produkto?').operation,
+    'restock_count',
+  );
+});
+
 test('AI-99: an explicitly named SKU travels as an exact identifier', () => {
   const stock = simpleInventoryIntent(
     'How many units of the product with SKU SEEDSKU-42 are in stock?',
