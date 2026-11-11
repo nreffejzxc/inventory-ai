@@ -53,7 +53,7 @@ const SHORTAGE_READS = [
 const MAX_SIMPLE_CHARS = 280;
 
 const RESTOCK_WORDING =
-  /\b(?:restock(?:ing|ed)?|reorder(?:ing|ed)?|low(?:\s+on)?\s+stock|running\s+low|run\s+low|below\s+(?:the\s+|their\s+)?(?:reorder\s+)?minimum|(?:reached|reaches|at)\s+(?:the\s+|their\s+)?(?:configured\s+)?(?:reorder\s+)?minimum(?:\s+(?:stock|level|levels|quantity))?)\b/i;
+  /\b(?:restock(?:ing|ed)?|reorder(?:ing|ed)?|low(?:[\s-]+on)?[\s-]+stock|running\s+low|run\s+low|below\s+(?:the\s+|their\s+)?(?:reorder\s+)?minimum|(?:reached|reaches|at)\s+(?:the\s+|their\s+)?(?:configured\s+)?(?:reorder\s+)?minimum(?:\s+(?:stock|level|levels|quantity))?)\b/i;
 
 const QUANTITY_QUESTION =
   /\bhow\s+(?:many|much)\b|\b(?:pila|ilan)\b|\bwhat(?:'s|\s+is)\s+(?:the\s+)?(?:current\s+)?(?:stock|quantity|on[\s-]?hand|availability)\b/i;
