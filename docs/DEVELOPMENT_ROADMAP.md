@@ -25167,3 +25167,13 @@ Tagalog retest answered **“May 19 na produktong mababa ang stock.”**, the li
 **“Adunay 19 ka produkto nga ubos ang stock.”**, and the Restock screen independently showed
 **“19 products at or below minimum stock.”** The output limit retry is proven at the unit and wire
 level; a fresh live occurrence is not guaranteed because the failure is intermittent.
+
+**Streaming reset UX (2026-11-11).** The owner reported a draft disappearing and being replaced by
+a shorter answer. A live phone reproduction showed the same sequence: a draft was streamed, the
+bubble fell back to **“Analyzing your inventory…”**, then the final **“May 19 na produktong mababa
+ang stock.”** The final answer was the server's stored deterministic count (19, matching the
+Restock screen), not a truncation. The server's AI-74 reset is intentional: it invalidates a draft
+that a tool round or guard replaced. The defect was the client showing the generic initial-analysis
+state after that reset. `AiChat` now shows **“Correcting the answer…”** with a note that the earlier
+draft was replaced. Focused AI-40 streaming tests pass **11/11**; mobile typecheck and lint pass. The
+installed app needs the next OTA to show the new label.
