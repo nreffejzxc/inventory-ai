@@ -264,8 +264,10 @@ The project is built in phases: one phase, one purpose, one verification record.
 | AI-99 10k gate | 10,256-product gate: 24/25, one real output-limit failure; free allowance at 0/1000 — §27HV |
 | AI-103 / OPS-3 | Whole-set receipt and transfer totals in history answers; the operator monitoring runbook — §27HW |
 | AI-84 / AI-105 / OPS-4 | Direct language lock, output-limit retry with reserved reasoning, and the external production watch — §27HX |
+| AI-106 / reset-UX OTA | Finalizer detail preservation and the “Correcting the answer…” OTA — merged as `26eb0d4`, live-verified **19** and **19 / 1,633,025** with Render-matched refs — §27HY |
+| Close-out / OPS-4 | Scheduled-watch diagnosis (no automatic GitHub schedule), standalone `com.inventoryai` APK built/installed, AI-105 staging retry — §27HZ |
 
-Most letter-numbered increments are roadmap records; AI-87/AI-88 are log-only and AI-91/AI-92 are in §27HT. AI-99 is in §27HU, its 10k gate is in §27HV, AI-103/OPS-3 is in §27HW, and AI-84/AI-105/OPS-4 is in §27HX; the index below is complete.
+Most letter-numbered increments are roadmap records; AI-87/AI-88 are log-only and AI-91/AI-92 are in §27HT. AI-99 is in §27HU, its 10k gate is in §27HV, AI-103/OPS-3 is in §27HW, AI-84/AI-105/OPS-4 is in §27HX, and AI-106 with the reset-UX OTA is in §27HY, and the close-out is in §27HZ; the index below is complete.
 
 ## Operational traps worth knowing
 
@@ -596,6 +598,8 @@ anchor (`§27…`) in that file.
 - **§27HV** — AI-99 10,256-product simple-inventory gate (2026-11-10)
 - **§27HW** — AI-103 / OPS-3 — whole-set history totals and the operator monitoring runbook (2026-11-11)
 - **§27HX** — Dependency lockfile pass, AI-84/AI-105 and the external production watch (2026-11-11)
+- **§27HY** — AI-106 finalizer detail preservation and the reset-UX OTA (2026-11-11)
+- **§27HZ** — Scheduled-watch diagnosis, standalone Android build and AI-105 staging (2026-11-11)
 
 ---
 

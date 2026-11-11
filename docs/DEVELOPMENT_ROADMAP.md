@@ -8,7 +8,7 @@ of truth for *what actually happened*, and it is why this file is long.
 
 **How to read it.** Do not read it top to bottom. Either find a record by number (§27FJ, §27DM — the
 numbers are cited from `CLAUDE.md` and from source comments), or use the index: `CLAUDE.md` §7 lists
-all **230** records by the title each gives itself.
+all **232** records by the title each gives itself.
 
 **Current state:** V1 complete and in production testing. The records that answer *where are we now* are §27HV (AI-99 10,256-product gate, 24/25 with one output-limit finding), §27HU (AI-99 free-first simple inventory, deployed with the 1.0.2 OTA), §27HT (AI-91/AI-92 exact product identity and per-location stock), §27HS (the AI-50–AI-84 increment register), §27HR (AI-48–AI-84 merged and deployed), §27HQ (grounded answers and scoped stock reads), §27HP (market prices from cited pages), §27HO (recorded specifications and the real seed catalogue), §27HN (inventory-only web research), §27HH (a transfer as one event to the assistant), §27HG (the stock-in link's product), §27HF (the single-location default's timing), §27HE (the stock-in link's location), §27HD (the movement fixes and the production device pass), §27HC (the assistant's local-time answers), §27FM (the V1 re-verification) and §27FJ (the two open advisories).
 
@@ -25177,3 +25177,117 @@ that a tool round or guard replaced. The defect was the client showing the gener
 state after that reset. `AiChat` now shows **“Correcting the answer…”** with a note that the earlier
 draft was replaced. Focused AI-40 streaming tests pass **11/11**; mobile typecheck and lint pass. The
 installed app needs the next OTA to show the new label.
+
+**Post-close-out verification status (2026-11-11).** The automatic production watch is still
+**pending**: the workflow is active on `main` with cron `*/5 * * * *`, but GitHub has not emitted a
+`schedule` event after more than an hour; the only runs are manual dispatches. The AI-105 live path
+is also **not reproduced**: the physical-phone turn `Ref: d245d0e7` logged `outcome=ok calls=3
+attempts=3 empty=0 retries=0`, so no 2,400-token retry occurred. The controlled AI-105 suite passes
+**2/2** and proves the request shape, but it is not a live occurrence. The standalone APK is
+**blocked**: the NDK was installed and the separate `com.inventoryai` release build was attempted.
+Kotlin 2.4.0 fixed the Firebase Auth metadata mismatch, but the `arm64-v8a` build then failed at
+`:react-native-reanimated:buildCMakeRelWithDebInfo[arm64-v8a][reanimated]` with
+`ninja: error: mkdir(CMakeFiles/reanimated.dir/C_/Users/jeffe/inventory-ai/mobile/node_modules/react-native-reanimated/Common/cpp/reanimated/CSS/common/transforms): No such file or directory`.
+No APK was installed; production remains `com.inventoryai.app` 1.0.2 (versionCode 10). No Render
+environment changes or forced provider failures were made.
+
+# 27HY. AI-106 finalizer detail preservation and the reset-UX OTA (2026-11-11)
+
+**Why.** The owner reported that an AI draft disappeared and was replaced by a shorter answer. The
+server reset was intentional, but the client still showed the generic “Analyzing your inventory…”
+state. The reset-UX label was already prepared; this increment audited the deterministic finalizers
+before publishing that OTA, so a finalizer could not silently discard a fact the member asked for.
+
+**Audit findings.** Three defects were found. (1) “How many products are low on stock and what is
+their total value?” matched the count finalizer because the value predicate only recognised “low
+stock”, not “low on stock”; a count replacement could overwrite the value. (2) The live phone turn
+“You already told me. How many low-stock products are there in total” returned **“The total recorded
+value of the 19 low-stock items is 1,633,025.”** (`Ref: d8aadd1a`) because bare “total” was treated
+as a value request. (3) The count rule did not match “low-stock” with a hyphen or a short preamble
+before “how many”.
+
+**Fix.** `server/src/services/ai/answerCompletion.ts` now has a compound-question guard
+(`asksForMultipleFacts`, `SECOND_REQUEST`, `SECOND_AVAILABILITY`, `RANKED_COUNT`,
+`ASKS_LOW_STOCK_LIST`) and the single-fact replacement predicates for most-expensive,
+price-threshold, stock-out count, top-out, brand range, best-selling, product-location,
+product-total and highest-stock-value questions leave a compound draft alone. The value-plus-names
+path keeps the value and appends the names. `asksForLowStockValue` requires **value** or **worth**,
+not a bare “total”. The count predicate accepts a short preamble and hyphenated “low-stock”, and
+`simpleInventory.ts` accepts the same hyphen in its restock wording. The exact phone sentence is a
+regression case that routes to the count, not the value; `restockCountAnswer(19, 2000)` returns
+**“19 products need restocking.”**
+
+**Tests.** `server/test/AI106-finalizer-detail-preservation.test.mjs` adds six focused tests. The
+focused server suites pass **91/91**; server `typecheck` and `lint` pass. The full DB-independent unit
+suite passes **408 suites, 1,984 tests, 0 failures, 62 skipped** (`UNIT_EXIT=0`) after the new file
+was added to `server/scripts/run-tests.mjs`. Mobile `typecheck`/`lint` pass and the focused AI-40
+Jest suites pass **18/18**; mobile code was not changed.
+
+**OTA and phone.** Production OTA group `58f75323-eeab-4aee-b48d-5f3c38e2396a` (Android update
+`01a1ca6c-b450-7def-ab6f-b013782918fe`, runtime `1.0.2`, commit `7bfec39`) was published to the
+production channel. The installed OPPO `com.inventoryai.app` 1.0.2 (versionCode 10) loaded it;
+logcat reported `NEW_UPDATE_LOADED`. The Tagalog count turns answered **19** (`ffc1524a`,
+`6769b530`). The count question with the preamble returned the old value answer (`d8aadd1a`), and a
+“Without checking again…” question returned a restock list (`5ee2cb23`). A controlled repeat prompt
+still read tools and answered 19 (`128c30d7`); a controlled failure-notice prompt was refused
+(`4f5571e9`). No turn invoked the reset/re-ask path, so the **“Correcting the answer…” label was not
+observed live**. The client handler is present (`onReset` sets `correcting`; `ThinkingRow` renders
+it while `sending && !streamingText`), but no screenshot exists.
+
+**Deployment and live verification.** PR #229 squash-merged as `26eb0d4`. Render reported that
+commit with `status: ok`, `db: connected`, environment `production` and zero server errors;
+`/api/health/ready` returned 200, and CI run `43036926984` passed server, mobile, secret-guard and
+attribution-guard. On the OPPO `com.inventoryai.app` 1.0.2, `How many low-stock products are there
+in total?` answered **“19 products need restocking.”** (`Ref: 4cef1383`), and
+`How many products are low on stock and what is their total value?` answered **“The total recorded
+value of the 19 low-stock items is 1,633,025.”** (`Ref: 771dc31f`). Render's logs for the same turn
+tokens show `intent=inventory:restock_count` with `getReorderNeededProducts` for the first, and
+`getLowStockProducts` plus `AI low-stock value computed from the returned rows` for the second.
+The count is **19**, not the value; the compound answer retains both facts.
+
+**Limits.** A first compound attempt in the same conversation hit the pre-existing output-budget
+path (`AI_OUTPUT_LIMIT`, `turn=c6d62a6a`, `maxTokens=1200`, `tools=none`); a clean compound turn in
+a fresh chat passed. The reset label remains an **unverified live UI item**, not a pass. iOS was not
+tested. Evidence is in
+[`evidence/ai106-production-2026-11-11/README.md`](evidence/ai106-production-2026-11-11/README.md).
+
+# 27HZ. Scheduled-watch diagnosis, standalone Android build and AI-105 staging (2026-11-11)
+
+**Scope.** The three follow-ups approved after the AI-106 close-out: prove automatic scheduled
+monitoring, produce and install a standalone Android APK, and exercise the AI-105 output-limit retry
+in staging without touching production.
+
+**Scheduled watch — not verified.** PR #227 (`f440ed8`) changed the cron offset. PR #228
+(`1c7a1d8`) replaced the workflow file with `Production health watch v2` (workflow ID
+`414656117`) and removed the old registration. GitHub reports the v2 workflow active on `main`;
+the repository is public, not a fork or archived, Actions is enabled, and the only manual run
+(`43022962990`, `workflow_dispatch`) succeeded. Repeated queries of the workflow's `event=schedule`
+runs returned `total_count: 0` through 13:51Z, including the slots after the merge. A disable/enable
+cycle did not help. The GitHub community report for this symptom points to the platform scheduler
+and suggests an external scheduler calling the dispatch API; no external credentials were added.
+**No automatic schedule run exists; the requirement remains open.**
+
+**Android — built and installed; UI check blocked.** The Reanimated failure was the Windows
+260-character object path created from `-DCMAKE_OBJECT_PATH_MAX=1024`. A `subst` drive could not be
+used reliably: mapping it to `mobile` hid `package.json` from Expo autolinking; mapping it to the
+repository root caused mixed canonical roots in codegen. A real short-path copy at `C:\iab` cleared
+Reanimated, and the app-level `CMAKE_OBJECT_PATH_MAX=250` cleared the gesture-handler codegen path;
+the effective CMake cache recorded `UNINITIALIZED=250`. The temporary copy also aligned the
+standalone namespace, applicationId and Kotlin package to `com.inventoryai` (the tracked Android
+folder is generated/ignored). The final build was `BUILD SUCCESSFUL` in 4m41s. The APK at
+`mobile/build/standalone/app-release.apk` is `com.inventoryai` versionCode 1 / versionName 1.0,
+38 MB, SHA-256 `c315d4e6aa49b9df801cffc9eaf56c5100e0bf0ed44c41bc686b4fbb85c6de3e`, debug-signed.
+It installed beside the untouched production `com.inventoryai.app` 1.0.2 (versionCode 10) and
+launched `MainActivity`. The app is signed out; Google sign-in returned “Unable to sign in with
+Google. Please try again.”, so the `Ref:` line and What's New card were **not observed**. The APK
+is left installed for a manual sign-in; this part remains unverified.
+
+**AI-105 staging — passed.** `server/scripts/staging-ai105-retry.mjs` ran the real `runAiChat` loop
+against a local stub OpenRouter endpoint. The first request used `max_tokens=1200`; the retry used
+`max_tokens=2400` and `thinking: {type: enabled, budget_tokens: 1200}`; the returned answer was
+“Staging retry produced a readable answer.” The script exited 0. No production AI configuration or
+provider was changed.
+
+**Evidence.** `docs/evidence/closeout-2026-11-11/README.md`, with the launch and Google-failure
+screenshots. The scheduled-watch blocker and the sign-in blocker are recorded as such, not as
+passes.
