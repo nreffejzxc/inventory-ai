@@ -23,7 +23,7 @@ not cancelled.
 | Branch protection | Pull request required; four required checks; strict; admins enforced; force pushes and deletions blocked; conversation resolution required |
 | Scanning | Secret scanning and push protection enabled; private vulnerability reporting enabled |
 | Git identity | `jeffernzxc` / `jefferndullamalinaozxc@gmail.com` |
-| Production | `/api/health` returns 200 with `status: ok`, `db: connected` and `environment: production`. The serving commit is whatever that endpoint reports now; at the 2026-11-10 verification it was `eda08d0` (AI-101/AI-102 monitoring and the answer reference). A docs-only merge does not redeploy. Free instance, so a cold start can delay the first response by 50 s or more. |
+| Production | `/api/health` returns 200 with `status: ok`, `db: connected` and `environment: production`. The serving commit is whatever that endpoint reports now; at the 2026-11-11 close-out it was `e15136a` (AI-103 history totals, OPS-3 monitoring runbook and the mongoose 9.12.0 bump). A docs-only merge does not redeploy. Free instance, so a cold start can delay the first response by 50 s or more. |
 | EAS | Project `@jeffernqwes-team/inventory-ai` (ID `607eca05-1175-43ed-86a0-1829e91c9531`) is under the target Gmail's Expo account, not the current GitHub/Render account |
 | History | The approved metadata-only attribution rewrite is complete; no further rewrite is approved |
 | GitHub 2FA | Disabled by owner decision on 2026-10-31; deferred until a backup method and offline recovery codes exist |

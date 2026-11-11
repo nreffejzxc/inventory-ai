@@ -8,7 +8,7 @@ of truth for *what actually happened*, and it is why this file is long.
 
 **How to read it.** Do not read it top to bottom. Either find a record by number (§27FJ, §27DM — the
 numbers are cited from `CLAUDE.md` and from source comments), or use the index: `CLAUDE.md` §7 lists
-all **228** records by the title each gives itself.
+all **229** records by the title each gives itself.
 
 **Current state:** V1 complete and in production testing. The records that answer *where are we now* are §27HV (AI-99 10,256-product gate, 24/25 with one output-limit finding), §27HU (AI-99 free-first simple inventory, deployed with the 1.0.2 OTA), §27HT (AI-91/AI-92 exact product identity and per-location stock), §27HS (the AI-50–AI-84 increment register), §27HR (AI-48–AI-84 merged and deployed), §27HQ (grounded answers and scoped stock reads), §27HP (market prices from cited pages), §27HO (recorded specifications and the real seed catalogue), §27HN (inventory-only web research), §27HH (a transfer as one event to the assistant), §27HG (the stock-in link's product), §27HF (the single-location default's timing), §27HE (the stock-in link's location), §27HD (the movement fixes and the production device pass), §27HC (the assistant's local-time answers), §27FM (the V1 re-verification) and §27FJ (the two open advisories).
 
@@ -25047,3 +25047,54 @@ no production data or production server was involved. The one output-limit failu
 **Evidence.** [10k evidence README](evidence/simple-10k-2026-11-09/README.md),
 `gate-2026-11-09T1519Z.json`, `gate-2026-11-09T1938Z.json`,
 `gate-2026-11-09T1948Z.json`, and `server/scripts/eval-simple-inventory-scale.mjs`.
+
+---
+
+# 27HW. AI-103 and OPS-3 — whole-set history totals and the operator monitoring runbook (2026-11-11)
+
+**Why.** A review of the assistant's tool layer found that `getInventoryHistory` built its
+whole-set movement summary only when `topOut.length > 0`. A history read that contained receipts
+or transfers but no stock-out therefore returned no `unitsReceived` and no `transferLegs`, leaving
+the model to add page rows — the arithmetic AI-68 moved into MongoDB to prevent. Separately, the
+AI-101/AI-102 monitoring work had no operator runbook: the health endpoints, the OPS-2 pulse, the
+turn records and the metrics aggregate were in different places, and the auth checklist still said
+monitoring had no repository-specified integration.
+
+**Changed.** `server/src/services/ai/tools.ts` now builds the history summary through
+`historyMovementSummary`, which emits each whole-set total whenever its own movement type has
+rows: `unitsSold`/`sales` for STOCK_OUT, `unitsReceived`/`deliveries` for STOCK_IN, and
+`transferLegs` for TRANSFER, with `topOut` only when a stock-out ranking exists. `getProduct` now
+marks a partial stock page when a product has more than 20 location rows. `docs/MONITORING.md`
+records the three health endpoints, the OPS-2 response pulse, the AI turn records, the
+OWNER/ADMIN `GET /api/ai/metrics` aggregate, the alert thresholds, the incident procedure and the
+limits (process-local counters, provider-reported cost only, no hosted pager). The auth checklist
+and the dated production anchors point at it. Two test-isolation defects found by the local
+database run were fixed in `phase-openrouter-provider.test.mjs` and `phase07b-auth-security.test.mjs`.
+
+**Tests.** `npm run typecheck` exit 0. `npm run test:unit` ran **2,027 tests: 1,965 passed, 62
+intentionally skipped, 0 failed**. The focused `AI68-history-totals` suite passed **6/6**, including
+four new AI-103 cases (receipt-only, transfer-only, combined with ranking, empty). Changed-file
+ESLint, `check:extensions` and `check:specifiers` exited 0. `node scripts/check-docs.mjs` reported
+31 active documents, 30 invariant rows and 12 living references within cadence.
+
+**Live evidence.** A one-question `eval:simple-inventory` run seeded a disposable 14-product
+development tenant and removed it afterwards. The paid baseline answered accurately in 7,132 ms for
+$0.000273; the free-first turn was served by `nvidia/nemotron-3.5-lightning:free` with 0
+escalations, 3 calls, 4,542 ms and `$0.000000`.
+
+**Delivered.** PR #217 → `c00365d`; PR #194 (mongoose 9.11.4 → 9.12.0, server minor-and-patch
+group) → `326730f`; PR #218 (test isolation) → `e15136a`. Each passed all four required checks.
+Production `/api/health` served the merge commits; the final runtime commit `e15136a` reports
+`status: ok`, `db: connected`, environment `production`, 0 server errors; `/api/health/ready`
+returned 200; `/api/ai/metrics` returned 401 unauthenticated. The docs-only close-out does not
+redeploy.
+
+**What this does not prove.** The `Ref:` line and the answer-reference What's New card have not
+been observed on a phone. No hosted pager, dashboard or shared counter exists; the runbook
+documents an operator-side uptime check and states that the OPS-2 counters are process-local. A
+genuine upstream 120B outage remains unobserved. The local database suite was not rerun end-to-end
+after the test fixes; the required `server` CI job ran the full suite on #218 and passed.
+
+**Evidence.** PRs #217, #194 and #218; [`MONITORING.md`](MONITORING.md);
+`server/test/AI68-history-totals.test.mjs`; `server/.tmp-ai103-live-smoke.json` (git-ignored);
+`GET /api/health`, `/api/health/ready` and `/api/ai/metrics`.
