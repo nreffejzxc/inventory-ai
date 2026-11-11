@@ -116,7 +116,8 @@ development APK `76440404-167c-440c-be20-88801fe9b64b` shares fingerprint
 `58f75323-eeab-4aee-b48d-5f3c38e2396a` (Android update
 `01a1ca6c-b450-7def-ab6f-b013782918fe`), published from `7bfec39` with the message
 "Show 'Correcting the answer...' when AI replaces a draft". It is loaded on the production OPPO;
-the new **“Correcting the answer…”** label has not yet been observed live. The previous group
+the **“Correcting the answer…”** label was observed live on 2026-11-11 (`Ref: 008a1583`, saved in
+[`evidence/ai105-production-2026-11-11`](../evidence/ai105-production-2026-11-11/README.md)). The previous group
 `e38e07bf-6eab-4b71-be90-c3604cab5c3a` (Android update
 `01a1c524-5ae0-71d8-af9e-6e6711da6ba6`) was published from `eda08d0` with
 "Release notes: AI answers now include a support reference"; its selectable `Ref:` line and What's
