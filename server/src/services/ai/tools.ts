@@ -2128,7 +2128,7 @@ export async function executeTool(name: string, rawArgs: unknown, ctx: ToolConte
     // `err` is `unknown`: a thrown value has no shape TypeScript may assume, and
     // the assertion is the erasable way to read the message this log has always
     // read. Nothing is attached to the error that leaves.
-    console.error('[ai] tool execution failed', name, (err as { message?: unknown })?.message ?? err);
+    console.error('AI tool execution failed', name, (err as { message?: unknown })?.message ?? err);
     return { ok: false, code: 'TOOL_ERROR', error: 'The tool failed to run. Please try again.' };
   }
 }

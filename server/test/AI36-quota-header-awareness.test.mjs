@@ -100,7 +100,7 @@ async function turn(scenario, options = {}) {
       ...value,
       lines,
       calls,
-      costLines: lines.filter((line) => line.includes('[ai] turn outcome=')),
+      costLines: lines.filter((line) => line.includes('AI turn outcome=')),
       quotaLines: lines.filter((line) => line.includes('quota was reported spent')),
     };
   } finally {
@@ -114,7 +114,7 @@ async function turn(scenario, options = {}) {
 
 function fields(line) {
   const out = {};
-  for (const part of line.replace('[ai] turn', '').trim().split(/\s+/)) {
+  for (const part of line.replace('AI turn', '').trim().split(/\s+/)) {
     const at = part.indexOf('=');
     if (at > 0) out[part.slice(0, at)] = part.slice(at + 1);
   }

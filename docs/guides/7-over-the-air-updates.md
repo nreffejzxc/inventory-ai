@@ -38,7 +38,7 @@ count the check).
 | **Channel** | compiled into the binary: `development`, `preview`, `production`. An install listens to exactly one. |
 | **Branch** | where a group is stored; here each branch is named after its channel. |
 | **Update group** | one publish: bundle, assets, message, commit, group id. What you roll back or republish. |
-| **Runtime version** | the compatibility label; under `appVersion` policy it is `expo.version` — `1.0.2` in the tree, `1.0.1` in the shipped production and preview builds. The older production group is `1.0.0` (§3). Delivered only on an **exact** match. |
+| **Runtime version** | the compatibility label; under `appVersion` policy it is `expo.version` — `1.0.2` in the tree and in the installed production APK; the older preview build is `1.0.1`. The older production group is `1.0.0` (§3). Delivered only on an **exact** match. |
 | **Embedded bundle** | the JavaScript inside the APK; the fallback that always exists. |
 
 An install receives an update when its **channel** points at the branch **and** its **runtime**
@@ -112,9 +112,13 @@ npx eas-cli update:list --branch production --limit 5
 **The installed production APK is runtime `1.0.2` (versionName `1.0.2`, versionCode 10).** Build
 `820251b4-dc8a-46a3-9b25-0faa0a9c1529` was compiled with Expo 58.0.22 and React Native 0.88.1, and the
 development APK `76440404-167c-440c-be20-88801fe9b64b` shares fingerprint
-`f5a6fddec17c97c1dabfe2fb9428108a41d9bd6e`. Production OTA group `58ab8e76-0b18-4e73-8822-7766e6dad7e3`
-was published from `162db9c` and applied on the installed APK; the dashboard showed the new
-"Cleaner details you can copy" note after two cold starts.
+`f5a6fddec17c97c1dabfe2fb9428108a41d9bd6e`. The newest production OTA is group
+`e38e07bf-6eab-4b71-be90-c3604cab5c3a` (Android update
+`01a1c524-5ae0-71d8-af9e-6e6711da6ba6`), published from `eda08d0` with the message
+"Release notes: AI answers now include a support reference". It carries the selectable `Ref:` answer
+reference and the matching What's New card; neither has been observed on a phone yet. The previous group
+`0e4eca55-0e4f-47fc-b2d6-507f91b529b8` was published from `8b6353a` with "Clearer stock totals and
+restock counts", and its dashboard card was observed on 2026-11-10.
 
 Older groups remain as history; installs move forward to the newest group for their runtime. Channels
 are unprotected because code signing is off; enabling it is a build-time change (§11).

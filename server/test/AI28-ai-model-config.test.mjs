@@ -5,9 +5,9 @@
  * `502 AI_UNAVAILABLE` — *"The AI service is temporarily unavailable. Please try again in a
  * moment."* — and the server log could not say which model had failed:
  *
- *   [ai:openrouter] upstream HTTP 404
+ *   AI provider openrouter upstream HTTP 404
  *   bodyPrefix="… not_found_error … Function '<uuid>': Not found for account '<uuid>' … provider_name":"Nvidia" …"
- *   [ai] turn outcome=AI_UNAVAILABLE … calls=1 … model=unknown iterations=1
+ *   AI turn outcome=AI_UNAVAILABLE … calls=1 … model=unknown iterations=1
  *
  * Direct measurement showed the model ID was still listed by the gateway while its upstream
  * refused every call, and that a different free model answered the same request with a tool use.
@@ -347,7 +347,9 @@ unitSuite('AI-28 model configuration check (DB-free)', () => {
       await boot(async () => ({ status: 'missing', model: MODEL, message: `model ${MODEL} is not listed` }), lines);
       await new Promise((resolve) => setTimeout(resolve, 20));
 
-      const warnings = lines.filter((line) => line.includes('model'));
+      // AI-100's boot line names `free-model reasoning`; match the check's own warning text,
+      // not every line that happens to contain the word "model".
+      const warnings = lines.filter((line) => line.includes('is not listed'));
       assert.equal(warnings.length, 1, `expected exactly one warning, got:\n${lines.join('\n')}`);
       assert.match(warnings[0], new RegExp(MODEL.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
     });
@@ -358,9 +360,9 @@ unitSuite('AI-28 model configuration check (DB-free)', () => {
         await boot(async () => ({ status, model: MODEL, message: 'irrelevant' }), lines);
         await new Promise((resolve) => setTimeout(resolve, 20));
         assert.equal(
-          lines.filter((line) => line.includes('model')).length,
+          lines.filter((line) => line.includes('is not listed')).length,
           0,
-          `status ${status} must be silent, got:\n${lines.join('\n')}`
+          `model-check status ${status} must be silent, got:\n${lines.join('\n')}`
         );
       }
     });

@@ -122,8 +122,8 @@ async function turn(scenario, options = {}) {
       lines,
       calls,
       elapsedMs: Date.now() - startedAt,
-      failoverLines: lines.filter((line) => line.includes('[ai] failover')),
-      costLines: lines.filter((line) => line.includes('[ai] turn outcome=')),
+      failoverLines: lines.filter((line) => line.includes('AI failover')),
+      costLines: lines.filter((line) => line.includes('AI turn outcome=')),
     };
   } finally {
     setFakeScenario(null);
@@ -135,7 +135,7 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 function fields(line) {
   const out = {};
-  for (const part of line.replace('[ai] turn', '').trim().split(/\s+/)) {
+  for (const part of line.replace('AI turn', '').trim().split(/\s+/)) {
     const at = part.indexOf('=');
     if (at > 0) out[part.slice(0, at)] = part.slice(at + 1);
   }

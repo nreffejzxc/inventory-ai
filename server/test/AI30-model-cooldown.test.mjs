@@ -116,15 +116,15 @@ async function turn(scenario, { fallback = FALLBACK } = {}) {
     calls,
     result,
     error,
-    failoverLines: lines.filter((line) => line.includes('[ai] failover')),
-    costLines: lines.filter((line) => line.includes('[ai] turn')),
+    failoverLines: lines.filter((line) => line.includes('AI failover')),
+    costLines: lines.filter((line) => line.includes('AI turn')),
     cooldownLines: lines.filter((line) => line.includes('cooling down')),
   };
 }
 
 function fields(line) {
   const out = {};
-  for (const part of line.replace('[ai] turn', '').trim().split(/\s+/)) {
+  for (const part of line.replace('AI turn', '').trim().split(/\s+/)) {
     const at = part.indexOf('=');
     if (at > 0) out[part.slice(0, at)] = part.slice(at + 1);
   }

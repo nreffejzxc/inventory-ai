@@ -136,7 +136,7 @@ function logUpstreamDiagnostics({
   const contentType = res.headers.get('content-type') ?? '';
   console.error(
     [
-      `[ai:${providerName}] upstream ${reason} diagnostics`,
+      `AI provider ${providerName} upstream ${reason} diagnostics`,
       `status=${res.status}`,
       `contentType=${contentType || 'none'}`,
       `contentLength=${res.headers.get('content-length') ?? 'none'}`,
@@ -170,8 +170,8 @@ async function failUpstream(res: Response, providerName: string): Promise<never>
   const isQuotaRefusal = res.status === 429 || res.status === 402;
   console.error(
     isQuotaRefusal
-      ? `[ai:${providerName}] upstream rate/quota limit reached (HTTP ${res.status})`
-      : `[ai:${providerName}] upstream HTTP ${res.status}`
+      ? `AI provider ${providerName} upstream rate/quota limit reached (HTTP ${res.status})`
+      : `AI provider ${providerName} upstream HTTP ${res.status}`
   );
   // Phase 31D.6: this branch used to throw without reading the body, so a
   // non-2xx was diagnosable only by its status code. The read is guarded
@@ -226,10 +226,10 @@ export async function postJson({ url, headers = {}, body, timeoutMs = 60000, pro
       // caller's own signal is what tells the two apart, because this layer's
       // controller is only ever aborted by its own timer.
       if (signal?.aborted) {
-        console.error(`[ai:${providerName}] caller went away; the upstream call was cancelled`);
+        console.error(`AI provider ${providerName} caller went away; the upstream call was cancelled`);
         throw new AiAbandoned();
       }
-      console.error(`[ai:${providerName}] request timed out after ${timeoutMs}ms`);
+      console.error(`AI provider ${providerName} request timed out after ${timeoutMs}ms`);
       // AI-31 — classified so repeated failures can count toward the model breaker, while
       // still NOT triggering an in-turn failover: another model would hit the same clock.
       throw new AiProviderError(
@@ -239,7 +239,7 @@ export async function postJson({ url, headers = {}, body, timeoutMs = 60000, pro
         'timeout',
       );
     }
-    console.error(`[ai:${providerName}] network error: ${(err as { message?: unknown })?.message ?? 'unknown'}`);
+    console.error(`AI provider ${providerName} network error: ${(err as { message?: unknown })?.message ?? 'unknown'}`);
     // AI-31 — a dropped connection is an availability fact, not a model verdict: counted
     // by the breaker when it repeats, never used to walk to another model in the same turn.
     throw new AiProviderError(
@@ -267,7 +267,7 @@ export async function postJson({ url, headers = {}, body, timeoutMs = 60000, pro
     bodyText = await res.text();
     data = JSON.parse(bodyText.charCodeAt(0) === 0xfeff ? bodyText.slice(1) : bodyText);
   } catch {
-    console.error(`[ai:${providerName}] upstream returned a non-JSON body`);
+    console.error(`AI provider ${providerName} upstream returned a non-JSON body`);
     logUpstreamDiagnostics({ providerName, res, body: bodyText, reason: 'non-JSON' });
     throw new AiProviderError(
       'The AI service returned an unexpected response.',
@@ -277,7 +277,7 @@ export async function postJson({ url, headers = {}, body, timeoutMs = 60000, pro
     );
   }
   if (data === null || typeof data !== 'object' || Array.isArray(data)) {
-    console.error(`[ai:${providerName}] upstream returned an unexpected payload shape`);
+    console.error(`AI provider ${providerName} upstream returned an unexpected payload shape`);
     throw new AiProviderError(
       'The AI service returned an unexpected response.',
       undefined,
@@ -345,10 +345,10 @@ export async function postSse({
     clearTimeout(timer);
     if ((err as { name?: unknown })?.name === 'AbortError') {
       if (signal?.aborted) {
-        console.error(`[ai:${providerName}] caller went away; the upstream stream was cancelled`);
+        console.error(`AI provider ${providerName} caller went away; the upstream stream was cancelled`);
         throw new AiAbandoned();
       }
-      console.error(`[ai:${providerName}] stream request timed out after ${timeoutMs}ms`);
+      console.error(`AI provider ${providerName} stream request timed out after ${timeoutMs}ms`);
       throw new AiProviderError(
         'The AI service took too long to respond. Please try again.',
         undefined,
@@ -356,7 +356,7 @@ export async function postSse({
         'timeout',
       );
     }
-    console.error(`[ai:${providerName}] network error: ${(err as { message?: unknown })?.message ?? 'unknown'}`);
+    console.error(`AI provider ${providerName} network error: ${(err as { message?: unknown })?.message ?? 'unknown'}`);
     throw new AiProviderError(
       'The AI service could not be reached. Please try again.',
       undefined,
@@ -443,7 +443,7 @@ export async function postSse({
   } catch (err) {
     if ((err as { name?: unknown })?.name === 'AbortError') {
       if (signal?.aborted) throw new AiAbandoned();
-      console.error(`[ai:${providerName}] stream timed out after ${timeoutMs}ms`);
+      console.error(`AI provider ${providerName} stream timed out after ${timeoutMs}ms`);
       throw new AiProviderError(
         'The AI service took too long to respond. Please try again.',
         undefined,
@@ -457,7 +457,7 @@ export async function postSse({
     if (err instanceof AiProviderError || err instanceof AiQuotaExceeded || err instanceof AiAbandoned) {
       throw err;
     }
-    console.error(`[ai:${providerName}] stream ended unexpectedly: ${(err as { message?: unknown })?.message ?? 'unknown'}`);
+    console.error(`AI provider ${providerName} stream ended unexpectedly: ${(err as { message?: unknown })?.message ?? 'unknown'}`);
     throw new AiProviderError(
       'The AI service returned an unexpected response.',
       undefined,
@@ -476,7 +476,7 @@ export async function postSse({
   if (seen === 0) {
     // A 2xx with no event at all is NOT an empty answer. The gateway ignored `stream: true` and
     // sent JSON, and the caller's fallback is the ordinary non-streamed request.
-    console.error(`[ai:${providerName}] stream ended without a single event`);
+    console.error(`AI provider ${providerName} stream ended without a single event`);
     throw new AiProviderError(
       'The AI service returned an unexpected response.',
       undefined,

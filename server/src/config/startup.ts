@@ -39,6 +39,7 @@ import { checkModelCatalogue } from '../services/ai/modelCheck.ts';
 import type { CatalogueResult } from '../services/ai/modelCheck.ts';
 import { refreshModelCapabilities, declaresToolSupport } from '../services/ai/modelCapabilities.ts';
 import { aiConfig } from '../services/ai/aiConfig.ts';
+import { configurationLine } from '../services/ai/aiMonitor.ts';
 import {
   healthWatchConfig,
   healthWatchEnabled,
@@ -410,21 +411,32 @@ export async function startServer({
   // without a word (so a pasted candidate looked configured and was never tried), and the
   // effective order existed only in `.env` and in a source file. Neither line is a refusal —
   // configuration problems never stop a server — and neither contacts a provider.
+  // AI-101 — one boot record states the models, the reasoning switches (with the variable that
+  // supplied each value) and the billable web tools. The per-turn and per-request records prove
+  // what actually applied; this one lets an operator verify a Render environment change before
+  // a member asks a question.
   if (ai.openrouterModel) {
-    logger.log(`[ai] chain order: ${[ai.openrouterModel, ...ai.fallbackModels].join(' -> ')}`);
+    logger.log(
+      configurationLine({
+        models: [ai.openrouterModel, ...ai.fallbackModels],
+        reasoning: ai.reasoning,
+        legacyReasoning: (process.env.AI_REASONING ?? '').trim(),
+        webSearch: ai.webSearchEnabled,
+        webFetch: ai.webFetchEnabled,
+      }),
+    );
+  }
+  if (ai.reasoning.paidSource === 'AI_REASONING') {
+    logger.error('[config] warning: AI_REASONING is deprecated; rename it to AI_REASONING_PAID_MODELS.');
+  }
+  for (const problem of [ai.reasoning.simpleProblem, ai.reasoning.freeProblem]) {
+    if (problem) logger.error(`[config] warning: ${problem}`);
   }
   // AI-85 — say when the opt-in web tools are on, and name an invalid switch
   // without ever enabling it. These are configuration lines, not refusals: the
   // server still serves inventory turns with the safe disabled value.
   if (ai.webProblems.length > 0) {
     logger.error(`[config] warning: ${ai.webProblems.map((problem) => problem.message).join(' ')}`);
-  }
-  if (ai.webSearchEnabled || ai.webFetchEnabled) {
-    const enabled = [
-      ai.webSearchEnabled ? 'search' : null,
-      ai.webFetchEnabled ? 'fetch' : null,
-    ].filter(Boolean);
-    logger.log(`[ai] web tools enabled: ${enabled.join(', ')}`);
   }
   if (ai.fallbackModelsIgnored.length > 0) {
     logger.error(
@@ -447,12 +459,12 @@ export async function startServer({
       const intervalMinutes = Math.max(1, Math.round(schedule.intervalMs / 60000));
       const alertsByEmail = Boolean(process.env.AI_HEALTH_ALERT_EMAIL) && report.mail;
       logger.log(
-        `[ai:watchdog] scheduled every ${intervalMinutes}m; first check in ` +
+        `AI watchdog scheduled every ${intervalMinutes}m; first check in ` +
           `${Math.max(0, Math.round(schedule.initialDelayMs / 1000))}s; ` +
           (alertsByEmail ? 'alerts emailed to the configured recipient' : 'alerts logged only'),
       );
     } catch {
-      logger.error('[ai:watchdog] the model-health watchdog could not start; the assistant is still served.');
+      logger.error('AI watchdog the model-health watchdog could not start; the assistant is still served.');
     }
   }
 

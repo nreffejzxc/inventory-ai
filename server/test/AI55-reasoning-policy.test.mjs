@@ -11,8 +11,8 @@
  *
  *   * no configuration still means `off`, so every existing free-model deployment is byte-for-byte
  *     unchanged (AI-54's behaviour);
- *   * `AI_REASONING=enable|disable` is the simple switch: enable omits the field and lets every
- *     model (primary or failover) use its own default; disable sends `thinking: disabled`;
+ *   * `AI_REASONING_PAID_MODELS=enable|disable` is the paid-model switch: enable omits the field and lets a
+ *     paid model use its own default; disable sends `thinking: disabled`;
  *   * a valid simple switch overrides the advanced rules; an invalid one is reported and the
  *     advanced/default path keeps the safe behaviour;
  *   * `auto` omits the field and lets the model use its own default;
@@ -43,7 +43,9 @@ process.env.AI_INVENTORY_TEST_KEY = 'not-a-real-key'; // secret-guard:allow — 
 
 const KEYS = [
   'AI_MODEL_OPENROUTER',
+  'AI_REASONING_PAID_MODELS',
   'AI_REASONING',
+  'AI_REASONING_FREE_MODELS',
   'AI_REASONING_DEFAULT',
   'AI_REASONING_MODELS_OPENROUTER',
   'AI_THINKING_DISABLED',
@@ -127,26 +129,24 @@ unitSuite('AI-55 reasoning uses a simple switch with per-model overrides', () =>
     });
   });
 
-  it('AI_REASONING=enable lets every model use its own default, overriding rules', async () => {
+  it('AI_REASONING_PAID_MODELS=enable lets a paid model use its own default, overriding rules', async () => {
     const settings = reasoningSettings({
-      AI_REASONING: 'enable',
+      AI_REASONING_PAID_MODELS: 'enable',
       AI_REASONING_MODELS_OPENROUTER: '*=off',
     });
     assert.equal(settings.rules.length, 0, 'the simple switch ignores advanced rules');
     assert.deepEqual(resolveReasoningPolicy('any/model', settings), {
       policy: { mode: 'auto' },
-      source: 'simple',
+      source: 'paid',
     });
 
     await withEnv(
-      { AI_REASONING: 'enable', AI_REASONING_MODELS_OPENROUTER: '*=off' },
+      { AI_REASONING_PAID_MODELS: 'enable', AI_REASONING_MODELS_OPENROUTER: '*=off' },
       async () => {
         const stub = stubFetch();
         try {
           await ask('openai/gpt-oss-120b');
-          await ask('nvidia/nemotron-3.5-lightning:free');
           assert.equal('thinking' in stub.bodies[0], false);
-          assert.equal('thinking' in stub.bodies[1], false);
         } finally {
           stub.restore();
         }
@@ -154,16 +154,14 @@ unitSuite('AI-55 reasoning uses a simple switch with per-model overrides', () =>
     );
   });
 
-  it('AI_REASONING=disable sends disabled for every model, overriding rules', async () => {
+  it('AI_REASONING_PAID_MODELS=disable sends disabled for a paid model, overriding rules', async () => {
     await withEnv(
-      { AI_REASONING: 'disable', AI_REASONING_MODELS_OPENROUTER: '*=auto' },
+      { AI_REASONING_PAID_MODELS: 'disable', AI_REASONING_MODELS_OPENROUTER: '*=auto' },
       async () => {
         const stub = stubFetch();
         try {
-          await ask('nvidia/nemotron-3.5-lightning:free');
           await ask('anthropic/claude-sonnet-4.5');
           assert.deepEqual(stub.bodies[0].thinking, { type: 'disabled' });
-          assert.deepEqual(stub.bodies[1].thinking, { type: 'disabled' });
         } finally {
           stub.restore();
         }
@@ -171,17 +169,17 @@ unitSuite('AI-55 reasoning uses a simple switch with per-model overrides', () =>
     );
   });
 
-  it('reports an invalid AI_REASONING and keeps the advanced fallback', () => {
+  it('reports an invalid AI_REASONING_PAID_MODELS and keeps the advanced fallback', () => {
     assert.deepEqual(parseSimpleReasoning('enable'), { mode: 'auto' });
     assert.deepEqual(parseSimpleReasoning('disable'), { mode: 'off' });
-    assert.equal(parseSimpleReasoning('budget:1024'), null, 'AI_REASONING is enable/disable only');
+    assert.equal(parseSimpleReasoning('budget:1024'), null, 'AI_REASONING_PAID_MODELS is enable/disable only');
 
     const settings = reasoningSettings({
-      AI_REASONING: 'sometimes',
+      AI_REASONING_PAID_MODELS: 'sometimes',
       AI_REASONING_DEFAULT: 'auto',
     });
     assert.equal(settings.simplePolicy, null);
-    assert.match(settings.simpleProblem, /AI_REASONING must be enable or disable/);
+    assert.match(settings.simpleProblem, /AI_REASONING_PAID_MODELS must be enable or disable/);
     assert.deepEqual(resolveReasoningPolicy('any/model', settings), {
       policy: { mode: 'auto' },
       source: 'default',

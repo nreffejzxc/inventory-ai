@@ -16,6 +16,7 @@ import AuditLog from './auditLog.model.ts';
 import IdempotencyRecord from './idempotencyRecord.model.ts';
 import AIConversation from './aiConversation.model.ts';
 import AIMessage from './aiMessage.model.ts';
+import AiTurnMetric from './aiTurnMetric.model.ts';
 
 export {
   Business,
@@ -36,6 +37,7 @@ export {
   IdempotencyRecord,
   AIConversation,
   AIMessage,
+  AiTurnMetric,
 };
 
 /** Every registered model, for tooling/tests that iterate the schema set. */
@@ -58,6 +60,7 @@ export const models = [
   IdempotencyRecord,
   AIConversation,
   AIMessage,
+  AiTurnMetric,
 ];
 
 export default models;

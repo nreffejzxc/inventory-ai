@@ -4,9 +4,9 @@
  * WHY THIS EXISTS. On 2026-10-21 every assistant turn failed with `502 AI_UNAVAILABLE` and the
  * server's own log could not name the model that failed:
  *
- *   [ai:openrouter] upstream HTTP 404
+ *   AI provider openrouter upstream HTTP 404
  *   bodyPrefix="… not_found_error … Function '<uuid>': Not found for account '<uuid>' … provider_name":"Nvidia" …"
- *   [ai] turn outcome=AI_UNAVAILABLE … calls=1 … model=unknown iterations=1
+ *   AI turn outcome=AI_UNAVAILABLE … calls=1 … model=unknown iterations=1
  *
  * Two separate blind spots produced that. A wrong or withdrawn model was only discoverable when a
  * member asked a question, and the turn line then said `unknown` at the one moment its `model=`

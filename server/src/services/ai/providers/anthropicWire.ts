@@ -14,7 +14,13 @@
  */
 
 import { aiConfig } from '../aiConfig.ts';
-import { resolveReasoningPolicy, thinkingFieldFor } from '../reasoningPolicy.ts';
+import { modelCallLine } from '../aiMonitor.ts';
+import {
+  isFreeModel,
+  reasoningState,
+  resolveReasoningPolicy,
+  thinkingFieldFor,
+} from '../reasoningPolicy.ts';
 import { AiNotConfigured, AiOutputLimit, AiProviderError } from '../aiErrors.ts';
 import {
   webToolLabel,
@@ -127,6 +133,8 @@ interface AnthropicResponse extends UpstreamJsonBody {
   stop_reason?: unknown;
   model?: unknown;
   annotations?: unknown;
+  /** AI-101 — the upstream host OpenRouter routed to, when the gateway reports it. */
+  provider?: unknown;
 }
 
 /**
@@ -280,6 +288,9 @@ export function parseAnthropicResponse(data: AnthropicResponse, requestedModel =
     text,
     toolCalls,
     ...(thinking.length > 0 ? { thinking } : {}),
+    ...(typeof data.provider === 'string' && data.provider.trim()
+      ? { provider: data.provider.trim() }
+      : {}),
     usage,
     ...(webSources.length > 0 ? { webSources } : {}),
     truncated: data.stop_reason === 'max_tokens',
@@ -640,12 +651,19 @@ export function createAnthropicCompatibleProvider(opts: AnthropicCompatibleOptio
       onTextDelta,
       webResearch,
       nativeWeb,
+      turnId,
     }) {
       const cfg = aiConfig();
       // AI-29 — a per-request override, used by the turn loop's failover. It stays a
       // parameter rather than a second environment variable so the request itself
       // records which model answered, and the parsed response reports that model.
       const model = requestedModel || cfg[modelKey] || defaultModel;
+      // AI-100 — resolve the policy for THIS model before building the request. Free
+      // endpoints use their own switch; paid endpoints keep AI_REASONING_PAID_MODELS and the
+      // advanced per-model rules. The resolved field is also what the free-model log
+      // reports, so the log and the wire body cannot disagree.
+      const resolvedReasoning = resolveReasoningPolicy(model, cfg.reasoning);
+      const thinkingField = thinkingFieldFor(resolvedReasoning.policy, cfg.maxOutputTokens);
       // The turn's remaining budget when the orchestrator supplied one, so a
       // call can never outlive the turn's single deadline (AI-1).
       const budget = timeoutMs ?? cfg.requestTimeoutMs;
@@ -680,11 +698,29 @@ export function createAnthropicCompatibleProvider(opts: AnthropicCompatibleOptio
         // response contract changes, because a disabled model simply returns text.
         // AI-55 — the policy is resolved for THIS request's model, not for the deployment, so a
         // failover candidate that requires reasoning does not inherit the primary's `off`.
-        ...thinkingFieldFor(
-          resolveReasoningPolicy(model, cfg.reasoning).policy,
-          cfg.maxOutputTokens,
-        ),
+        ...thinkingField,
       };
+      // AI-100 — every provider request gets its own line, before the network call, so
+      // Render shows the policy that was actually sent even when the provider then
+      // refuses the request. `field=disabled` is the observable proof that reasoning
+      // was turned off; `field=omitted` means the model's own default is enabled.
+      const free = isFreeModel(model);
+      const reasoningField = 'thinking' in thinkingField ? thinkingField.thinking.type : 'omitted';
+      const reasoningSource = free
+        ? cfg.reasoning.freeSource
+        : resolvedReasoning.source === 'paid'
+          ? cfg.reasoning.paidSource
+          : resolvedReasoning.source;
+      console.log(
+        modelCallLine({
+          turn: turnId ?? 'none',
+          provider: name,
+          model,
+          reasoning: reasoningState(resolvedReasoning.policy),
+          field: reasoningField,
+          source: reasoningSource,
+        }),
+      );
       const requestHeaders = { ...(authHeaders ? authHeaders(apiKey) : {}), ...extraHeaders };
 
       /**
@@ -706,10 +742,11 @@ export function createAnthropicCompatibleProvider(opts: AnthropicCompatibleOptio
         const usedWebTools = webToolsUsedFromResponse(body.content, body.usage);
         if (enabledWebTools.length > 0 || usedWebTools.length > 0) {
           console.log(
-            `[ai:${name}] web tools enabled=${webToolLabel(enabledWebTools)}` +
+            `AI model web tools enabled=${webToolLabel(enabledWebTools)}` +
               ` offered=${webToolLabel(offeredWebTools)}` +
               ` used=${webToolLabel(usedWebTools)}` +
-              ` intent=${webToolsAllowed ? 'web' : 'inventory'} model=${model}`,
+              ` intent=${webToolsAllowed ? 'web-research' : 'inventory'} model=${model}` +
+              ` turn=${turnId ?? 'none'}`,
           );
         }
         try {
@@ -731,16 +768,16 @@ export function createAnthropicCompatibleProvider(opts: AnthropicCompatibleOptio
           // and never the body, for the reason `emptyResponseShape` gives.
           if (!parsed.text && parsed.toolCalls.length === 0) {
             console.warn(
-              `[ai:${name}] empty completion (model=${model}, ${emptyResponseShape(body)}) — the provider answered 2xx with neither text nor a tool call; the turn retries once, then degrades (AI-2)`
+              `AI model empty completion (provider=${name}, model=${model}, ${emptyResponseShape(body)}) — the provider answered 2xx with neither text nor a tool call; the turn retries once, then degrades (AI-2) turn=${turnId ?? 'none'}`
             );
           }
           return withWebTools;
         } catch (err) {
           if (err instanceof AiOutputLimit) {
             console.warn(
-              `[ai:${name}] output limit reached with nothing usable (model=${model},` +
+              `AI model hit its output limit with nothing usable (provider=${name}, model=${model},` +
                 ` maxTokens=${cfg.maxOutputTokens}, stop=max_tokens) — the model spent its` +
-                ' whole output budget before answering'
+                ` whole output budget before answering turn=${turnId ?? 'none'}`
             );
           }
           throw err;
@@ -775,7 +812,7 @@ export function createAnthropicCompatibleProvider(opts: AnthropicCompatibleOptio
             err instanceof AiProviderError && err.kind === 'invalid_response' && progress.emitted === 0;
           if (!answeredUnstreamed) throw err;
           console.error(
-            `[ai:${name}] the provider ignored stream=true (model=${model}); retrying the same call unstreamed`,
+            `AI model ignored stream=true (provider=${name}, model=${model}, turn=${turnId ?? 'none'}); retrying the same call unstreamed`,
           );
         }
       }

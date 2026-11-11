@@ -174,7 +174,7 @@ set.
 
 ## 2.6 Route inventory
 
-Phase 23 classifies **85 routes**: **50 permission-gated**, **14 authenticated**, **21 public**, **0 role-gated**. The `PUBLIC` and `AUTHENTICATED` buckets are explicit lists that each carry a
+Phase 23 classifies **86 routes**: **51 permission-gated**, **14 authenticated**, **21 public**, **0 role-gated**. The `PUBLIC` and `AUTHENTICATED` buckets are explicit lists that each carry a
 written reason; a route in no bucket fails the guard, and a declared exemption that has stopped being
 true also fails. The guard deliberately asserts **no route count** — a route is *declared* or it is not,
 and the number is derived from the declarations — so the figure above is pinned separately, by
@@ -259,6 +259,11 @@ fails if the two disagree.
 > None of the five designs an authorization input: the tenant and role come from the invitation row,
 > the inviter from `req.user`, and the invitee from a VERIFIED Firebase identity whose address must
 > equal the invited one.
+>
+> **AI-102 (2026-11-10) added one permission-gated route — 85 + 1 gated = **86** (51
+> permission-gated, 14 authenticated, 21 public, 0 role-gated).** `GET /api/ai/metrics` binds the new
+> `ai.metrics.view` capability, granted only to OWNER and ADMIN. It is the first addition after the
+> invitation increment and is counted by the same route-inventory guard.
 
 The auth surface (`server/src/routes/auth.routes.ts`):
 

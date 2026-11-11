@@ -1,0 +1,81 @@
+{
+  "startedAt": "2026-11-09T20:28:19.333Z",
+  "conversationId": "6af22ae9df2d0cea08b4d596",
+  "creditsBefore": {
+    "total_credits": 10,
+    "total_usage": 1.245263572
+  },
+  "results": [
+    {
+      "id": "T6r",
+      "lang": "Tagalog",
+      "text": "Magrekomenda ng isang produkto para sa maliit na opisina na may budget na 3000. Ibigay ang pangalan, presyo at stock",
+      "expected": "Any active in-stock product at or under 3,000; verify name, price and stock",
+      "askedAt": "2026-11-09T20:28:19.716Z",
+      "userMessageId": "6af22cf6df2d0cea08b4d5bb",
+      "userMessageAt": "2026-11-09T20:28:28.868Z",
+      "assistantMessageId": "6af22cf6df2d0cea08b4d5bc",
+      "answer": "**Royal Kludge RK61**  \n- **Presyo:** ₱2 499  \n- **Stock na may dalawang yunit:** 15 pcs (todas ang nilagay sa Main Warehouse).  \n\nAng RK61 ay 60‑percent compact mechanical keyboard na maginhawa para sa maliit na opisina, at ang presyo ay mas mababa sa iyong P3 000 na budget.",
+      "model": "openai/gpt-oss-20b",
+      "toolsUsed": [
+        "findProducts"
+      ],
+      "usage": {
+        "inputTokens": 24124,
+        "outputTokens": 469
+      },
+      "degraded": null,
+      "latencyMs": 21863,
+      "finishedAt": "2026-11-09T20:28:41.581Z"
+    },
+    {
+      "id": "E5",
+      "lang": "English",
+      "text": "Show me the five most recent stock movements",
+      "expected": "Five latest movements with names and quantities",
+      "askedAt": "2026-11-09T20:28:42.585Z",
+      "userMessageId": "6af22d11df2d0cea08b4d5bd",
+      "userMessageAt": "2026-11-09T20:28:50.736Z",
+      "assistantMessageId": "6af22d11df2d0cea08b4d5be",
+      "answer": "**13356 stock movements are recorded in the system; the five most recent are:**\n\n1. **2026‑11‑09 18:23 – STOCK IN**  \n   *Samsung 990 PRO 1 TB NVMe SSD* – 1 unit added to **Shop Front** (now 9 in stock)\n\n2. **2026‑11‑09 18:23 – STOCK OUT**  \n   *Samsung 990 PRO 1 TB NVMe SSD* – 1 unit removed from **Shop Front** (now 8 in stock)\n\n3. **2026‑11‑09 16:26 – Adjustment**  \n   *LG UltraGear 27GP850‑B* – 96 units reduced from 255 to 159 at **Main Warehouse**\n\n4. **2026‑11‑09 16:11 – STOCK IN**  \n   *Sharp KS‑R18 Rice Cooker* – 7 units added to **Overflow Store** (now 60 in stock)\n\n5. **2026‑11‑09 15:37 – STOCK IN**  \n   *Samsung 990 PRO 1 TB NVMe SSD* – 12 units added to **Overflow Store** (now 74 in stock)\n\nThis summary is displayed on the **Inventory History** screen.",
+      "model": "openai/gpt-oss-20b",
+      "toolsUsed": [
+        "getInventoryHistory"
+      ],
+      "usage": {
+        "inputTokens": 21612,
+        "outputTokens": 824
+      },
+      "degraded": null,
+      "latencyMs": 24826,
+      "finishedAt": "2026-11-09T20:29:07.411Z"
+    },
+    {
+      "id": "E6",
+      "lang": "English",
+      "text": "Which item had the most units leave Main Warehouse",
+      "expected": "LG InstaView Door-in-Door LRFXS2503S; SEEDSKU-1495; 527 units",
+      "askedAt": "2026-11-09T20:29:08.420Z",
+      "userMessageId": "6af22d24df2d0cea08b4d5bf",
+      "userMessageAt": "2026-11-09T20:29:16.400Z",
+      "assistantMessageId": "6af22d24df2d0cea08b4d5c0",
+      "answer": "The item with the most units out is **LG InstaView Door-in-Door LRFXS2503S**, with **527 units** moved out.",
+      "model": "openai/gpt-oss-20b",
+      "toolsUsed": [
+        "getInventoryHistory"
+      ],
+      "usage": {
+        "inputTokens": 23444,
+        "outputTokens": 529
+      },
+      "degraded": null,
+      "latencyMs": 18486,
+      "finishedAt": "2026-11-09T20:29:26.906Z"
+    }
+  ],
+  "creditsAfter": {
+    "total_credits": 10,
+    "total_usage": 1.246613762
+  },
+  "finishedAt": "2026-11-09T20:29:28.238Z"
+}

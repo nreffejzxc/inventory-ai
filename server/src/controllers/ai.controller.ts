@@ -26,6 +26,7 @@ import {
   AiTimeout,
 } from '../services/ai/aiErrors.ts';
 import { runAiChat, type ChatTurn } from '../services/ai/ai.service.ts';
+import { getAiMetrics, parseAiMetricsDays } from '../services/ai/aiMetrics.service.ts';
 import { asksForResearchModel } from '../services/ai/webCapabilities.ts';
 import { ROLES } from '../constants/roles.ts';
 
@@ -40,9 +41,10 @@ import { ROLES } from '../constants/roles.ts';
  * `RequestHandler`, whose parameter is a plain `Request`; a required `user`
  * would make that `Request` unassignable and every route registration a type
  * error. The reads below assert it with `!` instead, which is justified by the
- * route table — every route in `routes/ai.routes.ts` is registered
- * `requireAuth, requirePermission(PERMISSIONS.AI_USE), controller`, so the
- * middleware has always run by the time these handlers execute. Optional
+ * route table — every route in `routes/ai.routes.ts` is registered with
+ * `requireAuth` plus `requirePermission(...)` (`ai.use` for member routes, or
+ * `ai.metrics.view` for the operator-only metrics route), so the middleware has
+ * always run by the time these handlers execute. Optional
  * chaining was NOT used: it would silently pass `undefined` where the code
  * would previously have thrown, which is a behaviour change.
  *
@@ -76,6 +78,9 @@ function messagePublic(msg: MessageDoc) {
     role: msg.role,
     content: msg.content,
     model: msg.model || undefined,
+    // The per-turn id the answer was produced under. Stored with the message, so a thread
+    // reopened tomorrow can still name the turn in the server logs.
+    turnId: msg.turnId || undefined,
     toolsUsed: Array.isArray(msg.toolsUsed) && msg.toolsUsed.length ? msg.toolsUsed : undefined,
     usage,
     // AI-8 — the mark travels with the message, so a conversation read back from the
@@ -238,7 +243,7 @@ function readResearchDrill(
     );
   }
   console.log(
-    `[ai] failover drill armed: user=${req.user!.id} research=${researchModel}` +
+    `AI failover drill armed: user=${req.user!.id} research=${researchModel}` +
       ` fallback=${cfg.openrouterModel || 'unset'}`,
   );
   return true;
@@ -415,6 +420,7 @@ async function persistTurn({
     role: 'ASSISTANT',
     content: result.content,
     model: result.model || undefined,
+    turnId: result.turnId,
     toolsUsed: result.toolsUsed?.length ? result.toolsUsed : undefined,
     usage: result.usage || undefined,
     // AI-8 — a degraded turn is still a completed turn (AI-2), so it is still stored;
@@ -449,6 +455,9 @@ function turnPayload(saved: SavedTurn, result: Awaited<ReturnType<typeof runAiCh
     conversation: conversationPublic(saved.conversation),
     userMessage: messagePublic(saved.userMessage),
     assistantMessage: messagePublic(saved.assistantMessage),
+    // The per-turn id every monitoring line for this answer carries, returned top-level as
+    // well as on the message so a client can record it without reaching into the message.
+    turnId: result.turnId,
     // AI-2 — a degraded turn is a COMPLETED turn: the member did read an answer,
     // so it stays a 201 and is marked rather than turned into an error. The mark
     // is what makes the failure countable at the boundary for the first time.
@@ -467,7 +476,7 @@ function turnPayload(saved: SavedTurn, result: Awaited<ReturnType<typeof runAiCh
  *   delta  { text }                     one piece of answer text, in order
  *   reset  {}                           discard the text shown so far; a corrected answer
  *                                       follows (or `done` replaces it)
- *   done   { conversation, userMessage, assistantMessage, degraded }
+ *   done   { conversation, userMessage, assistantMessage, degraded, turnId }
  *                                        the stored turn — identical to the JSON response
  *   error  { status, code, message }    the same mapping the JSON path uses, after headers
  *
@@ -561,6 +570,22 @@ function sseFailure(err: unknown): { status: number; code: string | null; messag
 }
 
 const aiController = {
+  /**
+   * GET /api/ai/metrics -> the business's own turn metrics for the last N UTC days.
+   *
+   * This is an operator read, not a member feature: the route binds `ai.metrics.view`,
+   * held only by OWNER and ADMIN. The business scope comes from `req.user`, never from the
+   * query string, and the response is marked no-store because it describes internal usage
+   * and spend.
+   */
+  async metrics(req: AuthenticatedRequest, res: Response) {
+    const parsed = parseAiMetricsDays(req.query.days);
+    if (parsed.problem) throwValidation([{ field: 'days', message: parsed.problem }]);
+    const report = await getAiMetrics(req.user!.businessId, { days: parsed.days });
+    res.setHeader('Cache-Control', 'no-store');
+    res.json(report);
+  },
+
   /** POST /api/ai/conversations -> start an (empty) conversation. */
   async createConversation(req: AuthenticatedRequest, res: Response) {
     const title = typeof req.body?.title === 'string' ? req.body.title.trim().slice(0, TITLE_MAX) : '';

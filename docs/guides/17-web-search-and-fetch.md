@@ -14,9 +14,11 @@ complete and the local research tools remain available.
 | `AI_WEB_SEARCH` | The assistant may search the web for current information. | The search tool is not sent. |
 | `AI_WEB_FETCH` | The assistant may fetch a URL and read its page or PDF content. | The fetch tool is not sent. |
 
-Set each variable to `enable` or `disable`. The fallback chain uses the same two
-settings; changing the model does not change them. `AI_REASONING` is separate and still
-applies per model.
+Set each variable to `enable` or `disable`; only those two words are accepted.
+`true`, `on`, `yes` and `1` are invalid and keep the tool disabled. The fallback chain
+uses the same two settings; changing the model does not change them. Reasoning is
+separate: `AI_REASONING_PAID_MODELS` governs paid models, while `AI_REASONING_FREE_MODELS` governs
+every `:free` model and defaults to `disable`.
 
 Research-heavy turns can also start on a stronger model through
 [`AI_RESEARCH_MODEL_OPENROUTER`](16-openrouter-models.md): ordinary inventory questions stay
@@ -145,16 +147,16 @@ AI_WEB_FETCH=disable
    request log should show `used=search` and/or `used=fetch`. If the tool is disabled, it
    is not sent to OpenRouter, so the assistant cannot use that capability on the turn.
 
-An invalid value makes `npm run ai:check` exit 1 and name the variable. The server also
-keeps the tool disabled and logs a warning at boot; it never turns a paid tool on because
-of a typo.
+An invalid value (anything other than `enable` or `disable`, including `true` or `on`) makes
+`npm run ai:check` exit 1 and name the variable. The server also keeps the tool disabled and
+logs a warning at boot; it never turns a paid tool on because of a typo.
 
 ## Read the logs
 
 When either switch is on, every OpenRouter request writes one line to the server log:
 
 ```text
-[ai:openrouter] web tools enabled=search,fetch offered=search,fetch used=search intent=web model=openai/gpt-oss-20b
+AI model web tools enabled=search,fetch offered=search,fetch used=search intent=web-research model=openai/gpt-oss-20b turn=4f2a9c1e
 ```
 
 - `enabled` is the `.env` configuration.
@@ -162,7 +164,7 @@ When either switch is on, every OpenRouter request writes one line to the server
   intent gate withheld it, or this was the final answer round.
 - `used` is the provider's actual server-tool activity. `used=none` means the tool was
   enabled but the model did not use it on that request.
-- `intent=web` means the question passed the external-research gate; `intent=inventory`
+- `intent=web-research` means the question passed the external-research gate; `intent=inventory`
   means the paid tools were deliberately withheld.
 
 The turn-level line also carries `web=search`, `web=fetch`, `web=search,fetch` or `web=none`,
@@ -176,10 +178,10 @@ reported zero is printed as `$0.000000`; it is not the same as an omission.
 A simple inventory request therefore logs this, without making a search or fetch:
 
 ```text
-[ai:openrouter] web tools enabled=search,fetch offered=none used=none intent=inventory model=openai/gpt-oss-20b
+AI model web tools enabled=search,fetch offered=none used=none intent=inventory model=openai/gpt-oss-20b turn=4f2a9c1e
 ```
 
-Search Render's service logs for `[ai:openrouter] web tools`. The same line works for free
+Search Render's service logs for `AI model web tools`. The same line works for free
 and paid models; the `model=` field identifies which one handled the request. It contains
 only capability labels and the model id: no prompt, search query, URL, page content or API
 key is written. Each provider request has its own line, so a turn that uses tools and then

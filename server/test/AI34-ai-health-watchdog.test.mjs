@@ -498,7 +498,7 @@ unitSuite('AI-34 model-health watchdog (DB-free)', () => {
       assert.ok(result, 'the server starts');
       assert.ok(startedWith, 'the watchdog starter is given the boot context');
       assert.ok(typeof startedWith.logger.log === 'function');
-      assert.ok(lines.some((line) => line.includes('[ai:watchdog] scheduled')));
+      assert.ok(lines.some((line) => line.includes('AI watchdog scheduled')));
 
       await result.shutdown('SIGTERM');
       assert.equal(stopped, true, 'shutdown stops the watchdog before the drain');

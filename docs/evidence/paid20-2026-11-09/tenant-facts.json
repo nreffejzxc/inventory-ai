@@ -1,0 +1,418 @@
+{
+  "businessId": "6af18628a9a409131a84235b",
+  "activeProducts": 10000,
+  "totalQuantity": 2446801,
+  "totalReserved": 0,
+  "totalAvailable": 2446801,
+  "locations": [
+    "Main Warehouse",
+    "Shop Front",
+    "Overflow Store",
+    "Cold Room"
+  ],
+  "categories": [
+    "Keyboards & Mice",
+    "Audio",
+    "Displays",
+    "Accessories",
+    "Computer Components",
+    "Home Appliances",
+    "Hardware, Tools & Power Tools",
+    "Automotive & Car Care",
+    "Beverages",
+    "Snacks",
+    "Household",
+    "Personal Care",
+    "Stationery"
+  ],
+  "lowCount": 1535,
+  "refs": {
+    "SEEDSKU-0": {
+      "sku": "SEEDSKU-0",
+      "name": "Logitech MX Keys S",
+      "price": 6290,
+      "currency": null,
+      "minimumStock": 82,
+      "totalQuantity": 401,
+      "totalAvailable": 401,
+      "locations": [
+        {
+          "location": "Main Warehouse",
+          "quantity": 200,
+          "reserved": 0,
+          "available": 200
+        },
+        {
+          "location": "Shop Front",
+          "quantity": 201,
+          "reserved": 0,
+          "available": 201
+        }
+      ]
+    },
+    "SEEDSKU-5": {
+      "sku": "SEEDSKU-5",
+      "name": "Logitech MX Master 3S",
+      "price": 5490,
+      "currency": null,
+      "minimumStock": 8,
+      "totalQuantity": 34,
+      "totalAvailable": 34,
+      "locations": [
+        {
+          "location": "Main Warehouse",
+          "quantity": 34,
+          "reserved": 0,
+          "available": 34
+        }
+      ]
+    },
+    "SEEDSKU-51": {
+      "sku": "SEEDSKU-51",
+      "name": "Logitech MX Master 3S",
+      "price": 5490,
+      "currency": null,
+      "minimumStock": 28,
+      "totalQuantity": 182,
+      "totalAvailable": 182,
+      "locations": [
+        {
+          "location": "Main Warehouse",
+          "quantity": 182,
+          "reserved": 0,
+          "available": 182
+        }
+      ]
+    }
+  },
+  "samsung": [
+    {
+      "_id": "6af1862aa9a409131a844b29",
+      "name": "Samsung Portable SSD T7 Shield 1TB",
+      "sku": "SEEDSKU-9993",
+      "sellingPrice": 7995,
+      "minimumStock": 53
+    },
+    {
+      "_id": "6af1862aa9a409131a844afb",
+      "name": "Samsung Portable SSD T7 Shield 1TB",
+      "sku": "SEEDSKU-9947",
+      "sellingPrice": 7995,
+      "minimumStock": 95
+    },
+    {
+      "_id": "6af1862aa9a409131a844acd",
+      "name": "Samsung Portable SSD T7 Shield 1TB",
+      "sku": "SEEDSKU-9901",
+      "sellingPrice": 7995,
+      "minimumStock": 40
+    },
+    {
+      "_id": "6af1862aa9a409131a844a9f",
+      "name": "Samsung Portable SSD T7 Shield 1TB",
+      "sku": "SEEDSKU-9855",
+      "sellingPrice": 7995,
+      "minimumStock": 41
+    },
+    {
+      "_id": "6af1862aa9a409131a844a71",
+      "name": "Samsung Portable SSD T7 Shield 1TB",
+      "sku": "SEEDSKU-9809",
+      "sellingPrice": 7995,
+      "minimumStock": 8
+    },
+    {
+      "_id": "6af1862aa9a409131a844a43",
+      "name": "Samsung Portable SSD T7 Shield 1TB",
+      "sku": "SEEDSKU-9763",
+      "sellingPrice": 7995,
+      "minimumStock": 67
+    },
+    {
+      "_id": "6af1862aa9a409131a844a15",
+      "name": "Samsung Portable SSD T7 Shield 1TB",
+      "sku": "SEEDSKU-9717",
+      "sellingPrice": 7995,
+      "minimumStock": 35
+    },
+    {
+      "_id": "6af1862aa9a409131a8449e7",
+      "name": "Samsung Portable SSD T7 Shield 1TB",
+      "sku": "SEEDSKU-9671",
+      "sellingPrice": 7995,
+      "minimumStock": 88
+    },
+    {
+      "_id": "6af1862aa9a409131a8449b9",
+      "name": "Samsung Portable SSD T7 Shield 1TB",
+      "sku": "SEEDSKU-9625",
+      "sellingPrice": 7995,
+      "minimumStock": 25
+    },
+    {
+      "_id": "6af1862aa9a409131a84498b",
+      "name": "Samsung Portable SSD T7 Shield 1TB",
+      "sku": "SEEDSKU-9579",
+      "sellingPrice": 7995,
+      "minimumStock": 49
+    }
+  ],
+  "keyboards": {
+    "products": 1308,
+    "quantity": 320250,
+    "reserved": 0,
+    "value": 2444247590
+  },
+  "automotiveProducts": 1736,
+  "brands": [
+    "ACDelco",
+    "AMD",
+    "ASUS ROG",
+    "Anker",
+    "Black+Decker",
+    "Bosch",
+    "Castrol",
+    "Corsair",
+    "DeWalt",
+    "Dell",
+    "Denso",
+    "Dyson",
+    "Elgato",
+    "Intel",
+    "Irwin",
+    "Keychron",
+    "LG",
+    "Logitech",
+    "Lufkin",
+    "Makita",
+    "Michelin",
+    "Milwaukee",
+    "Mobil 1",
+    "NGK",
+    "Noctua",
+    "Panasonic",
+    "Philips",
+    "Razer",
+    "Royal Kludge",
+    "Samsung",
+    "Seasonic",
+    "Sharp",
+    "Sony",
+    "Stanley",
+    "SteelSeries",
+    "Turtle Wax",
+    "Xiaomi"
+  ],
+  "main": {
+    "products": 10000,
+    "quantity": 1490818,
+    "reserved": 0,
+    "available": 1490818
+  },
+  "topValue": [
+    {
+      "available": 801,
+      "value": 152181990,
+      "sku": "SEEDSKU-344",
+      "name": "Samsung Bespoke RF29BB8600QL Refrigerator",
+      "price": 189990
+    },
+    {
+      "available": 786,
+      "value": 149332140,
+      "sku": "SEEDSKU-6186",
+      "name": "Samsung Bespoke RF29BB8600QL Refrigerator",
+      "price": 189990
+    },
+    {
+      "available": 755,
+      "value": 143442450,
+      "sku": "SEEDSKU-7336",
+      "name": "Samsung Bespoke RF29BB8600QL Refrigerator",
+      "price": 189990
+    },
+    {
+      "available": 732,
+      "value": 139072680,
+      "sku": "SEEDSKU-5450",
+      "name": "Samsung Bespoke RF29BB8600QL Refrigerator",
+      "price": 189990
+    },
+    {
+      "available": 921,
+      "value": 138145395,
+      "sku": "SEEDSKU-5819",
+      "name": "LG InstaView Door-in-Door LRFXS2503S",
+      "price": 149995
+    }
+  ],
+  "recent": [
+    {
+      "type": "STOCK_IN",
+      "quantity": 1,
+      "product": "Samsung 990 PRO 1TB NVMe SSD",
+      "sku": "SEEDSKU-9999",
+      "location": "Shop Front",
+      "createdAt": "2026-11-09T10:23:51.169Z"
+    },
+    {
+      "type": "STOCK_OUT",
+      "quantity": 1,
+      "product": "Samsung 990 PRO 1TB NVMe SSD",
+      "sku": "SEEDSKU-9999",
+      "location": "Shop Front",
+      "createdAt": "2026-11-09T10:23:08.972Z"
+    },
+    {
+      "type": "ADJUSTMENT",
+      "quantity": 96,
+      "product": "LG UltraGear 27GP850-B",
+      "sku": "SEEDSKU-9899",
+      "location": "Main Warehouse",
+      "createdAt": "2026-11-09T08:26:53.069Z"
+    },
+    {
+      "type": "STOCK_IN",
+      "quantity": 7,
+      "product": "Sharp KS-R18 Rice Cooker",
+      "sku": "SEEDSKU-2419",
+      "location": "Overflow Store",
+      "createdAt": "2026-11-09T08:11:39.887Z"
+    },
+    {
+      "type": "STOCK_IN",
+      "quantity": 12,
+      "product": "Samsung 990 PRO 1TB NVMe SSD",
+      "sku": "SEEDSKU-7055",
+      "location": "Overflow Store",
+      "createdAt": "2026-11-09T07:37:31.642Z"
+    }
+  ],
+  "mostLeave": {
+    "types": [
+      "ADJUSTMENT",
+      "STOCK_IN",
+      "STOCK_OUT"
+    ],
+    "rows": [
+      {
+        "units": 723,
+        "name": "Royal Kludge RK61",
+        "sku": "SEEDSKU-970"
+      },
+      {
+        "units": 674,
+        "name": "DeWalt DCD805 20V MAX XR Hammer Drill",
+        "sku": "SEEDSKU-582"
+      },
+      {
+        "units": 630,
+        "name": "Makita 18V LXT Impact Driver DTD153Z",
+        "sku": "SEEDSKU-1227"
+      }
+    ]
+  },
+  "lowRows": [
+    {
+      "available": 0,
+      "name": "Panasonic CS/CU-PU13XKQ Split Air Conditioner",
+      "sku": "SEEDSKU-8304",
+      "minimum": 39
+    },
+    {
+      "available": 0,
+      "name": "Samsung 990 PRO 1TB NVMe SSD",
+      "sku": "SEEDSKU-2593",
+      "minimum": 44
+    },
+    {
+      "available": 0,
+      "name": "Mobil 1 Extended Performance 5W-30 4L",
+      "sku": "SEEDSKU-8321",
+      "minimum": 42
+    },
+    {
+      "available": 0,
+      "name": "Anker 737 Power Bank",
+      "sku": "SEEDSKU-4380",
+      "minimum": 86
+    },
+    {
+      "available": 0,
+      "name": "Xiaomi Mi Smart Standing Fan 2",
+      "sku": "SEEDSKU-5226",
+      "minimum": 23
+    }
+  ],
+  "outCount": 632,
+  "mostLeaveStockOut": [
+    {
+      "units": 527,
+      "name": "LG InstaView Door-in-Door LRFXS2503S",
+      "sku": "SEEDSKU-1495"
+    },
+    {
+      "units": 465,
+      "name": "LG InstaView Door-in-Door LRFXS2503S",
+      "sku": "SEEDSKU-2185"
+    },
+    {
+      "units": 441,
+      "name": "LG InstaView Door-in-Door LRFXS2503S",
+      "sku": "SEEDSKU-1679"
+    },
+    {
+      "units": 438,
+      "name": "LG InstaView Door-in-Door LRFXS2503S",
+      "sku": "SEEDSKU-1633"
+    },
+    {
+      "units": 438,
+      "name": "Samsung 990 PRO 1TB NVMe SSD",
+      "sku": "SEEDSKU-3835"
+    }
+  ],
+  "recommendations": [
+    {
+      "_id": "6af1862aa9a409131a842a38",
+      "name": "NGK Iridium IX Spark Plug BKR6EIX-11",
+      "sku": "SEEDSKU-1560",
+      "price": 650,
+      "available": 918
+    },
+    {
+      "_id": "6af1862aa9a409131a8427b2",
+      "name": "Castrol EDGE 5W-30 4L Engine Oil",
+      "sku": "SEEDSKU-914",
+      "price": 2950,
+      "available": 902
+    },
+    {
+      "_id": "6af1862aa9a409131a8434ac",
+      "name": "Royal Kludge RK61",
+      "sku": "SEEDSKU-4236",
+      "price": 2499,
+      "available": 890
+    },
+    {
+      "_id": "6af1862aa9a409131a842ce5",
+      "name": "Lufkin 25-Foot Tape Measure",
+      "sku": "SEEDSKU-2245",
+      "price": 1250,
+      "available": 887
+    },
+    {
+      "_id": "6af1862aa9a409131a842e83",
+      "name": "Lufkin 25-Foot Tape Measure",
+      "sku": "SEEDSKU-2659",
+      "price": 1250,
+      "available": 882
+    }
+  ],
+  "samsungRef": {
+    "sku": "SEEDSKU-9993",
+    "name": "Samsung Portable SSD T7 Shield 1TB",
+    "price": 7995,
+    "available": 16
+  }
+}

@@ -124,9 +124,9 @@ async function turn(scenario, options = {}) {
       ...value,
       lines,
       calls,
-      failoverLines: lines.filter((line) => line.includes('[ai] failover')),
-      promotionLines: lines.filter((line) => line.includes('[ai] promoted model')),
-      costLines: lines.filter((line) => line.includes('[ai] turn')),
+      failoverLines: lines.filter((line) => line.includes('AI failover')),
+      promotionLines: lines.filter((line) => line.includes('AI promoted model')),
+      costLines: lines.filter((line) => line.includes('AI turn')),
     };
   } finally {
     setFakeScenario(null);
@@ -170,7 +170,7 @@ function turnArgs() {
 
 function fields(line) {
   const out = {};
-  for (const part of line.replace('[ai] turn', '').trim().split(/\s+/)) {
+  for (const part of line.replace('AI turn', '').trim().split(/\s+/)) {
     const at = part.indexOf('=');
     if (at > 0) out[part.slice(0, at)] = part.slice(at + 1);
   }
@@ -243,7 +243,7 @@ unitSuite('AI-31 automatic promotion', () => {
     assert.equal(promotedModel(), FALLBACK);
     assert.equal(activeModel(FAKE_MODEL), FALLBACK, 'the promoted model is what new turns use');
     assert.equal(isModelCooling(FAKE_MODEL), true);
-    assert.match(fifth.promotionLines.join('\n'), /\[ai\] promoted model: fake-model -> fallback-model/);
+    assert.match(fifth.promotionLines.join('\n'), /AI promoted model: fake-model -> fallback-model/);
   });
 
   it('starts the next request on the promoted model', async () => {
@@ -474,7 +474,7 @@ unitSuite('AI-31 promotion safety', () => {
     for (const entry of turns) assert.equal(entry.error, null);
     assert.equal(promotedModel(), FALLBACK);
     assert.equal(
-      lines.filter((line) => line.includes('[ai] promoted model')).length,
+      lines.filter((line) => line.includes('AI promoted model')).length,
       1,
       'two requests may not overwrite one another or log the same promotion twice',
     );

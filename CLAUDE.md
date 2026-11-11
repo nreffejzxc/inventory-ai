@@ -17,7 +17,7 @@ locations, stock movements, transfers, suppliers, purchase orders, a read-only A
 audit trail — one tenant per business, isolated by `businessId` at every layer.
 
 **V1 is complete and in production testing.** Mobile version `1.0.2`, runtime `1.0.2` in the tree;
-the last built production binary is `1.0.1`, served by `https://ai-inventory-l1mi.onrender.com`. The
+the last built production binary is `1.0.2`, served by `https://ai-inventory-l1mi.onrender.com`. The
 production database holds test data only; there are no real customers yet, and the Play release has
 not been made.
 
@@ -42,7 +42,7 @@ Node.js **24** (pinned by `.nvmrc` and `engines.node`) · Express · TypeScript 
 TypeScript-first, **no build step**: the server runs its `.ts` sources through Node's native type
 stripping (`npm start` is `node src/index.ts`), so an older runtime cannot start it. `tsconfig.json`
 sets `noEmit` and `erasableSyntaxOnly`, so `tsc` is purely a checker and non-strippable syntax is a
-compile error rather than a runtime failure. `server/src` is **171** `.ts` modules (re-counted
+compile error rather than a runtime failure. `server/src` is **174** `.ts` modules (re-counted
 2026-11-10) and exactly one intentionally deferred `.js` module,
 `server/src/services/entitlement.service.js`; `docs/TS-MIGRATION-MANIFEST.md` records the migration
 campaign.
@@ -92,6 +92,13 @@ legacy login can be retired.
   `AI_PROVIDER=claude|gemini` is refused as unsupported. The retired AgentRouter gateway must not be
   reintroduced.
 - AI credentials stay server-side.
+- Reasoning is split by model class: `AI_REASONING_PAID_MODELS` governs paid models, and
+  `AI_REASONING_FREE_MODELS` governs every model id ending in `:free` (default `disable`). Both
+  switches, and `AI_WEB_SEARCH`/`AI_WEB_FETCH`, accept only `enable` or `disable`; aliases fail
+  production validation. Every provider request logs the model class, source and reasoning field
+  it actually sends, and every submitted turn logs both effective policies before any provider
+  call. The old `AI_REASONING` name is a deprecated fallback for one release; the new name wins
+  when both are set, so rename it at the next deploy.
 
 ---
 
@@ -253,9 +260,10 @@ The project is built in phases: one phase, one purpose, one verification record.
 | AI-1…AI-25 | Initial assistant delivery: turn deadline, retries, answer rendering, cost line, quota, failover, streaming, one provider |
 | AI-87/AI-88 | Ordinary/research model routing and a controlled research failover drill; deployed and recorded in `docs/DEVELOPMENT_LOG.md` |
 | AI-91/AI-92 | Exact product identity and per-location stock answers — §27HT, merged as `6d95168` and production-verified |
-| AI-99 | Free-first simple inventory route, deterministic stock totals and restock counts, bounded paid fallback, resumable 10k evaluator — in delivery |
+| AI-99 | Free-first simple inventory route, deterministic stock totals and restock counts, bounded paid fallback, resumable 10k evaluator — merged as `8b6353a`, deployed and OTA-published (§27HU) |
+| AI-99 10k gate | 10,256-product gate: 24/25, one real output-limit failure; free allowance at 0/1000 — §27HV |
 
-Most letter-numbered increments are roadmap records; AI-87/AI-88 are log-only and AI-91/AI-92 are in §27HT. AI-99 is recorded in this delivery; the index below is complete.
+Most letter-numbered increments are roadmap records; AI-87/AI-88 are log-only and AI-91/AI-92 are in §27HT. AI-99 is in §27HU and its 10k gate is in §27HV; the index below is complete.
 
 ## Operational traps worth knowing
 
@@ -573,6 +581,8 @@ anchor (`§27…`) in that file.
 - **§27HR** — AI-48–AI-84 merged and deployed (2026-11-06)
 - **§27HS** — The AI-50–AI-84 increment register (2026-11-06)
 - **§27HT** — AI-91/AI-92 — exact product identity and per-location stock (2026-11-09)
+- **§27HU** — AI-99 — free-first simple inventory, deployed with the 1.0.2 OTA (2026-11-10)
+- **§27HV** — AI-99 10,256-product simple-inventory gate (2026-11-10)
 
 ---
 
@@ -968,6 +978,16 @@ after the work that the log records.
   `node scripts/check-repo-state.mjs` fetches `origin/main` and must report the worktree clean and
   `main` level with it. A docs-only change still needs its own pull request; it does not need a
   Render deploy.
+
+## AI assistant testing
+
+- **All questions in one conversation.** A multi-question AI evaluation — the 20-question phone
+  matrix, a live prompt set, a regression run — starts one chat and asks every question there, in
+  order. Do not open a new chat per question, and do not switch between conversation windows during
+  the run. Record the conversation ID; a result gathered across multiple chats is invalid and must
+  be rerun.
+- **A clean context is a separate, labelled run.** If a question genuinely needs an empty history,
+  run that as its own explicitly named evaluation, not as a reset in the middle of a matrix.
 
 ## Expo EAS builds — one allowance, spent deliberately
 

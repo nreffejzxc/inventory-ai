@@ -7,13 +7,13 @@
 // exists:
 //
 //   1. **A valid JSON 2xx with nothing usable in it leaves NO trace.** It is not a non-2xx
-//      (no `[ai:openrouter] upstream HTTP …` line), not a non-JSON body (no diagnostics
+//      (no `AI provider openrouter upstream HTTP …` line), not a non-JSON body (no diagnostics
 //      line), not a timeout (`AiTimeout`, 504, persists nothing) and not a quota refusal
 //      (`AiQuotaExceeded`, 429/402). `parseAnthropicResponse` maps it to
 //      `{ text: '', toolCalls: [] }`, the service retries once (AI-2) and then degrades —
 //      and the one thing an operator needs in order to identify the shape, the body
 //      itself, was never recorded anywhere. §27BS measured exactly this on the device
-//      ("no `[ai:openrouter]` diagnostic line, so it was not an error") and could only
+//      ("no `AI provider` diagnostic line, so it was not an error") and could only
 //      report `in=0 out=0`.
 //   2. **The model column read `openrouter` on 12 of 44 turns — including every failing
 //      one.** That is the provider's LABEL, not a model, and it was substituted by the
@@ -214,7 +214,7 @@ unitSuite('AI-12 an empty completion is diagnosable (DB-free)', () => {
     assert.ok(thrown instanceof AiOutputLimit, 'the cap-spent body is still its own failure');
     assert.equal(thrown.code, AI_OUTPUT_LIMIT);
     assert.equal(shapeLines().length, 0, 'one response, one line — never two');
-    assert.equal(warnings.filter((l) => l.includes('output limit reached')).length, 1, 'AI-10 keeps its line');
+    assert.equal(warnings.filter((l) => l.includes('hit its output limit')).length, 1, 'AI-10 keeps its line');
   });
 
   it('★ a rescued turn still counts what it saw (one empty, then an answer)', async () => {
@@ -237,7 +237,7 @@ unitSuite('AI-12 an empty completion is diagnosable (DB-free)', () => {
       const result = await runAiChat({ businessId: 'b-1', userId: 'u-1', role: ROLES.OWNER, message: 'how much stock do we hold?' });
       assert.equal(result.content, 'Three products are low.', 'the retry-rescued turn answered');
       assert.equal(result.degraded, undefined, 'and it is NOT a degraded turn');
-      const turnLine = logLines.find((l) => l.includes('[ai] turn outcome='));
+      const turnLine = logLines.find((l) => l.includes('AI turn outcome='));
       assert.match(turnLine ?? '', /outcome=ok/, 'the outcome is a healthy one');
       assert.match(turnLine ?? '', /empty=1/, 'and the line still says one response came back empty');
     } finally {
@@ -286,7 +286,7 @@ dbSuite('AI-12 an empty completion over the real route, and the model it records
     }
     assert.equal(warnings.filter((w) => w.includes('degraded turn')).length, 1, 'AI-2 keeps its own warning');
 
-    const turn = logLines.find((l) => l.includes('[ai] turn'));
+    const turn = logLines.find((l) => l.includes('AI turn'));
     assert.match(turn ?? '', /outcome=degraded/);
     assert.match(turn ?? '', /empty=2/);
     assert.ok(turn.includes(`model=${MODEL}`), 'the turn line names the model too');

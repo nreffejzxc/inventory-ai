@@ -65,7 +65,7 @@ async function ask() {
 
 async function withFlag(value, fn) {
   // AI-55's simple switch overrides the legacy flag, so clear it for these AI-54 assertions.
-  const keys = ['AI_THINKING_DISABLED', 'AI_REASONING'];
+  const keys = ['AI_THINKING_DISABLED', 'AI_REASONING_PAID_MODELS', 'AI_REASONING', 'AI_REASONING_FREE_MODELS'];
   const saved = new Map(keys.map((key) => [key, process.env[key]]));
   for (const key of keys) delete process.env[key];
   if (value !== undefined) process.env.AI_THINKING_DISABLED = value;
