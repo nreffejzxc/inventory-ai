@@ -53,8 +53,10 @@ These are the rules worth waking someone for. They are written for an outside up
 (UptimeRobot, Better Stack, a scheduled `curl`, or the hosting provider's own check). This repository
 ships a GitHub-hosted probe: `.github/workflows/production-health-watch-v2.yml` runs the read-only
 `scripts/check-production-health.mjs` from GitHub, outside Render. GitHub has not emitted a
-`schedule` event for this workflow, so an external Windows scheduled task on the operator laptop
-dispatches it every five minutes. It opens a GitHub issue after **two consecutive failures** and
+`schedule` event for this workflow. A separate hosted dispatcher
+(`.github/workflows/production-health-dispatch.yml`) and a separate private watch repository also
+exist, but neither produced a scheduled run through 2026-11-11T19:01Z. The Windows task remains the
+only automatic trigger for now. It opens a GitHub issue after **two consecutive failures** and
 closes it when both endpoints recover. GitHub's issue notifications are the delivery channel; there is still no
 hosted pager or dashboard.
 
@@ -116,6 +118,23 @@ GitHub's schedule and to Render, but it is not a hosted scheduler: it runs only 
 is signed in and the laptop is awake and online. If the laptop is offline, no check is dispatched;
 use `gh workflow run production-health-watch-v2.yml` manually. A hosted scheduler with a scoped
 `workflow` token is the durable replacement; do not commit that token.
+
+### Hosted scheduler attempts — not active
+
+Two credential-free hosted attempts were merged on 2026-11-11:
+
+- `.github/workflows/production-health-dispatch.yml` uses the repository `GITHUB_TOKEN` with
+  `actions: write` to dispatch v2. Its manual run `43078454582` succeeded and dispatched v2
+  `43078473387`; it has produced no `event=schedule` run.
+- `nreffejzxc/inventory-ai-health-watch` is a separate private repository with the same read-only
+  probe and issue alert path. Its manual run `43080451330` succeeded; it has produced no scheduled
+  run either.
+
+GitHub reported Actions operational and both workflows active, with no scheduled run through
+2026-11-11T19:01Z. The laptop task was therefore **not disabled**. Evidence:
+[`production-health-scheduler-hosted-2026-11-12`](evidence/production-health-scheduler-hosted-2026-11-12/README.md).
+The next step is an independent hosted uptime monitor; its account credential is not in the
+repository.
 
 ---
 
@@ -249,11 +268,12 @@ grep "AI turn" <log> | grep -oE "model=[^ ]+ tier=[^ ]+" | sort | uniq -c
 - **Log retention is the host's.** A turn's text record can disappear before the aggregate does; the
   durable row is the reason the aggregate survives.
 - **No hosted pager or dashboard.** The GitHub Actions workflow is the delivery channel; it
-  opens and closes a GitHub issue. Its GitHub `schedule` trigger has not fired, so a Windows task on
-  the operator laptop dispatches it every five minutes. That task stops when the laptop is signed
-  out, asleep or offline, and has no independent alert if dispatch fails. Delivery follows each
-  watcher's GitHub notification settings. A hosted scheduler and a dedicated pager can replace these
-  limits later; record the integration here.
+  opens and closes a GitHub issue. Its GitHub `schedule` trigger has not fired. Two credential-free
+  hosted attempts also produced no scheduled run through 2026-11-11T19:01Z, so a Windows task on the
+  operator laptop is still the only automatic trigger, dispatching every five minutes. That task
+  stops when the laptop is signed out, asleep or offline, and has no independent alert if dispatch
+  fails. Delivery follows each watcher's GitHub notification settings. A hosted scheduler and a
+  dedicated pager can replace these limits later; record the integration here.
 - **`/api/health` is public.** It publishes a commit id, a posture name and counts. It never
   publishes a path, a tenant, a member, a duration or a message.
 
@@ -275,6 +295,9 @@ grep "AI turn" <log> | grep -oE "model=[^ ]+ tier=[^ ]+" | sort | uniq -c
 | External watch workflow | `.github/workflows/production-health-watch-v2.yml` |
 | External scheduler wrapper | `scripts/trigger-production-health-watch.ps1` |
 | External scheduler registration | `scripts/register-production-health-scheduler.ps1` |
+| Hosted dispatcher | `.github/workflows/production-health-dispatch.yml` |
+| Hosted watch repository | `nreffejzxc/inventory-ai-health-watch` |
 | Scheduler evidence | `docs/evidence/production-health-scheduler-2026-11-11/README.md` |
+| Hosted attempt evidence | `docs/evidence/production-health-scheduler-hosted-2026-11-12/README.md` |
 | Probe tests | `server/test/ops-production-health.test.mjs` |
 | Recorded design | `docs/DEVELOPMENT_ROADMAP.md` §27DI (the pulse), §27HU–§27HX (AI-99 through the external watch) |
