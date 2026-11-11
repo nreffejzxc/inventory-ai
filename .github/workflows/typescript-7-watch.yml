@@ -20,6 +20,10 @@ on:
   schedule:
     # Monday 06:17 UTC. The odd minute avoids the top-of-hour scheduler congestion.
     - cron: '17 6 * * 1'
+    # The five-minute production-health dispatch rides on this workflow because its
+    # schedule registration is the one GitHub has actually fired in this repository.
+    # The TypeScript job is guarded below so it still runs only on the weekly schedule.
+    - cron: '*/5 * * * *'
   workflow_dispatch:
 
 permissions:
@@ -31,10 +35,33 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  dispatch-production-health:
+    # This job runs only on the five-minute schedule. The weekly TypeScript job below
+    # ignores that schedule, and manual dispatches still run the TypeScript check.
+    if: github.ref == 'refs/heads/main' && github.event_name == 'schedule' && github.event.schedule == '*/5 * * * *'
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    permissions:
+      actions: write
+    steps:
+      - name: Dispatch the production health watch
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          active=$(gh run list --repo "$REPO" --workflow production-health-watch-v2.yml --limit 20 --json status --jq '[.[] | select(.status == "queued" or .status == "in_progress" or .status == "requested" or .status == "waiting" or .status == "pending")] | length')
+          if [ "$active" -gt 0 ]; then
+            echo "Skipping: $active production-health-watch-v2 run(s) already queued or active."
+            exit 0
+          fi
+          gh workflow run production-health-watch-v2.yml --repo "$REPO"
+
   watch:
     # Scheduled workflows run from the default branch. Keep manual dispatches from
     # opening an issue based on a feature branch's dependency tree.
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' && (github.event_name != 'schedule' || github.event.schedule == '17 6 * * 1')
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
