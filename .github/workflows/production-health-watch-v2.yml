@@ -1,4 +1,4 @@
-name: Production health watch
+name: Production health watch v2
 
 # OPS-4 — an EXTERNAL watcher for the deployed service.
 #
@@ -10,16 +10,16 @@ name: Production health watch
 #
 # The probe requires TWO consecutive failures. One failed request is not an outage, and a
 # transient Render cold start must not page anyone.
+#
+# 2026-11-11: this file replaces production-health-watch.yml. The first workflow was active
+# and manual dispatch worked, but GitHub never emitted a schedule event for it (event=schedule
+# stayed at zero through the merge, a cron change, and a disable/enable). A new workflow file
+# is the remaining documented registration path. The minute offset avoids the top-of-hour load
+# spike that can drop queued scheduled runs.
 
 on:
   schedule:
-    # GitHub may delay scheduled runs; this is detection, not a 99.999% SLA.
-    # Offset from :00 deliberately: GitHub's scheduler drops queued runs at the
-    # top of the hour, and this workflow's first schedule was never registered
-    # after it was added on 2026-11-11 (manual dispatch worked, but event=schedule
-    # stayed at zero). Committing a changed cron line is GitHub's documented way
-    # to re-register a schedule; 2,7,… keeps the five-minute cadence.
-    - cron: '2,7,12,17,22,27,32,37,42,47,52,57 * * * *'
+    - cron: '4,9,14,19,24,29,34,39,44,49,54,59 * * * *'
   workflow_dispatch:
     inputs:
       ready_url:
