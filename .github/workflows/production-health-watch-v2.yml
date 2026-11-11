@@ -1,29 +1,18 @@
 name: Production health watch v2
 
-# OPS-4 — an EXTERNAL watcher for the deployed service.
+# OPS-4 — an EXTERNAL manual probe for the deployed service.
 #
-# Why GitHub Actions: it runs outside Render and outside this laptop, so a Render outage
-# cannot silence the thing that reports it. The workflow only reads the two public health
-# endpoints and needs no secret. A real outage opens a GitHub issue; recovery closes it.
-# GitHub then delivers the issue notification according to each watcher's notification
-# settings (email, web, mobile), which is the external alert channel for this repository.
+# UptimeRobot is the automatic production watch (two five-minute checks). This workflow remains
+# available for an explicit manual probe and the GitHub issue alert path. It reads only the two
+# public health endpoints and needs no secret.
+#
+# GitHub never emitted an event=schedule run for this workflow. The schedule trigger and the
+# dispatcher experiments were removed on 2026-11-11; this file is manual-dispatch-only now.
 #
 # The probe requires TWO consecutive failures. One failed request is not an outage, and a
 # transient Render cold start must not page anyone.
-#
-# 2026-11-11: this file replaces production-health-watch.yml. The first workflow was active
-# and manual dispatch worked, but GitHub never emitted a schedule event for it (event=schedule
-# stayed at zero through the merge, a cron change, and a disable/enable). A new workflow file
-# is the remaining documented registration path. The minute offset avoids the top-of-hour load
-# spike that can drop queued scheduled runs.
-#
-# 2026-11-12: use GitHub's canonical */5 stepped form. The previous 2-59/5 range-step never
-# produced an event=schedule run, while the simple-cron TypeScript watch does fire. The probe
-# and issue path are unchanged. Manual dispatch remains available for an explicit run.
 
 on:
-  schedule:
-    - cron: '*/5 * * * *'
   workflow_dispatch:
     inputs:
       ready_url:
