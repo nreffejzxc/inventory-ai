@@ -1,16 +1,22 @@
 # Account Migration & Security Runbook
 
 **Status:** **paused.** GitHub and Render are back on the original account. EAS is already under the
-newer Gmail's Expo account; no further move is active, scheduled or authorised by this document.
+current Gmail's Expo account; no further move is active, scheduled or authorised by this document.
 
-**Last verified:** 2026-11-11 for production health; access settings were last verified 2026-11-07.
-**Current GitHub/Render owner:** `nreffejzxc` (`jefferndullamalinaozxc@gmail.com`).
+**Last verified:** 2026-11-12 for the GitHub/Git identity and production health; access settings were last verified 2026-11-07.
+**Current GitHub/Render owner:** `nreffejzxc` (`jeffernmalinaoqwe@gmail.com`).
 **Current repository:** [`nreffejzxc/inventory-ai`](https://github.com/nreffejzxc/inventory-ai), public.
-**Paused target:** `jeffernmalinaoqwe@gmail.com` / `jeffernqwerty`.
+**Paused target:** `jeffernqwerty` (historical; the former target Gmail is now the current owner email).
 **EAS account:** `jeffernqwe` (`jeffernmalinaoqwe@gmail.com`), owner of `jeffernqwes-team`.
 **Decision:** the current GitHub/Render account remains the authoritative owner until the owner
 explicitly resumes the migration. The repository restoration is complete; the migration is paused,
 not cancelled.
+
+**Email migration note (2026-11-12):** the service-specific records in
+[`docs/service-email-migrations/`](service-email-migrations/README.md) are authoritative for email state.
+GitHub, Render, Brevo, Expo, Firebase and UptimeRobot now use `jeffernmalinaoqwe@gmail.com`. MongoDB Atlas
+remains blocked and unchanged. The “paused” language above describes the earlier account-move plan, not the
+completed email changes.
 
 ---
 
@@ -22,15 +28,15 @@ not cancelled.
 | Access | `nreffejzxc` is the only human with access; pending invitations: 0 |
 | Branch protection | Pull request required; four required checks; strict; admins enforced; force pushes and deletions blocked; conversation resolution required |
 | Scanning | Secret scanning and push protection enabled; private vulnerability reporting enabled |
-| Git identity | `jeffernzxc` / `jefferndullamalinaozxc@gmail.com` |
-| Production | `/api/health` returns 200 with `status: ok`, `db: connected` and `environment: production`. The serving commit is whatever that endpoint reports now; at the 2026-11-11 AI-106 verification it was `26eb0d4` (the AI-106 finalizer fix, auto-deployed by Render). A docs-only merge does not redeploy. Free instance, so a cold start can delay the first response by 50 s or more. |
-| EAS | Project `@jeffernqwes-team/inventory-ai` (ID `607eca05-1175-43ed-86a0-1829e91c9531`) is under the target Gmail's Expo account, not the current GitHub/Render account |
+| Git identity | `nreffejzxc` / `jeffernmalinaoqwe@gmail.com` |
+| Production | `/api/health` returns 200 with `status: ok`, `db: connected` and `environment: production`. At the 2026-11-12 verification the serving commit was `c3bd692`; the endpoint reports the current serving commit. A docs-only merge does not redeploy. Free instance, so a cold start can delay the first response by 50 s or more. |
+| EAS | Project `@jeffernqwes-team/inventory-ai` (ID `607eca05-1175-43ed-86a0-1829e91c9531`) is under the current owner Gmail's Expo account, not the GitHub/Render account |
 | History | The approved metadata-only attribution rewrite is complete; no further rewrite is approved |
 | GitHub 2FA | Disabled by owner decision on 2026-10-31; deferred until a backup method and offline recovery codes exist |
 
 The GitHub account is both the recovery root and the commit identity. EAS is a known exception: its
-project already belongs to the target Gmail's Expo account. Do not add the newer Gmail as a second
-owner on the same GitHub account; any resume starts from this split state, not a clean single-account
+project already belongs to the current Gmail's Expo account. Do not add a second
+GitHub owner; any resume starts from this split state, not a clean single-account
 move.
 
 ---
@@ -105,7 +111,7 @@ node scripts/audit-access.mjs
 curl -fsS https://ai-inventory-l1mi.onrender.com/api/health
 ```
 
-Expected: a clean `main`; local identity `jeffernzxc` / `jefferndullamalinaozxc@gmail.com`; one
+Expected: a clean `main`; local identity `nreffejzxc` / `jeffernmalinaoqwe@gmail.com`; one
 authenticated GitHub account; one direct collaborator; four required checks; health `status: ok` with
 `db: connected`.
 
@@ -131,7 +137,10 @@ authenticated GitHub account; one direct collaborator; four required checks; hea
 
 ## 7. Open items
 
-- **Resume date:** the newer Gmail is still unavailable; the owner has not set a resume date.
+- **MongoDB Atlas:** the old account could not establish a session; invite the new Gmail as Organization Owner
+  and verify it. See [`docs/service-email-migrations/mongodb.md`](service-email-migrations/mongodb.md).
+- **UptimeRobot:** test email delivery was confirmed from monitor `804639237`; email messages arrived at 5:22 PM.
+  The Android push contact is Active, but delivery to the device has not been independently observed.
 - **2FA:** deferred by owner decision; it is not a migration prerequisite until a reliable backup
   method and offline recovery codes exist.
 - **Firebase key:** rotated on 2026-11-07; the old key was deleted and the new one verified in

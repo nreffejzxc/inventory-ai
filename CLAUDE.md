@@ -829,18 +829,18 @@ Private certificates
 
 ### Inventory AI — Project Identity & Git Attribution
 
-The project identity belongs to Jeffern. Claude Code is only an implementation tool and must NOT be represented as a project author, contributor, co-author, or attribution identity.
+The project identity belongs to nreffejzxc. Claude Code is only an implementation tool and must NOT be represented as a project author, contributor, co-author, or attribution identity.
 
 Canonical project identity:
 
 * Project: Inventory AI
-* Owner: Jeffern
-* GitHub display name: Jeffernzxc
+* Owner: nreffejzxc
+* GitHub display name: nreffejzxc
 * GitHub username: nreffejzxc
-* Git identity: jeffernzxc
-* Commit email: jefferndullamalinaozxc@gmail.com
-* Implementation: Jeffern
-* Attribution: Jeffern / Jeffernzxc only
+* Git identity: nreffejzxc
+* Commit email: jeffernmalinaoqwe@gmail.com
+* Implementation: nreffejzxc
+* Attribution: nreffejzxc only
 
 #### Git commit rules
 
@@ -859,16 +859,16 @@ instances. Any AI agent, coding tool, bot or automation is covered, and so is an
 
 3. A normal commit message is the Inventory AI change and nothing else — subject, optional body
    explaining *why*, and no attribution of any kind. **The only identity that may appear anywhere in a
-   commit, branch, pull request, changelog or release note is Jeffern's own name and the commit email
+   commit, branch, pull request, changelog or release note is nreffejzxc's own name and the commit email
    above.**
 
 4. Do NOT identify Claude Code, Anthropic, Codebuff or any other tool as the author, co-author,
    contributor, implementer or owner of Inventory AI. Implementing, modifying, testing, debugging and
    documenting the project does not make a tool an author or contributor.
 
-5. Git author **and** committer identity must be the repository's configured Jeffern/jeffernzxc
+5. Git author **and** committer identity must be the repository's configured nreffejzxc
    identity. Verify with `git config user.name` / `git config user.email` before creating a commit; the
-   two must be `jeffernzxc` and the commit email above. If either differs, **report the mismatch** —
+   two must be `nreffejzxc` and the commit email above. If either differs, **report the mismatch** —
    never silently change Git identity.
 
 6. Before creating any commit, read back what you are about to record —
@@ -882,10 +882,10 @@ instances. Any AI agent, coding tool, bot or automation is covered, and so is an
    commit-message template — not from Git — so that template must not be reintroduced.
 
 8. This rule applies to all future commits, branches, pull requests, pull request descriptions, reviews,
-   changelogs, release notes and project documentation, unless Jeffern explicitly overrides it for one
+   changelogs, release notes and project documentation, unless nreffejzxc explicitly overrides it for one
    specific case.
 
-9. Rewriting history stays forbidden **except on Jeffern's explicit request.** Jeffern requested it once,
+9. Rewriting history stays forbidden **except on nreffejzxc's explicit request.** nreffejzxc requested it once,
    on 2026-10-11, to remove the already-published attribution described in rule 1 and rule 2; that rewrite
    is recorded in `docs/DEVELOPMENT_ROADMAP.md` §27AS. That single request does not stand as standing
    permission, and no further history rewrite may be started without a new, explicit request.
@@ -1046,7 +1046,7 @@ after the work that the log records.
 - Fix what is safe, test it, and report the rest. Never print a secret value.
 - Without explicit approval: do not rotate production credentials, change ownership or access,
   delete branches, discard unmerged work, close pull requests or force-push.
-- Git identity stays `jeffernzxc` / `jefferndullamalinaozxc@gmail.com`. If either differs, report the
+- Git identity stays `nreffejzxc` / `jeffernmalinaoqwe@gmail.com`. If either differs, report the
   mismatch; never silently change it.
 
 ## Priority order
