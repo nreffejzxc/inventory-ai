@@ -6,51 +6,57 @@
 **Project:** `inventoryaidb` (`6abc7a41d9b5664366642022`)
 **Cluster:** `inventoryaidbcluster` — ACTIVE
 **Production database:** `inventoryai_prod_db`
-**Status:** verified — the new Gmail is a confirmed Organization Owner; the old owner remains for rollback.
+**Status:** verified — the new Gmail is the sole Organization Owner; the old owner was removed; production is healthy.
 **Last checked:** 2026-11-12
 
 ## What changed
 
-- The old owner account invited `jeffernmalinaoqwe@gmail.com` as **Organization Owner**. Atlas created the pending
+- The old owner account invited `jeffernmalinaoqwe@gmail.com` as **Organization Owner**. Atlas created the
   invitation at 09:32 UTC on 2026-11-12.
-- The new Gmail accepted the invitation through Google sign-in. Atlas shows the user as **CONFIRMED**, with role
-  **Organization Owner**, and the email verified at 09:44 UTC on 2026-11-12.
+- The new Gmail accepted the invitation through Google sign-in. Atlas marked the user **CONFIRMED** with role
+  **Organization Owner** and verified the email at 09:44 UTC.
 - The new owner opened the organization and the `inventoryaidb` project. The project overview shows
   `inventoryaidbcluster` as **ACTIVE**, tier **FREE**, MongoDB **8.0.37**, and 50.91 MB of 512 MB used.
-- The old owner, `jefferndullamalinaozxc@gmail.com`, remains a confirmed **Organization Owner** and still has
-  project access. It was intentionally retained for rollback.
-- The application continues to connect through `MONGODB_URI` as a database user. No application connection path
-  was changed.
+- After the new owner was confirmed with MFA and a recent sign-in, the old owner
+  `jefferndullamalinaozxc@gmail.com` was removed from the organization on 2026-11-12.
+- The authoritative organization users response now lists only the new owner and the internal
+  `charts+6abc7a41d9b5664366642022@mongodb.com` user. The old address is absent.
+- The old owner's project access was inherited from its Organization Owner grant; removing that grant removed
+  its organization and project access.
+- The application continues to connect through `MONGODB_URI` as a database user. No application connection
+  path was changed.
 
 ## What did not change
 
 - `MONGODB_URI` was not changed.
-- The production database, cluster, database users, network access rules and project identifier were not changed.
+- The production database, cluster, database users, network access rules and project identifier were not
+  changed.
 - No production data was modified.
-- No Atlas API key, database password, connection string or X.509 certificate was generated, rotated or deleted.
+- No Atlas API key, database password, connection string or X.509 certificate was generated, rotated or
+  deleted.
 - No project or cluster was recreated.
 
 ## Atlas onboarding side effect
 
 - Creating the new Atlas user account also created a separate personal organization,
   `Jeffern's Org - 2026-11-12`, containing `Project 0` (`6af58a976512c84140c4d2c4`).
-- This is not the production organization. The production organization and `inventoryaidb` project remain the
-  only production resources. The migration did not create a cluster, database user or data in the onboarding
-  project.
-- The onboarding organization has been left in place. Review it and delete it only after confirming it is empty
-  and after a separate approval.
+- This was not the production organization. Before deletion it had 0 clusters, 0 database users, 0 network
+  entries, 0 processes, 0 apps, no project or organization API keys, and only the owner. It was deleted on
+  2026-11-12.
+- The production organization and `inventoryaidb` project remain the only production resources.
 
 ## Verification
 
 | Check | Result |
 | --- | --- |
-| New owner invitation | Accepted; user confirmed |
-| New owner email | `jeffernmalinaoqwe@gmail.com`; verified |
-| New owner organization role | **Organization Owner** |
-| Old owner | `jefferndullamalinaozxc@gmail.com`; confirmed **Organization Owner** |
+| New owner | `jeffernmalinaoqwe@gmail.com`; **CONFIRMED**, **Organization Owner**, MFA active |
+| New owner last authentication | `2026-11-12T10:37:01Z`; Google sign-in completed |
+| Old owner | Removed from the organization; absent from the users response |
+| Old owner project access | Revoked with the organization membership |
 | Organization access | `Jeffern's Org - 2025-07-31` opens |
 | Production project access | `inventoryaidb` overview opens |
 | Cluster | `inventoryaidbcluster` is **ACTIVE** |
+| Production health | `/api/health` returned 200 with `db: connected` at 10:47 UTC |
 | Application database path | `MONGODB_URI`, unchanged |
 
 ## Keys, credentials and certificates
@@ -61,17 +67,15 @@ value is not stored in this repository. The existing database credentials and `M
 
 ## Remaining owner actions
 
-1. Keep the old owner account until the rollback window has passed. Remove it only after a separate approval and
-   after confirming the new owner can sign in independently.
-2. Continue using Google sign-in for the new Atlas owner; use the password-reset flow if a password is needed.
-3. Do not change `MONGODB_URI`, the production database users, the cluster or network access as part of this email
-   migration.
-4. Review Atlas multi-factor authentication for the new owner separately; it is not a prerequisite for this
-   completed email change.
-5. Review the auto-created `Jeffern's Org - 2026-11-12` / `Project 0`; delete it only after confirming it is empty
-   and after a separate approval.
+1. The new Gmail is the sole Organization Owner; there is no old-owner rollback grant to remove.
+2. Atlas email MFA is active. A second factor is optional; adding it requires the owner's authenticator or
+   security key.
+3. Keep the Gmail backup codes in the owner's private password manager or offline safe.
+4. Do not change `MONGODB_URI`, the production database users, the cluster or network access as part of this
+   email migration.
 
 ## Rollback
 
-The old owner is still active and still has project access, so no new account is the sole access path. Do not
-remove the old owner until the rollback window ends.
+The old owner was removed with explicit approval after the new owner and production path were verified. The
+database credentials and `MONGODB_URI` were not changed. Do not re-add the old Gmail to the production
+organization.

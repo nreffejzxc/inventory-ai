@@ -17,7 +17,8 @@
   “Your login email has been successfully modified.”
 - Signed out, selected **Sign in with Google**, chose `jeffernmalinaoqwe@gmail.com`, allowed the requested basic
   profile scope, and reached the same Brevo workspace (`inventoryai`, same plan usage and existing navigation).
-- The profile page then showed `jeffernmalinaoqwe@gmail.com` in the email field.
+- The profile page then showed `jeffernmalinaoqwe@gmail.com` in the email field. Brevo's profile does not
+  display a separate old-account link; the old email is no longer the login address.
 
 ## Configurations updated
 
@@ -39,7 +40,7 @@ touched or printed.
 
 ## Remaining owner action
 
-- No further email-ownership action is required. Keep the old Google account/link until the owner decides it can
-  be removed.
-- If the old Google account is removed from Brevo, first confirm transactional email and any other integration
-  still work from the new login.
+- No further email-ownership action is required. The old email is no longer the login address and no old
+  linked-account entry is displayed in Brevo.
+- Do not remove or rebind the new Google sign-in without first confirming transactional email and the existing
+  `BREVO_API_KEY` integration still work.

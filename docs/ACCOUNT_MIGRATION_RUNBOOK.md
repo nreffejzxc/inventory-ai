@@ -1,9 +1,10 @@
 # Account Migration & Security Runbook
 
-**Status:** **paused.** GitHub and Render are back on the original account. EAS is already under the
-current Gmail's Expo account; no further move is active, scheduled or authorised by this document.
+**Status:** **paused** for the separate GitHub/Render account move. The single-Gmail email migration is complete.
 
-**Last verified:** 2026-11-12 for the GitHub/Git identity, MongoDB organization access and production health; access settings were last verified 2026-11-07.
+**Last verified:** 2026-11-12 for the GitHub/Git identity, final MongoDB organization access, Firebase IAM and
+Authentication state, Gmail 2-Step Verification, Android push delivery and production health; access settings
+were last verified 2026-11-07.
 **Current GitHub/Render owner:** `nreffejzxc` (`jeffernmalinaoqwe@gmail.com`).
 **Current repository:** [`nreffejzxc/inventory-ai`](https://github.com/nreffejzxc/inventory-ai), public.
 **Paused target:** `jeffernqwerty` (historical; the former target Gmail is now the current owner email).
@@ -14,9 +15,10 @@ not cancelled.
 
 **Email migration note (2026-11-12):** the service-specific records in
 [`docs/service-email-migrations/`](service-email-migrations/README.md) are authoritative for email state.
-All seven services now use `jeffernmalinaoqwe@gmail.com`, including MongoDB Atlas. The Atlas organization has
-the new Gmail and the retained old owner as Organization Owners. The “paused” language above describes the
-earlier account-move plan, not the completed email changes.
+All seven services now use `jeffernmalinaoqwe@gmail.com`, including MongoDB Atlas. The new Gmail is the sole
+Atlas Organization Owner; the old Atlas owner and old Firebase Cloud IAM Owner were removed, and the old
+Firebase Authentication user is disabled. The “paused” language above describes the earlier account-move plan,
+not the completed email changes.
 
 ---
 
@@ -24,15 +26,16 @@ earlier account-move plan, not the completed email changes.
 
 | Item | State |
 | --- | --- |
-| Repository | `nreffejzxc/inventory-ai`, public; `main` clean; three local migration commits ahead of `origin/main`, not pushed |
+| Repository | `nreffejzxc/inventory-ai`, public; `main` at `af70ab2`; PR #246 merged |
 | Access | `nreffejzxc` is the only human with access; pending invitations: 0 |
 | Branch protection | Pull request required; four required checks; strict; admins enforced; force pushes and deletions blocked; conversation resolution required |
 | Scanning | Secret scanning and push protection enabled; private vulnerability reporting enabled |
 | Git identity | `nreffejzxc` / `jeffernmalinaoqwe@gmail.com` |
-| Production | `/api/health` returns 200 with `status: ok`, `db: connected` and `environment: production`. At the 2026-11-12 verification the serving commit was `c3bd692`; the endpoint reports the current serving commit. A docs-only merge does not redeploy. Free instance, so a cold start can delay the first response by 50 s or more. |
+| Production | `/api/health` returned 200 with `status: ok`, `db: connected` and `environment: production` at 10:47 UTC. The serving commit is `c3bd692`; a docs-only merge does not redeploy. Free instance, so a cold start can delay the first response by 50 s or more. |
 | EAS | Project `@jeffernqwes-team/inventory-ai` (ID `607eca05-1175-43ed-86a0-1829e91c9531`) is under the current owner Gmail's Expo account, not the GitHub/Render account |
 | History | The approved metadata-only attribution rewrite is complete; no further rewrite is approved |
 | GitHub 2FA | Disabled by owner decision on 2026-10-31; deferred until a backup method and offline recovery codes exist |
+| Gmail 2-Step Verification | Active on the new Gmail since 2:47 PM; authenticator, passkeys and recovery phone configured; 9 backup codes available. Code values are not stored here |
 
 The GitHub account is both the recovery root and the commit identity. EAS is a known exception: its
 project already belongs to the current Gmail's Expo account. Do not add a second
@@ -46,8 +49,9 @@ move.
 1. **No transfer, rotation, removal or deletion without the approval gates in §6.**
 2. **Preserve identifiers.** Keep the GitHub repository, Firebase project, Atlas project/cluster,
    Render service and EAS project; do not create replacements just to change ownership.
-3. **The old owner and old credentials stay in place** until the replacement is verified and the
-   rollback window has passed.
+3. **For the paused account-move plan, the old owner and old credentials stay in place** until the replacement
+   is verified and the rollback window has passed. For the completed email migration, the approved Atlas and
+   Firebase removals are recorded in §7.
 4. **No Git history rewrite.** The 2026-10-31 rewrite was a one-off, metadata-only exception; it
    preserved every tree and message but changed every descendant SHA.
 5. **No secret value in this document, the repository, a public log or chat.** Environment-variable
@@ -137,21 +141,31 @@ authenticated GitHub account; one direct collaborator; four required checks; hea
 
 ## 7. Open items
 
-- **MongoDB Atlas:** `jeffernmalinaoqwe@gmail.com` is a confirmed Organization Owner; the organization and
-  `inventoryaidb` project/cluster were verified. The old owner remains for rollback. No database or
-  connection-string change was made. See [`docs/service-email-migrations/mongodb.md`](service-email-migrations/mongodb.md).
-- **Atlas onboarding org:** Atlas account onboarding created a separate `Jeffern's Org - 2026-11-12` with
-  `Project 0`; it is not the production organization. Review it and delete it only after confirming it is empty
-  and after a separate approval.
-- **UptimeRobot:** test email delivery was confirmed from monitor `804639237`; email messages arrived at 5:22 PM.
-  The Android push contact is Active, but delivery to the device has not been independently observed.
-- **2FA:** deferred by owner decision; it is not a migration prerequisite until a reliable backup
-  method and offline recovery codes exist.
-- **Firebase key:** rotated on 2026-11-07; the old key was deleted and the new one verified in
-  production. No action remains; any future rotation follows the credential runbook.
+- **MongoDB Atlas:** `jeffernmalinaoqwe@gmail.com` is the sole confirmed Organization Owner with email MFA.
+  The old owner was removed on 2026-11-12 after the new owner and production path were verified; the old address
+  is absent from the organization users response. `/api/health` returned 200 with `db: connected` at 10:47 UTC.
+  No database user, cluster, network rule or `MONGODB_URI` was changed. See
+  [`docs/service-email-migrations/mongodb.md`](service-email-migrations/mongodb.md).
+- **Atlas onboarding org:** the separate `Jeffern's Org - 2026-11-12` / `Project 0` was audited as empty
+  (0 clusters, database users, network entries, processes, apps or API keys) and deleted. Production was not
+  affected.
+- **UptimeRobot:** test email delivery was confirmed at 5:22 PM. Android push delivery was confirmed on the
+  CPH1969 device via ADB at 10:09 UTC (DOWN and UP); both monitors report UP.
+- **Gmail and Atlas MFA:** Gmail 2-Step Verification is active, with an authenticator, passkeys and a recovery
+  phone; 9 backup codes are available and their values are not stored here. Security Checkup reports the
+  account is protected; recent activity shows 2-Step Verification turned on at 2:47 PM and a backup code used at
+  2:54 PM. Atlas email MFA is active. A second Atlas factor is optional and requires the owner's authenticator or
+  security key. GitHub 2FA remains disabled by a separate owner decision.
+- **Firebase:** the old Cloud IAM Owner grant was removed and the old Firebase Authentication user was disabled
+  (retained without data loss). The new owner remains Owner. The Admin key was rotated on 2026-11-07; any future
+  rotation follows the credential runbook.
 - **Render connection:** the Render GitHub App is installed and the service is connected to
   `nreffejzxc/inventory-ai` on `main`; auto-deploy is limited to `server/` by the root directory.
   Re-confirm repository access before changing permissions.
 - **EAS ownership:** the project already belongs to the target Gmail's Expo account, not the current
   GitHub/Render account. Decide how to handle that before resuming, removing either account or
   transferring the project.
+
+No further provider-side migration action remains; store the Gmail backup codes and decide on the optional
+second Atlas factor. The old Google account itself was retained, but it no longer has Atlas organization access,
+Firebase Cloud IAM access or Firebase Authentication access.
