@@ -3,8 +3,8 @@
 **Service:** UptimeRobot
 **Canonical email:** `jeffernmalinaoqwe@gmail.com`
 **Account:** `3934117` / display name `Jeffernzxc`
-**Status:** verified — primary email changed, activated, confirmed by the authenticated account API, and email
-delivery tested successfully.
+**Status:** verified — primary email changed, activated, confirmed by the authenticated account API, email
+delivery tested, and Android push delivery confirmed on the device.
 **Last checked:** 2026-11-12
 
 ## What changed
@@ -23,13 +23,14 @@ that page was called directly after reading its loaded code. The activation was 
 
 ### Delivery test
 
-On 2026-11-12 the monitor test endpoint for `804639237` (`POST /internal/monitors/804639237/send-test-notification`)
-returned **201** without changing any monitor or contact. Two test messages then arrived in the new Gmail at
-**5:22 PM**: **TEST: Monitor is DOWN: ai-inventory-l1mi.onrender.com** and **TEST: Monitor is UP:
-ai-inventory-l1mi.onrender.com**. This confirms the new email path end to end, not merely that the contact is Active.
+On 2026-11-12 the monitor test endpoint for `804639237`
+(`POST /internal/monitors/804639237/send-test-notification`) returned **201** without changing any monitor or
+contact. Two test messages then arrived in the new Gmail at **5:22 PM**: **TEST: Monitor is DOWN:
+ai-inventory-l1mi.onrender.com** and **TEST: Monitor is UP: ai-inventory-l1mi.onrender.com**.
 
-The same test was sent through the monitor's configured contacts. Android push delivery was not independently
-observed because the device was not available in this session; the push contact itself remains Active.
+The same test was sent through the monitor's configured contacts. Android push delivery was then confirmed on
+the `CPH1969` device running Android 11: ADB showed the UptimeRobot **DOWN** and **UP** notifications at
+**10:09 UTC**. Both monitors remain UP.
 
 ## Current monitoring state
 
@@ -42,7 +43,7 @@ observed because the device was not available in this session; the push contact 
 | Monitor `804639237` | `ai-inventory-l1mi.onrender.com`; HTTP readiness; **UP** |
 | Monitor `804639270` | `Inventory AI health (db connected)`; HTTP keyword; **UP** |
 | Email alert contact | `9026703`; new Gmail; **Active** |
-| Push alert contact | `9026911` (`Android Bluedroid`); **Active** |
+| Push alert contact | `9026911` (`Android Bluedroid`); **Active**, delivery confirmed |
 | API keys | None present (`apiKey` and `readOnlyApiKey` both absent) |
 
 No monitor URL, monitor type, alert-contact assignment or plan setting was changed. Both monitors and both alert
@@ -55,8 +56,8 @@ created or changed. The account remains passwordless and OTP-disabled.
 
 ## Remaining owner action
 
-- Confirm on the Android device that the test push arrived; the email delivery is already confirmed. If it did not
-  arrive, check the app's OS notification permission, battery optimization and Do Not Disturb settings.
+- No further delivery test is required. Keep the Android app's OS notification permission, battery
+  optimization and Do Not Disturb settings unchanged.
 - Enabling 2FA or setting a password is a separate security decision; neither was changed here.
 - The old email is no longer the primary address. Keep the new mailbox accessible for login and alerts.
 

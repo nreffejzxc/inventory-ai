@@ -3,14 +3,14 @@
 **Service:** Firebase / Google Cloud
 **Canonical email:** `jeffernmalinaoqwe@gmail.com`
 **Project:** `inventoryai` (`inventoryai-d0d20`), project number `652114762453`
-**Status:** verified — new Gmail accepted the project Owner invitation, opened the console, and is now the
-project support email.
+**Status:** verified — the new Gmail is the remaining project Owner; the old Gmail's Cloud IAM grant was removed
+and its Firebase Authentication user was disabled.
 **Last checked:** 2026-11-12
 
 ## What changed
 
 - Using the old owner account, `jeffernmalinaoqwe@gmail.com` was added to the project IAM policy as
-  **Owner (Legacy)**. The old owner, `jefferndullamalinaozxc@gmail.com`, was retained for rollback.
+  **Owner (Legacy)**. The old owner, `jefferndullamalinaozxc@gmail.com`, was initially retained for rollback.
 - Google Cloud marked the grant as **“Invitation sent. Pending acceptance.”** The invitation was delivered to
   the new Gmail at 4:26 PM.
 - The new Gmail accepted the invitation at
@@ -21,6 +21,11 @@ project support email.
 - The project **Support email** was changed from the old address to
   `jeffernmalinaoqwe@gmail.com` in **Project settings → General → Public settings**; Firebase reported
   **“Support email updated.”**
+- After the new Gmail was verified as Owner, the old Gmail's Cloud IAM grant was removed. Google Cloud reported
+  **“Removed jefferndullamalinaozxc@gmail.com”**, and the IAM table now contains only the new Gmail as Owner.
+- The old Gmail also had a Firebase Authentication app user (`vbtcW2fhzJNnewc5Y5duGwlggT42`). That user was
+  **disabled** on 2026-11-12. The account record is retained so app data is preserved, but it can no longer sign
+  in. The new Gmail's app user remains enabled.
 
 ## Verified state
 
@@ -29,9 +34,10 @@ project support email.
 | Firebase overview with new Gmail | Loads successfully at `/u/1/project/inventoryai-d0d20/overview` |
 | Apps visible | Android, iOS and web — 3 apps |
 | Firebase Terms | Accepted for the new Gmail |
-| Cloud IAM role | New Gmail has Owner (Legacy); old owner retained |
+| Cloud IAM role | New Gmail has Owner (Legacy); old Gmail removed |
+| Old Firebase Authentication user | **Disabled**; data retained |
 | Support email | `jeffernmalinaoqwe@gmail.com` |
-| Production authentication | Not changed |
+| Production authentication | Sign-in methods unchanged; only the old user is blocked |
 | Billing | Spark plan; no billing change |
 
 ## SHA certificate fingerprints
@@ -68,8 +74,12 @@ same project.
 
 ## Remaining owner action
 
-- Keep the old owner as rollback access until the owner explicitly decides the new Gmail is fully established.
-  Remove the old owner only with separate approval.
+- No further Firebase email or IAM action remains. The old Gmail has no project IAM role and its app user is
+  disabled.
 - Do not rotate the Firebase Admin service account as part of this email migration; use
   `docs/FIREBASE_CREDENTIAL_RUNBOOK.md` if a rotation is ever required.
-- No further support-email or Firebase-console action remains.
+
+## Rollback
+
+The old Cloud IAM Owner grant is gone. If app-level rollback is ever required, the disabled Firebase
+Authentication user can be re-enabled, preserving its data; the new Gmail remains the project Owner.

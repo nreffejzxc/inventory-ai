@@ -4,7 +4,8 @@
 **Canonical email:** `jeffernmalinaoqwe@gmail.com`
 **Account:** `nreffejzxc`
 **Repository:** `nreffejzxc/inventory-ai` (public)
-**Status:** verified for account, repository, remote, local commit identity and email settings.
+**Status:** verified for account, repository, remote, merged documentation, local commit identity and email
+settings.
 **Last checked:** 2026-11-12
 
 ## What changed
@@ -20,11 +21,10 @@
 - GitHub **Settings → Emails** showed `jeffernmalinaoqwe@gmail.com` as **Primary**, **Verified**, and
   **Connected to Google**. The old address was not listed.
 - The public profile email was set to `jeffernmalinaoqwe@gmail.com`; “Keep my email addresses private” is
-  currently off. This was changed while attempting MongoDB Atlas's GitHub login and is recorded here so the
-  current state is explicit.
-- Uncommitted identity references were updated in `CLAUDE.md`, `CONTRIBUTING.md`, `LICENSE`,
-  `docs/ACCOUNT_MIGRATION_RUNBOOK.md`, and `scripts/check-commit-attribution.mjs`. `git diff --check` and
-  `node scripts/check-commit-attribution.mjs` pass.
+  currently off.
+- The migration documentation and identity-reference edits were delivered through PR **#246**, merged at
+  `2026-11-12T10:04:27Z` as merge commit `af70ab2bf283aa83d16db70fe7306b3c18c9564c`.
+- All four required checks passed.
 
 ## Configurations updated
 
@@ -37,6 +37,7 @@
 | Primary email | `jeffernmalinaoqwe@gmail.com` — Primary, Verified, Connected to Google |
 | Public profile email | `jeffernmalinaoqwe@gmail.com` |
 | Email privacy setting | Off (profile email is public) |
+| Branch state | `main` at `af70ab2`; PR #246 merged |
 
 The `gh` token does not include the `user:email` scope, so `gh api user` still returns `email: null`; that is a
 token-scope limitation, not evidence that the account lacks a verified email. GitHub's own Emails settings page
@@ -50,8 +51,7 @@ rotated or deleted for this change.
 ## Remaining owner action
 
 - No further GitHub email action is required.
-- The five identity-reference edits are included in the local migration commit; no push has been made. Do not
-  push it until the final verification is complete.
+- GitHub 2FA remains a separate owner decision; it is not required to finish the email migration.
 
 ## Rollback
 
