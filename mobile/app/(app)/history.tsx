@@ -1,15 +1,16 @@
 import { useCallback, useMemo, useState } from 'react';
-import { useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { TypeBadge } from '../../components/Badge';
-import Card from '../../components/Card';
+import { PressableCard } from '../../components/Card';
 import Chip from '../../components/Chip';
 import { Icon } from '../../components/icons';
 import type { IconName } from '../../components/icons';
 import ListRow from '../../components/ListRow';
 import ListScreen from '../../components/ListScreen';
 import SelectField from '../../components/SelectField';
+import { activityRouteParams } from '../../lib/activity';
 import { inventoryApi, locationsApi, productsApi } from '../../lib/api';
 import type { ApiResponse } from '../../lib/api';
 import { useSession } from '../../lib/auth';
@@ -58,12 +59,22 @@ function HistoryRow({ item }: { item: ApiResponse }) {
   const styles = useMemo(() => createStyles(colors), [colors]);
   const tone = deltaTone(colors, item);
   return (
-    <Card>
+    <PressableCard
+      onPress={() => router.push({ pathname: '/history/[id]', params: activityRouteParams(item) })}
+      style={styles.rowCard}
+      accessibilityRole="button"
+      accessibilityLabel={`${item.product?.name ?? 'Unknown product'} ${deltaText(item)}`}
+    >
       <ListRow
         leading={<Icon name={TYPE_ICONS[item.type] ?? 'adjust'} color={tone} size={22} />}
         title={item.product?.name ?? 'Unknown product'}
         subtitle={`${item.location?.name ?? 'No location'} · ${formatNumber(item.previousQuantity)} → ${formatNumber(item.newQuantity)}`}
-        right={<Text style={[styles.delta, { color: tone }]}>{deltaText(item)}</Text>}
+        right={
+          <View style={styles.right}>
+            <Text style={[styles.delta, { color: tone }]}>{deltaText(item)}</Text>
+            <Icon name="chevronRight" color={colors.textMuted} size={16} />
+          </View>
+        }
         footer={
           <View>
             <View style={styles.footerTop}>
@@ -75,7 +86,7 @@ function HistoryRow({ item }: { item: ApiResponse }) {
           </View>
         }
       />
-    </Card>
+    </PressableCard>
   );
 }
 
@@ -165,6 +176,8 @@ const createStyles = (colors: Palette) =>
   StyleSheet.create({
     chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.lg },
     count: { ...type.caption, color: colors.textMuted, marginTop: spacing.xs, marginBottom: spacing.lg },
+    rowCard: { paddingVertical: spacing.md },
+    right: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
     delta: { ...type.h3 },
     footerTop: {
       flexDirection: 'row',

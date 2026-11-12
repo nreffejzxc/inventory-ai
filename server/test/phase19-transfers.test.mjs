@@ -682,7 +682,7 @@ dbSuite('Phase 19 — stock transfers between locations', dbOk, () => {
     assert.equal(activities[1].to.id, String(b));
   });
 
-  it('dashboard: stock in, stock out and adjustment stay one activity per movement, unchanged', async () => {
+  it('dashboard: stock in, stock out and adjustment stay one activity per movement, with signed change and reason', async () => {
     const p = await newProduct(owner);
     const loc = await newLocation(owner);
 
@@ -705,10 +705,11 @@ dbSuite('Phase 19 — stock transfers between locations', dbOk, () => {
       movement[type] = rows[0];
     }
 
-    // The pre-existing single-row projection is untouched: same keys, same
-    // location, same before/after quantities, and none of the transfer-only
-    // fields that would signal an accidental grouping.
-    const SHAPE = ['createdAt', 'id', 'location', 'newQuantity', 'previousQuantity', 'product', 'quantity', 'type'];
+    // The single-row projection keeps its own location and before/after
+    // quantities, now with the signed change and recorded reason the assistant
+    // reads. It must not gain the transfer-only fields that would signal an
+    // accidental grouping.
+    const SHAPE = ['createdAt', 'delta', 'id', 'location', 'newQuantity', 'previousQuantity', 'product', 'quantity', 'reason', 'type'];
     for (const [type, activity] of Object.entries(movement)) {
       assert.deepEqual(Object.keys(activity).sort(), SHAPE, `${type} keeps its documented shape`);
       assert.equal(activity.location.id, String(loc), `${type} keeps its own location`);
@@ -717,10 +718,16 @@ dbSuite('Phase 19 — stock transfers between locations', dbOk, () => {
     }
     assert.equal(movement.STOCK_IN.previousQuantity, 0);
     assert.equal(movement.STOCK_IN.newQuantity, 10);
+    assert.equal(movement.STOCK_IN.delta, 10);
+    assert.equal(movement.STOCK_IN.reason, 'seed');
     assert.equal(movement.STOCK_OUT.previousQuantity, 10);
     assert.equal(movement.STOCK_OUT.newQuantity, 7);
+    assert.equal(movement.STOCK_OUT.delta, -3);
+    assert.equal(movement.STOCK_OUT.reason, 'sale');
     assert.equal(movement.ADJUSTMENT.previousQuantity, 7);
     assert.equal(movement.ADJUSTMENT.newQuantity, 9);
+    assert.equal(movement.ADJUSTMENT.delta, 2);
+    assert.equal(movement.ADJUSTMENT.reason, 'count');
   });
 
   it('dashboard: the activity limit never exposes half a transfer', async () => {
@@ -788,9 +795,10 @@ dbSuite('Phase 19 — stock transfers between locations', dbOk, () => {
     // The contract the mobile screen and the AI summary tool both consume.
     assert.deepEqual(
       Object.keys(activity).sort(),
-      ['createdAt', 'from', 'id', 'product', 'quantity', 'reference', 'to', 'type'],
+      ['createdAt', 'from', 'id', 'product', 'quantity', 'reason', 'reference', 'to', 'type'],
       'the documented logical-transfer projection'
     );
+    assert.equal(activity.reason, null, 'a transfer without an entered reason reports null');
     assert.equal(activity.type, 'TRANSFER');
     assert.equal(activity.product.id, String(p));
     assert.ok(activity.product.name, 'the product is named for display');

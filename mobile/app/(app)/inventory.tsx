@@ -124,8 +124,11 @@ export default function InventoryScreen() {
           right={
             item.isLowStock || item.isOutOfStock ? (
               <View style={styles.badges}>
-                {item.isLowStock ? <Badge text="Low" tone="low" /> : null}
-                {item.isOutOfStock ? <Badge text="Out" tone="danger" /> : null}
+                {item.isOutOfStock ? (
+                  <Badge text="Out" tone="danger" />
+                ) : item.isLowStock ? (
+                  <Badge text="Low" tone="low" />
+                ) : null}
               </View>
             ) : null
           }

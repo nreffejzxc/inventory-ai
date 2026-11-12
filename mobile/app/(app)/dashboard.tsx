@@ -17,6 +17,7 @@ import SectionHeader from '../../components/SectionHeader';
 import StatCard from '../../components/StatCard';
 import type { StatTone } from '../../components/StatCard';
 import WhatsNewCard from '../../components/WhatsNewCard';
+import { activityRouteParams } from '../../lib/activity';
 import { dashboardApi, productsApi, purchaseOrdersApi } from '../../lib/api';
 import type { ApiResponse } from '../../lib/api';
 import { isSessionError, useSession } from '../../lib/auth';
@@ -79,12 +80,12 @@ function activitySubtitle(item: ApiResponse): string {
 
 const ACTIVITY_ICONS: Record<string, IconName> = { STOCK_IN: 'stockIn', STOCK_OUT: 'stockOut', ADJUSTMENT: 'adjust', TRANSFER: 'transfer' };
 
-/** Latest movement row — taps into the full inventory history (G). */
+/** Latest movement row — opens that movement's details (G). */
 function ActivityRow({ item }: { item: ApiResponse }) {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   return (
-    <PressableCard onPress={() => router.push('/history')} style={styles.rowCard}>
+    <PressableCard onPress={() => router.push({ pathname: '/history/[id]', params: activityRouteParams(item) })} style={styles.rowCard}>
       <ListRow
         leading={<Icon name={ACTIVITY_ICONS[item.type] ?? 'time'} color={deltaTone(colors, item)} size={22} />}
         title={item.product?.name ?? 'Unknown product'}

@@ -506,6 +506,7 @@ function categoryNameAliases(name: string): string[] {
   return [...aliases];
 }
 
+
 /**
  * AI-16 — resolve the CATEGORY a tool call refers to, by id OR by exact name.
  *
@@ -1498,7 +1499,7 @@ const tools: Tool[] = [
   {
     name: 'getInventorySummary',
     description:
-      'Business-wide inventory-health counts: active products, healthy in-stock products (available above their minimum stock), total on-hand quantity, low-stock and out-of-stock product counts, and the most recent stock movements — one entry per logical event, so a transfer between locations appears once with its source and destination rather than as two rows. Use for "how is my inventory doing".',
+      'Business-wide inventory-health counts: active products, healthy in-stock products (available above their minimum stock), total on-hand quantity, low-stock and out-of-stock product counts, and the most recent stock movements — one entry per logical event, so a transfer between locations appears once with its source and destination rather than as two rows. Each single-location movement carries `delta` (the signed change: negative means stock decreased), `previousQuantity`/`newQuantity`, and `reason` (the recorded reason text, or null); a transfer carries its from/to locations and the same `reason` field instead of a single delta. Use `delta` for direction and quote only the recorded `reason`; never infer or invent a reason, and say the reason was not recorded when it is null. Use for "how is my inventory doing".',
     permission: PERMISSIONS.DASHBOARD_VIEW,
     parameters: { type: 'object', additionalProperties: false, properties: {} },
     async executor(ctx: ToolContext) {

@@ -127,7 +127,7 @@ export default function PurchaseOrderDetailScreen() {
 
   async function onCancel(): Promise<void> {
     const ok = await confirm('Cancel order', `${po.number} will be marked canceled and can no longer be received or changed.`, {
-      confirmText: 'Cancel',
+      confirmText: 'Yes, cancel',
       destructive: true,
     });
     if (!ok) return;
