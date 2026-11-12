@@ -44,9 +44,9 @@ verified, what changed, what did not change, and what still needs the owner.
 ## Security state
 
 - Gmail 2-Step Verification is active for `jeffernmalinaoqwe@gmail.com`. The account has an authenticator,
-  passkeys and a recovery phone, and **9 backup codes are available**. Google Security Checkup reports the
-  account is protected; recent activity shows 2-Step Verification turned on at 2:47 PM and a backup code used
-  successfully at 2:54 PM. The code values are not recorded here; they must stay in the owner's private password
+  passkeys and a recovery phone, and **8 backup codes are available**. Google Security Checkup reports the
+  account is protected; recent activity shows 2-Step Verification turned on at 2:47 PM and backup codes used
+  successfully at 2:54 PM and 7:20 PM; a fresh Gmail login succeeded using a backup code, with a new Windows sign-in at 7:21 PM. The code values are not recorded here; they must stay in the owner's private password
   manager or offline safe.
 - Atlas reports email MFA active for the new owner (`hasAccountMultiFactorAuth: true`). A second Atlas factor
   remains an optional hardening step and requires the owner's authenticator or security key.
@@ -55,9 +55,9 @@ verified, what changed, what did not change, and what still needs the owner.
 
 ## Highest-priority owner actions
 
-1. Confirm the 9 Gmail backup codes are stored in the owner's private password manager or offline safe. Do not
+1. Confirm the remaining 8 Gmail backup codes are stored in the owner's private password manager or offline safe. Do not
    paste them into the repository, chat or a public log.
 2. Optionally add a second Atlas MFA factor and enable GitHub 2FA once the owner has a backup method and
    recovery codes.
 3. No further provider-side migration action remains for GitHub, Firebase, Atlas, Render, Brevo, Expo/EAS or
-   UptimeRobot; save the Gmail backup codes and decide on the optional second Atlas factor.
+   UptimeRobot; save the remaining 8 Gmail backup codes and decide on the optional second Atlas factor.

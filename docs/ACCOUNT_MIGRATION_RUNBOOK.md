@@ -3,7 +3,7 @@
 **Status:** **paused** for the separate GitHub/Render account move. The single-Gmail email migration is complete.
 
 **Last verified:** 2026-11-12 for the GitHub/Git identity, final MongoDB organization access, Firebase IAM and
-Authentication state, Gmail 2-Step Verification, Android push delivery and production health; access settings
+Authentication state, Gmail 2-Step Verification and a fresh login, Android push delivery and production health; access settings
 were last verified 2026-11-07.
 **Current GitHub/Render owner:** `nreffejzxc` (`jeffernmalinaoqwe@gmail.com`).
 **Current repository:** [`nreffejzxc/inventory-ai`](https://github.com/nreffejzxc/inventory-ai), public.
@@ -35,7 +35,7 @@ not the completed email changes.
 | EAS | Project `@jeffernqwes-team/inventory-ai` (ID `607eca05-1175-43ed-86a0-1829e91c9531`) is under the current owner Gmail's Expo account, not the GitHub/Render account |
 | History | The approved metadata-only attribution rewrite is complete; no further rewrite is approved |
 | GitHub 2FA | Disabled by owner decision on 2026-10-31; deferred until a backup method and offline recovery codes exist |
-| Gmail 2-Step Verification | Active on the new Gmail since 2:47 PM; authenticator, passkeys and recovery phone configured; 9 backup codes available. Code values are not stored here |
+| Gmail 2-Step Verification | Active on the new Gmail since 2:47 PM; authenticator, passkeys and recovery phone configured; 8 backup codes available after a successful backup-code sign-in. Code values are not stored here |
 
 The GitHub account is both the recovery root and the commit identity. EAS is a known exception: its
 project already belongs to the current Gmail's Expo account. Do not add a second
@@ -152,9 +152,9 @@ authenticated GitHub account; one direct collaborator; four required checks; hea
 - **UptimeRobot:** test email delivery was confirmed at 5:22 PM. Android push delivery was confirmed on the
   CPH1969 device via ADB at 10:09 UTC (DOWN and UP); both monitors report UP.
 - **Gmail and Atlas MFA:** Gmail 2-Step Verification is active, with an authenticator, passkeys and a recovery
-  phone; 9 backup codes are available and their values are not stored here. Security Checkup reports the
-  account is protected; recent activity shows 2-Step Verification turned on at 2:47 PM and a backup code used at
-  2:54 PM. Atlas email MFA is active. A second Atlas factor is optional and requires the owner's authenticator or
+  phone; 8 backup codes are available and their values are not stored here. Security Checkup reports the
+  account is protected; recent activity shows 2-Step Verification turned on at 2:47 PM and backup codes used at
+  2:54 PM and 7:20 PM; a fresh Gmail login succeeded using a backup code, with a new Windows sign-in recorded at 7:21 PM. Atlas email MFA is active. A second Atlas factor is optional and requires the owner's authenticator or
   security key. GitHub 2FA remains disabled by a separate owner decision.
 - **Firebase:** the old Cloud IAM Owner grant was removed and the old Firebase Authentication user was disabled
   (retained without data loss). The new owner remains Owner. The Admin key was rotated on 2026-11-07; any future
@@ -166,6 +166,6 @@ authenticated GitHub account; one direct collaborator; four required checks; hea
   GitHub/Render account. Decide how to handle that before resuming, removing either account or
   transferring the project.
 
-No further provider-side migration action remains; store the Gmail backup codes and decide on the optional
+No further provider-side migration action remains; store the remaining Gmail backup codes and decide on the optional
 second Atlas factor. The old Google account itself was retained, but it no longer has Atlas organization access,
 Firebase Cloud IAM access or Firebase Authentication access.
