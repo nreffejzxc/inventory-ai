@@ -30,6 +30,16 @@
 - No Atlas API key, database password, connection string or X.509 certificate was generated, rotated or deleted.
 - No project or cluster was recreated.
 
+## Atlas onboarding side effect
+
+- Creating the new Atlas user account also created a separate personal organization,
+  `Jeffern's Org - 2026-11-12`, containing `Project 0` (`6af58a976512c84140c4d2c4`).
+- This is not the production organization. The production organization and `inventoryaidb` project remain the
+  only production resources. The migration did not create a cluster, database user or data in the onboarding
+  project.
+- The onboarding organization has been left in place. Review it and delete it only after confirming it is empty
+  and after a separate approval.
+
 ## Verification
 
 | Check | Result |
@@ -58,6 +68,8 @@ value is not stored in this repository. The existing database credentials and `M
    migration.
 4. Review Atlas multi-factor authentication for the new owner separately; it is not a prerequisite for this
    completed email change.
+5. Review the auto-created `Jeffern's Org - 2026-11-12` / `Project 0`; delete it only after confirming it is empty
+   and after a separate approval.
 
 ## Rollback
 

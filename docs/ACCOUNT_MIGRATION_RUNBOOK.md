@@ -24,7 +24,7 @@ earlier account-move plan, not the completed email changes.
 
 | Item | State |
 | --- | --- |
-| Repository | `nreffejzxc/inventory-ai`, public; `main` clean; two local migration commits ahead of `origin/main`, not pushed |
+| Repository | `nreffejzxc/inventory-ai`, public; `main` clean; three local migration commits ahead of `origin/main`, not pushed |
 | Access | `nreffejzxc` is the only human with access; pending invitations: 0 |
 | Branch protection | Pull request required; four required checks; strict; admins enforced; force pushes and deletions blocked; conversation resolution required |
 | Scanning | Secret scanning and push protection enabled; private vulnerability reporting enabled |
@@ -140,6 +140,9 @@ authenticated GitHub account; one direct collaborator; four required checks; hea
 - **MongoDB Atlas:** `jeffernmalinaoqwe@gmail.com` is a confirmed Organization Owner; the organization and
   `inventoryaidb` project/cluster were verified. The old owner remains for rollback. No database or
   connection-string change was made. See [`docs/service-email-migrations/mongodb.md`](service-email-migrations/mongodb.md).
+- **Atlas onboarding org:** Atlas account onboarding created a separate `Jeffern's Org - 2026-11-12` with
+  `Project 0`; it is not the production organization. Review it and delete it only after confirming it is empty
+  and after a separate approval.
 - **UptimeRobot:** test email delivery was confirmed from monitor `804639237`; email messages arrived at 5:22 PM.
   The Android push contact is Active, but delivery to the device has not been independently observed.
 - **2FA:** deferred by owner decision; it is not a migration prerequisite until a reliable backup

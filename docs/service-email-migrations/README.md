@@ -30,12 +30,14 @@ verified, what changed, what did not change, and what still needs the owner.
 - Existing owners were retained wherever the provider allowed it, except where a provider itself removes the old
   login email as part of its email-change flow.
 - No secret value, password, API key, OTP or confirmation token is stored in these files.
-- No push was made. The migration documentation and identity-reference edits are in two local commits only.
+- No push was made. The migration documentation and identity-reference edits are in three local commits only.
 
 ## Highest-priority owner actions
 
 1. Confirm the UptimeRobot test push arrived on the Android device; the test email delivery is confirmed.
 2. Keep both Atlas owners until the rollback window ends; remove the old owner only with separate approval.
-3. Optionally harden Render by adding the new Gmail as a login method and enabling 2FA; GitHub 2FA remains the
+3. Review the auto-created Atlas onboarding organization `Jeffern's Org - 2026-11-12` and `Project 0`; delete
+   them only after confirming they are empty and after a separate approval.
+4. Optionally harden Render by adding the new Gmail as a login method and enabling 2FA; GitHub 2FA remains the
    owner's separate decision.
-4. Do not push the local migration commits until the owner completes the final verification.
+5. Do not push the local migration commits until the owner completes the final verification.
