@@ -97,8 +97,11 @@ export default function InventoryRowScreen() {
           <StatusBadge status={row.product?.status} />
         </View>
         <View style={styles.badgeRow}>
-          {row.isLowStock ? <Badge text="Low stock" tone="low" /> : null}
-          {row.isOutOfStock ? <Badge text="Out of stock" tone="danger" /> : null}
+          {row.isOutOfStock ? (
+            <Badge text="Out of stock" tone="danger" />
+          ) : row.isLowStock ? (
+            <Badge text="Low stock" tone="low" />
+          ) : null}
         </View>
 
         <View style={styles.divider} />

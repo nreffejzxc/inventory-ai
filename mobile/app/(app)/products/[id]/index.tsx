@@ -57,8 +57,11 @@ function StockRow({ row }: { row: ApiResponse }) {
         right={
           row.isLowStock || row.isOutOfStock ? (
             <View style={styles.stockBadges}>
-              {row.isLowStock ? <Badge text="Low" tone="low" /> : null}
-              {row.isOutOfStock ? <Badge text="Out" tone="danger" /> : null}
+              {row.isOutOfStock ? (
+                <Badge text="Out" tone="danger" />
+              ) : row.isLowStock ? (
+                <Badge text="Low" tone="low" />
+              ) : null}
             </View>
           ) : null
         }

@@ -34,6 +34,7 @@ type LedgerRow = {
   productId?: unknown;
   locationId?: unknown;
   reference?: unknown;
+  reason?: unknown;
   createdAt: Date;
 };
 
@@ -47,6 +48,10 @@ type MovementActivity = {
   quantity: number;
   previousQuantity: number;
   newQuantity: number;
+  /** Signed change applied by this movement (newQuantity - previousQuantity). */
+  delta: number;
+  /** The reason recorded on the ledger row, or null when none was entered. */
+  reason: string | null;
   product: ReferenceDto | null;
   location: ReferenceDto | null;
   createdAt: Date;
@@ -64,6 +69,8 @@ type TransferActivity = {
   from: ReferenceDto | null;
   to: ReferenceDto | null;
   reference: unknown;
+  /** The reason recorded on the transfer legs, or null when none was entered. */
+  reason: string | null;
   createdAt: Date;
 };
 
@@ -78,6 +85,11 @@ function ref(doc: unknown): ReferenceDto | null {
   return source?._id ? { id: String(source._id), name: source.name } : null;
 }
 
+/** The recorded reason text, or null when the row has none. */
+function ledgerReason(value: unknown): string | null {
+  return typeof value === 'string' && value.trim() ? value.trim() : null;
+}
+
 /** Safe DTO for a single-row movement (stock in / stock out / adjustment). */
 function recentPublic(t: LedgerRow): MovementActivity {
   return {
@@ -86,6 +98,8 @@ function recentPublic(t: LedgerRow): MovementActivity {
     quantity: t.quantity,
     previousQuantity: t.previousQuantity,
     newQuantity: t.newQuantity,
+    delta: t.newQuantity - t.previousQuantity,
+    reason: ledgerReason(t.reason),
     product: ref(t.productId),
     location: ref(t.locationId),
     createdAt: t.createdAt,
@@ -119,6 +133,7 @@ function transferActivity(legs: LedgerRow[]): TransferActivity | null {
     from: ref(source.locationId),
     to: ref(destination.locationId),
     reference: source.reference,
+    reason: ledgerReason(source.reason) ?? ledgerReason(newest.reason),
     createdAt: newest.createdAt,
   };
 }
