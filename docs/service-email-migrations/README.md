@@ -2,7 +2,7 @@
 
 **Canonical address:** `jeffernmalinaoqwe@gmail.com`
 **Migration date:** 2026-11-12
-**Status:** six services verified; MongoDB Atlas ownership is the only blocked item.
+**Status:** all seven services verified.
 
 The goal is one Gmail address for all Inventory AI service accounts. This directory records what was actually
 verified, what changed, what did not change, and what still needs the owner.
@@ -11,7 +11,7 @@ verified, what changed, what did not change, and what still needs the owner.
 | --- | --- | --- | --- |
 | GitHub | Verified | `nreffejzxc`; new Gmail identity linked; local Git identity set | [`github.md`](github.md) |
 | Firebase | Verified | New Gmail accepted Owner invitation; console and all 3 apps open; support email changed | [`firebase.md`](firebase.md) |
-| MongoDB Atlas | Blocked — no change | No account session or email change | [`mongodb.md`](mongodb.md) |
+| MongoDB Atlas | Verified | New Gmail accepted Organization Owner; organization and production project open; old owner retained | [`mongodb.md`](mongodb.md) |
 | Render | Verified | Account email changed and confirmed; service untouched | [`render.md`](render.md) |
 | Brevo | Verified | Login email changed, confirmed, and new Gmail Google sign-in tested | [`brevo.md`](brevo.md) |
 | Expo / EAS | Verified — already correct | `jeffernqwe` / `jeffernmalinaoqwe@gmail.com` | [`expo.md`](expo.md) |
@@ -30,14 +30,12 @@ verified, what changed, what did not change, and what still needs the owner.
 - Existing owners were retained wherever the provider allowed it, except where a provider itself removes the old
   login email as part of its email-change flow.
 - No secret value, password, API key, OTP or confirmation token is stored in these files.
-- No push was made. The migration documentation and the five identity-reference edits are in one local commit
-  only.
+- No push was made. The migration documentation and identity-reference edits are in two local commits only.
 
 ## Highest-priority owner actions
 
-1. Sign in to MongoDB Atlas with the old account and invite `jeffernmalinaoqwe@gmail.com` as an Organization Owner;
-   accept it from the new Gmail and keep the old account for rollback.
-2. Confirm the UptimeRobot test push arrived on the Android device; the test email delivery is confirmed.
+1. Confirm the UptimeRobot test push arrived on the Android device; the test email delivery is confirmed.
+2. Keep both Atlas owners until the rollback window ends; remove the old owner only with separate approval.
 3. Optionally harden Render by adding the new Gmail as a login method and enabling 2FA; GitHub 2FA remains the
    owner's separate decision.
-4. Do not push the local migration commit until the owner completes the final verification.
+4. Do not push the local migration commits until the owner completes the final verification.

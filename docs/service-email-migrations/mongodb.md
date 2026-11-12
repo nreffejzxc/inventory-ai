@@ -1,45 +1,65 @@
-# MongoDB Atlas — Blocked; no account change
+# MongoDB Atlas — Verified
 
 **Service:** MongoDB Atlas
 **Canonical email:** `jeffernmalinaoqwe@gmail.com`
+**Organization:** `Jeffern's Org - 2025-07-31` (`688b0d813387ea02660bdbaa`)
+**Project:** `inventoryaidb` (`6abc7a41d9b5664366642022`)
+**Cluster:** `inventoryaidbcluster` — ACTIVE
 **Production database:** `inventoryai_prod_db`
-**Status:** no authenticated account session; no email, owner, database or credential change.
+**Status:** verified — the new Gmail is a confirmed Organization Owner; the old owner remains for rollback.
 **Last checked:** 2026-11-12
 
-## What was attempted
+## What changed
 
-- Opened `https://account.mongodb.com/account/login` and selected Google sign-in with the old account
-  `jefferndullamalinaozxc@gmail.com`.
-- The Google OAuth callback completed the redirect to MongoDB, but MongoDB returned to the signed-out login page
-  instead of establishing a session. A repeat attempt reached a blank Okta `auth.mongodb.com` callback page.
-- Entering the old email directly reached a password challenge. No password was available in the session, and no
-  password reset was submitted.
-- No user, organization, project, cluster, database user, network rule, API key or connection string was changed.
+- The old owner account invited `jeffernmalinaoqwe@gmail.com` as **Organization Owner**. Atlas created the pending
+  invitation at 09:32 UTC on 2026-11-12.
+- The new Gmail accepted the invitation through Google sign-in. Atlas shows the user as **CONFIRMED**, with role
+  **Organization Owner**, and the email verified at 09:44 UTC on 2026-11-12.
+- The new owner opened the organization and the `inventoryaidb` project. The project overview shows
+  `inventoryaidbcluster` as **ACTIVE**, tier **FREE**, MongoDB **8.0.37**, and 50.91 MB of 512 MB used.
+- The old owner, `jefferndullamalinaozxc@gmail.com`, remains a confirmed **Organization Owner** and still has
+  project access. It was intentionally retained for rollback.
+- The application continues to connect through `MONGODB_URI` as a database user. No application connection path
+  was changed.
 
-## Why this is blocked
+## What did not change
 
-The migration needs an authenticated owner session. Without it, the new Gmail cannot be added to the Atlas
-organization, and there is no verified way to confirm that the existing production database is still governed by
-the correct owner.
+- `MONGODB_URI` was not changed.
+- The production database, cluster, database users, network access rules and project identifier were not changed.
+- No production data was modified.
+- No Atlas API key, database password, connection string or X.509 certificate was generated, rotated or deleted.
+- No project or cluster was recreated.
 
-The application connects through `MONGODB_URI` as a database user, not through an Atlas management API key. That
-connection path was not touched and must not be changed as part of this email migration.
+## Verification
+
+| Check | Result |
+| --- | --- |
+| New owner invitation | Accepted; user confirmed |
+| New owner email | `jeffernmalinaoqwe@gmail.com`; verified |
+| New owner organization role | **Organization Owner** |
+| Old owner | `jefferndullamalinaozxc@gmail.com`; confirmed **Organization Owner** |
+| Organization access | `Jeffern's Org - 2025-07-31` opens |
+| Production project access | `inventoryaidb` overview opens |
+| Cluster | `inventoryaidbcluster` is **ACTIVE** |
+| Application database path | `MONGODB_URI`, unchanged |
 
 ## Keys, credentials and certificates
 
-**None generated, rotated or deleted.** No Atlas API key, database password, connection string, X.509 certificate
-or project/cluster identifier was altered.
+**No Atlas API key, database user password, connection string or X.509 certificate was generated, rotated or
+deleted.** The new Atlas user account is linked to Google; a sign-in password was set during acceptance, but its
+value is not stored in this repository. The existing database credentials and `MONGODB_URI` are unchanged.
 
 ## Remaining owner actions
 
-1. Sign in to MongoDB Atlas with the old account using its password (or explicitly authorize a password reset).
-   Complete any 2FA prompt if Atlas requests it.
-2. In Atlas **Organization Access Manager**, invite `jeffernmalinaoqwe@gmail.com` as an **Organization Owner**.
-3. Accept the invitation from the new Gmail and verify it can see the organization and the production project.
-4. Keep the old account as a rollback owner until the new one is verified.
-5. Do not change `MONGODB_URI`, the production database users or the cluster while doing the ownership change.
+1. Keep the old owner account until the rollback window has passed. Remove it only after a separate approval and
+   after confirming the new owner can sign in independently.
+2. Continue using Google sign-in for the new Atlas owner; use the password-reset flow if a password is needed.
+3. Do not change `MONGODB_URI`, the production database users, the cluster or network access as part of this email
+   migration.
+4. Review Atlas multi-factor authentication for the new owner separately; it is not a prerequisite for this
+   completed email change.
 
 ## Rollback
 
-No change has been made, so the existing Atlas access remains the only access path. Do not remove the old account
-until the new account is verified.
+The old owner is still active and still has project access, so no new account is the sole access path. Do not
+remove the old owner until the rollback window ends.
