@@ -113,7 +113,7 @@ environment files or credentials.
 
 This repository has a project-specific attribution policy: **no AI co-author trailer, no
 generated-by footer, and no tool identity in commits, branches or pull requests.** The only identity
-that may appear is the owner's. Commit as the configured `jeffernzxc` identity; if it differs, stop
+that may appear is the owner's. Commit as the configured `nreffejzxc` identity; if it differs, stop
 and report the mismatch rather than changing it silently. See `CLAUDE.md` §16.
 
 The pull-request template asks for the documentation impact, the verification commands and the
