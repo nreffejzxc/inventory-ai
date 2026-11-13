@@ -400,7 +400,9 @@ do not survive a new ADB connection; recreate both after any reconnect.
 [`scripts/device/quota-stub.mjs`](../scripts/device/quota-stub.mjs) is the reusable
 OpenRouter-shaped provider for quota walkthroughs. It binds `127.0.0.1` only, never contacts a real
 provider, and requires no credentials. The 2026-11-13 first- and second-refusal records used the same
-wire shape; future runs should use this helper instead of rebuilding a scratch server.
+wire shape, and the
+[fresh revalidation](evidence/ai-quota-committed-stub-2026-11-13/README.md) used this helper end to
+end. Future runs should use it instead of rebuilding a scratch server.
 
 Start it from the repository root:
 

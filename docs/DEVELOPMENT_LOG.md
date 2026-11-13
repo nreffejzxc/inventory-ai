@@ -252,14 +252,17 @@ messages in one thread. Both runs used a temporary guest profile and no producti
 or shared quota. See
 [`evidence/ai-quota-retry-2026-11-13`](evidence/ai-quota-retry-2026-11-13/README.md) and
 [`evidence/ai-quota-second-refusal-2026-11-13`](evidence/ai-quota-second-refusal-2026-11-13/README.md).
-All three cases are indexed in
+Every quota evidence directory is indexed in
 [`evidence/ai-quota-recovery-index.md`](evidence/ai-quota-recovery-index.md), and the reusable local
 stub is documented in
 [`DEVELOPING_ON_A_PHYSICAL_DEVICE.md`](DEVELOPING_ON_A_PHYSICAL_DEVICE.md#11-local-quota-refusal-stub).
 CI now runs the stub self-test in the required `server` job; the mobile suite also verifies that the
-next message uses the conversation created by the retry, and the evidence index carries a checklist
-for the next device run. The full mobile suite passed **102 suites / 1,225 tests**,
-with typecheck and lint clean.
+next message uses the conversation created by the retry and that the id survives a second refusal
+and recovery, and the evidence index carries a checklist for the next device run. A fresh OPPO
+walkthrough used only the committed helper, refused a turn, and recovered on the next Send without a
+scratch server ([record](evidence/ai-quota-committed-stub-2026-11-13/README.md)); the docs guard now
+fails when an `ai-quota-*` evidence directory is unlisted or lacks a README. The full mobile suite
+passed **102 suites / 1,226 tests**, with typecheck and lint clean.
 
 ---
 

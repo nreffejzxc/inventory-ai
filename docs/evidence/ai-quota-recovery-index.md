@@ -1,17 +1,23 @@
 # AI quota recovery evidence index
 
-These records cover the three quota-recovery cases without changing production AI configuration:
+These records cover the quota-recovery cases, the related spent-allowance message, and a fresh
+device revalidation using the committed helper, without changing production AI configuration:
 
 | Case | Record | Scope |
 | --- | --- | --- |
 | First refusal, then recovery in the same conversation | [`ai-quota-retry-2026-11-13`](ai-quota-retry-2026-11-13/README.md) | OPPO development client, local API and local stub |
 | Second refusal, then recovery in that same conversation | [`ai-quota-second-refusal-2026-11-13`](ai-quota-second-refusal-2026-11-13/README.md) | OPPO development client, local API and local stub |
 | First turn of a brand-new conversation refused, then recovered | [`ai-quota-brand-new-2026-11-13`](ai-quota-brand-new-2026-11-13/README.md) | Automated server test with a fake provider |
+| Fresh device revalidation using only the committed helper | [`ai-quota-committed-stub-2026-11-13`](ai-quota-committed-stub-2026-11-13/README.md) | OPPO development client, local API and committed stub |
+| Spent-allowance message rendered on Android | [`ai-quota-device-2026-11-13`](ai-quota-device-2026-11-13/README.md) | OPPO development client, local API and local stub |
 
-The two device runs used a temporary guest Android user and the disposable demo account. Neither
-called the production AI provider, spent shared quota, or changed production configuration. The
-brand-new case is automated evidence rather than a device run; the mobile counterpart is named in
-that record.
+The device runs used a temporary guest Android user and the disposable demo account. None called the
+production AI provider, spent shared quota, or changed production configuration. The brand-new case
+is automated evidence rather than a device run; the mobile counterpart is named in that record. The
+committed-stub record revalidated the reusable setup without a scratch server.
+
+The documentation guard fails when an `ai-quota-*` evidence directory is missing from this index or
+has no README.
 
 The reusable stub used by device walkthroughs is documented in
 [`DEVELOPING_ON_A_PHYSICAL_DEVICE.md`](../DEVELOPING_ON_A_PHYSICAL_DEVICE.md#11-local-quota-refusal-stub).

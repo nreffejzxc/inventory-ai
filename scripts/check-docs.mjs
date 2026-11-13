@@ -20,6 +20,8 @@
  *  * No I-number is declared twice.
  *  * Every living reference document in the map's §2 table has one review-cadence
  *    row with a real last-reviewed date, and none is past its cadence.
+ *  * Every quota evidence case directory under `docs/evidence/` is linked from
+ *    the quota recovery index and carries a README.
  *
  * SCOPE. `docs/freebuff/` is excluded deliberately: it is a frozen audit
  * record, not an active authority. Its own README says it is not a security
@@ -41,6 +43,10 @@ const MAP_PATH = path.join(DOCS_ROOT, 'README.md');
 const CHECKLIST_REL = 'docs/AUTH_SECURITY_MASTER_CHECKLIST.md';
 const CHECKLIST_PATH = path.join(REPO_ROOT, CHECKLIST_REL);
 const FROZEN_AUDIT_DIR = path.join(DOCS_ROOT, 'freebuff');
+const EVIDENCE_ROOT = path.join(DOCS_ROOT, 'evidence');
+const QUOTA_INDEX_REL = 'docs/evidence/ai-quota-recovery-index.md';
+const QUOTA_INDEX_PATH = path.join(REPO_ROOT, QUOTA_INDEX_REL);
+const QUOTA_EVIDENCE_PREFIX = 'ai-quota-';
 
 /** Directories that are generated, tool-owned or frozen provenance, not active docs. */
 const SKIP_DIRS = new Set([
@@ -157,6 +163,38 @@ function linkedDocuments(lines) {
   return documents;
 }
 
+/** Quota evidence case directories linked from the recovery index, by directory name. */
+function linkedQuotaEvidence(indexText) {
+  const linked = new Set();
+  for (const match of indexText.matchAll(LINK)) {
+    let target = match[1];
+    if (/^[a-z][a-z0-9+.-]*:/i.test(target) || target.startsWith('#')) continue;
+    target = target.replace(/[?#].*$/, '').split(path.sep).join('/');
+    try {
+      target = decodeURIComponent(target);
+    } catch {
+      // Keep the literal target; the link guard reports a broken target separately.
+    }
+    const parts = target.split('/').filter((part) => part && part !== '.');
+    if (
+      parts.length === 2 &&
+      parts[0].startsWith(QUOTA_EVIDENCE_PREFIX) &&
+      parts[1].toLowerCase() === 'readme.md'
+    ) {
+      linked.add(parts[0]);
+    }
+  }
+  return linked;
+}
+
+/** Quota evidence cases the recovery index does not link. */
+function quotaEvidenceProblems(indexText, directories) {
+  const linked = linkedQuotaEvidence(indexText);
+  return directories
+    .filter((name) => !linked.has(name))
+    .map((name) => `quota evidence directory is not linked from ${QUOTA_INDEX_REL}: ${name}`);
+}
+
 /** The map's living-reference documents and the cadence rows that schedule them. */
 function reviewCadence(mapText) {
   const lines = mapText.split(/\r?\n/);
@@ -229,6 +267,19 @@ function selfTest() {
   if (!targets.has(path.resolve(DOCS_ROOT, 'guides/a.md'))) {
     throw new Error('map link parser control failed');
   }
+  const quotaLinked = linkedQuotaEvidence(
+    '[a](ai-quota-a/README.md) [b](ai-quota-a/notes.md) [c](other/README.md)',
+  );
+  if (quotaLinked.size !== 1 || !quotaLinked.has('ai-quota-a')) {
+    throw new Error('quota evidence link parser control failed');
+  }
+  const quotaMissing = quotaEvidenceProblems('[a](ai-quota-a/README.md)', [
+    'ai-quota-a',
+    'ai-quota-b',
+  ]);
+  if (quotaMissing.length !== 1 || !quotaMissing[0].includes('ai-quota-b')) {
+    throw new Error('quota evidence index control failed');
+  }
   const today = Date.parse('2026-11-07T00:00:00Z');
   if (reviewOverdue('2026-08-09', 90, today).days !== undefined) {
     throw new Error('review boundary control failed: exactly at cadence must pass');
@@ -288,6 +339,30 @@ function main() {
     if (path.extname(target).toLowerCase() !== '.md') continue;
     if (!existsSync(target)) {
       errors.push(`docs/README.md links a missing file: ${relative(target)}`);
+    }
+  }
+
+  let quotaRecords = 0;
+  if (!existsSync(EVIDENCE_ROOT)) {
+    errors.push('docs/evidence/ is missing');
+  } else if (!existsSync(QUOTA_INDEX_PATH)) {
+    errors.push(`${QUOTA_INDEX_REL} is missing`);
+  } else {
+    const quotaDirectories = readdirSync(EVIDENCE_ROOT, { withFileTypes: true })
+      .filter(
+        (entry) => entry.isDirectory() && entry.name.startsWith(QUOTA_EVIDENCE_PREFIX),
+      )
+      .map((entry) => entry.name)
+      .sort();
+    quotaRecords = quotaDirectories.length;
+    for (const problem of quotaEvidenceProblems(read(QUOTA_INDEX_PATH), quotaDirectories)) {
+      errors.push(problem);
+    }
+    for (const name of quotaDirectories) {
+      const readme = path.join(EVIDENCE_ROOT, name, 'README.md');
+      if (!existsSync(readme)) {
+        errors.push(`quota evidence directory has no README: ${relative(path.dirname(readme))}`);
+      }
     }
   }
 
@@ -364,7 +439,8 @@ function main() {
     `[docs] ${active.length} active documents indexed; ` +
       `${declarations.length} invariant rows, checklist-only; ` +
       `${checklistIds.length} register rows; ` +
-      `${cadenceRows} living reference documents within review cadence.`,
+      `${cadenceRows} living reference documents within review cadence; ` +
+      `${quotaRecords} quota evidence records linked.`,
   );
 }
 

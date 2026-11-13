@@ -108,9 +108,12 @@ const ask = async (
 };
 
 /** A refused turn must put the question back in the composer so it can be retried. */
-const expectQuestionRestored = async (view: Awaited<ReturnType<typeof withTheme>>) => {
+const expectQuestionRestored = async (
+  view: Awaited<ReturnType<typeof withTheme>>,
+  expected = QUESTION,
+) => {
   await waitFor(() =>
-    expect(view.getByPlaceholderText(PLACEHOLDER).props.value).toBe(QUESTION),
+    expect(view.getByPlaceholderText(PLACEHOLDER).props.value).toBe(expected),
   );
 };
 
@@ -406,6 +409,78 @@ describe('AI-40 — the assistant streams its answer', () => {
     expect(chatStream.mock.calls[2][1]).toEqual({
       conversationId: 'conv-1',
       message: followUp,
+    });
+    expect(chat).not.toHaveBeenCalled();
+  });
+
+  it('keeps the conversation id through a second refusal and recovery', async () => {
+    mockChatStreamError(
+      429,
+      'AI_QUOTA_EXCEEDED',
+      'The AI assistant has reached its usage limit. Please try again later.',
+    );
+
+    const view = await mount();
+    await ask(view);
+    await waitFor(() => expect(view.getByText(QUOTA)).toBeTruthy());
+    await expectQuestionRestored(view);
+
+    chatStream.mockResolvedValue(TURN);
+    void fireEvent.press(view.getByRole('button', { name: 'Send' }));
+    await waitFor(() => expect(view.getByText('You hold 112 units in total.')).toBeTruthy());
+
+    // A second refusal in the same open conversation must restore this question, not the first one.
+    const secondQuestion = 'Which products are low?';
+    mockChatStreamError(
+      429,
+      'AI_QUOTA_EXCEEDED',
+      'The AI assistant has reached its usage limit. Please try again later.',
+    );
+    await ask(view, secondQuestion);
+    await waitFor(() => expect(view.getByText(QUOTA)).toBeTruthy());
+    await expectQuestionRestored(view, secondQuestion);
+    expect(chatStream).toHaveBeenCalledTimes(3);
+    expect(chatStream.mock.calls[2][1]).toEqual({
+      conversationId: 'conv-1',
+      message: secondQuestion,
+    });
+
+    const secondTurn = {
+      ...TURN,
+      userMessage: { ...TURN.userMessage, id: 'msg-user-2', content: secondQuestion },
+      assistantMessage: {
+        ...TURN.assistantMessage,
+        id: 'msg-answer-2',
+        content: 'Five products are low.',
+      },
+    };
+    chatStream.mockResolvedValue(secondTurn);
+    void fireEvent.press(view.getByRole('button', { name: 'Send' }));
+    await waitFor(() => expect(view.getByText('Five products are low.')).toBeTruthy());
+    expect(chatStream).toHaveBeenCalledTimes(4);
+    expect(chatStream.mock.calls[3][1]).toEqual({
+      conversationId: 'conv-1',
+      message: secondQuestion,
+    });
+    expect(view.queryByText(QUOTA)).toBeNull();
+
+    const thirdQuestion = 'And which are out of stock?';
+    chatStream.mockResolvedValue({
+      ...TURN,
+      userMessage: { ...TURN.userMessage, id: 'msg-user-3', content: thirdQuestion },
+      assistantMessage: {
+        ...TURN.assistantMessage,
+        id: 'msg-answer-3',
+        content: 'One product is out of stock.',
+      },
+    });
+    await fireEvent.changeText(view.getByPlaceholderText(PLACEHOLDER), thirdQuestion);
+    void fireEvent.press(view.getByRole('button', { name: 'Send' }));
+    await waitFor(() => expect(view.getByText('One product is out of stock.')).toBeTruthy());
+    expect(chatStream).toHaveBeenCalledTimes(5);
+    expect(chatStream.mock.calls[4][1]).toEqual({
+      conversationId: 'conv-1',
+      message: thirdQuestion,
     });
     expect(chat).not.toHaveBeenCalled();
   });
