@@ -13,11 +13,17 @@
 // Authentication is the app's own production path: Firebase custom token -> ID token ->
 // POST /api/auth/firebase/exchange. No JWT secret is read or needed.
 //
-// Required environment:
+// Required environment, production:
 //   NODE_ENV=production MONGODB_DB_NAME=inventoryai_prod_db
 //   GATE_PRODUCTION_CONFIRM=production-simple-gate
 //   FIREBASE_SERVICE_ACCOUNT_JSON, OPENROUTER_API_KEY
 //   EXPO_PUBLIC_FIREBASE_API_KEY (loaded from ../mobile/.env)
+//
+// Required environment, isolated staging:
+//   NODE_ENV=development MONGODB_DB_NAME=inventoryai_staging_db
+//   GATE_TARGET=staging GATE_STAGING_CONFIRM=staging-simple-gate
+//   GATE_BASE=http://127.0.0.1:4000
+// Staging is loopback-only by construction; it cannot silently point at the production URL.
 
 import 'dotenv/config';
 import fs from 'node:fs';
@@ -42,9 +48,16 @@ import {
   datasetFingerprint,
 } from './productionGateGuards.mjs';
 
+const TARGET_MODE = (process.env.GATE_TARGET || 'production').trim().toLowerCase();
+const IS_STAGING = TARGET_MODE === 'staging';
+const STAGING_DATABASES = new Set([DATABASE_NAMES.development, 'inventoryai_staging_db']);
 const BASE_URL = (process.env.GATE_BASE || 'https://ai-inventory-l1mi.onrender.com').replace(/\/+$/, '');
-const OUT = '.tmp-simple-inventory-scale-gate-deployed.json';
-const BACKUP = '.tmp-deployed-gate-inventory-backup.json';
+const OUT = IS_STAGING
+  ? '.tmp-simple-inventory-scale-gate-staging.json'
+  : '.tmp-simple-inventory-scale-gate-deployed.json';
+const BACKUP = IS_STAGING
+  ? '.tmp-staging-gate-inventory-backup.json'
+  : '.tmp-deployed-gate-inventory-backup.json';
 const GATE_REQUESTS = 25;
 const GAP_MS = 10000;
 const BUSINESS_NAME = 'PERF SEED — AI assistant stress test (do not use)';
@@ -265,26 +278,46 @@ function loadMobileFirebaseKey() {
 
 async function main() {
   loadMobileFirebaseKey();
-  if (process.env.GATE_PRODUCTION_CONFIRM !== 'production-simple-gate') {
-    fail('set GATE_PRODUCTION_CONFIRM=production-simple-gate to run against the deployed URL');
+  if (IS_STAGING) {
+    if (process.env.GATE_STAGING_CONFIRM !== 'staging-simple-gate') {
+      fail('set GATE_STAGING_CONFIRM=staging-simple-gate to run the staging gate');
+    }
+    if (env.nodeEnv !== 'development' || !STAGING_DATABASES.has(env.mongodbDbName)) {
+      fail(
+        `refusing staging database ${env.mongodbDbName} in ${env.nodeEnv}; ` +
+          `run NODE_ENV=development MONGODB_DB_NAME=${DATABASE_NAMES.development}`,
+      );
+    }
+    if (!/^http:\/\/(?:127\.0\.0\.1|localhost):\d+$/i.test(BASE_URL)) {
+      fail('staging GATE_BASE must be a loopback http URL');
+    }
+  } else {
+    if (process.env.GATE_PRODUCTION_CONFIRM !== 'production-simple-gate') {
+      fail('set GATE_PRODUCTION_CONFIRM=production-simple-gate to run against the deployed URL');
+    }
+    if (env.nodeEnv !== 'production' || env.mongodbDbName !== DATABASE_NAMES.production) {
+      fail(
+        `refusing database ${env.mongodbDbName} in ${env.nodeEnv}; ` +
+          'run NODE_ENV=production MONGODB_DB_NAME=inventoryai_prod_db',
+      );
+    }
+    if (!/^https:\/\//i.test(BASE_URL)) fail('GATE_BASE must be an https URL');
   }
-  if (env.nodeEnv !== 'production' || env.mongodbDbName !== DATABASE_NAMES.production) {
-    fail(`refusing database ${env.mongodbDbName} in ${env.nodeEnv}; run NODE_ENV=production MONGODB_DB_NAME=inventoryai_prod_db`);
-  }
-  if (!/^https:\/\//i.test(BASE_URL)) fail('GATE_BASE must be an https URL');
   if (!(process.env.FIREBASE_SERVICE_ACCOUNT_JSON || '').trim()) fail('FIREBASE_SERVICE_ACCOUNT_JSON is unset');
   if (!(process.env.EXPO_PUBLIC_FIREBASE_API_KEY || '').trim()) fail('EXPO_PUBLIC_FIREBASE_API_KEY is unset');
 
   await mongoose.connect(env.mongodbUri, { dbName: env.mongodbDbName });
-  console.log(`[deployed-gate] database=${mongoose.connection.name} target=${BASE_URL}`);
+  console.log(
+    `[deployed-gate] mode=${TARGET_MODE} database=${mongoose.connection.name} target=${BASE_URL}`,
+  );
 
   const business = await Business.findOne({ name: BUSINESS_NAME }).lean();
-  if (!business) throw new Error('the production PERF SEED tenant does not exist');
+  if (!business) throw new Error(`the ${TARGET_MODE} PERF SEED tenant does not exist`);
   const businessId = business._id;
   const owner = await User.findOne({ businessId, email: OWNER_EMAIL, role: 'OWNER', status: 'ACTIVE' })
     .select('_id firebaseUid')
     .lean();
-  if (!owner?.firebaseUid) throw new Error('the production PERF SEED tenant has no active Firebase-linked owner');
+  if (!owner?.firebaseUid) throw new Error(`the ${TARGET_MODE} PERF SEED tenant has no active Firebase-linked owner`);
 
   const products = await Product.find({ businessId, status: 'ACTIVE' })
     .select('_id name sku minimumStock')
@@ -292,7 +325,7 @@ async function main() {
   const inventoryRows = await Inventory.find({ businessId })
     .select('_id productId quantity reservedQuantity')
     .lean();
-  if (!products.length || !inventoryRows.length) throw new Error('the production PERF SEED tenant has no data');
+  if (!products.length || !inventoryRows.length) throw new Error(`the ${TARGET_MODE} PERF SEED tenant has no data`);
 
   // Restore a snapshot left by an interrupted run before taking a new one.
   if (fs.existsSync(BACKUP)) {
@@ -542,6 +575,7 @@ async function main() {
         phase: 'gate',
         partial: rows.length < GATE_REQUESTS,
         target: BASE_URL,
+        targetMode: TARGET_MODE,
         config: {
           transport: 'http',
           baseUrl: BASE_URL,

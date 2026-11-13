@@ -1,0 +1,11 @@
+[503-proxy] listening=http://127.0.0.1:5055 failModel=openai/gpt-oss-20b failing=true
+[503-proxy] forward path=/api/v1/models/openai/gpt-oss-20b/endpoints model=- status=200
+[503-proxy] forward path=/api/v1/models/nvidia/nemotron-3.5-lightning%3Afree/endpoints model=- status=200
+[503-proxy] forward path=/api/v1/models/nvidia/nemotron-3-ultra-550b-a55b%3Afree/endpoints model=- status=200
+[503-proxy] forward path=/api/v1/models model=- status=200
+[503-proxy] forward path=/api/v1/models model=- status=200
+[503-proxy] fail path=/api/v1/messages model=openai/gpt-oss-20b count=1
+[503-proxy] forward path=/api/v1/messages model=nvidia/nemotron-3.5-lightning:free status=200
+[503-proxy] forward path=/api/v1/messages model=nvidia/nemotron-3.5-lightning:free status=200
+[503-proxy] forward path=/api/v1/messages model=openai/gpt-oss-20b status=200
+[503-proxy] forward path=/api/v1/messages model=openai/gpt-oss-20b status=200

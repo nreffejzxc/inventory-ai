@@ -1,0 +1,892 @@
+{
+  "generatedAt": "2026-11-13T18:07:03.716Z",
+  "phase": "gate",
+  "partial": false,
+  "target": "http://127.0.0.1:4000",
+  "targetMode": "staging",
+  "config": {
+    "transport": "http",
+    "baseUrl": "http://127.0.0.1:4000",
+    "size": 10000,
+    "seed": 1,
+    "primary": "openai/gpt-oss-20b",
+    "free": "nvidia/nemotron-3.5-lightning:free",
+    "concurrency": 1,
+    "requests": 25,
+    "gapMs": 10000
+  },
+  "dataset": {
+    "products": 10000,
+    "inventoryRows": 20006,
+    "restockCount": 5,
+    "restockNames": [
+      "ASUS ROG Strix GeForce RTX 4070 SUPER OC",
+      "Samsung 990 PRO 1TB NVMe SSD",
+      "Corsair Vengeance RGB 32GB DDR5-6000",
+      "ASUS ROG Strix B650E-F Gaming WiFi",
+      "Seasonic Focus GX-850"
+    ],
+    "lowSkus": [
+      "SEEDSKU-5000",
+      "SEEDSKU-5001",
+      "SEEDSKU-5002",
+      "SEEDSKU-5003",
+      "SEEDSKU-5004"
+    ],
+    "stockSamples": [
+      {
+        "sku": "SEEDSKU-5000",
+        "name": "ASUS ROG Strix GeForce RTX 4070 SUPER OC",
+        "expected": 0
+      },
+      {
+        "sku": "SEEDSKU-0",
+        "name": "Logitech MX Keys S",
+        "expected": 92
+      },
+      {
+        "sku": "SEEDSKU-1",
+        "name": "Keychron K8 Pro",
+        "expected": 32
+      },
+      {
+        "sku": "SEEDSKU-2",
+        "name": "ASUS ROG Strix Flare II Animate",
+        "expected": 50
+      },
+      {
+        "sku": "SEEDSKU-3",
+        "name": "Razer BlackWidow V4 Pro",
+        "expected": 64
+      },
+      {
+        "sku": "SEEDSKU-4",
+        "name": "Royal Kludge RK61",
+        "expected": 53
+      },
+      {
+        "sku": "SEEDSKU-5",
+        "name": "Logitech MX Master 3S",
+        "expected": 18
+      },
+      {
+        "sku": "SEEDSKU-6",
+        "name": "Sony WH-1000XM5",
+        "expected": 68
+      },
+      {
+        "sku": "SEEDSKU-7",
+        "name": "SteelSeries Arctis Nova 7",
+        "expected": 41
+      },
+      {
+        "sku": "SEEDSKU-8",
+        "name": "Dell UltraSharp U2723QE",
+        "expected": 75
+      },
+      {
+        "sku": "SEEDSKU-9",
+        "name": "LG UltraGear 27GP850-B",
+        "expected": 52
+      },
+      {
+        "sku": "SEEDSKU-10",
+        "name": "Anker 737 Power Bank",
+        "expected": 66
+      },
+      {
+        "sku": "SEEDSKU-11",
+        "name": "Samsung Portable SSD T7 Shield 1TB",
+        "expected": 15
+      },
+      {
+        "sku": "SEEDSKU-12",
+        "name": "Logitech C920s HD Pro Webcam",
+        "expected": 71
+      },
+      {
+        "sku": "SEEDSKU-13",
+        "name": "Elgato Stream Deck MK.2",
+        "expected": 73
+      }
+    ]
+  },
+  "deployedCommit": "unknown",
+  "rows": [
+    {
+      "id": "stock-SEEDSKU-5000",
+      "operation": "product_stock",
+      "sku": "SEEDSKU-5000",
+      "message": "How many units of the product with SKU SEEDSKU-5000 are in stock?",
+      "expected": 0,
+      "answer": "**ASUS ROG Strix GeForce RTX 4070 SUPER OC** has **0** units on hand across all locations.",
+      "check": {
+        "ok": true,
+        "reasons": []
+      },
+      "model": "nvidia/nemotron-3.5-lightning:free",
+      "freeServed": true,
+      "totalMs": 4860,
+      "usage": {
+        "inputTokens": 24401,
+        "outputTokens": 113
+      },
+      "toolsUsed": [
+        "getInventory"
+      ],
+      "degraded": null,
+      "error": null,
+      "workIndex": 0,
+      "wave": 1,
+      "sequence": 1,
+      "costUsd": 0
+    },
+    {
+      "id": "stock-SEEDSKU-0",
+      "operation": "product_stock",
+      "sku": "SEEDSKU-0",
+      "message": "How many units of the product with SKU SEEDSKU-0 are in stock?",
+      "expected": 92,
+      "answer": "**Logitech MX Keys S** has **92** units on hand across all locations.",
+      "check": {
+        "ok": true,
+        "reasons": []
+      },
+      "model": "nvidia/nemotron-3.5-lightning:free",
+      "freeServed": true,
+      "totalMs": 6606,
+      "usage": {
+        "inputTokens": 36169,
+        "outputTokens": 106
+      },
+      "toolsUsed": [
+        "getInventory"
+      ],
+      "degraded": null,
+      "error": null,
+      "workIndex": 1,
+      "wave": 2,
+      "sequence": 2,
+      "costUsd": 0
+    },
+    {
+      "id": "stock-SEEDSKU-1",
+      "operation": "product_stock",
+      "sku": "SEEDSKU-1",
+      "message": "How many units of the product with SKU SEEDSKU-1 are in stock?",
+      "expected": 32,
+      "answer": "**Keychron K8 Pro** has **32** units on hand across all locations.",
+      "check": {
+        "ok": true,
+        "reasons": []
+      },
+      "model": "nvidia/nemotron-3.5-lightning:free",
+      "freeServed": true,
+      "totalMs": 3591,
+      "usage": {
+        "inputTokens": 24351,
+        "outputTokens": 119
+      },
+      "toolsUsed": [
+        "getInventory"
+      ],
+      "degraded": null,
+      "error": null,
+      "workIndex": 2,
+      "wave": 3,
+      "sequence": 3,
+      "costUsd": 0
+    },
+    {
+      "id": "stock-SEEDSKU-2",
+      "operation": "product_stock",
+      "sku": "SEEDSKU-2",
+      "message": "How many units of the product with SKU SEEDSKU-2 are in stock?",
+      "expected": 50,
+      "answer": "**ASUS ROG Strix Flare II Animate** has **50** units on hand at **Main Warehouse**.",
+      "check": {
+        "ok": true,
+        "reasons": []
+      },
+      "model": "nvidia/nemotron-3.5-lightning:free",
+      "freeServed": true,
+      "totalMs": 4739,
+      "usage": {
+        "inputTokens": 35990,
+        "outputTokens": 100
+      },
+      "toolsUsed": [
+        "getInventory"
+      ],
+      "degraded": null,
+      "error": null,
+      "workIndex": 3,
+      "wave": 4,
+      "sequence": 4,
+      "costUsd": 0
+    },
+    {
+      "id": "stock-SEEDSKU-3",
+      "operation": "product_stock",
+      "sku": "SEEDSKU-3",
+      "message": "How many units of the product with SKU SEEDSKU-3 are in stock?",
+      "expected": 64,
+      "answer": "**Razer BlackWidow V4 Pro** has **64** units on hand across all locations.",
+      "check": {
+        "ok": true,
+        "reasons": []
+      },
+      "model": "nvidia/nemotron-3.5-lightning:free",
+      "freeServed": true,
+      "totalMs": 11312,
+      "usage": {
+        "inputTokens": 24561,
+        "outputTokens": 125
+      },
+      "toolsUsed": [
+        "getProduct"
+      ],
+      "degraded": null,
+      "error": null,
+      "workIndex": 4,
+      "wave": 5,
+      "sequence": 5,
+      "costUsd": 0
+    },
+    {
+      "id": "stock-SEEDSKU-4",
+      "operation": "product_stock",
+      "sku": "SEEDSKU-4",
+      "message": "How many units of the product with SKU SEEDSKU-4 are in stock?",
+      "expected": 53,
+      "answer": "**Royal Kludge RK61** has **53** units on hand across all locations.",
+      "check": {
+        "ok": true,
+        "reasons": []
+      },
+      "model": "nvidia/nemotron-3.5-lightning:free",
+      "freeServed": true,
+      "totalMs": 5295,
+      "usage": {
+        "inputTokens": 44156,
+        "outputTokens": 172
+      },
+      "toolsUsed": [
+        "searchProducts",
+        "getInventory"
+      ],
+      "degraded": null,
+      "error": null,
+      "workIndex": 5,
+      "wave": 6,
+      "sequence": 6,
+      "costUsd": 0
+    },
+    {
+      "id": "stock-SEEDSKU-5",
+      "operation": "product_stock",
+      "sku": "SEEDSKU-5",
+      "message": "How many units of the product with SKU SEEDSKU-5 are in stock?",
+      "expected": 18,
+      "answer": "**Logitech MX Master 3S** has **18** units on hand at **Main Warehouse**.",
+      "check": {
+        "ok": true,
+        "reasons": []
+      },
+      "model": "nvidia/nemotron-3.5-lightning:free",
+      "freeServed": true,
+      "totalMs": 5362,
+      "usage": {
+        "inputTokens": 35986,
+        "outputTokens": 82
+      },
+      "toolsUsed": [
+        "getInventory"
+      ],
+      "degraded": null,
+      "error": null,
+      "workIndex": 6,
+      "wave": 7,
+      "sequence": 7,
+      "costUsd": 0
+    },
+    {
+      "id": "stock-SEEDSKU-6",
+      "operation": "product_stock",
+      "sku": "SEEDSKU-6",
+      "message": "How many units of the product with SKU SEEDSKU-6 are in stock?",
+      "expected": 68,
+      "answer": "**Sony WH-1000XM5** has **68** units on hand across all locations.",
+      "check": {
+        "ok": true,
+        "reasons": []
+      },
+      "model": "nvidia/nemotron-3.5-lightning:free",
+      "freeServed": true,
+      "totalMs": 3682,
+      "usage": {
+        "inputTokens": 24374,
+        "outputTokens": 60
+      },
+      "toolsUsed": [
+        "getInventory"
+      ],
+      "degraded": null,
+      "error": null,
+      "workIndex": 7,
+      "wave": 8,
+      "sequence": 8,
+      "costUsd": 0
+    },
+    {
+      "id": "stock-SEEDSKU-7",
+      "operation": "product_stock",
+      "sku": "SEEDSKU-7",
+      "message": "How many units of the product with SKU SEEDSKU-7 are in stock?",
+      "expected": 41,
+      "answer": "**SteelSeries Arctis Nova 7** has **41** units on hand at **Main Warehouse**.",
+      "check": {
+        "ok": true,
+        "reasons": []
+      },
+      "model": "nvidia/nemotron-3.5-lightning:free",
+      "freeServed": true,
+      "totalMs": 3407,
+      "usage": {
+        "inputTokens": 24361,
+        "outputTokens": 80
+      },
+      "toolsUsed": [
+        "getProduct"
+      ],
+      "degraded": null,
+      "error": null,
+      "workIndex": 8,
+      "wave": 9,
+      "sequence": 9,
+      "costUsd": 0
+    },
+    {
+      "id": "stock-SEEDSKU-8",
+      "operation": "product_stock",
+      "sku": "SEEDSKU-8",
+      "message": "How many units of the product with SKU SEEDSKU-8 are in stock?",
+      "expected": 75,
+      "answer": "**Dell UltraSharp U2723QE** has **75** units on hand across all locations.",
+      "check": {
+        "ok": true,
+        "reasons": []
+      },
+      "model": "nvidia/nemotron-3.5-lightning:free",
+      "freeServed": true,
+      "totalMs": 5425,
+      "usage": {
+        "inputTokens": 36371,
+        "outputTokens": 120
+      },
+      "toolsUsed": [
+        "getInventory"
+      ],
+      "degraded": null,
+      "error": null,
+      "workIndex": 9,
+      "wave": 10,
+      "sequence": 10,
+      "costUsd": 0
+    },
+    {
+      "id": "stock-SEEDSKU-9",
+      "operation": "product_stock",
+      "sku": "SEEDSKU-9",
+      "message": "How many units of the product with SKU SEEDSKU-9 are in stock?",
+      "expected": 52,
+      "answer": "**LG UltraGear 27GP850-B** has **52** units on hand across all locations.",
+      "check": {
+        "ok": true,
+        "reasons": []
+      },
+      "model": "nvidia/nemotron-3.5-lightning:free",
+      "freeServed": true,
+      "totalMs": 5584,
+      "usage": {
+        "inputTokens": 43833,
+        "outputTokens": 172
+      },
+      "toolsUsed": [
+        "searchProducts",
+        "getInventory"
+      ],
+      "degraded": null,
+      "error": null,
+      "workIndex": 10,
+      "wave": 11,
+      "sequence": 11,
+      "costUsd": 0
+    },
+    {
+      "id": "stock-SEEDSKU-10",
+      "operation": "product_stock",
+      "sku": "SEEDSKU-10",
+      "message": "How many units of the product with SKU SEEDSKU-10 are in stock?",
+      "expected": 66,
+      "answer": "**Anker 737 Power Bank** has **66** units on hand at **Main Warehouse**.",
+      "check": {
+        "ok": true,
+        "reasons": []
+      },
+      "model": "nvidia/nemotron-3.5-lightning:free",
+      "freeServed": true,
+      "totalMs": 3738,
+      "usage": {
+        "inputTokens": 23993,
+        "outputTokens": 74
+      },
+      "toolsUsed": [
+        "getInventory"
+      ],
+      "degraded": null,
+      "error": null,
+      "workIndex": 11,
+      "wave": 12,
+      "sequence": 12,
+      "costUsd": 0
+    },
+    {
+      "id": "stock-SEEDSKU-11",
+      "operation": "product_stock",
+      "sku": "SEEDSKU-11",
+      "message": "How many units of the product with SKU SEEDSKU-11 are in stock?",
+      "expected": 15,
+      "answer": "**Samsung Portable SSD T7 Shield 1TB** has **15** units on hand across all locations.",
+      "check": {
+        "ok": true,
+        "reasons": []
+      },
+      "model": "nvidia/nemotron-3.5-lightning:free",
+      "freeServed": true,
+      "totalMs": 4658,
+      "usage": {
+        "inputTokens": 36177,
+        "outputTokens": 121
+      },
+      "toolsUsed": [
+        "getInventory"
+      ],
+      "degraded": null,
+      "error": null,
+      "workIndex": 12,
+      "wave": 13,
+      "sequence": 13,
+      "costUsd": 0
+    },
+    {
+      "id": "stock-SEEDSKU-12",
+      "operation": "product_stock",
+      "sku": "SEEDSKU-12",
+      "message": "How many units of the product with SKU SEEDSKU-12 are in stock?",
+      "expected": 71,
+      "answer": "**Logitech C920s HD Pro Webcam** has **71** units on hand at **Main Warehouse**.",
+      "check": {
+        "ok": true,
+        "reasons": []
+      },
+      "model": "nvidia/nemotron-3.5-lightning:free",
+      "freeServed": true,
+      "totalMs": 3994,
+      "usage": {
+        "inputTokens": 35995,
+        "outputTokens": 76
+      },
+      "toolsUsed": [
+        "getInventory"
+      ],
+      "degraded": null,
+      "error": null,
+      "workIndex": 13,
+      "wave": 14,
+      "sequence": 14,
+      "costUsd": 0
+    },
+    {
+      "id": "stock-SEEDSKU-13",
+      "operation": "product_stock",
+      "sku": "SEEDSKU-13",
+      "message": "How many units of the product with SKU SEEDSKU-13 are in stock?",
+      "expected": 73,
+      "answer": "**Elgato Stream Deck MK.2** has **73** units on hand across all locations.",
+      "check": {
+        "ok": true,
+        "reasons": []
+      },
+      "model": "nvidia/nemotron-3.5-lightning:free",
+      "freeServed": true,
+      "totalMs": 4928,
+      "usage": {
+        "inputTokens": 36179,
+        "outputTokens": 71
+      },
+      "toolsUsed": [
+        "getInventory"
+      ],
+      "degraded": null,
+      "error": null,
+      "workIndex": 14,
+      "wave": 15,
+      "sequence": 15,
+      "costUsd": 0
+    },
+    {
+      "id": "exists-SEEDSKU-0",
+      "operation": "product_existence",
+      "sku": "SEEDSKU-0",
+      "message": "Do we have the product with SKU SEEDSKU-0 in our inventory?",
+      "expected": true,
+      "answer": "Yes, we have the product **Logitech MX Keys S** with SKU **SEEDSKU-0**. It is currently in stock at two locations:\n\n- **Shop Front**: 46 units available\n- **Main Warehouse**: 46 units available\n\nBoth rows show the product as **low stock** (available 46 pcs, minimum 82 pcs) but not out of stock.",
+      "check": {
+        "ok": true,
+        "reasons": []
+      },
+      "model": "nvidia/nemotron-3.5-lightning:free",
+      "freeServed": true,
+      "totalMs": 3977,
+      "usage": {
+        "inputTokens": 24550,
+        "outputTokens": 120
+      },
+      "toolsUsed": [
+        "getProduct"
+      ],
+      "degraded": null,
+      "error": null,
+      "workIndex": 15,
+      "wave": 16,
+      "sequence": 16,
+      "costUsd": 0
+    },
+    {
+      "id": "exists-SEEDSKU-1",
+      "operation": "product_existence",
+      "sku": "SEEDSKU-1",
+      "message": "Do we have the product with SKU SEEDSKU-1 in our inventory?",
+      "expected": true,
+      "answer": "Yes, we have the product with SKU SEEDSKU-1 in our inventory.\n\nThe product is **Keychron K8 Pro** (brand Keychron, category Keyboards & Mice). It has three inventory rows across our locations:\n\n| Location | Quantity | Available | Low Stock? |\n|---|---|---|---|\n| Overflow Store | 12 pcs | 12 pcs | Yes |\n| Shop Front | 10 pcs | 10 pcs | Yes |\n| Main Warehouse | 10 pcs | 10 pcs | Yes |\n\nAll three locations are showing available stock at or below the product's minimum of 22 units, so each row is flagged as low stock. The recorded selling price is PHP 6,990 (currency not specified in the product record).",
+      "check": {
+        "ok": true,
+        "reasons": []
+      },
+      "model": "nvidia/nemotron-3.5-lightning:free",
+      "freeServed": true,
+      "totalMs": 4504,
+      "usage": {
+        "inputTokens": 24717,
+        "outputTokens": 205
+      },
+      "toolsUsed": [
+        "getProduct"
+      ],
+      "degraded": null,
+      "error": null,
+      "workIndex": 16,
+      "wave": 17,
+      "sequence": 17,
+      "costUsd": 0
+    },
+    {
+      "id": "exists-SEEDSKU-5000",
+      "operation": "product_existence",
+      "sku": "SEEDSKU-5000",
+      "message": "Do we have the product with SKU SEEDSKU-5000 in our inventory?",
+      "expected": true,
+      "answer": "Yes. The product with SKU SEEDSKU-5000 is an **ASUS ROG Strix GeForce RTX 4070 SUPER OC** (brand: ASUS ROG) in the Computer Components category. It is currently out of stock at all three locations — Main Warehouse, Shop Front, and Overflow Store — with zero available units at each.",
+      "check": {
+        "ok": true,
+        "reasons": []
+      },
+      "model": "nvidia/nemotron-3.5-lightning:free",
+      "freeServed": true,
+      "totalMs": 3535,
+      "usage": {
+        "inputTokens": 24779,
+        "outputTokens": 113
+      },
+      "toolsUsed": [
+        "getProduct"
+      ],
+      "degraded": null,
+      "error": null,
+      "workIndex": 17,
+      "wave": 18,
+      "sequence": 18,
+      "costUsd": 0
+    },
+    {
+      "id": "exists-SEEDSKU-2",
+      "operation": "product_existence",
+      "sku": "SEEDSKU-2",
+      "message": "Do we have the product with SKU SEEDSKU-2 in our inventory?",
+      "expected": true,
+      "answer": "The product with SKU SEEDSKU-2 does exist in our records: it's the ASUS ROG Strix Flare II Animate mechanical gaming keyboard.\n\nAt the Main Warehouse there are **50 units** on hand (available quantity), no reserved stock, and it is neither low stock nor out of stock. Its recorded selling price is **PHP 11,995**, though the currency field is blank.\n\nThat's all the inventory data the system has for that SKU.",
+      "check": {
+        "ok": true,
+        "reasons": []
+      },
+      "model": "nvidia/nemotron-3.5-lightning:free",
+      "freeServed": true,
+      "totalMs": 3739,
+      "usage": {
+        "inputTokens": 24387,
+        "outputTokens": 134
+      },
+      "toolsUsed": [
+        "getProduct"
+      ],
+      "degraded": null,
+      "error": null,
+      "workIndex": 18,
+      "wave": 19,
+      "sequence": 19,
+      "costUsd": 0
+    },
+    {
+      "id": "exists-SEEDSKU-3",
+      "operation": "product_existence",
+      "sku": "SEEDSKU-3",
+      "message": "Do we have the product with SKU SEEDSKU-3 in our inventory?",
+      "expected": true,
+      "answer": "Yes, we have the Razer BlackWidow V4 Pro with SKU SEEDSKU-3. The catalogue shows 2 inventory rows:\n\n- Shop Front: 32 units available (marked low stock)\n- Main Warehouse: 32 units available (marked low stock)",
+      "check": {
+        "ok": true,
+        "reasons": []
+      },
+      "model": "nvidia/nemotron-3.5-lightning:free",
+      "freeServed": true,
+      "totalMs": 3546,
+      "usage": {
+        "inputTokens": 24541,
+        "outputTokens": 91
+      },
+      "toolsUsed": [
+        "getProduct"
+      ],
+      "degraded": null,
+      "error": null,
+      "workIndex": 19,
+      "wave": 20,
+      "sequence": 20,
+      "costUsd": 0
+    },
+    {
+      "id": "exists-absent",
+      "operation": "product_existence",
+      "sku": "SEEDSKU-999999",
+      "message": "Do we have the product with SKU SEEDSKU-999999 in our inventory?",
+      "expected": false,
+      "answer": "No product with SKU SEEDSKU-999999 was found in your catalogue.",
+      "check": {
+        "ok": true,
+        "reasons": []
+      },
+      "model": "nvidia/nemotron-3.5-lightning:free",
+      "freeServed": true,
+      "totalMs": 3171,
+      "usage": {
+        "inputTokens": 23809,
+        "outputTokens": 67
+      },
+      "toolsUsed": [
+        "getProduct"
+      ],
+      "degraded": null,
+      "error": null,
+      "workIndex": 20,
+      "wave": 21,
+      "sequence": 21,
+      "costUsd": 0
+    },
+    {
+      "id": "restock-list-1",
+      "operation": "restock_list",
+      "sku": null,
+      "message": "Which products need to be restocked?",
+      "expected": [
+        "ASUS ROG Strix GeForce RTX 4070 SUPER OC",
+        "Samsung 990 PRO 1TB NVMe SSD",
+        "Corsair Vengeance RGB 32GB DDR5-6000",
+        "ASUS ROG Strix B650E-F Gaming WiFi",
+        "Seasonic Focus GX-850"
+      ],
+      "answer": "5 products need restocking; the 5 most urgent are below:\n\n1. Seasonic Focus GX-850 — OUT OF STOCK (minimum 90)\n2. ASUS ROG Strix B650E-F Gaming WiFi — OUT OF STOCK (minimum 65)\n3. Corsair Vengeance RGB 32GB DDR5-6000 — OUT OF STOCK (minimum 59)\n4. Samsung 990 PRO 1TB NVMe SSD — OUT OF STOCK (minimum 85)\n5. ASUS ROG Strix GeForce RTX 4070 SUPER OC — OUT OF STOCK (minimum 51)",
+      "check": {
+        "ok": true,
+        "reasons": []
+      },
+      "model": "nvidia/nemotron-3.5-lightning:free",
+      "freeServed": true,
+      "totalMs": 4569,
+      "usage": {
+        "inputTokens": 24577,
+        "outputTokens": 179
+      },
+      "toolsUsed": [
+        "getReorderNeededProducts"
+      ],
+      "degraded": null,
+      "error": null,
+      "workIndex": 21,
+      "wave": 22,
+      "sequence": 22,
+      "costUsd": 0
+    },
+    {
+      "id": "restock-list-2",
+      "operation": "restock_list",
+      "sku": null,
+      "message": "Which products are at or below their minimum stock?",
+      "expected": [
+        "ASUS ROG Strix GeForce RTX 4070 SUPER OC",
+        "Samsung 990 PRO 1TB NVMe SSD",
+        "Corsair Vengeance RGB 32GB DDR5-6000",
+        "ASUS ROG Strix B650E-F Gaming WiFi",
+        "Seasonic Focus GX-850"
+      ],
+      "answer": "Your low‑stock list: 5 products need restocking; the 5 most urgent are below.\n\nAll five are currently **out of stock** (available quantity 0):\n\n- Seasonic Focus GX-850 — 0 units, minimum 90, price ₱7,495\n- ASUS ROG Strix B650E-F Gaming WiFi — 0 units, minimum 65, price ₱18,995\n- Corsair Vengeance RGB 32GB DDR5-6000 — 0 units, minimum 59, price ₱7,995\n- Samsung 990 PRO 1TB NVMe SSD — 0 units, minimum 85, price ₱8,995\n- ASUS ROG Strix GeForce RTX 4070 SUPER OC — 0 units, minimum 51, price ₱49,995",
+      "check": {
+        "ok": true,
+        "reasons": []
+      },
+      "model": "nvidia/nemotron-3.5-lightning:free",
+      "freeServed": true,
+      "totalMs": 4896,
+      "usage": {
+        "inputTokens": 24579,
+        "outputTokens": 237
+      },
+      "toolsUsed": [
+        "getReorderNeededProducts"
+      ],
+      "degraded": null,
+      "error": null,
+      "workIndex": 22,
+      "wave": 23,
+      "sequence": 23,
+      "costUsd": 0
+    },
+    {
+      "id": "restock-count-1",
+      "operation": "restock_count",
+      "sku": null,
+      "message": "How many products need restocking?",
+      "expected": 5,
+      "answer": "5 products need restocking.",
+      "check": {
+        "ok": true,
+        "reasons": []
+      },
+      "model": "nvidia/nemotron-3.5-lightning:free",
+      "freeServed": true,
+      "totalMs": 3880,
+      "usage": {
+        "inputTokens": 36577,
+        "outputTokens": 58
+      },
+      "toolsUsed": [
+        "getReorderNeededProducts"
+      ],
+      "degraded": null,
+      "error": null,
+      "workIndex": 23,
+      "wave": 24,
+      "sequence": 24,
+      "costUsd": 0
+    },
+    {
+      "id": "restock-count-2",
+      "operation": "restock_count",
+      "sku": null,
+      "message": "How many items are below their minimum stock?",
+      "expected": 5,
+      "answer": "5 products need restocking.",
+      "check": {
+        "ok": true,
+        "reasons": []
+      },
+      "model": "nvidia/nemotron-3.5-lightning:free",
+      "freeServed": true,
+      "totalMs": 8059,
+      "usage": {
+        "inputTokens": 24569,
+        "outputTokens": 111
+      },
+      "toolsUsed": [
+        "getReorderNeededProducts"
+      ],
+      "degraded": null,
+      "error": null,
+      "workIndex": 24,
+      "wave": 25,
+      "sequence": 25,
+      "costUsd": 0
+    }
+  ],
+  "summary": {
+    "phase": "gate",
+    "requests": 25,
+    "concurrency": 1,
+    "waves": 25,
+    "gapMs": 10000,
+    "answered": 25,
+    "accurate": 25,
+    "accuracyRate": 1,
+    "answeredAccuracy": 1,
+    "errors": 0,
+    "errorRate": 0,
+    "degraded": 0,
+    "freeServed": 25,
+    "paidServed": 0,
+    "freeSuccessRate": 1,
+    "paidFallbackRate": 0,
+    "medianMs": 4569,
+    "p95Ms": 8059,
+    "meanMs": 4842.28,
+    "minMs": 3171,
+    "maxMs": 11312,
+    "totalCostUsd": 0,
+    "costComplete": true,
+    "startedAt": "2026-11-13T18:00:16.721Z",
+    "finishedAt": "2026-11-13T18:06:20.502Z",
+    "durationMs": 363781,
+    "providerPaidUsageDelta": 0,
+    "freeRequestsRemainingBefore": 902,
+    "freeRequestsRemainingAfter": 847
+  },
+  "allowanceBefore": {
+    "status": "OK",
+    "isFreeTier": false,
+    "daily": {
+      "used": 98,
+      "limit": 1000,
+      "remaining": 902
+    },
+    "paidUsage": 1.211761734,
+    "paidUsageDaily": 0.002743135,
+    "paidUsageMonthly": 1.211761734,
+    "creditLimit": null,
+    "creditRemaining": null
+  },
+  "allowanceAfter": {
+    "status": "OK",
+    "isFreeTier": false,
+    "daily": {
+      "used": 153,
+      "limit": 1000,
+      "remaining": 847
+    },
+    "paidUsage": 1.211761734,
+    "paidUsageDaily": 0.002743135,
+    "paidUsageMonthly": 1.211761734,
+    "creditLimit": null,
+    "creditRemaining": null
+  },
+  "aborted": false,
+  "abortReason": null
+}

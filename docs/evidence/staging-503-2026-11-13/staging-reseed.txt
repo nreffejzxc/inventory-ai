@@ -1,0 +1,27 @@
+
+> inventory-ai-server@0.1.0 seed:perf-tenant
+> node scripts/seed-perf-tenant.mjs --database=inventoryai_dev_db --size=44444 --seed=1
+
+[seed:perf-tenant] database : inventoryai_dev_db
+[seed:perf-tenant] tenant   : "PERF SEED — AI assistant stress test (do not use)" / perf-seed-ai@example.invalid
+[seed:perf-tenant] size     : 44444 document(s), PRNG seed 1 (reproducible)
+[seed:perf-tenant] identity : uid TSLVcjlbHO… (already existed, password refreshed)
+[seed:perf-tenant] tenant   : CREATED 6af75498f7d87d784c49db49, user CREATED
+[seed:perf-tenant]   categories               13
+[seed:perf-tenant]   locations                4
+[seed:perf-tenant]   suppliers                178
+[seed:perf-tenant]   products                 10000
+[seed:perf-tenant]   inventory                20006
+[seed:perf-tenant]   inventory_transactions   13354
+[seed:perf-tenant]   purchase_orders          889
+[seed:perf-tenant] ledger   : 13354 movement(s) checked
+[seed:perf-tenant] OK — verification found no problems
+[seed:perf-tenant] businessId : 6af75498f7d87d784c49db49
+[seed:perf-tenant] sign in as : perf-seed-ai@example.invalid (password from DEMO_ACCOUNT_PASSWORD)
+[seed:perf-tenant] elapsed    : 77841 ms
+
+[seed:perf-tenant] measure it (real assistant turns, ground truth checked):
+[seed:perf-tenant]   npm run perf:turns -- --database=inventoryai_dev_db --business=6af75498f7d87d784c49db49 --login --only=1,2
+[seed:perf-tenant] remove it (preview the count, then delete):
+[seed:perf-tenant]   CLEANUP_CONFIRM=cleanup:perf-tenant CLEANUP_DB_CONFIRM=inventoryai_dev_db npm run cleanup:perf-tenant -- --database=inventoryai_dev_db --dry-run
+[seed:perf-tenant]   CLEANUP_CONFIRM=cleanup:perf-tenant CLEANUP_DB_CONFIRM=inventoryai_dev_db npm run cleanup:perf-tenant -- --database=inventoryai_dev_db

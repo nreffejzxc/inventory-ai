@@ -1,0 +1,35 @@
+
+> inventory-ai-server@0.1.0 start
+> node src/index.ts
+
+[config] integrations mail=on(brevo) firebase=on emailVerification=on ai=on(openrouter)
+[db] connected to MongoDB (database: inventoryai_dev_db)
+AI configuration models=openai/gpt-oss-20b->nvidia/nemotron-3.5-lightning:free->nvidia/nemotron-3-ultra-550b-a55b:free reasoning-free=disabled reasoning-free-source=default reasoning-paid=advanced reasoning-paid-source=advanced reasoning-legacy=unset web-search=enabled web-fetch=enabled
+[server] environment=development listening on http://localhost:4001 instance=b44e79f9-a3c4-4e12-9f9a-5d174ea5ce33
+{"ts":"2026-11-13T18:20:34.863Z","level":"info","type":"http","requestId":"92240d2f-8625-48de-9b11-904a2e056e09","method":"GET","path":"/api/health/live","status":200,"durationMs":3.7}
+{"ts":"2026-11-13T18:20:45.732Z","level":"info","type":"http","requestId":"87d8e22a-738f-41b2-9984-e6942ed7e01a","method":"GET","path":"/api/health","status":200,"durationMs":2}
+AI request intent=inventory route=default model=openai/gpt-oss-20b tier=paid reasoning-free=disabled reasoning-free-source=default reasoning-paid=advanced reasoning-paid-source=advanced reasoning-legacy=unset web-search=enabled web-fetch=enabled tools=inventory turn=6ee46ad3
+AI model call provider=openrouter model=openai/gpt-oss-20b tier=paid reasoning=enabled field=omitted source=model turn=6ee46ad3
+AI provider openrouter upstream HTTP 503
+AI provider openrouter upstream HTTP error diagnostics
+status=503
+contentType=application/json
+contentLength=96
+location=none
+bodyLength=96
+classification=JSON_LIKE
+bodyPrefix="{\"error\":{\"message\":\"Upstream provider is temporarily unavailable (staging drill)\",\"code\":503}}\n"
+AI failover attempt=1 model=openai/gpt-oss-20b -> nvidia/nemotron-3.5-lightning:free reason=HTTP 503 remaining=59991ms
+AI model call provider=openrouter model=nvidia/nemotron-3.5-lightning:free tier=free reasoning=disabled field=disabled source=default turn=6ee46ad3
+AI model web tools enabled=search,fetch offered=none used=none intent=inventory model=nvidia/nemotron-3.5-lightning:free turn=6ee46ad3
+AI model call provider=openrouter model=nvidia/nemotron-3.5-lightning:free tier=free reasoning=disabled field=disabled source=default turn=6ee46ad3
+AI model web tools enabled=search,fetch offered=none used=none intent=inventory model=nvidia/nemotron-3.5-lightning:free turn=6ee46ad3
+AI turn outcome=ok status=ok duration=3.73s total=3726ms providerMs=3051ms toolMs=666ms calls=3 attempts=3 empty=0 retries=0 failovers=1 reasks=0 tools=getStockValue toolRuns=1 in=24573 out=100 cost=$0.000000 quota=unknown web=none upstream=Nvidia model=nvidia/nemotron-3.5-lightning:free tier=free route=default simpleEscalations=0 iterations=2 turn=6ee46ad3
+{"ts":"2026-11-13T18:20:52.498Z","level":"info","type":"http","requestId":"aee9a305-b785-48da-a569-80ddd8a73a50","method":"POST","path":"/api/ai/chat","status":201,"userId":"6af75498f7d87d784c49db4a","durationMs":4295.8}
+AI request intent=inventory route=default model=openai/gpt-oss-20b tier=paid reasoning-free=disabled reasoning-free-source=default reasoning-paid=advanced reasoning-paid-source=advanced reasoning-legacy=unset web-search=enabled web-fetch=enabled tools=inventory turn=5233d2b3
+AI model call provider=openrouter model=openai/gpt-oss-20b tier=paid reasoning=enabled field=omitted source=model turn=5233d2b3
+AI model web tools enabled=search,fetch offered=none used=none intent=inventory model=openai/gpt-oss-20b turn=5233d2b3
+AI model call provider=openrouter model=openai/gpt-oss-20b tier=paid reasoning=enabled field=omitted source=model turn=5233d2b3
+AI model web tools enabled=search,fetch offered=none used=none intent=inventory model=openai/gpt-oss-20b turn=5233d2b3
+AI turn outcome=ok status=ok duration=7.36s total=7356ms providerMs=6670ms toolMs=683ms calls=2 attempts=2 empty=0 retries=0 failovers=0 reasks=0 tools=getStockValue toolRuns=1 in=18673 out=156 cost=$0.000349 quota=unknown web=none upstream=AkashML model=openai/gpt-oss-20b tier=paid route=default simpleEscalations=0 iterations=2 turn=5233d2b3
+{"ts":"2026-11-13T18:21:00.304Z","level":"info","type":"http","requestId":"b401670f-0e84-41b0-8b62-b0393e74d955","method":"POST","path":"/api/ai/chat","status":201,"userId":"6af75498f7d87d784c49db4a","durationMs":7796.8}
