@@ -53,6 +53,7 @@ const RATE_LIMITED = "You're sending messages too quickly — wait a moment and 
 const OUTAGE = 'The AI service is temporarily unavailable. Please try again in a moment.';
 const NOT_CONFIGURED =
   'The AI assistant is not enabled on this server yet. Ask an administrator to turn it on.';
+const TIMEOUT = 'The assistant took too long to answer. Please try again.';
 
 /** The payload both transports return for a successful turn. */
 const TURN = {
@@ -323,6 +324,32 @@ describe('AI-40 — the assistant streams its answer', () => {
     expect(chat).not.toHaveBeenCalled();
   });
 
+  it('reuses the restored question after the daily quota resets', async () => {
+    mockChatStreamError(
+      429,
+      'AI_QUOTA_EXCEEDED',
+      'The AI assistant has reached its usage limit. Please try again later.',
+    );
+
+    const view = await mount();
+    await ask(view);
+
+    await waitFor(() => expect(view.getByText(QUOTA)).toBeTruthy());
+    await expectQuestionRestored(view);
+
+    // Midnight UTC has passed; the allowance is available again. Pressing Send must reuse the
+    // restored question, not require it to be retyped.
+    chatStream.mockResolvedValue(TURN);
+    void fireEvent.press(view.getByRole('button', { name: 'Send' }));
+
+    await waitFor(() => expect(view.getByText('You hold 112 units in total.')).toBeTruthy());
+    expect(chatStream).toHaveBeenCalledTimes(2);
+    expect(chatStream.mock.calls[1][1].message).toBe(QUESTION);
+    expect(view.queryByText(QUOTA)).toBeNull();
+    expect(view.getByPlaceholderText(PLACEHOLDER).props.value).toBe('');
+    expect(chat).not.toHaveBeenCalled();
+  });
+
   it('renders the wait-a-moment sentence from a streamed AI_RATE_LIMITED error event', async () => {
     mockChatStreamError(
       429,
@@ -368,6 +395,33 @@ describe('AI-40 — the assistant streams its answer', () => {
     expect(chatStream.mock.calls[1][1].message).toBe(QUESTION);
     expect(view.queryByText(RATE_LIMITED)).toBeNull();
     expect(view.getByPlaceholderText(PLACEHOLDER).props.value).toBe('');
+    expect(chat).not.toHaveBeenCalled();
+  });
+
+  it('restores the question again when the retry fails with a different error', async () => {
+    mockChatStreamHttpError(
+      429,
+      'AI_RATE_LIMITED',
+      'The assistant is receiving too many requests.',
+    );
+
+    const view = await mount();
+    await ask(view);
+
+    await waitFor(() => expect(view.getByText(RATE_LIMITED)).toBeTruthy());
+    await expectQuestionRestored(view);
+
+    // The retry is sent from the restored composer and fails for a new reason. The newest error
+    // must replace the old banner, and the question must come back again.
+    mockChatStreamError(504, 'AI_TIMEOUT', 'The assistant took too long to answer. Please try again.');
+    void fireEvent.press(view.getByRole('button', { name: 'Send' }));
+
+    await waitFor(() => expect(view.getByText(TIMEOUT)).toBeTruthy());
+    expect(view.queryByText(RATE_LIMITED)).toBeNull();
+    await expectQuestionRestored(view);
+    expect(view.queryByText(QUESTION)).toBeNull();
+    expect(chatStream).toHaveBeenCalledTimes(2);
+    expect(chatStream.mock.calls[1][1].message).toBe(QUESTION);
     expect(chat).not.toHaveBeenCalled();
   });
 
@@ -433,8 +487,8 @@ describe('AI-40 — the remaining streamed AI errors keep their own sentences', 
     {
       status: 504,
       code: 'AI_TIMEOUT',
-      serverMessage: 'The assistant took too long to answer. Please try again.',
-      expected: 'The assistant took too long to answer. Please try again.',
+      serverMessage: TIMEOUT,
+      expected: TIMEOUT,
       notExpected: [OUTAGE, QUOTA, RATE_LIMITED],
     },
   ];
