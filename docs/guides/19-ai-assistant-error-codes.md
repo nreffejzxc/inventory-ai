@@ -7,8 +7,8 @@ the member actually sees. Both were read from the AI runtime at commit `705d192`
 
 Source of truth: `server/src/controllers/ai.controller.ts` (`mapAiFailure`, `sseFailure`),
 `server/src/services/ai/aiErrors.ts`, `server/src/services/ai/rateLimiter.ts`,
-`mobile/components/AiChat.tsx` (`sendErrorMessage`, `StoppedRow`), `mobile/lib/client.ts`, and
-`mobile/lib/sse.ts`.
+`server/src/services/ai/singleFlight.ts`, `mobile/components/AiChat.tsx` (`sendErrorMessage`,
+`StoppedRow`), `mobile/lib/client.ts`, and `mobile/lib/sse.ts`.
 
 ## 1. How a failed send appears
 
@@ -45,6 +45,7 @@ otherwise.
 | 503 | `AI_NOT_CONFIGURED` | No usable AI provider, model, or key on the server. | `The AI assistant is not enabled on this server yet. Ask an administrator to turn it on.` | A member cannot fix this. Production currently has a configured provider and model. |
 | 502 | `AI_UNAVAILABLE` | The provider failed upstream, returned nothing usable, or another provider-side failure reached the turn. | `The AI service is temporarily unavailable. Please try again in a moment.` | The app's own sentence replaces the server's. Retrying is reasonable. |
 | 429 | `AI_RATE_LIMITED` | This member sent more than **20 chat requests in 60 s** (process-local, per authenticated user). | `You're sending messages too quickly — wait a moment and try again.` | The server sends `Retry-After`, but the app does not display or enforce it; the sentence says "wait a moment". This is checked before any network classification. |
+| 409 | `AI_TURN_IN_PROGRESS` | This member already has a turn running for the same conversation, or for a new chat with no `conversationId`. | `The assistant is still answering your previous message. Wait for it to finish and try again.` | Emitted by the single-flight guard before the AI service or provider is called; no provider turn and no persisted message. The slot is released on finish, close/abort, failure or a 120 s safety hold. It is not the 60 s window limiter: waiting for the active answer is the remedy. |
 | 429 | `AI_QUOTA_EXCEEDED` | The provider's allowance was reached (`429`/`402`, or a refusal reporting zero remaining). | `The assistant has used today's request allowance. It resets at midnight UTC — the rest of the app works as usual.` | The app's sentence is specific; the server's own sentence stays generic. The reset is stated in UTC only, so the app does not imply the member is in a particular city or guess the device's time zone. Rendered on the Android phone on 2026-11-13 with a local 429 stub: [evidence](../evidence/ai-quota-device-2026-11-13/README.md). |
 | 502 | `AI_OUTPUT_LIMIT` | The model spent its whole output budget before producing a usable answer. | `The assistant ran out of room before it could answer. Please ask a shorter or more specific question.` | If some usable answer text did exist, this is **not** this error: the turn is a 201 with a degraded marker (§3). |
 | 504 | `AI_TIMEOUT` | The whole turn outlasted `AI_TURN_DEADLINE_MS` (60 s by default). | `The assistant took too long to answer. Please try again.` | The client's own 75 s budget can fire first as `NETWORK_TIMEOUT`, which deliberately uses the same sentence. |
@@ -139,6 +140,8 @@ turn-level codes above instead.
    says the allowance is spent and names the UTC reset.
 4. **`AI_OUTPUT_LIMIT` has its own sentence**: ask a shorter or more specific question. A usable but
    truncated answer is a 201 with a warning line instead.
+5. **`AI_TURN_IN_PROGRESS` is not a retry**: one turn is already running for that conversation, so
+   the screen asks the member to wait for it rather than sending into the same slot.
 5. **`AI_ABANDONED` is a server record**, not something a member sees; the member's Stop has its own
    footer note.
 6. **A failed turn stores nothing**, so a retry is a fresh attempt.

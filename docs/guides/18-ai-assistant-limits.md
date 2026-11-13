@@ -11,8 +11,9 @@ and how much one turn may use**, and **what the answer is allowed to claim**.
 
 Source of truth: `server/src/services/ai/aiConfig.ts`, `ai.service.ts`, `tools.ts`,
 `webCapabilities.ts`, `webResearch.ts`, `marketPrices.ts`, `freeWeb.ts`, `quota.ts`,
-`modelBreaker.ts`, `modelHealthGate.ts`, `simplePaidBudget.ts`, `server/src/controllers/ai.controller.ts`,
-`server/src/routes/ai.routes.ts`, `mobile/lib/config.ts`, and `mobile/lib/sse.ts`.
+`singleFlight.ts`, `modelBreaker.ts`, `modelHealthGate.ts`, `simplePaidBudget.ts`,
+`server/src/controllers/ai.controller.ts`, `server/src/routes/ai.routes.ts`, `mobile/lib/config.ts`,
+and `mobile/lib/sse.ts`.
 
 ## 0. Production snapshot (verified 2026-11-13)
 
@@ -77,14 +78,17 @@ it impossible for a prompt to reach another business or change inventory.
 |---|---|---|---|
 | Chat rate limit | `20` requests per `60,000` ms, per user | **env** `AI_RATE_LIMIT_MAX`, `AI_RATE_LIMIT_WINDOW_MS` | In-memory timestamps in a trailing window, keyed by authenticated user id (IP only if no user is present). Every chat attempt that reaches the route counts, including invalid fields and failed turns. Over the limit: `429 AI_RATE_LIMITED` with `Retry-After` set to the full window. |
 | Rate-limit scope | One process | fixed | State is a `Map`; it resets on restart and is not shared by multiple server instances. Pruned on each request, so it does not grow without bound. |
-| Global concurrency | None | — | There is no queue, semaphore, or in-flight cap. A user can run several turns at once up to the rate limit; provider quota and the per-turn deadline are the remaining brakes. |
+| Conversation single-flight | `1` active turn per user + conversation | fixed | In-memory slot keyed by the authenticated user id and the requested `conversationId`; a request without one shares the `new` key. A second turn for the same key is refused **before** the AI service or provider runs: `409 AI_TURN_IN_PROGRESS` with no provider call and nothing persisted. The slot is released on response finish, close/abort, failure, or a 120 s safety hold. This is per conversation, not a global cap: different conversations and different members run independently. |
+| Single-flight scope | One process | fixed | Same `Map`-based limitation as the limiter: a restart clears it and multiple server instances do not share it. It is not a distributed lock or an idempotency key. |
+| Global concurrency | None | — | There is no queue or process-wide in-flight cap. One member may run several **different** conversations at once up to the rate limit; provider quota, the per-conversation slot and the per-turn deadline are the remaining brakes. |
 | Other AI routes | No AI limiter | fixed | Conversation list/create/history and metrics are authenticated but do not consume the chat limiter. |
 | Subscription quota | None enforced | fixed | The plan catalog's AI numbers are illustrative only; the AI path does not call a plan resolver. Foundation is effectively unlimited, and there is no monthly AI quota for any tier. |
 
 **Purpose:** stop one account from burning the provider allowance or the server's time in a burst.
 The limiter is intentionally per-user, so one busy member cannot throttle another member. The
 full-window `Retry-After` is conservative; the actual wait may be shorter because the window
-slides.
+slides. The separate single-flight slot stops a duplicate turn for the same conversation without
+pretending to be a global concurrency limit.
 
 ## 3. Time limits and transport behaviour
 
@@ -357,8 +361,8 @@ are the cost ceiling; there is no additional per-turn dollar cap.
 
 These are real gaps in enforcement, not permissions:
 
-- No global or per-user concurrency cap. Rate limiting is requests per window, not simultaneous
-  turns.
+- No **global** concurrency cap. One turn per user + conversation is single-flight, but different
+  conversations can run at the same time up to the request limiter.
 - No monthly AI quota for any subscription plan. The plan catalog values are not consulted by the
   AI route.
 - No general USD spending cap for the primary, research model, or ordinary paid fallbacks.
@@ -370,7 +374,8 @@ These are real gaps in enforcement, not permissions:
 
 ## 12. The short version
 
-1. **20 chat requests per user per 60 s**, in memory; no concurrency cap, no plan quota.
+1. **20 chat requests per user per 60 s**, in memory; **one active turn per conversation**, no
+   global concurrency cap, no plan quota.
 2. **60 s per turn**, **60 s per provider call**, **75 s client budget**, **20 s stream silence**.
 3. **20 messages context**, **4,000-character input**, **1,200 output tokens**, **12,000-character
    tool result**.
