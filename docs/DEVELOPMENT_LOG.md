@@ -228,21 +228,28 @@ boundary with a shortened test window: `429 AI_QUOTA_EXCEEDED` with the exact se
 fail-fast 429 with no extra provider call, then `201` after the window with one persisted
 conversation. A second HTTP case proves a retry with the original `conversationId` returns that
 same id, adds exactly one question and answer, keeps the total at one conversation, and sends the
-earlier answer as provider history. `AI40-ai-streaming.test.mjs` passes **25/25** and pins the
+earlier answer as provider history. `AI40-ai-streaming.test.mjs` passes **26/26** and pins the
 quota refusal on the streamed transport as an error event carrying `status: 429`, code
 `AI_QUOTA_EXCEEDED`, the exact sentence, and no persisted conversation; a second streamed case
 retries the same `conversationId` after the window and verifies one continued conversation, four
 messages, and the earlier answer in provider history. A third streamed case refuses twice in that
 same conversation, recovers after each window, and verifies six messages, one conversation, and
-the first recovered answer in the second recovery's provider history. On the mobile side,
+the first recovered answer in the second recovery's provider history. A fourth streamed case starts
+a new conversation without a `conversationId`, refuses its first turn before anything is persisted,
+and after the window verifies one conversation, exactly two messages, and a provider context that
+contains only the new question and no assistant history. On the mobile side,
 `ai40-chat-stream-transport.test.ts` reads the shared `test-fixtures/ai-quota-sse-event.txt` fixture
 that the server suite asserts byte for byte, so a format change cannot leave one side green
 against a stale event; it asserts the transport raises `ApiError` with status 429, code
 `AI_QUOTA_EXCEEDED`, and the same message, not `AI_RATE_LIMITED`. A controlled OPPO walkthrough
 against the same local stub showed the quota banner, kept the unsent question in the composer,
-and succeeded on the next Send after the window while retaining both earlier turns; no production
-provider call or shared quota was used. See
-[`evidence/ai-quota-retry-2026-11-13`](evidence/ai-quota-retry-2026-11-13/README.md). The full
+and succeeded on the next Send after the window while retaining both earlier turns; a second OPPO
+walkthrough refused the same open conversation twice and recovered each time, leaving all six
+messages in one thread. Both runs used a temporary guest profile and no production provider call
+or shared quota. See
+[`evidence/ai-quota-retry-2026-11-13`](evidence/ai-quota-retry-2026-11-13/README.md) and
+[`evidence/ai-quota-second-refusal-2026-11-13`](evidence/ai-quota-second-refusal-2026-11-13/README.md).
+The full
 mobile suite passed **102 suites / 1,223 tests**,
 with typecheck and lint clean.
 

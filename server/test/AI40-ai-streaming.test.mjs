@@ -854,6 +854,63 @@ dbSuite('AI-40 the streamed turn reaches the phone as it is written', dbOk, () =
     }
   });
 
+  it('recovers a brand-new conversation after a quota refusal without prior history', async () => {
+    const owner = await registerOwner(api, tracker);
+    const previousBlock = process.env.AI_QUOTA_BLOCK_MS;
+    process.env.AI_QUOTA_BLOCK_MS = '2000';
+    let calls = 0;
+    let retryContext = null;
+    setFakeScenario((ctx) => {
+      calls += 1;
+      if (calls === 1) throw new AiQuotaExceeded(undefined, { remaining: 0, limit: 50 });
+      retryContext = { messages: ctx.messages.map((message) => ({ ...message })) };
+      ctx.onTextDelta?.('Hello from the first successful turn.');
+      return fakeText('Hello from the first successful turn.', { quota: { remaining: 50, limit: 50 } });
+    });
+
+    try {
+      const refused = await postStream(owner.token, { message: 'say hello in one sentence' });
+      assert.equal(refused.status, 200);
+      assert.equal(await refused.text(), QUOTA_SSE_EVENT, 'the refusal uses the shared contract fixture');
+
+      const before = await api('GET', '/api/ai/conversations', { token: owner.token });
+      assert.equal(before.json.total, 0, 'a brand-new conversation is not persisted on refusal');
+
+      await new Promise((resolve) => setTimeout(resolve, 2200));
+      const retried = await postStream(owner.token, { message: 'say hello in one sentence' });
+      assert.equal(retried.status, 200);
+      const events = parseEvents(await retried.text());
+      const done = events.find((event) => event.event === 'done');
+      assert.ok(done, 'the retry streams a complete answer');
+      assert.ok(done.data.conversation.id, 'the first success creates the conversation');
+      assert.equal(done.data.assistantMessage.content, 'Hello from the first successful turn.');
+      assert.equal(calls, 2, 'the allowance is asked again after the window');
+      assert.equal(retryContext.messages.length, 1, 'a brand-new conversation sends only the new question');
+      assert.equal(retryContext.messages[0].role, 'user');
+      assert.equal(retryContext.messages[0].content, 'say hello in one sentence');
+      assert.ok(
+        !retryContext.messages.some((message) => message.role === 'assistant'),
+        'the retry must not invent prior conversation history',
+      );
+
+      const messages = await api('GET', `/api/ai/conversations/${done.data.conversation.id}/messages`, {
+        token: owner.token,
+      });
+      assert.equal(messages.json.total, 2, 'the recovered conversation holds one question and one answer');
+      assert.deepEqual(
+        messages.json.items.map((message) => message.content),
+        ['say hello in one sentence', 'Hello from the first successful turn.'],
+      );
+
+      const list = await api('GET', '/api/ai/conversations', { token: owner.token });
+      assert.equal(list.json.total, 1, 'the recovery creates exactly one conversation');
+    } finally {
+      if (previousBlock === undefined) delete process.env.AI_QUOTA_BLOCK_MS;
+      else process.env.AI_QUOTA_BLOCK_MS = previousBlock;
+      resetQuotaState();
+    }
+  });
+
   it('rejects a bad request before any stream header, so the client sees the normal JSON error', async () => {
     const owner = await registerOwner(api, tracker);
     const res = await postStream(owner.token, { message: '' });
