@@ -141,6 +141,46 @@ Known limits, checked before spending one of them:
 
 ---
 
+## 2026-11-13 — One active AI turn per conversation
+
+**Status.** Complete. A second chat turn for the same member and conversation is now refused
+before the AI service or provider runs. This closes the concurrency gap Guide 18 §11 carried; it
+does not add a global concurrency cap or a full idempotency key.
+
+**Defect.** The chat limiter counts requests in a 60 s window, not simultaneous turns. Two
+devices, a retried request or a hand-built client could run two turns for one conversation, spend
+two provider turns and append two answers to one thread. The phone hides Send while it is sending,
+but that is a UI property, not a server guarantee.
+
+**Change.** `server/src/services/ai/singleFlight.ts` holds one in-memory slot keyed by the
+authenticated user id and the requested `conversationId`; a request without one shares the `new`
+key. It runs after the existing rate limiter and before the controller. A duplicate gets
+`409 AI_TURN_IN_PROGRESS` with the exact sentence `The assistant is still answering your previous
+message. Wait for it to finish and try again.`; no provider turn runs and nothing is persisted.
+The slot is released on response finish, close/abort, failure, or a 120 s safety hold. A stale
+slot is replaced on the next attempt, and its old release cannot delete the newer slot.
+
+**Scope.** The guard is process-local, like the limiter, breaker, health gate and paid budget. A
+restart clears it and multiple server instances do not share it. Different conversations and
+different members remain independent; the global concurrency cap is still none. This is not the
+`Idempotency-Key` mechanism used by inventory and purchase-order writes, and it does not make a
+turn replay-safe.
+
+**Client.** `sendErrorMessage` maps the code to the same sentence, and the AI-40 stream fallback
+returns false for 409, so the refusal cannot start a second JSON turn. Guide 19 lists the code;
+Guide 18 documents the slot, its release paths and its process-local boundary.
+
+**Verification.** `AI107-ai-single-flight` passes its 3 middleware cases and 3 real-route cases:
+same conversation refused before the provider, another conversation still answers, success and
+failure release, and a client abort releases the conversation. Adjacent `AI40` and `AI6` DB suites
+passed **16/16** with no failures. The full mobile suite passed **103 suites / 1,231 tests**. Server
+and mobile typecheck/lint passed, as did `node scripts/check-docs.mjs` and `git diff --check`.
+
+**Delivery.** PR [#269](https://github.com/nreffejzxc/inventory-ai/pull/269). The squash merge is
+the delivery commit; the three required code checks and the attribution guard are the gate.
+
+---
+
 ## 2026-11-13 — Documentation truth pass before AI reliability work
 
 **Status.** Complete. The top of the log and the two AI reference guides now point at the current
