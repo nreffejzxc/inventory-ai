@@ -228,10 +228,15 @@ boundary with a shortened test window: `429 AI_QUOTA_EXCEEDED` with the exact se
 fail-fast 429 with no extra provider call, then `201` after the window with one persisted
 conversation. A second HTTP case proves a retry with the original `conversationId` returns that
 same id, adds exactly one question and answer, keeps the total at one conversation, and sends the
-earlier answer as provider history. `AI40-ai-streaming.test.mjs` passes **23/23** and pins the
+earlier answer as provider history. `AI40-ai-streaming.test.mjs` passes **24/24** and pins the
 quota refusal on the streamed transport as an error event carrying `status: 429`, code
-`AI_QUOTA_EXCEEDED`, the exact sentence, and no persisted conversation. The full mobile suite
-passed **102 suites / 1,222 tests**, with typecheck and lint clean.
+`AI_QUOTA_EXCEEDED`, the exact sentence, and no persisted conversation; a second streamed case
+retries the same `conversationId` after the window and verifies one continued conversation, four
+messages, and the earlier answer in provider history. On the mobile side,
+`ai40-chat-stream-transport.test.ts` consumes that server event verbatim and asserts the transport
+raises `ApiError` with status 429, code `AI_QUOTA_EXCEEDED`, and the same message, not
+`AI_RATE_LIMITED`. The full mobile suite passed **102 suites / 1,223 tests**, with typecheck and
+lint clean.
 
 ---
 

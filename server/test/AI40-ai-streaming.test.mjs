@@ -658,6 +658,94 @@ dbSuite('AI-40 the streamed turn reaches the phone as it is written', dbOk, () =
     assert.equal(list.json.total, 0, 'a refused streamed turn leaves no conversation behind');
   });
 
+  it('continues the same streamed conversation after a quota refusal and recovery', async () => {
+    const owner = await registerOwner(api, tracker);
+    setFakeScenario(() => fakeText('Hello from the first turn.'));
+    const first = await postStream(owner.token, { message: 'say hello in one sentence' });
+    assert.equal(first.status, 200);
+    const firstDone = parseEvents(await first.text()).find((event) => event.event === 'done');
+    assert.ok(firstDone);
+    const conversationId = firstDone.data.conversation.id;
+
+    const previousBlock = process.env.AI_QUOTA_BLOCK_MS;
+    process.env.AI_QUOTA_BLOCK_MS = '2000';
+    let calls = 0;
+    let retryContext = null;
+    setFakeScenario((ctx) => {
+      calls += 1;
+      if (calls === 1) throw new AiQuotaExceeded(undefined, { remaining: 0, limit: 50 });
+      retryContext = { messages: ctx.messages.map((message) => ({ ...message })) };
+      ctx.onTextDelta?.('Hello from the retry.');
+      return fakeText('Hello from the retry.', { quota: { remaining: 50, limit: 50 } });
+    });
+
+    try {
+      const refused = await postStream(owner.token, {
+        conversationId,
+        message: 'say hello again in one sentence',
+      });
+      assert.equal(refused.status, 200, 'the stream headers were already sent');
+      const refusedEvents = parseEvents(await refused.text());
+      const errors = refusedEvents.filter((event) => event.event === 'error');
+      assert.equal(errors.length, 1);
+      assert.equal(errors[0].data.status, 429);
+      assert.equal(errors[0].data.code, 'AI_QUOTA_EXCEEDED');
+      assert.ok(!refusedEvents.some((event) => event.event === 'done'));
+
+      const before = await api('GET', `/api/ai/conversations/${conversationId}/messages`, {
+        token: owner.token,
+      });
+      assert.equal(before.json.total, 2, 'the refused turn persists no message');
+
+      await new Promise((resolve) => setTimeout(resolve, 2200));
+      const retried = await postStream(owner.token, {
+        conversationId,
+        message: 'say hello again in one sentence',
+      });
+      assert.equal(retried.status, 200);
+      const retriedEvents = parseEvents(await retried.text());
+      const done = retriedEvents.find((event) => event.event === 'done');
+      assert.ok(done, 'the retry streams a complete answer');
+      assert.equal(done.data.conversation.id, conversationId, 'the retry continues the same conversation');
+      assert.equal(done.data.assistantMessage.content, 'Hello from the retry.');
+      assert.equal(calls, 2, 'the allowance is asked again after the window');
+      assert.equal(
+        retriedEvents
+          .filter((event) => event.event === 'delta')
+          .map((event) => event.data.text)
+          .join(''),
+        'Hello from the retry.',
+      );
+
+      const after = await api('GET', `/api/ai/conversations/${conversationId}/messages`, {
+        token: owner.token,
+      });
+      assert.equal(after.json.total, 4, 'the retry adds exactly one question and one answer');
+      assert.deepEqual(
+        after.json.items.map((message) => message.content),
+        [
+          'say hello in one sentence',
+          'Hello from the first turn.',
+          'say hello again in one sentence',
+          'Hello from the retry.',
+        ],
+      );
+      assert.ok(
+        retryContext.messages.some(
+          (message) => message.role === 'assistant' && message.content === 'Hello from the first turn.',
+        ),
+        'the retry provider request carries the earlier answer as history',
+      );
+
+      const list = await api('GET', '/api/ai/conversations', { token: owner.token });
+      assert.equal(list.json.total, 1, 'the retry must not create a second conversation');
+    } finally {
+      if (previousBlock === undefined) delete process.env.AI_QUOTA_BLOCK_MS;
+      else process.env.AI_QUOTA_BLOCK_MS = previousBlock;
+      resetQuotaState();
+    }
+  });
+
   it('rejects a bad request before any stream header, so the client sees the normal JSON error', async () => {
     const owner = await registerOwner(api, tracker);
     const res = await postStream(owner.token, { message: '' });

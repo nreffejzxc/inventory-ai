@@ -11,7 +11,7 @@
  */
 
 import { aiApi } from '../lib/api';
-import { REQUEST_CANCELLED } from '../lib/client';
+import { ApiError, REQUEST_CANCELLED } from '../lib/client';
 
 // The transport is injected rather than mocked at the module boundary: `expo/fetch` is loaded
 // through a dynamic import, which a Jest module mock does not intercept, and the failure this
@@ -163,6 +163,27 @@ describe('AI-40 — chatStream settles even when the body does not', () => {
 
     expect(deltas.join('')).toBe('You hold 112 units.');
     expect(result?.assistantMessage?.content).toBe('You hold 112 units.');
+  });
+
+  it('maps the server\'s exact SSE quota payload to AI_QUOTA_EXCEEDED', async () => {
+    // Copied verbatim from the server's `sseFailure` event (AI-40). Feeding a reconstructed
+    // envelope would let the client and server drift without either suite noticing.
+    const serverQuotaEvent =
+      'event: error\n' +
+      'data: {"status":429,"code":"AI_QUOTA_EXCEEDED","message":"The AI assistant has reached its usage limit. Please try again later."}\n\n';
+    mockStreamingFetch.mockResolvedValue(okResponse(bodyOf([serverQuotaEvent]).body));
+
+    const error = await aiApi
+      .chatStream('token-1', { message: 'How much stock do we hold?' }, streamOptions())
+      .catch((err) => err);
+
+    expect(error).toBeInstanceOf(ApiError);
+    expect(error).toMatchObject({
+      status: 429,
+      code: 'AI_QUOTA_EXCEEDED',
+      message: 'The AI assistant has reached its usage limit. Please try again later.',
+    });
+    expect(error.code).not.toBe('AI_RATE_LIMITED');
   });
 
   it('reports a reset and keeps delivering the replacement (AI-74)', async () => {
