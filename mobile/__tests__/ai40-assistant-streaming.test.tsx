@@ -381,6 +381,35 @@ describe('AI-40 — the assistant streams its answer', () => {
     expect(chat).not.toHaveBeenCalled();
   });
 
+  it('uses the conversation created by the retry on the next message', async () => {
+    mockChatStreamError(
+      429,
+      'AI_QUOTA_EXCEEDED',
+      'The AI assistant has reached its usage limit. Please try again later.',
+    );
+
+    const view = await mount();
+    await ask(view);
+
+    await waitFor(() => expect(view.getByText(QUOTA)).toBeTruthy());
+    await expectQuestionRestored(view);
+
+    chatStream.mockResolvedValue(TURN);
+    void fireEvent.press(view.getByRole('button', { name: 'Send' }));
+    await waitFor(() => expect(view.getByText('You hold 112 units in total.')).toBeTruthy());
+
+    const followUp = 'Which products are low?';
+    await fireEvent.changeText(view.getByPlaceholderText(PLACEHOLDER), followUp);
+    void fireEvent.press(view.getByRole('button', { name: 'Send' }));
+
+    await waitFor(() => expect(chatStream).toHaveBeenCalledTimes(3));
+    expect(chatStream.mock.calls[2][1]).toEqual({
+      conversationId: 'conv-1',
+      message: followUp,
+    });
+    expect(chat).not.toHaveBeenCalled();
+  });
+
   it('renders the wait-a-moment sentence from a streamed AI_RATE_LIMITED error event', async () => {
     mockChatStreamError(
       429,

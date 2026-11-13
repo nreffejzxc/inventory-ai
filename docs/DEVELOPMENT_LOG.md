@@ -256,8 +256,9 @@ All three cases are indexed in
 [`evidence/ai-quota-recovery-index.md`](evidence/ai-quota-recovery-index.md), and the reusable local
 stub is documented in
 [`DEVELOPING_ON_A_PHYSICAL_DEVICE.md`](DEVELOPING_ON_A_PHYSICAL_DEVICE.md#11-local-quota-refusal-stub).
-The full
-mobile suite passed **102 suites / 1,224 tests**,
+CI now runs the stub self-test in the required `server` job; the mobile suite also verifies that the
+next message uses the conversation created by the retry, and the evidence index carries a checklist
+for the next device run. The full mobile suite passed **102 suites / 1,225 tests**,
 with typecheck and lint clean.
 
 ---

@@ -95,6 +95,11 @@ jobs:
         working-directory: .
         run: node scripts/check-docs.mjs
 
+      # Dependency-free and run before npm install: the stub uses only Node built-ins.
+      - name: Self-test the local quota stub
+        working-directory: .
+        run: node scripts/device/quota-stub.mjs --self-test
+
       - name: Install dependencies
         run: npm ci
 
