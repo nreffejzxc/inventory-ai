@@ -10,14 +10,7 @@ import { PERMISSIONS } from '../constants/roles.ts';
 const router = Router();
 
 // Chat is the only cost-bearing route, so it is rate-limited per user.
-router.post(
-  '/chat',
-  requireAuth,
-  requirePermission(PERMISSIONS.AI_USE),
-  aiRateLimiter,
-  aiSingleFlight,
-  aiController.sendMessage,
-);
+router.post('/chat', requireAuth, requirePermission(PERMISSIONS.AI_USE), aiRateLimiter, aiSingleFlight, aiController.sendMessage);
 
 // AI-102 — aggregate turn metrics. Internal operational data, so it binds the
 // ai.metrics.view capability, held only by OWNER and ADMIN; the controller scopes every
