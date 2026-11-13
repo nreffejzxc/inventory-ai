@@ -114,7 +114,7 @@ export function sendErrorMessage(err: unknown): string {
   // it cannot know the provider's day boundary — so the specifics belong here, where the
   // client already owns a code-mapped sentence for every other failure.
   if (e.code === 'AI_QUOTA_EXCEEDED') {
-    return "The assistant has used today's request allowance. It resets at midnight UTC (8AM in Manila) — the rest of the app works as usual.";
+    return "The assistant has used today's request allowance. It resets at midnight UTC — the rest of the app works as usual.";
   }
   // AI-10 — the model spent its whole output budget before it could answer. Like the
   // quota above, this is checked before the network test and it OWNS its sentence

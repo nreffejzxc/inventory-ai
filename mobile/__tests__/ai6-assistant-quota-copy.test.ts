@@ -35,8 +35,11 @@ import { sendErrorMessage } from '../components/AiChat';
 // Changed 2026-10-19: the sentence names WHEN, because the provider's own counter was read at
 // its ceiling (50 of 50 free requests) and a real turn was refused — "try again later" gives a
 // member nothing to act on, while the allowance resets at a known moment.
+// Changed 2026-11-13: the reset is stated in UTC only. The old "8AM in Manila" parenthetical
+// was a city-specific local time in a sentence every member sees, whether or not they are in
+// that city. UTC is unambiguous without pretending to know the device's time zone.
 const QUOTA =
-  "The assistant has used today's request allowance. It resets at midnight UTC (8AM in Manila) — the rest of the app works as usual.";
+  "The assistant has used today's request allowance. It resets at midnight UTC — the rest of the app works as usual.";
 const UNREACHABLE = 'Cannot reach the server. Check your connection and try again.';
 const TOO_LONG = 'The assistant took too long to answer. Please try again.';
 

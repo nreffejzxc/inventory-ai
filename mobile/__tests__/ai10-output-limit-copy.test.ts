@@ -36,7 +36,7 @@ import { sendErrorMessage } from '../components/AiChat';
 const OUT_OF_ROOM =
   'The assistant ran out of room before it could answer. Please ask a shorter or more specific question.';
 const QUOTA =
-  "The assistant has used today's request allowance. It resets at midnight UTC (8AM in Manila) — the rest of the app works as usual.";
+  "The assistant has used today's request allowance. It resets at midnight UTC — the rest of the app works as usual.";
 const UNREACHABLE = 'Cannot reach the server. Check your connection and try again.';
 const TOO_LONG = 'The assistant took too long to answer. Please try again.';
 
