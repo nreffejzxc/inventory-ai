@@ -425,6 +425,57 @@ describe('AI-40 — the assistant streams its answer', () => {
     expect(chat).not.toHaveBeenCalled();
   });
 
+  it('keeps the question through a third consecutive failure and shows the newest error', async () => {
+    const failures = [
+      {
+        arm: () =>
+          mockChatStreamHttpError(
+            429,
+            'AI_RATE_LIMITED',
+            'The assistant is receiving too many requests.',
+          ),
+        expected: RATE_LIMITED,
+      },
+      {
+        arm: () =>
+          mockChatStreamError(
+            504,
+            'AI_TIMEOUT',
+            'The assistant took too long to answer. Please try again.',
+          ),
+        expected: TIMEOUT,
+      },
+      {
+        arm: () => mockChatStreamError(502, 'AI_UNAVAILABLE', OUTAGE),
+        expected: OUTAGE,
+      },
+    ];
+
+    const view = await mount();
+    const seen: string[] = [];
+
+    for (const [attempt, failure] of failures.entries()) {
+      failure.arm();
+      if (attempt === 0) await ask(view);
+      else void fireEvent.press(view.getByRole('button', { name: 'Send' }));
+
+      await waitFor(() => expect(view.getByText(failure.expected)).toBeTruthy());
+      for (const stale of seen) expect(view.queryByText(stale)).toBeNull();
+      await expectQuestionRestored(view);
+      expect(view.queryByText(QUESTION)).toBeNull();
+      seen.push(failure.expected);
+    }
+
+    expect(chatStream).toHaveBeenCalledTimes(3);
+    for (const call of chatStream.mock.calls) {
+      expect(call[1].message).toBe(QUESTION);
+    }
+    expect(view.getByRole('button', { name: 'Send' }).props.accessibilityState?.disabled).toBe(
+      false,
+    );
+    expect(chat).not.toHaveBeenCalled();
+  });
+
   it('signs out on an ended session instead of retrying it', async () => {
     chatStream.mockRejectedValue(new ApiError(401, 'SESSION_INVALIDATED', 'Session ended.'));
 

@@ -335,4 +335,29 @@ unitSuite('AI-36 quota-aware turns', () => {
     assert.equal(calls.length, 1);
     assert.equal(result.content, 'served');
   });
+
+  it('serves a turn after the daily quota window, once the allowance is back', async (t) => {
+    // The provider owns the daily counter; this server keeps only the short fail-fast block.
+    // Crossing the UTC day both expires that block and represents the provider's reset.
+    t.mock.timers.enable({ apis: ['Date'], now: Date.UTC(2026, 0, 1, 23, 59, 30) });
+
+    const refused = await turn(() => {
+      throw new AiQuotaExceeded(undefined, { remaining: 0, limit: 50 });
+    });
+    assert.ok(refused.error instanceof AiQuotaExceeded);
+
+    const blocked = await turn(() => fakeText('must not be reached'));
+    assert.equal(blocked.calls.length, 0, 'the spent allowance is not asked again inside the window');
+    assert.ok(blocked.error instanceof AiQuotaExceeded);
+
+    t.mock.timers.tick(24 * 60 * 60 * 1000);
+    const afterReset = await turn(() =>
+      fakeText('served after the daily reset', { quota: { remaining: 50, limit: 50 } }),
+    );
+    assert.equal(afterReset.error, null);
+    assert.equal(afterReset.calls.length, 1, 'the allowance is asked again after it resets');
+    assert.equal(afterReset.result.content, 'served after the daily reset');
+    assert.deepEqual(quotaSnapshot(), { remaining: 50, limit: 50 });
+    assert.equal(quotaBlockRemainingMs(), 0);
+  });
 });

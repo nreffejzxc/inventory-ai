@@ -216,9 +216,14 @@ It also drives the ordinary JSON HTTP refusal for `AI_RATE_LIMITED` and `AI_NOT_
 three retry sequences: a rate-limit refusal and a quota refusal each restore the question and
 succeed on the next Send without retyping (the quota case after the allowance resets), while a
 second refusal (timeout after rate limit) restores it again and replaces the old banner with the
-newest sentence. Each case asserts its own exact sentence, no JSON fallback, and composer
-recovery; the quota and rate-limit cases also assert the other's sentence is absent. The full
-mobile suite passed **102 suites / 1,221 tests**, with typecheck and lint clean.
+newest sentence. A third mobile case drives `AI_RATE_LIMITED` → `AI_TIMEOUT` → `AI_UNAVAILABLE`
+across three consecutive failures, asserting after each that the question is back in the composer,
+the previous banner is gone, and the Send button is available again. On the server,
+`AI36-quota-header-awareness.test.mjs` passes **14/14** and now drives `runAiChat` through a
+refusal and a fail-fast turn, advances one UTC day, and verifies the next turn reaches the fake
+provider, succeeds, and records `50/50`; the provider owns the daily counter, so this verifies the
+server's recovery boundary rather than a local daily counter. The full mobile suite passed **102
+suites / 1,222 tests**, with typecheck and lint clean.
 
 ---
 
