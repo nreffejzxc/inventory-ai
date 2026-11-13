@@ -241,7 +241,10 @@ contains only the new question and no assistant history. On the mobile side,
 `ai40-chat-stream-transport.test.ts` reads the shared `test-fixtures/ai-quota-sse-event.txt` fixture
 that the server suite asserts byte for byte, so a format change cannot leave one side green
 against a stale event; it asserts the transport raises `ApiError` with status 429, code
-`AI_QUOTA_EXCEEDED`, and the same message, not `AI_RATE_LIMITED`. A controlled OPPO walkthrough
+`AI_QUOTA_EXCEEDED`, and the same message, not `AI_RATE_LIMITED`. `ai40-assistant-streaming.test.tsx`
+also refuses the first question of a brand-new chat, verifies the retry still sends
+`conversationId: null` and loads no thread, then clears the banner and composer after success. A
+controlled OPPO walkthrough
 against the same local stub showed the quota banner, kept the unsent question in the composer,
 and succeeded on the next Send after the window while retaining both earlier turns; a second OPPO
 walkthrough refused the same open conversation twice and recovered each time, leaving all six
@@ -249,8 +252,12 @@ messages in one thread. Both runs used a temporary guest profile and no producti
 or shared quota. See
 [`evidence/ai-quota-retry-2026-11-13`](evidence/ai-quota-retry-2026-11-13/README.md) and
 [`evidence/ai-quota-second-refusal-2026-11-13`](evidence/ai-quota-second-refusal-2026-11-13/README.md).
+All three cases are indexed in
+[`evidence/ai-quota-recovery-index.md`](evidence/ai-quota-recovery-index.md), and the reusable local
+stub is documented in
+[`DEVELOPING_ON_A_PHYSICAL_DEVICE.md`](DEVELOPING_ON_A_PHYSICAL_DEVICE.md#11-local-quota-refusal-stub).
 The full
-mobile suite passed **102 suites / 1,223 tests**,
+mobile suite passed **102 suites / 1,224 tests**,
 with typecheck and lint clean.
 
 ---
