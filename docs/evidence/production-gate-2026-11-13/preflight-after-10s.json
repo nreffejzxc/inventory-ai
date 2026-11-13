@@ -1,0 +1,45 @@
+{
+  "database": "inventoryai_prod_db",
+  "tenant": {
+    "id": "6af18628a9a409131a84235b",
+    "name": "PERF SEED — AI assistant stress test (do not use)"
+  },
+  "owner": {
+    "id": "6af18629a9a409131a84235c",
+    "firebaseLinked": true
+  },
+  "dataset": {
+    "products": 10000,
+    "inventoryRows": 20006,
+    "totalQuantity": 2446801,
+    "reserved": 0
+  },
+  "staleBackup": false,
+  "deployed": {
+    "status": 200,
+    "body": {
+      "status": "ok",
+      "db": "connected",
+      "environment": "production",
+      "commit": "65d9ef1ff1ee7740a1e1c09ac48934cfaea6a8fc",
+      "uptimeSeconds": 2144,
+      "counters": {
+        "uptimeSeconds": 2139,
+        "responses": 543,
+        "byStatusClass": {
+          "2xx": 542,
+          "3xx": 1,
+          "4xx": 0,
+          "5xx": 0,
+          "other": 0
+        },
+        "serverErrors": 0,
+        "lastServerErrorAt": null
+      },
+      "timestamp": "2026-11-13T17:27:40.011Z"
+    }
+  },
+  "freeRemaining": 902,
+  "allowanceStatus": "OK",
+  "baseUrl": "https://ai-inventory-l1mi.onrender.com"
+}
