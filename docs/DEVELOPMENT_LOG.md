@@ -213,10 +213,12 @@ SSE `event: error` frames through the real `chatStream` transport for the six me
 codes (`AI_QUOTA_EXCEEDED`, `AI_RATE_LIMITED`, `AI_NOT_CONFIGURED`, `AI_UNAVAILABLE`,
 `AI_OUTPUT_LIMIT` and `AI_TIMEOUT`); `AI_ABANDONED` is a server-side record and has no banner.
 It also drives the ordinary JSON HTTP refusal for `AI_RATE_LIMITED` and `AI_NOT_CONFIGURED`, and
-a retry test proves a rate-limit refusal restores the question and a second Send succeeds without
-retyping. Each case asserts its own exact sentence, no JSON fallback, and composer recovery; the
-quota and rate-limit cases also assert the other's sentence is absent. The full mobile suite
-passed **102 suites / 1,219 tests**, with typecheck and lint clean.
+three retry sequences: a rate-limit refusal and a quota refusal each restore the question and
+succeed on the next Send without retyping (the quota case after the allowance resets), while a
+second refusal (timeout after rate limit) restores it again and replaces the old banner with the
+newest sentence. Each case asserts its own exact sentence, no JSON fallback, and composer
+recovery; the quota and rate-limit cases also assert the other's sentence is absent. The full
+mobile suite passed **102 suites / 1,221 tests**, with typecheck and lint clean.
 
 ---
 
