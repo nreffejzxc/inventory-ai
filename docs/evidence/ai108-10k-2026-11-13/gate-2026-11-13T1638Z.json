@@ -1,0 +1,1193 @@
+{
+  "generatedAt": "2026-11-13T16:41:45.210Z",
+  "phase": "gate",
+  "config": {
+    "size": 10256,
+    "seed": 1,
+    "transport": "service",
+    "baseUrl": null,
+    "primary": "nvidia/nemotron-3.5-lightning:free",
+    "free": "nvidia/nemotron-3.5-lightning:free",
+    "concurrency": 1,
+    "requests": 25,
+    "waves": 25,
+    "gapMs": 1000,
+    "warmupMs": 0
+  },
+  "dataset": {
+    "products": 10256,
+    "inventoryRows": 20539,
+    "restockCount": 5,
+    "restockNames": [
+      "ASUS ROG Strix GeForce RTX 4070 SUPER OC",
+      "Samsung 990 PRO 1TB NVMe SSD",
+      "Corsair Vengeance RGB 32GB DDR5-6000",
+      "ASUS ROG Strix B650E-F Gaming WiFi",
+      "Seasonic Focus GX-850"
+    ],
+    "lowSkus": [
+      "SEEDSKU-5000",
+      "SEEDSKU-5001",
+      "SEEDSKU-5002",
+      "SEEDSKU-5003",
+      "SEEDSKU-5004"
+    ],
+    "stockSamples": [
+      {
+        "sku": "SEEDSKU-5000",
+        "name": "ASUS ROG Strix GeForce RTX 4070 SUPER OC",
+        "expected": 0
+      },
+      {
+        "sku": "SEEDSKU-0",
+        "name": "Logitech MX Keys S",
+        "expected": 75
+      },
+      {
+        "sku": "SEEDSKU-1",
+        "name": "Keychron K8 Pro",
+        "expected": 107
+      },
+      {
+        "sku": "SEEDSKU-2",
+        "name": "ASUS ROG Strix Flare II Animate",
+        "expected": 84
+      },
+      {
+        "sku": "SEEDSKU-3",
+        "name": "Razer BlackWidow V4 Pro",
+        "expected": 58
+      },
+      {
+        "sku": "SEEDSKU-4",
+        "name": "Royal Kludge RK61",
+        "expected": 53
+      },
+      {
+        "sku": "SEEDSKU-5",
+        "name": "Logitech MX Master 3S",
+        "expected": 61
+      },
+      {
+        "sku": "SEEDSKU-6",
+        "name": "Sony WH-1000XM5",
+        "expected": 88
+      },
+      {
+        "sku": "SEEDSKU-7",
+        "name": "SteelSeries Arctis Nova 7",
+        "expected": 19
+      },
+      {
+        "sku": "SEEDSKU-8",
+        "name": "Dell UltraSharp U2723QE",
+        "expected": 91
+      },
+      {
+        "sku": "SEEDSKU-9",
+        "name": "LG UltraGear 27GP850-B",
+        "expected": 78
+      },
+      {
+        "sku": "SEEDSKU-10",
+        "name": "Anker 737 Power Bank",
+        "expected": 33
+      },
+      {
+        "sku": "SEEDSKU-11",
+        "name": "Samsung Portable SSD T7 Shield 1TB",
+        "expected": 88
+      },
+      {
+        "sku": "SEEDSKU-12",
+        "name": "Logitech C920s HD Pro Webcam",
+        "expected": 87
+      },
+      {
+        "sku": "SEEDSKU-13",
+        "name": "Elgato Stream Deck MK.2",
+        "expected": 54
+      }
+    ],
+    "loadSamples": [
+      {
+        "sku": "SEEDSKU-0",
+        "expected": 75
+      },
+      {
+        "sku": "SEEDSKU-1",
+        "expected": 107
+      },
+      {
+        "sku": "SEEDSKU-2",
+        "expected": 84
+      },
+      {
+        "sku": "SEEDSKU-3",
+        "expected": 58
+      },
+      {
+        "sku": "SEEDSKU-4",
+        "expected": 53
+      },
+      {
+        "sku": "SEEDSKU-5",
+        "expected": 61
+      },
+      {
+        "sku": "SEEDSKU-6",
+        "expected": 88
+      },
+      {
+        "sku": "SEEDSKU-7",
+        "expected": 19
+      },
+      {
+        "sku": "SEEDSKU-8",
+        "expected": 91
+      },
+      {
+        "sku": "SEEDSKU-9",
+        "expected": 78
+      },
+      {
+        "sku": "SEEDSKU-10",
+        "expected": 33
+      },
+      {
+        "sku": "SEEDSKU-11",
+        "expected": 88
+      },
+      {
+        "sku": "SEEDSKU-12",
+        "expected": 87
+      },
+      {
+        "sku": "SEEDSKU-13",
+        "expected": 54
+      },
+      {
+        "sku": "SEEDSKU-14",
+        "expected": 84
+      },
+      {
+        "sku": "SEEDSKU-15",
+        "expected": 40
+      },
+      {
+        "sku": "SEEDSKU-16",
+        "expected": 37
+      },
+      {
+        "sku": "SEEDSKU-17",
+        "expected": 53
+      },
+      {
+        "sku": "SEEDSKU-18",
+        "expected": 106
+      },
+      {
+        "sku": "SEEDSKU-19",
+        "expected": 103
+      },
+      {
+        "sku": "SEEDSKU-20",
+        "expected": 26
+      },
+      {
+        "sku": "SEEDSKU-21",
+        "expected": 99
+      },
+      {
+        "sku": "SEEDSKU-22",
+        "expected": 82
+      },
+      {
+        "sku": "SEEDSKU-23",
+        "expected": 106
+      },
+      {
+        "sku": "SEEDSKU-24",
+        "expected": 52
+      },
+      {
+        "sku": "SEEDSKU-25",
+        "expected": 78
+      },
+      {
+        "sku": "SEEDSKU-26",
+        "expected": 22
+      },
+      {
+        "sku": "SEEDSKU-27",
+        "expected": 41
+      },
+      {
+        "sku": "SEEDSKU-28",
+        "expected": 100
+      },
+      {
+        "sku": "SEEDSKU-29",
+        "expected": 77
+      },
+      {
+        "sku": "SEEDSKU-30",
+        "expected": 26
+      },
+      {
+        "sku": "SEEDSKU-31",
+        "expected": 43
+      },
+      {
+        "sku": "SEEDSKU-32",
+        "expected": 26
+      },
+      {
+        "sku": "SEEDSKU-33",
+        "expected": 35
+      },
+      {
+        "sku": "SEEDSKU-34",
+        "expected": 110
+      },
+      {
+        "sku": "SEEDSKU-35",
+        "expected": 15
+      },
+      {
+        "sku": "SEEDSKU-36",
+        "expected": 109
+      },
+      {
+        "sku": "SEEDSKU-37",
+        "expected": 98
+      },
+      {
+        "sku": "SEEDSKU-38",
+        "expected": 98
+      },
+      {
+        "sku": "SEEDSKU-39",
+        "expected": 36
+      }
+    ]
+  },
+  "allowanceBefore": {
+    "status": "OK",
+    "isFreeTier": false,
+    "daily": {
+      "used": 3,
+      "limit": 1000,
+      "remaining": 997
+    },
+    "paidUsage": 1.209018599,
+    "paidUsageDaily": 0,
+    "paidUsageMonthly": 1.209018599,
+    "creditLimit": null,
+    "creditRemaining": null
+  },
+  "allowanceAfter": {
+    "status": "OK",
+    "isFreeTier": false,
+    "daily": {
+      "used": 52,
+      "limit": 1000,
+      "remaining": 948
+    },
+    "paidUsage": 1.209018599,
+    "paidUsageDaily": 0,
+    "paidUsageMonthly": 1.209018599,
+    "creditLimit": null,
+    "creditRemaining": null
+  },
+  "summary": {
+    "phase": "gate",
+    "requests": 25,
+    "concurrency": 1,
+    "waves": 25,
+    "gapMs": 1000,
+    "answered": 25,
+    "accurate": 25,
+    "accuracyRate": 1,
+    "answeredAccuracy": 1,
+    "errors": 0,
+    "errorRate": 0,
+    "degraded": 0,
+    "freeServed": 25,
+    "paidServed": 0,
+    "freeSuccessRate": 1,
+    "paidFallbackRate": 0,
+    "medianMs": 3835,
+    "p95Ms": 31580,
+    "meanMs": 6703.4,
+    "minMs": 2156,
+    "maxMs": 38361,
+    "totalCostUsd": 0,
+    "costComplete": true,
+    "resumedRows": 0,
+    "executedThisRun": 25,
+    "startedAt": "2026-11-13T16:38:33.300Z",
+    "finishedAt": "2026-11-13T16:41:45.175Z",
+    "durationMs": 191875,
+    "throughputRps": 0.13029315960912052,
+    "throughputPerMinute": 7.82,
+    "providerPaidUsageDelta": 0,
+    "freeRequestsRemainingBefore": 997,
+    "freeRequestsRemainingAfter": 948
+  },
+  "rows": [
+    {
+      "id": "stock-SEEDSKU-5000",
+      "operation": "product_stock",
+      "sku": "SEEDSKU-5000",
+      "message": "How many units of the product with SKU SEEDSKU-5000 are in stock?",
+      "expected": 0,
+      "answer": "**ASUS ROG Strix GeForce RTX 4070 SUPER OC** has **0** units on hand across all locations.",
+      "check": {
+        "ok": true,
+        "reasons": []
+      },
+      "model": "nvidia/nemotron-3.5-lightning:free",
+      "freeServed": true,
+      "totalMs": 4462,
+      "usage": {
+        "inputTokens": 36151,
+        "outputTokens": 97
+      },
+      "toolsUsed": [
+        "getInventory"
+      ],
+      "degraded": null,
+      "error": null,
+      "costUsd": 0,
+      "workIndex": 0,
+      "wave": 1,
+      "sequence": 1
+    },
+    {
+      "id": "stock-SEEDSKU-0",
+      "operation": "product_stock",
+      "sku": "SEEDSKU-0",
+      "message": "How many units of the product with SKU SEEDSKU-0 are in stock?",
+      "expected": 75,
+      "answer": "**Logitech MX Keys S** has **75** units on hand across all locations.",
+      "check": {
+        "ok": true,
+        "reasons": []
+      },
+      "model": "nvidia/nemotron-3.5-lightning:free",
+      "freeServed": true,
+      "totalMs": 3713,
+      "usage": {
+        "inputTokens": 23904,
+        "outputTokens": 86
+      },
+      "toolsUsed": [
+        "getInventory"
+      ],
+      "degraded": null,
+      "error": null,
+      "costUsd": 0,
+      "workIndex": 1,
+      "wave": 2,
+      "sequence": 2
+    },
+    {
+      "id": "stock-SEEDSKU-1",
+      "operation": "product_stock",
+      "sku": "SEEDSKU-1",
+      "message": "How many units of the product with SKU SEEDSKU-1 are in stock?",
+      "expected": 107,
+      "answer": "**Keychron K8 Pro** has **107** units on hand across all locations.",
+      "check": {
+        "ok": true,
+        "reasons": []
+      },
+      "model": "nvidia/nemotron-3.5-lightning:free",
+      "freeServed": true,
+      "totalMs": 3419,
+      "usage": {
+        "inputTokens": 24072,
+        "outputTokens": 133
+      },
+      "toolsUsed": [
+        "getInventory"
+      ],
+      "degraded": null,
+      "error": null,
+      "costUsd": 0,
+      "workIndex": 2,
+      "wave": 3,
+      "sequence": 3
+    },
+    {
+      "id": "stock-SEEDSKU-2",
+      "operation": "product_stock",
+      "sku": "SEEDSKU-2",
+      "message": "How many units of the product with SKU SEEDSKU-2 are in stock?",
+      "expected": 84,
+      "answer": "**ASUS ROG Strix Flare II Animate** has **84** units on hand across all locations.",
+      "check": {
+        "ok": true,
+        "reasons": []
+      },
+      "model": "nvidia/nemotron-3.5-lightning:free",
+      "freeServed": true,
+      "totalMs": 3065,
+      "usage": {
+        "inputTokens": 24093,
+        "outputTokens": 93
+      },
+      "toolsUsed": [
+        "getInventory"
+      ],
+      "degraded": null,
+      "error": null,
+      "costUsd": 0,
+      "workIndex": 3,
+      "wave": 4,
+      "sequence": 4
+    },
+    {
+      "id": "stock-SEEDSKU-3",
+      "operation": "product_stock",
+      "sku": "SEEDSKU-3",
+      "message": "How many units of the product with SKU SEEDSKU-3 are in stock?",
+      "expected": 58,
+      "answer": "**Razer BlackWidow V4 Pro** has **58** units on hand across all locations.",
+      "check": {
+        "ok": true,
+        "reasons": []
+      },
+      "model": "nvidia/nemotron-3.5-lightning:free",
+      "freeServed": true,
+      "totalMs": 3638,
+      "usage": {
+        "inputTokens": 36106,
+        "outputTokens": 93
+      },
+      "toolsUsed": [
+        "getInventory"
+      ],
+      "degraded": null,
+      "error": null,
+      "costUsd": 0,
+      "workIndex": 4,
+      "wave": 5,
+      "sequence": 5
+    },
+    {
+      "id": "stock-SEEDSKU-4",
+      "operation": "product_stock",
+      "sku": "SEEDSKU-4",
+      "message": "How many units of the product with SKU SEEDSKU-4 are in stock?",
+      "expected": 53,
+      "answer": "**Royal Kludge RK61** has **53** units on hand at **Main Warehouse**.",
+      "check": {
+        "ok": true,
+        "reasons": []
+      },
+      "model": "nvidia/nemotron-3.5-lightning:free",
+      "freeServed": true,
+      "totalMs": 3950,
+      "usage": {
+        "inputTokens": 35749,
+        "outputTokens": 140
+      },
+      "toolsUsed": [
+        "getInventory"
+      ],
+      "degraded": null,
+      "error": null,
+      "costUsd": 0,
+      "workIndex": 5,
+      "wave": 6,
+      "sequence": 6
+    },
+    {
+      "id": "stock-SEEDSKU-5",
+      "operation": "product_stock",
+      "sku": "SEEDSKU-5",
+      "message": "How many units of the product with SKU SEEDSKU-5 are in stock?",
+      "expected": 61,
+      "answer": "**Logitech MX Master 3S** has **61** units on hand across all locations.",
+      "check": {
+        "ok": true,
+        "reasons": []
+      },
+      "model": "nvidia/nemotron-3.5-lightning:free",
+      "freeServed": true,
+      "totalMs": 3835,
+      "usage": {
+        "inputTokens": 35924,
+        "outputTokens": 97
+      },
+      "toolsUsed": [
+        "getInventory"
+      ],
+      "degraded": null,
+      "error": null,
+      "costUsd": 0,
+      "workIndex": 6,
+      "wave": 7,
+      "sequence": 7
+    },
+    {
+      "id": "stock-SEEDSKU-6",
+      "operation": "product_stock",
+      "sku": "SEEDSKU-6",
+      "message": "How many units of the product with SKU SEEDSKU-6 are in stock?",
+      "expected": 88,
+      "answer": "**Sony WH-1000XM5** has **88** units on hand across all locations.",
+      "check": {
+        "ok": true,
+        "reasons": []
+      },
+      "model": "nvidia/nemotron-3.5-lightning:free",
+      "freeServed": true,
+      "totalMs": 2800,
+      "usage": {
+        "inputTokens": 23916,
+        "outputTokens": 83
+      },
+      "toolsUsed": [
+        "getInventory"
+      ],
+      "degraded": null,
+      "error": null,
+      "costUsd": 0,
+      "workIndex": 7,
+      "wave": 8,
+      "sequence": 8
+    },
+    {
+      "id": "stock-SEEDSKU-7",
+      "operation": "product_stock",
+      "sku": "SEEDSKU-7",
+      "message": "How many units of the product with SKU SEEDSKU-7 are in stock?",
+      "expected": 19,
+      "answer": "**SteelSeries Arctis Nova 7** has **19** units on hand across all locations.",
+      "check": {
+        "ok": true,
+        "reasons": []
+      },
+      "model": "nvidia/nemotron-3.5-lightning:free",
+      "freeServed": true,
+      "totalMs": 4249,
+      "usage": {
+        "inputTokens": 35922,
+        "outputTokens": 104
+      },
+      "toolsUsed": [
+        "getInventory"
+      ],
+      "degraded": null,
+      "error": null,
+      "costUsd": 0,
+      "workIndex": 8,
+      "wave": 9,
+      "sequence": 9
+    },
+    {
+      "id": "stock-SEEDSKU-8",
+      "operation": "product_stock",
+      "sku": "SEEDSKU-8",
+      "message": "How many units of the product with SKU SEEDSKU-8 are in stock?",
+      "expected": 91,
+      "answer": "**Dell UltraSharp U2723QE** has **91** units on hand across all locations.",
+      "check": {
+        "ok": true,
+        "reasons": []
+      },
+      "model": "nvidia/nemotron-3.5-lightning:free",
+      "freeServed": true,
+      "totalMs": 3330,
+      "usage": {
+        "inputTokens": 24093,
+        "outputTokens": 107
+      },
+      "toolsUsed": [
+        "getInventory"
+      ],
+      "degraded": null,
+      "error": null,
+      "costUsd": 0,
+      "workIndex": 9,
+      "wave": 10,
+      "sequence": 10
+    },
+    {
+      "id": "stock-SEEDSKU-9",
+      "operation": "product_stock",
+      "sku": "SEEDSKU-9",
+      "message": "How many units of the product with SKU SEEDSKU-9 are in stock?",
+      "expected": 78,
+      "answer": "**LG UltraGear 27GP850-B** has **78** units on hand across all locations.",
+      "check": {
+        "ok": true,
+        "reasons": []
+      },
+      "model": "nvidia/nemotron-3.5-lightning:free",
+      "freeServed": true,
+      "totalMs": 17103,
+      "usage": {
+        "inputTokens": 24096,
+        "outputTokens": 129
+      },
+      "toolsUsed": [
+        "getInventory"
+      ],
+      "degraded": null,
+      "error": null,
+      "costUsd": 0,
+      "workIndex": 10,
+      "wave": 11,
+      "sequence": 11
+    },
+    {
+      "id": "stock-SEEDSKU-10",
+      "operation": "product_stock",
+      "sku": "SEEDSKU-10",
+      "message": "How many units of the product with SKU SEEDSKU-10 are in stock?",
+      "expected": 33,
+      "answer": "**Anker 737 Power Bank** has **33** units on hand across all locations.",
+      "check": {
+        "ok": true,
+        "reasons": []
+      },
+      "model": "nvidia/nemotron-3.5-lightning:free",
+      "freeServed": true,
+      "totalMs": 3884,
+      "usage": {
+        "inputTokens": 24466,
+        "outputTokens": 184
+      },
+      "toolsUsed": [
+        "getProduct"
+      ],
+      "degraded": null,
+      "error": null,
+      "costUsd": 0,
+      "workIndex": 11,
+      "wave": 12,
+      "sequence": 12
+    },
+    {
+      "id": "stock-SEEDSKU-11",
+      "operation": "product_stock",
+      "sku": "SEEDSKU-11",
+      "message": "How many units of the product with SKU SEEDSKU-11 are in stock?",
+      "expected": 88,
+      "answer": "**Samsung Portable SSD T7 Shield 1TB** has **88** units on hand across all locations.",
+      "check": {
+        "ok": true,
+        "reasons": []
+      },
+      "model": "nvidia/nemotron-3.5-lightning:free",
+      "freeServed": true,
+      "totalMs": 4324,
+      "usage": {
+        "inputTokens": 36116,
+        "outputTokens": 145
+      },
+      "toolsUsed": [
+        "getInventory"
+      ],
+      "degraded": null,
+      "error": null,
+      "costUsd": 0,
+      "workIndex": 12,
+      "wave": 13,
+      "sequence": 13
+    },
+    {
+      "id": "stock-SEEDSKU-12",
+      "operation": "product_stock",
+      "sku": "SEEDSKU-12",
+      "message": "How many units of the product with SKU SEEDSKU-12 are in stock?",
+      "expected": 87,
+      "answer": "**Logitech C920s HD Pro Webcam** has **87** units on hand across all locations.",
+      "check": {
+        "ok": true,
+        "reasons": []
+      },
+      "model": "nvidia/nemotron-3.5-lightning:free",
+      "freeServed": true,
+      "totalMs": 31580,
+      "usage": {
+        "inputTokens": 36119,
+        "outputTokens": 148
+      },
+      "toolsUsed": [
+        "getInventory"
+      ],
+      "degraded": null,
+      "error": null,
+      "costUsd": 0,
+      "workIndex": 13,
+      "wave": 14,
+      "sequence": 14
+    },
+    {
+      "id": "stock-SEEDSKU-13",
+      "operation": "product_stock",
+      "sku": "SEEDSKU-13",
+      "message": "How many units of the product with SKU SEEDSKU-13 are in stock?",
+      "expected": 54,
+      "answer": "**Elgato Stream Deck MK.2** has **54** units on hand at **Main Warehouse**.",
+      "check": {
+        "ok": true,
+        "reasons": []
+      },
+      "model": "nvidia/nemotron-3.5-lightning:free",
+      "freeServed": true,
+      "totalMs": 3705,
+      "usage": {
+        "inputTokens": 35757,
+        "outputTokens": 84
+      },
+      "toolsUsed": [
+        "getInventory"
+      ],
+      "degraded": null,
+      "error": null,
+      "costUsd": 0,
+      "workIndex": 14,
+      "wave": 15,
+      "sequence": 15
+    },
+    {
+      "id": "exists-SEEDSKU-0",
+      "operation": "product_existence",
+      "sku": "SEEDSKU-0",
+      "message": "Do we have the product with SKU SEEDSKU-0 in our inventory?",
+      "expected": true,
+      "answer": "Yes. The product with SKU SEEDSKU-0 is Logitech MX Keys S, a keyboard. It has 38 units at the Shop Front and 37 units at the Main Warehouse, each above zero so it is in stock at both locations. The recorded selling price is PHP 6,290 and no currency was recorded for that price.",
+      "check": {
+        "ok": true,
+        "reasons": []
+      },
+      "model": "nvidia/nemotron-3.5-lightning:free",
+      "freeServed": true,
+      "totalMs": 4045,
+      "usage": {
+        "inputTokens": 36286,
+        "outputTokens": 151
+      },
+      "toolsUsed": [
+        "getProduct"
+      ],
+      "degraded": null,
+      "error": null,
+      "costUsd": 0,
+      "workIndex": 15,
+      "wave": 16,
+      "sequence": 16
+    },
+    {
+      "id": "exists-SEEDSKU-1",
+      "operation": "product_existence",
+      "sku": "SEEDSKU-1",
+      "message": "Do we have the product with SKU SEEDSKU-1 in our inventory?",
+      "expected": true,
+      "answer": "Yes, we have the product **Keychron K8 Pro** (SKU: SEEDSKU-1) in our inventory.\n\n**Stock per location (available quantity):**\n- **Overflow Store:** 37 pcs\n- **Shop Front:** 35 pcs\n- **Main Warehouse:** 35 pcs\n\n**Overall available stock:** 107 pcs (well below the minimum stock of 97 pcs per location, so it is flagged as low stock at each location).\n\n**Recorded selling price:** PHP 6,990 (currency not recorded).",
+      "check": {
+        "ok": true,
+        "reasons": []
+      },
+      "model": "nvidia/nemotron-3.5-lightning:free",
+      "freeServed": true,
+      "totalMs": 3299,
+      "usage": {
+        "inputTokens": 24427,
+        "outputTokens": 163
+      },
+      "toolsUsed": [
+        "getProduct"
+      ],
+      "degraded": null,
+      "error": null,
+      "costUsd": 0,
+      "workIndex": 16,
+      "wave": 17,
+      "sequence": 17
+    },
+    {
+      "id": "exists-SEEDSKU-5000",
+      "operation": "product_existence",
+      "sku": "SEEDSKU-5000",
+      "message": "Do we have the product with SKU SEEDSKU-5000 in our inventory?",
+      "expected": true,
+      "answer": "Yes, we carry that product. It is an ASUS ROG Strix GeForce RTX 4070 SUPER OC graphics card (SKU: SEEDSKU-5000), brand ASUS ROG, in the \"Keyboards & Mice\" category. \n\nCurrently it has **0 units on hand** at every location where it is recorded — Overflow Store, Shop Front, and Main Warehouse — so it is out of stock at all three sites.",
+      "check": {
+        "ok": true,
+        "reasons": []
+      },
+      "model": "nvidia/nemotron-3.5-lightning:free",
+      "freeServed": true,
+      "totalMs": 38361,
+      "usage": {
+        "inputTokens": 24503,
+        "outputTokens": 133
+      },
+      "toolsUsed": [
+        "getProduct"
+      ],
+      "degraded": null,
+      "error": null,
+      "costUsd": 0,
+      "workIndex": 17,
+      "wave": 18,
+      "sequence": 18
+    },
+    {
+      "id": "exists-SEEDSKU-2",
+      "operation": "product_existence",
+      "sku": "SEEDSKU-2",
+      "message": "Do we have the product with SKU SEEDSKU-2 in our inventory?",
+      "expected": true,
+      "answer": "Yes, we have the product **ASUS ROG Strix Flare II Animate** (SKU: SEEDSKU-2) in our inventory.\n\n**Recorded details**\n- Name: ASUS ROG Strix Flare II Animate\n- Brand: ASUS ROG\n- Category: Keyboards & Mice\n- Minimum stock: 74 units\n- Selling price: PHP 11,995 (price was recorded; currency field is null but the amount is PHP)\n\n**Stock across locations**\n| Location | Available | On hand | Low stock? | Out of stock? |\n|---|---|---|---|---|\n| Overflow Store | 28 | 28 | Yes | No |\n| Shop Front | 28 | 28 | Yes | No |\n| Main Warehouse | 28 | 28 | Yes | No |\n\nAll three locations have 28 units available, which is below the minimum stock of 74, so each location flags this as low stock.",
+      "check": {
+        "ok": true,
+        "reasons": []
+      },
+      "model": "nvidia/nemotron-3.5-lightning:free",
+      "freeServed": true,
+      "totalMs": 4224,
+      "usage": {
+        "inputTokens": 24476,
+        "outputTokens": 249
+      },
+      "toolsUsed": [
+        "getProduct"
+      ],
+      "degraded": null,
+      "error": null,
+      "costUsd": 0,
+      "workIndex": 18,
+      "wave": 19,
+      "sequence": 19
+    },
+    {
+      "id": "exists-SEEDSKU-3",
+      "operation": "product_existence",
+      "sku": "SEEDSKU-3",
+      "message": "Do we have the product with SKU SEEDSKU-3 in our inventory?",
+      "expected": true,
+      "answer": "Yes – SKU **SEEDSKU-3** (Razer BlackWidow V4 Pro) is in the catalogue.  \n\nStock is recorded at three locations:\n\n- **Overflow Store:** 20 units on hand  \n- **Shop Front:** 19 units on hand  \n- **Main Warehouse:** 19 units on hand  \n\nAll three rows show available quantity equal to on‑hand quantity and each product is currently **low stock** (available ≤ minimum of 48). No units are reserved.  \n\nSelling price is **PHP 12,995** per unit (currency not recorded beyond the number).",
+      "check": {
+        "ok": true,
+        "reasons": []
+      },
+      "model": "nvidia/nemotron-3.5-lightning:free",
+      "freeServed": true,
+      "totalMs": 3411,
+      "usage": {
+        "inputTokens": 24440,
+        "outputTokens": 170
+      },
+      "toolsUsed": [
+        "getProduct"
+      ],
+      "degraded": null,
+      "error": null,
+      "costUsd": 0,
+      "workIndex": 19,
+      "wave": 20,
+      "sequence": 20
+    },
+    {
+      "id": "exists-absent",
+      "operation": "product_existence",
+      "sku": "SEEDSKU-999999",
+      "message": "Do we have the product with SKU SEEDSKU-999999 in our inventory?",
+      "expected": false,
+      "answer": "No, we don't have a product with that SKU in our inventory.",
+      "check": {
+        "ok": true,
+        "reasons": []
+      },
+      "model": "nvidia/nemotron-3.5-lightning:free",
+      "freeServed": true,
+      "totalMs": 2156,
+      "usage": {
+        "inputTokens": 23557,
+        "outputTokens": 51
+      },
+      "toolsUsed": [
+        "getProduct"
+      ],
+      "degraded": null,
+      "error": null,
+      "costUsd": 0,
+      "workIndex": 20,
+      "wave": 21,
+      "sequence": 21
+    },
+    {
+      "id": "restock-list-1",
+      "operation": "restock_list",
+      "sku": null,
+      "message": "Which products need to be restocked?",
+      "expected": [
+        "ASUS ROG Strix GeForce RTX 4070 SUPER OC",
+        "Samsung 990 PRO 1TB NVMe SSD",
+        "Corsair Vengeance RGB 32GB DDR5-6000",
+        "ASUS ROG Strix B650E-F Gaming WiFi",
+        "Seasonic Focus GX-850"
+      ],
+      "answer": "5 products need restocking; the 5 most urgent are below.\n\nAll five are out of stock:\n\n1. Seasonic Focus GX-850 — out of stock, minimum 47\n2. ASUS ROG Strix B650E-F Gaming WiFi — out of stock, minimum 52\n3. Corsair Vengeance RGB 32GB DDR5-6000 — out of stock, minimum 68\n4. Samsung 990 PRO 1TB NVMe SSD — out of stock, minimum 62\n5. ASUS ROG Strix GeForce RTX 4070 SUPER OC — out of stock, minimum 80",
+      "check": {
+        "ok": true,
+        "reasons": []
+      },
+      "model": "nvidia/nemotron-3.5-lightning:free",
+      "freeServed": true,
+      "totalMs": 4019,
+      "usage": {
+        "inputTokens": 36279,
+        "outputTokens": 205
+      },
+      "toolsUsed": [
+        "getReorderNeededProducts"
+      ],
+      "degraded": null,
+      "error": null,
+      "costUsd": 0,
+      "workIndex": 21,
+      "wave": 22,
+      "sequence": 22
+    },
+    {
+      "id": "restock-list-2",
+      "operation": "restock_list",
+      "sku": null,
+      "message": "Which products are at or below their minimum stock?",
+      "expected": [
+        "ASUS ROG Strix GeForce RTX 4070 SUPER OC",
+        "Samsung 990 PRO 1TB NVMe SSD",
+        "Corsair Vengeance RGB 32GB DDR5-6000",
+        "ASUS ROG Strix B650E-F Gaming WiFi",
+        "Seasonic Focus GX-850"
+      ],
+      "answer": "5 products need restocking; the 5 most urgent are below.\n\n- **Seasonic Focus GX-850** — 0 units available (out of stock), minimum 47, price PHP 7,495\n- **ASUS ROG Strix B650E-F Gaming WiFi** — 0 units available (out of stock), minimum 52, price PHP 18,995\n- **Corsair Vengeance RGB 32GB DDR5-6000** — 0 units available (out of stock), minimum 68, price PHP 7,995\n- **Samsung 990 PRO 1TB NVMe SSD** — 0 units available (out of stock), minimum 62, price PHP 8,995\n- **ASUS ROG Strix GeForce RTX 4070 SUPER OC** — 0 units available (out of stock), minimum 80, price PHP 49,995",
+      "check": {
+        "ok": true,
+        "reasons": []
+      },
+      "model": "nvidia/nemotron-3.5-lightning:free",
+      "freeServed": true,
+      "totalMs": 5039,
+      "usage": {
+        "inputTokens": 24275,
+        "outputTokens": 253
+      },
+      "toolsUsed": [
+        "getReorderNeededProducts"
+      ],
+      "degraded": null,
+      "error": null,
+      "costUsd": 0,
+      "workIndex": 22,
+      "wave": 23,
+      "sequence": 23
+    },
+    {
+      "id": "restock-count-1",
+      "operation": "restock_count",
+      "sku": null,
+      "message": "How many products need restocking?",
+      "expected": 5,
+      "answer": "5 products need restocking.",
+      "check": {
+        "ok": true,
+        "reasons": []
+      },
+      "model": "nvidia/nemotron-3.5-lightning:free",
+      "freeServed": true,
+      "totalMs": 3284,
+      "usage": {
+        "inputTokens": 36276,
+        "outputTokens": 72
+      },
+      "toolsUsed": [
+        "getReorderNeededProducts"
+      ],
+      "degraded": null,
+      "error": null,
+      "costUsd": 0,
+      "workIndex": 23,
+      "wave": 24,
+      "sequence": 24
+    },
+    {
+      "id": "restock-count-2",
+      "operation": "restock_count",
+      "sku": null,
+      "message": "How many items are below their minimum stock?",
+      "expected": 5,
+      "answer": "5 products need restocking.",
+      "check": {
+        "ok": true,
+        "reasons": []
+      },
+      "model": "nvidia/nemotron-3.5-lightning:free",
+      "freeServed": true,
+      "totalMs": 2690,
+      "usage": {
+        "inputTokens": 24291,
+        "outputTokens": 71
+      },
+      "toolsUsed": [
+        "getReorderNeededProducts"
+      ],
+      "degraded": null,
+      "error": null,
+      "costUsd": 0,
+      "workIndex": 24,
+      "wave": 25,
+      "sequence": 25
+    }
+  ],
+  "logs": [
+    "AI request intent=inventory route=default model=nvidia/nemotron-3.5-lightning:free tier=free reasoning-free=disabled reasoning-free-source=default reasoning-paid=advanced reasoning-paid-source=advanced reasoning-legacy=unset web-search=disabled web-fetch=disabled tools=inventory turn=4d17266a",
+    "AI model call provider=openrouter model=nvidia/nemotron-3.5-lightning:free tier=free reasoning=disabled field=disabled source=default turn=4d17266a",
+    "AI no tool read for a recorded-data answer — asking the model for the data (attempt 1)",
+    "AI model call provider=openrouter model=nvidia/nemotron-3.5-lightning:free tier=free reasoning=disabled field=disabled source=default turn=4d17266a",
+    "AI model call provider=openrouter model=nvidia/nemotron-3.5-lightning:free tier=free reasoning=disabled field=disabled source=default turn=4d17266a",
+    "AI single-product stock total computed from the returned rows",
+    "AI turn outcome=ok status=ok duration=4.45s total=4445ms providerMs=3637ms toolMs=793ms calls=3 attempts=3 empty=0 retries=1 failovers=0 reasks=0 tools=getInventory toolRuns=1 in=36151 out=97 cost=$0.000000 quota=unknown web=none upstream=Nvidia model=nvidia/nemotron-3.5-lightning:free tier=free route=default simpleEscalations=0 iterations=3 turn=4d17266a",
+    "AI request intent=inventory route=default model=nvidia/nemotron-3.5-lightning:free tier=free reasoning-free=disabled reasoning-free-source=default reasoning-paid=advanced reasoning-paid-source=advanced reasoning-legacy=unset web-search=disabled web-fetch=disabled tools=inventory turn=4e368dd7",
+    "AI model call provider=openrouter model=nvidia/nemotron-3.5-lightning:free tier=free reasoning=disabled field=disabled source=default turn=4e368dd7",
+    "AI model call provider=openrouter model=nvidia/nemotron-3.5-lightning:free tier=free reasoning=disabled field=disabled source=default turn=4e368dd7",
+    "AI single-product stock total computed from the returned rows",
+    "AI turn outcome=ok status=ok duration=3.71s total=3711ms providerMs=2201ms toolMs=1508ms calls=2 attempts=2 empty=0 retries=0 failovers=0 reasks=0 tools=getInventory toolRuns=1 in=23904 out=86 cost=$0.000000 quota=unknown web=none upstream=Nvidia model=nvidia/nemotron-3.5-lightning:free tier=free route=default simpleEscalations=0 iterations=2 turn=4e368dd7",
+    "AI request intent=inventory route=default model=nvidia/nemotron-3.5-lightning:free tier=free reasoning-free=disabled reasoning-free-source=default reasoning-paid=advanced reasoning-paid-source=advanced reasoning-legacy=unset web-search=disabled web-fetch=disabled tools=inventory turn=bcd1083e",
+    "AI model call provider=openrouter model=nvidia/nemotron-3.5-lightning:free tier=free reasoning=disabled field=disabled source=default turn=bcd1083e",
+    "AI model call provider=openrouter model=nvidia/nemotron-3.5-lightning:free tier=free reasoning=disabled field=disabled source=default turn=bcd1083e",
+    "AI single-product stock total computed from the returned rows",
+    "AI turn outcome=ok status=ok duration=3.42s total=3417ms providerMs=3052ms toolMs=365ms calls=2 attempts=2 empty=0 retries=0 failovers=0 reasks=0 tools=getInventory toolRuns=1 in=24072 out=133 cost=$0.000000 quota=unknown web=none upstream=Nvidia model=nvidia/nemotron-3.5-lightning:free tier=free route=default simpleEscalations=0 iterations=2 turn=bcd1083e",
+    "AI request intent=inventory route=default model=nvidia/nemotron-3.5-lightning:free tier=free reasoning-free=disabled reasoning-free-source=default reasoning-paid=advanced reasoning-paid-source=advanced reasoning-legacy=unset web-search=disabled web-fetch=disabled tools=inventory turn=337dfc43",
+    "AI model call provider=openrouter model=nvidia/nemotron-3.5-lightning:free tier=free reasoning=disabled field=disabled source=default turn=337dfc43",
+    "AI model call provider=openrouter model=nvidia/nemotron-3.5-lightning:free tier=free reasoning=disabled field=disabled source=default turn=337dfc43",
+    "AI single-product stock total computed from the returned rows",
+    "AI turn outcome=ok status=ok duration=3.06s total=3063ms providerMs=2709ms toolMs=354ms calls=2 attempts=2 empty=0 retries=0 failovers=0 reasks=0 tools=getInventory toolRuns=1 in=24093 out=93 cost=$0.000000 quota=unknown web=none upstream=Nvidia model=nvidia/nemotron-3.5-lightning:free tier=free route=default simpleEscalations=0 iterations=2 turn=337dfc43",
+    "AI request intent=inventory route=default model=nvidia/nemotron-3.5-lightning:free tier=free reasoning-free=disabled reasoning-free-source=default reasoning-paid=advanced reasoning-paid-source=advanced reasoning-legacy=unset web-search=disabled web-fetch=disabled tools=inventory turn=b42c1d47",
+    "AI model call provider=openrouter model=nvidia/nemotron-3.5-lightning:free tier=free reasoning=disabled field=disabled source=default turn=b42c1d47",
+    "AI no tool read for a recorded-data answer — asking the model for the data (attempt 1)",
+    "AI model call provider=openrouter model=nvidia/nemotron-3.5-lightning:free tier=free reasoning=disabled field=disabled source=default turn=b42c1d47",
+    "AI model call provider=openrouter model=nvidia/nemotron-3.5-lightning:free tier=free reasoning=disabled field=disabled source=default turn=b42c1d47",
+    "AI single-product stock total computed from the returned rows",
+    "AI turn outcome=ok status=ok duration=3.64s total=3636ms providerMs=3238ms toolMs=398ms calls=3 attempts=3 empty=0 retries=1 failovers=0 reasks=0 tools=getInventory toolRuns=1 in=36106 out=93 cost=$0.000000 quota=unknown web=none upstream=Nvidia model=nvidia/nemotron-3.5-lightning:free tier=free route=default simpleEscalations=0 iterations=3 turn=b42c1d47",
+    "AI request intent=inventory route=default model=nvidia/nemotron-3.5-lightning:free tier=free reasoning-free=disabled reasoning-free-source=default reasoning-paid=advanced reasoning-paid-source=advanced reasoning-legacy=unset web-search=disabled web-fetch=disabled tools=inventory turn=14d53568",
+    "AI model call provider=openrouter model=nvidia/nemotron-3.5-lightning:free tier=free reasoning=disabled field=disabled source=default turn=14d53568",
+    "AI no tool read for a figure-stating answer — asking the model for the data (attempt 1)",
+    "AI model call provider=openrouter model=nvidia/nemotron-3.5-lightning:free tier=free reasoning=disabled field=disabled source=default turn=14d53568",
+    "AI model call provider=openrouter model=nvidia/nemotron-3.5-lightning:free tier=free reasoning=disabled field=disabled source=default turn=14d53568",
+    "AI single-product stock total computed from the returned rows",
+    "AI turn outcome=ok status=ok duration=3.95s total=3948ms providerMs=3604ms toolMs=344ms calls=3 attempts=3 empty=0 retries=1 failovers=0 reasks=0 tools=getInventory toolRuns=1 in=35749 out=140 cost=$0.000000 quota=unknown web=none upstream=Nvidia model=nvidia/nemotron-3.5-lightning:free tier=free route=default simpleEscalations=0 iterations=3 turn=14d53568",
+    "AI request intent=inventory route=default model=nvidia/nemotron-3.5-lightning:free tier=free reasoning-free=disabled reasoning-free-source=default reasoning-paid=advanced reasoning-paid-source=advanced reasoning-legacy=unset web-search=disabled web-fetch=disabled tools=inventory turn=6e1ed1a9",
+    "AI model call provider=openrouter model=nvidia/nemotron-3.5-lightning:free tier=free reasoning=disabled field=disabled source=default turn=6e1ed1a9",
+    "AI no tool read for a recorded-data answer — asking the model for the data (attempt 1)",
+    "AI model call provider=openrouter model=nvidia/nemotron-3.5-lightning:free tier=free reasoning=disabled field=disabled source=default turn=6e1ed1a9",
+    "AI model call provider=openrouter model=nvidia/nemotron-3.5-lightning:free tier=free reasoning=disabled field=disabled source=default turn=6e1ed1a9",
+    "AI single-product stock total computed from the returned rows",
+    "AI turn outcome=ok status=ok duration=3.83s total=3834ms providerMs=3483ms toolMs=350ms calls=3 attempts=3 empty=0 retries=1 failovers=0 reasks=0 tools=getInventory toolRuns=1 in=35924 out=97 cost=$0.000000 quota=unknown web=none upstream=Nvidia model=nvidia/nemotron-3.5-lightning:free tier=free route=default simpleEscalations=0 iterations=3 turn=6e1ed1a9",
+    "AI request intent=inventory route=default model=nvidia/nemotron-3.5-lightning:free tier=free reasoning-free=disabled reasoning-free-source=default reasoning-paid=advanced reasoning-paid-source=advanced reasoning-legacy=unset web-search=disabled web-fetch=disabled tools=inventory turn=2076c71c",
+    "AI model call provider=openrouter model=nvidia/nemotron-3.5-lightning:free tier=free reasoning=disabled field=disabled source=default turn=2076c71c",
+    "AI model call provider=openrouter model=nvidia/nemotron-3.5-lightning:free tier=free reasoning=disabled field=disabled source=default turn=2076c71c",
+    "AI single-product stock total computed from the returned rows",
+    "AI turn outcome=ok status=ok duration=2.80s total=2799ms providerMs=2444ms toolMs=355ms calls=2 attempts=2 empty=0 retries=0 failovers=0 reasks=0 tools=getInventory toolRuns=1 in=23916 out=83 cost=$0.000000 quota=unknown web=none upstream=Nvidia model=nvidia/nemotron-3.5-lightning:free tier=free route=default simpleEscalations=0 iterations=2 turn=2076c71c",
+    "AI request intent=inventory route=default model=nvidia/nemotron-3.5-lightning:free tier=free reasoning-free=disabled reasoning-free-source=default reasoning-paid=advanced reasoning-paid-source=advanced reasoning-legacy=unset web-search=disabled web-fetch=disabled tools=inventory turn=6e3d178c",
+    "AI model call provider=openrouter model=nvidia/nemotron-3.5-lightning:free tier=free reasoning=disabled field=disabled source=default turn=6e3d178c",
+    "AI no tool read for a recorded-data answer — asking the model for the data (attempt 1)",
+    "AI model call provider=openrouter model=nvidia/nemotron-3.5-lightning:free tier=free reasoning=disabled field=disabled source=default turn=6e3d178c",
+    "AI model call provider=openrouter model=nvidia/nemotron-3.5-lightning:free tier=free reasoning=disabled field=disabled source=default turn=6e3d178c",
+    "AI single-product stock total computed from the returned rows",
+    "AI turn outcome=ok status=ok duration=4.25s total=4248ms providerMs=3863ms toolMs=383ms calls=3 attempts=3 empty=0 retries=1 failovers=0 reasks=0 tools=getInventory toolRuns=1 in=35922 out=104 cost=$0.000000 quota=unknown web=none upstream=Nvidia model=nvidia/nemotron-3.5-lightning:free tier=free route=default simpleEscalations=0 iterations=3 turn=6e3d178c",
+    "AI request intent=inventory route=default model=nvidia/nemotron-3.5-lightning:free tier=free reasoning-free=disabled reasoning-free-source=default reasoning-paid=advanced reasoning-paid-source=advanced reasoning-legacy=unset web-search=disabled web-fetch=disabled tools=inventory turn=a72305b4",
+    "AI model call provider=openrouter model=nvidia/nemotron-3.5-lightning:free tier=free reasoning=disabled field=disabled source=default turn=a72305b4",
+    "AI model call provider=openrouter model=nvidia/nemotron-3.5-lightning:free tier=free reasoning=disabled field=disabled source=default turn=a72305b4",
+    "AI single-product stock total computed from the returned rows",
+    "AI turn outcome=ok status=ok duration=3.33s total=3328ms providerMs=2963ms toolMs=364ms calls=2 attempts=2 empty=0 retries=0 failovers=0 reasks=0 tools=getInventory toolRuns=1 in=24093 out=107 cost=$0.000000 quota=unknown web=none upstream=Nvidia model=nvidia/nemotron-3.5-lightning:free tier=free route=default simpleEscalations=0 iterations=2 turn=a72305b4",
+    "AI request intent=inventory route=default model=nvidia/nemotron-3.5-lightning:free tier=free reasoning-free=disabled reasoning-free-source=default reasoning-paid=advanced reasoning-paid-source=advanced reasoning-legacy=unset web-search=disabled web-fetch=disabled tools=inventory turn=9e340419",
+    "AI model call provider=openrouter model=nvidia/nemotron-3.5-lightning:free tier=free reasoning=disabled field=disabled source=default turn=9e340419",
+    "AI model call provider=openrouter model=nvidia/nemotron-3.5-lightning:free tier=free reasoning=disabled field=disabled source=default turn=9e340419",
+    "AI single-product stock total computed from the returned rows",
+    "AI turn outcome=ok status=ok duration=17.10s total=17102ms providerMs=16745ms toolMs=356ms calls=2 attempts=2 empty=0 retries=0 failovers=0 reasks=0 tools=getInventory toolRuns=1 in=24096 out=129 cost=$0.000000 quota=unknown web=none upstream=Nvidia model=nvidia/nemotron-3.5-lightning:free tier=free route=default simpleEscalations=0 iterations=2 turn=9e340419",
+    "AI request intent=inventory route=default model=nvidia/nemotron-3.5-lightning:free tier=free reasoning-free=disabled reasoning-free-source=default reasoning-paid=advanced reasoning-paid-source=advanced reasoning-legacy=unset web-search=disabled web-fetch=disabled tools=inventory turn=358263de",
+    "AI model call provider=openrouter model=nvidia/nemotron-3.5-lightning:free tier=free reasoning=disabled field=disabled source=default turn=358263de",
+    "AI model call provider=openrouter model=nvidia/nemotron-3.5-lightning:free tier=free reasoning=disabled field=disabled source=default turn=358263de",
+    "AI single-product stock total computed from the returned rows",
+    "AI turn outcome=ok status=ok duration=3.88s total=3881ms providerMs=3665ms toolMs=215ms calls=2 attempts=2 empty=0 retries=0 failovers=0 reasks=0 tools=getProduct toolRuns=1 in=24466 out=184 cost=$0.000000 quota=unknown web=none upstream=Nvidia model=nvidia/nemotron-3.5-lightning:free tier=free route=default simpleEscalations=0 iterations=2 turn=358263de",
+    "AI request intent=inventory route=default model=nvidia/nemotron-3.5-lightning:free tier=free reasoning-free=disabled reasoning-free-source=default reasoning-paid=advanced reasoning-paid-source=advanced reasoning-legacy=unset web-search=disabled web-fetch=disabled tools=inventory turn=83cd759e",
+    "AI model call provider=openrouter model=nvidia/nemotron-3.5-lightning:free tier=free reasoning=disabled field=disabled source=default turn=83cd759e",
+    "AI no tool read for a recorded-data answer — asking the model for the data (attempt 1)",
+    "AI model call provider=openrouter model=nvidia/nemotron-3.5-lightning:free tier=free reasoning=disabled field=disabled source=default turn=83cd759e",
+    "AI model call provider=openrouter model=nvidia/nemotron-3.5-lightning:free tier=free reasoning=disabled field=disabled source=default turn=83cd759e",
+    "AI single-product stock total computed from the returned rows",
+    "AI turn outcome=ok status=ok duration=4.32s total=4323ms providerMs=3971ms toolMs=351ms calls=3 attempts=3 empty=0 retries=1 failovers=0 reasks=0 tools=getInventory toolRuns=1 in=36116 out=145 cost=$0.000000 quota=unknown web=none upstream=Nvidia model=nvidia/nemotron-3.5-lightning:free tier=free route=default simpleEscalations=0 iterations=3 turn=83cd759e",
+    "AI request intent=inventory route=default model=nvidia/nemotron-3.5-lightning:free tier=free reasoning-free=disabled reasoning-free-source=default reasoning-paid=advanced reasoning-paid-source=advanced reasoning-legacy=unset web-search=disabled web-fetch=disabled tools=inventory turn=c24c0d2e",
+    "AI model call provider=openrouter model=nvidia/nemotron-3.5-lightning:free tier=free reasoning=disabled field=disabled source=default turn=c24c0d2e",
+    "AI no tool read for a figure-stating answer — asking the model for the data (attempt 1)",
+    "AI model call provider=openrouter model=nvidia/nemotron-3.5-lightning:free tier=free reasoning=disabled field=disabled source=default turn=c24c0d2e",
+    "AI model call provider=openrouter model=nvidia/nemotron-3.5-lightning:free tier=free reasoning=disabled field=disabled source=default turn=c24c0d2e",
+    "AI single-product stock total computed from the returned rows",
+    "AI turn outcome=ok status=ok duration=31.57s total=31573ms providerMs=31227ms toolMs=346ms calls=3 attempts=3 empty=0 retries=1 failovers=0 reasks=0 tools=getInventory toolRuns=1 in=36119 out=148 cost=$0.000000 quota=unknown web=none upstream=Nvidia model=nvidia/nemotron-3.5-lightning:free tier=free route=default simpleEscalations=0 iterations=3 turn=c24c0d2e",
+    "AI request intent=inventory route=default model=nvidia/nemotron-3.5-lightning:free tier=free reasoning-free=disabled reasoning-free-source=default reasoning-paid=advanced reasoning-paid-source=advanced reasoning-legacy=unset web-search=disabled web-fetch=disabled tools=inventory turn=d1eb67e6",
+    "AI model call provider=openrouter model=nvidia/nemotron-3.5-lightning:free tier=free reasoning=disabled field=disabled source=default turn=d1eb67e6",
+    "AI no tool read for a recorded-data answer — asking the model for the data (attempt 1)",
+    "AI model call provider=openrouter model=nvidia/nemotron-3.5-lightning:free tier=free reasoning=disabled field=disabled source=default turn=d1eb67e6",
+    "AI model call provider=openrouter model=nvidia/nemotron-3.5-lightning:free tier=free reasoning=disabled field=disabled source=default turn=d1eb67e6",
+    "AI single-product stock total computed from the returned rows",
+    "AI turn outcome=ok status=ok duration=3.70s total=3703ms providerMs=3347ms toolMs=356ms calls=3 attempts=3 empty=0 retries=1 failovers=0 reasks=0 tools=getInventory toolRuns=1 in=35757 out=84 cost=$0.000000 quota=unknown web=none upstream=Nvidia model=nvidia/nemotron-3.5-lightning:free tier=free route=default simpleEscalations=0 iterations=3 turn=d1eb67e6",
+    "AI request intent=inventory route=default model=nvidia/nemotron-3.5-lightning:free tier=free reasoning-free=disabled reasoning-free-source=default reasoning-paid=advanced reasoning-paid-source=advanced reasoning-legacy=unset web-search=disabled web-fetch=disabled tools=inventory turn=7f5abf60",
+    "AI model call provider=openrouter model=nvidia/nemotron-3.5-lightning:free tier=free reasoning=disabled field=disabled source=default turn=7f5abf60",
+    "AI no tool read for a recorded-data answer — asking the model for the data (attempt 1)",
+    "AI model call provider=openrouter model=nvidia/nemotron-3.5-lightning:free tier=free reasoning=disabled field=disabled source=default turn=7f5abf60",
+    "AI model call provider=openrouter model=nvidia/nemotron-3.5-lightning:free tier=free reasoning=disabled field=disabled source=default turn=7f5abf60",
+    "AI turn outcome=ok status=ok duration=4.04s total=4044ms providerMs=3828ms toolMs=215ms calls=3 attempts=3 empty=0 retries=1 failovers=0 reasks=0 tools=getProduct toolRuns=1 in=36286 out=151 cost=$0.000000 quota=unknown web=none upstream=Nvidia model=nvidia/nemotron-3.5-lightning:free tier=free route=default simpleEscalations=0 iterations=3 turn=7f5abf60",
+    "AI request intent=inventory route=default model=nvidia/nemotron-3.5-lightning:free tier=free reasoning-free=disabled reasoning-free-source=default reasoning-paid=advanced reasoning-paid-source=advanced reasoning-legacy=unset web-search=disabled web-fetch=disabled tools=inventory turn=b88a8c60",
+    "AI model call provider=openrouter model=nvidia/nemotron-3.5-lightning:free tier=free reasoning=disabled field=disabled source=default turn=b88a8c60",
+    "AI model call provider=openrouter model=nvidia/nemotron-3.5-lightning:free tier=free reasoning=disabled field=disabled source=default turn=b88a8c60",
+    "AI turn outcome=ok status=ok duration=3.29s total=3295ms providerMs=3063ms toolMs=232ms calls=2 attempts=2 empty=0 retries=0 failovers=0 reasks=0 tools=getProduct toolRuns=1 in=24427 out=163 cost=$0.000000 quota=unknown web=none upstream=Nvidia model=nvidia/nemotron-3.5-lightning:free tier=free route=default simpleEscalations=0 iterations=2 turn=b88a8c60",
+    "AI request intent=inventory route=default model=nvidia/nemotron-3.5-lightning:free tier=free reasoning-free=disabled reasoning-free-source=default reasoning-paid=advanced reasoning-paid-source=advanced reasoning-legacy=unset web-search=disabled web-fetch=disabled tools=inventory turn=41104861",
+    "AI model call provider=openrouter model=nvidia/nemotron-3.5-lightning:free tier=free reasoning=disabled field=disabled source=default turn=41104861",
+    "AI model call provider=openrouter model=nvidia/nemotron-3.5-lightning:free tier=free reasoning=disabled field=disabled source=default turn=41104861",
+    "AI turn outcome=ok status=ok duration=38.36s total=38359ms providerMs=38077ms toolMs=282ms calls=2 attempts=2 empty=0 retries=0 failovers=0 reasks=0 tools=getProduct toolRuns=1 in=24503 out=133 cost=$0.000000 quota=unknown web=none upstream=Nvidia model=nvidia/nemotron-3.5-lightning:free tier=free route=default simpleEscalations=0 iterations=2 turn=41104861",
+    "AI request intent=inventory route=default model=nvidia/nemotron-3.5-lightning:free tier=free reasoning-free=disabled reasoning-free-source=default reasoning-paid=advanced reasoning-paid-source=advanced reasoning-legacy=unset web-search=disabled web-fetch=disabled tools=inventory turn=a3a8056f",
+    "AI model call provider=openrouter model=nvidia/nemotron-3.5-lightning:free tier=free reasoning=disabled field=disabled source=default turn=a3a8056f",
+    "AI model call provider=openrouter model=nvidia/nemotron-3.5-lightning:free tier=free reasoning=disabled field=disabled source=default turn=a3a8056f",
+    "AI turn outcome=ok status=ok duration=4.22s total=4222ms providerMs=3998ms toolMs=223ms calls=2 attempts=2 empty=0 retries=0 failovers=0 reasks=0 tools=getProduct toolRuns=1 in=24476 out=249 cost=$0.000000 quota=unknown web=none upstream=Nvidia model=nvidia/nemotron-3.5-lightning:free tier=free route=default simpleEscalations=0 iterations=2 turn=a3a8056f",
+    "AI request intent=inventory route=default model=nvidia/nemotron-3.5-lightning:free tier=free reasoning-free=disabled reasoning-free-source=default reasoning-paid=advanced reasoning-paid-source=advanced reasoning-legacy=unset web-search=disabled web-fetch=disabled tools=inventory turn=5457fbbb",
+    "AI model call provider=openrouter model=nvidia/nemotron-3.5-lightning:free tier=free reasoning=disabled field=disabled source=default turn=5457fbbb",
+    "AI model call provider=openrouter model=nvidia/nemotron-3.5-lightning:free tier=free reasoning=disabled field=disabled source=default turn=5457fbbb",
+    "AI turn outcome=ok status=ok duration=3.41s total=3408ms providerMs=3191ms toolMs=216ms calls=2 attempts=2 empty=0 retries=0 failovers=0 reasks=0 tools=getProduct toolRuns=1 in=24440 out=170 cost=$0.000000 quota=unknown web=none upstream=Nvidia model=nvidia/nemotron-3.5-lightning:free tier=free route=default simpleEscalations=0 iterations=2 turn=5457fbbb",
+    "AI request intent=inventory route=default model=nvidia/nemotron-3.5-lightning:free tier=free reasoning-free=disabled reasoning-free-source=default reasoning-paid=advanced reasoning-paid-source=advanced reasoning-legacy=unset web-search=disabled web-fetch=disabled tools=inventory turn=654273b1",
+    "AI model call provider=openrouter model=nvidia/nemotron-3.5-lightning:free tier=free reasoning=disabled field=disabled source=default turn=654273b1",
+    "AI model call provider=openrouter model=nvidia/nemotron-3.5-lightning:free tier=free reasoning=disabled field=disabled source=default turn=654273b1",
+    "AI turn outcome=ok status=ok duration=2.15s total=2154ms providerMs=1975ms toolMs=179ms calls=2 attempts=2 empty=0 retries=0 failovers=0 reasks=0 tools=getProduct toolRuns=1 in=23557 out=51 cost=$0.000000 quota=unknown web=none upstream=Nvidia model=nvidia/nemotron-3.5-lightning:free tier=free route=default simpleEscalations=0 iterations=2 turn=654273b1",
+    "AI request intent=inventory route=default model=nvidia/nemotron-3.5-lightning:free tier=free reasoning-free=disabled reasoning-free-source=default reasoning-paid=advanced reasoning-paid-source=advanced reasoning-legacy=unset web-search=disabled web-fetch=disabled tools=inventory turn=73aee374",
+    "AI model call provider=openrouter model=nvidia/nemotron-3.5-lightning:free tier=free reasoning=disabled field=disabled source=default turn=73aee374",
+    "AI no tool read for a recorded-data answer — asking the model for the data (attempt 1)",
+    "AI model call provider=openrouter model=nvidia/nemotron-3.5-lightning:free tier=free reasoning=disabled field=disabled source=default turn=73aee374",
+    "AI model call provider=openrouter model=nvidia/nemotron-3.5-lightning:free tier=free reasoning=disabled field=disabled source=default turn=73aee374",
+    "AI turn outcome=ok status=ok duration=4.02s total=4018ms providerMs=3640ms toolMs=376ms calls=3 attempts=3 empty=0 retries=1 failovers=0 reasks=0 tools=getReorderNeededProducts toolRuns=1 in=36279 out=205 cost=$0.000000 quota=unknown web=none upstream=Nvidia model=nvidia/nemotron-3.5-lightning:free tier=free route=default simpleEscalations=0 iterations=3 turn=73aee374",
+    "AI request intent=inventory route=default model=nvidia/nemotron-3.5-lightning:free tier=free reasoning-free=disabled reasoning-free-source=default reasoning-paid=advanced reasoning-paid-source=advanced reasoning-legacy=unset web-search=disabled web-fetch=disabled tools=inventory turn=b21cc272",
+    "AI model call provider=openrouter model=nvidia/nemotron-3.5-lightning:free tier=free reasoning=disabled field=disabled source=default turn=b21cc272",
+    "AI model call provider=openrouter model=nvidia/nemotron-3.5-lightning:free tier=free reasoning=disabled field=disabled source=default turn=b21cc272",
+    "AI turn outcome=ok status=ok duration=5.04s total=5037ms providerMs=4629ms toolMs=407ms calls=2 attempts=2 empty=0 retries=0 failovers=0 reasks=0 tools=getReorderNeededProducts toolRuns=1 in=24275 out=253 cost=$0.000000 quota=unknown web=none upstream=Nvidia model=nvidia/nemotron-3.5-lightning:free tier=free route=default simpleEscalations=0 iterations=2 turn=b21cc272",
+    "AI request intent=inventory route=default model=nvidia/nemotron-3.5-lightning:free tier=free reasoning-free=disabled reasoning-free-source=default reasoning-paid=advanced reasoning-paid-source=advanced reasoning-legacy=unset web-search=disabled web-fetch=disabled tools=inventory turn=e626b01b",
+    "AI model call provider=openrouter model=nvidia/nemotron-3.5-lightning:free tier=free reasoning=disabled field=disabled source=default turn=e626b01b",
+    "AI no tool read for a figure-stating answer — asking the model for the data (attempt 1)",
+    "AI model call provider=openrouter model=nvidia/nemotron-3.5-lightning:free tier=free reasoning=disabled field=disabled source=default turn=e626b01b",
+    "AI model call provider=openrouter model=nvidia/nemotron-3.5-lightning:free tier=free reasoning=disabled field=disabled source=default turn=e626b01b",
+    "AI restock count read from the returned tool total",
+    "AI turn outcome=ok status=ok duration=3.28s total=3282ms providerMs=2911ms toolMs=370ms calls=3 attempts=3 empty=0 retries=1 failovers=0 reasks=0 tools=getReorderNeededProducts toolRuns=1 in=36276 out=72 cost=$0.000000 quota=unknown web=none upstream=Nvidia model=nvidia/nemotron-3.5-lightning:free tier=free route=default simpleEscalations=0 iterations=3 turn=e626b01b",
+    "AI request intent=inventory route=default model=nvidia/nemotron-3.5-lightning:free tier=free reasoning-free=disabled reasoning-free-source=default reasoning-paid=advanced reasoning-paid-source=advanced reasoning-legacy=unset web-search=disabled web-fetch=disabled tools=inventory turn=e0d986c8",
+    "AI model call provider=openrouter model=nvidia/nemotron-3.5-lightning:free tier=free reasoning=disabled field=disabled source=default turn=e0d986c8",
+    "AI model call provider=openrouter model=nvidia/nemotron-3.5-lightning:free tier=free reasoning=disabled field=disabled source=default turn=e0d986c8",
+    "AI restock count read from the returned tool total",
+    "AI turn outcome=ok status=ok duration=2.69s total=2689ms providerMs=2246ms toolMs=443ms calls=2 attempts=2 empty=0 retries=0 failovers=0 reasks=0 tools=getReorderNeededProducts toolRuns=1 in=24291 out=71 cost=$0.000000 quota=unknown web=none upstream=Nvidia model=nvidia/nemotron-3.5-lightning:free tier=free route=default simpleEscalations=0 iterations=2 turn=e0d986c8"
+  ]
+}

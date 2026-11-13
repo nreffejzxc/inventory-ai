@@ -1,0 +1,53 @@
+
+> inventory-ai-server@0.1.0 eval:simple-10k
+> node scripts/eval-simple-inventory-scale.mjs --phase=gate --out=.tmp-simple-inventory-scale-gate-ai108.json
+
+[simple-10k] phase=gate size=10256 seed=1 transport=service concurrency=1 requests=25
+[simple-10k] output=C:\Users\jeffe\inventory-ai\server\.tmp-simple-inventory-scale-gate-ai108.json
+[simple-10k] preflight: no stale seed tenant
+[seed:perf] database : inventoryai_dev_db
+[seed:perf] products : 10256   locations: 3   categories: 4
+[seed:perf] PRNG seed: 1 (the dataset is reproducible)
+[seed:perf] OK
+[seed:perf] businessId      : 6af73ca3f849372c64b0956e
+[seed:perf] categories      : 4
+[seed:perf] locations       : 3
+[seed:perf] products        : 10256
+[seed:perf] inventory rows  : 20539
+[seed:perf] transactions    : 20593
+[seed:perf] elapsed         : 35352 ms
+[seed:perf] next            : node scripts/measure-ai-tools.mjs --business=6af73ca3f849372c64b0956e
+[simple-10k] tenant=6af73ca3f849372c64b0956e products=10256 inventoryRows=20539 restock=5
+[simple-10k] restock names: ASUS ROG Strix GeForce RTX 4070 SUPER OC; Samsung 990 PRO 1TB NVMe SSD; Corsair Vengeance RGB 32GB DDR5-6000; ASUS ROG Strix B650E-F Gaming WiFi; Seasonic Focus GX-850
+[simple-10k] stock samples: SEEDSKU-5000=0, SEEDSKU-0=75, SEEDSKU-1=107, SEEDSKU-2=84, SEEDSKU-3=58, SEEDSKU-4=53, SEEDSKU-5=61, SEEDSKU-6=88, SEEDSKU-7=19, SEEDSKU-8=91, SEEDSKU-9=78, SEEDSKU-10=33, SEEDSKU-11=88, SEEDSKU-12=87, SEEDSKU-13=54
+[simple-10k] paid pricing: $0.000/M input, $0.000/M output
+[simple-10k] allowance before: 997 free requests left; paid usage 1.209018599
+[simple-10k] gate 01/25 OK stock-SEEDSKU-5000 model=nvidia/nemotron-3.5-lightning:free 4462ms cost=$0.000000
+[simple-10k] gate 02/25 OK stock-SEEDSKU-0 model=nvidia/nemotron-3.5-lightning:free 3713ms cost=$0.000000
+[simple-10k] gate 03/25 OK stock-SEEDSKU-1 model=nvidia/nemotron-3.5-lightning:free 3419ms cost=$0.000000
+[simple-10k] gate 04/25 OK stock-SEEDSKU-2 model=nvidia/nemotron-3.5-lightning:free 3065ms cost=$0.000000
+[simple-10k] gate 05/25 OK stock-SEEDSKU-3 model=nvidia/nemotron-3.5-lightning:free 3638ms cost=$0.000000
+[simple-10k] gate 06/25 OK stock-SEEDSKU-4 model=nvidia/nemotron-3.5-lightning:free 3950ms cost=$0.000000
+[simple-10k] gate 07/25 OK stock-SEEDSKU-5 model=nvidia/nemotron-3.5-lightning:free 3835ms cost=$0.000000
+[simple-10k] gate 08/25 OK stock-SEEDSKU-6 model=nvidia/nemotron-3.5-lightning:free 2800ms cost=$0.000000
+[simple-10k] gate 09/25 OK stock-SEEDSKU-7 model=nvidia/nemotron-3.5-lightning:free 4249ms cost=$0.000000
+[simple-10k] gate 10/25 OK stock-SEEDSKU-8 model=nvidia/nemotron-3.5-lightning:free 3330ms cost=$0.000000
+[simple-10k] gate 11/25 OK stock-SEEDSKU-9 model=nvidia/nemotron-3.5-lightning:free 17103ms cost=$0.000000
+[simple-10k] gate 12/25 OK stock-SEEDSKU-10 model=nvidia/nemotron-3.5-lightning:free 3884ms cost=$0.000000
+[simple-10k] gate 13/25 OK stock-SEEDSKU-11 model=nvidia/nemotron-3.5-lightning:free 4324ms cost=$0.000000
+[simple-10k] gate 14/25 OK stock-SEEDSKU-12 model=nvidia/nemotron-3.5-lightning:free 31580ms cost=$0.000000
+[simple-10k] gate 15/25 OK stock-SEEDSKU-13 model=nvidia/nemotron-3.5-lightning:free 3705ms cost=$0.000000
+[simple-10k] gate 16/25 OK exists-SEEDSKU-0 model=nvidia/nemotron-3.5-lightning:free 4045ms cost=$0.000000
+[simple-10k] gate 17/25 OK exists-SEEDSKU-1 model=nvidia/nemotron-3.5-lightning:free 3299ms cost=$0.000000
+[simple-10k] gate 18/25 OK exists-SEEDSKU-5000 model=nvidia/nemotron-3.5-lightning:free 38361ms cost=$0.000000
+[simple-10k] gate 19/25 OK exists-SEEDSKU-2 model=nvidia/nemotron-3.5-lightning:free 4224ms cost=$0.000000
+[simple-10k] gate 20/25 OK exists-SEEDSKU-3 model=nvidia/nemotron-3.5-lightning:free 3411ms cost=$0.000000
+[simple-10k] gate 21/25 OK exists-absent model=nvidia/nemotron-3.5-lightning:free 2156ms cost=$0.000000
+[simple-10k] gate 22/25 OK restock-list-1 model=nvidia/nemotron-3.5-lightning:free 4019ms cost=$0.000000
+[simple-10k] gate 23/25 OK restock-list-2 model=nvidia/nemotron-3.5-lightning:free 5039ms cost=$0.000000
+[simple-10k] gate 24/25 OK restock-count-1 model=nvidia/nemotron-3.5-lightning:free 3284ms cost=$0.000000
+[simple-10k] gate 25/25 OK restock-count-2 model=nvidia/nemotron-3.5-lightning:free 2690ms cost=$0.000000
+[simple-10k] checkpoint cleared after the completed phase
+[simple-10k] RESULTS gate 25/25 accurate, free=25, paid=0, errors=0, degraded=0, median=3835ms, p95=31580ms, cost=$0.000000
+[simple-10k] artifact: C:\Users\jeffe\inventory-ai\server\.tmp-simple-inventory-scale-gate-ai108.json
+[simple-10k] cleanup (finally): removed 1 seed tenant(s) (51422 documents)
