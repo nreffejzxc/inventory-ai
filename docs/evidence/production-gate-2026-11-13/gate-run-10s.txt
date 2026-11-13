@@ -1,0 +1,24 @@
+
+> inventory-ai-server@0.1.0 eval:deployed-gate
+> node scripts/perf/deployed-gate.mjs
+
+[deployed-gate] database=inventoryai_prod_db target=https://ai-inventory-l1mi.onrender.com
+[deployed-gate] snapshot: 20006 inventory row(s) -> .tmp-deployed-gate-inventory-backup.json; shape={"products":10000,"inventoryRows":20006,"totalQuantity":2446801,"reserved":0}
+[deployed-gate] normalized shape={"products":10000,"inventoryRows":20006,"totalQuantity":622406,"reserved":0}
+[deployed-gate] tenant=6af18628a9a409131a84235b products=10000 inventoryRows=20006 restock=5
+[deployed-gate] low SKUs: SEEDSKU-5000, SEEDSKU-5001, SEEDSKU-5002, SEEDSKU-5003, SEEDSKU-5004
+[deployed-gate] samples: SEEDSKU-5000=0, SEEDSKU-0=92, SEEDSKU-1=32, SEEDSKU-2=50, SEEDSKU-3=64
+[deployed-gate] restock names: Bosch GWS 060 Angle Grinder; Stanley 65-Piece Socket Set; Milwaukee M18 FUEL Circular Saw; Black+Decker 20V MAX Cordless Drill BDCDD220C; Irwin Vise-Grip 10-Inch Curved Jaw Locking Pliers
+[deployed-gate] pricing: $0.030/M input, $0.130/M output
+[deployed-gate] auth=firebase custom token -> /api/auth/firebase/exchange (token not logged)
+[deployed-gate] deployed commit=65d9ef1ff1ee7740a1e1c09ac48934cfaea6a8fc status=ok
+[deployed-gate] allowance before: 909 free requests left; paid usage 1.210596974
+[deployed-gate] gate 01/25 OK stock-SEEDSKU-5000 model=nvidia/nemotron-3.5-lightning:free 6560ms cost=$0.000000
+[deployed-gate] gate 02/25 OK stock-SEEDSKU-0 model=nvidia/nemotron-3.5-lightning:free 6585ms cost=$0.000000
+[deployed-gate] gate 03/25 OK stock-SEEDSKU-1 model=openai/gpt-oss-20b 22479ms cost=$0.000651
+[deployed-gate] ABORT after 3/25: stock-SEEDSKU-1: served by non-free model openai/gpt-oss-20b; aborting before another request
+[deployed-gate] restored 20006 inventory row(s) from the snapshot
+[deployed-gate] restore verified exactly for 20006 row(s)
+[deployed-gate] RESULTS 2/25 accurate, free=2, paid=1, errors=0, degraded=0, median=6585ms, p95=22479ms, cost=$0.000651
+[deployed-gate] artifact: .tmp-simple-inventory-scale-gate-deployed.json
+[deployed-gate] ABORTED: stock-SEEDSKU-1: served by non-free model openai/gpt-oss-20b; aborting before another request
