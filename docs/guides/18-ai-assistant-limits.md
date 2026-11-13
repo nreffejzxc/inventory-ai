@@ -17,8 +17,8 @@ Source of truth: `server/src/services/ai/aiConfig.ts`, `ai.service.ts`, `tools.t
 ## 0. Production snapshot (verified 2026-11-13)
 
 Read from the Render API for the live `ai-inventory` service on branch `main`, at commit
-`705d192` — the same commit as the local `main` tree when this was written. Secret values were
-not read. The service has these non-secret AI settings; everything not listed is absent and uses
+`705d192` — the AI runtime commit. Later commits are tests and documentation only and do not
+change the behaviour described here. Secret values were not read. The service has these non-secret AI settings; everything not listed is absent and uses
 the source default.
 
 | Variable | Production value | Source default | Effect in production |

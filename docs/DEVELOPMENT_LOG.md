@@ -48,7 +48,9 @@ Store release is being prepared.
 The AI-105 output-limit drill remains the last AI-specific deployment before it. `/api/health`
 reports `status: ok`, `db: connected`, `environment: production`; `/api/health/ready` returns 200.
 The current production OTA is `39f78213-cc77-45f6-8b1b-0b9232b44a62`, published from `8b99f46`;
-local `main` is `e6629ab`, the docs-only release record.
+local `main` is `17d4fd0`, the quota evidence guard and committed-stub record. The two most recent
+merges (`4e4c6f7`, `17d4fd0`) changed tests, CI and documentation only; no AI runtime code or
+production AI configuration changed.
 
 **Hosted scheduler status (2026-11-11T19:56Z):** **UptimeRobot is live and alert delivery is
 verified** with two five-minute monitors (readiness HTTP 200 and `/api/health` keyword
@@ -136,6 +138,31 @@ Known limits, checked before spending one of them:
   space that a backup or an index change would explain.
 - **Brevo** — used for verification codes, reset codes and invitations. Do not send test mail in
   bulk; a delivery failure is not a code regression until the provider log says so.
+
+---
+
+## 2026-11-13 — Documentation truth pass before AI reliability work
+
+**Status.** Complete. The top of the log and the two AI reference guides now point at the current
+tree without claiming that a documentation/test merge changed AI behaviour. No runtime code,
+production configuration or provider quota was touched.
+
+**Corrections.** `Current position` now names local `main` `17d4fd0` (it still said `e6629ab`) and
+records that the two latest merges changed tests, CI and documentation only. Guide 18's production
+snapshot and Guide 19's error-code reference now name `705d192` as the AI runtime commit rather than
+the local tree, because docs-only and test-only commits followed it.
+
+**Evidence status.** The quota evidence index is guarded by `scripts/check-docs.mjs`; every
+`docs/evidence/ai-quota-*` directory must be linked and carry a README. The new committed-stub
+record is linked, and the previously unindexed spent-allowance record is now in the table.
+
+**Verification.** `node scripts/check-docs.mjs` passed with 33 active documents and 5 quota
+evidence records linked; the five documentation suites passed **31/31**; `git diff --check` was
+clean. No device or production run was performed for this documentation-only change.
+
+**Next.** The remaining AI reliability work is tracked in the open-items table and the new
+follow-up plan: single-flight protection, a staging real-provider failover drill, and the
+post-deploy 10K gate after its checker is corrected.
 
 ---
 
