@@ -207,14 +207,16 @@ provider call or shared quota was used. The production APK was restored as 1.0.2
 and its dashboard and Profile were checked. See
 [`evidence/ai-quota-device-2026-11-13`](evidence/ai-quota-device-2026-11-13/README.md).
 
-**Regression coverage.** The streamed AI error paths are now pinned at the transport-to-screen
-seam: `mobile/__tests__/ai40-assistant-streaming.test.tsx` feeds realistic SSE `event: error`
-frames through the real `chatStream` transport for the six member-facing AI codes
-(`AI_QUOTA_EXCEEDED`, `AI_RATE_LIMITED`, `AI_NOT_CONFIGURED`, `AI_UNAVAILABLE`, `AI_OUTPUT_LIMIT`
-and `AI_TIMEOUT`); `AI_ABANDONED` is a server-side record and has no banner. Each case asserts its
-own exact sentence, no JSON fallback, and that the question is returned to the composer; the
+**Regression coverage.** The streamed and pre-stream AI error paths are now pinned at the
+transport-to-screen seam. `mobile/__tests__/ai40-assistant-streaming.test.tsx` feeds realistic
+SSE `event: error` frames through the real `chatStream` transport for the six member-facing AI
+codes (`AI_QUOTA_EXCEEDED`, `AI_RATE_LIMITED`, `AI_NOT_CONFIGURED`, `AI_UNAVAILABLE`,
+`AI_OUTPUT_LIMIT` and `AI_TIMEOUT`); `AI_ABANDONED` is a server-side record and has no banner.
+It also drives the ordinary JSON HTTP refusal for `AI_RATE_LIMITED` and `AI_NOT_CONFIGURED`, and
+a retry test proves a rate-limit refusal restores the question and a second Send succeeds without
+retyping. Each case asserts its own exact sentence, no JSON fallback, and composer recovery; the
 quota and rate-limit cases also assert the other's sentence is absent. The full mobile suite
-passed **102 suites / 1,216 tests**, with typecheck and lint clean.
+passed **102 suites / 1,219 tests**, with typecheck and lint clean.
 
 ---
 

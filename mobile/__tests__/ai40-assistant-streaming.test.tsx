@@ -51,6 +51,8 @@ const QUOTA =
   "The assistant has used today's request allowance. It resets at midnight UTC — the rest of the app works as usual.";
 const RATE_LIMITED = "You're sending messages too quickly — wait a moment and try again.";
 const OUTAGE = 'The AI service is temporarily unavailable. Please try again in a moment.';
+const NOT_CONFIGURED =
+  'The AI assistant is not enabled on this server yet. Ask an administrator to turn it on.';
 
 /** The payload both transports return for a successful turn. */
 const TURN = {
@@ -143,6 +145,28 @@ function mockChatStreamError(status: number, code: string, message: string): voi
     return actualChatStream(token, body, {
       ...options,
       fetchImpl: async () => ({ ok: true, status: 200, body: stream, text: async () => '' }),
+    });
+  });
+}
+
+/**
+ * Make the real transport receive the ordinary JSON error envelope before a stream opens.
+ *
+ * A pre-stream refusal is an HTTP response, not an SSE event; `chatStream` must map both shapes
+ * to the same `ApiError` so the screen's copy and composer recovery stay identical.
+ */
+function mockChatStreamHttpError(status: number, code: string, message: string): void {
+  const actualChatStream = jest.requireActual('../lib/api').aiApi.chatStream as typeof aiApi.chatStream;
+  chatStream.mockImplementation((...args: Parameters<typeof actualChatStream>) => {
+    const [token, body, options] = args;
+    return actualChatStream(token, body, {
+      ...options,
+      fetchImpl: async () => ({
+        ok: false,
+        status,
+        body: null,
+        text: async () => JSON.stringify({ error: message, code }),
+      }),
     });
   });
 }
@@ -321,6 +345,32 @@ describe('AI-40 — the assistant streams its answer', () => {
     expect(chat).not.toHaveBeenCalled();
   });
 
+  it('reuses the restored question after the rate limit clears', async () => {
+    mockChatStreamHttpError(
+      429,
+      'AI_RATE_LIMITED',
+      'The assistant is receiving too many requests.',
+    );
+
+    const view = await mount();
+    await ask(view);
+
+    await waitFor(() => expect(view.getByText(RATE_LIMITED)).toBeTruthy());
+    await expectQuestionRestored(view);
+
+    // The limit clears and the member presses Send again without retyping: the restored
+    // composer text must be sent, and the successful answer must replace the refusal banner.
+    chatStream.mockResolvedValue(TURN);
+    void fireEvent.press(view.getByRole('button', { name: 'Send' }));
+
+    await waitFor(() => expect(view.getByText('You hold 112 units in total.')).toBeTruthy());
+    expect(chatStream).toHaveBeenCalledTimes(2);
+    expect(chatStream.mock.calls[1][1].message).toBe(QUESTION);
+    expect(view.queryByText(RATE_LIMITED)).toBeNull();
+    expect(view.getByPlaceholderText(PLACEHOLDER).props.value).toBe('');
+    expect(chat).not.toHaveBeenCalled();
+  });
+
   it('signs out on an ended session instead of retrying it', async () => {
     chatStream.mockRejectedValue(new ApiError(401, 'SESSION_INVALIDATED', 'Session ended.'));
 
@@ -361,8 +411,7 @@ describe('AI-40 — the remaining streamed AI errors keep their own sentences', 
       code: 'AI_NOT_CONFIGURED',
       serverMessage:
         'The AI assistant is not configured on this server yet. Ask an administrator to enable it.',
-      expected:
-        'The AI assistant is not enabled on this server yet. Ask an administrator to turn it on.',
+      expected: NOT_CONFIGURED,
       notExpected: [OUTAGE, QUOTA, RATE_LIMITED],
     },
     {
@@ -406,6 +455,42 @@ describe('AI-40 — the remaining streamed AI errors keep their own sentences', 
     for (const wrong of notExpected) {
       expect(view.queryByText(wrong)).toBeNull();
     }
+    await expectQuestionRestored(view);
+    expect(view.queryByText(QUESTION)).toBeNull();
+    expect(chat).not.toHaveBeenCalled();
+  });
+});
+
+describe('AI-40 — pre-stream HTTP refusals keep their sentences and restore the question', () => {
+  const CASES = [
+    {
+      status: 429,
+      code: 'AI_RATE_LIMITED',
+      message: 'The assistant is receiving too many requests.',
+      expected: RATE_LIMITED,
+    },
+    {
+      status: 503,
+      code: 'AI_NOT_CONFIGURED',
+      message:
+        'The AI assistant is not configured on this server yet. Ask an administrator to enable it.',
+      expected: NOT_CONFIGURED,
+    },
+  ];
+
+  it.each(CASES)('$code keeps its sentence and restores the question', async ({
+    status,
+    code,
+    message,
+    expected,
+  }) => {
+    mockChatStreamHttpError(status, code, message);
+
+    const view = await mount();
+    await ask(view);
+
+    await waitFor(() => expect(view.getByText(expected)).toBeTruthy());
+    expect(view.queryByText(QUOTA)).toBeNull();
     await expectQuestionRestored(view);
     expect(view.queryByText(QUESTION)).toBeNull();
     expect(chat).not.toHaveBeenCalled();
