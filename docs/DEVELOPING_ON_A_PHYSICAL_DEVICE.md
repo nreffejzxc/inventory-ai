@@ -392,3 +392,56 @@ its measured setup are documented there. The measured fact this reference adds: 
 session was run on 2026-11-06 against this OPPO at `192.168.1.2:5555`, and the phone both loaded the
 bundle from Metro and reached the backend through the wireless ADB reverse tunnel. Reverse tunnels
 do not survive a new ADB connection; recreate both after any reconnect.
+
+---
+
+## 11. Local quota-refusal stub
+
+[`scripts/device/quota-stub.mjs`](../scripts/device/quota-stub.mjs) is the reusable
+OpenRouter-shaped provider for quota walkthroughs. It binds `127.0.0.1` only, never contacts a real
+provider, and requires no credentials. The 2026-11-13 first- and second-refusal records used the same
+wire shape; future runs should use this helper instead of rebuilding a scratch server.
+
+Start it from the repository root:
+
+```bash
+node scripts/device/quota-stub.mjs --port=5999 --log=.scratch/quota-stub.jsonl
+```
+
+`--log` is optional. Without it, one JSON request record per line goes to stdout. Records contain the
+message text the app sent, so keep a log file under ignored `.scratch/` and never commit it.
+
+Point the local API at it without changing production configuration:
+
+```bash
+cd server
+AI_PROVIDER=openrouter \
+OPENROUTER_BASE_URL=http://127.0.0.1:5999 \
+OPENROUTER_API_KEY=local-stub-not-a-secret \
+AI_MODEL_OPENROUTER=stub/model-1 \
+AI_RATE_LIMIT_MAX=1000 \
+node src/index.ts
+```
+
+The stub acknowledges model-health probes and serves an Anthropic-style SSE completion for
+`POST /v1/messages`; `stream: false` gets the equivalent JSON body. Control the next completion:
+
+```bash
+curl.exe -s 'http://127.0.0.1:5999/control?fail=1'   # refuse the next completion
+curl.exe -s 'http://127.0.0.1:5999/control?fail=0'   # clear a pending refusal
+curl.exe -s 'http://127.0.0.1:5999/control'           # read { "failNext": ... }
+```
+
+A controlled refusal is HTTP `429` with `x-ratelimit-remaining: 0`, `x-ratelimit-limit: 50` and
+`{"error":{"message":"stub daily allowance spent","type":"rate_limit_error"}}`. The refusal is
+counted once; the following completion succeeds normally.
+
+Run the helper's own checks with no phone, API, database or credentials:
+
+```bash
+node scripts/device/quota-stub.mjs --self-test
+```
+
+It exercises the control state, a streamed completion, a refusal with the expected headers, the
+recovery on the next completion, and the JSON path. For the device evidence pattern, see the
+[quota recovery index](evidence/ai-quota-recovery-index.md).

@@ -350,6 +350,37 @@ describe('AI-40 — the assistant streams its answer', () => {
     expect(chat).not.toHaveBeenCalled();
   });
 
+  it('recovers a brand-new conversation whose first question was refused', async () => {
+    mockChatStreamError(
+      429,
+      'AI_QUOTA_EXCEEDED',
+      'The AI assistant has reached its usage limit. Please try again later.',
+    );
+
+    const view = await mount();
+    expect(messages).not.toHaveBeenCalled();
+
+    await ask(view);
+
+    await waitFor(() => expect(view.getByText(QUOTA)).toBeTruthy());
+    await expectQuestionRestored(view);
+    expect(chatStream).toHaveBeenCalledTimes(1);
+    // The first refusal created nothing, so the retry must still be sent without a conversation id.
+    expect(chatStream.mock.calls[0][1]).toEqual({ conversationId: null, message: QUESTION });
+
+    chatStream.mockResolvedValue(TURN);
+    void fireEvent.press(view.getByRole('button', { name: 'Send' }));
+
+    await waitFor(() => expect(view.getByText('You hold 112 units in total.')).toBeTruthy());
+    expect(chatStream).toHaveBeenCalledTimes(2);
+    expect(chatStream.mock.calls[1][1]).toEqual({ conversationId: null, message: QUESTION });
+    expect(view.queryByText(QUOTA)).toBeNull();
+    expect(view.getByPlaceholderText(PLACEHOLDER).props.value).toBe('');
+    // A brand-new chat loads no thread and sends no prior history.
+    expect(messages).not.toHaveBeenCalled();
+    expect(chat).not.toHaveBeenCalled();
+  });
+
   it('renders the wait-a-moment sentence from a streamed AI_RATE_LIMITED error event', async () => {
     mockChatStreamError(
       429,
