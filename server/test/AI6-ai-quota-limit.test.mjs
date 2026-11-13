@@ -42,6 +42,7 @@ import {
   AiQuotaExceeded,
   isAiError,
 } from '../src/services/ai/aiErrors.ts';
+import { resetQuotaState } from '../src/services/ai/quota.ts';
 import { registerFakeProvider, setFakeScenario, fakeText } from './fakes/aiProvider.mjs';
 
 process.env.AI_PROVIDER = 'fake';
@@ -340,5 +341,54 @@ dbSuite('AI-6 the limit reaches the client as 429 AI_QUOTA_EXCEEDED', dbOk, () =
     assert.equal(res.status, 502);
     assert.equal(res.json.code, 'AI_UNAVAILABLE');
     assert.notEqual(res.json.code, 'AI_QUOTA_EXCEEDED');
+  });
+
+  it('returns 429, fails fast, then serves the next request after the quota window', async () => {
+    const owner = await registerOwner(api, tracker);
+    const previousBlock = process.env.AI_QUOTA_BLOCK_MS;
+    // The production fail-fast window is 30 s. A short one lets this test cross the
+    // real route's window without a 30-second wait; the provider owns the daily counter.
+    process.env.AI_QUOTA_BLOCK_MS = '2000';
+    let calls = 0;
+    setFakeScenario(() => {
+      calls += 1;
+      if (calls === 1) throw new AiQuotaExceeded(undefined, { remaining: 0, limit: 50 });
+      return fakeText('served after the quota window', { quota: { remaining: 50, limit: 50 } });
+    });
+
+    try {
+      const first = await api('POST', '/api/ai/chat', {
+        token: owner.token,
+        body: { message: 'say hello in one sentence' },
+      });
+      assert.equal(first.status, 429);
+      assert.equal(first.json.code, 'AI_QUOTA_EXCEEDED');
+      assert.equal(first.json.error, 'The AI assistant has reached its usage limit. Please try again later.');
+      assert.equal(calls, 1);
+
+      const blocked = await api('POST', '/api/ai/chat', {
+        token: owner.token,
+        body: { message: 'say hello in one sentence' },
+      });
+      assert.equal(blocked.status, 429);
+      assert.equal(blocked.json.code, 'AI_QUOTA_EXCEEDED');
+      assert.equal(calls, 1, 'the fail-fast window must not spend another provider call');
+
+      await new Promise((resolve) => setTimeout(resolve, 2200));
+      const afterWindow = await api('POST', '/api/ai/chat', {
+        token: owner.token,
+        body: { message: 'say hello in one sentence' },
+      });
+      assert.equal(afterWindow.status, 201, JSON.stringify(afterWindow.json));
+      assert.equal(afterWindow.json.assistantMessage.content, 'served after the quota window');
+      assert.equal(calls, 2, 'the allowance is asked again after the window');
+
+      const list = await api('GET', '/api/ai/conversations', { token: owner.token });
+      assert.equal(list.json.total, 1, 'the successful retry persists one conversation');
+    } finally {
+      if (previousBlock === undefined) delete process.env.AI_QUOTA_BLOCK_MS;
+      else process.env.AI_QUOTA_BLOCK_MS = previousBlock;
+      resetQuotaState();
+    }
   });
 });

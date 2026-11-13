@@ -425,7 +425,7 @@ describe('AI-40 — the assistant streams its answer', () => {
     expect(chat).not.toHaveBeenCalled();
   });
 
-  it('keeps the question through a third consecutive failure and shows the newest error', async () => {
+  it('keeps the question through three failures and succeeds on the fourth attempt', async () => {
     const failures = [
       {
         arm: () =>
@@ -473,6 +473,16 @@ describe('AI-40 — the assistant streams its answer', () => {
     expect(view.getByRole('button', { name: 'Send' }).props.accessibilityState?.disabled).toBe(
       false,
     );
+
+    // The fourth attempt is sent from the same restored composer text and succeeds.
+    chatStream.mockResolvedValue(TURN);
+    void fireEvent.press(view.getByRole('button', { name: 'Send' }));
+
+    await waitFor(() => expect(view.getByText('You hold 112 units in total.')).toBeTruthy());
+    expect(chatStream).toHaveBeenCalledTimes(4);
+    expect(chatStream.mock.calls[3][1].message).toBe(QUESTION);
+    expect(view.queryByText(OUTAGE)).toBeNull();
+    expect(view.getByPlaceholderText(PLACEHOLDER).props.value).toBe('');
     expect(chat).not.toHaveBeenCalled();
   });
 
