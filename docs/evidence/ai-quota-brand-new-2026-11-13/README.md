@@ -24,7 +24,9 @@ The same screen behaviour has a mobile counterpart in
 refused first Send and the retry send `{ conversationId: null, message }`, that no thread is loaded,
 and that the successful retry clears the banner and composer. A second mobile case, `uses the
 conversation created by the retry on the next message`, then sends a follow-up and verifies it uses
-`conv-1` rather than starting another chat.
+`conv-1` rather than starting another chat. A third case, `keeps the conversation id through a second
+refusal and recovery`, refuses a turn in that conversation, retries it, and verifies the following
+message still carries `conv-1`.
 
 ## Verification
 
@@ -33,7 +35,7 @@ cd server
 TEST_MODE=full node --test test/AI40-ai-streaming.test.mjs
 ```
 
-Result on 2026-11-13: **26/26 passed, 0 failed**. The focused mobile suite passed **24/24**; server
+Result on 2026-11-13: **26/26 passed, 0 failed**. The focused mobile suite passed **26/26**; server
 lint and typecheck and mobile typecheck were clean.
 
 ## Limits
