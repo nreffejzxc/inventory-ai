@@ -10,8 +10,18 @@
  * pressing Stop — and the happy path beside them.
  */
 
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
 import { aiApi } from '../lib/api';
 import { ApiError, REQUEST_CANCELLED } from '../lib/client';
+
+// The server and the transport consume the same bytes, so a change to the event cannot leave one
+// suite asserting a shape the other no longer emits.
+const SERVER_QUOTA_EVENT = readFileSync(
+  join(__dirname, '..', '..', 'test-fixtures', 'ai-quota-sse-event.txt'),
+  'utf8',
+);
 
 // The transport is injected rather than mocked at the module boundary: `expo/fetch` is loaded
 // through a dynamic import, which a Jest module mock does not intercept, and the failure this
@@ -166,12 +176,9 @@ describe('AI-40 — chatStream settles even when the body does not', () => {
   });
 
   it('maps the server\'s exact SSE quota payload to AI_QUOTA_EXCEEDED', async () => {
-    // Copied verbatim from the server's `sseFailure` event (AI-40). Feeding a reconstructed
-    // envelope would let the client and server drift without either suite noticing.
-    const serverQuotaEvent =
-      'event: error\n' +
-      'data: {"status":429,"code":"AI_QUOTA_EXCEEDED","message":"The AI assistant has reached its usage limit. Please try again later."}\n\n';
-    mockStreamingFetch.mockResolvedValue(okResponse(bodyOf([serverQuotaEvent]).body));
+    // Read from the fixture the server suite asserts its raw response against (AI-40), rather
+    // than copied here where either side could change without the other noticing.
+    mockStreamingFetch.mockResolvedValue(okResponse(bodyOf([SERVER_QUOTA_EVENT]).body));
 
     const error = await aiApi
       .chatStream('token-1', { message: 'How much stock do we hold?' }, streamOptions())

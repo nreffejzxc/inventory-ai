@@ -233,10 +233,14 @@ quota refusal on the streamed transport as an error event carrying `status: 429`
 `AI_QUOTA_EXCEEDED`, the exact sentence, and no persisted conversation; a second streamed case
 retries the same `conversationId` after the window and verifies one continued conversation, four
 messages, and the earlier answer in provider history. On the mobile side,
-`ai40-chat-stream-transport.test.ts` consumes that server event verbatim and asserts the transport
-raises `ApiError` with status 429, code `AI_QUOTA_EXCEEDED`, and the same message, not
-`AI_RATE_LIMITED`. The full mobile suite passed **102 suites / 1,223 tests**, with typecheck and
-lint clean.
+`ai40-chat-stream-transport.test.ts` reads the shared `test-fixtures/ai-quota-sse-event.txt` fixture
+that the server suite asserts byte for byte, so a format change cannot leave one side green
+against a stale event; it asserts the transport raises `ApiError` with status 429, code
+`AI_QUOTA_EXCEEDED`, and the same message, not `AI_RATE_LIMITED`. A controlled OPPO walkthrough
+against the same local stub showed the quota banner, kept the unsent question in the composer,
+and succeeded on the next Send after the window while retaining both earlier turns; no production
+provider call or shared quota was used. The full mobile suite passed **102 suites / 1,223 tests**,
+with typecheck and lint clean.
 
 ---
 
