@@ -3,3 +3,7 @@
 # than LF in the repository and CRLF in a Windows working copy. A CRLF copy was measured to apply
 # correctly, so this is determinism, not a workaround.
 *.patch text eol=lf
+
+# The server asserts these bytes against its response and the phone reads the same file, so the
+# checkout must preserve the fixture's LF endings and its terminal SSE blank line.
+test-fixtures/** text eol=lf whitespace=-blank-at-eof

@@ -1,0 +1,3 @@
+event: error
+data: {"status":429,"code":"AI_QUOTA_EXCEEDED","message":"The AI assistant has reached its usage limit. Please try again later."}
+

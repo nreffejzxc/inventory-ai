@@ -22,6 +22,7 @@
 
 import http from 'node:http';
 import { once } from 'node:events';
+import { readFileSync } from 'node:fs';
 
 import { it, after, afterEach, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
@@ -42,6 +43,14 @@ import { registerFakeProvider, setFakeScenario, fakeText } from './fakes/aiProvi
 process.env.AI_PROVIDER = 'fake';
 process.env.AI_RATE_LIMIT_MAX = '1000';
 registerFakeProvider();
+
+// The refusal event is a contract with the phone, so both sides read the same bytes. A literal
+// copied into each suite can drift while both suites stay green; this one is asserted against the
+// server's raw response and consumed by the mobile transport test.
+const QUOTA_SSE_EVENT = readFileSync(
+  new URL('../../test-fixtures/ai-quota-sse-event.txt', import.meta.url),
+  'utf8',
+);
 
 // ---------------------------------------------------------------------------
 // A local stub gateway. It can answer as JSON, as a stream, or as a stream that
@@ -644,7 +653,9 @@ dbSuite('AI-40 the streamed turn reaches the phone as it is written', dbOk, () =
     assert.equal(res.status, 200);
     assert.match(res.headers.get('content-type') ?? '', /text\/event-stream/);
 
-    const events = parseEvents(await res.text());
+    const body = await res.text();
+    assert.equal(body, QUOTA_SSE_EVENT, 'the server emits the shared contract fixture byte for byte');
+    const events = parseEvents(body);
     const errors = events.filter((event) => event.event === 'error');
     assert.equal(errors.length, 1);
     assert.deepEqual(errors[0].data, {
