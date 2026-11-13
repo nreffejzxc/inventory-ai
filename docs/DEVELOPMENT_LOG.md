@@ -223,11 +223,15 @@ restored question then succeeds. On the server, `AI36-quota-header-awareness.tes
 **14/14** and drives `runAiChat` through a refusal and a fail-fast turn, advances one UTC day, and
 verifies the next turn reaches the fake provider, succeeds, and records `50/50`; the provider owns
 the daily counter, so this verifies the server's recovery boundary rather than a local daily
-counter. `AI6-ai-quota-limit.test.mjs` passes **14/14** and pins the same recovery at the HTTP
+counter. `AI6-ai-quota-limit.test.mjs` passes **15/15** and pins the same recovery at the HTTP
 boundary with a shortened test window: `429 AI_QUOTA_EXCEEDED` with the exact sentence, a second
 fail-fast 429 with no extra provider call, then `201` after the window with one persisted
-conversation. The full mobile suite passed **102 suites / 1,222 tests**, with typecheck and lint
-clean.
+conversation. A second HTTP case proves a retry with the original `conversationId` returns that
+same id, adds exactly one question and answer, keeps the total at one conversation, and sends the
+earlier answer as provider history. `AI40-ai-streaming.test.mjs` passes **23/23** and pins the
+quota refusal on the streamed transport as an error event carrying `status: 429`, code
+`AI_QUOTA_EXCEEDED`, the exact sentence, and no persisted conversation. The full mobile suite
+passed **102 suites / 1,222 tests**, with typecheck and lint clean.
 
 ---
 
