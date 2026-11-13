@@ -1,0 +1,39 @@
+[503-drill] database=inventoryai_dev_db base=http://127.0.0.1:4001 proxy=http://127.0.0.1:5055
+[503-drill] failing model=openai/gpt-oss-20b
+[503-drill] question: What is the total stock value of my inventory?
+[503-drill] failover status=201 model=nvidia/nemotron-3.5-lightning:free tools=getStockValue duration=4301ms degraded=- answer=278 chars
+[503-drill] failover answer: Your inventory is worth **PHP 49,991,557,115** total. - 10,000 products are counted. - 2,446,801 units are on hand. - No products are unpriced (every product has a recorded selling price). This total is at the recorded selling price across all active products in the business.
+[503-drill] proxy failing=false; sending the ordinary control turn
+[503-drill] normal status=201 model=openai/gpt-oss-20b tools=getStockValue duration=7799ms degraded=- answer=63 chars
+{
+  "result": "PASS",
+  "failModel": "openai/gpt-oss-20b",
+  "failover": {
+    "status": 201,
+    "durationMs": 4301,
+    "content": "Your inventory is worth **PHP 49,991,557,115** total.\n\n- 10,000 products are counted.\n- 2,446,801 units are on hand.\n- No products are unpriced (every product has a recorded selling price).\n\nThis total is at the recorded selling price across all active products in the business.",
+    "model": "nvidia/nemotron-3.5-lightning:free",
+    "toolsUsed": [
+      "getStockValue"
+    ],
+    "degraded": null,
+    "error": null
+  },
+  "normal": {
+    "status": 201,
+    "durationMs": 7799,
+    "content": "The total value of all on‑hand inventory is **49,991,557,115**.",
+    "model": "openai/gpt-oss-20b",
+    "toolsUsed": [
+      "getStockValue"
+    ],
+    "degraded": null,
+    "error": null
+  },
+  "proxy": {
+    "failing": false,
+    "failModel": "openai/gpt-oss-20b",
+    "failedRequests": 1,
+    "forwardedRequests": 9
+  }
+}

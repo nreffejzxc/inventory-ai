@@ -1,0 +1,44 @@
+
+> inventory-ai-server@0.1.0 eval:deployed-gate
+> node scripts/perf/deployed-gate.mjs
+
+[deployed-gate] mode=staging database=inventoryai_dev_db target=http://127.0.0.1:4000
+[deployed-gate] snapshot: 20006 inventory row(s) -> .tmp-staging-gate-inventory-backup.json; shape={"products":10000,"inventoryRows":20006,"totalQuantity":2446801,"reserved":0}
+[deployed-gate] normalized shape={"products":10000,"inventoryRows":20006,"totalQuantity":622406,"reserved":0}
+[deployed-gate] tenant=6af74f801f2f46d5506554c2 products=10000 inventoryRows=20006 restock=5
+[deployed-gate] low SKUs: SEEDSKU-5000, SEEDSKU-5001, SEEDSKU-5002, SEEDSKU-5003, SEEDSKU-5004
+[deployed-gate] samples: SEEDSKU-5000=0, SEEDSKU-0=92, SEEDSKU-1=32, SEEDSKU-2=50, SEEDSKU-3=64
+[deployed-gate] restock names: ASUS ROG Strix GeForce RTX 4070 SUPER OC; Samsung 990 PRO 1TB NVMe SSD; Corsair Vengeance RGB 32GB DDR5-6000; ASUS ROG Strix B650E-F Gaming WiFi; Seasonic Focus GX-850
+[deployed-gate] pricing: $0.030/M input, $0.130/M output
+[deployed-gate] auth=firebase custom token -> /api/auth/firebase/exchange (token not logged)
+[deployed-gate] deployed commit=unknown status=ok
+[deployed-gate] allowance before: 902 free requests left; paid usage 1.211761734
+[deployed-gate] gate 01/25 OK stock-SEEDSKU-5000 model=nvidia/nemotron-3.5-lightning:free 4860ms cost=$0.000000
+[deployed-gate] gate 02/25 OK stock-SEEDSKU-0 model=nvidia/nemotron-3.5-lightning:free 6606ms cost=$0.000000
+[deployed-gate] gate 03/25 OK stock-SEEDSKU-1 model=nvidia/nemotron-3.5-lightning:free 3591ms cost=$0.000000
+[deployed-gate] gate 04/25 OK stock-SEEDSKU-2 model=nvidia/nemotron-3.5-lightning:free 4739ms cost=$0.000000
+[deployed-gate] gate 05/25 OK stock-SEEDSKU-3 model=nvidia/nemotron-3.5-lightning:free 11312ms cost=$0.000000
+[deployed-gate] gate 06/25 OK stock-SEEDSKU-4 model=nvidia/nemotron-3.5-lightning:free 5295ms cost=$0.000000
+[deployed-gate] gate 07/25 OK stock-SEEDSKU-5 model=nvidia/nemotron-3.5-lightning:free 5362ms cost=$0.000000
+[deployed-gate] gate 08/25 OK stock-SEEDSKU-6 model=nvidia/nemotron-3.5-lightning:free 3682ms cost=$0.000000
+[deployed-gate] gate 09/25 OK stock-SEEDSKU-7 model=nvidia/nemotron-3.5-lightning:free 3407ms cost=$0.000000
+[deployed-gate] gate 10/25 OK stock-SEEDSKU-8 model=nvidia/nemotron-3.5-lightning:free 5425ms cost=$0.000000
+[deployed-gate] gate 11/25 OK stock-SEEDSKU-9 model=nvidia/nemotron-3.5-lightning:free 5584ms cost=$0.000000
+[deployed-gate] gate 12/25 OK stock-SEEDSKU-10 model=nvidia/nemotron-3.5-lightning:free 3738ms cost=$0.000000
+[deployed-gate] gate 13/25 OK stock-SEEDSKU-11 model=nvidia/nemotron-3.5-lightning:free 4658ms cost=$0.000000
+[deployed-gate] gate 14/25 OK stock-SEEDSKU-12 model=nvidia/nemotron-3.5-lightning:free 3994ms cost=$0.000000
+[deployed-gate] gate 15/25 OK stock-SEEDSKU-13 model=nvidia/nemotron-3.5-lightning:free 4928ms cost=$0.000000
+[deployed-gate] gate 16/25 OK exists-SEEDSKU-0 model=nvidia/nemotron-3.5-lightning:free 3977ms cost=$0.000000
+[deployed-gate] gate 17/25 OK exists-SEEDSKU-1 model=nvidia/nemotron-3.5-lightning:free 4504ms cost=$0.000000
+[deployed-gate] gate 18/25 OK exists-SEEDSKU-5000 model=nvidia/nemotron-3.5-lightning:free 3535ms cost=$0.000000
+[deployed-gate] gate 19/25 OK exists-SEEDSKU-2 model=nvidia/nemotron-3.5-lightning:free 3739ms cost=$0.000000
+[deployed-gate] gate 20/25 OK exists-SEEDSKU-3 model=nvidia/nemotron-3.5-lightning:free 3546ms cost=$0.000000
+[deployed-gate] gate 21/25 OK exists-absent model=nvidia/nemotron-3.5-lightning:free 3171ms cost=$0.000000
+[deployed-gate] gate 22/25 OK restock-list-1 model=nvidia/nemotron-3.5-lightning:free 4569ms cost=$0.000000
+[deployed-gate] gate 23/25 OK restock-list-2 model=nvidia/nemotron-3.5-lightning:free 4896ms cost=$0.000000
+[deployed-gate] gate 24/25 OK restock-count-1 model=nvidia/nemotron-3.5-lightning:free 3880ms cost=$0.000000
+[deployed-gate] gate 25/25 OK restock-count-2 model=nvidia/nemotron-3.5-lightning:free 8059ms cost=$0.000000
+[deployed-gate] restored 20006 inventory row(s) from the snapshot
+[deployed-gate] restore verified exactly for 20006 row(s)
+[deployed-gate] RESULTS 25/25 accurate, free=25, paid=0, errors=0, degraded=0, median=4569ms, p95=8059ms, cost=$0.000000
+[deployed-gate] artifact: .tmp-simple-inventory-scale-gate-staging.json

@@ -1,0 +1,8 @@
+{
+  "database": "inventoryai_dev_db",
+  "tenant": "6af74f801f2f46d5506554c2",
+  "products": 10000,
+  "inventoryRows": 20006,
+  "totalQuantity": 2446801,
+  "reserved": 0
+}
