@@ -46,6 +46,8 @@ const mockedUseSession = useSession as jest.Mock;
 const signOut = jest.fn();
 
 const PLACEHOLDER = 'Ask about your stock…';
+const QUOTA =
+  "The assistant has used today's request allowance. It resets at midnight UTC — the rest of the app works as usual.";
 
 /** The payload both transports return for a successful turn. */
 const TURN = {
@@ -231,6 +233,46 @@ describe('AI-40 — the assistant streams its answer', () => {
     await ask(view);
 
     await waitFor(() => expect(view.getByText(/used today's request allowance/)).toBeTruthy());
+    expect(chat).not.toHaveBeenCalled();
+  });
+
+  it('renders the exact UTC sentence from a streamed AI_QUOTA_EXCEEDED error event', async () => {
+    // Drive the REAL transport with an SSE error frame, not a pre-built rejection: this is the
+    // shape the server sends when the provider allowance is spent (the route has already
+    // answered 200 and opened the stream). The screen must receive the quota code and show the
+    // complete UTC sentence without falling back to the JSON route.
+    const encoder = new TextEncoder();
+    let sent = false;
+    const stream = {
+      getReader: () => ({
+        read: async () => {
+          if (sent) return { done: true, value: undefined };
+          sent = true;
+          return {
+            done: false,
+            value: encoder.encode(
+              'event: error\ndata: {"status":429,"code":"AI_QUOTA_EXCEEDED","message":"The AI assistant has reached its usage limit. Please try again later."}\n\n',
+            ),
+          };
+        },
+        cancel: async () => undefined,
+        releaseLock: () => undefined,
+      }),
+    };
+    const actualChatStream = jest.requireActual('../lib/api').aiApi.chatStream as typeof aiApi.chatStream;
+    chatStream.mockImplementation((...args: Parameters<typeof actualChatStream>) => {
+      const [token, body, options] = args;
+      return actualChatStream(token, body, {
+        ...options,
+        fetchImpl: async () => ({ ok: true, status: 200, body: stream, text: async () => '' }),
+      });
+    });
+
+    const view = await mount();
+    await ask(view);
+
+    await waitFor(() => expect(view.getByText(QUOTA)).toBeTruthy());
+    expect(view.queryByText(/temporarily unavailable/i)).toBeNull();
     expect(chat).not.toHaveBeenCalled();
   });
 

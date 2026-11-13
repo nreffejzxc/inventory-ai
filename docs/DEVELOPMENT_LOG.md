@@ -207,6 +207,12 @@ provider call or shared quota was used. The production APK was restored as 1.0.2
 and its dashboard and Profile were checked. See
 [`evidence/ai-quota-device-2026-11-13`](evidence/ai-quota-device-2026-11-13/README.md).
 
+**Regression coverage.** The streaming quota path is now pinned at the transport-to-screen seam:
+`mobile/__tests__/ai40-assistant-streaming.test.tsx` feeds a realistic SSE `event: error` frame
+with `AI_QUOTA_EXCEEDED` through the real `chatStream` transport and asserts the complete UTC
+sentence, no JSON fallback and no generic outage copy. The full mobile suite passed **102 suites /
+1,211 tests**, with typecheck and lint clean.
+
 ---
 
 ## 2026-11-11 (late) — AI-105 live trim, AI-106 share answer, and the external health scheduler
