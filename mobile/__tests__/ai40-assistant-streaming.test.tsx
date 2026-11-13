@@ -48,6 +48,7 @@ const signOut = jest.fn();
 const PLACEHOLDER = 'Ask about your stock…';
 const QUOTA =
   "The assistant has used today's request allowance. It resets at midnight UTC — the rest of the app works as usual.";
+const RATE_LIMITED = "You're sending messages too quickly — wait a moment and try again.";
 
 /** The payload both transports return for a successful turn. */
 const TURN = {
@@ -100,6 +101,42 @@ const ask = async (
   await fireEvent.changeText(view.getByPlaceholderText(PLACEHOLDER), text);
   void fireEvent.press(view.getByRole('button', { name: 'Send' }));
 };
+
+/**
+ * Make the chat call the REAL streaming transport with a single SSE error frame.
+ *
+ * The route has already answered 200 and opened the stream when the provider refuses, so the
+ * error arrives as an event rather than as a rejected HTTP response. Keeping this at the
+ * transport layer means the quota and rate-limit tests exercise the same path a phone uses.
+ */
+function mockChatStreamError(code: string, message: string): void {
+  const encoder = new TextEncoder();
+  let sent = false;
+  const stream = {
+    getReader: () => ({
+      read: async () => {
+        if (sent) return { done: true, value: undefined };
+        sent = true;
+        return {
+          done: false,
+          value: encoder.encode(
+            `event: error\ndata: ${JSON.stringify({ status: 429, code, message })}\n\n`,
+          ),
+        };
+      },
+      cancel: async () => undefined,
+      releaseLock: () => undefined,
+    }),
+  };
+  const actualChatStream = jest.requireActual('../lib/api').aiApi.chatStream as typeof aiApi.chatStream;
+  chatStream.mockImplementation((...args: Parameters<typeof actualChatStream>) => {
+    const [token, body, options] = args;
+    return actualChatStream(token, body, {
+      ...options,
+      fetchImpl: async () => ({ ok: true, status: 200, body: stream, text: async () => '' }),
+    });
+  });
+}
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -237,41 +274,34 @@ describe('AI-40 — the assistant streams its answer', () => {
   });
 
   it('renders the exact UTC sentence from a streamed AI_QUOTA_EXCEEDED error event', async () => {
-    // Drive the REAL transport with an SSE error frame, not a pre-built rejection: this is the
-    // shape the server sends when the provider allowance is spent (the route has already
-    // answered 200 and opened the stream). The screen must receive the quota code and show the
-    // complete UTC sentence without falling back to the JSON route.
-    const encoder = new TextEncoder();
-    let sent = false;
-    const stream = {
-      getReader: () => ({
-        read: async () => {
-          if (sent) return { done: true, value: undefined };
-          sent = true;
-          return {
-            done: false,
-            value: encoder.encode(
-              'event: error\ndata: {"status":429,"code":"AI_QUOTA_EXCEEDED","message":"The AI assistant has reached its usage limit. Please try again later."}\n\n',
-            ),
-          };
-        },
-        cancel: async () => undefined,
-        releaseLock: () => undefined,
-      }),
-    };
-    const actualChatStream = jest.requireActual('../lib/api').aiApi.chatStream as typeof aiApi.chatStream;
-    chatStream.mockImplementation((...args: Parameters<typeof actualChatStream>) => {
-      const [token, body, options] = args;
-      return actualChatStream(token, body, {
-        ...options,
-        fetchImpl: async () => ({ ok: true, status: 200, body: stream, text: async () => '' }),
-      });
-    });
+    mockChatStreamError(
+      'AI_QUOTA_EXCEEDED',
+      'The AI assistant has reached its usage limit. Please try again later.',
+    );
 
     const view = await mount();
     await ask(view);
 
     await waitFor(() => expect(view.getByText(QUOTA)).toBeTruthy());
+    expect(view.queryByText(/temporarily unavailable/i)).toBeNull();
+    expect(chat).not.toHaveBeenCalled();
+  });
+
+  it('renders the wait-a-moment sentence from a streamed AI_RATE_LIMITED error event', async () => {
+    mockChatStreamError(
+      'AI_RATE_LIMITED',
+      'The assistant is receiving too many requests.',
+    );
+
+    const view = await mount();
+    await ask(view);
+
+    await waitFor(() => expect(view.getByText(RATE_LIMITED)).toBeTruthy());
+    // A rate limit is not the spent daily allowance: neither the quota sentence nor its reset
+    // time may leak into this banner, and the JSON fallback must not run either.
+    expect(view.queryByText(QUOTA)).toBeNull();
+    expect(view.queryByText(/used today's request allowance/i)).toBeNull();
+    expect(view.queryByText(/midnight UTC/)).toBeNull();
     expect(view.queryByText(/temporarily unavailable/i)).toBeNull();
     expect(chat).not.toHaveBeenCalled();
   });
