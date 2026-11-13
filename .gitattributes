@@ -5,5 +5,5 @@
 *.patch text eol=lf
 
 # The server asserts these bytes against its response and the phone reads the same file, so the
-# checkout must preserve the fixture's LF endings.
-test-fixtures/** text eol=lf
+# checkout must preserve the fixture's LF endings and its terminal SSE blank line.
+test-fixtures/** text eol=lf whitespace=-blank-at-eof
