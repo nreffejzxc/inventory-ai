@@ -310,6 +310,44 @@ export default function ProfileScreen() {
       </Card>
 
       {/*
+       * The AI assistant's practical limits, kept short and member-facing. The detailed reference
+       * in docs/guides/18-ai-assistant-limits.md carries the internal numbers; this card states
+       * only what changes a member's experience: how often they can ask, how long an answer may
+       * take, what stopping does, and what happens when the assistant is unavailable.
+       *
+       * Deliberately absent: token caps, tool counts, model ids, provider quotas and fallback
+       * rules. Those are operator facts, and showing them here would invite a member to reason
+       * about a system they cannot control.
+       */}
+      <SectionHeader title="AI assistant" style={styles.section} />
+      <Card>
+        <Text style={styles.securityText}>
+          The assistant can read the inventory you are allowed to see. It never changes stock,
+          products, or other records.
+        </Text>
+        <Text style={styles.methodLabel}>Messages</Text>
+        <Text style={styles.securityText}>
+          You can send up to 20 messages per minute. If you reach the limit, wait a moment and try
+          again.
+        </Text>
+        <Text style={styles.methodLabel}>Answer time</Text>
+        <Text style={styles.securityText}>
+          An answer can take up to a minute. If it takes too long, the app stops waiting and you
+          can ask again.
+        </Text>
+        <Text style={styles.methodLabel}>Stopping an answer</Text>
+        <Text style={styles.securityText}>
+          Stopping cancels the answer. If it had already finished, it will be in the chat when you
+          reopen it.
+        </Text>
+        <Text style={styles.methodLabel}>When the assistant is unavailable</Text>
+        <Text style={styles.securityText}>
+          If the assistant is unavailable or reaches its usage limit, the chat tells you. The rest
+          of Inventory AI keeps working.
+        </Text>
+      </Card>
+
+      {/*
        * About: the doorway to the release notes, and the only place the app states its own
        * version. Both belong to the quiet end of the screen — a person checks them once — and
        * neither needs the network, so the card works offline.

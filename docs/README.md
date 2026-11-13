@@ -35,6 +35,8 @@ documents.
 | [15-wireless-phone-session.md](guides/15-wireless-phone-session.md) | Starting the app and mirroring it over Wi-Fi, including the one-command helper |
 | [16-openrouter-models.md](guides/16-openrouter-models.md) | Choosing a free or paid OpenRouter model, setting its reasoning, and proving it works |
 | [17-web-search-and-fetch.md](guides/17-web-search-and-fetch.md) | Enabling or disabling OpenRouter web search and web fetch independently, and proving the setting |
+| [18-ai-assistant-limits.md](guides/18-ai-assistant-limits.md) | Every AI limit, timeout, safeguard, and the verified production values |
+| [19-ai-assistant-error-codes.md](guides/19-ai-assistant-error-codes.md) | Every AI error code and the exact Android sentence shown for it |
 
 The numbered filenames are stable links. Guides 3 and 14 were consolidated into Guide 2, Guides 9–13 and
 Guide 6; no rule, command or safety procedure was removed.
