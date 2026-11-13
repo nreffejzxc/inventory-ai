@@ -46,9 +46,11 @@ const mockedUseSession = useSession as jest.Mock;
 const signOut = jest.fn();
 
 const PLACEHOLDER = 'Ask about your stock…';
+const QUESTION = 'How much stock do we hold in total?';
 const QUOTA =
   "The assistant has used today's request allowance. It resets at midnight UTC — the rest of the app works as usual.";
 const RATE_LIMITED = "You're sending messages too quickly — wait a moment and try again.";
+const OUTAGE = 'The AI service is temporarily unavailable. Please try again in a moment.';
 
 /** The payload both transports return for a successful turn. */
 const TURN = {
@@ -96,10 +98,17 @@ const mount = async () => {
  */
 const ask = async (
   view: Awaited<ReturnType<typeof withTheme>>,
-  text = 'How much stock do we hold in total?',
+  text = QUESTION,
 ) => {
   await fireEvent.changeText(view.getByPlaceholderText(PLACEHOLDER), text);
   void fireEvent.press(view.getByRole('button', { name: 'Send' }));
+};
+
+/** A refused turn must put the question back in the composer so it can be retried. */
+const expectQuestionRestored = async (view: Awaited<ReturnType<typeof withTheme>>) => {
+  await waitFor(() =>
+    expect(view.getByPlaceholderText(PLACEHOLDER).props.value).toBe(QUESTION),
+  );
 };
 
 /**
@@ -107,9 +116,9 @@ const ask = async (
  *
  * The route has already answered 200 and opened the stream when the provider refuses, so the
  * error arrives as an event rather than as a rejected HTTP response. Keeping this at the
- * transport layer means the quota and rate-limit tests exercise the same path a phone uses.
+ * transport layer means every error case exercises the same path a phone uses.
  */
-function mockChatStreamError(code: string, message: string): void {
+function mockChatStreamError(status: number, code: string, message: string): void {
   const encoder = new TextEncoder();
   let sent = false;
   const stream = {
@@ -120,7 +129,7 @@ function mockChatStreamError(code: string, message: string): void {
         return {
           done: false,
           value: encoder.encode(
-            `event: error\ndata: ${JSON.stringify({ status: 429, code, message })}\n\n`,
+            `event: error\ndata: ${JSON.stringify({ status, code, message })}\n\n`,
           ),
         };
       },
@@ -275,6 +284,7 @@ describe('AI-40 — the assistant streams its answer', () => {
 
   it('renders the exact UTC sentence from a streamed AI_QUOTA_EXCEEDED error event', async () => {
     mockChatStreamError(
+      429,
       'AI_QUOTA_EXCEEDED',
       'The AI assistant has reached its usage limit. Please try again later.',
     );
@@ -283,12 +293,15 @@ describe('AI-40 — the assistant streams its answer', () => {
     await ask(view);
 
     await waitFor(() => expect(view.getByText(QUOTA)).toBeTruthy());
-    expect(view.queryByText(/temporarily unavailable/i)).toBeNull();
+    expect(view.queryByText(OUTAGE)).toBeNull();
+    await expectQuestionRestored(view);
+    expect(view.queryByText(QUESTION)).toBeNull();
     expect(chat).not.toHaveBeenCalled();
   });
 
   it('renders the wait-a-moment sentence from a streamed AI_RATE_LIMITED error event', async () => {
     mockChatStreamError(
+      429,
       'AI_RATE_LIMITED',
       'The assistant is receiving too many requests.',
     );
@@ -302,7 +315,9 @@ describe('AI-40 — the assistant streams its answer', () => {
     expect(view.queryByText(QUOTA)).toBeNull();
     expect(view.queryByText(/used today's request allowance/i)).toBeNull();
     expect(view.queryByText(/midnight UTC/)).toBeNull();
-    expect(view.queryByText(/temporarily unavailable/i)).toBeNull();
+    expect(view.queryByText(OUTAGE)).toBeNull();
+    await expectQuestionRestored(view);
+    expect(view.queryByText(QUESTION)).toBeNull();
     expect(chat).not.toHaveBeenCalled();
   });
 
@@ -335,6 +350,65 @@ describe('AI-40 — the assistant streams its answer', () => {
 
     await waitFor(() => expect(view.getByText(/You stopped waiting/)).toBeTruthy());
     expect(view.queryByText('Cannot reach the server. Check your connection and try again.')).toBeNull();
+  });
+});
+
+describe('AI-40 — the remaining streamed AI errors keep their own sentences', () => {
+  // AI_ABANDONED is deliberately absent: it is a server-side record, not an Android banner.
+  const CASES = [
+    {
+      status: 503,
+      code: 'AI_NOT_CONFIGURED',
+      serverMessage:
+        'The AI assistant is not configured on this server yet. Ask an administrator to enable it.',
+      expected:
+        'The AI assistant is not enabled on this server yet. Ask an administrator to turn it on.',
+      notExpected: [OUTAGE, QUOTA, RATE_LIMITED],
+    },
+    {
+      status: 502,
+      code: 'AI_UNAVAILABLE',
+      serverMessage: OUTAGE,
+      expected: OUTAGE,
+      notExpected: [QUOTA, RATE_LIMITED],
+    },
+    {
+      status: 502,
+      code: 'AI_OUTPUT_LIMIT',
+      serverMessage:
+        'The assistant ran out of room before it could answer. Please ask a shorter or more specific question.',
+      expected:
+        'The assistant ran out of room before it could answer. Please ask a shorter or more specific question.',
+      notExpected: [OUTAGE, QUOTA, RATE_LIMITED],
+    },
+    {
+      status: 504,
+      code: 'AI_TIMEOUT',
+      serverMessage: 'The assistant took too long to answer. Please try again.',
+      expected: 'The assistant took too long to answer. Please try again.',
+      notExpected: [OUTAGE, QUOTA, RATE_LIMITED],
+    },
+  ];
+
+  it.each(CASES)('$code keeps its own sentence and restores the question', async ({
+    status,
+    code,
+    serverMessage,
+    expected,
+    notExpected,
+  }) => {
+    mockChatStreamError(status, code, serverMessage);
+
+    const view = await mount();
+    await ask(view);
+
+    await waitFor(() => expect(view.getByText(expected)).toBeTruthy());
+    for (const wrong of notExpected) {
+      expect(view.queryByText(wrong)).toBeNull();
+    }
+    await expectQuestionRestored(view);
+    expect(view.queryByText(QUESTION)).toBeNull();
+    expect(chat).not.toHaveBeenCalled();
   });
 });
 
