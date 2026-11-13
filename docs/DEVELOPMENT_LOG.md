@@ -218,12 +218,16 @@ succeed on the next Send without retyping (the quota case after the allowance re
 second refusal (timeout after rate limit) restores it again and replaces the old banner with the
 newest sentence. A third mobile case drives `AI_RATE_LIMITED` → `AI_TIMEOUT` → `AI_UNAVAILABLE`
 across three consecutive failures, asserting after each that the question is back in the composer,
-the previous banner is gone, and the Send button is available again. On the server,
-`AI36-quota-header-awareness.test.mjs` passes **14/14** and now drives `runAiChat` through a
-refusal and a fail-fast turn, advances one UTC day, and verifies the next turn reaches the fake
-provider, succeeds, and records `50/50`; the provider owns the daily counter, so this verifies the
-server's recovery boundary rather than a local daily counter. The full mobile suite passed **102
-suites / 1,222 tests**, with typecheck and lint clean.
+the previous banner is gone, and the Send button is available again; a fourth Send from that same
+restored question then succeeds. On the server, `AI36-quota-header-awareness.test.mjs` passes
+**14/14** and drives `runAiChat` through a refusal and a fail-fast turn, advances one UTC day, and
+verifies the next turn reaches the fake provider, succeeds, and records `50/50`; the provider owns
+the daily counter, so this verifies the server's recovery boundary rather than a local daily
+counter. `AI6-ai-quota-limit.test.mjs` passes **14/14** and pins the same recovery at the HTTP
+boundary with a shortened test window: `429 AI_QUOTA_EXCEEDED` with the exact sentence, a second
+fail-fast 429 with no extra provider call, then `201` after the window with one persisted
+conversation. The full mobile suite passed **102 suites / 1,222 tests**, with typecheck and lint
+clean.
 
 ---
 
