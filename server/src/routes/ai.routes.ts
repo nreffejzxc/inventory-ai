@@ -4,12 +4,20 @@ import requireAuth from '../middlewares/authenticate.ts';
 import { requirePermission } from '../middlewares/authorize.ts';
 import aiController from '../controllers/ai.controller.ts';
 import { aiRateLimiter } from '../services/ai/rateLimiter.ts';
+import { aiSingleFlight } from '../services/ai/singleFlight.ts';
 import { PERMISSIONS } from '../constants/roles.ts';
 
 const router = Router();
 
 // Chat is the only cost-bearing route, so it is rate-limited per user.
-router.post('/chat', requireAuth, requirePermission(PERMISSIONS.AI_USE), aiRateLimiter, aiController.sendMessage);
+router.post(
+  '/chat',
+  requireAuth,
+  requirePermission(PERMISSIONS.AI_USE),
+  aiRateLimiter,
+  aiSingleFlight,
+  aiController.sendMessage,
+);
 
 // AI-102 — aggregate turn metrics. Internal operational data, so it binds the
 // ai.metrics.view capability, held only by OWNER and ADMIN; the controller scopes every

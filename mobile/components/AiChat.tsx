@@ -49,9 +49,9 @@ const TIMEOUT_CODES = ['NETWORK_TIMEOUT', 'AI_TIMEOUT'];
  * AI-40 — when may a failed STREAM be retried through the ordinary route?
  *
  * Only when the failure says something about the TRANSPORT, never when it says something about
- * the turn. A quota refusal, a rate limit, an unconfigured server or an ended session are all
- * real answers, and asking again would either spend a second request to be refused identically
- * or hide the one thing the member needs to know. `status === 0` and the three "this server has
+ * the turn. A quota refusal, a rate limit, a turn already in progress, an unconfigured server or
+ * an ended session are all real answers, and asking again would either spend a second request to
+ * be refused identically or hide the one thing the member needs to know. `status === 0` and the three "this server has
  * no such route / does not stream" statuses are the safe set: the same turn over JSON is a
  * different code path that may well work — with one deliberate exception.
  *
@@ -103,6 +103,11 @@ export function sendErrorMessage(err: unknown): string {
   }
   if (e.code === 'AI_RATE_LIMITED') {
     return "You're sending messages too quickly — wait a moment and try again.";
+  }
+  // A second send for the same conversation while the first is still running. This is not a
+  // provider failure and not the window limiter; waiting for the active answer is the remedy.
+  if (e.code === 'AI_TURN_IN_PROGRESS') {
+    return 'The assistant is still answering your previous message. Wait for it to finish and try again.';
   }
   // AI-6 — a spent allowance, not a fault and not something a moment's wait
   // fixes. Reported before the network check like every other code.
