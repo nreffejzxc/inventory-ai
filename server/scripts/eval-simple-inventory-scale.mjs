@@ -71,6 +71,7 @@ import {
   removeTenant,
 } from './perf/lib.mjs';
 import { readProviderUsage } from './ai-usage.mjs';
+import { existenceCheck, normalise } from './perf/answerCheckers.mjs';
 import {
   CHECKPOINT_VERSION,
   checkpointConfig,
@@ -124,16 +125,6 @@ function runNodeScript(script, args = []) {
   }
 }
 
-function normalise(value) {
-  return String(value ?? '')
-    .replace(/[\u2018\u2019]/g, "'")
-    .replace(/[\u201c\u201d]/g, '"')
-    .replace(/[\u2010-\u2015\u2212]/g, '-')
-    .replace(/\*\*|__|`/g, '')
-    .replace(/[^\S\r\n]+/g, ' ')
-    .trim();
-}
-
 /** A number in the same sentence/line as a stock label. */
 function sentenceHas(text, value, label) {
   const number = new RegExp(
@@ -162,30 +153,6 @@ function productCheck(answer, expected, sku, name) {
     }
   } else if (!sentenceHas(text, expected, /\b(?:units?|on hand|stock|quantity|available|qty)\b/i)) {
     reasons.push(`missing ${expected} with a stock/unit label`);
-  }
-  return { ok: reasons.length === 0, reasons };
-}
-
-function existenceCheck(answer, present) {
-  const text = normalise(answer);
-  const affirmative =
-    /\b(?:yes|we (?:have|carry|stock)\b|we do (?:have|carry|stock)\b|exists?\b|in (?:our|the) (?:inventory|catalog(?:ue)?)\b|recorded in (?:our|the) (?:inventory|catalog(?:ue)?)\b|in stock\b|on hand)\b/i.test(
-      text,
-    );
-  // A negative STOCK statement ("none are out of stock", "not low stock") or an
-  // unrelated missing field ("price not recorded") is not a denial of existence.
-  // The 2026-11-10 gate produced "not present in our inventory" for a correctly absent
-  // SKU; the older pattern did not recognise it, so that correct answer was scored a failure.
-  const denial =
-      /\b(?:we (?:do not|don't) (?:have|carry|stock)|does not exist|doesn't exist|not (?:present )?in (?:our|the) (?:inventory|catalog(?:ue)?)|not carried|not stocked|not found|no such (?:product|item|sku)|not recorded in (?:our|the) (?:inventory|catalog(?:ue)?))\b/i.test(
-      text,
-    );
-  const reasons = [];
-  if (present) {
-    if (!affirmative) reasons.push('missing yes / have / in stock');
-    if (denial) reasons.push('answer denies existence');
-  } else if (!(denial || /\b(?:not in stock|out of stock)\b/i.test(text))) {
-    reasons.push('missing a denial');
   }
   return { ok: reasons.length === 0, reasons };
 }
