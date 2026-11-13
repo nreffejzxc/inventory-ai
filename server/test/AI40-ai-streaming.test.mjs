@@ -757,6 +757,103 @@ dbSuite('AI-40 the streamed turn reaches the phone as it is written', dbOk, () =
     }
   });
 
+  it('survives a second quota refusal after the same streamed conversation recovers', async () => {
+    const owner = await registerOwner(api, tracker);
+    setFakeScenario(() => fakeText('Hello from the first turn.'));
+    const first = await postStream(owner.token, { message: 'say hello in one sentence' });
+    assert.equal(first.status, 200);
+    const firstDone = parseEvents(await first.text()).find((event) => event.event === 'done');
+    assert.ok(firstDone);
+    const conversationId = firstDone.data.conversation.id;
+
+    const previousBlock = process.env.AI_QUOTA_BLOCK_MS;
+    process.env.AI_QUOTA_BLOCK_MS = '2000';
+    let calls = 0;
+    let finalContext = null;
+    setFakeScenario((ctx) => {
+      calls += 1;
+      if (calls === 1 || calls === 3) {
+        throw new AiQuotaExceeded(undefined, { remaining: 0, limit: 50 });
+      }
+      if (calls === 2) {
+        ctx.onTextDelta?.('Hello after the first recovery.');
+        return fakeText('Hello after the first recovery.', { quota: { remaining: 50, limit: 50 } });
+      }
+      finalContext = { messages: ctx.messages.map((message) => ({ ...message })) };
+      ctx.onTextDelta?.('Hello after the second recovery.');
+      return fakeText('Hello after the second recovery.', { quota: { remaining: 50, limit: 50 } });
+    });
+
+    const turn = async (message) => {
+      const res = await postStream(owner.token, { conversationId, message });
+      assert.equal(res.status, 200, 'the stream headers were already sent');
+      const body = await res.text();
+      return { body, events: parseEvents(body) };
+    };
+    const assertRefused = ({ body, events }) => {
+      assert.equal(body, QUOTA_SSE_EVENT, 'each refusal uses the shared contract fixture');
+      const errors = events.filter((event) => event.event === 'error');
+      assert.equal(errors.length, 1);
+      assert.equal(errors[0].data.status, 429);
+      assert.equal(errors[0].data.code, 'AI_QUOTA_EXCEEDED');
+      assert.ok(!events.some((event) => event.event === 'done'), 'a refused turn has no done event');
+    };
+    const messages = async () =>
+      (await api('GET', `/api/ai/conversations/${conversationId}/messages`, { token: owner.token })).json;
+
+    try {
+      assertRefused(await turn('say hello after the first refusal'));
+      assert.equal((await messages()).total, 2, 'the first refusal persists no message');
+
+      await new Promise((resolve) => setTimeout(resolve, 2200));
+      const recoveredOnce = await turn('say hello after the first refusal');
+      const firstRecovery = recoveredOnce.events.find((event) => event.event === 'done');
+      assert.ok(firstRecovery, 'the first retry streams a complete answer');
+      assert.equal(firstRecovery.data.conversation.id, conversationId);
+      assert.equal(firstRecovery.data.assistantMessage.content, 'Hello after the first recovery.');
+      assert.equal(calls, 2);
+      assert.equal((await messages()).total, 4, 'the first recovery adds one question and one answer');
+
+      assertRefused(await turn('say hello after the second refusal'));
+      assert.equal(calls, 3, 'the second refusal reaches the provider after the first recovery');
+      assert.equal((await messages()).total, 4, 'the second refusal persists no message');
+
+      await new Promise((resolve) => setTimeout(resolve, 2200));
+      const recoveredTwice = await turn('say hello after the second refusal');
+      const secondRecovery = recoveredTwice.events.find((event) => event.event === 'done');
+      assert.ok(secondRecovery, 'the second retry streams a complete answer');
+      assert.equal(secondRecovery.data.conversation.id, conversationId);
+      assert.equal(secondRecovery.data.assistantMessage.content, 'Hello after the second recovery.');
+      assert.equal(calls, 4);
+
+      const after = await messages();
+      assert.equal(after.total, 6, 'two recovered turns add four messages');
+      assert.deepEqual(
+        after.items.map((message) => message.content),
+        [
+          'say hello in one sentence',
+          'Hello from the first turn.',
+          'say hello after the first refusal',
+          'Hello after the first recovery.',
+          'say hello after the second refusal',
+          'Hello after the second recovery.',
+        ],
+      );
+      assert.ok(
+        finalContext.messages.some(
+          (message) => message.role === 'assistant' && message.content === 'Hello after the first recovery.',
+        ),
+        'the second recovery carries the first recovered answer as history',
+      );
+      const list = await api('GET', '/api/ai/conversations', { token: owner.token });
+      assert.equal(list.json.total, 1, 'neither recovery creates a second conversation');
+    } finally {
+      if (previousBlock === undefined) delete process.env.AI_QUOTA_BLOCK_MS;
+      else process.env.AI_QUOTA_BLOCK_MS = previousBlock;
+      resetQuotaState();
+    }
+  });
+
   it('rejects a bad request before any stream header, so the client sees the normal JSON error', async () => {
     const owner = await registerOwner(api, tracker);
     const res = await postStream(owner.token, { message: '' });
