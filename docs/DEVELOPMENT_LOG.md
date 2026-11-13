@@ -189,8 +189,16 @@ were updated together; UTC remains unambiguous without guessing the device's tim
 references within cadence. The four server documentation tests passed **27/27**. `mobile/npm run
 typecheck` and `mobile/npm run lint` both exited 0. The full mobile suite passed **102 suites /
 1,210 tests / 0 failures**. `git diff --check` passed. The production health check passed after the
-Render redeploy. The card's OTA publish and phone rendering are the remaining delivery steps; the
-installed production binary cannot show uncommitted JavaScript.
+Render redeploy.
+
+**Delivery.** PR [#250](https://github.com/nreffejzxc/inventory-ai/pull/250) passed all four
+required checks and was squash-merged as `8b99f46`. Android production OTA group
+`39f78213-cc77-45f6-8b1b-0b9232b44a62` was published from that commit. After two cold starts, the
+production phone loaded the dashboard with live stock and Profile showed the complete **AI
+assistant** card with no clipped text or horizontal overflow. The device run and screenshot are in
+[`evidence/ai-limits-profile-2026-11-13`](evidence/ai-limits-profile-2026-11-13/README.md). The
+spent-allowance sentence was not triggered on the phone; its exact UTC wording is pinned by the two
+mobile copy tests.
 
 ---
 
