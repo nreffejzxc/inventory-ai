@@ -1,0 +1,24 @@
+Quota device run — 2026-11-13T05:12:10Z
+
+Local provider stub
+  2026-11-13T05:12:10.241Z POST /v1/messages
+  response: HTTP 429
+  x-ratelimit-remaining: 0
+  x-ratelimit-limit: 50
+  body: {"error":{"message":"stub daily allowance spent","type":"rate_limit_error"}}
+
+Local API
+  AI turn outcome=AI_QUOTA_EXCEEDED status=failed duration=0.01s total=11ms providerMs=10ms
+  toolMs=0ms calls=1 attempts=1 empty=0 retries=0 failovers=0 reasks=0 tools=none toolRuns=0
+  in=0 out=0 cost=unknown quota=0/50 web=none upstream=unknown model=openai/gpt-oss-20b
+  tier=paid route=default simpleEscalations=0 iterations=1 turn=d0a84527
+  {"ts":"2026-11-13T05:12:10.248Z","level":"info","type":"http","method":"POST",
+   "path":"/api/ai/chat","status":200,"userId":"6af1775faba55ed3b22f802c","durationMs":269.2}
+
+  Note: the route is streaming. HTTP 200 means the stream opened; the failure is carried in the
+  stream's error event and rendered by the app as the spent-allowance banner.
+
+Non-AI screen after the refusal
+  {"path":"/api/categories","status":200}
+  {"path":"/api/locations","status":200}
+  {"path":"/api/products","status":200}
