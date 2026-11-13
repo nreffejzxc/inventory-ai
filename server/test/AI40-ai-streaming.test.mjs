@@ -32,7 +32,7 @@ import { ROLES } from '../src/constants/roles.ts';
 import { runAiChat } from '../src/services/ai/ai.service.ts';
 import { postSse } from '../src/services/ai/providers/http.ts';
 import { createOpenrouterProvider } from '../src/services/ai/providers/openrouterProvider.ts';
-import { AiProviderError } from '../src/services/ai/aiErrors.ts';
+import { AiProviderError, AiQuotaExceeded } from '../src/services/ai/aiErrors.ts';
 import { resetModelBreaker } from '../src/services/ai/modelBreaker.ts';
 import { resetModelSelection } from '../src/services/ai/modelSelection.ts';
 import { resetModelHealthGate } from '../src/services/ai/modelHealthGate.ts';
@@ -630,6 +630,32 @@ dbSuite('AI-40 the streamed turn reaches the phone as it is written', dbOk, () =
 
     const list = await api('GET', '/api/ai/conversations', { token: owner.token });
     assert.equal(list.json.total, 0, 'a failed streamed turn must leave no conversation behind');
+  });
+
+  it('reports a quota refusal as an SSE error with status 429 and its own code', async () => {
+    const owner = await registerOwner(api, tracker);
+    setFakeScenario(() => {
+      throw new AiQuotaExceeded(undefined, { remaining: 0, limit: 50 });
+    });
+
+    const res = await postStream(owner.token, { message: 'say hello in one sentence' });
+    // The stream headers were already sent, so the refusal cannot be a second HTTP status.
+    // It travels as an error event carrying the status the JSON path would have returned.
+    assert.equal(res.status, 200);
+    assert.match(res.headers.get('content-type') ?? '', /text\/event-stream/);
+
+    const events = parseEvents(await res.text());
+    const errors = events.filter((event) => event.event === 'error');
+    assert.equal(errors.length, 1);
+    assert.deepEqual(errors[0].data, {
+      status: 429,
+      code: 'AI_QUOTA_EXCEEDED',
+      message: 'The AI assistant has reached its usage limit. Please try again later.',
+    });
+    assert.ok(!events.some((event) => event.event === 'done'), 'a refused turn has no done event');
+
+    const list = await api('GET', '/api/ai/conversations', { token: owner.token });
+    assert.equal(list.json.total, 0, 'a refused streamed turn leaves no conversation behind');
   });
 
   it('rejects a bad request before any stream header, so the client sees the normal JSON error', async () => {

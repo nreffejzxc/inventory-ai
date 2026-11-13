@@ -343,6 +343,80 @@ dbSuite('AI-6 the limit reaches the client as 429 AI_QUOTA_EXCEEDED', dbOk, () =
     assert.notEqual(res.json.code, 'AI_QUOTA_EXCEEDED');
   });
 
+  it('continues the same conversation after a quota refusal and recovery', async () => {
+    const owner = await registerOwner(api, tracker);
+    setFakeScenario(() => fakeText('Hello from the first turn.'));
+    const first = await api('POST', '/api/ai/chat', {
+      token: owner.token,
+      body: { message: 'say hello in one sentence' },
+    });
+    assert.equal(first.status, 201, JSON.stringify(first.json));
+    const conversationId = first.json.conversation.id;
+
+    const previousBlock = process.env.AI_QUOTA_BLOCK_MS;
+    process.env.AI_QUOTA_BLOCK_MS = '2000';
+    let calls = 0;
+    let retryContext = null;
+    setFakeScenario((ctx) => {
+      calls += 1;
+      if (calls === 1) throw new AiQuotaExceeded(undefined, { remaining: 0, limit: 50 });
+      retryContext = { messages: ctx.messages.map((message) => ({ ...message })) };
+      return fakeText('Hello from the retry.', { quota: { remaining: 50, limit: 50 } });
+    });
+
+    try {
+      const refused = await api('POST', '/api/ai/chat', {
+        token: owner.token,
+        body: { conversationId, message: 'say hello again in one sentence' },
+      });
+      assert.equal(refused.status, 429);
+      assert.equal(refused.json.code, 'AI_QUOTA_EXCEEDED');
+      assert.equal(calls, 1);
+
+      const before = await api('GET', `/api/ai/conversations/${conversationId}/messages`, {
+        token: owner.token,
+      });
+      assert.equal(before.json.total, 2, 'the refused turn persists no message');
+
+      await new Promise((resolve) => setTimeout(resolve, 2200));
+      const retried = await api('POST', '/api/ai/chat', {
+        token: owner.token,
+        body: { conversationId, message: 'say hello again in one sentence' },
+      });
+      assert.equal(retried.status, 201, JSON.stringify(retried.json));
+      assert.equal(retried.json.conversation.id, conversationId, 'the retry continues the same conversation');
+      assert.equal(retried.json.assistantMessage.content, 'Hello from the retry.');
+      assert.equal(calls, 2, 'the allowance is asked again after the window');
+
+      const after = await api('GET', `/api/ai/conversations/${conversationId}/messages`, {
+        token: owner.token,
+      });
+      assert.equal(after.json.total, 4, 'the retry adds exactly one question and one answer');
+      assert.deepEqual(
+        after.json.items.map((message) => message.content),
+        [
+          'say hello in one sentence',
+          'Hello from the first turn.',
+          'say hello again in one sentence',
+          'Hello from the retry.',
+        ],
+      );
+      assert.ok(
+        retryContext.messages.some(
+          (message) => message.role === 'assistant' && message.content === 'Hello from the first turn.',
+        ),
+        'the retry provider request carries the earlier answer as history',
+      );
+
+      const list = await api('GET', '/api/ai/conversations', { token: owner.token });
+      assert.equal(list.json.total, 1, 'the retry must not create a second conversation');
+    } finally {
+      if (previousBlock === undefined) delete process.env.AI_QUOTA_BLOCK_MS;
+      else process.env.AI_QUOTA_BLOCK_MS = previousBlock;
+      resetQuotaState();
+    }
+  });
+
   it('returns 429, fails fast, then serves the next request after the quota window', async () => {
     const owner = await registerOwner(api, tracker);
     const previousBlock = process.env.AI_QUOTA_BLOCK_MS;
