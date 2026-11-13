@@ -22,7 +22,9 @@ The same screen behaviour has a mobile counterpart in
 [`mobile/__tests__/ai40-assistant-streaming.test.tsx`](../../../mobile/__tests__/ai40-assistant-streaming.test.tsx):
 `recovers a brand-new conversation whose first question was refused`. It verifies that both the
 refused first Send and the retry send `{ conversationId: null, message }`, that no thread is loaded,
-and that the successful retry clears the banner and composer.
+and that the successful retry clears the banner and composer. A second mobile case, `uses the
+conversation created by the retry on the next message`, then sends a follow-up and verifies it uses
+`conv-1` rather than starting another chat.
 
 ## Verification
 

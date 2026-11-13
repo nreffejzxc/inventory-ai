@@ -15,3 +15,31 @@ that record.
 
 The reusable stub used by device walkthroughs is documented in
 [`DEVELOPING_ON_A_PHYSICAL_DEVICE.md`](../DEVELOPING_ON_A_PHYSICAL_DEVICE.md#11-local-quota-refusal-stub).
+
+## Device walkthrough checklist
+
+**Before**
+
+- [ ] Start a temporary guest Android user; leave owner user 0 untouched.
+- [ ] Save the installed production APK and versionCode so they can be restored.
+- [ ] Run `node scripts/device/quota-stub.mjs --self-test`, then start the stub with a log under
+      ignored `.scratch/`.
+- [ ] Point the local API at `127.0.0.1:5999` and confirm Metro and the API are the local processes.
+
+**Capture**
+
+- [ ] Record a baseline success first.
+- [ ] Call `/control?fail=1`, send the next question, and screenshot the full thread, refusal banner
+      and unsent question.
+- [ ] Record UTC times, provider refs and the next completion; confirm the refusal stayed inside the
+      open stream.
+- [ ] Wait past the block window, press Send without retyping, and screenshot the recovered thread.
+- [ ] Repeat for a second refusal in the same thread when that is the case being recorded.
+
+**After**
+
+- [ ] Remove the guest user, restore owner user 0 and the saved production APK.
+- [ ] Restore `mobile/.env`, stop the stub, API and Metro, and leave logs only under ignored
+      `.scratch/`.
+- [ ] Write the README with isolation, timestamps, refs, limits and cleanup; commit screenshots but
+      no passwords or logs.

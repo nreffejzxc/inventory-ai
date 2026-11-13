@@ -443,5 +443,6 @@ node scripts/device/quota-stub.mjs --self-test
 ```
 
 It exercises the control state, a streamed completion, a refusal with the expected headers, the
-recovery on the next completion, and the JSON path. For the device evidence pattern, see the
+recovery on the next completion, and the JSON path. The required `server` CI job runs this self-test
+before installing dependencies. For the device evidence pattern, see the
 [quota recovery index](evidence/ai-quota-recovery-index.md).
