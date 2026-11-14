@@ -122,6 +122,41 @@ test('AI-107: a total-only stock value comes from the tool summary, not model ar
   );
 });
 
+test('AI-107: fractional stock values keep their centavos', () => {
+  assert.equal(
+    totalStockValueAnswer(
+      { totalValue: 94.5, currency: 'PHP', mixedCurrency: false, unpricedProducts: 0 },
+      2000,
+    ),
+    'The total stock value at the recorded selling price is PHP 94.50.',
+  );
+  assert.equal(
+    totalStockValueAnswer(
+      { totalValue: 95, currency: 'PHP', mixedCurrency: false, unpricedProducts: 0 },
+      2000,
+    ),
+    'The total stock value at the recorded selling price is PHP 95.',
+  );
+  assert.equal(
+    highestStockValueAnswer(
+      [
+        {
+          name: 'Phone Smoke Product',
+          sellingPrice: 15.75,
+          currency: 'PHP',
+          availableQuantity: 6,
+          stockValue: 94.5,
+        },
+      ],
+      2000,
+      { totalValue: 94.5, currency: 'PHP', mixedCurrency: false, unpricedProducts: 0 },
+    ),
+    'The total stock value at the recorded selling price is PHP 94.50. ' +
+      'The item with the highest stock value is **Phone Smoke Product** at PHP 94.50 ' +
+      '(recorded selling price PHP 15.75 × 6 units on hand).',
+  );
+});
+
 test('AI-93: a grounded answer cannot claim no tools were used', () => {
   assert.equal(
     replaceFalseToolClaims('I repeated the total without using any tools.'),
