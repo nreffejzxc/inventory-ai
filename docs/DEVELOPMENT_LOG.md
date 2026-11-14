@@ -44,11 +44,11 @@ at the end of every development session, newest entry first.
 **Goal:** finish and harden Inventory AI **V1** through production testing. No Play Store or App
 Store release is being prepared.
 
-**Current production server (2026-11-14):** `cd4efcc` — Render auto-deployed the PR #275
-reliability merge at 14:27Z. `/api/health` reports `status: ok`, `db: connected`, `environment:
-production`, commit `cd4efcc`, 0 `5xx`; `/api/health/ready` returns 200. The deploy carries the
-staging drills/evidence and the AI-107 finalizer. Before it, production served `8245e54` (PR #273),
-`304e2ea` (PR #272) and `65d9ef1` (PR #270).
+**Current production server (2026-11-14):** `cb4fcf7` — Render auto-deployed the PR #282
+stock-value centavo fix at 17:04Z. `/api/health` reports `status: ok`, `db: connected`, `environment:
+production`, commit `cb4fcf7`, 0 `5xx`; `/api/health/ready` returns 200. The deploy also carries the
+staging drills/evidence and the AI-107 finalizer. Before it, production served `cd4efcc` (the PR #275
+reliability merge), `8245e54` (PR #273), `304e2ea` (PR #272) and `65d9ef1` (PR #270).
 The current production OTA is `2110458d-40ca-4975-813c-f182acb3e3aa`, published from `a7be9cd`
 on runtime `1.0.2`; the prior group was `39f78213-cc77-45f6-8b1b-0b9232b44a62` from `8b99f46`;
 local `main` contains the PR #271 delivery `42229e5` (the current-position alignment) and the PR #275 reliability merge `cd4efcc`. The product-creation and required-name entry is the newest below; the AI-107 production smoke follows it.
@@ -60,9 +60,12 @@ one test location, `Phone Smoke Location`. After production stock-in verificatio
 survived a force-stop/cold start. The empty-name retest on the same production build focused the
 name field and showed `Name is required`; PR #278 merged as `a7be9cd`, and the component test merged
 as PR #279 (`6b6ef1f`). A 5-unit movement then a double-pressed 1-unit movement produced exactly
-`0 → 5` and `5 → 6`, not a duplicate. See the two newest entries and
+`0 → 5` and `5 → 6`, not a duplicate. The stock-value answer initially rendered the exact `94.50`
+as `PHP 95`; PR #282 fixed only the monetary formatter, and the production retest now answers
+`PHP 94.50` (`Ref: 28910dc7`). See the three newest entries and
 [product evidence](evidence/product-creation-name-focus-2026-11-14/README.md) /
-[stock-in evidence](evidence/stock-in-2026-11-14/README.md).
+[stock-in evidence](evidence/stock-in-2026-11-14/README.md) /
+[centavo evidence](evidence/stock-value-cents-2026-11-14/README.md).
 
 Production's 25-question zero-cost gate remains blocked; the staging gate passed **25/25** at
 **$0**, and the P3 drill passed with a real HTTP `503` and a tool-grounded free fallback. The two
@@ -169,6 +172,38 @@ Known limits, checked before spending one of them:
   space that a backup or an index change would explain.
 - **Brevo** — used for verification codes, reset codes and invitations. Do not send test mail in
   bulk; a delivery failure is not a code regression until the provider log says so.
+
+---
+
+## 2026-11-14 — Stock-value answers keep centavos
+
+**Status.** PASS. The production assistant now answers the exact stock value with centavos: the same
+6-unit product that previously produced `PHP 95` produced `PHP 94.50` after the change. The
+underlying stock-value calculation and the AI model configuration were not touched.
+
+**Defect and change.** The stock-value finalizer's `money()` helper formatted every amount with
+`Intl.NumberFormat('en-PH', { maximumFractionDigits: 0 })`, so `15.75 × 6 = 94.50` was displayed as
+`PHP 95`. The helper now rounds to cents, uses two fraction digits for a fractional amount, and
+keeps a whole-peso amount compact (`PHP 95`, `PHP 12,345`). Only
+`server/src/services/ai/answerCompletion.ts` changed; `productService.stockValue()` was not
+modified.
+
+**Regression tests.** `server/test/AI93-routing-total-and-evidence.test.mjs` now covers `94.5` →
+`PHP 94.50`, `95` → `PHP 95`, and a combined total/highest-value answer at `PHP 94.50`. The focused
+suite passed **13/13**; server `typecheck` and `lint` passed.
+
+**Delivery and live retest.** PR **#282** squash-merged as
+**`cb4fcf752c03fe138c8091761f6c2119fb6dfa9c`** after all four required checks passed (`server` 3m
+10s, `mobile` 1m 34s, `secret-guard` 11s, `attribution-guard` 10s). Render deployed `cb4fcf7` at
+17:04Z; `/api/health` reported `status: ok`, `db: connected`, 0 `5xx`, and `/ready` returned 200.
+The production app's new answer was “The total stock value at the recorded selling price is PHP
+94.50.” with `Read: Stock value` and `Ref: 28910dc7`; the prior `PHP 95` answer (`Ref: 0d48db06`)
+remained visible above it. A server-only change, so no OTA was published.
+
+**Limits.** One product, six units and one currency were exercised; mixed-currency and multi-product
+totals were not. The production proof is an AI turn over the live tool, not a direct database read.
+Android only; no iOS device was tested. Evidence:
+[`stock-value-cents-2026-11-14`](evidence/stock-value-cents-2026-11-14/README.md).
 
 ---
 
