@@ -51,15 +51,16 @@ staging drills/evidence and the AI-107 finalizer. Before it, production served `
 reliability merge), `8245e54` (PR #273), `304e2ea` (PR #272) and `65d9ef1` (PR #270).
 The current production OTA is `2110458d-40ca-4975-813c-f182acb3e3aa`, published from `a7be9cd`
 on runtime `1.0.2`; the prior group was `39f78213-cc77-45f6-8b1b-0b9232b44a62` from `8b99f46`;
-local `main` contains the PR #271 delivery `42229e5` (the current-position alignment) and the PR #275 reliability merge `cd4efcc`. The stock-out and negative-stock entry is the newest below; the stock-value centavo entry and the product-creation test follow it.
+local `main` contains the PR #271 delivery `42229e5` (the current-position alignment) and the PR #275 reliability merge `cd4efcc`. The restock entry is the newest below; the stock-out, stock-value centavo and product-creation entries follow it.
 
 **Production product creation + required-name test (2026-11-14):** the designated test tenant
 `joffy rak gears` now holds one test product, `Phone Smoke Product` (`PHONE-SMOKE-20261115`), and
 one test location, `Phone Smoke Location`. After production stock-in verification the product held
 **6 units**; the list, detail, edit read-back, dashboard and history agreed, and the row survived a
 force-stop/cold start. The stock-out checks then blocked a 7-unit attempt, recorded a valid `6 → 4`
-movement, and took the product to **0 units** through a repeated-press boundary test; the final
-history holds five movements and the product is **Out**. The empty-name retest on the same production build focused the
+movement, and took the product to **0 units** through a repeated-press boundary test. A 3-unit
+restock then returned it to **3 units**, with **In stock 1**, **Low stock 0**, **Out of stock 0**,
+and six movements; the product is healthy above its minimum of 2. The empty-name retest on the same production build focused the
 name field and showed `Name is required`; PR #278 merged as `a7be9cd`, and the component test merged
 as PR #279 (`6b6ef1f`). A 5-unit movement then a double-pressed 1-unit movement produced exactly
 `0 → 5` and `5 → 6`, not a duplicate. The stock-value answer initially rendered the exact `94.50`
@@ -68,7 +69,8 @@ as `PHP 95`; PR #282 fixed only the monetary formatter, and the production retes
 [product evidence](evidence/product-creation-name-focus-2026-11-14/README.md) /
 [stock-in evidence](evidence/stock-in-2026-11-14/README.md) /
 [centavo evidence](evidence/stock-value-cents-2026-11-14/README.md) /
-[stock-out evidence](evidence/stock-out-and-negative-2026-11-14/README.md).
+[stock-out evidence](evidence/stock-out-and-negative-2026-11-14/README.md) /
+[restock evidence](evidence/restock-2026-11-14/README.md).
 
 Production's 25-question zero-cost gate remains blocked; the staging gate passed **25/25** at
 **$0**, and the P3 drill passed with a real HTTP `503` and a tool-grounded free fallback. The two
@@ -175,6 +177,35 @@ Known limits, checked before spending one of them:
   space that a backup or an index change would explain.
 - **Brevo** — used for verification codes, reset codes and invitations. Do not send test mail in
   bulk; a delivery failure is not a code regression until the provider log says so.
+
+---
+
+## 2026-11-14 — Production restock closes the inventory lifecycle
+
+**Status.** PASS. The existing fixture was restocked from **0 to 3 units**, moving from Out of Stock
+to healthy stock and clearing both the out-of-stock and low-stock counts. No product or location was
+created, and no code or configuration changed.
+
+**Restock.** In the production app, `Phone Smoke Product` at `Phone Smoke Location` received a
+3-unit stock-in with reason `Production restock validation` and reference `SMOKE-RESTOCK-001`. The
+confirmation read `Done. Phone Smoke Product at Phone Smoke Location: 0 → 3`. Product detail then
+read `3 available` with no Out badge, above its minimum of 2. The dashboard showed active **1**, in
+stock **1**, low stock **0**, out of stock **1 → 0**, total on-hand **3**. The low count also fell
+from **1 to 0** because 3 exceeds the minimum of 2.
+
+**History.** Inventory History grew from five to **six movements**, newest first. The new row was
+`Phone Smoke Location · 0 → 3`, stock in, `+3`, with the reason and reference. Its movement detail
+carried previous quantity 0, new quantity 3, change +3, the product, location, reason, reference and
+timestamp.
+
+**Cold restart.** After `am force-stop`, the app cold-started into the dashboard and re-read the
+production API: active 1, in stock 1, low 0, out 0, total on-hand 3; product detail `3 available`;
+History the same six movements and `SMOKE-RESTOCK-001`. The three surfaces agreed after the restart.
+
+**Production state.** `/api/health` at 17:40Z reported `status: ok`, `db: connected`, commit
+`cb4fcf752c03fe138c8091761f6c2119fb6dfa9c`, 0 `5xx`; `/api/health/ready` returned 200. The test
+product now holds **3 units** and six movements. No OTA was published. Evidence:
+[`restock-2026-11-14`](evidence/restock-2026-11-14/README.md).
 
 ---
 
