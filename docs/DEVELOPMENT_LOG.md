@@ -49,8 +49,18 @@ reliability merge at 14:27Z. `/api/health` reports `status: ok`, `db: connected`
 production`, commit `cd4efcc`, 0 `5xx`; `/api/health/ready` returns 200. The deploy carries the
 staging drills/evidence and the AI-107 finalizer. Before it, production served `8245e54` (PR #273),
 `304e2ea` (PR #272) and `65d9ef1` (PR #270).
-The current production OTA is `39f78213-cc77-45f6-8b1b-0b9232b44a62`, published from `8b99f46`;
-local `main` contains the PR #271 delivery `42229e5` (the current-position alignment) and the PR #275 reliability merge `cd4efcc`. The AI-107 production smoke is the newest entry below; the PR #275 deployment and the P4/P5/P6 reliability sequence follow it.
+The current production OTA is `2110458d-40ca-4975-813c-f182acb3e3aa`, published from `a7be9cd`
+on runtime `1.0.2`; the prior group was `39f78213-cc77-45f6-8b1b-0b9232b44a62` from `8b99f46`;
+local `main` contains the PR #271 delivery `42229e5` (the current-position alignment) and the PR #275 reliability merge `cd4efcc`. The product-creation and required-name entry is the newest below; the AI-107 production smoke follows it.
+
+**Production product creation + required-name test (2026-11-14):** the designated test tenant
+`joffy rak gears` now holds one test product, `Phone Smoke Product` (`PHONE-SMOKE-20261115`),
+created in production app 1.0.2; the list, detail, edit read-back and dashboard agreed, and the row
+survived a force-stop/cold start. The empty-name retest on the same production build focused the
+name field and showed `Name is required`; PR #278 merged as `a7be9cd`, and the component test merged
+as PR #279 (`6b6ef1f`). See the newest entry and
+[evidence](evidence/product-creation-name-focus-2026-11-14/README.md).
+
 Production's 25-question zero-cost gate remains blocked; the staging gate passed **25/25** at
 **$0**, and the P3 drill passed with a real HTTP `503` and a tool-grounded free fallback. The two
 merges before the single-flight work (`4e4c6f7`, `17d4fd0`) changed tests, CI and documentation
@@ -109,7 +119,7 @@ each. On 2026-11-07 the account runbook's provider snapshot was re-measured: Git
 | --- | --- | --- |
 | Single-location default, on a real device | Ready, phone pending | The production tenant `6ae6f1d8baa72cee39730240` now has exactly one ACTIVE location, and §27HF pins the late-arriving list for all three kinds; the visual check needs the owner to sign in on the phone |
 | AI-42 live answer | Resolved 2026-11-02 | `getInventoryHistory` folds a transfer into one `from`/`to` event; the server reports `1c1734b` and the phone answered **From: Main Warehouse, To: Shop Front**, 2 units, once — [evidence](evidence/ai42-transfer-2026-11-02/README.md) |
-| Brand and specification fields | Deployed; phone verification pending | The product records an optional `brand` (max 80) and, since AI-48, an optional `specifications` string (max 1,000). Both seeders write real sourced rows; the assistant searches and researches specifications. Production now runs the post-AI-48 schema; the phone check is still pending, and there is still no rating or review field. |
+| Brand and specification fields | Brand phone-verified; specifications pending | The product records an optional `brand` (max 80) and, since AI-48, an optional `specifications` string (max 1,000). Both seeders write real sourced rows; the assistant searches and researches specifications. The 2026-11-14 production creation persisted and read back `PhoneSmoke Brand`; the specification phone check is still pending, and there is still no rating or review field. |
 | `minimatch` advisory | Resolved 2026-11-07 | D-13 accepted the reviewed override; both lockfiles resolve `minimatch@11.0.5`, #173/#174 merged, and alerts #18/#19 are closed. |
 | `glob` advisory | Deferred, D-10 | Patched `14.0.2` is a major outside every consumer's range; the installed chain still cannot reach it — see `SECURITY_DEPENDENCY_DECISIONS.md` §4 gate 6 |
 | `zod` high advisory | Resolved 2026-11-02 | Cleared by `expo@58.0.22`; the nested `zod@3.25.76` is gone and the mobile audit reports **0 high** |
@@ -156,6 +166,59 @@ Known limits, checked before spending one of them:
   space that a backup or an index change would explain.
 - **Brevo** — used for verification codes, reset codes and invitations. Do not send test mail in
   bulk; a delivery failure is not a code regression until the provider log says so.
+
+---
+
+## 2026-11-14 — Production product creation and required-name component test
+
+**Status.** PASS. All three production-testing follow-ups were completed: one real product was
+created and persisted in the production app, the empty-name behavior has an automated component
+test, and the development/production screenshots plus OTA details are recorded in
+[evidence](evidence/product-creation-name-focus-2026-11-14/README.md).
+
+**Production product creation.** The designated owner tenant `joffy rak gears` held zero products
+before the run. Using production app `com.inventoryai.app` **1.0.2** (versionCode 10), one clearly
+labeled test product was created: `Phone Smoke Product`, brand `PhoneSmoke Brand`, SKU
+`PHONE-SMOKE-20261115`, description `Created during production phone validation`, cost `10.50`,
+selling `15.75`, currency `PHP`, unit `piece`, minimum stock `2`, stock `0`, status `Active`, no
+barcode. The Products list showed the row; the detail showed the name, brand, SKU, description,
+prices, unit, minimum stock and stock; the edit form read back all values including `PHP`; and the
+dashboard reported **Active products 1**, **In stock 0**, **Low stock 1**, **Out of stock 1**, total
+on-hand **0**, with the product card at `0 available · minimum 2`. After `am force-stop` and a cold
+start, Products and the detail returned the same record and `Updated: Nov 15, 2026 · 00:13`, proving
+the production API was reading a persisted row rather than app memory. No direct MongoDB query was
+run from the development host; the production API read-back after process death is the persistence
+evidence. The test product was **not deleted**; it remains in that tenant with stock `0`.
+
+Screenshots: [list](evidence/product-creation-name-focus-2026-11-14/prod-product-list.png),
+[detail](evidence/product-creation-name-focus-2026-11-14/prod-product-detail.png),
+[edit read-back](evidence/product-creation-name-focus-2026-11-14/prod-product-edit-prices.png),
+[dashboard](evidence/product-creation-name-focus-2026-11-14/prod-dashboard-after-create.png) and
+[after cold restart](evidence/product-creation-name-focus-2026-11-14/prod-product-after-cold-restart.png).
+
+**Required-name fix.** PR **#278** squash-merged as
+**`a7be9cd43f25ceca8aaa1c6a47bcfbcff67626ac`** after all four required checks passed. The production
+OTA ran on runtime **1.0.2**, update group **`2110458d-40ca-4975-813c-f182acb3e3aa`**, Android update
+ID `01a1dac9-0c80-7372-b8de-d63aba0cf62f`, from commit `a7be9cd`; the publish output is preserved in
+[`ota-publish.txt`](evidence/product-creation-name-focus-2026-11-14/ota-publish.txt). On the OPPO,
+an empty form submitted with **Create product** focused the name field, opened the keyboard and
+displayed `Name is required`; development and production screenshots agree. Products,
+dashboard totals and the AI thread-opening regression checks passed in the same production session.
+
+**Automated component test.** PR **#279** adds
+`mobile/__tests__/product-form-required-name.test.tsx` and squash-merged as
+**`6b6ef1f0ac41d44bd09268658bbe91023361f65c`**. The test renders the real `ProductForm` with an
+empty name and asserts that `productsApi.create` is not called, the name field's focus handle is
+called, and `Name is required` is visible. It passes **1/1**; `npm run typecheck` and `npm run lint`
+both passed locally, and the PR's four required checks passed (`server` 2m 59s, `mobile` 1m 17s,
+`secret-guard` 11s, `attribution-guard` 7s). The test stubs the visual `Input`; the real ref
+forwarding is covered by `keyboard-avoidance.test.tsx` and the phone retest.
+
+**Limitations.** Android only; iOS was not tested. The component test proves the form requests
+focus, not that Android moves the cursor; the screenshots and the OTA retest cover the device
+behavior. The product persistence evidence is an end-to-end API read-back after a cold start, not a
+DBA query. These mobile and documentation changes did not change the production server; Render was
+not redeployed, and production served `cd4efcc` throughout.
 
 ---
 
