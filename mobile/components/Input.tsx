@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { forwardRef, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import type { ComponentRef, ReactNode } from 'react';
 import { StyleSheet, Text, TextInput, View } from 'react-native';
 import type { TextInputProps } from 'react-native';
@@ -47,6 +47,10 @@ const createStyles = (colors: Palette) =>
     helper: { ...type.caption, color: colors.textMuted, marginTop: 6 },
   });
 
+export interface InputHandle {
+  focus: () => void;
+}
+
 export interface InputProps {
   label?: ReactNode;
   /** Field key this input reports under; selects the matching `errors` entry. */
@@ -93,7 +97,7 @@ export interface InputProps {
  * validation problems from a 400 map onto `name` and are shown in red.
  * Focused fields get a primary ring so the active input is obvious.
  */
-export default function Input({
+const Input = forwardRef<InputHandle, InputProps>(function Input({
   label,
   name,
   value,
@@ -116,13 +120,17 @@ export default function Input({
   autoFocus,
   autoComplete,
   textContentType,
-}: InputProps) {
+}, ref) {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const [focused, setFocused] = useState(false);
   // RN 0.88 no longer exposes the host instance through the `TextInput` value's type; the
   // ref's element type is the component's own instance type.
   const inputRef = useRef<ComponentRef<typeof TextInput>>(null);
+  // A form can bring the member back to a field whose validation message would
+  // otherwise be off-screen. Focusing it also triggers the keyboard-aware scroll
+  // path below, so the message and the field arrive together.
+  useImperativeHandle(ref, () => ({ focus: () => inputRef.current?.focus() }), []);
   /**
    * The keyboard fix, from the field's side: on focus, tell the nearest keyboard-aware
    * scroll view which field was focused so IT can bring it above the keyboard. Null on a
@@ -229,4 +237,6 @@ export default function Input({
       {problem ? <Text style={styles.error}>{problem}</Text> : helper ? <Text style={styles.helper}>{helper}</Text> : null}
     </View>
   );
-}
+});
+
+export default Input;

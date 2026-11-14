@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { router } from 'expo-router';
 import { StyleSheet } from 'react-native';
 
 import Banner from './Banner';
 import Button from './Button';
 import Input from './Input';
+import type { InputHandle } from './Input';
 import Screen from './Screen';
 import SelectField from './SelectField';
 import type { SelectOption } from './SelectField';
@@ -78,6 +79,7 @@ export default function ProductForm({ initial }: { initial?: ApiResponse }) {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string | undefined>>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const nameRef = useRef<InputHandle>(null);
 
   const categoryOptions: SelectOption[] = [
     { value: '', label: 'No category' },
@@ -103,6 +105,10 @@ export default function ProductForm({ initial }: { initial?: ApiResponse }) {
     }
     if (Object.keys(problems).length) {
       setFieldErrors(problems);
+      // The Create button sits at the bottom of a long form. Without this, a missing
+      // name rendered its message above the viewport and the submit looked inert.
+      // Focusing the field also lets KeyboardScrollView bring it into view.
+      if (problems.name) requestAnimationFrame(() => nameRef.current?.focus());
       return;
     }
 
@@ -140,7 +146,7 @@ export default function ProductForm({ initial }: { initial?: ApiResponse }) {
   return (
     <Screen scroll contentStyle={styles.content}>
       <Banner type="error" text={formError} />
-      <Input name="name" label="Product name" value={name} onChangeText={setName} error={fieldErrors.name} required autoCapitalize="words" />
+      <Input ref={nameRef} name="name" label="Product name" value={name} onChangeText={setName} error={fieldErrors.name} required autoCapitalize="words" />
       <Input name="brand" label="Brand" value={brand} onChangeText={setBrand} error={fieldErrors.brand} placeholder="Optional — e.g. Nestlé, Samsung" autoCapitalize="words" />
       <Input name="sku" label="SKU" value={sku} onChangeText={setSku} error={fieldErrors.sku} placeholder="Optional — unique per business" autoCapitalize="characters" />
       <Input name="barcode" label="Barcode" value={barcode} onChangeText={setBarcode} error={fieldErrors.barcode} placeholder="Optional — unique per business" autoCapitalize="characters" />
