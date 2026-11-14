@@ -1,0 +1,11 @@
+Run from the server directory with production configuration:
+
+NODE_ENV=production \
+MONGODB_DB_NAME=inventoryai_prod_db \
+AI107_SMOKE_CONFIRM=production-ai107-smoke \
+node .scratch/ai107-production-smoke.mjs
+
+The one-off runner was kept under the ignored server/.scratch directory. It used
+FIREBASE_SERVICE_ACCOUNT_JSON and the public EXPO_PUBLIC_FIREBASE_API_KEY to sign in through
+POST /api/auth/firebase/exchange, then sent one POST /api/ai/chat turn. No credential value is
+recorded here.

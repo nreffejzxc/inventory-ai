@@ -50,7 +50,7 @@ production`, commit `cd4efcc`, 0 `5xx`; `/api/health/ready` returns 200. The dep
 staging drills/evidence and the AI-107 finalizer. Before it, production served `8245e54` (PR #273),
 `304e2ea` (PR #272) and `65d9ef1` (PR #270).
 The current production OTA is `39f78213-cc77-45f6-8b1b-0b9232b44a62`, published from `8b99f46`;
-local `main` contains the PR #271 delivery `42229e5` (the current-position alignment) and the PR #275 reliability merge `cd4efcc`. The PR #275 deployment is the newest entry below; the P4/P5/P6 reliability sequence follows it.
+local `main` contains the PR #271 delivery `42229e5` (the current-position alignment) and the PR #275 reliability merge `cd4efcc`. The AI-107 production smoke is the newest entry below; the PR #275 deployment and the P4/P5/P6 reliability sequence follow it.
 Production's 25-question zero-cost gate remains blocked; the staging gate passed **25/25** at
 **$0**, and the P3 drill passed with a real HTTP `503` and a tool-grounded free fallback. The two
 merges before the single-flight work (`4e4c6f7`, `17d4fd0`) changed tests, CI and documentation
@@ -66,8 +66,9 @@ configured models for three consecutive requests; each returned a bounded `502 A
 exactly **3** provider attempts (**9** total, no loop), then two recovery turns answered with the exact
 tool total **49,991,557,115**. The recovery discrepancy exposed a real model-copy error, fixed by the
 deterministic **AI-107** total-stock-value finalizer. The disposable tenant was removed
-(**44,624** documents, **0** remaining). Production is now `cd4efcc`; AI-107 is **deployed** and
-health-checked, but no production AI prompt was run.
+(**44,624** documents, **0** remaining). Production is now `cd4efcc`; AI-107 is **deployed**, and
+one production smoke returned the exact business-wide total **46,922,439,210** with `getStockValue`
+and no model-copy discrepancy.
 
 **Hosted scheduler status (2026-11-11T19:56Z):** **UptimeRobot is live and alert delivery is
 verified** with two five-minute monitors (readiness HTTP 200 and `/api/health` keyword
@@ -155,6 +156,32 @@ Known limits, checked before spending one of them:
   space that a backup or an index change would explain.
 - **Brevo** — used for verification codes, reset codes and invitations. Do not send test mail in
   bulk; a delivery failure is not a code regression until the provider log says so.
+
+---
+
+## 2026-11-14 — AI-107 production smoke: exact total confirmed
+
+**Status.** PASS. One authorized production turn on the synthetic `PERF SEED` tenant returned the
+exact business-wide total computed by `productService.stockValue`: **46,922,439,210** (currency
+none recorded, **10,000** products, **2,446,801** units, **0** unpriced). The production tenant's
+total differs from the staging P6 tenant's **49,991,557,115** because the data differs; the expected
+value was read live, not hard-coded.
+
+**Turn.** Question: “What is the total stock value of all my inventory?” Answer: “The total stock
+value at the recorded selling price is 46,922,439,210.” Model `openai/gpt-oss-20b` (paid), tools
+`getStockValue`, turn `c103afad`, **9,304 ms**, 18,641 input / 244 output tokens, not degraded.
+Deployed commit `cd4efcc`. All five checks passed: HTTP 201, `getStockValue` present, exact total,
+no other large total, non-empty answer. Evidence:
+[`production-ai107-smoke`](evidence/production-ai107-smoke-2026-11-14/README.md).
+
+**Limits.** This is one paid turn on one synthetic tenant, not a production-wide evaluation. It
+verifies AI-107's total-only finalizer against live tool data; it does not establish multi-instance
+behavior or the scoped/mixed-currency paths. Inventory was not modified; the ordinary
+conversation/message and quota records were created. No configuration, model order or data was
+changed, and cost was not separately measured.
+
+**Supersedes.** This entry corrects the PR #275 entry's statement that no production AI prompt was
+run and that AI-107's behavior under a production question remained unverified.
 
 ---
 
