@@ -54,12 +54,15 @@ on runtime `1.0.2`; the prior group was `39f78213-cc77-45f6-8b1b-0b9232b44a62` f
 local `main` contains the PR #271 delivery `42229e5` (the current-position alignment) and the PR #275 reliability merge `cd4efcc`. The product-creation and required-name entry is the newest below; the AI-107 production smoke follows it.
 
 **Production product creation + required-name test (2026-11-14):** the designated test tenant
-`joffy rak gears` now holds one test product, `Phone Smoke Product` (`PHONE-SMOKE-20261115`),
-created in production app 1.0.2; the list, detail, edit read-back and dashboard agreed, and the row
+`joffy rak gears` now holds one test product, `Phone Smoke Product` (`PHONE-SMOKE-20261115`), and
+one test location, `Phone Smoke Location`. After production stock-in verification the product has
+**6 units** on hand; the list, detail, edit read-back, dashboard and history agreed, and the row
 survived a force-stop/cold start. The empty-name retest on the same production build focused the
 name field and showed `Name is required`; PR #278 merged as `a7be9cd`, and the component test merged
-as PR #279 (`6b6ef1f`). See the newest entry and
-[evidence](evidence/product-creation-name-focus-2026-11-14/README.md).
+as PR #279 (`6b6ef1f`). A 5-unit movement then a double-pressed 1-unit movement produced exactly
+`0 → 5` and `5 → 6`, not a duplicate. See the two newest entries and
+[product evidence](evidence/product-creation-name-focus-2026-11-14/README.md) /
+[stock-in evidence](evidence/stock-in-2026-11-14/README.md).
 
 Production's 25-question zero-cost gate remains blocked; the staging gate passed **25/25** at
 **$0**, and the P3 drill passed with a real HTTP `503` and a tool-grounded free fallback. The two
@@ -166,6 +169,42 @@ Known limits, checked before spending one of them:
   space that a backup or an index change would explain.
 - **Brevo** — used for verification codes, reset codes and invitations. Do not send test mail in
   bulk; a delivery failure is not a code regression until the provider log says so.
+
+---
+
+## 2026-11-14 — Production stock-in and duplicate-submit check
+
+**Status.** PASS, with one display-precision finding. The production app moved the existing test
+product from **0 to 6** units across two confirmed movements. The tenant had no location, so the
+first step was one clearly labeled test location, `Phone Smoke Location`; it was required for the
+stock-in form to have a target.
+
+**Movements.** A 5-unit stock-in with reason `Production stock-in validation` and reference
+`SMOKE-STOCKIN-001` returned the alert `Done. Phone Smoke Product at Phone Smoke Location: 0 → 5`.
+A second 1-unit movement with reason `Duplicate-submit guard check` and reference
+`SMOKE-STOCKIN-002` was submitted with the **Add stock** button pressed twice in immediate
+succession; it returned `5 → 6`, not `5 → 7`, and added one history row. After a force-stop/cold
+start, Inventory History showed exactly two movements, `0 → 5` and `5 → 6`; each movement detail
+carried the correct quantity, previous/new quantity, change, reason, reference, location and
+timestamp. The double-press check covers the app's submit guard; the server's same-key idempotency
+is covered by `server/test/INVENTORY-IDEMPOTENCY.test.mjs`, which was not rerun in this session.
+
+**Consistency.** Product detail showed `Phone Smoke Location — 6 available`; the dashboard showed
+**Active products 1**, **In stock 1**, **Low stock 0**, **Out of stock 0**, total on-hand **6**.
+All three surfaces agreed after a cold start.
+
+**Stock value.** One production assistant question returned “The total stock value at the recorded
+selling price is PHP 95.” (`Read: Stock value`, `Ref: 0d48db06`). The exact arithmetic is
+`15.75 × 6 = 94.50`; the answer's `PHP 95` is a display rounding because the server's `money()`
+helper uses `Intl.NumberFormat('en-PH', { maximumFractionDigits: 0 })`. The underlying calculation
+is consistent, but the rendered answer loses the centavos. If exact centavos are required, that is
+a separate formatter change.
+
+**Limits.** Android only. Persistence is the production API read-back after a cold start, not a
+direct MongoDB query. The duplicate test is one immediate double press, not a server-level replay
+exercise. The test product and test location remain in the designated tenant; the final stock is
+**6 units**. Evidence:
+[`stock-in-2026-11-14`](evidence/stock-in-2026-11-14/README.md).
 
 ---
 
