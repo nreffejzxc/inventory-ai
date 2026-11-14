@@ -1,0 +1,11 @@
+Production /api/health/ready — PR #275 deployment
+Date: 2026-11-14
+
+Pre-deploy (14:26:13Z), HTTP 200:
+{"status":"ready","db":"connected","timestamp":"2026-11-14T14:26:13.884Z"}
+
+Post-deploy (14:27:11Z), HTTP 200:
+{"status":"ready","db":"connected","timestamp":"2026-11-14T14:27:11.537Z"}
+
+Stability after boot window (14:28:36Z), HTTP 200:
+{"status":"ready","db":"connected","timestamp":"2026-11-14T14:28:36.290Z"}

@@ -44,13 +44,13 @@ at the end of every development session, newest entry first.
 **Goal:** finish and harden Inventory AI **V1** through production testing. No Play Store or App
 Store release is being prepared.
 
-**Current production server (2026-11-13):** `8245e54` — Render auto-deployed the PR #273
-test/evidence merge at 18:28Z. `/api/health` reports `status: ok`, `db: connected`, `environment:
-production`, commit `8245e54`, 0 `5xx`; `/api/health/ready` returns 200. The merge adds test harness
-and evidence only; no AI runtime or production AI configuration changed. Before it, production
-served `304e2ea` (PR #272) and `65d9ef1` (PR #270).
+**Current production server (2026-11-14):** `cd4efcc` — Render auto-deployed the PR #275
+reliability merge at 14:27Z. `/api/health` reports `status: ok`, `db: connected`, `environment:
+production`, commit `cd4efcc`, 0 `5xx`; `/api/health/ready` returns 200. The deploy carries the
+staging drills/evidence and the AI-107 finalizer. Before it, production served `8245e54` (PR #273),
+`304e2ea` (PR #272) and `65d9ef1` (PR #270).
 The current production OTA is `39f78213-cc77-45f6-8b1b-0b9232b44a62`, published from `8b99f46`;
-local `main` contains the PR #271 delivery `42229e5` (the current-position alignment). The P4/P5/P6 reliability sequence is the newest entry below; the paid-disabled staging gate and the P3 provider-503 drill remain the prior entry.
+local `main` contains the PR #271 delivery `42229e5` (the current-position alignment) and the PR #275 reliability merge `cd4efcc`. The PR #275 deployment is the newest entry below; the P4/P5/P6 reliability sequence follows it.
 Production's 25-question zero-cost gate remains blocked; the staging gate passed **25/25** at
 **$0**, and the P3 drill passed with a real HTTP `503` and a tool-grounded free fallback. The two
 merges before the single-flight work (`4e4c6f7`, `17d4fd0`) changed tests, CI and documentation
@@ -66,7 +66,8 @@ configured models for three consecutive requests; each returned a bounded `502 A
 exactly **3** provider attempts (**9** total, no loop), then two recovery turns answered with the exact
 tool total **49,991,557,115**. The recovery discrepancy exposed a real model-copy error, fixed by the
 deterministic **AI-107** total-stock-value finalizer. The disposable tenant was removed
-(**44,624** documents, **0** remaining). Production remains `8245e54`; AI-107 is **not deployed**.
+(**44,624** documents, **0** remaining). Production is now `cd4efcc`; AI-107 is **deployed** and
+health-checked, but no production AI prompt was run.
 
 **Hosted scheduler status (2026-11-11T19:56Z):** **UptimeRobot is live and alert delivery is
 verified** with two five-minute monitors (readiness HTTP 200 and `/api/health` keyword
@@ -154,6 +155,31 @@ Known limits, checked before spending one of them:
   space that a backup or an index change would explain.
 - **Brevo** — used for verification codes, reset codes and invitations. Do not send test mail in
   bulk; a delivery failure is not a code regression until the provider log says so.
+
+---
+
+## 2026-11-14 — PR #275 merged and production deployment
+
+**Status.** Complete. PR #275 squash-merged as `cd4efcc` after all four required checks passed:
+`server` 3m 0s, `mobile` 1m 38s, `secret-guard` 11s, `attribution-guard` 7s. No separate GitHub
+review record was required by branch protection; the owner's merge instruction was the approval.
+Render replaced `8245e54` with `cd4efcc` in about 45 seconds.
+
+**Production health.** At 14:27:11Z, `/api/health` returned 200 with `status: ok`, `db: connected`,
+`environment: production`, commit `cd4efcc`, uptime **32 s**, **9** `2xx`, **0** `5xx` and
+`serverErrors: 0`; `/api/health/ready` returned 200. At 14:28:36Z, after the boot window, health
+returned 200 with uptime **116 s**, **31** `2xx`, **0** `5xx` and `serverErrors: 0`; readiness
+returned 200. Evidence:
+[`production-deploy-275`](evidence/production-deploy-275-2026-11-14/README.md).
+
+**Scope and limits.** This deployment carries the staging drills/evidence and the AI-107
+total-stock-value finalizer. No production AI prompt or evaluation was run, so this verifies the
+deployment and service health, not AI-107's behavior under a production question. No production
+configuration, model order, data or credentials were changed, and no additional AI spend was
+incurred. This docs-only follow-up does not trigger Render.
+
+**Supersedes.** This entry supersedes the preceding entry's pre-merge statements that the branch was
+awaiting review, that no merge or deploy had been made, and that AI-107 was not deployed.
 
 ---
 

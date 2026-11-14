@@ -1,0 +1,11 @@
+Production /api/health — PR #275 deployment
+Date: 2026-11-14
+
+Pre-deploy (14:26:13Z), HTTP 200:
+{"status":"ok","db":"connected","environment":"production","commit":"8245e5428ceccaba986792540a0c1b7c4b8a16a7","uptimeSeconds":71884,"counters":{"uptimeSeconds":71879,"responses":17458,"byStatusClass":{"2xx":17338,"3xx":112,"4xx":8,"5xx":0,"other":0},"serverErrors":0,"lastServerErrorAt":null},"timestamp":"2026-11-14T14:26:13.678Z"}
+
+Post-deploy (14:27:11Z), HTTP 200:
+{"status":"ok","db":"connected","environment":"production","commit":"cd4efcc7a9db3b39b55d3400eabf10debe32466f","uptimeSeconds":32,"counters":{"uptimeSeconds":27,"responses":9,"byStatusClass":{"2xx":9,"3xx":0,"4xx":0,"5xx":0,"other":0},"serverErrors":0,"lastServerErrorAt":null},"timestamp":"2026-11-14T14:27:11.331Z"}
+
+Stability after boot window (14:28:36Z), HTTP 200:
+{"status":"ok","db":"connected","environment":"production","commit":"cd4efcc7a9db3b39b55d3400eabf10debe32466f","uptimeSeconds":116,"counters":{"uptimeSeconds":111,"responses":31,"byStatusClass":{"2xx":31,"3xx":0,"4xx":0,"5xx":0,"other":0},"serverErrors":0,"lastServerErrorAt":null},"timestamp":"2026-11-14T14:28:36.071Z"}
