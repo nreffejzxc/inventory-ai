@@ -961,7 +961,15 @@ function finiteNumber(value: unknown): number | null {
  * is shown, which is the same rule the prompt gives the model (rules 23 and 28).
  */
 function money(value: number, currency?: string | null): string {
-  const amount = new Intl.NumberFormat('en-PH', { maximumFractionDigits: 0 }).format(value);
+  // Stock values can end in cents: 6 units at PHP 15.75 is 94.50, not 95.
+  // Keep whole-peso totals compact, but render a fractional total to two
+  // decimals so a centavo is never silently rounded away. Round before the
+  // integer check, so 94.999 formats as the whole amount it actually becomes.
+  const rounded = Math.round(value * 100) / 100;
+  const amount = new Intl.NumberFormat('en-PH', {
+    minimumFractionDigits: Number.isInteger(rounded) ? 0 : 2,
+    maximumFractionDigits: 2,
+  }).format(rounded);
   const code = currencyKey(currency);
   return code ? `${code} ${amount}` : amount;
 }
