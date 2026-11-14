@@ -1,0 +1,324 @@
+{
+  "generatedAt": "2026-11-14T18:05:39.981Z",
+  "target": "https://ai-inventory-l1mi.onrender.com",
+  "deployedCommit": "cb4fcf752c03fe138c8091761f6c2119fb6dfa9c",
+  "tenant": "rak gears",
+  "product": {
+    "id": "6af888b6a860111ff47c31c4",
+    "name": "Phone Smoke Product",
+    "sku": "PHONE-SMOKE-20261115"
+  },
+  "quantity": 2,
+  "reference": "SMOKE-TRANSFER-001",
+  "idempotencyKey": "smoke-transfer-20261115-001",
+  "source": {
+    "id": "6af88e5aa860111ff47c31c6",
+    "name": "Phone Smoke Location"
+  },
+  "destination": {
+    "id": "6af8a2de739e48312d42f533",
+    "name": "Phone Smoke Location 2",
+    "createdByThisTest": false
+  },
+  "before": {
+    "sourceQuantity": 3,
+    "destinationQuantity": 0,
+    "dashboard": {
+      "totalProducts": 1,
+      "totalInventoryQuantity": 3,
+      "lowStockProducts": 0,
+      "inStockProducts": 1,
+      "outOfStockProducts": 0,
+      "recentActivity": [
+        {
+          "id": "6af89c92739e48312d42f52f",
+          "type": "STOCK_IN",
+          "quantity": 3,
+          "previousQuantity": 0,
+          "newQuantity": 3,
+          "delta": 3,
+          "reason": "Production restock validation",
+          "product": {
+            "id": "6af888b6a860111ff47c31c4",
+            "name": "Phone Smoke Product"
+          },
+          "location": {
+            "id": "6af88e5aa860111ff47c31c6",
+            "name": "Phone Smoke Location"
+          },
+          "createdAt": "2026-11-14T17:38:26.372Z"
+        },
+        {
+          "id": "6af898f9739e48312d42f52c",
+          "type": "STOCK_OUT",
+          "quantity": 3,
+          "previousQuantity": 3,
+          "newQuantity": 0,
+          "delta": -3,
+          "reason": null,
+          "product": {
+            "id": "6af888b6a860111ff47c31c4",
+            "name": "Phone Smoke Product"
+          },
+          "location": {
+            "id": "6af88e5aa860111ff47c31c6",
+            "name": "Phone Smoke Location"
+          },
+          "createdAt": "2026-11-14T17:23:05.194Z"
+        },
+        {
+          "id": "6af898a1739e48312d42f529",
+          "type": "STOCK_OUT",
+          "quantity": 1,
+          "previousQuantity": 4,
+          "newQuantity": 3,
+          "delta": -1,
+          "reason": "Repeated stock-out guard check",
+          "product": {
+            "id": "6af888b6a860111ff47c31c4",
+            "name": "Phone Smoke Product"
+          },
+          "location": {
+            "id": "6af88e5aa860111ff47c31c6",
+            "name": "Phone Smoke Location"
+          },
+          "createdAt": "2026-11-14T17:21:37.856Z"
+        },
+        {
+          "id": "6af89814739e48312d42f526",
+          "type": "STOCK_OUT",
+          "quantity": 2,
+          "previousQuantity": 6,
+          "newQuantity": 4,
+          "delta": -2,
+          "reason": "Production stock-out validation",
+          "product": {
+            "id": "6af888b6a860111ff47c31c4",
+            "name": "Phone Smoke Product"
+          },
+          "location": {
+            "id": "6af88e5aa860111ff47c31c6",
+            "name": "Phone Smoke Location"
+          },
+          "createdAt": "2026-11-14T17:19:16.776Z"
+        },
+        {
+          "id": "6af88fc2a860111ff47c31cc",
+          "type": "STOCK_IN",
+          "quantity": 1,
+          "previousQuantity": 5,
+          "newQuantity": 6,
+          "delta": 1,
+          "reason": "Duplicate-submit guard check",
+          "product": {
+            "id": "6af888b6a860111ff47c31c4",
+            "name": "Phone Smoke Product"
+          },
+          "location": {
+            "id": "6af88e5aa860111ff47c31c6",
+            "name": "Phone Smoke Location"
+          },
+          "createdAt": "2026-11-14T16:43:46.632Z"
+        }
+      ]
+    },
+    "historyTotal": 6
+  },
+  "transfer": {
+    "reference": "SMOKE-TRANSFER-001",
+    "transaction": {
+      "id": "6af8a2f3739e48312d42f539",
+      "businessId": "6aef231c9c304aea601245ab",
+      "productId": "6af888b6a860111ff47c31c4",
+      "locationId": "6af88e5aa860111ff47c31c6",
+      "type": "TRANSFER",
+      "quantity": 2,
+      "previousQuantity": 3,
+      "newQuantity": 1,
+      "reason": "Production stock-transfer validation",
+      "reference": "SMOKE-TRANSFER-001",
+      "userId": "6aef231c9c304aea601245ac",
+      "createdAt": "2026-11-14T18:05:39.106Z"
+    },
+    "destinationTransaction": {
+      "id": "6af8a2f3739e48312d42f53a",
+      "businessId": "6aef231c9c304aea601245ab",
+      "productId": "6af888b6a860111ff47c31c4",
+      "locationId": "6af8a2de739e48312d42f533",
+      "type": "TRANSFER",
+      "quantity": 2,
+      "previousQuantity": 0,
+      "newQuantity": 2,
+      "reason": "Production stock-transfer validation",
+      "reference": "SMOKE-TRANSFER-001",
+      "userId": "6aef231c9c304aea601245ac",
+      "createdAt": "2026-11-14T18:05:39.148Z"
+    },
+    "previousQuantity": 3,
+    "newQuantity": 1,
+    "destinationPreviousQuantity": 0,
+    "destinationNewQuantity": 2
+  },
+  "duplicate": {
+    "status": 201,
+    "replayedSameBody": true
+  },
+  "after": {
+    "sourceQuantity": 1,
+    "sourceAvailable": 1,
+    "destinationQuantity": 2,
+    "destinationAvailable": 2,
+    "dashboard": {
+      "totalProducts": 1,
+      "totalInventoryQuantity": 3,
+      "lowStockProducts": 0,
+      "inStockProducts": 1,
+      "outOfStockProducts": 0,
+      "recentActivity": [
+        {
+          "id": "SMOKE-TRANSFER-001",
+          "type": "TRANSFER",
+          "quantity": 2,
+          "product": {
+            "id": "6af888b6a860111ff47c31c4",
+            "name": "Phone Smoke Product"
+          },
+          "from": {
+            "id": "6af88e5aa860111ff47c31c6",
+            "name": "Phone Smoke Location"
+          },
+          "to": {
+            "id": "6af8a2de739e48312d42f533",
+            "name": "Phone Smoke Location 2"
+          },
+          "reference": "SMOKE-TRANSFER-001",
+          "reason": "Production stock-transfer validation",
+          "createdAt": "2026-11-14T18:05:39.148Z"
+        },
+        {
+          "id": "6af89c92739e48312d42f52f",
+          "type": "STOCK_IN",
+          "quantity": 3,
+          "previousQuantity": 0,
+          "newQuantity": 3,
+          "delta": 3,
+          "reason": "Production restock validation",
+          "product": {
+            "id": "6af888b6a860111ff47c31c4",
+            "name": "Phone Smoke Product"
+          },
+          "location": {
+            "id": "6af88e5aa860111ff47c31c6",
+            "name": "Phone Smoke Location"
+          },
+          "createdAt": "2026-11-14T17:38:26.372Z"
+        },
+        {
+          "id": "6af898f9739e48312d42f52c",
+          "type": "STOCK_OUT",
+          "quantity": 3,
+          "previousQuantity": 3,
+          "newQuantity": 0,
+          "delta": -3,
+          "reason": null,
+          "product": {
+            "id": "6af888b6a860111ff47c31c4",
+            "name": "Phone Smoke Product"
+          },
+          "location": {
+            "id": "6af88e5aa860111ff47c31c6",
+            "name": "Phone Smoke Location"
+          },
+          "createdAt": "2026-11-14T17:23:05.194Z"
+        },
+        {
+          "id": "6af898a1739e48312d42f529",
+          "type": "STOCK_OUT",
+          "quantity": 1,
+          "previousQuantity": 4,
+          "newQuantity": 3,
+          "delta": -1,
+          "reason": "Repeated stock-out guard check",
+          "product": {
+            "id": "6af888b6a860111ff47c31c4",
+            "name": "Phone Smoke Product"
+          },
+          "location": {
+            "id": "6af88e5aa860111ff47c31c6",
+            "name": "Phone Smoke Location"
+          },
+          "createdAt": "2026-11-14T17:21:37.856Z"
+        },
+        {
+          "id": "6af89814739e48312d42f526",
+          "type": "STOCK_OUT",
+          "quantity": 2,
+          "previousQuantity": 6,
+          "newQuantity": 4,
+          "delta": -2,
+          "reason": "Production stock-out validation",
+          "product": {
+            "id": "6af888b6a860111ff47c31c4",
+            "name": "Phone Smoke Product"
+          },
+          "location": {
+            "id": "6af88e5aa860111ff47c31c6",
+            "name": "Phone Smoke Location"
+          },
+          "createdAt": "2026-11-14T17:19:16.776Z"
+        }
+      ]
+    },
+    "historyTotal": 8,
+    "transferRows": [
+      {
+        "locationId": "6af8a2de739e48312d42f533",
+        "locationName": "Phone Smoke Location 2",
+        "quantity": 2,
+        "previousQuantity": 0,
+        "newQuantity": 2,
+        "type": "TRANSFER",
+        "reference": "SMOKE-TRANSFER-001",
+        "destination": true
+      },
+      {
+        "locationId": "6af88e5aa860111ff47c31c6",
+        "locationName": "Phone Smoke Location",
+        "quantity": 2,
+        "previousQuantity": 3,
+        "newQuantity": 1,
+        "type": "TRANSFER",
+        "reference": "SMOKE-TRANSFER-001",
+        "destination": false
+      }
+    ]
+  },
+  "checks": {
+    "healthOk": true,
+    "sourceStartedAtThree": true,
+    "destinationStartedEmpty": true,
+    "initialHistorySix": true,
+    "initialReferenceAbsent": true,
+    "initialDashboardTotalThree": true,
+    "destinationCreatedOrReused": true,
+    "transferStatus201": true,
+    "transferMovedTwo": true,
+    "transferArrivedTwo": true,
+    "transferReferenceCorrect": true,
+    "sourceLegCorrect": true,
+    "destinationLegCorrect": true,
+    "exactlyTwoLedgerRows": true,
+    "oneLedgerRowPerLocation": true,
+    "noOtherLedgerRowsAdded": true,
+    "sourceNowOne": true,
+    "destinationNowTwo": true,
+    "perLocationAvailabilityAccurate": true,
+    "availabilityStillTotalsThree": true,
+    "dashboardTotalUnchanged": true,
+    "dashboardHealthUnchanged": true,
+    "duplicateReplayed": true,
+    "duplicateCreatedNoRows": true,
+    "noNegativeStock": true
+  },
+  "pass": true
+}
