@@ -7,6 +7,7 @@ import {
   asksForTotalStockValue,
   bestSellingLimitsAnswer,
   highestStockValueAnswer,
+  totalStockValueAnswer,
   normaliseSkuTypography,
   replaceFalseToolClaims,
   replaceRestockCountClaims,
@@ -97,6 +98,28 @@ test('AI-93: a combined stock-value answer keeps the tool total and the top item
     2000,
   );
   assert.match(withSku, /\(SKU SEEDSKU-344\)/);
+});
+
+test('AI-107: a total-only stock value comes from the tool summary, not model arithmetic', () => {
+  assert.equal(
+    totalStockValueAnswer(
+      { totalValue: 49991557115, currency: null, mixedCurrency: false, unpricedProducts: 0 },
+      2000,
+    ),
+    'The total stock value at the recorded selling price is 49,991,557,115.',
+  );
+  assert.equal(
+    totalStockValueAnswer(
+      { totalValue: 12345, currency: 'PHP', mixedCurrency: false, unpricedProducts: 2 },
+      2000,
+    ),
+    'The total stock value at the recorded selling price is PHP 12,345. ' +
+      '2 products had no recorded price and are excluded.',
+  );
+  assert.equal(
+    totalStockValueAnswer({ totalValue: null, mixedCurrency: true, unpricedProducts: 0 }, 2000),
+    null,
+  );
 });
 
 test('AI-93: a grounded answer cannot claim no tools were used', () => {

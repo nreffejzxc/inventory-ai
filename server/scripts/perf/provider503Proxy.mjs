@@ -7,6 +7,7 @@
 // Required:
 //   PROVIDER_503_CONFIRM=staging-provider-503
 //   FAIL_MODEL=openai/gpt-oss-20b
+//   or FAIL_MODELS=model-a,model-b (for a provider-wide outage drill)
 //   UPSTREAM_BASE=https://openrouter.ai
 //   PORT=5055 (default)
 //
@@ -17,7 +18,13 @@ import https from 'node:https';
 
 const CONFIRM = 'staging-provider-503';
 const PORT = Number.parseInt(process.env.PORT || '5055', 10);
-const FAIL_MODEL = (process.env.FAIL_MODEL || '').trim();
+const FAIL_MODELS = [...new Set(
+  String(process.env.FAIL_MODELS || process.env.FAIL_MODEL || '')
+    .split(',')
+    .map((model) => model.trim())
+    .filter(Boolean),
+)];
+const FAIL_MODEL = FAIL_MODELS[0] || '';
 const UPSTREAM_BASE = (process.env.UPSTREAM_BASE || 'https://openrouter.ai').replace(/\/+$/, '');
 let failing = true;
 let failedRequests = 0;
@@ -27,8 +34,8 @@ if (process.env.PROVIDER_503_CONFIRM !== CONFIRM) {
   console.error(`[503-proxy] set PROVIDER_503_CONFIRM=${CONFIRM}`);
   process.exit(2);
 }
-if (!FAIL_MODEL) {
-  console.error('[503-proxy] FAIL_MODEL is required');
+if (FAIL_MODELS.length === 0) {
+  console.error('[503-proxy] FAIL_MODEL or FAIL_MODELS is required');
   process.exit(2);
 }
 if (!/^https:\/\//i.test(UPSTREAM_BASE)) {
@@ -53,7 +60,13 @@ const server = http.createServer((request, response) => {
   const url = request.url || '/';
 
   if (url === '/__status') {
-    sendJson(response, 200, { failing, failModel: FAIL_MODEL, failedRequests, forwardedRequests });
+    sendJson(response, 200, {
+      failing,
+      failModel: FAIL_MODEL,
+      failModels: FAIL_MODELS,
+      failedRequests,
+      forwardedRequests,
+    });
     return;
   }
   if (url === '/__control/pass' || url === '/__control/fail') {
@@ -80,7 +93,7 @@ const server = http.createServer((request, response) => {
       }
     }
 
-    if (failing && model === FAIL_MODEL && modelBearingPath) {
+    if (failing && FAIL_MODELS.includes(model) && modelBearingPath) {
       failedRequests += 1;
       console.log(`[503-proxy] fail path=${url} model=${model} count=${failedRequests}`);
       sendJson(response, 503, {
@@ -124,7 +137,9 @@ const server = http.createServer((request, response) => {
 });
 
 server.listen(PORT, '127.0.0.1', () => {
-  console.log(`[503-proxy] listening=http://127.0.0.1:${PORT} failModel=${FAIL_MODEL} failing=${failing}`);
+  console.log(
+    `[503-proxy] listening=http://127.0.0.1:${PORT} failModels=${FAIL_MODELS.join(',')} failing=${failing}`,
+  );
 });
 
 for (const signal of ['SIGINT', 'SIGTERM']) {

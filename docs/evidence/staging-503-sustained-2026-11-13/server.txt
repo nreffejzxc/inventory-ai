@@ -1,0 +1,138 @@
+
+> inventory-ai-server@0.1.0 start
+> node src/index.ts
+
+[config] integrations mail=on(brevo) firebase=on emailVerification=on ai=on(openrouter)
+[db] connected to MongoDB (database: inventoryai_dev_db)
+AI configuration models=openai/gpt-oss-20b->nvidia/nemotron-3.5-lightning:free->nvidia/nemotron-3-ultra-550b-a55b:free reasoning-free=disabled reasoning-free-source=default reasoning-paid=advanced reasoning-paid-source=advanced reasoning-legacy=unset web-search=enabled web-fetch=enabled
+[server] environment=development listening on http://localhost:4001 instance=09d4dafa-cc24-4ebf-b5b1-b901bd3e9b92
+{"ts":"2026-11-13T19:16:47.041Z","level":"info","type":"http","requestId":"a47c9d2b-3d44-4e0a-9161-eb16c952bba1","method":"GET","path":"/api/health/live","status":200,"durationMs":3.6}
+{"ts":"2026-11-13T19:17:02.815Z","level":"info","type":"http","requestId":"0c144592-eed2-4273-8f0e-d55e98ee247b","method":"GET","path":"/api/health","status":200,"durationMs":3.7}
+{"ts":"2026-11-13T19:17:06.374Z","level":"info","type":"http","requestId":"e7e1fcac-51f0-4fc2-acb3-ca341d80c5a2","method":"POST","path":"/api/ai/conversations","status":201,"userId":"6af75b052d094477c6662850","durationMs":388.9}
+{"ts":"2026-11-13T19:17:06.388Z","level":"info","type":"http","requestId":"7e77d2a4-d362-4e09-9326-bce43dbfcfb7","method":"GET","path":"/api/health","status":200,"durationMs":0.7}
+AI request intent=inventory route=default model=openai/gpt-oss-20b tier=paid reasoning-free=disabled reasoning-free-source=default reasoning-paid=advanced reasoning-paid-source=advanced reasoning-legacy=unset web-search=enabled web-fetch=enabled tools=inventory turn=38a65b8e
+AI model call provider=openrouter model=openai/gpt-oss-20b tier=paid reasoning=enabled field=omitted source=model turn=38a65b8e
+AI provider openrouter upstream HTTP 503
+AI provider openrouter upstream HTTP error diagnostics
+status=503
+contentType=application/json
+contentLength=96
+location=none
+bodyLength=96
+classification=JSON_LIKE
+bodyPrefix="{\"error\":{\"message\":\"Upstream provider is temporarily unavailable (staging drill)\",\"code\":503}}\n"
+AI failover attempt=1 model=openai/gpt-oss-20b -> nvidia/nemotron-3.5-lightning:free reason=HTTP 503 remaining=59990ms
+AI model call provider=openrouter model=nvidia/nemotron-3.5-lightning:free tier=free reasoning=disabled field=disabled source=default turn=38a65b8e
+AI provider openrouter upstream HTTP 503
+AI provider openrouter upstream HTTP error diagnostics
+status=503
+contentType=application/json
+contentLength=96
+location=none
+bodyLength=96
+classification=JSON_LIKE
+bodyPrefix="{\"error\":{\"message\":\"Upstream provider is temporarily unavailable (staging drill)\",\"code\":503}}\n"
+AI failover attempt=2 model=nvidia/nemotron-3.5-lightning:free -> nvidia/nemotron-3-ultra-550b-a55b:free reason=HTTP 503 remaining=59985ms
+AI model call provider=openrouter model=nvidia/nemotron-3-ultra-550b-a55b:free tier=free reasoning=disabled field=disabled source=default turn=38a65b8e
+AI provider openrouter upstream HTTP 503
+AI provider openrouter upstream HTTP error diagnostics
+status=503
+contentType=application/json
+contentLength=96
+location=none
+bodyLength=96
+classification=JSON_LIKE
+bodyPrefix="{\"error\":{\"message\":\"Upstream provider is temporarily unavailable (staging drill)\",\"code\":503}}\n"
+AI turn outcome=AI_UNAVAILABLE status=failed duration=0.02s total=19ms providerMs=17ms toolMs=0ms calls=3 attempts=3 empty=0 retries=0 failovers=2 reasks=0 tools=none toolRuns=0 in=0 out=0 cost=unknown quota=unknown web=none upstream=unknown model=openai/gpt-oss-20b tier=paid route=default simpleEscalations=0 iterations=1 turn=38a65b8e
+{"ts":"2026-11-13T19:17:06.880Z","level":"error","type":"error","requestId":"e7632f1f-115d-4ba6-adb1-99640934d4f0","method":"POST","path":"/api/ai/chat","userId":"6af75b052d094477c6662850","message":"[error] POST /api/ai/chat (user 6af75b052d094477c6662850) — The AI service is temporarily unavailable. Please try again in a moment."}
+{"ts":"2026-11-13T19:17:06.884Z","level":"info","type":"http","requestId":"e7632f1f-115d-4ba6-adb1-99640934d4f0","method":"POST","path":"/api/ai/chat","status":502,"userId":"6af75b052d094477c6662850","durationMs":486.3}
+AI request intent=inventory route=default model=openai/gpt-oss-20b tier=paid reasoning-free=disabled reasoning-free-source=default reasoning-paid=advanced reasoning-paid-source=advanced reasoning-legacy=unset web-search=enabled web-fetch=enabled tools=inventory turn=f5eaa390
+AI model call provider=openrouter model=openai/gpt-oss-20b tier=paid reasoning=enabled field=omitted source=model turn=f5eaa390
+AI provider openrouter upstream HTTP 503
+AI provider openrouter upstream HTTP error diagnostics
+status=503
+contentType=application/json
+contentLength=96
+location=none
+bodyLength=96
+classification=JSON_LIKE
+bodyPrefix="{\"error\":{\"message\":\"Upstream provider is temporarily unavailable (staging drill)\",\"code\":503}}\n"
+AI failover attempt=1 model=openai/gpt-oss-20b -> nvidia/nemotron-3.5-lightning:free reason=HTTP 503 remaining=59995ms
+AI model call provider=openrouter model=nvidia/nemotron-3.5-lightning:free tier=free reasoning=disabled field=disabled source=default turn=f5eaa390
+AI provider openrouter upstream HTTP 503
+AI provider openrouter upstream HTTP error diagnostics
+status=503
+contentType=application/json
+contentLength=96
+location=none
+bodyLength=96
+classification=JSON_LIKE
+bodyPrefix="{\"error\":{\"message\":\"Upstream provider is temporarily unavailable (staging drill)\",\"code\":503}}\n"
+AI failover attempt=2 model=nvidia/nemotron-3.5-lightning:free -> nvidia/nemotron-3-ultra-550b-a55b:free reason=HTTP 503 remaining=59992ms
+AI model call provider=openrouter model=nvidia/nemotron-3-ultra-550b-a55b:free tier=free reasoning=disabled field=disabled source=default turn=f5eaa390
+AI provider openrouter upstream HTTP 503
+AI provider openrouter upstream HTTP error diagnostics
+status=503
+contentType=application/json
+contentLength=96
+location=none
+bodyLength=96
+classification=JSON_LIKE
+bodyPrefix="{\"error\":{\"message\":\"Upstream provider is temporarily unavailable (staging drill)\",\"code\":503}}\n"
+AI turn outcome=AI_UNAVAILABLE status=failed duration=0.01s total=11ms providerMs=10ms toolMs=0ms calls=3 attempts=3 empty=0 retries=0 failovers=2 reasks=0 tools=none toolRuns=0 in=0 out=0 cost=unknown quota=unknown web=none upstream=unknown model=openai/gpt-oss-20b tier=paid route=default simpleEscalations=0 iterations=1 turn=f5eaa390
+{"ts":"2026-11-13T19:17:07.325Z","level":"error","type":"error","requestId":"244c5cdc-4ff4-426d-bd42-01e2ee8f6ec1","method":"POST","path":"/api/ai/chat","userId":"6af75b052d094477c6662850","message":"[error] POST /api/ai/chat (user 6af75b052d094477c6662850) — The AI service is temporarily unavailable. Please try again in a moment."}
+{"ts":"2026-11-13T19:17:07.327Z","level":"info","type":"http","requestId":"244c5cdc-4ff4-426d-bd42-01e2ee8f6ec1","method":"POST","path":"/api/ai/chat","status":502,"userId":"6af75b052d094477c6662850","durationMs":440.3}
+AI request intent=inventory route=default model=openai/gpt-oss-20b tier=paid reasoning-free=disabled reasoning-free-source=default reasoning-paid=advanced reasoning-paid-source=advanced reasoning-legacy=unset web-search=enabled web-fetch=enabled tools=inventory turn=aa7cec6d
+AI model call provider=openrouter model=openai/gpt-oss-20b tier=paid reasoning=enabled field=omitted source=model turn=aa7cec6d
+AI provider openrouter upstream HTTP 503
+AI provider openrouter upstream HTTP error diagnostics
+status=503
+contentType=application/json
+contentLength=96
+location=none
+bodyLength=96
+classification=JSON_LIKE
+bodyPrefix="{\"error\":{\"message\":\"Upstream provider is temporarily unavailable (staging drill)\",\"code\":503}}\n"
+AI failover attempt=1 model=openai/gpt-oss-20b -> nvidia/nemotron-3.5-lightning:free reason=HTTP 503 remaining=59998ms
+AI model call provider=openrouter model=nvidia/nemotron-3.5-lightning:free tier=free reasoning=disabled field=disabled source=default turn=aa7cec6d
+AI provider openrouter upstream HTTP 503
+AI provider openrouter upstream HTTP error diagnostics
+status=503
+contentType=application/json
+contentLength=96
+location=none
+bodyLength=96
+classification=JSON_LIKE
+bodyPrefix="{\"error\":{\"message\":\"Upstream provider is temporarily unavailable (staging drill)\",\"code\":503}}\n"
+AI failover attempt=2 model=nvidia/nemotron-3.5-lightning:free -> nvidia/nemotron-3-ultra-550b-a55b:free reason=HTTP 503 remaining=59994ms
+AI model call provider=openrouter model=nvidia/nemotron-3-ultra-550b-a55b:free tier=free reasoning=disabled field=disabled source=default turn=aa7cec6d
+AI provider openrouter upstream HTTP 503
+AI provider openrouter upstream HTTP error diagnostics
+status=503
+contentType=application/json
+contentLength=96
+location=none
+bodyLength=96
+classification=JSON_LIKE
+bodyPrefix="{\"error\":{\"message\":\"Upstream provider is temporarily unavailable (staging drill)\",\"code\":503}}\n"
+AI turn outcome=AI_UNAVAILABLE status=failed duration=0.01s total=9ms providerMs=9ms toolMs=0ms calls=3 attempts=3 empty=0 retries=0 failovers=2 reasks=0 tools=none toolRuns=0 in=0 out=0 cost=unknown quota=unknown web=none upstream=unknown model=openai/gpt-oss-20b tier=paid route=default simpleEscalations=0 iterations=1 turn=aa7cec6d
+{"ts":"2026-11-13T19:17:07.778Z","level":"error","type":"error","requestId":"1775f310-1124-4069-b6da-edd4db12bf00","method":"POST","path":"/api/ai/chat","userId":"6af75b052d094477c6662850","message":"[error] POST /api/ai/chat (user 6af75b052d094477c6662850) — The AI service is temporarily unavailable. Please try again in a moment."}
+{"ts":"2026-11-13T19:17:07.779Z","level":"info","type":"http","requestId":"1775f310-1124-4069-b6da-edd4db12bf00","method":"POST","path":"/api/ai/chat","status":502,"userId":"6af75b052d094477c6662850","durationMs":447}
+{"ts":"2026-11-13T19:17:07.782Z","level":"info","type":"http","requestId":"5541a6e7-ffa1-456a-a3e6-3646b3c2e138","method":"GET","path":"/api/health","status":200,"durationMs":1.1}
+AI request intent=inventory route=default model=openai/gpt-oss-20b tier=paid reasoning-free=disabled reasoning-free-source=default reasoning-paid=advanced reasoning-paid-source=advanced reasoning-legacy=unset web-search=enabled web-fetch=enabled tools=inventory turn=cfcc5315
+AI model call provider=openrouter model=openai/gpt-oss-20b tier=paid reasoning=enabled field=omitted source=model turn=cfcc5315
+AI model web tools enabled=search,fetch offered=none used=none intent=inventory model=openai/gpt-oss-20b turn=cfcc5315
+AI model call provider=openrouter model=openai/gpt-oss-20b tier=paid reasoning=enabled field=omitted source=model turn=cfcc5315
+AI model web tools enabled=search,fetch offered=none used=none intent=inventory model=openai/gpt-oss-20b turn=cfcc5315
+AI total stock value quoted from the tool summary
+AI turn outcome=ok status=ok duration=6.66s total=6663ms providerMs=5906ms toolMs=748ms calls=2 attempts=2 empty=0 retries=0 failovers=0 reasks=0 tools=getStockValue toolRuns=1 in=19458 out=388 cost=$0.000952 quota=unknown web=none upstream=AkashML model=openai/gpt-oss-20b tier=paid route=default simpleEscalations=0 iterations=2 turn=cfcc5315
+{"ts":"2026-11-13T19:17:15.101Z","level":"info","type":"http","requestId":"ffa956be-55de-4a46-8903-51770c74e6e3","method":"POST","path":"/api/ai/chat","status":201,"userId":"6af75b052d094477c6662850","durationMs":7313.7}
+AI request intent=inventory route=default model=openai/gpt-oss-20b tier=paid reasoning-free=disabled reasoning-free-source=default reasoning-paid=advanced reasoning-paid-source=advanced reasoning-legacy=unset web-search=enabled web-fetch=enabled tools=inventory turn=10ad3bc3
+AI model call provider=openrouter model=openai/gpt-oss-20b tier=paid reasoning=enabled field=omitted source=model turn=10ad3bc3
+AI model web tools enabled=search,fetch offered=none used=none intent=inventory model=openai/gpt-oss-20b turn=10ad3bc3
+AI model call provider=openrouter model=openai/gpt-oss-20b tier=paid reasoning=enabled field=omitted source=model turn=10ad3bc3
+AI model web tools enabled=search,fetch offered=none used=none intent=inventory model=openai/gpt-oss-20b turn=10ad3bc3
+AI total stock value quoted from the tool summary
+AI turn outcome=ok status=ok duration=5.16s total=5157ms providerMs=4415ms toolMs=740ms calls=2 attempts=2 empty=0 retries=0 failovers=0 reasks=0 tools=getStockValue toolRuns=1 in=18737 out=93 cost=$0.000344 quota=unknown web=none upstream=AkashML model=openai/gpt-oss-20b tier=paid route=default simpleEscalations=0 iterations=2 turn=10ad3bc3
+{"ts":"2026-11-13T19:17:20.918Z","level":"info","type":"http","requestId":"d78e106e-4113-4d76-9a80-703866d39db8","method":"POST","path":"/api/ai/chat","status":201,"userId":"6af75b052d094477c6662850","durationMs":5808.9}
+{"ts":"2026-11-13T19:17:20.922Z","level":"info","type":"http","requestId":"3842c6db-d3bc-4d53-8d68-bdcd5410136f","method":"GET","path":"/api/health","status":200,"durationMs":0.6}

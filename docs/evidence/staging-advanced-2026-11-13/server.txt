@@ -1,0 +1,139 @@
+
+> inventory-ai-server@0.1.0 start
+> node src/index.ts
+
+[config] integrations mail=on(brevo) firebase=on emailVerification=on ai=on(openrouter)
+[db] connected to MongoDB (database: inventoryai_dev_db)
+AI configuration models=openai/gpt-oss-20b->nvidia/nemotron-3.5-lightning:free->nvidia/nemotron-3-ultra-550b-a55b:free reasoning-free=disabled reasoning-free-source=default reasoning-paid=advanced reasoning-paid-source=advanced reasoning-legacy=unset web-search=enabled web-fetch=enabled
+[server] environment=development listening on http://localhost:4000 instance=81144057-9464-483e-afaa-d68332c62ce4
+{"ts":"2026-11-13T18:58:34.570Z","level":"info","type":"http","requestId":"ee686bbc-a2f7-4ceb-80e5-d1f477f4e79a","method":"GET","path":"/api/health/live","status":200,"durationMs":3.6}
+{"ts":"2026-11-13T18:58:45.057Z","level":"info","type":"http","requestId":"66a9d3af-78ad-4c1d-8fba-5d942b878b55","method":"GET","path":"/api/health","status":200,"durationMs":1.3}
+{"ts":"2026-11-13T18:58:47.646Z","level":"info","type":"http","requestId":"fd2f6311-71c9-4ca0-998c-25d978f870d5","method":"POST","path":"/api/ai/conversations","status":201,"userId":"6af75b052d094477c6662850","durationMs":388}
+AI request intent=inventory route=research model=openai/gpt-oss-20b tier=paid reasoning-free=disabled reasoning-free-source=default reasoning-paid=advanced reasoning-paid-source=advanced reasoning-legacy=unset web-search=enabled web-fetch=enabled tools=inventory turn=b9e3580a
+AI model call provider=openrouter model=openai/gpt-oss-120b tier=paid reasoning=enabled field=omitted source=model turn=b9e3580a
+AI model web tools enabled=search,fetch offered=none used=none intent=inventory model=openai/gpt-oss-120b turn=b9e3580a
+AI model call provider=openrouter model=openai/gpt-oss-120b tier=paid reasoning=enabled field=omitted source=model turn=b9e3580a
+AI model web tools enabled=search,fetch offered=none used=none intent=inventory model=openai/gpt-oss-120b turn=b9e3580a
+AI model call provider=openrouter model=openai/gpt-oss-120b tier=paid reasoning=enabled field=omitted source=model turn=b9e3580a
+AI model web tools enabled=search,fetch offered=none used=none intent=inventory model=openai/gpt-oss-120b turn=b9e3580a
+AI turn outcome=ok status=ok duration=15.74s total=15743ms providerMs=14234ms toolMs=1501ms calls=3 attempts=3 empty=0 retries=0 failovers=0 reasks=0 tools=findProducts toolRuns=2 in=33823 out=1063 cost=$0.001405 quota=unknown web=none upstream=AkashML model=openai/gpt-oss-120b tier=paid route=research simpleEscalations=0 iterations=3 turn=b9e3580a
+{"ts":"2026-11-13T18:59:04.104Z","level":"info","type":"http","requestId":"f8668ebc-db14-454c-9a82-41d71b4d4aaf","method":"POST","path":"/api/ai/chat","status":201,"userId":"6af75b052d094477c6662850","durationMs":16447.8}
+AI request intent=inventory route=default model=openai/gpt-oss-20b tier=paid reasoning-free=disabled reasoning-free-source=default reasoning-paid=advanced reasoning-paid-source=advanced reasoning-legacy=unset web-search=enabled web-fetch=enabled tools=inventory turn=e2196ea8
+AI model call provider=openrouter model=openai/gpt-oss-20b tier=paid reasoning=enabled field=omitted source=model turn=e2196ea8
+AI model web tools enabled=search,fetch offered=none used=none intent=inventory model=openai/gpt-oss-20b turn=e2196ea8
+AI model call provider=openrouter model=openai/gpt-oss-20b tier=paid reasoning=enabled field=omitted source=model turn=e2196ea8
+AI model web tools enabled=search,fetch offered=none used=none intent=inventory model=openai/gpt-oss-20b turn=e2196ea8
+AI model call provider=openrouter model=openai/gpt-oss-20b tier=paid reasoning=enabled field=omitted source=model turn=e2196ea8
+AI model web tools enabled=search,fetch offered=none used=none intent=inventory model=openai/gpt-oss-20b turn=e2196ea8
+AI turn outcome=ok status=ok duration=7.04s total=7036ms providerMs=5271ms toolMs=1763ms calls=3 attempts=3 empty=0 retries=0 failovers=0 reasks=0 tools=getStockValue toolRuns=2 in=33191 out=342 cost=$0.002592 quota=unknown web=none upstream=Groq model=openai/gpt-oss-20b tier=paid route=default simpleEscalations=0 iterations=3 turn=e2196ea8
+{"ts":"2026-11-13T18:59:11.826Z","level":"info","type":"http","requestId":"8a51da5b-4caf-446a-80aa-e390fb23541d","method":"POST","path":"/api/ai/chat","status":201,"userId":"6af75b052d094477c6662850","durationMs":7714.5}
+AI request intent=inventory route=default model=openai/gpt-oss-20b tier=paid reasoning-free=disabled reasoning-free-source=default reasoning-paid=advanced reasoning-paid-source=advanced reasoning-legacy=unset web-search=enabled web-fetch=enabled tools=inventory turn=77905d7f
+AI model call provider=openrouter model=openai/gpt-oss-20b tier=paid reasoning=enabled field=omitted source=model turn=77905d7f
+AI model web tools enabled=search,fetch offered=none used=none intent=inventory model=openai/gpt-oss-20b turn=77905d7f
+AI model call provider=openrouter model=openai/gpt-oss-20b tier=paid reasoning=enabled field=omitted source=model turn=77905d7f
+AI model web tools enabled=search,fetch offered=none used=none intent=inventory model=openai/gpt-oss-20b turn=77905d7f
+AI model hit its output limit with nothing usable (provider=openrouter, model=openai/gpt-oss-20b, maxTokens=1200, stop=max_tokens) — the model spent its whole output budget before answering turn=77905d7f
+AI output limit retry: cap=2400 reasoningBudget=1200 model=openai/gpt-oss-20b
+AI output limit reached with no content — resending the request once model=openai/gpt-oss-20b out=1200
+AI model call provider=openrouter model=openai/gpt-oss-20b tier=paid reasoning=enabled field=enabled source=model turn=77905d7f
+AI model web tools enabled=search,fetch offered=none used=none intent=inventory model=openai/gpt-oss-20b turn=77905d7f
+AI turn outcome=ok status=ok duration=7.39s total=7387ms providerMs=7028ms toolMs=358ms calls=3 attempts=3 empty=1 retries=1 failovers=0 reasks=0 tools=getInventory toolRuns=1 in=24545 out=851 cost=$0.002096 quota=unknown web=none upstream=Groq model=openai/gpt-oss-20b tier=paid route=default simpleEscalations=0 iterations=3 turn=77905d7f
+{"ts":"2026-11-13T18:59:19.875Z","level":"info","type":"http","requestId":"a67195e7-5f05-431d-9e43-06bfc05e9554","method":"POST","path":"/api/ai/chat","status":201,"userId":"6af75b052d094477c6662850","durationMs":8046.2}
+AI request intent=inventory:restock_count route=simple model=nvidia/nemotron-3.5-lightning:free tier=free reasoning-free=disabled reasoning-free-source=default reasoning-paid=advanced reasoning-paid-source=advanced reasoning-legacy=unset web-search=enabled web-fetch=enabled tools=inventory turn=db7f912a
+AI model call provider=openrouter model=nvidia/nemotron-3.5-lightning:free tier=free reasoning=disabled field=disabled source=default turn=db7f912a
+AI model web tools enabled=search,fetch offered=none used=none intent=inventory model=nvidia/nemotron-3.5-lightning:free turn=db7f912a
+AI simple route (restock_count) answered without its shortage read — asking again turn=db7f912a
+AI model call provider=openrouter model=nvidia/nemotron-3.5-lightning:free tier=free reasoning=disabled field=disabled source=default turn=db7f912a
+AI model web tools enabled=search,fetch offered=none used=none intent=inventory model=nvidia/nemotron-3.5-lightning:free turn=db7f912a
+AI model call provider=openrouter model=nvidia/nemotron-3.5-lightning:free tier=free reasoning=disabled field=disabled source=default turn=db7f912a
+AI model web tools enabled=search,fetch offered=none used=none intent=inventory model=nvidia/nemotron-3.5-lightning:free turn=db7f912a
+AI restock count read from the returned tool total
+AI turn outcome=ok status=ok duration=5.26s total=5259ms providerMs=4760ms toolMs=491ms calls=3 attempts=3 empty=0 retries=1 failovers=0 reasks=1 tools=getReorderNeededProducts toolRuns=1 in=44085 out=203 cost=$0.000000 quota=unknown web=none upstream=Nvidia model=nvidia/nemotron-3.5-lightning:free tier=free route=simple simpleEscalations=0 iterations=3 turn=db7f912a
+{"ts":"2026-11-13T18:59:25.803Z","level":"info","type":"http","requestId":"56c86ad9-f984-4adc-877a-7bfbabe4ba6d","method":"POST","path":"/api/ai/chat","status":201,"userId":"6af75b052d094477c6662850","durationMs":5924}
+{"ts":"2026-11-13T19:02:21.748Z","level":"info","type":"http","requestId":"b42c497c-af66-4522-98ad-1e1ed683a42c","method":"POST","path":"/api/ai/conversations","status":201,"userId":"6af75b052d094477c6662850","durationMs":360.9}
+AI request intent=web-research route=research model=openai/gpt-oss-20b tier=paid reasoning-free=disabled reasoning-free-source=default reasoning-paid=advanced reasoning-paid-source=advanced reasoning-legacy=unset web-search=enabled web-fetch=enabled tools=inventory+research turn=892433de
+AI model call provider=openrouter model=openai/gpt-oss-120b tier=paid reasoning=enabled field=omitted source=model turn=892433de
+AI model web tools enabled=search,fetch offered=search,fetch used=none intent=web-research model=openai/gpt-oss-120b turn=892433de
+AI model call provider=openrouter model=openai/gpt-oss-120b tier=paid reasoning=enabled field=omitted source=model turn=892433de
+AI model web tools enabled=search,fetch offered=search,fetch used=search intent=web-research model=openai/gpt-oss-120b turn=892433de
+AI web answer cited 6 URL(s) the tools did not return — asking again (attempt 1)
+AI model call provider=openrouter model=openai/gpt-oss-120b tier=paid reasoning=enabled field=omitted source=model turn=892433de
+AI model web tools enabled=search,fetch offered=search,fetch used=fetch intent=web-research model=openai/gpt-oss-120b turn=892433de
+AI turn outcome=ok status=ok duration=22.79s total=22792ms providerMs=22038ms toolMs=749ms calls=3 attempts=3 empty=0 retries=1 failovers=0 reasks=0 tools=findProducts toolRuns=1 in=105493 out=2673 cost=$0.023062 quota=unknown web=search,fetch upstream=Crusoe model=openai/gpt-oss-120b tier=paid route=research simpleEscalations=0 iterations=3 turn=892433de
+{"ts":"2026-11-13T19:02:45.214Z","level":"info","type":"http","requestId":"68d4e731-5f35-4cae-ac45-37aa4eda9bbd","method":"POST","path":"/api/ai/chat","status":201,"userId":"6af75b052d094477c6662850","durationMs":23454.1}
+AI request intent=inventory route=default model=openai/gpt-oss-20b tier=paid reasoning-free=disabled reasoning-free-source=default reasoning-paid=advanced reasoning-paid-source=advanced reasoning-legacy=unset web-search=enabled web-fetch=enabled tools=inventory turn=e2164d46
+AI model call provider=openrouter model=openai/gpt-oss-20b tier=paid reasoning=enabled field=omitted source=model turn=e2164d46
+AI model web tools enabled=search,fetch offered=none used=none intent=inventory model=openai/gpt-oss-20b turn=e2164d46
+AI model call provider=openrouter model=openai/gpt-oss-20b tier=paid reasoning=enabled field=omitted source=model turn=e2164d46
+AI model web tools enabled=search,fetch offered=none used=none intent=inventory model=openai/gpt-oss-20b turn=e2164d46
+AI model call provider=openrouter model=openai/gpt-oss-20b tier=paid reasoning=enabled field=omitted source=model turn=e2164d46
+AI model web tools enabled=search,fetch offered=none used=none intent=inventory model=openai/gpt-oss-20b turn=e2164d46
+AI turn outcome=ok status=ok duration=7.82s total=7824ms providerMs=6032ms toolMs=1791ms calls=3 attempts=3 empty=0 retries=0 failovers=0 reasks=0 tools=getStockValue toolRuns=2 in=33635 out=453 cost=$0.002639 quota=unknown web=none upstream=Groq model=openai/gpt-oss-20b tier=paid route=default simpleEscalations=0 iterations=3 turn=e2164d46
+{"ts":"2026-11-13T19:02:53.721Z","level":"info","type":"http","requestId":"0e097a10-bd1e-4707-95d6-0672281ff9e6","method":"POST","path":"/api/ai/chat","status":201,"userId":"6af75b052d094477c6662850","durationMs":8499.2}
+AI request intent=inventory route=default model=openai/gpt-oss-20b tier=paid reasoning-free=disabled reasoning-free-source=default reasoning-paid=advanced reasoning-paid-source=advanced reasoning-legacy=unset web-search=enabled web-fetch=enabled tools=inventory turn=671dd480
+AI model call provider=openrouter model=openai/gpt-oss-20b tier=paid reasoning=enabled field=omitted source=model turn=671dd480
+AI model web tools enabled=search,fetch offered=none used=none intent=inventory model=openai/gpt-oss-20b turn=671dd480
+AI model call provider=openrouter model=openai/gpt-oss-20b tier=paid reasoning=enabled field=omitted source=model turn=671dd480
+AI model web tools enabled=search,fetch offered=none used=none intent=inventory model=openai/gpt-oss-20b turn=671dd480
+AI model call provider=openrouter model=openai/gpt-oss-20b tier=paid reasoning=enabled field=omitted source=model turn=671dd480
+AI model web tools enabled=search,fetch offered=none used=none intent=inventory model=openai/gpt-oss-20b turn=671dd480
+AI turn outcome=ok status=ok duration=5.50s total=5505ms providerMs=4514ms toolMs=990ms calls=3 attempts=3 empty=0 retries=0 failovers=0 reasks=0 tools=getInventory toolRuns=2 in=32661 out=290 cost=$0.002527 quota=unknown web=none upstream=Groq model=openai/gpt-oss-20b tier=paid route=default simpleEscalations=0 iterations=3 turn=671dd480
+{"ts":"2026-11-13T19:02:59.879Z","level":"info","type":"http","requestId":"8cf49472-57ea-4160-93d0-66248a2b0d81","method":"POST","path":"/api/ai/chat","status":201,"userId":"6af75b052d094477c6662850","durationMs":6154.2}
+AI request intent=inventory:restock_count route=simple model=nvidia/nemotron-3.5-lightning:free tier=free reasoning-free=disabled reasoning-free-source=default reasoning-paid=advanced reasoning-paid-source=advanced reasoning-legacy=unset web-search=enabled web-fetch=enabled tools=inventory turn=98bccbc3
+AI model call provider=openrouter model=nvidia/nemotron-3.5-lightning:free tier=free reasoning=disabled field=disabled source=default turn=98bccbc3
+AI model web tools enabled=search,fetch offered=none used=none intent=inventory model=nvidia/nemotron-3.5-lightning:free turn=98bccbc3
+AI simple route (restock_count) answered without its shortage read — asking again turn=98bccbc3
+AI model call provider=openrouter model=nvidia/nemotron-3.5-lightning:free tier=free reasoning=disabled field=disabled source=default turn=98bccbc3
+AI model web tools enabled=search,fetch offered=none used=none intent=inventory model=nvidia/nemotron-3.5-lightning:free turn=98bccbc3
+AI simple route: paid fallback reserved $0.010000 of the $0.250000 daily budget (missing required read, turn=98bccbc3)
+AI simple route (restock_count) still has no shortage read — escalating to the paid primary turn=98bccbc3
+AI model call provider=openrouter model=openai/gpt-oss-20b tier=paid reasoning=enabled field=omitted source=model turn=98bccbc3
+AI model web tools enabled=search,fetch offered=none used=none intent=inventory model=openai/gpt-oss-20b turn=98bccbc3
+AI model call provider=openrouter model=openai/gpt-oss-20b tier=paid reasoning=enabled field=omitted source=model turn=98bccbc3
+AI model web tools enabled=search,fetch offered=none used=none intent=inventory model=openai/gpt-oss-20b turn=98bccbc3
+AI restock count read from the returned tool total
+AI simple route: paid fallback settled at $0.002023 ($0.000000 still reserved today, turn=98bccbc3)
+AI turn outcome=ok status=ok duration=6.14s total=6144ms providerMs=5703ms toolMs=437ms calls=4 attempts=4 empty=0 retries=2 failovers=1 reasks=1 tools=getReorderNeededProducts toolRuns=1 in=52363 out=349 cost=$0.002023 quota=unknown web=none upstream=Groq model=openai/gpt-oss-20b tier=paid route=simple simpleEscalations=1 iterations=4 turn=98bccbc3
+{"ts":"2026-11-13T19:03:06.684Z","level":"info","type":"http","requestId":"6d548e2c-b54b-414a-a107-c9a98ea15d37","method":"POST","path":"/api/ai/chat","status":201,"userId":"6af75b052d094477c6662850","durationMs":6802.1}
+{"ts":"2026-11-13T19:04:56.102Z","level":"info","type":"http","requestId":"59fbc24a-0944-436d-8ec6-69fdaa9dad1a","method":"POST","path":"/api/ai/conversations","status":201,"userId":"6af75b052d094477c6662850","durationMs":373.8}
+AI request intent=web-research route=research model=openai/gpt-oss-20b tier=paid reasoning-free=disabled reasoning-free-source=default reasoning-paid=advanced reasoning-paid-source=advanced reasoning-legacy=unset web-search=enabled web-fetch=enabled tools=inventory+research turn=50999531
+AI model call provider=openrouter model=openai/gpt-oss-120b tier=paid reasoning=enabled field=omitted source=model turn=50999531
+AI model web tools enabled=search,fetch offered=search,fetch used=none intent=web-research model=openai/gpt-oss-120b turn=50999531
+AI model call provider=openrouter model=openai/gpt-oss-120b tier=paid reasoning=enabled field=omitted source=model turn=50999531
+AI model web tools enabled=search,fetch offered=search,fetch used=search intent=web-research model=openai/gpt-oss-120b turn=50999531
+AI web answer cited 4 URL(s) the tools did not return — asking again (attempt 1)
+AI model call provider=openrouter model=openai/gpt-oss-120b tier=paid reasoning=enabled field=omitted source=model turn=50999531
+AI model web tools enabled=search,fetch offered=search,fetch used=fetch intent=web-research model=openai/gpt-oss-120b turn=50999531
+AI turn outcome=ok status=ok duration=26.59s total=26586ms providerMs=25872ms toolMs=714ms calls=3 attempts=3 empty=0 retries=1 failovers=0 reasks=0 tools=findProducts toolRuns=1 in=120538 out=2852 cost=$0.022522 quota=unknown web=search,fetch upstream=Crusoe model=openai/gpt-oss-120b tier=paid route=research simpleEscalations=0 iterations=3 turn=50999531
+{"ts":"2026-11-13T19:05:23.365Z","level":"info","type":"http","requestId":"4d1dc52b-af50-4b2c-b1bc-53bf613edaa0","method":"POST","path":"/api/ai/chat","status":201,"userId":"6af75b052d094477c6662850","durationMs":27252.6}
+AI request intent=inventory route=default model=openai/gpt-oss-20b tier=paid reasoning-free=disabled reasoning-free-source=default reasoning-paid=advanced reasoning-paid-source=advanced reasoning-legacy=unset web-search=enabled web-fetch=enabled tools=inventory turn=182b39e8
+AI model call provider=openrouter model=openai/gpt-oss-20b tier=paid reasoning=enabled field=omitted source=model turn=182b39e8
+AI model web tools enabled=search,fetch offered=none used=none intent=inventory model=openai/gpt-oss-20b turn=182b39e8
+AI model call provider=openrouter model=openai/gpt-oss-20b tier=paid reasoning=enabled field=omitted source=model turn=182b39e8
+AI model web tools enabled=search,fetch offered=none used=none intent=inventory model=openai/gpt-oss-20b turn=182b39e8
+AI model call provider=openrouter model=openai/gpt-oss-20b tier=paid reasoning=enabled field=omitted source=model turn=182b39e8
+AI model web tools enabled=search,fetch offered=none used=none intent=inventory model=openai/gpt-oss-20b turn=182b39e8
+AI turn outcome=ok status=ok duration=11.18s total=11175ms providerMs=6423ms toolMs=4752ms calls=3 attempts=3 empty=0 retries=0 failovers=0 reasks=0 tools=getStockValue toolRuns=2 in=33572 out=655 cost=$0.002695 quota=unknown web=none upstream=Groq model=openai/gpt-oss-20b tier=paid route=default simpleEscalations=0 iterations=3 turn=182b39e8
+{"ts":"2026-11-13T19:05:35.220Z","level":"info","type":"http","requestId":"ef36679b-932d-407b-8c4c-bc5800cd691d","method":"POST","path":"/api/ai/chat","status":201,"userId":"6af75b052d094477c6662850","durationMs":11848.5}
+AI request intent=inventory route=default model=openai/gpt-oss-20b tier=paid reasoning-free=disabled reasoning-free-source=default reasoning-paid=advanced reasoning-paid-source=advanced reasoning-legacy=unset web-search=enabled web-fetch=enabled tools=inventory turn=9e4ff692
+AI model call provider=openrouter model=openai/gpt-oss-20b tier=paid reasoning=enabled field=omitted source=model turn=9e4ff692
+AI model web tools enabled=search,fetch offered=none used=none intent=inventory model=openai/gpt-oss-20b turn=9e4ff692
+AI model call provider=openrouter model=openai/gpt-oss-20b tier=paid reasoning=enabled field=omitted source=model turn=9e4ff692
+AI model web tools enabled=search,fetch offered=none used=none intent=inventory model=openai/gpt-oss-20b turn=9e4ff692
+AI model call provider=openrouter model=openai/gpt-oss-20b tier=paid reasoning=enabled field=omitted source=model turn=9e4ff692
+AI model web tools enabled=search,fetch offered=none used=none intent=inventory model=openai/gpt-oss-20b turn=9e4ff692
+AI turn outcome=ok status=ok duration=5.58s total=5581ms providerMs=4589ms toolMs=991ms calls=3 attempts=3 empty=0 retries=0 failovers=0 reasks=0 tools=getInventory toolRuns=2 in=32463 out=275 cost=$0.002508 quota=unknown web=none upstream=Groq model=openai/gpt-oss-20b tier=paid route=default simpleEscalations=0 iterations=3 turn=9e4ff692
+{"ts":"2026-11-13T19:05:41.463Z","level":"info","type":"http","requestId":"405f4b4f-504c-42bf-bf01-49f7492ba08a","method":"POST","path":"/api/ai/chat","status":201,"userId":"6af75b052d094477c6662850","durationMs":6239.4}
+AI request intent=inventory:restock_count route=simple model=nvidia/nemotron-3.5-lightning:free tier=free reasoning-free=disabled reasoning-free-source=default reasoning-paid=advanced reasoning-paid-source=advanced reasoning-legacy=unset web-search=enabled web-fetch=enabled tools=inventory turn=0e328793
+AI model call provider=openrouter model=nvidia/nemotron-3.5-lightning:free tier=free reasoning=disabled field=disabled source=default turn=0e328793
+AI simple route: paid fallback reserved $0.010000 of the $0.250000 daily budget (failed (timeout), turn=0e328793)
+AI simple route: free model nvidia/nemotron-3.5-lightning:free failed (timeout) — falling back to the paid primary once turn=0e328793
+AI model call provider=openrouter model=openai/gpt-oss-20b tier=paid reasoning=enabled field=omitted source=model turn=0e328793
+AI model web tools enabled=search,fetch offered=none used=none intent=inventory model=nvidia/nemotron-3.5-lightning:free turn=0e328793
+AI model web tools enabled=search,fetch offered=none used=none intent=inventory model=openai/gpt-oss-20b turn=0e328793
+AI model call provider=openrouter model=openai/gpt-oss-20b tier=paid reasoning=enabled field=omitted source=model turn=0e328793
+AI model web tools enabled=search,fetch offered=none used=none intent=inventory model=openai/gpt-oss-20b turn=0e328793
+AI restock count read from the returned tool total
+AI simple route: paid fallback settled at $0.003820 ($0.000000 still reserved today, turn=0e328793)
+AI turn outcome=ok status=ok duration=18.89s total=18894ms providerMs=18460ms toolMs=432ms calls=3 attempts=3 empty=0 retries=0 failovers=1 reasks=0 tools=getReorderNeededProducts toolRuns=1 in=25445 out=269 cost=$0.001797 quota=unknown web=none upstream=Groq model=openai/gpt-oss-20b tier=paid route=simple simpleEscalations=1 iterations=2 turn=0e328793
+{"ts":"2026-11-13T19:06:01.016Z","level":"info","type":"http","requestId":"507896a6-7a12-4fec-8bbc-ae3b0cb6db6d","method":"POST","path":"/api/ai/chat","status":201,"userId":"6af75b052d094477c6662850","durationMs":19549}

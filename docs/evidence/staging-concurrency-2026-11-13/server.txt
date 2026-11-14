@@ -1,0 +1,157 @@
+
+> inventory-ai-server@0.1.0 start
+> node src/index.ts
+
+[config] integrations mail=on(brevo) firebase=on emailVerification=on ai=on(openrouter)
+[db] connected to MongoDB (database: inventoryai_dev_db)
+AI configuration models=openai/gpt-oss-20b->nvidia/nemotron-3.5-lightning:free->nvidia/nemotron-3-ultra-550b-a55b:free reasoning-free=disabled reasoning-free-source=default reasoning-paid=advanced reasoning-paid-source=advanced reasoning-legacy=unset web-search=enabled web-fetch=enabled
+[server] environment=development listening on http://localhost:4000 instance=a1b6d767-e386-4302-88fa-41ab71ce9e17
+{"ts":"2026-11-13T18:55:11.285Z","level":"info","type":"http","requestId":"04d066f8-b82e-4604-90ac-fb13830335c2","method":"GET","path":"/api/health/live","status":200,"durationMs":4.2}
+{"ts":"2026-11-13T18:55:22.140Z","level":"info","type":"http","requestId":"b4df7bd6-e907-4072-8697-bfbedc631048","method":"GET","path":"/api/health","status":200,"durationMs":1.5}
+{"ts":"2026-11-13T18:55:25.142Z","level":"info","type":"http","requestId":"1a920a41-a54a-4e38-a7db-b60c02db6b0b","method":"GET","path":"/api/health","status":200,"durationMs":0.6}
+{"ts":"2026-11-13T18:55:25.557Z","level":"info","type":"http","requestId":"c296464b-5039-42f8-a62c-9b9c42f1563d","method":"POST","path":"/api/ai/conversations","status":201,"userId":"6af75b052d094477c6662850","durationMs":399.6}
+AI request intent=inventory:restock_count route=simple model=nvidia/nemotron-3.5-lightning:free tier=free reasoning-free=disabled reasoning-free-source=default reasoning-paid=advanced reasoning-paid-source=advanced reasoning-legacy=unset web-search=enabled web-fetch=enabled tools=inventory turn=7cdac6c0
+AI model call provider=openrouter model=nvidia/nemotron-3.5-lightning:free tier=free reasoning=disabled field=disabled source=default turn=7cdac6c0
+{"ts":"2026-11-13T18:55:26.290Z","level":"info","type":"http","requestId":"9d143019-c4e5-4869-b95b-5bed1a824bb0","method":"POST","path":"/api/ai/chat","status":409,"userId":"6af75b052d094477c6662850","durationMs":213.8}
+AI model web tools enabled=search,fetch offered=none used=none intent=inventory model=nvidia/nemotron-3.5-lightning:free turn=7cdac6c0
+AI simple route (restock_count) answered without its shortage read — asking again turn=7cdac6c0
+AI model call provider=openrouter model=nvidia/nemotron-3.5-lightning:free tier=free reasoning=disabled field=disabled source=default turn=7cdac6c0
+AI model web tools enabled=search,fetch offered=none used=none intent=inventory model=nvidia/nemotron-3.5-lightning:free turn=7cdac6c0
+AI model call provider=openrouter model=nvidia/nemotron-3.5-lightning:free tier=free reasoning=disabled field=disabled source=default turn=7cdac6c0
+AI model web tools enabled=search,fetch offered=none used=none intent=inventory model=nvidia/nemotron-3.5-lightning:free turn=7cdac6c0
+AI restock count read from the returned tool total
+AI turn outcome=ok status=ok duration=3.88s total=3885ms providerMs=3419ms toolMs=455ms calls=3 attempts=3 empty=0 retries=1 failovers=0 reasks=1 tools=getReorderNeededProducts toolRuns=1 in=40623 out=55 cost=$0.000000 quota=unknown web=none upstream=Nvidia model=nvidia/nemotron-3.5-lightning:free tier=free route=simple simpleEscalations=0 iterations=3 turn=7cdac6c0
+{"ts":"2026-11-13T18:55:30.116Z","level":"info","type":"http","requestId":"e1d93f35-aa15-44e4-946c-cd899002b9db","method":"POST","path":"/api/ai/chat","status":201,"userId":"6af75b052d094477c6662850","durationMs":4555.9}
+{"ts":"2026-11-13T18:55:30.436Z","level":"info","type":"http","requestId":"bce8ec0d-b416-4866-9772-b29cc5aa5b71","method":"GET","path":"/api/ai/conversations/6af75d1d526b51ae0bc9aba5/messages","status":200,"userId":"6af75b052d094477c6662850","durationMs":317.6}
+AI request intent=inventory:restock_count route=simple model=nvidia/nemotron-3.5-lightning:free tier=free reasoning-free=disabled reasoning-free-source=default reasoning-paid=advanced reasoning-paid-source=advanced reasoning-legacy=unset web-search=enabled web-fetch=enabled tools=inventory turn=5c877341
+AI model call provider=openrouter model=nvidia/nemotron-3.5-lightning:free tier=free reasoning=disabled field=disabled source=default turn=5c877341
+AI model web tools enabled=search,fetch offered=none used=none intent=inventory model=nvidia/nemotron-3.5-lightning:free turn=5c877341
+AI simple route (restock_count) answered without its shortage read — asking again turn=5c877341
+AI model call provider=openrouter model=nvidia/nemotron-3.5-lightning:free tier=free reasoning=disabled field=disabled source=default turn=5c877341
+AI model web tools enabled=search,fetch offered=none used=none intent=inventory model=nvidia/nemotron-3.5-lightning:free turn=5c877341
+AI model call provider=openrouter model=nvidia/nemotron-3.5-lightning:free tier=free reasoning=disabled field=disabled source=default turn=5c877341
+AI model web tools enabled=search,fetch offered=none used=none intent=inventory model=nvidia/nemotron-3.5-lightning:free turn=5c877341
+AI restock count read from the returned tool total
+AI turn outcome=ok status=ok duration=5.89s total=5889ms providerMs=5293ms toolMs=594ms calls=3 attempts=3 empty=0 retries=1 failovers=0 reasks=1 tools=getReorderNeededProducts toolRuns=1 in=40719 out=294 cost=$0.000000 quota=unknown web=none upstream=Nvidia model=nvidia/nemotron-3.5-lightning:free tier=free route=simple simpleEscalations=0 iterations=3 turn=5c877341
+{"ts":"2026-11-13T18:55:36.955Z","level":"info","type":"http","requestId":"c50e2324-a75f-45f4-9428-482b2588c10a","method":"POST","path":"/api/ai/chat","status":201,"userId":"6af75b052d094477c6662850","durationMs":6517.5}
+{"ts":"2026-11-13T18:55:37.272Z","level":"info","type":"http","requestId":"6f3d3fcd-b930-49c2-adb4-3e73c6bb21a2","method":"GET","path":"/api/ai/conversations/6af75d1d526b51ae0bc9aba5/messages","status":200,"userId":"6af75b052d094477c6662850","durationMs":314.4}
+{"ts":"2026-11-13T18:55:37.564Z","level":"info","type":"http","requestId":"7c79d649-c188-45f0-8536-9f8429428dce","method":"POST","path":"/api/ai/conversations","status":201,"userId":"6af75b052d094477c6662850","durationMs":288.6}
+{"ts":"2026-11-13T18:55:37.957Z","level":"info","type":"http","requestId":"1f9b3ce2-1d31-4077-9e70-5defcde83d3a","method":"POST","path":"/api/ai/conversations","status":201,"userId":"6af75ba18da077486169dab9","durationMs":390.9}
+{"ts":"2026-11-13T18:55:38.251Z","level":"info","type":"http","requestId":"4a2a9dbd-a3fe-422d-be59-e7493012a1a8","method":"POST","path":"/api/ai/conversations","status":201,"userId":"6af75b052d094477c6662850","durationMs":291.5}
+{"ts":"2026-11-13T18:55:38.545Z","level":"info","type":"http","requestId":"b877405e-e14e-4d5f-810c-8dc6c57816dd","method":"POST","path":"/api/ai/conversations","status":201,"userId":"6af75ba18da077486169dab9","durationMs":292.4}
+AI request intent=inventory:restock_count route=simple model=nvidia/nemotron-3.5-lightning:free tier=free reasoning-free=disabled reasoning-free-source=default reasoning-paid=advanced reasoning-paid-source=advanced reasoning-legacy=unset web-search=enabled web-fetch=enabled tools=inventory turn=e4a7120d
+AI model call provider=openrouter model=nvidia/nemotron-3.5-lightning:free tier=free reasoning=disabled field=disabled source=default turn=e4a7120d
+AI request intent=inventory:restock_count route=simple model=nvidia/nemotron-3.5-lightning:free tier=free reasoning-free=disabled reasoning-free-source=default reasoning-paid=advanced reasoning-paid-source=advanced reasoning-legacy=unset web-search=enabled web-fetch=enabled tools=inventory turn=96249b5f
+AI model call provider=openrouter model=nvidia/nemotron-3.5-lightning:free tier=free reasoning=disabled field=disabled source=default turn=96249b5f
+AI request intent=inventory:restock_count route=simple model=nvidia/nemotron-3.5-lightning:free tier=free reasoning-free=disabled reasoning-free-source=default reasoning-paid=advanced reasoning-paid-source=advanced reasoning-legacy=unset web-search=enabled web-fetch=enabled tools=inventory turn=f1f953a0
+AI model call provider=openrouter model=nvidia/nemotron-3.5-lightning:free tier=free reasoning=disabled field=disabled source=default turn=f1f953a0
+AI request intent=inventory:restock_count route=simple model=nvidia/nemotron-3.5-lightning:free tier=free reasoning-free=disabled reasoning-free-source=default reasoning-paid=advanced reasoning-paid-source=advanced reasoning-legacy=unset web-search=enabled web-fetch=enabled tools=inventory turn=db697543
+AI model call provider=openrouter model=nvidia/nemotron-3.5-lightning:free tier=free reasoning=disabled field=disabled source=default turn=db697543
+AI model web tools enabled=search,fetch offered=none used=none intent=inventory model=nvidia/nemotron-3.5-lightning:free turn=96249b5f
+AI simple route (restock_count) answered without its shortage read — asking again turn=96249b5f
+AI model call provider=openrouter model=nvidia/nemotron-3.5-lightning:free tier=free reasoning=disabled field=disabled source=default turn=96249b5f
+AI model web tools enabled=search,fetch offered=none used=none intent=inventory model=nvidia/nemotron-3.5-lightning:free turn=e4a7120d
+AI simple route (restock_count) answered without its shortage read — asking again turn=e4a7120d
+AI model call provider=openrouter model=nvidia/nemotron-3.5-lightning:free tier=free reasoning=disabled field=disabled source=default turn=e4a7120d
+AI model web tools enabled=search,fetch offered=none used=none intent=inventory model=nvidia/nemotron-3.5-lightning:free turn=db697543
+AI simple route (restock_count) answered without its shortage read — asking again turn=db697543
+AI model call provider=openrouter model=nvidia/nemotron-3.5-lightning:free tier=free reasoning=disabled field=disabled source=default turn=db697543
+AI model web tools enabled=search,fetch offered=none used=none intent=inventory model=nvidia/nemotron-3.5-lightning:free turn=f1f953a0
+AI model call provider=openrouter model=nvidia/nemotron-3.5-lightning:free tier=free reasoning=disabled field=disabled source=default turn=f1f953a0
+AI model web tools enabled=search,fetch offered=none used=none intent=inventory model=nvidia/nemotron-3.5-lightning:free turn=db697543
+AI model web tools enabled=search,fetch offered=none used=none intent=inventory model=nvidia/nemotron-3.5-lightning:free turn=e4a7120d
+AI model web tools enabled=search,fetch offered=none used=none intent=inventory model=nvidia/nemotron-3.5-lightning:free turn=96249b5f
+AI model call provider=openrouter model=nvidia/nemotron-3.5-lightning:free tier=free reasoning=disabled field=disabled source=default turn=db697543
+AI model call provider=openrouter model=nvidia/nemotron-3.5-lightning:free tier=free reasoning=disabled field=disabled source=default turn=96249b5f
+AI model call provider=openrouter model=nvidia/nemotron-3.5-lightning:free tier=free reasoning=disabled field=disabled source=default turn=e4a7120d
+AI model web tools enabled=search,fetch offered=none used=none intent=inventory model=nvidia/nemotron-3.5-lightning:free turn=f1f953a0
+AI restock count read from the returned tool total
+AI turn outcome=ok status=ok duration=2.90s total=2903ms providerMs=2459ms toolMs=442ms calls=2 attempts=2 empty=0 retries=0 failovers=0 reasks=0 tools=getReorderNeededProducts toolRuns=1 in=28615 out=47 cost=$0.000000 quota=unknown web=none upstream=Nvidia model=nvidia/nemotron-3.5-lightning:free tier=free route=simple simpleEscalations=0 iterations=2 turn=f1f953a0
+{"ts":"2026-11-13T18:55:42.079Z","level":"info","type":"http","requestId":"5e7e48f1-feef-470f-be6c-0410648529af","method":"POST","path":"/api/ai/chat","status":201,"userId":"6af75b052d094477c6662850","durationMs":3530.8}
+AI model web tools enabled=search,fetch offered=none used=none intent=inventory model=nvidia/nemotron-3.5-lightning:free turn=96249b5f
+AI restock count read from the returned tool total
+AI turn outcome=ok status=ok duration=3.74s total=3738ms providerMs=3111ms toolMs=627ms calls=3 attempts=3 empty=0 retries=1 failovers=0 reasks=1 tools=getReorderNeededProducts toolRuns=1 in=40623 out=56 cost=$0.000000 quota=unknown web=none upstream=Nvidia model=nvidia/nemotron-3.5-lightning:free tier=free route=simple simpleEscalations=0 iterations=3 turn=96249b5f
+AI model web tools enabled=search,fetch offered=none used=none intent=inventory model=nvidia/nemotron-3.5-lightning:free turn=e4a7120d
+AI restock count read from the returned tool total
+AI turn outcome=ok status=ok duration=3.76s total=3756ms providerMs=3056ms toolMs=698ms calls=3 attempts=3 empty=0 retries=1 failovers=0 reasks=1 tools=getReorderNeededProducts toolRuns=1 in=40623 out=56 cost=$0.000000 quota=unknown web=none upstream=Nvidia model=nvidia/nemotron-3.5-lightning:free tier=free route=simple simpleEscalations=0 iterations=3 turn=e4a7120d
+AI model web tools enabled=search,fetch offered=none used=none intent=inventory model=nvidia/nemotron-3.5-lightning:free turn=db697543
+AI restock count read from the returned tool total
+AI turn outcome=ok status=ok duration=3.69s total=3690ms providerMs=2954ms toolMs=735ms calls=3 attempts=3 empty=0 retries=1 failovers=0 reasks=1 tools=getReorderNeededProducts toolRuns=1 in=40612 out=39 cost=$0.000000 quota=unknown web=none upstream=Nvidia model=nvidia/nemotron-3.5-lightning:free tier=free route=simple simpleEscalations=0 iterations=3 turn=db697543
+{"ts":"2026-11-13T18:55:42.859Z","level":"info","type":"http","requestId":"780752b4-e372-4349-a515-b8735b770665","method":"POST","path":"/api/ai/chat","status":201,"userId":"6af75b052d094477c6662850","durationMs":4307.7}
+{"ts":"2026-11-13T18:55:42.886Z","level":"info","type":"http","requestId":"f98d1fe7-7ac1-4f60-8a9d-0dcc9ed4434d","method":"POST","path":"/api/ai/chat","status":201,"userId":"6af75ba18da077486169dab9","durationMs":4335.8}
+{"ts":"2026-11-13T18:55:42.909Z","level":"info","type":"http","requestId":"2dc9c767-10d1-422f-8a69-5da038e5c16d","method":"POST","path":"/api/ai/chat","status":201,"userId":"6af75ba18da077486169dab9","durationMs":4356.7}
+AI request intent=inventory:restock_count route=simple model=nvidia/nemotron-3.5-lightning:free tier=free reasoning-free=disabled reasoning-free-source=default reasoning-paid=advanced reasoning-paid-source=advanced reasoning-legacy=unset web-search=enabled web-fetch=enabled tools=inventory turn=3cd9a458
+AI model call provider=openrouter model=nvidia/nemotron-3.5-lightning:free tier=free reasoning=disabled field=disabled source=default turn=3cd9a458
+AI request intent=inventory:restock_count route=simple model=nvidia/nemotron-3.5-lightning:free tier=free reasoning-free=disabled reasoning-free-source=default reasoning-paid=advanced reasoning-paid-source=advanced reasoning-legacy=unset web-search=enabled web-fetch=enabled tools=inventory turn=76acf395
+AI model call provider=openrouter model=nvidia/nemotron-3.5-lightning:free tier=free reasoning=disabled field=disabled source=default turn=76acf395
+AI request intent=inventory:restock_count route=simple model=nvidia/nemotron-3.5-lightning:free tier=free reasoning-free=disabled reasoning-free-source=default reasoning-paid=advanced reasoning-paid-source=advanced reasoning-legacy=unset web-search=enabled web-fetch=enabled tools=inventory turn=75457334
+AI model call provider=openrouter model=nvidia/nemotron-3.5-lightning:free tier=free reasoning=disabled field=disabled source=default turn=75457334
+AI request intent=inventory:restock_count route=simple model=nvidia/nemotron-3.5-lightning:free tier=free reasoning-free=disabled reasoning-free-source=default reasoning-paid=advanced reasoning-paid-source=advanced reasoning-legacy=unset web-search=enabled web-fetch=enabled tools=inventory turn=3b8ce245
+AI model call provider=openrouter model=nvidia/nemotron-3.5-lightning:free tier=free reasoning=disabled field=disabled source=default turn=3b8ce245
+AI model web tools enabled=search,fetch offered=none used=none intent=inventory model=nvidia/nemotron-3.5-lightning:free turn=3b8ce245
+AI simple route (restock_count) answered without its shortage read — asking again turn=3b8ce245
+AI model call provider=openrouter model=nvidia/nemotron-3.5-lightning:free tier=free reasoning=disabled field=disabled source=default turn=3b8ce245
+AI model web tools enabled=search,fetch offered=none used=none intent=inventory model=nvidia/nemotron-3.5-lightning:free turn=3cd9a458
+AI simple route (restock_count) answered without its shortage read — asking again turn=3cd9a458
+AI model call provider=openrouter model=nvidia/nemotron-3.5-lightning:free tier=free reasoning=disabled field=disabled source=default turn=3cd9a458
+AI model web tools enabled=search,fetch offered=none used=none intent=inventory model=nvidia/nemotron-3.5-lightning:free turn=76acf395
+AI simple route (restock_count) answered without its shortage read — asking again turn=76acf395
+AI model call provider=openrouter model=nvidia/nemotron-3.5-lightning:free tier=free reasoning=disabled field=disabled source=default turn=76acf395
+AI model web tools enabled=search,fetch offered=none used=none intent=inventory model=nvidia/nemotron-3.5-lightning:free turn=75457334
+AI simple route (restock_count) answered without its shortage read — asking again turn=75457334
+AI model call provider=openrouter model=nvidia/nemotron-3.5-lightning:free tier=free reasoning=disabled field=disabled source=default turn=75457334
+AI provider openrouter upstream rate/quota limit reached (HTTP 429)
+AI provider openrouter upstream HTTP error diagnostics
+status=429
+contentType=application/json
+contentLength=none
+location=none
+bodyLength=473
+classification=JSON_LIKE
+bodyPrefix="{\"type\":\"error\",\"error\":{\"type\":\"rate_limit_error\",\"message\":\"Rate limit exceeded: free-models-per-min. \",\"error_type\":\"rate_limit_exceeded\"},\"request_id\":\"gen-1794596144-Y742rsiHVIhpgk3KeMRW\",\"metadata\":{\"headers\":{\"X-RateLimit-Limit\":\"20\",\"X-RateLimit-Remaining\":\"0\",\"X-RateLimit-Reset\":\"1794596160"
+AI simple route: paid fallback reserved $0.010000 of the $0.100000 daily budget (free quota refusal, turn=75457334)
+AI simple route: free model nvidia/nemotron-3.5-lightning:free was refused by quota — falling forward to the paid primary once turn=75457334
+AI model call provider=openrouter model=openai/gpt-oss-20b tier=paid reasoning=enabled field=omitted source=model turn=75457334
+AI model web tools enabled=search,fetch offered=none used=none intent=inventory model=nvidia/nemotron-3.5-lightning:free turn=3b8ce245
+AI model web tools enabled=search,fetch offered=none used=none intent=inventory model=nvidia/nemotron-3.5-lightning:free turn=3cd9a458
+AI model web tools enabled=search,fetch offered=none used=none intent=inventory model=nvidia/nemotron-3.5-lightning:free turn=76acf395
+AI model web tools enabled=search,fetch offered=none used=none intent=inventory model=openai/gpt-oss-20b turn=75457334
+AI model call provider=openrouter model=nvidia/nemotron-3.5-lightning:free tier=free reasoning=disabled field=disabled source=default turn=3b8ce245
+AI provider openrouter upstream rate/quota limit reached (HTTP 429)
+AI provider openrouter upstream HTTP error diagnostics
+status=429
+contentType=application/json
+contentLength=none
+location=none
+bodyLength=473
+classification=JSON_LIKE
+bodyPrefix="{\"type\":\"error\",\"error\":{\"type\":\"rate_limit_error\",\"message\":\"Rate limit exceeded: free-models-per-min. \",\"error_type\":\"rate_limit_exceeded\"},\"request_id\":\"gen-1794596146-8b11zebU8rQdOYMalstB\",\"metadata\":{\"headers\":{\"X-RateLimit-Limit\":\"20\",\"X-RateLimit-Remaining\":\"0\",\"X-RateLimit-Reset\":\"1794596160"
+AI simple route: paid fallback reserved $0.010000 of the $0.100000 daily budget (free quota refusal, turn=3b8ce245)
+AI simple route: free model nvidia/nemotron-3.5-lightning:free was refused by quota — falling forward to the paid primary once turn=3b8ce245
+AI model call provider=openrouter model=openai/gpt-oss-20b tier=paid reasoning=enabled field=omitted source=model turn=3b8ce245
+AI model call provider=openrouter model=nvidia/nemotron-3.5-lightning:free tier=free reasoning=disabled field=disabled source=default turn=3cd9a458
+AI model call provider=openrouter model=nvidia/nemotron-3.5-lightning:free tier=free reasoning=disabled field=disabled source=default turn=76acf395
+AI model call provider=openrouter model=openai/gpt-oss-20b tier=paid reasoning=enabled field=omitted source=model turn=75457334
+AI model web tools enabled=search,fetch offered=none used=none intent=inventory model=nvidia/nemotron-3.5-lightning:free turn=3cd9a458
+AI restock count read from the returned tool total
+AI turn outcome=ok status=ok duration=3.46s total=3465ms providerMs=2841ms toolMs=623ms calls=3 attempts=3 empty=0 retries=1 failovers=0 reasks=1 tools=getReorderNeededProducts toolRuns=1 in=40719 out=52 cost=$0.000000 quota=0/20 web=none upstream=Nvidia model=nvidia/nemotron-3.5-lightning:free tier=free route=simple simpleEscalations=0 iterations=3 turn=3cd9a458
+{"ts":"2026-11-13T18:55:46.939Z","level":"info","type":"http","requestId":"4dabc225-aad7-4108-b136-4168d78f8f51","method":"POST","path":"/api/ai/chat","status":201,"userId":"6af75ba18da077486169dab9","durationMs":4022.7}
+AI model web tools enabled=search,fetch offered=none used=none intent=inventory model=nvidia/nemotron-3.5-lightning:free turn=76acf395
+AI restock count read from the returned tool total
+AI turn outcome=ok status=ok duration=3.69s total=3689ms providerMs=2977ms toolMs=711ms calls=3 attempts=3 empty=0 retries=1 failovers=0 reasks=1 tools=getReorderNeededProducts toolRuns=1 in=40719 out=63 cost=$0.000000 quota=0/20 web=none upstream=Nvidia model=nvidia/nemotron-3.5-lightning:free tier=free route=simple simpleEscalations=0 iterations=3 turn=76acf395
+{"ts":"2026-11-13T18:55:47.169Z","level":"info","type":"http","requestId":"4e23550f-ffdc-4537-b282-d53e1b1bba9b","method":"POST","path":"/api/ai/chat","status":201,"userId":"6af75ba18da077486169dab9","durationMs":4250.7}
+AI model web tools enabled=search,fetch offered=none used=none intent=inventory model=openai/gpt-oss-20b turn=3b8ce245
+AI restock count read from the returned tool total
+AI simple route: paid fallback settled at $0.001120 ($0.010000 still reserved today, turn=3b8ce245)
+AI turn outcome=ok status=ok duration=4.30s total=4301ms providerMs=3749ms toolMs=550ms calls=4 attempts=4 empty=0 retries=1 failovers=1 reasks=1 tools=getReorderNeededProducts toolRuns=1 in=37282 out=412 cost=$0.001120 quota=0/20 web=none upstream=Groq model=openai/gpt-oss-20b tier=paid route=simple simpleEscalations=1 iterations=3 turn=3b8ce245
+AI model web tools enabled=search,fetch offered=none used=none intent=inventory model=openai/gpt-oss-20b turn=75457334
+AI restock count read from the returned tool total
+AI simple route: paid fallback settled at $0.003011 ($0.000000 still reserved today, turn=75457334)
+AI turn outcome=ok status=ok duration=4.33s total=4335ms providerMs=3869ms toolMs=464ms calls=4 attempts=4 empty=0 retries=1 failovers=1 reasks=1 tools=getReorderNeededProducts toolRuns=1 in=35301 out=465 cost=$0.001891 quota=0/20 web=none upstream=Groq model=openai/gpt-oss-20b tier=paid route=simple simpleEscalations=1 iterations=3 turn=75457334
+{"ts":"2026-11-13T18:55:47.837Z","level":"info","type":"http","requestId":"9a613002-175a-43db-ad5f-2fb771e2595d","method":"POST","path":"/api/ai/chat","status":201,"userId":"6af75b052d094477c6662850","durationMs":4921.6}
+{"ts":"2026-11-13T18:55:47.900Z","level":"info","type":"http","requestId":"719590b8-13d9-4297-ace1-0ec49136b75e","method":"POST","path":"/api/ai/chat","status":201,"userId":"6af75b052d094477c6662850","durationMs":4987.3}
+{"ts":"2026-11-13T18:55:48.261Z","level":"info","type":"http","requestId":"ade418a2-b7ca-415d-9f19-9f9d93080843","method":"GET","path":"/api/ai/conversations/6af75d29526b51ae0bc9abaa/messages","status":200,"userId":"6af75b052d094477c6662850","durationMs":359.4}
+{"ts":"2026-11-13T18:55:48.624Z","level":"info","type":"http","requestId":"4d92d52c-578f-4602-8f21-e64805ca7e53","method":"GET","path":"/api/ai/conversations/6af75d29526b51ae0bc9abab/messages","status":200,"userId":"6af75ba18da077486169dab9","durationMs":362.1}
+{"ts":"2026-11-13T18:55:48.981Z","level":"info","type":"http","requestId":"bf504bc5-d178-4d70-a0c1-32d26da1db1c","method":"GET","path":"/api/ai/conversations/6af75d2a526b51ae0bc9abac/messages","status":200,"userId":"6af75b052d094477c6662850","durationMs":355.5}
+{"ts":"2026-11-13T18:55:49.340Z","level":"info","type":"http","requestId":"702753cf-ae35-457c-aa44-7baebf7043ca","method":"GET","path":"/api/ai/conversations/6af75d2a526b51ae0bc9abad/messages","status":200,"userId":"6af75ba18da077486169dab9","durationMs":356.4}
+{"ts":"2026-11-13T18:55:49.342Z","level":"info","type":"http","requestId":"21e3d253-28cc-44ac-be32-0168a5b0a6d9","method":"GET","path":"/api/health","status":200,"durationMs":0.9}

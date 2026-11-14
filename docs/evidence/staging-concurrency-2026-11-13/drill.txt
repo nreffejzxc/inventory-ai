@@ -1,0 +1,246 @@
+[concurrency] restock ground truth=1535
+[concurrency] wave=1 duration=4365ms OWNER:201/3534ms MANAGER:201/4341ms OWNER:201/4313ms MANAGER:201/4364ms
+[concurrency] wave=2 duration=4990ms OWNER:201/4990ms MANAGER:201/4258ms OWNER:201/4927ms MANAGER:201/4029ms
+{
+  "result": "PASS",
+  "database": "inventoryai_dev_db",
+  "baseUrl": "http://127.0.0.1:4000",
+  "tenant": "6af75b052d094477c666284f",
+  "settings": {
+    "waves": 2,
+    "concurrentRequestsPerWave": 4,
+    "users": 2
+  },
+  "duplicate": {
+    "firstStatus": 201,
+    "firstDurationMs": 4559,
+    "duplicateStatus": 409,
+    "duplicateCode": "AI_TURN_IN_PROGRESS",
+    "persistedUserMessages": 1,
+    "persistedAssistantMessages": 1,
+    "followUpStatus": 201,
+    "messagesAfterFollowUp": 4
+  },
+  "waves": [
+    {
+      "wave": 1,
+      "durationMs": 4365,
+      "results": [
+        {
+          "wave": 1,
+          "user": "OWNER",
+          "expected": 1535,
+          "question": "How many products need restocking?",
+          "status": 201,
+          "durationMs": 3534,
+          "conversationId": "6af75d29526b51ae0bc9abaa",
+          "content": "1,535 products need restocking.",
+          "model": "nvidia/nemotron-3.5-lightning:free",
+          "toolsUsed": [
+            "getReorderNeededProducts"
+          ],
+          "turnId": "f1f953a0",
+          "degraded": null,
+          "code": null,
+          "error": null,
+          "correct": true
+        },
+        {
+          "wave": 1,
+          "user": "MANAGER",
+          "expected": 1535,
+          "question": "How many products need restocking?",
+          "status": 201,
+          "durationMs": 4341,
+          "conversationId": "6af75d29526b51ae0bc9abab",
+          "content": "1,535 products need restocking.",
+          "model": "nvidia/nemotron-3.5-lightning:free",
+          "toolsUsed": [
+            "getReorderNeededProducts"
+          ],
+          "turnId": "96249b5f",
+          "degraded": null,
+          "code": null,
+          "error": null,
+          "correct": true
+        },
+        {
+          "wave": 1,
+          "user": "OWNER",
+          "expected": 1535,
+          "question": "How many products need restocking?",
+          "status": 201,
+          "durationMs": 4313,
+          "conversationId": "6af75d2a526b51ae0bc9abac",
+          "content": "1,535 products need restocking.",
+          "model": "nvidia/nemotron-3.5-lightning:free",
+          "toolsUsed": [
+            "getReorderNeededProducts"
+          ],
+          "turnId": "e4a7120d",
+          "degraded": null,
+          "code": null,
+          "error": null,
+          "correct": true
+        },
+        {
+          "wave": 1,
+          "user": "MANAGER",
+          "expected": 1535,
+          "question": "How many products need restocking?",
+          "status": 201,
+          "durationMs": 4364,
+          "conversationId": "6af75d2a526b51ae0bc9abad",
+          "content": "1,535 products need restocking.",
+          "model": "nvidia/nemotron-3.5-lightning:free",
+          "toolsUsed": [
+            "getReorderNeededProducts"
+          ],
+          "turnId": "db697543",
+          "degraded": null,
+          "code": null,
+          "error": null,
+          "correct": true
+        }
+      ]
+    },
+    {
+      "wave": 2,
+      "durationMs": 4990,
+      "results": [
+        {
+          "wave": 2,
+          "user": "OWNER",
+          "expected": 1535,
+          "question": "How many products need restocking?",
+          "status": 201,
+          "durationMs": 4990,
+          "conversationId": "6af75d29526b51ae0bc9abaa",
+          "content": "1,535 products need restocking.",
+          "model": "openai/gpt-oss-20b",
+          "toolsUsed": [
+            "getReorderNeededProducts"
+          ],
+          "turnId": "75457334",
+          "degraded": null,
+          "code": null,
+          "error": null,
+          "correct": true
+        },
+        {
+          "wave": 2,
+          "user": "MANAGER",
+          "expected": 1535,
+          "question": "How many products need restocking?",
+          "status": 201,
+          "durationMs": 4258,
+          "conversationId": "6af75d29526b51ae0bc9abab",
+          "content": "1,535 products need restocking.",
+          "model": "nvidia/nemotron-3.5-lightning:free",
+          "toolsUsed": [
+            "getReorderNeededProducts"
+          ],
+          "turnId": "76acf395",
+          "degraded": null,
+          "code": null,
+          "error": null,
+          "correct": true
+        },
+        {
+          "wave": 2,
+          "user": "OWNER",
+          "expected": 1535,
+          "question": "How many products need restocking?",
+          "status": 201,
+          "durationMs": 4927,
+          "conversationId": "6af75d2a526b51ae0bc9abac",
+          "content": "1,535 products need restocking.",
+          "model": "openai/gpt-oss-20b",
+          "toolsUsed": [
+            "getReorderNeededProducts"
+          ],
+          "turnId": "3b8ce245",
+          "degraded": null,
+          "code": null,
+          "error": null,
+          "correct": true
+        },
+        {
+          "wave": 2,
+          "user": "MANAGER",
+          "expected": 1535,
+          "question": "How many products need restocking?",
+          "status": 201,
+          "durationMs": 4029,
+          "conversationId": "6af75d2a526b51ae0bc9abad",
+          "content": "1,535 products need restocking.",
+          "model": "nvidia/nemotron-3.5-lightning:free",
+          "toolsUsed": [
+            "getReorderNeededProducts"
+          ],
+          "turnId": "3cd9a458",
+          "degraded": null,
+          "code": null,
+          "error": null,
+          "correct": true
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "admittedTurns": 8,
+    "distinctTurnIds": 8,
+    "allFree": false,
+    "freeServed": 6,
+    "paidServed": 2,
+    "allCorrect": true,
+    "minMs": 3534,
+    "medianMs": 4313,
+    "p95Ms": 4990,
+    "maxMs": 4990,
+    "health5xxDelta": 0,
+    "healthServerErrorsDelta": 0
+  },
+  "healthBefore": {
+    "status": "ok",
+    "db": "connected",
+    "environment": "development",
+    "commit": "unknown",
+    "uptimeSeconds": 16,
+    "counters": {
+      "uptimeSeconds": 15,
+      "responses": 2,
+      "byStatusClass": {
+        "2xx": 2,
+        "3xx": 0,
+        "4xx": 0,
+        "5xx": 0,
+        "other": 0
+      },
+      "serverErrors": 0,
+      "lastServerErrorAt": null
+    },
+    "timestamp": "2026-11-13T18:55:25.141Z"
+  },
+  "healthAfter": {
+    "status": "ok",
+    "db": "connected",
+    "environment": "development",
+    "commit": "unknown",
+    "uptimeSeconds": 40,
+    "counters": {
+      "uptimeSeconds": 39,
+      "responses": 25,
+      "byStatusClass": {
+        "2xx": 24,
+        "3xx": 0,
+        "4xx": 1,
+        "5xx": 0,
+        "other": 0
+      },
+      "serverErrors": 0,
+      "lastServerErrorAt": null
+    },
+    "timestamp": "2026-11-13T18:55:49.342Z"
+  }
+}

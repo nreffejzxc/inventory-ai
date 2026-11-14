@@ -1,0 +1,136 @@
+{
+  "result": "PASS",
+  "database": "inventoryai_dev_db",
+  "baseUrl": "http://127.0.0.1:4001",
+  "proxyUrl": "http://127.0.0.1:5055",
+  "failModels": [
+    "openai/gpt-oss-20b",
+    "nvidia/nemotron-3.5-lightning:free",
+    "nvidia/nemotron-3-ultra-550b-a55b:free"
+  ],
+  "expectedTotalValue": 49991557115,
+  "consecutiveFailures": 3,
+  "failures": [
+    {
+      "turn": 1,
+      "status": 502,
+      "durationMs": 486,
+      "content": "",
+      "model": null,
+      "toolsUsed": [],
+      "degraded": null,
+      "code": "AI_UNAVAILABLE",
+      "error": "The AI service is temporarily unavailable. Please try again in a moment.",
+      "proxyFailedDelta": 3
+    },
+    {
+      "turn": 2,
+      "status": 502,
+      "durationMs": 441,
+      "content": "",
+      "model": null,
+      "toolsUsed": [],
+      "degraded": null,
+      "code": "AI_UNAVAILABLE",
+      "error": "The AI service is temporarily unavailable. Please try again in a moment.",
+      "proxyFailedDelta": 3
+    },
+    {
+      "turn": 3,
+      "status": 502,
+      "durationMs": 448,
+      "content": "",
+      "model": null,
+      "toolsUsed": [],
+      "degraded": null,
+      "code": "AI_UNAVAILABLE",
+      "error": "The AI service is temporarily unavailable. Please try again in a moment.",
+      "proxyFailedDelta": 3
+    }
+  ],
+  "recovery": [
+    {
+      "turn": 1,
+      "status": 201,
+      "durationMs": 7317,
+      "content": "The total stock value at the recorded selling price is 49,991,557,115.",
+      "model": "openai/gpt-oss-20b",
+      "toolsUsed": [
+        "getStockValue"
+      ],
+      "degraded": null,
+      "code": null,
+      "error": null,
+      "forwardedDelta": 2
+    },
+    {
+      "turn": 2,
+      "status": 201,
+      "durationMs": 5811,
+      "content": "The total stock value at the recorded selling price is 49,991,557,115.",
+      "model": "openai/gpt-oss-20b",
+      "toolsUsed": [
+        "getStockValue"
+      ],
+      "degraded": null,
+      "code": null,
+      "error": null,
+      "forwardedDelta": 2
+    }
+  ],
+  "health": {
+    "before": {
+      "uptimeSeconds": 20,
+      "responses": 3,
+      "byStatusClass": {
+        "2xx": 3,
+        "3xx": 0,
+        "4xx": 0,
+        "5xx": 0,
+        "other": 0
+      },
+      "serverErrors": 0,
+      "lastServerErrorAt": null
+    },
+    "afterFailures": {
+      "uptimeSeconds": 22,
+      "responses": 7,
+      "byStatusClass": {
+        "2xx": 4,
+        "3xx": 0,
+        "4xx": 0,
+        "5xx": 3,
+        "other": 0
+      },
+      "serverErrors": 3,
+      "lastServerErrorAt": "2026-11-13T19:17:07.779Z"
+    },
+    "afterRecovery": {
+      "uptimeSeconds": 35,
+      "responses": 10,
+      "byStatusClass": {
+        "2xx": 7,
+        "3xx": 0,
+        "4xx": 0,
+        "5xx": 3,
+        "other": 0
+      },
+      "serverErrors": 3,
+      "lastServerErrorAt": "2026-11-13T19:17:07.779Z"
+    },
+    "failure5xxDelta": 3,
+    "failureServerErrorDelta": 3,
+    "recovery5xxDelta": 0
+  },
+  "proxy": {
+    "failing": false,
+    "failModel": "openai/gpt-oss-20b",
+    "failModels": [
+      "openai/gpt-oss-20b",
+      "nvidia/nemotron-3.5-lightning:free",
+      "nvidia/nemotron-3-ultra-550b-a55b:free"
+    ],
+    "failedRequests": 18,
+    "forwardedRequests": 14
+  }
+}
