@@ -1,0 +1,26 @@
+
+> inventory-ai-server@0.1.0 cleanup:perf-tenant
+> node scripts/cleanup-perf-tenant.mjs --database=inventoryai_dev_db --dry-run
+
+[cleanup:perf-tenant] database : inventoryai_dev_db
+[cleanup:perf-tenant] mode     : DRY RUN — counting only, nothing will be deleted
+[cleanup:perf-tenant] tenant    : 6af75b052d094477c666284f
+[cleanup:perf-tenant]   ai_messages              84
+[cleanup:perf-tenant]   ai_conversations         22
+[cleanup:perf-tenant]   inventory                20006
+[cleanup:perf-tenant]   inventory_transactions   13354
+[cleanup:perf-tenant]   purchase_orders          889
+[cleanup:perf-tenant]   products                 10000
+[cleanup:perf-tenant]   categories               13
+[cleanup:perf-tenant]   locations                4
+[cleanup:perf-tenant]   suppliers                178
+[cleanup:perf-tenant]   audit_logs               14
+[cleanup:perf-tenant]   ai_turn_metrics          57
+[cleanup:perf-tenant]   users                    2
+[cleanup:perf-tenant]   businesses               1
+[cleanup:perf-tenant] DRY RUN — would remove 44624 document(s); verification after a real run would re-count the tenant. Nothing was deleted.
+npm notice
+npm notice New major version of npm available! 11.19.1 -> 12.2.2
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.2
+npm notice To update run: npm install -g npm@12.2.2
+npm notice

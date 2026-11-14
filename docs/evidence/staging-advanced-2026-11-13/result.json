@@ -1,0 +1,106 @@
+{
+  "result": "RECORDED",
+  "database": "inventoryai_dev_db",
+  "baseUrl": "http://127.0.0.1:4000",
+  "tenant": "6af75b052d094477c666284f",
+  "conversationId": "6af75f58dd6e50a386a712fb",
+  "questions": [
+    {
+      "id": "research-compare",
+      "kind": "research + inventory comparison",
+      "question": "What do current online reviews say about the Keychron K8 Pro and Royal Kludge RK61? Compare them and cite the source URLs you used.",
+      "status": 201,
+      "durationMs": 27257,
+      "content": "**Keychron K8 Pro** – what the sourced reviews say  \n- The JonsDocs review (Feb 2024) notes a solid build (≈1 kg, sturdy box), hot‑swappable Gateron G Pro brown switches, a 4000 mAh battery that offers ~100 h of Bluetooth + RGB use, and a useful Fn‑layer for macros. The reviewer likes the back‑lit keys, the dedicated screenshot button and finds the keyboard “happy” after a week of daily use, though a wrist‑rest is advisable because the board is a bit tall. **Source:** https://blog.jonsdocs.org.uk/2024/02/10/review-keychron-k8-pro-part-1/  \n\n- The Keyboards Lab review (Apr 2024) describes the K8 Pro as a versatile 87‑key TKL with hot‑swappable Gateron G Pro or Keychron K Pro switches, double‑shot PBT keycaps, and a 4000 mAh rechargeable battery (≈100 h with Bluetooth + RGB). It praises the robust aluminum/ABS frame, VIA‑based remapping, and good N‑Key rollover, but points out “poor Bluetooth performance” and “high latency” for the reviewer, plus that the keycaps can be hard to read in low light. **Source:** https://keyboardslab.com/keychron-k8-pro-review/  \n\n**Royal Kludge RK61** – the provided URLs did not include any review content for this model, so no sourced statements can be given about its online reviews.  \n\n**Cited URLs** (each used as a source):  \nhttps://blog.jonsdocs.org.uk/2024/02/10/review-keychron-k8-pro-part-1/  \nhttps://keyboardslab.com/keychron-k8-pro-review/\n\nSource URLs:\n- Test Keychron K8 Pro : le clavier mécanique référence en rapport qualité/prix - Les Numériques: <https://www.lesnumeriques.com/clavier/keychron-k8-pro-p75931/test.html>\n- Keychron K8 Pro Review: Not So Professional: <https://www.tomshardware.com/reviews/keychron-k8-pro>\n- Keychron’s new K8 Pro wireless mechanical keyboard for Mac drops to $84 (Reg. $105): <https://9to5toys.com/2024/04/12/keychron-k8-pro-spring-sale/>\n- Royal Kludge RK61 60% Wireless Keyboard Review - EnosTech.com: <https://www.enostech.com/royal-kludge-rk61-60-wireless-keyboard-review/>\n- Royal Kludge RK61 Review: Great Budget 60%: <https://switchandclick.com/royal-kludge-rk61-review/>\n- ROYAL KLUDGE RK61 Review - RTINGS.com: <https://www.rtings.com/keyboard/reviews/royal-kludge/rk61>",
+      "model": "openai/gpt-oss-120b",
+      "toolsUsed": [
+        "findProducts"
+      ],
+      "turnId": "50999531",
+      "degraded": null,
+      "code": null,
+      "error": null,
+      "check": {
+        "ok": true,
+        "reasons": []
+      }
+    },
+    {
+      "id": "multi-location-value",
+      "kind": "multi-tool location comparison",
+      "question": "What is the total stock value of my Main Warehouse and my Shop Front? Compare the two locations.",
+      "status": 201,
+      "durationMs": 11852,
+      "content": "**Stock value comparison**\n\n| Location | Total value (at recorded selling price) | Units on hand |\n|----------|----------------------------------------|---------------|\n| Main Warehouse | 30,365,156,925 | 1,490,818 |\n| Shop Front | 14,024,388,565 | 683,149 |\n\nThe Main Warehouse holds more than twice the value of the Shop Front – about PHP 30.4 billion versus PHP 14.0 billion (values are recorded at the inventory’s selling price; no currency symbol is stored).",
+      "model": "openai/gpt-oss-20b",
+      "toolsUsed": [
+        "getStockValue"
+      ],
+      "turnId": "182b39e8",
+      "degraded": null,
+      "code": null,
+      "error": null,
+      "check": {
+        "ok": true,
+        "reasons": []
+      }
+    },
+    {
+      "id": "complex-coverage",
+      "kind": "complex stock calculation",
+      "question": "Compare the stock of the product with SKU SEEDSKU-0 (Logitech MX Keys S) across Main Warehouse and Shop Front, and tell me whether we can cover 500 units.",
+      "status": 201,
+      "durationMs": 6243,
+      "content": "**Logitech MX Keys S (SKU SEEDSKU-0)**  \n\n| Location | Available units |\n|----------|-----------------|\n| Main Warehouse | 200 |\n| Shop Front | 201 |\n\n**Total available**: 200 + 201 = 401 units.  \nBecause 401 units is less than the 500‑unit requirement, the combined stock in Main Warehouse and Shop Front cannot cover 500 units.",
+      "model": "openai/gpt-oss-20b",
+      "toolsUsed": [
+        "getInventory"
+      ],
+      "turnId": "9e4ff692",
+      "degraded": null,
+      "code": null,
+      "error": null,
+      "check": {
+        "ok": true,
+        "reasons": []
+      }
+    },
+    {
+      "id": "language-tagalog",
+      "kind": "local-language answer",
+      "question": "Ilan ang mga produktong kailangang i-restock?",
+      "status": 201,
+      "durationMs": 19552,
+      "content": "May 1,535 na produktong mababa ang stock.",
+      "model": "openai/gpt-oss-20b",
+      "toolsUsed": [
+        "getReorderNeededProducts"
+      ],
+      "turnId": "0e328793",
+      "degraded": null,
+      "code": null,
+      "error": null,
+      "check": {
+        "ok": true,
+        "reasons": []
+      }
+    }
+  ],
+  "summary": {
+    "total": 4,
+    "answered": 4,
+    "checksPassed": 4,
+    "checksFailed": [],
+    "models": [
+      "openai/gpt-oss-120b",
+      "openai/gpt-oss-20b"
+    ],
+    "tools": [
+      "findProducts",
+      "getStockValue",
+      "getInventory",
+      "getReorderNeededProducts"
+    ],
+    "totalDurationMs": 64904
+  }
+}

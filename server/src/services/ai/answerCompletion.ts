@@ -1627,6 +1627,8 @@ export interface StockValueSummary {
   mixedCurrency?: boolean;
   totalsByCurrency?: ReadonlyArray<{ currency?: string | null; totalValue?: number | null }>;
   unpricedProducts?: number;
+  /** The tool's scope; null means the whole business, so a total is safe to quote. */
+  scope?: unknown;
 }
 
 /** Does the member want the business (or scoped set)'s total stock value? */
@@ -1636,6 +1638,31 @@ export function asksForTotalStockValue(question: string): boolean {
     /\b(?:total|overall|whole)\b[\s\S]{0,45}\b(?:stock|inventory)\s+value\b/i.test(text) ||
     /\b(?:stock|inventory)\s+value\b[\s\S]{0,45}\b(?:total|overall|whole)\b/i.test(text)
   );
+}
+
+/**
+ * The tool's exact business-wide stock-value total.
+ *
+ * A total-only question had no deterministic finalizer, so two identically worded recovery
+ * turns could quote different numbers while both claimed the same product/unit counts. The
+ * value is already computed by getStockValue; this sentence uses that field rather than
+ * asking the model to copy or re-add it. A scoped or mixed-currency read is deliberately left
+ * to the model because one scalar would be the wrong answer there.
+ */
+export function totalStockValueAnswer(
+  summary: StockValueSummary,
+  maxChars: number,
+): string | null {
+  if (summary.mixedCurrency) return null;
+  const total = finiteNumber(summary.totalValue);
+  if (total === null) return null;
+  const unpriced = finiteNumber(summary.unpricedProducts) ?? 0;
+  const unpricedLine =
+    unpriced > 0
+      ? ` ${unpriced} ${unpriced === 1 ? 'product had' : 'products had'} no recorded price and ${unpriced === 1 ? 'is' : 'are'} excluded.`
+      : '';
+  const answer = `The total stock value at the recorded selling price is ${money(total, summary.currency)}.${unpricedLine}`;
+  return answer.length <= maxChars ? answer : answer.slice(0, maxChars);
 }
 
 /** The product with the greatest recorded quantity × sellingPrice, never a currency guess. */

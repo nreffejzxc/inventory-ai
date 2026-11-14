@@ -1,0 +1,127 @@
+[advanced] database=inventoryai_dev_db conversation=6af75de7dd6e50a386a712e9
+[advanced] research-compare status=201 model=openai/gpt-oss-120b tools=findProducts duration=16453ms check=missing Keychron stock 32|missing RK61 stock 53|no source URL in the answer
+[advanced] answer: **Keychron K8 Pro vs. Royal Kludge RK61** | Feature | Keychron K8 Pro | Royal Kludge RK61 | |---|---|---| | **Brand** | Keychron | Royal Kludge | | **Category** | Keyboards & Mice | Keyboards & Mice | | **Layout / Keys** | 80 % TKL (87 keys) | 60 % (61 keys) | | **Switch type** | Hot‑swappable Gateron G Pro | Mechanical, hot‑swap on some variants | | **Connectivity** | Bluetooth 5.1 (up to 3 devices) + USB‑C | Bluetooth 5.1, 2.4 GHz dongle + USB‑C | | **Battery** | 4000 mAh built‑in | No built‑i
+[advanced] multi-location-value status=201 model=openai/gpt-oss-20b tools=getStockValue duration=7718ms check=ok
+[advanced] answer: **Total stock value** | Location | Total value (recorded selling price) | Products counted | Units on hand | |---|---|---|---| | Main Warehouse | 30,365,156,925 | 9,336 | 1,490,818 | | Shop Front | 14,024,388,565 | 6,227 | 683,149 | **Comparison** * The Main Warehouse holds more than twice the monetary value of the Shop Front (≈ PHP 30.4 billion vs. PHP 14.0 billion). * It also contains almost double the number of products (9,336 vs. 6,227) and more than twice as many units (1,490,818 vs. 683,14
+[advanced] complex-coverage status=201 model=openai/gpt-oss-20b tools=getInventory duration=8050ms check=missing total stock 92|missing the 46-unit location split|missing a not-enough answer
+[advanced] answer: Yes. Your records show 3,737 Logitech MX Keys S units on hand across all locations, so 100 units are more than available. They are stored mainly in **Main Warehouse** (≈ 2,500 units) and in **Shop Front** (≈ 400 units).
+[advanced] language-tagalog status=201 model=nvidia/nemotron-3.5-lightning:free tools=getReorderNeededProducts duration=5928ms check=ok
+[advanced] answer: May 1,535 na produktong mababa ang stock.
+{
+  "result": "RECORDED",
+  "database": "inventoryai_dev_db",
+  "baseUrl": "http://127.0.0.1:4000",
+  "tenant": "6af75b052d094477c666284f",
+  "conversationId": "6af75de7dd6e50a386a712e9",
+  "questions": [
+    {
+      "id": "research-compare",
+      "kind": "research + inventory comparison",
+      "question": "Compare the Keychron K8 Pro and Royal Kludge RK61 for me.",
+      "status": 201,
+      "durationMs": 16453,
+      "content": "**Keychron K8 Pro vs. Royal Kludge RK61**\n\n| Feature | Keychron K8 Pro | Royal Kludge RK61 |\n|---|---|---|\n| **Brand** | Keychron | Royal Kludge |\n| **Category** | Keyboards & Mice | Keyboards & Mice |\n| **Layout / Keys** | 80 % TKL (87 keys) | 60 % (61 keys) |\n| **Switch type** | Hot‑swappable Gateron G Pro | Mechanical, hot‑swap on some variants |\n| **Connectivity** | Bluetooth 5.1 (up to 3 devices) + USB‑C | Bluetooth 5.1, 2.4 GHz dongle + USB‑C |\n| **Battery** | 4000 mAh built‑in | No built‑in battery (powered by USB/Bluetooth) |\n| **Keycaps** | Double‑shot PBT OSA | – (not recorded) |\n| **Firmware** | QMK/VIA support | – (not recorded) |\n| **Selling price** | 6,990 (​currency not recorded) | 2,499 (​currency not recorded) |\n| **Available stock** | 15 – 626 units (different SKUs) | 42 – 609 units (different SKUs) |\n\n**What the numbers mean**\n\n* Both keyboards are listed under the same “Keyboards & Mice” category.  \n* The K8 Pro is a tenkeyless (80 %) design with a sizable built‑in battery and QMK/VIA remapping, aimed at office and enthusiast use.  \n* The RK61 is a compact 60 % layout without a battery, focused on a small‑desk footprint and portability.  \n* The K8 Pro’s recorded selling price (₱6,990) is roughly 2.8 times higher than the RK61’s price (₱2,499).  \n* Stock levels vary by SKU; the K8 Pro has as few as 15 units on hand for one SKU and up to 626 for another, while the RK61 ranges from 42 to 609 units.  \n\nThese facts come from your inventory records on the **Inventory** screen. If you need more detail on a specific SKU or want to see current stock at a particular location, let me know.",
+      "model": "openai/gpt-oss-120b",
+      "toolsUsed": [
+        "findProducts"
+      ],
+      "turnId": "b9e3580a",
+      "degraded": null,
+      "code": null,
+      "error": null,
+      "check": {
+        "ok": false,
+        "reasons": [
+          "missing Keychron stock 32",
+          "missing RK61 stock 53",
+          "no source URL in the answer"
+        ]
+      }
+    },
+    {
+      "id": "multi-location-value",
+      "kind": "multi-tool location comparison",
+      "question": "What is the total stock value of my Main Warehouse and my Shop Front? Compare the two locations.",
+      "status": 201,
+      "durationMs": 7718,
+      "content": "**Total stock value**\n\n| Location | Total value (recorded selling price) | Products counted | Units on hand |\n|---|---|---|---|\n| Main Warehouse | 30,365,156,925 | 9,336 | 1,490,818 |\n| Shop Front | 14,024,388,565 | 6,227 | 683,149 |\n\n**Comparison**\n\n* The Main Warehouse holds more than twice the monetary value of the Shop Front (≈ PHP 30.4 billion vs. PHP 14.0 billion).  \n* It also contains almost double the number of products (9,336 vs. 6,227) and more than twice as many units (1,490,818 vs. 683,149).  \n* All values are calculated at the recorded selling price; no products in either location are unpriced, so the totals are complete.",
+      "model": "openai/gpt-oss-20b",
+      "toolsUsed": [
+        "getStockValue"
+      ],
+      "turnId": "e2196ea8",
+      "degraded": null,
+      "code": null,
+      "error": null,
+      "check": {
+        "ok": true,
+        "reasons": []
+      }
+    },
+    {
+      "id": "complex-coverage",
+      "kind": "complex stock calculation",
+      "question": "Do we have enough Logitech MX Keys S stock to cover 100 units, and where is it located?",
+      "status": 201,
+      "durationMs": 8050,
+      "content": "Yes. Your records show 3,737 Logitech MX Keys S units on hand across all locations, so 100 units are more than available.  \nThey are stored mainly in **Main Warehouse** (≈ 2,500 units) and in **Shop Front** (≈ 400 units).",
+      "model": "openai/gpt-oss-20b",
+      "toolsUsed": [
+        "getInventory"
+      ],
+      "turnId": "77905d7f",
+      "degraded": null,
+      "code": null,
+      "error": null,
+      "check": {
+        "ok": false,
+        "reasons": [
+          "missing total stock 92",
+          "missing the 46-unit location split",
+          "missing a not-enough answer"
+        ]
+      }
+    },
+    {
+      "id": "language-tagalog",
+      "kind": "local-language answer",
+      "question": "Ilan ang mga produktong kailangang i-restock?",
+      "status": 201,
+      "durationMs": 5928,
+      "content": "May 1,535 na produktong mababa ang stock.",
+      "model": "nvidia/nemotron-3.5-lightning:free",
+      "toolsUsed": [
+        "getReorderNeededProducts"
+      ],
+      "turnId": "db7f912a",
+      "degraded": null,
+      "code": null,
+      "error": null,
+      "check": {
+        "ok": true,
+        "reasons": []
+      }
+    }
+  ],
+  "summary": {
+    "total": 4,
+    "answered": 4,
+    "checksPassed": 2,
+    "checksFailed": [
+      "research-compare",
+      "complex-coverage"
+    ],
+    "models": [
+      "openai/gpt-oss-120b",
+      "openai/gpt-oss-20b",
+      "nvidia/nemotron-3.5-lightning:free"
+    ],
+    "tools": [
+      "findProducts",
+      "getStockValue",
+      "getInventory",
+      "getReorderNeededProducts"
+    ],
+    "totalDurationMs": 38149
+  }
+}

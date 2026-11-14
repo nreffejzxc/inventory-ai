@@ -46,6 +46,7 @@ import {
   lowStockValueAnswer,
   mostExpensiveProductAnswer,
   highestStockValueAnswer,
+  totalStockValueAnswer,
   asksForTotalStockValue,
   replaceFalseToolClaims,
   stripUnsupportedSalesClaims,
@@ -60,6 +61,7 @@ import {
   asksForLowStockValue,
   asksForMostExpensive,
   asksForHighestStockValue,
+  asksForMultipleFacts,
   asksForTopOut,
   asksForBrandStockRange,
   asksForLocationTotals,
@@ -2691,6 +2693,7 @@ export async function runAiChat({
           mixedCurrency: resultRecord?.mixedCurrency === true,
           totalsByCurrency: totals,
           unpricedProducts: typeof unpriced === 'number' && Number.isFinite(unpriced) ? unpriced : 0,
+          scope: resultRecord?.scope ?? null,
         };
       } else if (
         name === 'findProducts' ||
@@ -2863,6 +2866,24 @@ export async function runAiChat({
     if (computed) {
       finalText = computed;
       console.warn('AI maximum recorded price computed from the returned rows');
+    }
+  }
+  if (
+    !degraded &&
+    asksForTotalStockValue(message) &&
+    !asksForHighestStockValue(message) &&
+    !asksForMultipleFacts(message) &&
+    stockValueSummary &&
+    stockValueSummary.scope == null
+  ) {
+    // AI-107 — the model copied the total wrongly on a recovery turn (49,991,571,115 instead
+    // of the tool's 49,991,557,115). A total-only question has no second fact to preserve; use
+    // the tool's own business-wide total. A scoped read is excluded because its summary can
+    // describe a location, not the business.
+    const computed = totalStockValueAnswer(stockValueSummary, cfg.maxMessageChars);
+    if (computed) {
+      finalText = computed;
+      console.warn('AI total stock value quoted from the tool summary');
     }
   }
   if (!degraded && asksForHighestStockValue(message)) {
