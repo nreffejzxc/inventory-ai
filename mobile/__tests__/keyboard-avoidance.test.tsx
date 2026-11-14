@@ -54,6 +54,7 @@ const SCREEN = readSource('components/Screen.tsx');
 const INPUT = readSource('components/Input.tsx');
 const SCROLL = readSource('components/KeyboardScrollView.tsx');
 const SHEET = readSource('components/Sheet.tsx');
+const PRODUCT_FORM = readSource('components/ProductForm.tsx');
 
 describe('scrollOffsetForField', () => {
   const base = { fieldTop: 1000, fieldHeight: 56, visibleBottom: 1443, currentOffset: 0, margin: 24 };
@@ -262,6 +263,15 @@ describe('the wiring (source guards, each with a positive control)', () => {
     SCROLL,
     (body) => /if\s*\(target\s*>\s*offset\.current\)/.test(body),
     (body) => body.replace('if (target > offset.current)', 'if (true)'),
+  );
+
+  guard(
+    'ProductForm returns to a missing required name when submit fails validation',
+    PRODUCT_FORM,
+    (body) =>
+      /if\s*\(problems\.name\)\s*requestAnimationFrame\(\(\)\s*=>\s*nameRef\.current\?\.focus\(\)\)/.test(body) &&
+      /<Input\s+ref=\{nameRef\}/.test(body),
+    (body) => body.replace('nameRef.current?.focus()', '').replace('ref={nameRef}', ''),
   );
 
   guard(
