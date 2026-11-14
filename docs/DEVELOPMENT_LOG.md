@@ -51,13 +51,15 @@ staging drills/evidence and the AI-107 finalizer. Before it, production served `
 reliability merge), `8245e54` (PR #273), `304e2ea` (PR #272) and `65d9ef1` (PR #270).
 The current production OTA is `2110458d-40ca-4975-813c-f182acb3e3aa`, published from `a7be9cd`
 on runtime `1.0.2`; the prior group was `39f78213-cc77-45f6-8b1b-0b9232b44a62` from `8b99f46`;
-local `main` contains the PR #271 delivery `42229e5` (the current-position alignment) and the PR #275 reliability merge `cd4efcc`. The product-creation and required-name entry is the newest below; the AI-107 production smoke follows it.
+local `main` contains the PR #271 delivery `42229e5` (the current-position alignment) and the PR #275 reliability merge `cd4efcc`. The stock-out and negative-stock entry is the newest below; the stock-value centavo entry and the product-creation test follow it.
 
 **Production product creation + required-name test (2026-11-14):** the designated test tenant
 `joffy rak gears` now holds one test product, `Phone Smoke Product` (`PHONE-SMOKE-20261115`), and
-one test location, `Phone Smoke Location`. After production stock-in verification the product has
-**6 units** on hand; the list, detail, edit read-back, dashboard and history agreed, and the row
-survived a force-stop/cold start. The empty-name retest on the same production build focused the
+one test location, `Phone Smoke Location`. After production stock-in verification the product held
+**6 units**; the list, detail, edit read-back, dashboard and history agreed, and the row survived a
+force-stop/cold start. The stock-out checks then blocked a 7-unit attempt, recorded a valid `6 → 4`
+movement, and took the product to **0 units** through a repeated-press boundary test; the final
+history holds five movements and the product is **Out**. The empty-name retest on the same production build focused the
 name field and showed `Name is required`; PR #278 merged as `a7be9cd`, and the component test merged
 as PR #279 (`6b6ef1f`). A 5-unit movement then a double-pressed 1-unit movement produced exactly
 `0 → 5` and `5 → 6`, not a duplicate. The stock-value answer initially rendered the exact `94.50`
@@ -65,7 +67,8 @@ as `PHP 95`; PR #282 fixed only the monetary formatter, and the production retes
 `PHP 94.50` (`Ref: 28910dc7`). See the three newest entries and
 [product evidence](evidence/product-creation-name-focus-2026-11-14/README.md) /
 [stock-in evidence](evidence/stock-in-2026-11-14/README.md) /
-[centavo evidence](evidence/stock-value-cents-2026-11-14/README.md).
+[centavo evidence](evidence/stock-value-cents-2026-11-14/README.md) /
+[stock-out evidence](evidence/stock-out-and-negative-2026-11-14/README.md).
 
 Production's 25-question zero-cost gate remains blocked; the staging gate passed **25/25** at
 **$0**, and the P3 drill passed with a real HTTP `503` and a tool-grounded free fallback. The two
@@ -172,6 +175,48 @@ Known limits, checked before spending one of them:
   space that a backup or an index change would explain.
 - **Brevo** — used for verification codes, reset codes and invitations. Do not send test mail in
   bulk; a delivery failure is not a code regression until the provider log says so.
+
+---
+
+## 2026-11-14 — Production stock-out, negative-stock, and repeated-request checks
+
+**Status.** PASS. The production app removed stock correctly, blocked an attempt to remove more
+than was available, and did not produce a negative quantity under an immediate double press. No code
+or configuration changed in this session.
+
+**Negative-stock attempt.** With **6 units** of `Phone Smoke Product` at `Phone Smoke Location`, the
+stock-out form was given quantity **7**. It displayed `Only 6 available — the server will not let
+stock go below zero.` and disabled **Remove stock**. Inventory History stayed at two rows and the
+product stayed at 6, so the invalid movement was not recorded. The production form prevents the
+submission client-side; the server's `409 INSUFFICIENT_STOCK` path was exercised separately below.
+
+**Valid stock-out.** A 2-unit movement with reason `Production stock-out validation` and reference
+`SMOKE-STOCKOUT-002` returned `6 → 4`. The dashboard read total on-hand **4**, in stock **1**, low
+stock **0**, out of stock **0**; product detail read `4 available`; History showed three movements,
+and the `−2` row's detail carried previous 6, new 4, change −2, stock out, the location, reason,
+reference and timestamp.
+
+**Repeated boundary test.** A one-unit movement (`4 → 3`) was recorded while preparing the boundary
+test after a keyboard-dismiss layout shift made the automation tap **Remove stock** instead of the
+optional reference field; it is included in the final history. Then, with **3 units** available,
+quantity **3** was submitted with the button pressed twice in immediate succession. The app returned
+one `3 → 0` confirmation and History grew by exactly one `−3` row, from four to five. Final stock was
+**0**, never negative. The dashboard then read active **1**, in stock **0**, low stock **1**, out of
+stock **1**, total on-hand **0**; the low/out overlap is §19's `available <= minimum` and
+`available <= 0` definitions, already pinned by `server/test/SCALE-dashboard-counts.test.mjs`, not a
+new regression. Product detail read `0 available` and `Out`.
+
+**Simultaneous guard.** `TEST_MODE=db node --test --test-name-pattern="concurrent stock-outs never
+oversell" test/phase04-inventory.test.mjs` passed **1/1**: four concurrent 3-unit stock-outs against
+10 units produced three 200s, one `409 INSUFFICIENT_STOCK`, final quantity **1**, and exactly three
+`STOCK_OUT` ledger rows. This covers the simultaneous case; the production phone test covers the
+repeated-press case.
+
+**Production state.** `/api/health` at 17:26Z reported `status: ok`, `db: connected`, commit
+`cb4fcf752c03fe138c8091761f6c2119fb6dfa9c`, 0 `5xx`; `/api/health/ready` returned 200. The test
+product remains in the designated tenant at **0 units** with five movements (two stock-ins, three
+stock-outs). No OTA was published. Evidence:
+[`stock-out-and-negative-2026-11-14`](evidence/stock-out-and-negative-2026-11-14/README.md).
 
 ---
 
