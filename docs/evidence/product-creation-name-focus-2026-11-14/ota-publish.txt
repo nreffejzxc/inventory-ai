@@ -1,0 +1,58 @@
+Environment variables with visibility "Plain text" and "Sensitive" loaded from the "production" environment on EAS: EXPO_PUBLIC_API_URL, EXPO_PUBLIC_FIREBASE_API_KEY, EXPO_PUBLIC_FIREBASE_APP_ID, EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN, EXPO_PUBLIC_FIREBASE_PROJECT_ID, EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID, EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID.
+
+- Exporting...
+[expo-cli] --non-interactive is not supported, use $CI=1 instead
+[expo-cli] Starting Metro Bundler
+[expo-cli] warning: Bundler cache is empty, rebuilding (this may take a minute)
+[expo-cli] Android Bundled 27089ms node_modules\expo-router\entry.js (1378 modules)
+[expo-cli] Could not parse Expo config: android.googleServicesFile: "./google-services.json"
+[expo-cli] Could not parse Expo config: ios.googleServicesFile: "./GoogleService-Info.plist"
+[expo-cli] Creating asset map
+[expo-cli] 
+[expo-cli] › Assets (28):
+[expo-cli] node_modules\@expo\vector-icons\build\vendor\react-native-vector-icons\Fonts\Ionicons.ttf (390KB)
+[expo-cli] node_modules\@expo\vector-icons\build\vendor\react-native-vector-icons\Fonts\MaterialCommunityIcons.ttf (1.3MB)
+[expo-cli] node_modules\expo-router\assets\arrow_down.png (9.5KB)
+[expo-cli] node_modules\expo-router\assets\arrow_right.xml (307B)
+[expo-cli] node_modules\expo-router\assets\checkmark.xml (312B)
+[expo-cli] node_modules\expo-router\assets\error.png (469B)
+[expo-cli] node_modules\expo-router\assets\file.png (138B)
+[expo-cli] node_modules\expo-router\assets\forward.png (188B)
+[expo-cli] node_modules\expo-router\assets\pkg.png (364B)
+[expo-cli] node_modules\expo-router\assets\react-navigation\elements\back-icon-mask.png (653B)
+[expo-cli] node_modules\expo-router\assets\react-navigation\elements\back-icon.png (4 variations | 152B)
+[expo-cli] node_modules\expo-router\assets\react-navigation\elements\clear-icon.png (4 variations | 425B)
+[expo-cli] node_modules\expo-router\assets\react-navigation\elements\close-icon.png (4 variations | 235B)
+[expo-cli] node_modules\expo-router\assets\react-navigation\elements\search-icon.png (4 variations | 599B)
+[expo-cli] node_modules\expo-router\assets\sitemap.png (465B)
+[expo-cli] node_modules\expo-router\assets\unmatched.png (4.8KB)
+[expo-cli] 
+[expo-cli] › android bundles (2):
+[expo-cli] _expo/static/js/android/entry-0967f76a1bbf3845c7c766fab20a17c1.hbc (2.9MB)
+[expo-cli] _expo/static/js/android/entry-0967f76a1bbf3845c7c766fab20a17c1.hbc.map (7.8MB)
+[expo-cli] › Files (2):
+[expo-cli] assetmap.json (11KB)
+[expo-cli] metadata.json (1.9KB)
+[expo-cli] 
+[expo-cli] Exported: dist
+✔ Exported bundle(s)
+- Uploading...
+- Uploading assetmap.json (0 / 10.4 KB)
+✔ Uploaded assetmap.json 
+√ Uploaded 1 app bundle
+√ Uploading assets skipped - no new assets found
+i 29 Android assets (maximum: 2000 total per update). Learn more about asset limits: https://expo.fyi/eas-update-asset-limits
+- Computing project fingerprints
+✔ Computed project fingerprints
+- Publishing...
+✔ Published!
+Branch             production
+Runtime version    1.0.2
+Platform           android
+Update group ID    2110458d-40ca-4975-813c-f182acb3e3aa
+Android update ID  01a1dac9-0c80-7372-b8de-d63aba0cf62f
+Message            Fix product form required-name validation so the field and error are brought into view after Create
+Commit             a7be9cd43f25ceca8aaa1c6a47bcfbcff67626ac
+EAS Dashboard      https://expo.dev/accounts/jeffernqwes-team/projects/inventory-ai/updates/2110458d-40ca-4975-813c-f182acb3e3aa
+
+ota_exit=0
