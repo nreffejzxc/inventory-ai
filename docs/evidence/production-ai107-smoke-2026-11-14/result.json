@@ -1,0 +1,37 @@
+{
+  "generatedAt": "2026-11-14T14:37:46.409Z",
+  "target": "https://ai-inventory-l1mi.onrender.com",
+  "deployedCommit": "cd4efcc7a9db3b39b55d3400eabf10debe32466f",
+  "question": "What is the total stock value of all my inventory?",
+  "expected": {
+    "totalValue": 46922439210,
+    "currency": null,
+    "productsCounted": 10000,
+    "unitsOnHand": 2446801,
+    "unpricedProducts": 0
+  },
+  "answer": "The total stock value at the recorded selling price is 46,922,439,210.",
+  "model": "openai/gpt-oss-20b",
+  "toolsUsed": [
+    "getStockValue"
+  ],
+  "turnId": "c103afad",
+  "conversationId": "6af8723aa860111ff47c31bc",
+  "degraded": null,
+  "usage": {
+    "inputTokens": 18641,
+    "outputTokens": 244
+  },
+  "durationMs": 9304,
+  "largeNumbers": [
+    "46922439210"
+  ],
+  "checks": {
+    "status201": true,
+    "getStockValue": true,
+    "exactTotal": true,
+    "noOtherLargeTotal": true,
+    "nonEmpty": true
+  },
+  "pass": true
+}
