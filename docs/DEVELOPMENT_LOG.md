@@ -51,16 +51,16 @@ staging drills/evidence and the AI-107 finalizer. Before it, production served `
 reliability merge), `8245e54` (PR #273), `304e2ea` (PR #272) and `65d9ef1` (PR #270).
 The current production OTA is `2110458d-40ca-4975-813c-f182acb3e3aa`, published from `a7be9cd`
 on runtime `1.0.2`; the prior group was `39f78213-cc77-45f6-8b1b-0b9232b44a62` from `8b99f46`;
-local `main` contains the PR #271 delivery `42229e5` (the current-position alignment) and the PR #275 reliability merge `cd4efcc`. The restock entry is the newest below; the stock-out, stock-value centavo and product-creation entries follow it.
+local `main` contains the PR #271 delivery `42229e5` (the current-position alignment) and the PR #275 reliability merge `cd4efcc`. The stock-transfer entry is the newest below; the restock, stock-out, stock-value centavo and product-creation entries follow it.
 
 **Production product creation + required-name test (2026-11-14):** the designated test tenant
-`joffy rak gears` now holds one test product, `Phone Smoke Product` (`PHONE-SMOKE-20261115`), and
-one test location, `Phone Smoke Location`. After production stock-in verification the product held
+`rak gears` now holds one test product, `Phone Smoke Product` (`PHONE-SMOKE-20261115`), and
+the original test location, `Phone Smoke Location`; the transfer check added `Phone Smoke Location 2`. After production stock-in verification the product held
 **6 units**; the list, detail, edit read-back, dashboard and history agreed, and the row survived a
 force-stop/cold start. The stock-out checks then blocked a 7-unit attempt, recorded a valid `6 → 4`
 movement, and took the product to **0 units** through a repeated-press boundary test. A 3-unit
 restock then returned it to **3 units**, with **In stock 1**, **Low stock 0**, **Out of stock 0**,
-and six movements; the product is healthy above its minimum of 2. The empty-name retest on the same production build focused the
+and six movements; the product is healthy above its minimum of 2. After the transfer check, those 3 units are split across the two test locations (1 at `Phone Smoke Location`, 2 at `Phone Smoke Location 2`), with eight movements. The empty-name retest on the same production build focused the
 name field and showed `Name is required`; PR #278 merged as `a7be9cd`, and the component test merged
 as PR #279 (`6b6ef1f`). A 5-unit movement then a double-pressed 1-unit movement produced exactly
 `0 → 5` and `5 → 6`, not a duplicate. The stock-value answer initially rendered the exact `94.50`
@@ -70,7 +70,8 @@ as `PHP 95`; PR #282 fixed only the monetary formatter, and the production retes
 [stock-in evidence](evidence/stock-in-2026-11-14/README.md) /
 [centavo evidence](evidence/stock-value-cents-2026-11-14/README.md) /
 [stock-out evidence](evidence/stock-out-and-negative-2026-11-14/README.md) /
-[restock evidence](evidence/restock-2026-11-14/README.md).
+[restock evidence](evidence/restock-2026-11-14/README.md). The transfer check is recorded in
+[transfer evidence](evidence/transfer-2026-11-14/README.md).
 
 Production's 25-question zero-cost gate remains blocked; the staging gate passed **25/25** at
 **$0**, and the P3 drill passed with a real HTTP `503` and a tool-grounded free fallback. The two
@@ -177,6 +178,43 @@ Known limits, checked before spending one of them:
   space that a backup or an index change would explain.
 - **Brevo** — used for verification codes, reset codes and invitations. Do not send test mail in
   bulk; a delivery failure is not a code regression until the provider log says so.
+
+---
+
+## 2026-11-14 — Production stock transfer preserves total inventory
+
+**Status.** PASS. A 2-unit transfer moved stock from `Phone Smoke Location` to the new test-only
+location `Phone Smoke Location 2`, and the business-wide total stayed **3**. No operational
+location was selected, and no code, configuration or OTA changed.
+
+**Setup.** The existing product `Phone Smoke Product` (`PHONE-SMOKE-20261115`, minimum stock 2)
+held 3 units at the source. `Phone Smoke Location 2` was created for this check with the description
+`Test-only inventory transfer destination; not an operational location.` The first attempt stopped
+at a `400 VALIDATION_ERROR` before any stock moved — the one-off harness sent `undefined` because
+the location-create response uses `id`, not `_id`; the harness was corrected and the empty location
+was reused. That was a harness defect, not a server defect.
+
+**Transfer.** With reason `Production stock-transfer validation` and reference
+`SMOKE-TRANSFER-001`, the production API returned source `3 → 1` and destination `0 → 2`. The same
+request was delivered twice under the same `Idempotency-Key`; the second call replayed the first
+`201` body and added no stock or ledger rows.
+
+**Both ledgers.** History grew from **6 to 8** rows. Exactly two rows carried the reference: the
+source leg was `TRANSFER`, quantity 2, previous 3, new 1; the destination leg was `TRANSFER`,
+quantity 2, previous 0, new 2. There was one row per location, no missing leg and no duplicate.
+
+**Availability and dashboard.** Read-back showed source **1 available** and destination **2
+available**, totaling **3**. The dashboard stayed active **1**, in stock **1**, low **0**, out **0**,
+total on-hand **3** before and after. The transfer moved stock; it neither created nor removed any.
+
+**Production state.** `/api/health` at 18:05Z reported `status: ok`, `db: connected`, commit
+`cb4fcf752c03fe138c8091761f6c2119fb6dfa9c`, 0 `5xx`; `/api/health/ready` returned 200. The product
+now holds **3 units across two test locations** (1 and 2) with **eight movements**. No OTA was
+published. Evidence: [`transfer-2026-11-14`](evidence/transfer-2026-11-14/README.md).
+
+**Limit.** The check was driven through the production API, not the phone UI; no app screenshot was
+captured. The destination was created by the first attempted run, which applied no stock, and was
+reused after the empty preflight.
 
 ---
 
