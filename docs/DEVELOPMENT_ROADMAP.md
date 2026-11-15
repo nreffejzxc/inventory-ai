@@ -25688,8 +25688,12 @@ reload; `ai115-feedback-review.test.tsx` passed **3/3**, covering the bounded re
 write and the MANAGER access denial. The full server unit suite passed **2,118 / 66 skipped / 0
 failed** (434 suites); the full mobile Jest run passed **110 suites / 1,268 tests**; server and
 mobile `tsc --noEmit` passed; targeted server ESLint passed. Production deploy,
-OTA and the mirrored-OPPO pass are recorded after delivery; at the time of this record the change
-is implementation-tested only.
+OTA and the mirrored-OPPO pass followed: merged as **`396c3f7`**, production `/api/health` reported
+`status: ok`, `db: connected`, and EAS production OTA
+**`06d16237-ee08-4c41-9419-b4760f54a918`** put the UI on the OPPO at `1.0.2`. On-device evidence:
+a 19-product freshness line and Inspect detail, an UP rating changed to DOWN with `Incorrect data`
+and a note, the OWNER queue showing the row and then `Reviewed` with `Open 0` / `Bad 1`. Evidence:
+[`ai115-ai116-2026-11-16`](evidence/ai115-ai116-2026-11-16/README.md).
 
 **Limits.** Feedback is an opinion, not a correction to inventory. The review screen cannot reply
 to the member, and feedback does not train or automatically alter the model. Those would be new
@@ -25735,8 +25739,12 @@ tenant isolation, plus a filtered read counting as inventory and seeding the nex
 required-tool choice stops a recognised follow-up from answering without reading its set. Mobile `ai116-answer-context.test.tsx` passed **4/4**: freshness text, Inspect
 detail, `No data read` and legacy fallback. Server and mobile `tsc --noEmit` passed; targeted
 server ESLint passed; the full server unit suite passed **2,118 / 66 skipped / 0 failed** and the
-full mobile run **110 suites / 1,268 tests**. Production deploy, OTA and the mirrored-OPPO pass are recorded after
-delivery; at the time of this record the change is implementation-tested only.
+full mobile run **110 suites / 1,268 tests**. The first phone pass then found the model answering
+the narrowing question from memory with `No data read`; `9f81e34` names the filter tool on the
+first provider call and counts a filtered read as inventory. Production serves that commit with
+`status: ok` / `db: connected`; the repeat on the same OPPO narrowed the fresh 19 products to **9**,
+and Inspect showed `Tools: Filtered previous results`, `Products: 9` and `Category: Keyboards and
+Mice`. Evidence: [`ai115-ai116-2026-11-16`](evidence/ai115-ai116-2026-11-16/README.md).
 
 **Limits.** The handle is a flat id set, not a general cursor: it cannot page the old set, search
 inside it with free text, or carry a query across more than one prior answer. A turn with no

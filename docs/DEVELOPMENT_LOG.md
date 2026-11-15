@@ -60,7 +60,14 @@ answer that read nothing says `No data read`. Focused tests pass: AI-115 server 
 **7/7** and review **3/3**; AI-116 pure **6/6**, DB **3/3** and mobile **4/4**. The full server unit suite passed
 **2,118 / 66 skipped / 0 failed** (434 suites), the full mobile Jest run passed **110 suites /
 1,268 tests**, the documentation guards passed **25/25**, and both typechecks and targeted ESLint
-pass. **Not yet deployed, OTA-published or phone-verified.** Records §27IG/§27IH.
+pass. Production serves the fix at `9f81e34` with `status: ok` and `db: connected`; EAS OTA
+`06d16237-ee08-4c41-9419-b4760f54a918` puts the mobile UI on the OPPO at `1.0.2`. On the phone, a
+19-product answer showed its freshness and Inspect detail, an UP rating was changed to DOWN with
+`Incorrect data` and a note, the OWNER queue showed it and marked it reviewed (`Open 0`, `Bad 1`),
+and “which of those are in Keyboards and Mice?” narrowed the fresh 19 to **9** with `Filtered
+previous results`. The first device pass answered that follow-up without reading its set; that gap
+is the forced-tool fix above, and the passing repeat is
+[evidence](evidence/ai115-ai116-2026-11-16/README.md). Records §27IG/§27IH.
 
 **Deterministic complete restock list, AI-114 (2026-11-16):** a complete `getReorderNeededProducts`
 or `getLowStockProducts` read is now rendered by the server instead of being retyped by the
