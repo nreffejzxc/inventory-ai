@@ -51,10 +51,13 @@ with SKU, availability, minimum and gap; it can rescue an `OUTPUT_LIMIT` turn wh
 complete. Partial, duplicated, malformed or oversized sets keep the existing qualification path.
 The structured list is suppressed when the answer itself carries every row, while its screen
 links survive. Server typecheck, focused suites **70/70**, full unit suite **2,111 / 64 skipped / 0
-failed**, targeted ESLint and both module-graph checks pass. The dev client loaded on the phone but
-could not sign in locally (no auth request reached the server), so end-to-end proof is pending the
-production promotion; code is on `fix/deterministic-restock-list`, not yet merged or deployed.
-The complete record is §27IF.
+failed**, targeted ESLint and both module-graph checks pass. PR #307 passed all four CI jobs and
+merged as `e5c1c1d`; Render serves it with `status: ok` and 0 `5xx`. On the production OPPO app,
+“List every product that needs restocking” returned **19 products / 721 units**, items 1–19 with
+no reasoning or duplicate list; Copy Answer pasted all 19 items. The filtered list returned **9
+products / 272 units**, items 1–9, with Open Restock preserved. The dev client loaded on the phone
+but could not sign in locally (no auth request reached the server); the DB-free tests and the
+production app supplied the end-to-end proof. The complete record is §27IF.
 
 **AI answer actions and deterministic answers, PR #304 (2026-11-15–16):** AI-111–AI-113 are
 **merged, deployed and device-verified**. PR #304 merged as `af366c1` after CI run `43748694544`
@@ -87,9 +90,10 @@ model-composed answer that hit the output limit and exposed reasoning fragments 
 That shape still relies on the model; the deterministic count, ranking, shortfall and paged-list
 answers are clean. The complete record is §27IE.
 
-**Current production server (2026-11-16):** `91d635d` — PR #305, the auxiliary-list correction,
-auto-deployed and confirmed by `/api/health` with `status: ok`, `db: connected`, `environment:
-production`, commit `91d635d`, 0 `5xx`. Before it, production served `af366c1` (PR #304, the answer
+**Current production server (2026-11-16):** `e5c1c1d` — PR #307, the deterministic complete
+restock-list release, auto-deployed and confirmed by `/api/health` with `status: ok`, `db:
+connected`, `environment: production`, commit `e5c1c1d`, 0 `5xx`. Before it, production served
+`91d635d` (PR #305, the auxiliary-list correction), `af366c1` (PR #304, the answer
 actions release), `1c3928b` (PR #300, the final partial-restock completeness guard), `af13bf6`
 (PR #299), `233d47f` (PR #298), `657e041` (PR #297, the first partial-restock guard), `7315675`
 (PR #295, AI-110 contextual assistant entry and restock shortfall), `7ebc9a3` (PR #293, hosted
@@ -98,9 +102,10 @@ freshness), `9d09962` (PR #291, the scheduled read-only monitor), then `cd3b1c0`
 reliability merge), `8245e54` (PR #273), `304e2ea` (PR #272) and `65d9ef1` (PR #270).
 The current production OTA is `9d759ee5-82c5-4fbe-afe0-3a0ea2c44f6c`, message “Copy answers,
 open products and full lists, and rank highest stock”, published from `af366c1` on runtime `1.0.2`;
-the prior group was `1d139ae9-c7e2-48a2-b33e-63561b761515` from `7315675`, then
+AI-114 was server-only, so no new OTA was published. The prior group was `1d139ae9-c7e2-48a2-b33e-63561b761515` from `7315675`, then
 `2110458d-40ca-4975-813c-f182acb3e3aa` from `a7be9cd` and
-`39f78213-cc77-45f6-8b1b-0b9232b44a62` from `8b99f46`. Local `main` contains the PR #305 merge
+`39f78213-cc77-45f6-8b1b-0b9232b44a62` from `8b99f46`. Local `main` contains the PR #307 merge
+`e5c1c1d`, the PR #306 docs merge `8502ed0`, the PR #305 merge
 `91d635d`, the PR #304 merge `af366c1`, the PR #300 merge
 `1c3928b`, the PR #299 merge `af13bf6`, the PR #298 merge `233d47f`, the PR #297 merge
 `657e041`, the PR #296 docs merge `698a856`, the PR #295 merge `7315675`, the PR #294 docs merge

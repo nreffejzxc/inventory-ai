@@ -8,10 +8,12 @@ document, not a specification: behaviour is still owned by
 [`guides/18-ai-assistant-limits.md`](guides/18-ai-assistant-limits.md), and what shipped by the
 roadmap records in [`DEVELOPMENT_ROADMAP.md`](DEVELOPMENT_ROADMAP.md).
 
-**Last reviewed:** 2026-11-16, against AI-114 on `main` after `8502ed0`, the production server at
-`91d635d`, and the production Android app on runtime `1.0.2` with OTA
+**Last reviewed:** 2026-11-16, against AI-114 merged as `e5c1c1d`, the production server at
+`e5c1c1d`, and the production Android app on runtime `1.0.2` with OTA
 `9d759ee5-82c5-4fbe-afe0-3a0ea2c44f6c`. AI-114 renders an explicit complete restock/low-stock
-list deterministically, including an `OUTPUT_LIMIT` turn whose rows were complete.
+list deterministically, including an `OUTPUT_LIMIT` turn whose rows were complete; the production
+phone returned **19 products / 721 units**, copied all 19, and returned **9 products / 272 units**
+for the filtered list.
 
 **The rule that outranks every item below:** the assistant is **read-only**. It may read, compare,
 summarise and recommend from tenant-scoped records. It may never write stock, create a product, a
@@ -36,7 +38,7 @@ piece is not implied to work because a related tool exists.
 |---|---|---|---|---|---|
 | 1 | Copy Answer, Restock Navigation, Product Navigation | 1 | **Implemented — production-verified** | Copy Answer copies the complete stored answer as plain text. Product names named by the final answer are inline links, using only ids captured from the turn's read tools. Restock navigation remains, and every paged list answer now also carries filter-preserving screen links. `ai111-answer-actions.test.tsx`, `ai112-answer-navigation.test.tsx` and the server AI-111/AI-112 suites cover the actions. Device proof: Copy pasted the full answer; the Razer link opened SKU `DEMOSKU-73`; the filtered Restock link carried **9 products** and **Keyboards & Mice**. | No functional gap in the three actions. The Copy control uses React Native core `Clipboard`, whose deprecation warning is expected. |
 | 2 | Complete list and pagination | 2 | **Implemented — production-verified** | Every paged tool answer now carries its total, a bounded page of the rows already read, and a screen link built from the filters the tool actually used. The mobile thread reveals those rows five at a time with “Showing X of Y” and keeps the screen link for the complete set. Inventory, Restock, Products and History initialize their filters from the link. Device proof: **5 of 19 → 10 of 19**, and Restock opened with **19 products**. | No search-within-results and no tool page cursor: “next 5” reveals only rows captured in this answer; a new tool read still requires a new turn. A destination filter that the screen cannot represent is omitted rather than claimed. |
-| 3 | Smarter inventory answers | High, sequence 3 | **Partial — strong** | Deterministic finalizers cover restock counts and explicit complete restock/low-stock lists, stock-value totals, product/location totals, most-expensive, top stock-out and several ranking shapes; tools compute counts over the whole matched set. AI-113 adds a server-ranked highest-stock read and answer, and the whole-set `totalUnitsBelowMinimum` replaces page-row addition. AI-114 renders every complete restock row in a bounded answer and can rescue an output-limited turn from those rows. AI-2/AI-60 tests guard grounding and partial lists. | Coverage is still shape-by-shape: other comparisons, trends and report combinations can remain model-composed. Correctness must be proved per question shape, not inferred from the tool list. |
+| 3 | Smarter inventory answers | High, sequence 3 | **Partial — strong** | Deterministic finalizers cover restock counts and explicit complete restock/low-stock lists, stock-value totals, product/location totals, most-expensive, top stock-out and several ranking shapes; tools compute counts over the whole matched set. AI-113 adds a server-ranked highest-stock read and answer, and the whole-set `totalUnitsBelowMinimum` replaces page-row addition. AI-114 renders every complete restock row in a bounded answer and can rescue an output-limited turn from those rows. AI-2/AI-60 tests guard grounding and partial lists. Device proof: **19 / 721**, Copy all 19, and the filtered **9 / 272**. | Coverage is still shape-by-shape: other comparisons, trends and report combinations can remain model-composed. Correctness must be proved per question shape, not inferred from the tool list. |
 | 4 | Better follow-up conversations | 4 | **Partial** | The server replays the last 20 USER/ASSISTANT messages (`AI_CONTEXT_MESSAGES`), so ordinary conversational context exists. | Tool rows are not replayed, and prompt rule 30 tells the model every question sets its own scope. A follow-up such as “which ones are from Samsung?” can re-query Samsung but is not guaranteed to preserve the previous “low stock” result set. There is no structured result-set handle. |
 | 5 | Inventory comparison | 5 | **Partial** | `getLocationBreakdown` compares all locations in one read; `getProduct` returns per-location stock; product-stock-by-location and history totals have deterministic answers; history rows distinguish direction and transfer legs. | No deterministic two-product comparison, no compare-to-minimum table, and no “decreasing inventory” verdict. A trend read must be assembled by the model from movements; the tool reports movement, not a forecast. |
 | 6 | Inventory insights and recommendations | High, sequence 6 | **Partial** | Reorder-needed, low/out-of-stock, never-sold and history tools support restock priorities and dead-stock observations. Recommendations are explicitly read-only; no write tool exists. | No run-out-soon calculation (no sales-velocity forecast), no excess-inventory rule, and no monitoring score. These need defined data rules and disclosed windows, not model intuition. |
@@ -241,10 +243,10 @@ same file.
 
 As of 2026-11-16, **slices A, B and C are implemented, merged, deployed and device-verified**.
 PR #304 merged as `af366c1`; OTA group `9d759ee5-82c5-4fbe-afe0-3a0ea2c44f6c` runs on the
-installed app; production serves `91d635d` after the auxiliary-list correction. A and B share the
-stored answer-actions shape and the mobile action controls; C adds the highest-stock ranking and
-the whole-set restock shortfall. A verbose full-list request remains model-composed and can hit
-the output limit — the known limitation recorded in §27IE.
+installed app; production serves `e5c1c1d` after the auxiliary-list correction and AI-114. A and B
+share the stored answer-actions shape and the mobile action controls; C adds the highest-stock
+ranking, the whole-set restock shortfall and the deterministic complete restock list. The verbose
+full-list limitation recorded in §27IE is closed.
 
 **Cross-cutting gates, every slice:**
 
