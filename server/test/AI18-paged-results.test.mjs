@@ -38,6 +38,7 @@ const PAGED_TOOLS = [
   'getLowStockProducts',
   'getOutOfStockProducts',
   'getReorderNeededProducts',
+  'getHighestStockProducts',
   'getInventoryHistory',
   'getProductsByLocation',
   'getProductsNeverSold',

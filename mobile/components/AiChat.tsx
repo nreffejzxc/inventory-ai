@@ -1,14 +1,16 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { router } from 'expo-router';
-import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Clipboard, FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import AssistantMarkdown from './AssistantMarkdown';
+import type { ProductLink } from './AssistantMarkdown';
 import Button from './Button';
 import { Icon } from './icons';
 import { CenterLoader, ErrorState, errorText } from './ListState';
 import { aiApi } from '../lib/api';
 import type { ApiResponse } from '../lib/api';
 import { MAX_ASSISTANT_MESSAGE_CHARS, readAssistantPrompt } from '../lib/assistantContext';
+import { answerPlainText } from '../lib/assistantMarkdown';
 import { isSessionError, useSession } from '../lib/auth';
 import { REQUEST_CANCELLED } from '../lib/client';
 import { formatClock12 } from '../lib/format';
@@ -179,6 +181,10 @@ export interface ChatRow {
    */
   messageId?: string;
   toolsUsed?: string[];
+  /** Products this answer names, with the ids the server's read tools returned. */
+  productLinks?: ProductLink[];
+  /** Direct destinations and the bounded rows behind a paged read. */
+  answerActions?: AnswerActions;
   /**
    * AI-8 — the server's mark on a turn that did not finish cleanly. Only
    * `'OUTPUT_LIMIT'` (an answer cut off by the output cap) is drawn as a note; the two
@@ -194,6 +200,31 @@ export interface ChatRow {
    * rather than only the live reply being traceable.
    */
   turnId?: string;
+}
+
+export interface AnswerListRow {
+  productId?: string;
+  title: string;
+  detail?: string;
+}
+
+export interface AnswerList {
+  kind: string;
+  label: string;
+  path: string;
+  total: number;
+  rows: AnswerListRow[];
+}
+
+export interface AnswerScreen {
+  kind: string;
+  label: string;
+  path: string;
+}
+
+export interface AnswerActions {
+  list?: AnswerList;
+  screens: AnswerScreen[];
 }
 
 /**
@@ -214,6 +245,8 @@ export function toRow(m: ApiResponse): ChatRow {
     createdAt: m.createdAt,
     messageId: m.id,
     toolsUsed: m.toolsUsed,
+    productLinks: Array.isArray(m.productLinks) ? m.productLinks : undefined,
+    answerActions: m.answerActions && typeof m.answerActions === 'object' ? m.answerActions : undefined,
     degraded: m.degraded,
     turnId: m.turnId,
   };
@@ -265,12 +298,24 @@ export function restockPathForTools(toolsUsed?: string[]): string | null {
   return toolsUsed?.some((tool) => RESTOCK_TOOLS.has(tool)) ? '/restock' : null;
 }
 
+/** One destination for every product link, so the component does not rebuild a handler per row. */
+function openProduct(productId: string): void {
+  router.push(`/products/${encodeURIComponent(productId)}`);
+}
+
 export function MessageBubble({ item }: { item: ChatRow }) {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const [copied, setCopied] = useState(false);
+  const [visibleResults, setVisibleResults] = useState(5);
   const user = item.role === 'user';
   const wide = !user && isTableAnswer(item.content);
   const restockPath = user ? null : restockPathForTools(item.toolsUsed);
+  const productLinks = user ? [] : item.productLinks ?? [];
+  const screens = user ? [] : item.answerActions?.screens ?? [];
+  const list = user ? undefined : item.answerActions?.list;
+  const showList = Boolean(list && list.total > 5 && list.rows.length > 0);
+  const legacyRestockPath = screens.some((entry) => entry.kind === 'restock') ? null : restockPath;
   return (
     <View style={[styles.bubbleRow, user ? styles.rowUser : styles.rowAssistant]}>
       <View
@@ -284,8 +329,62 @@ export function MessageBubble({ item }: { item: ChatRow }) {
         {user ? (
           <Text style={[styles.bubbleText, styles.bubbleTextUser]}>{item.content}</Text>
         ) : (
-          <AssistantMarkdown content={item.content} />
+          <AssistantMarkdown
+            content={item.content}
+            productLinks={productLinks}
+            onProductPress={openProduct}
+          />
         )}
+        {/* AI-111 — the whole answer, as plain text, for a purchase order or supplier message.
+            Only a stored answer can be copied: a row still streaming has no server id and is
+            not yet the answer the member will keep. */}
+        {!user && item.messageId ? (
+          <Pressable
+            testID="chat-copy-answer"
+            accessibilityRole="button"
+            accessibilityLabel={copied ? 'Answer copied' : 'Copy answer'}
+            onPress={() => {
+              Clipboard.setString(answerPlainText(item.content));
+              setCopied(true);
+            }}
+            style={styles.copyButton}
+          >
+            <Text style={styles.copyText}>{copied ? 'Copied' : 'Copy answer'}</Text>
+          </Pressable>
+        ) : null}
+        {showList && list ? (
+          <View testID="chat-results" style={styles.results}>
+            <Text style={styles.resultsHeading}>
+              {visibleResults < list.rows.length
+                ? `Showing ${Math.min(visibleResults, list.rows.length)} of ${list.total}`
+                : `Showing ${list.rows.length} of ${list.total}`}
+              {list.rows.length < list.total ? ' in this answer' : ''}
+            </Text>
+            {list.rows.slice(0, visibleResults).map((result, index) => (
+              <Pressable
+                key={`${result.productId ?? result.title}-${index}`}
+                testID={`chat-result-${index}`}
+                accessibilityRole={result.productId ? 'button' : undefined}
+                disabled={!result.productId}
+                onPress={() => result.productId && openProduct(result.productId)}
+                style={styles.resultRow}
+              >
+                <Text style={styles.resultTitle}>{result.title}</Text>
+                {result.detail ? <Text style={styles.resultDetail}>{result.detail}</Text> : null}
+              </Pressable>
+            ))}
+            {visibleResults < list.rows.length ? (
+              <Pressable
+                testID="chat-results-more"
+                accessibilityRole="button"
+                onPress={() => setVisibleResults((value) => Math.min(value + 5, list.rows.length))}
+                style={styles.resultsMore}
+              >
+                <Text style={styles.resultsMoreText}>Show next 5</Text>
+              </Pressable>
+            ) : null}
+          </View>
+        ) : null}
         {/* AI-8 — the answer is kept and ANNOTATED, rather than replaced. `OUTPUT_LIMIT`
             is the one reason where there is a usable answer and the member still needs to
             know it stops early: the model reached the output cap mid-list. The other two
@@ -312,11 +411,21 @@ export function MessageBubble({ item }: { item: ChatRow }) {
             link existed only when the model happened to run out of output tokens. The
             destination is the same screen for all three stock tools (the reorder
             endpoint is the list they all describe), so the link says the same thing. */}
-        {restockPath ? (
+        {screens.map((screen) => (
+          <Pressable
+            key={screen.path}
+            testID={`chat-screen-${screen.kind}`}
+            accessibilityRole="button"
+            onPress={() => router.push(screen.path)}
+          >
+            <Text style={styles.incompleteLink}>Open {screen.label}</Text>
+          </Pressable>
+        ))}
+        {legacyRestockPath ? (
           <Pressable
             testID="chat-restock-link"
             accessibilityRole="button"
-            onPress={() => router.push(restockPath)}
+            onPress={() => router.push(legacyRestockPath)}
           >
             <Text style={styles.incompleteLink}>Open the full restock list</Text>
           </Pressable>
@@ -815,6 +924,25 @@ const createStyles = (colors: Palette) =>
     // one. `marginTop` keeps it clear of the answer's last line, which it qualifies.
     incomplete: { ...type.caption, color: colors.warning, marginTop: spacing.sm },
     incompleteLink: { ...type.caption, color: colors.primary, fontWeight: '700', marginTop: spacing.xs },
+    copyButton: {
+      alignSelf: 'flex-start',
+      minHeight: 44,
+      justifyContent: 'center',
+      marginTop: spacing.xs,
+    },
+    copyText: { ...type.caption, color: colors.primary, fontWeight: '700' },
+    results: {
+      marginTop: spacing.sm,
+      paddingTop: spacing.sm,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: colors.divider,
+    },
+    resultsHeading: { ...type.caption, color: colors.textMuted, marginBottom: spacing.xs },
+    resultRow: { minHeight: 44, justifyContent: 'center', paddingVertical: spacing.xs },
+    resultTitle: { ...type.bodySmall, color: colors.primary, fontWeight: '600' },
+    resultDetail: { ...type.caption, color: colors.textSecondary },
+    resultsMore: { minHeight: 44, justifyContent: 'center' },
+    resultsMoreText: { ...type.caption, color: colors.primary, fontWeight: '700' },
 
     turnRef: { ...type.caption, color: colors.textMuted, marginTop: 4, opacity: 0.75 },
     time: { ...type.caption, color: colors.textMuted, marginTop: 4, textAlign: 'right' },

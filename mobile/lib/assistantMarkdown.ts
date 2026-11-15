@@ -293,6 +293,42 @@ export function stripMarkdown(raw: string): string {
 }
 
 /**
+ * AI-111 — the answer as plain text for the Copy Answer action.
+ *
+ * A supplier message should not receive markdown table pipes or bold markers. The renderer's
+ * residual strip removes the inline markers; this pass turns each pipe row into "cell — cell"
+ * and drops the `|---|---|` separator so a copied restock table reads as lines, not punctuation.
+ * It is deliberately lossless about the facts: names, quantities and units are untouched.
+ */
+export function answerPlainText(raw: string): string {
+  const source = stripMarkdown(String(raw ?? '')).replace(/\r\n?/g, '\n');
+  const out: string[] = [];
+  for (const line of source.split('\n')) {
+    const trimmed = line.trim();
+    if (!trimmed) {
+      out.push('');
+      continue;
+    }
+    // A Markdown table separator is punctuation, never a data row.
+    if (/^\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?$/.test(trimmed)) continue;
+    if (trimmed.includes('|')) {
+      const cells = trimmed
+        .replace(/^\|/, '')
+        .replace(/\|$/, '')
+        .split('|')
+        .map((cell) => cell.trim())
+        .filter(Boolean);
+      if (cells.length > 1) {
+        out.push(cells.join(' — '));
+        continue;
+      }
+    }
+    out.push(trimmed);
+  }
+  return out.join('\n').replace(/\n{3,}/g, '\n\n').trim();
+}
+
+/**
  * Split one line of text into styled spans.
  *
  * A single forward scan, so the cost is linear in the line and there is no
@@ -616,6 +652,6 @@ export function parseAssistantMarkdown(text: string): Block[] {
   return blocks;
 }
 
-export const assistantMarkdown = { parseAssistantMarkdown, parseInline, stripMarkdown, stripLatex };
+export const assistantMarkdown = { answerPlainText, parseAssistantMarkdown, parseInline, stripMarkdown, stripLatex };
 
 export default assistantMarkdown;

@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { router, useLocalSearchParams } from 'expo-router';
 import { StyleSheet, Text, View } from 'react-native';
 
@@ -103,9 +103,23 @@ export default function HistoryScreen() {
   const products = useActiveRef(token, productsApi);
   const locations = useActiveRef(token, locationsApi);
 
-  const [type, setType] = useState('ALL');
+  const paramType = str(p.type);
+  const [type, setType] = useState(() =>
+    TYPE_FILTERS.some((filter) => filter.value === paramType) ? paramType : 'ALL',
+  );
   const [productId, setProductId] = useState(paramProductId ?? '');
   const [locationId, setLocationId] = useState(paramLocationId ?? '');
+  const resolvedNamedLocation = useRef(false);
+
+  useEffect(() => {
+    if (resolvedNamedLocation.current || locationId || !paramLocationName) return;
+    const match = locations.items.find(
+      (location) => location.name.toLowerCase() === paramLocationName.toLowerCase(),
+    );
+    if (!match) return;
+    resolvedNamedLocation.current = true;
+    setLocationId(match.id);
+  }, [locationId, locations.items, paramLocationName]);
 
   const productOptions = useMemo(() => {
     const list = products.items.map((x) => ({ value: x.id, label: x.name }));

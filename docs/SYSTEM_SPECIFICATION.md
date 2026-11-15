@@ -953,6 +953,12 @@ stock: zero at the threshold, a positive gap below it, and `null` when no minimu
 is the shortfall to the threshold, not a recommended purchase quantity; the assistant is told to
 quote it rather than recalculate it.
 
+The same read also returns `totalUnitsBelowMinimum`, the summed gap over EVERY product the
+restock filters matched, not just the current page. A question such as “how many units do we
+need in total?” is answered from that server-computed figure; the model must not add the page's
+row gaps itself. A question about how many PRODUCTS need restocking is still answered from
+`count`, never from the number of rows on the page.
+
 ### Simple inventory route
 
 Five narrow shapes are eligible for a free-first route when `AI_PROVIDER=openrouter` and a
@@ -983,6 +989,28 @@ comes from the shortage tool's own total, not from counting a page. An explicitl
 resolved as an exact identifier rather than a substring search. If the read is partial, ambiguous,
 or absent, the server does not present a computed total; the grounded answer remains, or the turn
 uses its ungrounded-answer sentence.
+
+### Answer actions
+
+An answer can carry three actions, all built by the server from the tool rows of the turn that
+produced it:
+
+- **Copy Answer** copies the complete stored answer as plain text. Markdown table pipes are
+  converted to readable separators, so a copied table pastes as `cell — cell` rather than as
+  markup. The action copies the whole answer, not only the rows visible in the bubble.
+- **Product links** open a product detail only for a product the final answer names and only
+  with the id a read tool returned in that turn. Names are matched as whole words. A duplicate
+  display name with more than one id is left unlinked rather than guessing which product was
+  meant; the client never resolves a name against a locally loaded catalogue.
+- **Screen links** open the complete list on the app screen that owns it, carrying the filters
+  the tool actually used where that screen supports them. A filter the destination cannot apply
+  is omitted rather than claimed. The Restock link remains for answers stored before these
+  actions existed.
+
+When a list answer has more matches than the rows shown, the server also stores a bounded page
+of the rows it already read. The mobile thread can reveal that page five rows at a time and
+always prints “Showing X of Y”; it never labels the stored page as the complete set. The screen
+link is the path to every match. In-chat search-within-results is not implemented.
 
 ### Answer reference
 
@@ -1027,6 +1055,7 @@ searchProducts
 findProducts
 getProduct
 getInventory
+getHighestStockProducts
 getLowStockProducts
 getOutOfStockProducts
 getProductsNeverSold
@@ -1050,7 +1079,7 @@ identity lookup by name, SKU or barcode (AI-91); `getStockValue` groups value by
 location reads; `listBrands` is a reference lookup like `listLocations` and `listCategories`; and
 the two research tools are the gated web-research fallback described in Guide 17. `getReorderNeededProducts` (Phase 11A)
 returns the ACTIVE products at or below their minimum, flagged `OUT_OF_STOCK` or
-`LOW_STOCK`, with `unitsBelowMinimum` as the computed gap to the configured minimum (AI-110). `listLocations` and `listCategories` (AI-14) are reference lookups: they answer *"which
+`LOW_STOCK`, with `unitsBelowMinimum` as the computed gap to the configured minimum (AI-110), and `totalUnitsBelowMinimum` as the whole matching set's summed gap. `getHighestStockProducts` ranks ACTIVE products by the same availability figure (on hand minus reserved, summed across locations by default) and returns the top page plus the count of every product with positive stock; a location name or id narrows the ranking to that place. It exists so “which products have the most stock?” is a server ranking rather than the first page of an unsorted inventory read. `listLocations` and `listCategories` (AI-14) are reference lookups: they answer *"which
 locations/categories do I have"* and resolve a name whose exact form is unknown. They read the
 same records as `GET /api/locations` and `GET /api/categories`, which are authentication-only,
 and are gated on `inventory.view` / `products.view`. No tool writes.

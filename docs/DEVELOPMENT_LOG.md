@@ -44,6 +44,21 @@ at the end of every development session, newest entry first.
 **Goal:** finish and harden Inventory AI **V1** through production testing. No Play Store or App
 Store release is being prepared.
 
+**AI answer actions and deterministic answers, PR #304 (2026-11-15):** AI-111–AI-113 are
+implemented, committed as `ff2ecec` and pushed on `feat/ai-111-113-answer-actions`; they are **not
+merged, deployed or device-verified**. The assistant now copies the full
+stored answer as plain text, renders product links only from server-issued ids, and attaches
+filter-preserving screen links plus a bounded “Show next 5” page to list answers. A new read-only
+`getHighestStockProducts` tool ranks products by availability, and `getReorderNeededProducts`
+returns the whole-set `totalUnitsBelowMinimum` so a unit-shortfall question is no longer answered
+by adding page rows. Server typecheck, mobile typecheck, the server unit suite (**2,108 pass / 64
+skipped / 0 fail**), the focused AI-110–AI-113 suites (**21/21**), the AI-2 read-only scan and the
+full mobile Jest run (**107 suites / 1,252 tests**) pass. Targeted ESLint on the changed files
+passes; repository-wide `npm run lint` still fails on two pre-existing `.scratch/` scripts this
+change did not touch. Production remains server `1c3928b` and OTA
+`1d139ae9-c7e2-48a2-b33e-63561b761515`. The next step is review/commit, then a device check of
+copy, product links, screen filters and the paging control. The complete record is §27IE.
+
 **Current production server (2026-11-16):** `1c3928b` — PR #300, the final partial-restock
 completeness guard, auto-deployed at 17:18Z. `/api/health` reports `status: ok`,
 `db: connected`, `environment: production`, commit `1c3928b`, 0 `5xx`; `/api/health/ready` returns

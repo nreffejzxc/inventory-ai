@@ -54,6 +54,8 @@ const SERVICE_CALL = /\b(\w+Service)\.(\w+)\s*\(/g;
 const READ_ONLY_SERVICE_CALLS = new Set([
   'productService.list',
   'productService.listReorder',
+  // AI-113: one aggregate ranking read over the availability merge, no write path.
+  'productService.highestStock',
   'productService.getByIdentifier',
   'productService.toProductDTO',
   'productService.reorderItemPublic',

@@ -42,7 +42,7 @@ Node.js **24** (pinned by `.nvmrc` and `engines.node`) · Express · TypeScript 
 TypeScript-first, **no build step**: the server runs its `.ts` sources through Node's native type
 stripping (`npm start` is `node src/index.ts`), so an older runtime cannot start it. `tsconfig.json`
 sets `noEmit` and `erasableSyntaxOnly`, so `tsc` is purely a checker and non-strippable syntax is a
-compile error rather than a runtime failure. `server/src` is **177** `.ts` modules (re-counted
+compile error rather than a runtime failure. `server/src` is **178** `.ts` modules (re-counted
 2026-11-15) and exactly one intentionally deferred `.js` module,
 `server/src/services/entitlement.service.js`; `docs/TS-MIGRATION-MANIFEST.md` records the migration
 campaign.
@@ -266,12 +266,13 @@ The project is built in phases: one phase, one purpose, one verification record.
 | AI-84 / AI-105 / OPS-4 | Direct language lock, output-limit retry with reserved reasoning, and the external production watch — §27HX |
 | AI-106 / reset-UX OTA | Finalizer detail preservation and the “Correcting the answer…” OTA — merged as `26eb0d4`, live-verified **19** and **19 / 1,633,025** with Render-matched refs — §27HY |
 | AI-110 | Contextual assistant entry from product and stock screens, and the server-computed restock shortfall — §27IC |
+| AI-111–AI-113 | Copy Answer, server-id product links, complete-list screen links with bounded result rows, the highest-stock ranking and the whole-set restock shortfall — §27IE |
 | AI Roadmap | Permanent eight-item assistant improvement plan and the 2026-11-16 implementation audit — §27ID |
 | Close-out / OPS-4 | Scheduled-watch diagnosis (no automatic GitHub schedule), standalone `com.inventoryai` APK built/installed, AI-105 staging retry — §27HZ |
 | Reliability / OPS-5 | Post-deploy phone proof, the 2,517-finding read-only triage, and the scheduled baseline/history monitor — §27IA |
 | Reliability / OPS-6 | One-off Task Scheduler proof, the externally resolved SteelSeries finding, and hosted freshness behind UptimeRobot — §27IB |
 
-Most letter-numbered increments are roadmap records; AI-87/AI-88 are log-only and AI-91/AI-92 are in §27HT. AI-99 is in §27HU, its 10k gate is in §27HV, AI-103/OPS-3 is in §27HW, AI-84/AI-105/OPS-4 is in §27HX, and AI-106 with the reset-UX OTA is in §27HY, and the close-out is in §27HZ. The post-deploy proof, triage and scheduled monitor are in §27IA; the scheduler proof and hosted freshness are in §27IB; the contextual assistant entry and restock shortfall are in §27IC; the permanent assistant improvement roadmap and audit are in §27ID; the index below is complete.
+Most letter-numbered increments are roadmap records; AI-87/AI-88 are log-only and AI-91/AI-92 are in §27HT. AI-99 is in §27HU, its 10k gate is in §27HV, AI-103/OPS-3 is in §27HW, AI-84/AI-105/OPS-4 is in §27HX, and AI-106 with the reset-UX OTA is in §27HY, and the close-out is in §27HZ. The post-deploy proof, triage and scheduled monitor are in §27IA; the scheduler proof and hosted freshness are in §27IB; the contextual assistant entry and restock shortfall are in §27IC; the permanent assistant improvement roadmap and audit are in §27ID; the answer actions, complete-list navigation and deterministic stock ranking are in §27IE; the index below is complete.
 
 ## Operational traps worth knowing
 
@@ -608,6 +609,7 @@ anchor (`§27…`) in that file.
 - **§27IB** — Scheduler trigger proof and hosted freshness monitoring (2026-11-15)
 - **§27IC** — AI-110 contextual assistant entry and the restock shortfall (2026-11-15)
 - **§27ID** — AI Assistant improvement roadmap and implementation audit (2026-11-16)
+- **§27IE** — AI-111–AI-113 answer actions, complete-list navigation and deterministic stock answers (2026-11-15)
 
 ---
 
@@ -688,6 +690,7 @@ searchProducts
 findProducts
 getProduct
 getInventory
+getHighestStockProducts
 getLowStockProducts
 getOutOfStockProducts
 getProductsNeverSold

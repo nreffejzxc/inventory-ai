@@ -8,10 +8,10 @@ document, not a specification: behaviour is still owned by
 [`guides/18-ai-assistant-limits.md`](guides/18-ai-assistant-limits.md), and what shipped by the
 roadmap records in [`DEVELOPMENT_ROADMAP.md`](DEVELOPMENT_ROADMAP.md).
 
-**Last reviewed:** 2026-11-16, against `main` at `1670e2d`, the production server at `1c3928b`, and
-the production Android app on runtime `1.0.2` with OTA
-`1d139ae9-c7e2-48a2-b33e-63561b761515`. The audit is code-and-record based; it did not spend
-provider turns or make a new production deployment.
+**Last reviewed:** 2026-11-15, against the uncommitted AI-111–AI-113 working tree on `main` after
+`1670e2d`, the production server at `1c3928b`, and the production Android app on runtime `1.0.2`
+with OTA `1d139ae9-c7e2-48a2-b33e-63561b761515`. The audit is code-and-record based; it did not
+spend provider turns or make a new production deployment.
 
 **The rule that outranks every item below:** the assistant is **read-only**. It may read, compare,
 summarise and recommend from tenant-scoped records. It may never write stock, create a product, a
@@ -34,9 +34,9 @@ piece is not implied to work because a related tool exists.
 
 | # | Improvement | Priority | Status | What exists now | Main gap |
 |---|---|---|---|---|---|
-| 1 | Copy Answer, Restock Navigation, Product Navigation | 1 | **Partial — 1 of 3** | The assistant's stock-list answers show **Open the full restock list**, using the server's own `toolsUsed` and routing to `/restock`. `ai26-restock-link.test.tsx` covers it. | Copy Answer is absent. Product names in answers are plain text; there is no direct product-detail action. |
-| 2 | Complete list and pagination | 2 | **Partial** | Every list tool is paged, returns a total and `hasMore`/`truncated`, and the UI has full Inventory, Restock, History, Products and Locations screens with their own list and filter controls. The restock shortfall wording keeps the total when only a page is shown. | No in-chat “next page”, “view all results”, or search-within-answer. Tool schemas start at `skip: 0` and expose no page cursor, so the model cannot ask for the next page. Only stock-list answers get a screen link. |
-| 3 | Smarter inventory answers | High, sequence 3 | **Partial — strong** | Deterministic finalizers cover restock counts and lists, stock-value totals, product/location totals, most-expensive and several ranking shapes; tools compute counts over the whole matched set, and AI-2/AI-60 tests guard grounding and partial lists. | Coverage is shape-by-shape, not universal. A wording not covered by a finalizer can still be model-composed; “highest stock quantity” has no dedicated deterministic finalizer. Correctness must be proved per question shape, not inferred from the tool list. |
+| 1 | Copy Answer, Restock Navigation, Product Navigation | 1 | **Implemented — local, device proof pending** | Copy Answer copies the complete stored answer as plain text. Product names named by the final answer are inline links, using only ids captured from the turn's read tools. Restock navigation remains, and every paged list answer now also carries filter-preserving screen links. `ai111-answer-actions.test.tsx`, `ai112-answer-navigation.test.tsx` and the server AI-111/AI-112 suites cover the actions. | Not yet verified on the installed app or deployed; the Copy control uses React Native core `Clipboard`, whose deprecation warning is expected. |
+| 2 | Complete list and pagination | 2 | **Implemented — local, device proof pending** | Every paged tool answer now carries its total, a bounded page of the rows already read, and a screen link built from the filters the tool actually used. The mobile thread reveals those rows five at a time with “Showing X of Y” and keeps the screen link for the complete set. Inventory, Restock, Products and History initialize their filters from the link. | No search-within-results and no tool page cursor: “next 5” reveals only rows captured in this answer; a new tool read still requires a new turn. A destination filter that the screen cannot represent is omitted rather than claimed. |
+| 3 | Smarter inventory answers | High, sequence 3 | **Partial — strong** | Deterministic finalizers cover restock counts and lists, stock-value totals, product/location totals, most-expensive, top stock-out and several ranking shapes; tools compute counts over the whole matched set. AI-113 adds a server-ranked highest-stock read and answer, and the whole-set `totalUnitsBelowMinimum` replaces page-row addition. AI-2/AI-60 tests guard grounding and partial lists. | Coverage is still shape-by-shape: other comparisons, trends and report combinations can remain model-composed. Correctness must be proved per question shape, not inferred from the tool list. |
 | 4 | Better follow-up conversations | 4 | **Partial** | The server replays the last 20 USER/ASSISTANT messages (`AI_CONTEXT_MESSAGES`), so ordinary conversational context exists. | Tool rows are not replayed, and prompt rule 30 tells the model every question sets its own scope. A follow-up such as “which ones are from Samsung?” can re-query Samsung but is not guaranteed to preserve the previous “low stock” result set. There is no structured result-set handle. |
 | 5 | Inventory comparison | 5 | **Partial** | `getLocationBreakdown` compares all locations in one read; `getProduct` returns per-location stock; product-stock-by-location and history totals have deterministic answers; history rows distinguish direction and transfer legs. | No deterministic two-product comparison, no compare-to-minimum table, and no “decreasing inventory” verdict. A trend read must be assembled by the model from movements; the tool reports movement, not a forecast. |
 | 6 | Inventory insights and recommendations | High, sequence 6 | **Partial** | Reorder-needed, low/out-of-stock, never-sold and history tools support restock priorities and dead-stock observations. Recommendations are explicitly read-only; no write tool exists. | No run-out-soon calculation (no sales-velocity forecast), no excess-inventory rule, and no monitoring score. These need defined data rules and disclosed windows, not model intuition. |
@@ -52,28 +52,17 @@ The sequence is a dependency order, not permission to defer correctness.
 
 ### 1. Copy Answer, Restock Navigation, Product Navigation — priority 1
 
-**Already working.** `restockPathForTools` recognises `getReorderNeededProducts`,
-`getLowStockProducts` and `getOutOfStockProducts`; `MessageBubble` renders a
-`chat-restock-link` that pushes `/restock`. The existing test asserts that navigation. This is a
-real direct action, not a sentence asking the member to find the screen.
+**Implemented.** `restockPathForTools` recognises the stock-list tools and still renders the
+legacy Restock action for old messages. New answers carry **Copy Answer**, inline product links and
+screen links. `answerPlainText` converts the complete stored answer to plain text, including table
+cells, so the copied result can be pasted into a supplier message. `mentionedProductLinks` keeps
+only products the final answer names, only with ids a read tool returned, and drops an ambiguous
+duplicate name; `AssistantMarkdown` and the result rows open `/products/<id>` from that id. The
+client never resolves a display name against a local catalogue.
 
-**Missing.**
-
-- **Copy Answer.** The turn reference is selectable, but there is no action that copies the whole
-  answer. The copy must include the same product names and quantities the member sees, so it can be
-  pasted into a purchase order or supplier message. Markdown/table markers must not turn the pasted
-  result into noise.
-- **Product Navigation.** Product names are rendered as plain text. A link must use a
-  server-provided product id from the rows the read tools returned. The client must not match a
-  displayed name against a local catalogue: names are not unique and the answer can mention a
-  product the client did not load.
-
-**Next slice.** One approved increment, delivered together because all three are answer actions:
-copy the complete stored answer; keep/verify the Restock action; add product-detail actions from
-server-issued ids. A product link is valid only when the name appears in the final answer and the id
-came from a tool row in that turn. Ambiguous duplicate names are not linked. Stored answers keep
-working after reopening the conversation; messages written before the field existed simply show no
-product actions.
+**Residual.** The installed app has not yet been used to copy an answer or open a linked product;
+those are device checks, not code gaps. The copy path uses React Native's bundled `Clipboard`,
+which emits a deprecation warning but needs no native dependency or rebuild.
 
 **Accepted when.** Tests prove: copy contains the full answer and not just the visible part; the
 Restock action still opens the complete Restock screen; a product action opens the exact product
@@ -87,16 +76,18 @@ structurally truncated with a note. The app's Inventory, Restock, History, Produ
 screens already hold the complete lists with their own filters. The assistant's restock answer now
 states a total and directs the member to the Restock screen rather than calling a page complete.
 
-**Missing.** There is no in-chat page control and no page argument in the tool schemas. Once a page
-is returned, the model cannot fetch the next one; a follow-up may cause a new read or repeat the
-same page. Only stock-list answers generate a screen button. “Search within results” is not an
-assistant action.
+**Implemented.** Every paged list answer now stores a bounded `answerActions.list` with the tool's
+total and the rows that answer already read, plus up to three filter-preserving `screens`
+destinations. The mobile thread shows the total, reveals the captured rows five at a time, and
+keeps the screen link for the complete set. Inventory, Restock, Products and History initialize
+`q`, location, category, status and stock filters from the link; a name the screen knows how to
+resolve is resolved against the business's own active references, not matched on the client as an
+id.
 
-**Next slice.** Prefer the existing app screens as the complete-list destination before building a
-new result set in chat. Give every paged list answer a direct, filter-preserving destination where
-one exists; only then decide whether in-chat “next page” is worth its state, security and latency
-cost. Any paging UI must show the total and the range (for example “1–10 of 100”) and must never
-imply that a page is the whole set.
+**Residual.** There is still no tool page cursor and no search-within-results. “Show next 5”
+reveals only rows captured in the answer; it cannot fetch rows the turn never read. A filter the
+destination screen cannot represent (for example an ARCHIVED status in Inventory) is omitted
+rather than claimed.
 
 **Accepted when.** A list with more rows than one page has a path to every match; the total and page
 range are visible; a search can narrow the complete set; tenant isolation is unchanged; a page
@@ -110,14 +101,17 @@ and lists, total stock value, product and location quantity totals, low-stock va
 and several top-out shapes. Counts are computed over the whole matched set, not by adding page rows.
 AI-60 covers partial-page and false-completeness cases.
 
-**Missing.** Not every numerical question has a finalizer. A question shape outside the covered set
-can still be answered by the model from a page, and “highest quantity” is not a dedicated
-deterministic answer. A tool being available is not proof that a particular claim is grounded.
+**Implemented for the named gaps.** AI-113 adds the read-only `getHighestStockProducts` tool, which
+ranks ACTIVE products by availability over the whole matching set (or one location) and returns
+the positive-stock count. `highestStockQuantityAnswer` rebuilds the ranking from the returned rows,
+deduplicates duplicate names, honors singular and top-N wording, states the location scope, and
+never trusts page order. The restock read now also returns `totalUnitsBelowMinimum` over every
+matching product, and a unit-shortfall question is no longer answered by the product-count
+finalizer.
 
-**Next slice.** Close the highest-value gaps first: highest/lowest stock quantity, category and
-brand counts, and any count that currently requires summing rows. Every finalizer reads only rows
-from the turn, states the scope and the unit, and refuses when the required rows are absent rather
-than guessing. Wording variants get tests; a shape without a finalizer is treated as unverified.
+**Residual.** Not every numerical question has a finalizer. Lowest quantity, two-product
+comparisons, category/brand stock totals beyond the existing value read, trends and combined
+reports can still be model-composed. A shape without a finalizer is treated as unverified.
 
 **Accepted when.** Each covered question has a fixture with known database rows and an exact
 expected figure; an empty/partial/ambiguous result produces an explicit limitation; no finalizer
@@ -241,6 +235,10 @@ same file.
 | E | Comparisons and trends | Makes distribution questions actionable | Windowed, recorded-movement-only tests |
 | F | Insights and recommendations | Turns facts into priorities, never writes | Insufficient-data tests, no write path |
 | G | Report summaries | A consistent, explainable snapshot | Reconciliation and as-of tests |
+
+As of 2026-11-15, **slices A, B and C are implemented, committed in PR #304 and locally verified**;
+none is deployed or device-verified. A and B share the stored answer-actions shape and
+the mobile action controls; C adds the highest-stock ranking and the whole-set restock shortfall.
 
 **Cross-cutting gates, every slice:**
 

@@ -5,6 +5,57 @@ const { Schema } = mongoose;
 
 const aiMessageRoles = ['USER', 'ASSISTANT', 'TOOL'];
 
+/**
+ * AI-111 — the catalogue ids behind the product names an assistant answer can open.
+ * Stored on the message so a reopened thread keeps the same direct actions; absent on
+ * every message written before this field existed.
+ */
+const productLinkSchema = new Schema(
+  {
+    productId: { type: String, required: true, trim: true },
+    name: { type: String, required: true, trim: true },
+    sku: { type: String, trim: true },
+  },
+  { _id: false },
+);
+
+const answerListRowSchema = new Schema(
+  {
+    productId: { type: String, trim: true },
+    title: { type: String, required: true, trim: true },
+    detail: { type: String, trim: true },
+  },
+  { _id: false },
+);
+
+const answerListSchema = new Schema(
+  {
+    kind: { type: String, required: true, trim: true },
+    label: { type: String, required: true, trim: true },
+    path: { type: String, required: true, trim: true },
+    total: { type: Number, required: true, min: 0 },
+    rows: { type: [answerListRowSchema], default: [] },
+  },
+  { _id: false },
+);
+
+const answerScreenSchema = new Schema(
+  {
+    kind: { type: String, required: true, trim: true },
+    label: { type: String, required: true, trim: true },
+    path: { type: String, required: true, trim: true },
+  },
+  { _id: false },
+);
+
+const answerActionsSchema = new Schema(
+  {
+    list: { type: answerListSchema },
+    screens: { type: [answerScreenSchema], default: [] },
+  },
+  { _id: false },
+);
+
 const aiMessageSchema = new Schema(
   {
     conversationId: {
@@ -42,6 +93,15 @@ const aiMessageSchema = new Schema(
         trim: true,
       },
     ],
+    productLinks: {
+      type: [productLinkSchema],
+      default: undefined,
+    },
+    /** AI-112 — direct screen destinations and a bounded page of the rows behind the answer. */
+    answerActions: {
+      type: answerActionsSchema,
+      default: undefined,
+    },
     usage: {
       type: Schema.Types.Mixed,
     },

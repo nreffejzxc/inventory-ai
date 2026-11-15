@@ -74,6 +74,8 @@ const EXPECTED_TOOLS = [
   'getInventoryHistory',
   'getProductsByLocation',
   'getReorderNeededProducts',
+  // AI-113: the highest-stock ranking, so the answer is not the first page of a stock read.
+  'getHighestStockProducts',
   // AI-71: dead stock — ACTIVE products with no stock-out on record at all.
   'getProductsNeverSold',
   // AI-14: the two reference lists the id-taking tools needed to be usable.
@@ -1971,6 +1973,8 @@ dbSuite('OpenRouter provider — real full-catalogue workload', dbOk, () => {
       // AI-49: a valid-shaped id that is not in this tenant makes the tool answer a
       // soft result without any market search, so the workload needs no web stub.
       { id: 't19', name: 'researchMarketPrices', input: { productIds: '000000000000000000000000' } },
+      // AI-113: the server-ranked highest-stock read, with no arguments it accepts.
+      { id: 't20', name: 'getHighestStockProducts', input: {} },
     ];
   }
 

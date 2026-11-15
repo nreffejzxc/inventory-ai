@@ -58,6 +58,10 @@ import {
   stripModelGlitchPreamble,
   topOutAnswer,
   brandStockRangeAnswer,
+  asksForHighestStockQuantity,
+  highestStockQuantityAnswer,
+  asksForRestockShortfall,
+  restockShortfallAnswer,
   asksForRestockList,
   asksForLowStockValue,
   asksForMostExpensive,
@@ -77,10 +81,11 @@ import {
   productStockTotalAnswer,
   catalogueFactFromRow,
   productDetailStockRead,
+  mentionedProductLinks,
   asksForRestockCount,
   restockCountAnswer,
 } from './answerCompletion.ts';
-import type { CatalogueFact, StockValueSummary, TopOutFact } from './answerCompletion.ts';
+import type { CatalogueFact, ProductLink, StockValueSummary, TopOutFact } from './answerCompletion.ts';
 import { locationService } from '../reference.service.ts';
 import { aiConfig } from './aiConfig.ts';
 import { languageDirective, replyLanguageOf } from './language.ts';
@@ -134,6 +139,8 @@ import {
   type SimplePaidBudgetReservation,
 } from './simplePaidBudget.ts';
 import { executeTool, AI_TOOL_DEFS } from './tools.ts';
+import { answerActionsForTool, mergeAnswerActions } from './answerActions.ts';
+import type { AnswerActions } from './answerActions.ts';
 import {
   appendMissingSourceUrls,
   unreturnedSourceUrls,
@@ -315,6 +322,10 @@ interface ChatResult {
   turnId: string;
   model?: string;
   toolsUsed: string[];
+  /** Products the answer names, with ids from the rows this turn read. */
+  productLinks?: ProductLink[];
+  /** Direct screen destinations and the bounded rows behind a paged answer. */
+  answerActions?: AnswerActions;
   usage?: ProviderUsage;
   iterations: number;
   /**
@@ -503,7 +514,7 @@ export function systemPrompt(
     '36. For price comparisons, use the recorded sellingPrice, never stock value or quantity: "most expensive" and "highest price per unit" mean the largest sellingPrice across every product returned, even when another product has a larger stock value or appears on a later page. For "under/over X", call findProducts with a broad product word or no q, then filter the rows by sellingPrice; never put the price threshold in the search query. For a subset value total, add only the rows in that subset and never quote the business-wide getStockValue total. Make any stated unit total equal the rows you show.',
     // AI-83 — the restock answer named the total and the most urgent item but none of the
     // other products on the page, so the member could not act on four of the five rows.
-    '37. When a restock question returns several products, name every product in the returned page, out-of-stock first, not only the count and the most urgent item; if the page is shorter than the total, say how many are not shown. When a row carries `unitsBelowMinimum`, use that number for "how many should I order" rather than subtracting the row yourself; describe it as the gap to the configured minimum, not a recommended purchase quantity, and say the minimum is not configured when it is null.',
+    '37. When a restock question returns several products, name every product in the returned page, out-of-stock first, not only the count and the most urgent item; if the page is shorter than the total, say how many are not shown. When a row carries `unitsBelowMinimum`, use that number for "how many should I order" rather than subtracting the row yourself; describe it as the gap to the configured minimum, not a recommended purchase quantity, and say the minimum is not configured when it is null. For the combined gap across the whole restock list, quote `totalUnitsBelowMinimum` from the tool instead of adding the row gaps yourself.',
     // AI-84 — measured in the 14-question Bisaya/Tagalog control on 2026-11-06:
     // the assistant usually replied in English regardless of the question, and a
     // Bisaya question was once answered in Tagalog. The member has to ask in the
@@ -524,6 +535,10 @@ export function systemPrompt(
     // "best-selling" after reading stock levels only. Sales rankings live in the stock
     // ledger; a display name or a large quantity is not evidence of units sold.
     '41. Never call a product "best-selling", "top-selling" or "fastest-moving" unless this turn read a sales or stock-out ranking and that result supports the claim for that exact product. A restock or stock-level read is not sales evidence. When the member asks which product sells best, call getInventoryHistory with type STOCK_OUT (or the sales ranking tool) and answer from `topOut`; if the read does not support a ranking, say so plainly instead of guessing.',
+    // AI-113 — the highest-stock question is a ranking, not a page. "Which products have the
+    // highest stock?" must not be answered from the first rows of an unsorted inventory read;
+    // the server ranks the catalogue and the answer quotes that order and total.
+    '42. For the highest or largest stock quantity, call getHighestStockProducts once and quote its ranked rows. Never sort an inventory page, compare quantities across separate reads, or describe the first page of an unfiltered read as the highest-stock set. When the result says it is the top N of a larger count, say that and give the total. When the member asks for a specific top N, pass that number as `limit` (up to 25).',
     ...(sourceRestricted
       ? [
           '39. INVENTORY-ONLY SOURCE LOCK: This question must be answered from the business\'s own recorded data only. Do not search the web, fetch a page, call researchInventoryProducts or researchMarketPrices, or use any external price, supplier, review, rating or quality information. You have no supplier or purchase-order tool on this turn. Use inventory tool output for product names, recorded selling prices, currency, stock and movements. If a market price, cost price, supplier term, lead time, external review or quality rating is not in a tool result, say that it is not available from the inventory tools; do not substitute web data or fill the gap from memory. Do not present an external brand or product as a recommendation. This rule supersedes rules 21, 23, 35 and 36.',
@@ -786,6 +801,7 @@ export async function runAiChat({
   const inventoryFacts: CatalogueFact[] = [];
   const lowStockFacts: CatalogueFact[] = [];
   const reorderFacts: CatalogueFact[] = [];
+  let answerActions: AnswerActions = { screens: [] };
   const historyTopOutFacts: TopOutFact[] = [];
   const locationFacts: CatalogueFact[] = [];
   let locationPageComplete = false;
@@ -794,7 +810,13 @@ export async function runAiChat({
   let inventoryReadThisTurn = false;
   let stockOutMovements: number | null = null;
   let reorderTotal = 0;
+  let reorderUnitsBelowMinimum = 0;
   let lowStockTotal = 0;
+  // AI-113 — the ranking read's own rows and positive-stock total. Only the last read is
+  // kept, for the same scope reason the low-stock and inventory pages are replaced.
+  const highestStockFacts: CatalogueFact[] = [];
+  let highestStockTotal = 0;
+  let highestStockScope: string | null = null;
   // AI-93 — the total and highest-value item are two answers to the same tool read.
   // Keeping the summary here prevents the finalizer from dropping a total the tool
   // actually returned when the member asked for both in one question.
@@ -2572,6 +2594,8 @@ export async function runAiChat({
       // AI-99 — executeTool's success envelope is the only proof the read happened.
       if (name && output && typeof output === 'object' && (output as { ok?: unknown }).ok === true) {
         toolsSucceeded.add(name);
+        const action = answerActionsForTool(name, toolInput, output);
+        if (action) answerActions = mergeAnswerActions(answerActions, action);
       }
       if (name === 'listBrands' && output && typeof output === 'object') {
         const result = (output as { result?: unknown }).result;
@@ -2703,7 +2727,8 @@ export async function runAiChat({
         name === 'getOutOfStockProducts' ||
         name === 'getProductsByLocation' ||
         name === 'getProductsNeverSold' ||
-        name === 'getReorderNeededProducts'
+        name === 'getReorderNeededProducts' ||
+        name === 'getHighestStockProducts'
       ) {
         if (name === 'getReorderNeededProducts') {
           // Same per-scope rule as the low-stock rows above: the last page and its total
@@ -2711,6 +2736,17 @@ export async function runAiChat({
           reorderFacts.length = 0;
           const total = Number(resultRecord?.count);
           reorderTotal = Number.isFinite(total) && total >= 0 ? total : 0;
+          const shortfall = Number(resultRecord?.totalUnitsBelowMinimum);
+          reorderUnitsBelowMinimum = Number.isFinite(shortfall) && shortfall >= 0 ? shortfall : 0;
+        }
+        if (name === 'getHighestStockProducts') {
+          highestStockFacts.length = 0;
+          const total = Number(resultRecord?.count);
+          highestStockTotal = Number.isFinite(total) && total >= 0 ? total : 0;
+          highestStockScope =
+            typeof resultRecord?.locationName === 'string' && resultRecord.locationName.trim()
+              ? resultRecord.locationName.trim()
+              : null;
         }
         for (const raw of resultItems) {
           const fact = factFrom(raw);
@@ -2719,6 +2755,7 @@ export async function runAiChat({
           if (name === 'getLowStockProducts') lowStockFacts.push(fact);
           if (name === 'getReorderNeededProducts') reorderFacts.push(fact);
           if (name === 'getProductsByLocation') locationFacts.push(fact);
+          if (name === 'getHighestStockProducts') highestStockFacts.push(fact);
         }
       }
       if (name === 'researchInventoryProducts' || name === 'researchMarketPrices') {
@@ -2848,6 +2885,16 @@ export async function runAiChat({
       console.warn('AI restock count read from the returned tool total');
     }
   }
+  if (!degraded && asksForRestockShortfall(message)) {
+    const readRestock = toolsSucceeded.has('getReorderNeededProducts');
+    const computed = readRestock
+      ? restockShortfallAnswer(reorderUnitsBelowMinimum, reorderTotal, cfg.maxMessageChars)
+      : null;
+    if (computed) {
+      finalText = computed;
+      console.warn('AI restock shortfall read from the tool\'s whole-set total');
+    }
+  }
   if (!degraded && stockOutMovements !== null && asksForStockOutCount(message)) {
     const computed = stockOutCountAnswer(stockOutMovements, cfg.maxMessageChars);
     if (computed) {
@@ -2867,6 +2914,19 @@ export async function runAiChat({
     if (computed) {
       finalText = computed;
       console.warn('AI maximum recorded price computed from the returned rows');
+    }
+  }
+  if (!degraded && asksForHighestStockQuantity(message)) {
+    const computed = highestStockQuantityAnswer(
+      highestStockFacts,
+      highestStockTotal,
+      cfg.maxMessageChars,
+      message,
+      highestStockScope,
+    );
+    if (computed) {
+      finalText = computed;
+      console.warn('AI highest stock quantities computed from the ranked rows');
     }
   }
   if (
@@ -3044,11 +3104,20 @@ export async function runAiChat({
     }
   }
 
+  const productLinks = mentionedProductLinks(finalText, [
+    ...productFacts,
+    ...inventoryFacts,
+    ...lowStockFacts,
+    ...reorderFacts,
+    ...locationFacts,
+  ]);
   return {
     content: finalText,
     turnId,
     model: model ?? undefined,
     toolsUsed: [...toolsUsed],
+    productLinks: productLinks.length ? productLinks : undefined,
+    answerActions: answerActions.screens.length || answerActions.list ? answerActions : undefined,
     usage: usage ?? undefined,
     iterations: steps,
     degraded: degraded ?? undefined,
