@@ -477,6 +477,22 @@ test('AI-110: a model-written complete claim on a partial page is corrected', ()
   assert.match(answer, /Restock screen/);
 });
 
+test('AI-110: a first-N lead-in names the rows actually shown', () => {
+  const rows = Array.from({ length: 10 }, (_, index) => ({ name: `Product ${index + 1}` }));
+  const draft =
+    '19 products need restocking. The first 5 are below:\n1. Product 1\n2. Product 2\n' +
+    '3. Product 3\n4. Product 4\n5. Product 5\n6. Product 6\n7. Product 7\n8. Product 8\n' +
+    '9. Product 9\n10. Product 10';
+  const answer = withCompleteRestockNames(draft, rows, 2000, {
+    label: 'restock',
+    complete: false,
+    total: 19,
+  });
+  assert.match(answer, /The first 10 are below/);
+  assert.doesNotMatch(answer, /The first 5 are below/);
+  assert.match(answer, /19 products need restocking/);
+});
+
 test('AI-90: every returned restock product is named once', () => {
   const rows = [
     { name: 'ASUS ROG Strix Flare II Animate' },

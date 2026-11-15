@@ -1500,6 +1500,23 @@ export interface RestockListOptions {
  * claiming one was the whole set. Replace that trailing claim with the two numbers the turn
  * actually knows, and leave an answer that makes no such claim untouched.
  */
+/**
+ * Correct a model's "first N" lead-in to the number of rows the answer actually shows.
+ *
+ * Measured on the phone 2026-11-15 after the AI-90/AI-110 guards: a partial answer showed
+ * ten rows but opened with "The first 5 are below". That is the same false-count failure
+ * one sentence earlier — the total was right, the claim about the visible rows was not.
+ * Only the lead-in is rewritten; row content is never changed.
+ */
+function correctRestockLeadIn(body: string, shown: number): string {
+  if (!Number.isFinite(shown) || shown <= 0) return body;
+  return body.replace(/\b(?:the\s+)?first\s+(\d+)\s+(?:are|is)\s+below\b/i, (match, raw) => {
+    const claimed = Number(raw);
+    if (!Number.isFinite(claimed) || claimed === shown) return match;
+    return `The first ${shown} are below`;
+  });
+}
+
 function qualifyPartialRestockAnswer(body: string, shown: number, options: RestockListOptions): string {
   const label = String(options.label ?? 'restock').trim() || 'restock';
   const total = finiteNumber(options.total);
@@ -1520,7 +1537,7 @@ export function withCompleteRestockNames(
   maxChars: number,
   options: RestockListOptions = {},
 ): string {
-  const body = String(answer ?? '').trimEnd();
+  const body = correctRestockLeadIn(String(answer ?? '').trimEnd(), rows.length);
   if (options.complete === false) return qualifyPartialRestockAnswer(body, rows.length, options);
   const names: string[] = [];
   const seen = new Set<string>();
