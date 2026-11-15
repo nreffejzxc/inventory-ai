@@ -23,13 +23,24 @@ history and opens one GitHub issue when a new candidate appears.
 | Baseline | [`baseline.json`](baseline.json) — 2,517 known ids accepted 2026-11-15T04:45:59Z |
 | Local history | `%LOCALAPPDATA%\InventoryAI\integrity-audit\` (`latest.json`, `latest.md`, `history.jsonl`) |
 | Scheduler log | `%LOCALAPPDATA%\InventoryAI\integrity-audit-scheduler.log` |
+| Hosted freshness | One document in `integrity_monitor_heartbeats`; `GET /api/health/integrity` returns 200 only while it is at most 26 hours old |
+| Independent check | UptimeRobot HTTP monitor on the freshness endpoint, every five minutes |
 | Alert | One open GitHub issue titled `[inventory-integrity] New findings detected`; updated only when the new set changes, closed on recovery |
 
 The 07:30 task ran at 12:46 local on 2026-11-15 as a manual verification. Task result was **0**, the
 history recorded **UNCHANGED / 0 new**, and no issue was created (there was nothing new). After the
 GitHub CLI fallback guard was added, the same wrapper was run manually at 04:59:55Z and again
-returned **UNCHANGED / 0 new**, exit **0**; the local history now has three entries. The first
-automatic run is scheduled for 2026-11-16 07:30 local.
+returned **UNCHANGED / 0 new**, exit **0**. A one-off Task Scheduler trigger at 19:11:35 local then
+proved the scheduler mechanism itself: task result **0**, **UNCHANGED**, 0 new, 1 resolved, 4,896
+rows; the temporary task was removed and the daily task untouched. See
+[`scheduler-trigger-proof-2026-11-15.md`](scheduler-trigger-proof-2026-11-15.md).
+
+That proof run also observed a real change: one old SteelSeries orphan was resolved when a matching
+inventory row was created by a new PO receipt (`PO-DEMO-00006`) at 09:43:59Z. This was an external
+write, not a monitor repair. The baseline was **not** modified, as instructed, so the resolved count
+remains 1 until an explicitly approved baseline refresh.
+
+The first automatic daily run is still scheduled for 2026-11-16 07:30 local.
 
 ## How the baseline works
 
@@ -57,6 +68,7 @@ an alert disappear.
 cd server
 npm run audit:integrity:monitor -- --with-production --format=json   # read-only check, no alert
 npm run audit:integrity:monitor -- --with-production --notify        # check and update the issue
+node scripts/write-integrity-heartbeat.mjs --with-production        # publish freshness only
 node scripts/monitor-inventory-integrity.mjs --with-production --accept-baseline
 ```
 
@@ -87,10 +99,11 @@ commands.
 
 ## Limits
 
-- **Not hosted.** The task runs only while this Windows user is signed in and the laptop is awake,
-  online, and able to reach MongoDB. A missed run starts when the laptop next becomes available, but
-  there is no independent alert while the laptop is off. GitHub's own `schedule` trigger has never
-  fired for this repository, so a workflow cron was not used.
+- **The audit is not hosted.** The task runs only while this Windows user is signed in and the
+  laptop is awake, online, and able to reach MongoDB. A missed run starts when the laptop next
+  becomes available. The **freshness signal** is hosted, so a stopped task becomes a 503 and an
+  UptimeRobot alert instead of silence. GitHub's own `schedule` trigger has never fired for this
+  repository, so a workflow cron was not used.
 - **The alert is GitHub, not a pager.** A new finding opens/updates one issue; it does not send a
   separate email. The issue is visible to the repository owner.
 - **The baseline is an accepted candidate list.** It does not make the underlying seed rows correct.

@@ -174,7 +174,7 @@ set.
 
 ## 2.6 Route inventory
 
-Phase 23 classifies **86 routes**: **51 permission-gated**, **14 authenticated**, **21 public**, **0 role-gated**. The `PUBLIC` and `AUTHENTICATED` buckets are explicit lists that each carry a
+Phase 23 classifies **87 routes**: **51 permission-gated**, **14 authenticated**, **22 public**, **0 role-gated**. The `PUBLIC` and `AUTHENTICATED` buckets are explicit lists that each carry a
 written reason; a route in no bucket fails the guard, and a declared exemption that has stopped being
 true also fails. The guard deliberately asserts **no route count** — a route is *declared* or it is not,
 and the number is derived from the declarations — so the figure above is pinned separately, by
@@ -264,6 +264,13 @@ fails if the two disagree.
 > permission-gated, 14 authenticated, 21 public, 0 role-gated).** `GET /api/ai/metrics` binds the new
 > `ai.metrics.view` capability, granted only to OWNER and ADMIN. It is the first addition after the
 > invitation increment and is counted by the same route-inventory guard.
+>
+> **Integrity freshness (2026-11-15) added one public route — 86 + 1 public = **87** (51
+> permission-gated, 14 authenticated, 22 public, 0 role-gated).** `GET /api/health/integrity` is a
+> probe for the external uptime monitor, so it must answer before a token can exist, exactly like the
+> other health endpoints. It publishes only the audit timestamp, age, status and aggregate counts;
+> it names no tenant, product, location, user, inventory row or ledger row, and it performs one
+> read-only lookup of the operational heartbeat collection.
 
 The auth surface (`server/src/routes/auth.routes.ts`):
 

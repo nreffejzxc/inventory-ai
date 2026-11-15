@@ -131,8 +131,14 @@ modifying anything.
   findings accepted on 2026-11-15. A normal run reports `UNCHANGED / 0 new`.
 - **History:** `%LOCALAPPDATA%\InventoryAI\integrity-audit\latest.json`, `latest.md` and
   `history.jsonl`; the scheduler log is `%LOCALAPPDATA%\InventoryAI\integrity-audit-scheduler.log`.
+- **Hosted freshness:** after a completed run, `write-integrity-heartbeat.mjs` upserts one document in
+  `integrity_monitor_heartbeats`. `GET /api/health/integrity` returns **200** only for a completed
+  heartbeat at most **26 hours** old, and **503** for missing, stale, malformed or `NOT CHECKED`.
+  UptimeRobot checks it every five minutes. This is the only write; it touches no inventory, ledger,
+  PO, product, location, user or baseline row.
 - **Alert:** one GitHub issue titled `[inventory-integrity] New findings detected`; it is updated only
-  when the new set changes and closed after recovery. A NOT CHECKED run also alerts.
+  when the new set changes and closed after recovery. A NOT CHECKED run also alerts. The hosted
+  freshness endpoint is the independent alert for a monitor that stops running at all.
 - **Exit codes:** `0` no new finding, `1` new finding, `2` NOT CHECKED. Task Scheduler records `1`/`2`
   as a non-zero last result, but the issue is the actionable signal.
 

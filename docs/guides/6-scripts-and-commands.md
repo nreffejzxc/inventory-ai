@@ -500,6 +500,7 @@ the trigger. See [`INVENTORY_INTEGRITY.md`](../INVENTORY_INTEGRITY.md) and
 | `npm run audit:duplicates` | suspected historical duplicate ledger rows | ✅ reads |
 | `npm run audit:integrity` | orphan STOCK_IN rows / unreceipted PO receipts | ✅ reads |
 | `npm run audit:integrity:monitor` | the same audit against an accepted baseline; records local history and can open one issue for new findings | ✅ reads |
+| `npm run integrity:heartbeat` | publishes the latest aggregate result to the hosted freshness document | ✅ inventory; writes one heartbeat document |
 | `npm run verify:transfer-ui` | one device transfer run's six rows and final stock | ✅ reads |
 | `npm run backup:db` | recoverable copy (needs `BACKUP_DIR` outside the project) | ✅ reads; safe on production |
 | `npm run restore:db -- --from=…` | put a copy back (needs `CONFIRM=restore-db`) | ⚠️⚠️ test/dev only; `--dry-run` |

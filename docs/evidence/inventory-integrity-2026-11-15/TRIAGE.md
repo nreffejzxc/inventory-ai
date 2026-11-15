@@ -91,3 +91,17 @@ codebase.
 **No deletion or repair is approved by this document.** The recommended next action is to leave the
 rows in place, keep them in the baseline, and review any *new* finding the scheduled monitor reports.
 Any cleanup of the two synthetic tenants needs its own written approval and a backup first.
+
+## 2026-11-15 addendum — one finding resolved externally
+
+During the scheduler trigger proof, the monitor observed **1 resolved** finding and **0 new**:
+`ORPHAN_STOCK_IN:6aef380db94b2abdac698af8` (SteelSeries, `DEMO-8-8`, quantity 14) received a
+matching inventory row at **2026-11-15T09:43:59.735Z** (quantity 90), created by a new PO receipt
+(`PO-DEMO-00006`). Five `STOCK_IN` rows were written in the same few minutes; the scan count rose
+from 4,891 to **4,896**. This was an external write in the SteelSeries demo tenant, not a repair by
+the monitor, and no new orphan was introduced.
+
+The accepted baseline was deliberately **not** changed, as instructed. It still contains the
+resolved id, so the monitor will report `resolved: 1` on each run until an explicitly approved
+baseline refresh. The remaining SteelSeries orphan count is **14** (2,516 total: 2,502 perf-seed +
+14 SteelSeries).

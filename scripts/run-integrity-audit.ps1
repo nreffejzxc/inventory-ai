@@ -34,6 +34,20 @@ try {
         --history-dir="$historyDir" 2>&1
     $exitCode = $LASTEXITCODE
     foreach ($line in @($output)) { Write-SchedulerLog "$line" }
+
+    # Publish the hosted freshness signal after every attempt. A NOT CHECKED
+    # result is intentional: it makes the endpoint 503 now instead of leaving a
+    # previous fresh heartbeat in place. The writer touches one operational
+    # document; it never writes inventory, ledger, purchase-order or baseline data.
+    $heartbeatOutput = & $node server/scripts/write-integrity-heartbeat.mjs `
+        --with-production `
+        --history-dir="$historyDir" 2>&1
+    $heartbeatExit = $LASTEXITCODE
+    foreach ($line in @($heartbeatOutput)) { Write-SchedulerLog "$line" }
+    if ($heartbeatExit -ne 0) {
+        Write-SchedulerLog "ERROR: heartbeat writer exited $heartbeatExit; the hosted freshness endpoint will go stale"
+        if ($exitCode -eq 0) { $exitCode = 2 }
+    }
     Write-SchedulerLog "finished with exit $exitCode"
     exit $exitCode
 }
