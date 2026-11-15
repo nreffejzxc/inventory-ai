@@ -340,7 +340,8 @@ node scripts/device/run.mjs                                # read-only: 7 screen
 node scripts/device/run.mjs --all --sku=SMOKE-1             # + label PDF decode (needs a barcode)
 node scripts/device/run.mjs --journey=stock --sku=SMOKE-1 --source='Smoke shelf' --allow-writes
 node scripts/device/run.mjs --journey=transfer --sku=SMOKE-1 \
-  --source='Smoke shelf' --destination='Smoke' --allow-writes
+  --source='Smoke shelf' --destination='Smoke' --allow-writes \
+  --verify-ledger --verify-production
 node scripts/device/run.mjs --journey=draft --allow-writes
 node scripts/device/run.mjs --journey=stock --until=9       # stop after step 9, write state.json
 ```
@@ -356,6 +357,21 @@ It needs the phone and both tunnels, and exits **2** ("could not check") when a 
 missing — signed out, no debuggable build (the `label` journey reads the app's own PDFs), no product
 with that SKU, no barcode on it, or a picker with nothing to choose. Evidence lives in
 [`docs/evidence/device-runs`](evidence/device-runs/README.md).
+
+**The transfer journey now proves the refusal half too.** It checks the app's same-location warning
+and over-quantity warning, and each one is paired with `expectDisabled: 'Transfer stock'` — the
+button's own `enabled="false"` state, not just the warning text. It writes one unique reference per
+movement under `{{runId}}` (`-IN`, `-F`, `-R`, `-OUT`) and no `-SAME`/`-OVER` rows, because both
+refused submissions are blocked before a request is sent.
+
+`--verify-ledger` appends a read-only database check of those six rows: the two transfer references
+must each have exactly one leg on each side with the expected sign, both locations must net to zero,
+and each location's current quantity must equal its last run movement's `newQuantity`. It is passed
+the same `--run-id`, SKU and location names, so a repeat run cannot consume an older run's evidence.
+`--verify-production` makes that check read the production database; without it the verifier reads
+development. The check is also available on its own as
+`npm run verify:transfer-ui -- --run-id=… --sku=… --source=… --destination=…` from `server/`.
+**Nothing in the verifier writes.**
 
 A passing run means **data, not just screens**: `expectData` steps wait for a server-only label (a
 stock row's `33 available · 33 on hand`, a product's `SKU … · Barcode …`) and fail on an error state.

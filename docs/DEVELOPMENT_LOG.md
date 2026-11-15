@@ -54,6 +54,14 @@ The current production OTA is `2110458d-40ca-4975-813c-f182acb3e3aa`, published 
 on runtime `1.0.2`; the prior group was `39f78213-cc77-45f6-8b1b-0b9232b44a62` from `8b99f46`;
 local `main` contains the PR #287 merge `996e49b`, the PR #271 delivery `42229e5` (the current-position alignment) and the PR #275 reliability merge `cd4efcc`. The installed-app/audit entry is the newest below; the transfer follow-up, original stock-transfer, restock, stock-out, stock-value centavo and product-creation entries follow it.
 
+**Inventory reliability (2026-11-15, branch pending):** the working branch retries the full stock-in
+upsert after a duplicate key, adds the read-only `audit:integrity` command, and makes the installed-app
+transfer journey prove both directions, both refusals and the six ledger rows. Local checks pass, and
+the production phone run passed **60/60** with the fixture back at **3 / 0**. The production audit is
+read-only and found **2,517 orphan `STOCK_IN` rows** (2,502 synthetic perf-seed, 15 old
+`steelseries` demo rows) and **0 unreceipted PO receipts**; `rak gears` is clean. The audit exits 1
+because findings exist. Merge/deploy is still pending, so production remains `996e49b`.
+
 **Production product creation + required-name test (2026-11-14):** the designated test tenant
 `rak gears` now holds one test product, `Phone Smoke Product` (`PHONE-SMOKE-20261115`), and
 the original test location, `Phone Smoke Location`; the transfer check added `Phone Smoke Location 2`. After production stock-in verification the product held
@@ -181,6 +189,60 @@ Known limits, checked before spending one of them:
   space that a backup or an index change would explain.
 - **Brevo** — used for verification codes, reset codes and invitations. Do not send test mail in
   bulk; a delivery failure is not a code regression until the provider log says so.
+
+---
+
+## 2026-11-15 — Stock-in retry, read-only integrity audit, and automated transfer proof
+
+**Status.** PASS locally and on the production phone; the branch/PR is the remaining delivery step.
+The stock-in retry was hardened, the read-only inventory audit was added and run against production,
+and the installed-app transfer journey now covers both directions, both refusals, and the ledger.
+Only the test fixture `Phone Smoke Product` at the two smoke locations was written; the audit
+modified nothing. Production remains `996e49b` until this branch deploys.
+
+**Stock-in retry.** `inventoryService.stockIn` now retries the **whole upsert** after a duplicate-key
+race, up to three attempts, instead of retrying an update-only write. The old retry returned `null`
+if the winning row had been removed by its own compensation, which would let the loser write a
+ledger row with no inventory row. `createdRow` is tracked from the successful attempt, so
+compensation still chooses between deleting a newly created row and reverting an existing one. The
+new regression in `phase07a-inventory-compensation.test.mjs` simulates the winner inserting at 7,
+removing that row, and throwing `E11000`; the loser must insert its own row and leave exactly one
+ledger row. Phase 07A passed **10/10**.
+
+**Read-only audit.** `npm run audit:integrity` reports (1) a `STOCK_IN` with no exact
+business/product/location inventory row and (2) a `STOCK_IN` with `reason: "PO receipt"` and a PO
+number whose receipts reference no movement for it — the signature of an ambiguous finalize that
+may have applied. It defaults to all history, accepts one tenant or a bounded window, and is fixed
+to development, or production only with `--with-production`; there is no free-form database flag
+and no repair flag. Both read-only CLIs disable Mongoose `autoIndex`/`autoCreate`, so connecting
+cannot build indexes. The audit passed **22/22** against real MongoDB fixtures, including tenant and
+cutoff controls, plus a source scan that fails if a write call or index build is reintroduced.
+
+**Production audit finding.** The read-only run scanned **4,889** `STOCK_IN` rows and found
+**2,517 orphans** and **0 unreceipted PO receipts**. It exited **1** by contract, not as a pass. The
+findings are confined to the synthetic `PERF SEED — AI assistant stress test (do not use)` tenant
+(**2,502**, mostly `Seeded movement` plus 286 perf-seed `Purchase order receipt` rows) and
+`steelseries` (**15** old `Shop Front` demo-seed movements). The test tenant `rak gears` is clean.
+No row, inventory quantity, PO or index was changed; the evidence records the finding for an owner
+decision rather than deleting history.
+
+**Installed-app transfer.** The installed `com.inventoryai.app` **1.0.2** on CPH1969 / Android 11
+ran the production journey with `--verify-ledger --verify-production`: **60/60 steps passed, exit
+0**. It stocked one unit in, transferred it across and back, refused the same-location and
+over-quantity forms (each with the submit’s own `enabled="false"`, not only the warning), stocked
+one out, and left the fixture at **3 at `Phone Smoke Location`, 0 at `Phone Smoke Location 2`**.
+The read-only verifier read back exactly **6 rows** under
+`PHONE-TRF-2026-11-15T03-54-10-861Z-{IN,F,R,OUT}`, with no `SAME`/`OVER` rows, net **0** at both
+locations. Running it exposed four harness defects that are now fixed and tested: `{{runId}}` was
+not substituted into a typed value, a slow location picker was re-tapped until it toggled closed,
+the warning banner is above the fold and had to be scrolled into the accessibility tree, and opening
+the same transfer deep link while its form was mounted did not reset it. Harness self-test is
+**122 steps**; the harness suites pass **80/80**.
+
+**Limit.** The audit’s production finding is a candidate list, not a repair; no operational
+inventory was touched. Android only; no iOS device. Evidence:
+[`inventory-integrity-2026-11-15`](evidence/inventory-integrity-2026-11-15/README.md) and
+[`2026-11-15T03-54-10-861Z-transfer`](evidence/device-runs/2026-11-15T03-54-10-861Z-transfer).
 
 ---
 

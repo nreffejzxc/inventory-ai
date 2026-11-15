@@ -20,6 +20,7 @@ export const STEP_VERBS = Object.freeze([
   'open', // a deep link, e.g. inventoryai://dashboard
   'expect', // wait until this text is on screen
   'expectGone', // wait until this text is NOT on screen
+  'expectDisabled', // wait until this label exists and its accessibility node is disabled
   'tap', // tap the node whose label is this (exact match preferred)
   'tapFirst', // tap the first row below a sheet heading — the list item, not the heading
   'type', // type into the focused field
@@ -73,6 +74,9 @@ export function parseDump(xml) {
       raw: label,
       className: attrs.class ?? '',
       clickable: attrs.clickable === 'true',
+      // Android's `enabled` is the app's own disabled state. A missing attribute is
+      // treated as enabled: only an explicit `false` may make a refusal test pass.
+      enabled: attrs.enabled !== 'false',
       bounds: { x1, y1, x2, y2 },
       // A dump taken during a scroll or a transition can carry inverted boxes (`y2` above `y1`):
       // the label is right and the geometry is nonsense. Measured on the PO form, where the centre
@@ -142,6 +146,25 @@ export function findTapTarget(nodes, text, options = {}) {
     (node) => !node.brokenBounds && node.clickable && wanted !== '' && node.label.includes(wanted),
   );
   return container ?? hits[0];
+}
+
+/**
+ * The node carrying `text` whose accessibility state is explicitly disabled.
+ *
+ * The app's transfer form renders a warning AND disables `Transfer stock` for a
+ * same-location or over-quantity attempt. A test that only looked for the warning
+ * would pass even if the button were still live, so the refusal is pinned to the
+ * button's own `enabled="false"`. A missing node or a missing attribute returns
+ * null: only an observed disabled control may pass.
+ */
+export function disabledTarget(nodes, text) {
+  const wanted = String(text ?? '');
+  if (!wanted) return null;
+  return (
+    findNodes(nodes ?? [], wanted)
+      .filter((node) => !node.brokenBounds)
+      .find((node) => node.enabled === false) ?? null
+  );
 }
 
 /**
@@ -670,6 +693,9 @@ export function validateJourneys(journeys) {
       const value = step[verb];
       if ((verb === 'expect' || verb === 'expectGone') && (typeof value !== 'string' || !value.trim())) {
         problems.push(`${at}: expect with an empty value`);
+      }
+      if (verb === 'expectDisabled' && (typeof value !== 'string' || !value.trim())) {
+        problems.push(`${at}: expectDisabled needs the control's label`);
       }
       if ((verb === 'tap' || verb === 'tapFirst' || verb === 'open') && (typeof value !== 'string' || !value.trim())) {
         problems.push(`${at}: ${verb} with an empty value`);

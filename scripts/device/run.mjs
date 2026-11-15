@@ -33,6 +33,7 @@
  * session, no debuggable build, no artifact) — never reported as a pass.
  */
 
+import { execFileSync } from 'node:child_process';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
@@ -40,6 +41,7 @@ import * as device from './adb.mjs';
 import { DeviceUnavailable } from './adb.mjs';
 import {
   describeListState,
+  disabledTarget,
   escapeInputText,
   exitCodeFor,
   fieldBelow,
@@ -83,7 +85,14 @@ const CHROME = new Set(['Done', 'Dismiss', 'Search…', 'Search...', 'Cancel', '
 const sleep = (ms) => new Promise((done) => setTimeout(done, ms));
 
 function parseArgs(argv) {
-  const args = { journeys: [], allowWrites: false, all: false, timeoutMs: 15_000 };
+  const args = {
+    journeys: [],
+    allowWrites: false,
+    verifyLedger: false,
+    verifyProduction: false,
+    all: false,
+    timeoutMs: 15_000,
+  };
   for (const raw of argv) {
     const [flag, ...rest] = raw.replace(/^--/, '').split('=');
     const value = rest.join('=');
@@ -102,6 +111,15 @@ function parseArgs(argv) {
         break;
       case 'allow-writes':
         args.allowWrites = true;
+        break;
+      case 'verify-ledger':
+        args.verifyLedger = true;
+        break;
+      case 'verify-production':
+        args.verifyProduction = true;
+        break;
+      case 'business':
+        args.businessId = value;
         break;
       case 'sku':
         args.sku = value;
@@ -153,6 +171,7 @@ function titleOf(step, ctx) {
   if (verb === 'open') return `open ${value}`;
   if (verb === 'expect') return `expect "${value}"`;
   if (verb === 'expectGone') return `expect "${value}" to be gone`;
+  if (verb === 'expectDisabled') return `expect "${value}" to be disabled`;
   if (verb === 'tap') return `tap "${value}"`;
   if (verb === 'tapFirst') return `tap the first row under "${value}"`;
   if (verb === 'type') return 'type into the focused field';
@@ -168,6 +187,9 @@ function titleOf(step, ctx) {
   if (verb === 'findProduct') {
     const sku = ctx ? fillTemplate(value?.sku ?? '', templateVars(ctx)) : (value?.sku ?? '');
     return `find the product with SKU ${sku} through the products search`;
+  }
+  if (verb === 'verifyTransfer') {
+    return 'verify the six movements and final stock against MongoDB';
   }
   if (verb === 'pick') {
     const option = ctx ? fillTemplate(value?.option ?? '', templateVars(ctx)) : (value?.option ?? '');
@@ -193,6 +215,7 @@ function templateVars(ctx) {
     productName: ctx.productName,
     source: ctx.source,
     destination: ctx.destination,
+    runId: ctx.runId,
   };
 }
 
@@ -248,6 +271,34 @@ async function runStep(step, ctx) {
       return {
         status: 'fail',
         detail: `expected "${want}" within ${ctx.timeoutMs}ms; screen showed: ${
+          last ? visibleLabels(last) : 'nothing readable'
+        }`,
+      };
+    }
+
+    case 'expectDisabled': {
+      const resolved = resolveStepText(value, ctx);
+      if (resolved.missing) return { status: 'blocked', detail: `expectDisabled ${value} ${resolved.missing}` };
+      const wanted = resolved.text;
+      const deadline = Date.now() + ctx.timeoutMs;
+      let last = null;
+
+      while (Date.now() < deadline) {
+        try {
+          const screen = await device.readScreen(adbArgs);
+          last = screen;
+          if (disabledTarget(screen.nodes, wanted)) {
+            return { status: 'pass', detail: `"${wanted}" is disabled` };
+          }
+        } catch {
+          // An unreadable screen is not evidence either way; keep trying.
+        }
+        await sleep(500);
+      }
+
+      return {
+        status: 'fail',
+        detail: `"${wanted}" was not observed disabled within ${ctx.timeoutMs}ms; screen showed: ${
           last ? visibleLabels(last) : 'nothing readable'
         }`,
       };
@@ -349,8 +400,16 @@ async function runStep(step, ctx) {
     }
 
     case 'type': {
-      // Copied: `into` is resolved below and the journey table is shared data, not run state.
+      // Copied: both the value and `into` are resolved below, and the journey table
+      // is shared data, not run state. Resolving only `into` let
+      // `PHONE-TRF-{{runId}}-IN` reach the form as literal text (measured on the
+      // first transfer run, 2026-11-15), so the verifier could not find its rows.
       const spec = typeof value === 'string' ? { value } : { ...value };
+      const valueResolved = resolveStepText(spec.value, ctx);
+      if (valueResolved.missing) {
+        return { status: 'blocked', detail: `type value ${spec.value} ${valueResolved.missing}` };
+      }
+      spec.value = valueResolved.text;
       let field = null;
       if (spec.into) {
         const resolved = resolveStepText(spec.into, ctx);
@@ -892,6 +951,60 @@ async function runStep(step, ctx) {
       };
     }
 
+    case 'verifyTransfer': {
+      if (!ctx.verifyLedger) {
+        return { status: 'blocked', detail: 'the run did not ask for --verify-ledger' };
+      }
+      const missing = [ctx.runId, ctx.sku, ctx.source, ctx.destination].filter((v) => !v);
+      if (missing.length) {
+        return { status: 'blocked', detail: `transfer verification needs ${missing.join(', ')}` };
+      }
+
+      const script = join(ROOT, 'server', 'scripts', 'verify-transfer-ui.mjs');
+      const scriptArgs = [
+        script,
+        `--run-id=${ctx.runId}`,
+        `--sku=${ctx.sku}`,
+        `--source=${ctx.source}`,
+        `--destination=${ctx.destination}`,
+        '--format=json',
+      ];
+      if (ctx.businessId) scriptArgs.push(`--business=${ctx.businessId}`);
+      if (ctx.verifyProduction) scriptArgs.push('--with-production');
+
+      try {
+        const stdout = execFileSync(process.execPath, scriptArgs, {
+          cwd: join(ROOT, 'server'),
+          encoding: 'utf8',
+          timeout: 60_000,
+        });
+        const payload = JSON.parse(stdout);
+        return {
+          status: 'pass',
+          detail:
+            `${payload.rows} row(s) reconcile; source ${payload.source.quantity}, ` +
+            `destination ${payload.destination.quantity}; nothing was modified`,
+        };
+      } catch (err) {
+        let payload = null;
+        try {
+          payload = JSON.parse(err.stdout || '');
+        } catch {
+          payload = null;
+        }
+        const errors = payload?.result?.errors;
+        if (Array.isArray(errors) && errors.length) {
+          return { status: 'fail', detail: errors.join(' | ') };
+        }
+        const detail = String(err.stderr || err.stdout || err.message || err)
+          .trim()
+          .split('\n')
+          .slice(-3)
+          .join(' | ');
+        return { status: err.status === 2 ? 'blocked' : 'fail', detail };
+      }
+    }
+
     default:
       return { status: 'fail', detail: `the runner has no implementation for "${verb}"` };
   }
@@ -921,6 +1034,15 @@ async function runJourney(journey, options) {
   const outDir = options.out ?? join(DEFAULT_EVIDENCE, `${stamp}-${journey.id}`);
   mkdirSync(outDir, { recursive: true });
 
+  // One id ties every row this run writes together. It reaches the form through
+  // the `{{runId}}` placeholder and the verifier through `--run-id`, so a repeat
+  // run cannot mistake an older run's movements for its own.
+  const runId = stamp;
+  const stepsForRun =
+    options.verifyLedger && journey.id === 'transfer'
+      ? [...journey.steps, { verifyTransfer: true }]
+      : journey.steps;
+
   const ctx = {
     outDir,
     serial: options.serial,
@@ -929,13 +1051,17 @@ async function runJourney(journey, options) {
     productName: null,
     source: options.source,
     destination: options.destination,
+    runId,
+    verifyLedger: options.verifyLedger,
+    verifyProduction: options.verifyProduction,
+    businessId: options.businessId,
     timeoutMs: options.timeoutMs,
     pdfBaseline: [],
   };
 
   // The baseline is taken BEFORE the journey so `decodeLabel` can tell the PDF this run wrote from
   // the ones earlier runs left in the cache.
-  if (journey.steps.some((step) => step.decodeLabel)) {
+  if (stepsForRun.some((step) => step.decodeLabel)) {
     try {
       ctx.pdfBaseline = device.appPdfs({ adbPath: ctx.adbPath, serial: ctx.serial });
     } catch (err) {
@@ -945,7 +1071,7 @@ async function runJourney(journey, options) {
   }
 
   const steps = [];
-  for (const [index, step] of journey.steps.entries()) {
+  for (const [index, step] of stepsForRun.entries()) {
     const title = titleOf(step, ctx);
     const began = Date.now();
     let result;
@@ -999,6 +1125,7 @@ async function runJourney(journey, options) {
   const run = {
     journey: journey.id,
     startedAt,
+    runId,
     device: options.deviceLabel,
     steps,
     notes: `evidence: ${outDir}`,

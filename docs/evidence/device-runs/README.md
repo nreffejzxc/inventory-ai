@@ -146,6 +146,35 @@ the symptom and the workaround without the diagnosis. And on the product/locatio
 missing from the dump while their labels are present, so those forms must be driven by geometry (tap
 below the label) rather than by an `EditText` node.
 
+**2026-11-15 — the installed 1.0.2 build against production, with the ledger read back.** The
+CPH1969 run used the production tenant `rak gears` and only the fixture `Phone Smoke Product`
+(`PHONE-SMOKE-20261115`), `Phone Smoke Location` and `Phone Smoke Location 2`:
+
+```bash
+node scripts/device/run.mjs --journey=transfer --sku=PHONE-SMOKE-20261115 \
+  --source="Phone Smoke Location" --destination="Phone Smoke Location 2" \
+  --allow-writes --verify-ledger --verify-production
+```
+
+| directory | what it shows | result |
+|---|---|---|
+| `2026-11-15T03-54-10-861Z-transfer` | one stock-in, forward and reverse transfers, both refusals with the submit disabled, one stock-out; `PHONE-TRF-<runId>-{IN,F,R,OUT}` with no `SAME`/`OVER` rows; the verifier read back **6 rows**, source **3**, destination **0**, both net zero | **60/60 pass, exit 0** |
+
+The run's own verifier step reported *“6 row(s) reconcile; source 3, destination 0; nothing was
+modified”*. A standalone read of the same run produced `result.ok: true`, `checkedRows: 6`, and
+net `0` at both locations. The final screenshot is
+[`transfer-done.png`](2026-11-15T03-54-10-861Z-transfer/transfer-done.png); the step-by-step
+report is [`report.md`](2026-11-15T03-54-10-861Z-transfer/report.md).
+
+That run also exposed four harness defects, all fixed and pinned by `device-harness.test.mjs`:
+`{{runId}}` was not substituted into a typed value (the first attempt wrote literal
+`PHONE-TRF-{{runId}}-IN` rows); a slowly loading location picker was re-tapped until it toggled
+closed (locations now use `pick`); the refusal banners sit **above** the form and were clipped out
+of the accessibility tree until the journey scrolled up; and opening the same transfer deep link
+while its form was mounted did not reset it (the over-quantity form now goes via the dashboard).
+The refusal checks are still pinned to `enabled="false"` on `Transfer stock`, not only to the
+warning copy.
+
 **What these runs do NOT prove.** iOS (no macOS on this host — Phase 30B stays open), physical paper
 (no printer; the PDF decode rules out clipped or distorted bars but it is not a scan of paper), and a
 camera reading a barcode in the room, which stays a manual item — though that too has now been done
@@ -161,8 +190,16 @@ node scripts/device/run.mjs --all --sku=SMOKE-1            # read-only: smoke + 
 node scripts/device/run.mjs --journey=draft --allow-writes # writes to the tenant
 node scripts/device/run.mjs --journey=stock --sku=SMOKE-1 --source="Smoke shelf" --allow-writes
 node scripts/device/run.mjs --journey=transfer --sku=SMOKE-1 --source="Smoke shelf" \
-  --destination="Smoke" --allow-writes
+  --destination="Smoke" --allow-writes --verify-ledger --verify-production
 ```
+
+The transfer journey now covers the forward move, the reverse move, the same-location refusal and
+the over-quantity refusal, with each refusal pinned to the disabled `Transfer stock` control. The
+optional `--verify-ledger` step reads the six referenced rows back from MongoDB and checks the sign,
+the net-zero arithmetic and each location's final quantity against its last run movement. Add
+`--verify-production` when the phone is signed in to the production tenant; the read-only verifier
+then reads the production database. Its output is part of the run report and its own JSON result can
+be produced with `npm run verify:transfer-ui` from `server/`.
 
 Exit codes follow the repository's convention: **0** every step passed, **1** a step failed (the app
 did something wrong), **2** a step was blocked (no device, no session, no debuggable build, no
