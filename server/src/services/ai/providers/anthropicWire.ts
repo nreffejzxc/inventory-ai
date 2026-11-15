@@ -644,6 +644,7 @@ export function createAnthropicCompatibleProvider(opts: AnthropicCompatibleOptio
       system,
       messages,
       tools,
+      toolChoice,
       timeoutMs,
       signal,
       model: requestedModel,
@@ -707,6 +708,10 @@ export function createAnthropicCompatibleProvider(opts: AnthropicCompatibleOptio
         // AI-50 — a turn's answer round passes no tools, and an empty `tools: []` is not the
         // same request as none: the key is omitted entirely when there is nothing to offer.
         ...(requestTools.length > 0 ? { tools: requestTools } : {}),
+        // AI-116 — a narrowing follow-up names the filter tool on its first call.
+        ...(toolChoice && requestTools.length > 0
+          ? { tool_choice: { type: 'tool', name: toolChoice.name } }
+          : {}),
         // AI-54 — reasoning shares `max_tokens` with the answer on this gateway, and the
         // measured model spent the ENTIRE budget on `thinking` blocks (400/400, no text),
         // so the assistant asks for it to be off. The reason, the measurements and the

@@ -25685,7 +25685,7 @@ tenant teardown deletes the collection. No AI tool can read or write feedback.
 change, DOWN reason enforcement, and tenant/member isolation including the review query. The mobile
 `ai115-answer-footer.test.tsx` passed **7/7**, covering UP, DOWN reason/note, changing a rating and
 reload; `ai115-feedback-review.test.tsx` passed **3/3**, covering the bounded report, the REVIEWED
-write and the MANAGER access denial. The full server unit suite passed **2,117 / 66 skipped / 0
+write and the MANAGER access denial. The full server unit suite passed **2,118 / 66 skipped / 0
 failed** (434 suites); the full mobile Jest run passed **110 suites / 1,268 tests**; server and
 mobile `tsc --noEmit` passed; targeted server ESLint passed. Production deploy,
 OTA and the mirrored-OPPO pass are recorded after delivery; at the time of this record the change
@@ -25729,11 +25729,12 @@ re-checks the caller's business and accepts no tenant argument. The set is serve
 message in the same conversation. No write path, inventory transaction, model discretion over
 `businessId` or client-side id lookup was added.
 
-**Verification.** `AI116-follow-up-context.test.mjs` passed **5/5** pure tests and **3/3** DB tests:
+**Verification.** `AI116-follow-up-context.test.mjs` passed **6/6** pure tests and **3/3** DB tests:
 referent detection, bounded membership extraction, reference-source labelling, filter rewrite and fresh stock re-read with
-tenant isolation. Mobile `ai116-answer-context.test.tsx` passed **4/4**: freshness text, Inspect
+tenant isolation, plus a filtered read counting as inventory and seeding the next set. A first-call
+required-tool choice stops a recognised follow-up from answering without reading its set. Mobile `ai116-answer-context.test.tsx` passed **4/4**: freshness text, Inspect
 detail, `No data read` and legacy fallback. Server and mobile `tsc --noEmit` passed; targeted
-server ESLint passed; the full server unit suite passed **2,117 / 66 skipped / 0 failed** and the
+server ESLint passed; the full server unit suite passed **2,118 / 66 skipped / 0 failed** and the
 full mobile run **110 suites / 1,268 tests**. Production deploy, OTA and the mirrored-OPPO pass are recorded after
 delivery; at the time of this record the change is implementation-tested only.
 

@@ -51,11 +51,14 @@ with bounded excerpts and an OPEN/REVIEWED toggle through `ai.metrics.view`; MAN
 not see the entry. The previous answer now leaves a bounded product-id set, and an explicit
 referent such as “which of those” offers `filterPreviousResults`, which re-reads current stock for
 exactly those ids with the new category/location/stock filter. A new question never inherits the
-old scope; no cached quantity is used. Every new answer also stores retrieval time, tools, source
+old scope; no cached quantity is used. The first provider call of a recognised follow-up names
+`filterPreviousResults` as its required tool, because an on-device probe found the model answering
+“no such category” without reading the previous set; a filtered read is also counted as
+`Inventory records` and can seed the next follow-up. Every new answer also stores retrieval time, tools, source
 classes, product count, total and filters, rendered as one freshness line with **Inspect**; an
 answer that read nothing says `No data read`. Focused tests pass: AI-115 server **3/3**, footer
-**7/7** and review **3/3**; AI-116 pure **5/5**, DB **3/3** and mobile **4/4**. The full server unit suite passed
-**2,117 / 66 skipped / 0 failed** (434 suites), the full mobile Jest run passed **110 suites /
+**7/7** and review **3/3**; AI-116 pure **6/6**, DB **3/3** and mobile **4/4**. The full server unit suite passed
+**2,118 / 66 skipped / 0 failed** (434 suites), the full mobile Jest run passed **110 suites /
 1,268 tests**, the documentation guards passed **25/25**, and both typechecks and targeted ESLint
 pass. **Not yet deployed, OTA-published or phone-verified.** Records §27IG/§27IH.
 

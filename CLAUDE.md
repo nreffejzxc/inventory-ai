@@ -703,6 +703,7 @@ getProductsNeverSold
 getReorderNeededProducts
 getStockValue
 getCatalogOverview
+filterPreviousResults
 getInventorySummary
 getLocationBreakdown
 getInventoryHistory
@@ -722,6 +723,12 @@ permission of the capability they serve and can narrow nobody. `findProducts`
 adds exact identity lookup (AI-91); `getStockValue` groups by recorded currency;
 the two research tools are the gated web-research fallback described in Guide 17.
 No tool writes.
+
+`filterPreviousResults` is offered only when the immediately previous answer left a bounded
+product-id set and the member's question explicitly refers to it (`which of those`, `among them`).
+It re-reads current stock for those products under the authenticated business and applies only a
+category, location, low/out-of-stock filter; it cannot broaden the set. The first provider call of
+such a follow-up names it as the required tool, so the narrowing read is not left to model choice.
 
 AI tools must receive authenticated user context.
 

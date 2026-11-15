@@ -89,6 +89,15 @@ export interface ProviderRequest {
    */
   tools?: ToolDefinition[];
   /**
+   * AI-116 — a follow-up's FIRST call names the one tool the model must use.
+   *
+   * The prompt already says to filter the previous set, but the model can answer
+   * from memory instead. Naming the tool here makes the narrowing read happen
+   * rather than trusting the model to choose it. Optional: absent on every
+   * ordinary turn, and on the follow-up's answer round once the read is done.
+   */
+  toolChoice?: { name: string };
+  /**
    * AI-86 — whether this turn asks for public-web research.
    *
    * Optional and provider-neutral: a provider with built-in server tools can withhold

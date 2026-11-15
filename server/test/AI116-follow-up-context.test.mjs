@@ -22,6 +22,8 @@ import {
   filterLabels,
   isPreviousResultFollowUp,
   productIdsFromToolResult,
+  sourcesForTools,
+  toolReadContext,
 } from '../src/services/ai/answerContext.ts';
 
 const { dbOk, baseUrl, server } = await startServer();
@@ -136,6 +138,30 @@ unitSuite('AI-116 — the stored context is small, readable and honest', () => {
     });
     assert.deepEqual(context.sources, ['Inventory records']);
     assert.equal(context.productCount, 0);
+  });
+
+  it('★ a filtered answer names inventory and can seed the next follow-up', () => {
+    const read = toolReadContext(
+      'filterPreviousResults',
+      { category: 'Keyboards & Mice', limit: 20 },
+      { result: { items: [{ id: PRODUCT_A }], count: 1 } },
+      '2026-11-15T12:00:00.000Z',
+    );
+    assert.equal(read?.productIds[0], PRODUCT_A);
+    assert.equal(read?.total, 1);
+    assert.deepEqual(sourcesForTools(['filterPreviousResults']), ['Inventory records']);
+
+    const context = buildAnswerContext({
+      tools: ['filterPreviousResults'],
+      retrievedAt: '2026-11-15T12:00:00.000Z',
+      read,
+    });
+    assert.deepEqual(context.sources, ['Inventory records']);
+    assert.equal(context.productCount, 1);
+    assert.deepEqual(context.filters, [
+      { label: 'Category', value: 'Keyboards & Mice' },
+      { label: 'Limit', value: '20' },
+    ]);
   });
 });
 
