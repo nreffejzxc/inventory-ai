@@ -51,7 +51,7 @@ staging drills/evidence and the AI-107 finalizer. Before it, production served `
 reliability merge), `8245e54` (PR #273), `304e2ea` (PR #272) and `65d9ef1` (PR #270).
 The current production OTA is `2110458d-40ca-4975-813c-f182acb3e3aa`, published from `a7be9cd`
 on runtime `1.0.2`; the prior group was `39f78213-cc77-45f6-8b1b-0b9232b44a62` from `8b99f46`;
-local `main` contains the PR #271 delivery `42229e5` (the current-position alignment) and the PR #275 reliability merge `cd4efcc`. The stock-transfer entry is the newest below; the restock, stock-out, stock-value centavo and product-creation entries follow it.
+local `main` contains the PR #271 delivery `42229e5` (the current-position alignment) and the PR #275 reliability merge `cd4efcc`. The transfer follow-up entry is the newest below; the original stock-transfer entry, restock, stock-out, stock-value centavo and product-creation entries follow it.
 
 **Production product creation + required-name test (2026-11-14):** the designated test tenant
 `rak gears` now holds one test product, `Phone Smoke Product` (`PHONE-SMOKE-20261115`), and
@@ -60,7 +60,7 @@ the original test location, `Phone Smoke Location`; the transfer check added `Ph
 force-stop/cold start. The stock-out checks then blocked a 7-unit attempt, recorded a valid `6 → 4`
 movement, and took the product to **0 units** through a repeated-press boundary test. A 3-unit
 restock then returned it to **3 units**, with **In stock 1**, **Low stock 0**, **Out of stock 0**,
-and six movements; the product is healthy above its minimum of 2. After the transfer check, those 3 units are split across the two test locations (1 at `Phone Smoke Location`, 2 at `Phone Smoke Location 2`), with eight movements. The empty-name retest on the same production build focused the
+and six movements; the product is healthy above its minimum of 2. After the transfer follow-up, all 3 units are back at `Phone Smoke Location`; `Phone Smoke Location 2` is at 0 and the product has ten movements. The empty-name retest on the same production build focused the
 name field and showed `Name is required`; PR #278 merged as `a7be9cd`, and the component test merged
 as PR #279 (`6b6ef1f`). A 5-unit movement then a double-pressed 1-unit movement produced exactly
 `0 → 5` and `5 → 6`, not a duplicate. The stock-value answer initially rendered the exact `94.50`
@@ -70,8 +70,9 @@ as `PHP 95`; PR #282 fixed only the monetary formatter, and the production retes
 [stock-in evidence](evidence/stock-in-2026-11-14/README.md) /
 [centavo evidence](evidence/stock-value-cents-2026-11-14/README.md) /
 [stock-out evidence](evidence/stock-out-and-negative-2026-11-14/README.md) /
-[restock evidence](evidence/restock-2026-11-14/README.md). The transfer check is recorded in
-[transfer evidence](evidence/transfer-2026-11-14/README.md).
+[restock evidence](evidence/restock-2026-11-14/README.md). The transfer checks are recorded in
+[transfer follow-up evidence](evidence/transfer-followups-2026-11-14/README.md) and
+[the original transfer evidence](evidence/transfer-2026-11-14/README.md).
 
 Production's 25-question zero-cost gate remains blocked; the staging gate passed **25/25** at
 **$0**, and the P3 drill passed with a real HTTP `503` and a tool-grounded free fallback. The two
@@ -178,6 +179,49 @@ Known limits, checked before spending one of them:
   space that a backup or an index change would explain.
 - **Brevo** — used for verification codes, reset codes and invitations. Do not send test mail in
   bulk; a delivery failure is not a code regression until the provider log says so.
+
+---
+
+## 2026-11-14 — Reverse and refused transfers, with permanent idempotency coverage
+
+**Status.** PASS. The 2 units returned from `Phone Smoke Location 2` to `Phone Smoke Location`, both
+invalid transfer forms were refused without moving stock or writing a ledger row, and the existing
+DB-backed transfer idempotency test now pins both ledger entries and duplicate delivery. Only the two
+test locations and the `Phone Smoke Product` fixture were used. No operational location or inventory
+was touched, and no server code, configuration, AI model or OTA changed.
+
+**Reverse.** Before the reverse, `Phone Smoke Location` held **1** and `Phone Smoke Location 2` held
+**2**. A 2-unit API transfer with reason `Production reverse stock-transfer validation` and reference
+`SMOKE-TRANSFER-002` moved the destination `2 → 0` and the source `1 → 3`. Two `TRANSFER` rows were
+written: the source leg was previous 2/new 0 and the destination leg was previous 1/new 3. History
+grew from **8 to 10**, and the duplicate delivery replayed the same `201` response with both
+transaction ids and added no row.
+
+**Invalid requests.** A 1-unit transfer from `Phone Smoke Location` to itself was rejected with
+`400 VALIDATION_ERROR`; the field error was on `toLocationId` (`must differ from fromLocationId`).
+With **3 units** available, a 4-unit transfer to `Phone Smoke Location 2` was rejected with
+`409 INSUFFICIENT_STOCK`. After both refusals the source was still **3**, the destination still **0**,
+history was still **10**, and neither reference existed in the ledger.
+
+**Permanent coverage.** The focused transfer case in
+[`server/test/INVENTORY-IDEMPOTENCY.test.mjs`](../server/test/INVENTORY-IDEMPOTENCY.test.mjs) now
+asserts the source and destination arithmetic, exactly one `TRANSFER` row per location with the
+correct previous/new quantities, identical response transaction ids on replay, an unchanged
+history total on the second delivery, and an unchanged product total. It stays in the existing
+idempotency suite rather than duplicating its setup in a second file. Focused run:
+`TEST_MODE=db node --test --test-name-pattern="writes both legs once" test/INVENTORY-IDEMPOTENCY.test.mjs`
+→ **1 pass, 0 fail**; the complete idempotency file passed **10/10**, and ESLint on it exited 0. The
+existing Phase 19 transfer test still covers the same-location and over-quantity refusal paths.
+
+**Production state.** `/api/health` at 18:16Z reported `status: ok`, `db: connected`, commit
+`cb4fcf752c03fe138c8091761f6c2119fb6dfa9c`, 0 `5xx`; `/api/health/ready` returned 200. The product
+is back at **3 units at `Phone Smoke Location`**, `Phone Smoke Location 2` is at **0**, total on-hand
+is **3**, and history has **ten movements**. Evidence:
+[`transfer-followups-2026-11-14`](evidence/transfer-followups-2026-11-14/README.md).
+
+**Limit.** The production checks were driven through the API, not the phone UI; no app screenshot
+was captured. The permanent test ran against `inventoryai_test_db`, not production. The test-only
+destination remains active with no stock.
 
 ---
 

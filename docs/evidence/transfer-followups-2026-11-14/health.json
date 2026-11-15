@@ -1,0 +1,1 @@
+{"status":"ok","db":"connected","environment":"production","commit":"cb4fcf752c03fe138c8091761f6c2119fb6dfa9c","uptimeSeconds":4432,"counters":{"uptimeSeconds":4427,"responses":1192,"byStatusClass":{"2xx":1126,"3xx":63,"4xx":3,"5xx":0,"other":0},"serverErrors":0,"lastServerErrorAt":null},"timestamp":"2026-11-14T18:17:47.144Z"}

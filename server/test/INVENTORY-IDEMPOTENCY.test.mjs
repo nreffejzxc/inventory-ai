@@ -275,6 +275,8 @@ dbSuite('Inventory idempotency — one operation, one movement', dbOk, () => {
         body: { productId, locationId, quantity: 10 },
       });
       assert.equal(seed.status, 201, JSON.stringify(seed.json));
+      const sourceBefore = await row(business, productId, locationId);
+      assert.equal(sourceBefore.quantity, sourceBefore.availableQuantity, 'the source is unreserved');
 
       const key1 = key('transfer');
       const body = {
@@ -289,6 +291,18 @@ dbSuite('Inventory idempotency — one operation, one movement', dbOk, () => {
         idempotencyKey: key1,
       });
       assert.equal(first.status, 201, JSON.stringify(first.json));
+      assert.equal(first.json.previousQuantity, sourceBefore.quantity, 'the source starts where the seed left it');
+      assert.equal(first.json.newQuantity, sourceBefore.quantity - 4, 'the source loses exactly four');
+      assert.equal(first.json.destinationPreviousQuantity, 0, 'the destination starts empty');
+      assert.equal(first.json.destinationNewQuantity, 4, 'the destination gains exactly four');
+
+      const afterFirst = await history(business, productId);
+      const firstLegs = afterFirst.items.filter(
+        (row) => row.type === 'TRANSFER' && row.reference === first.json.reference
+      );
+      assert.equal(firstLegs.length, 2, 'the first delivery writes exactly two legs');
+      assert.equal(await row(business, productId, locationId).then((r) => r.quantity), sourceBefore.quantity - 4);
+      assert.equal(await row(business, productId, destinationId).then((r) => r.quantity), 4);
 
       const second = await api('POST', '/api/inventory/transfer', {
         token: business.token,
@@ -297,14 +311,40 @@ dbSuite('Inventory idempotency — one operation, one movement', dbOk, () => {
       });
       assert.equal(second.status, 201, JSON.stringify(second.json));
       assert.equal(second.json.reference, first.json.reference);
+      assert.equal(second.json.transaction.id, first.json.transaction.id, 'the replay is the same source leg');
+      assert.equal(
+        second.json.destinationTransaction.id,
+        first.json.destinationTransaction.id,
+        'the replay is the same destination leg'
+      );
 
-      const legs = (await history(business, productId)).items.filter(
+      const afterSecond = await history(business, productId);
+      assert.equal(afterSecond.total, afterFirst.total, 'a duplicate delivery adds no ledger row');
+      const legs = afterSecond.items.filter(
         (row) => row.type === 'TRANSFER' && row.reference === first.json.reference
       );
       assert.equal(legs.length, 2, 'a transfer has exactly two legs, however many times it is delivered');
 
+      const sourceLeg = legs.find((leg) => leg.location?.id === String(locationId));
+      const destinationLeg = legs.find((leg) => leg.location?.id === String(destinationId));
+      assert.ok(sourceLeg, 'the source ledger row exists');
+      assert.ok(destinationLeg, 'the destination ledger row exists');
+      assert.equal(sourceLeg.quantity, 4);
+      assert.equal(sourceLeg.previousQuantity, sourceBefore.quantity);
+      assert.equal(sourceLeg.newQuantity, sourceBefore.quantity - 4);
+      assert.equal(destinationLeg.quantity, 4);
+      assert.equal(destinationLeg.previousQuantity, 0);
+      assert.equal(destinationLeg.newQuantity, 4);
+
+      const source = await row(business, productId, locationId);
       const destination = await row(business, productId, destinationId);
+      assert.equal(source.quantity, sourceBefore.quantity - 4, 'the source lost the stock once');
       assert.equal(destination.quantity, 4, 'the destination received the stock once');
+      assert.equal(
+        source.quantity + destination.quantity,
+        sourceBefore.quantity,
+        'the transfer preserved the product total'
+      );
 
       // The two legs are ONE activity, and one delivery of the transfer is one
       // activity — the grouping already merged the pair, so a duplicate delivery
