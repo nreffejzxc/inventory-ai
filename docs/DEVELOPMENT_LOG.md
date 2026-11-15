@@ -44,15 +44,19 @@ at the end of every development session, newest entry first.
 **Goal:** finish and harden Inventory AI **V1** through production testing. No Play Store or App
 Store release is being prepared.
 
-**Current production server (2026-11-15):** `cd3b1c0` — PR #289, the stock-in retry, integrity audit
-and automated transfer merge, auto-deployed at 04:18Z. `/api/health` reports `status: ok`, `db:
-connected`, `environment: production`, commit `cd3b1c0`, 0 `5xx`; `/api/health/ready` returns 200.
-Before it, production served `996e49b` (PR #287), `cb4fcf7` (the PR #282 stock-value centavo fix),
-`cd4efcc` (the PR #275 reliability merge), `8245e54` (PR #273), `304e2ea` (PR #272) and `65d9ef1`
-(PR #270).
+**Current production server (2026-11-15):** `9d09962` — PR #291, the scheduled read-only
+inventory-integrity monitor with its triage and post-deploy phone evidence, auto-deployed at 05:12Z.
+`/api/health` reports `status: ok`, `db: connected`, `environment: production`, commit `9d09962`,
+0 `5xx`; `/api/health/ready` returns 200. Before it, production served `cd3b1c0` (PR #289),
+`996e49b` (PR #287), `cb4fcf7` (the PR #282 stock-value centavo fix), `cd4efcc` (the PR #275
+reliability merge), `8245e54` (PR #273), `304e2ea` (PR #272) and `65d9ef1` (PR #270).
 The current production OTA is `2110458d-40ca-4975-813c-f182acb3e3aa`, published from `a7be9cd`
 on runtime `1.0.2`; the prior group was `39f78213-cc77-45f6-8b1b-0b9232b44a62` from `8b99f46`;
-local `main` contains the PR #289 merge `cd3b1c0`, the PR #287 merge `996e49b`, the PR #271 delivery `42229e5` (the current-position alignment) and the PR #275 reliability merge `cd4efcc`. The stock-in/audit/device entry is the newest below; the installed-app/audit, transfer follow-up, original stock-transfer, restock, stock-out, stock-value centavo and product-creation entries follow it.
+local `main` contains the PR #291 merge `9d09962`, the PR #290 merge `c4b5995`, the PR #289 merge
+`cd3b1c0`, the PR #287 merge `996e49b`, the PR #271 delivery `42229e5` and the PR #275 reliability
+merge `cd4efcc`. The post-deploy/monitor entry is the newest below; the stock-in/audit/device entry,
+installed-app/audit, transfer follow-up, original stock-transfer, restock, stock-out, stock-value
+centavo and product-creation entries follow it.
 
 **Post-deploy proof and monitoring (2026-11-15):** the deployed `cd3b1c0` build passed the phone
 transfer journey **60/60** with six ledger rows and the fixture back at **3 / 0**; the 2,517 orphan
@@ -201,9 +205,11 @@ Known limits, checked before spending one of them:
 
 ## 2026-11-15 — Post-deploy phone proof, orphan triage, and scheduled read-only monitor
 
-**Status.** PASS for all three approved steps. The deployed production commit `cd3b1c0` answered
-health with `status: ok`, `db: connected`, **0** `5xx` before the run. Only the designated
-`Phone Smoke Product` fixture was written; no production inventory outside it was modified.
+**Status.** PASS for all three approved steps. PR #291 merged as `9d09962` with all four required
+CI checks green and auto-deployed; `/api/health` reports `status: ok`, `db: connected`, commit
+`9d09962`, **0** `5xx`, and readiness 200. The deployed production commit `cd3b1c0` answered health
+the same way before the phone run. Only the designated `Phone Smoke Product` fixture was written;
+no production inventory outside it was modified.
 
 **1. The deployed build on the phone — 60/60, exit 0.** Run
 `2026-11-15T04-38-41-598Z-transfer` on the CPH1969, Android 11, against
@@ -238,17 +244,18 @@ exercised against GitHub because there were no new findings.
 The six targeted suites (phase 04 inventory, inventory idempotency, integrity audit, transfer UI
 verification, device harness, monitor) passed **163/163** with `TEST_MODE=db`, 0 fail and 0 skipped.
 `npm run typecheck`, scoped ESLint on the three new JavaScript files, and
-`node scripts/check-docs.mjs` passed. The wrapper ran once under Task Scheduler and once manually
+`node scripts/check-docs.mjs` passed; the four CI jobs (server, mobile, secret-guard,
+attribution-guard) are green. The wrapper ran once under Task Scheduler and once manually
 after the GitHub CLI fallback guard was added; both exited 0, and the second run at 04:59:55Z was
 **UNCHANGED / 0 new** with three local history entries.
 
 **Limits.** The monitor is a current-user Windows task, not a hosted pager: it runs only while the
 laptop is signed in and online. GitHub's own `schedule` trigger has never fired in this repository.
-The baseline accepts known candidates; it does not make them correct.
+The baseline accepts known candidates; it does not make them correct. The alert path itself was not
+exercised against GitHub because there were no new findings; its policy and source are unit-tested.
 
-**Next.** Commit the monitor, baseline, triage and documentation in one review, wait for the four CI
-checks, merge, and confirm production health after the merge. The first scheduled run is 2026-11-16
-07:30 local; review only a **new** finding against the baseline.
+**Next.** The first automatic monitor run is 2026-11-16 07:30 local; review only a **new** finding
+against the baseline. No repair or tenant cleanup is approved by this entry.
 
 ## 2026-11-15 — Stock-in retry, read-only integrity audit, and automated transfer proof
 

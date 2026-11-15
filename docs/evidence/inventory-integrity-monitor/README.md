@@ -1,7 +1,7 @@
 # Scheduled read-only inventory-integrity monitor
 
-**Status:** installed and run once on 2026-11-15. The audit is still read-only: no inventory row,
-ledger row, purchase order or index was changed.
+**Status:** installed, run and merged as `9d09962` on 2026-11-15. The audit is still read-only: no
+inventory row, ledger row, purchase order or index was changed.
 
 ## Why this exists
 

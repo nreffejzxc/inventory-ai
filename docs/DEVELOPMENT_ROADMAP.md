@@ -25298,6 +25298,9 @@ passes.
 transfer journey on the deployed production build, separate the 2,517 orphan findings without
 repairing them, and establish a scheduled read-only audit with a baseline and history.
 
+**Delivery.** Merged as `9d09962` (PR #291) with all four CI checks green and auto-deployed;
+`/api/health` at `9d09962` reports `status: ok`, `db: connected`, 0 `5xx`, and readiness 200.
+
 **Post-deploy phone proof — passed.** The installed 1.0.2 build ran against
 `https://ai-inventory-l1mi.onrender.com` while `/api/health` reported commit `cd3b1c0`, `status: ok`,
 `db: connected` and **0** `5xx`. Run `2026-11-15T04-38-41-598Z-transfer` completed **60/60 steps,
@@ -25330,7 +25333,8 @@ unit-tested; no real issue was opened because there were no new findings. The mo
 **Limits.** The trigger is a current-user Windows task, not a hosted pager: it runs only while the
 user is signed in and the laptop is awake and online. GitHub's own `schedule` trigger has never
 fired for this repository, so no workflow cron is used. The baseline accepts known candidates; it
-does not make them correct.
+does not make them correct. The alert path itself was not exercised against GitHub because there
+were no new findings; its policy and source are unit-tested.
 
 **Evidence.** `docs/evidence/inventory-integrity-2026-11-15/TRIAGE.md`,
 `docs/evidence/inventory-integrity-monitor/` (baseline and first run), and
