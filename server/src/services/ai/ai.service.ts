@@ -2942,6 +2942,7 @@ export async function runAiChat({
     completed = withCompleteRestockNames(completed, rows, cfg.maxMessageChars, {
       label: fromRestock ? 'restock' : 'low-stock',
       complete,
+      total: count,
     });
     if (rows.length > 0) {
       completed = replaceRestockCountClaims(completed, count);
