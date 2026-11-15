@@ -459,6 +459,24 @@ test('AI-90: a partial page is never called the full low-stock list', () => {
   );
 });
 
+test('AI-110: a model-written complete claim on a partial page is corrected', () => {
+  const rows = Array.from({ length: 10 }, (_, index) => ({ name: `Product ${index + 1}` }));
+  const draft =
+    '19 products need restocking. The 5 most urgent are Product 1 to Product 5.\n\n' +
+    'The full restock list is: Product 1, Product 2, Product 3, Product 4, Product 5.';
+  const answer = withCompleteRestockNames(draft, rows, 2000, {
+    label: 'restock',
+    complete: false,
+    total: 19,
+  });
+  // The 10-row page was called the full list of 19. The guard must remove that claim,
+  // keep the correct total, and say how much of the list the answer actually covers.
+  assert.doesNotMatch(answer, /full/i);
+  assert.match(answer, /19 products need restocking/);
+  assert.match(answer, /Showing 10 of 19 restock products/);
+  assert.match(answer, /Restock screen/);
+});
+
 test('AI-90: every returned restock product is named once', () => {
   const rows = [
     { name: 'ASUS ROG Strix Flare II Animate' },

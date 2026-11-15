@@ -1482,9 +1482,35 @@ export interface RestockListOptions {
   /**
    * False when the rows are only one page of a larger result. A partial page cannot be
    * presented as the full list — that was the measured failure (AI-90: five of nineteen
-   * rows labelled complete) — so the model's answer is left untouched instead.
+   * rows labelled complete) — so the model's answer is not extended with names it did
+   * not read. A claim the model already made is corrected below.
    */
   complete?: boolean;
+  /** The tool's total across every page, used to qualify a partial answer. */
+  total?: number;
+}
+
+/**
+ * A partial restock page must not call itself complete.
+ *
+ * AI-110 measured the gap this closes. Asked "Which products need restocking, and by how
+ * much?", the model read a 10-row page of 19 and wrote "The full restock list is:" followed
+ * by those 10 names. The total was right; the completeness claim was not. The existing guard
+ * only stopped the FINALIZER from appending names to a partial page, not the model from
+ * claiming one was the whole set. Replace that trailing claim with the two numbers the turn
+ * actually knows, and leave an answer that makes no such claim untouched.
+ */
+function qualifyPartialRestockAnswer(body: string, shown: number, options: RestockListOptions): string {
+  const label = String(options.label ?? 'restock').trim() || 'restock';
+  const total = finiteNumber(options.total);
+  const note =
+    total !== null && total > shown
+      ? `Showing ${shown} of ${total} ${label} products; open the Restock screen for all of them.`
+      : `Showing ${shown} ${label} products; open the Restock screen for the complete list.`;
+  const claim = /\b(?:the\s+)?full\s+(?:restock\s+|low[- ]stock\s+)?list\s+is:[\s\S]*$/i;
+  if (!claim.test(body)) return body;
+  const prefix = body.replace(claim, '').trimEnd();
+  return prefix ? `${prefix}\n\n${note}` : note;
 }
 
 /** Add every product this turn returned, not just the ones the model typed. */
@@ -1495,7 +1521,7 @@ export function withCompleteRestockNames(
   options: RestockListOptions = {},
 ): string {
   const body = String(answer ?? '').trimEnd();
-  if (options.complete === false) return body;
+  if (options.complete === false) return qualifyPartialRestockAnswer(body, rows.length, options);
   const names: string[] = [];
   const seen = new Set<string>();
   for (const row of rows) {
