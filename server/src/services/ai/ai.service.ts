@@ -986,6 +986,10 @@ export async function runAiChat({
   let toolMs = 0;
   let providerCalls = 0;
   let toolRuns = 0;
+  // AI-116 — whether this follow-up has already asked the provider for its one
+  // narrowing read. The first call names filterPreviousResults; later calls must
+  // be free to answer from the fresh rows it returned.
+  let followUpFilterAttempted = false;
   // AI-60/63/64 — how many times an answer written with no tool read has been sent back. Two,
   // because a measured turn ignored the first instruction and answered with a plan instead
   // (2026-11-05 5:29 PM), so one re-ask was not enough; the third failure ships the canned
@@ -1434,6 +1438,9 @@ export async function runAiChat({
           // it already gathered instead of spending the last step on another search.
           ...(allowTools
             ? { tools: toolsForTurn() }
+            : {}),
+          ...(followUp && !followUpFilterAttempted && allowTools
+            ? { toolChoice: { name: 'filterPreviousResults' } }
             : {}),
           timeoutMs: budget,
           signal,
@@ -2532,6 +2539,9 @@ export async function runAiChat({
         return { ...call, name: 'filterPreviousResults', input: filtered };
       });
       calls = rewritten;
+      // A returned call means the forced read has been attempted; a completely
+      // empty response keeps the force in place for the empty-completion retry.
+      followUpFilterAttempted = calls.length > 0;
     }
 
     messages.push({

@@ -79,6 +79,7 @@ const INVENTORY_TOOLS = new Set([
   'getHighestStockProducts',
   'getStockValue',
   'getProductsNeverSold',
+  'filterPreviousResults',
 ]);
 
 const RESEARCH_TOOLS = new Set(['researchInventoryProducts', 'researchMarketPrices']);
@@ -96,6 +97,7 @@ const FOLLOW_UP_TOOLS = new Set([
   'getHighestStockProducts',
   'getStockValue',
   'getProduct',
+  'filterPreviousResults',
 ]);
 
 const FILTER_LABELS: Record<string, string> = {

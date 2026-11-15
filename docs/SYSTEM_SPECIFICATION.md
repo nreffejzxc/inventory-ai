@@ -1055,8 +1055,11 @@ arguments are an optional exact category, location, `lowStock`/`outOfStock` and 
 The tool re-reads current inventory for exactly those product ids, scoped to the authenticated
 business, and returns current quantities. Ids, filters and captured quantities are never evidence
 of current stock; a quantity is always read again per turn. If the model chooses an old list tool
-on such a follow-up, the server rewrites that call to `filterPreviousResults` before it runs. A
-question without a referent starts a fresh read and never inherits the old scope.
+on such a follow-up, the server rewrites that call to `filterPreviousResults` before it runs. The
+first provider call of a recognised follow-up also names `filterPreviousResults` as its required
+tool, so the model cannot quietly answer from memory instead; a product read through it counts as
+`Inventory records` in the freshness line and can seed the next follow-up. A question without a
+referent starts a fresh read and never inherits the old scope.
 
 ### Member feedback
 

@@ -518,6 +518,8 @@ unitSuite('OpenRouter provider — Anthropic /v1/messages wire mapping', () => {
         { role: 'tool', name: 'getLowStockProducts', toolCallId: 'tu_1', content: JSON.stringify({ ok: true }) },
       ],
       tools: AI_TOOL_DEFS,
+      // AI-116 — a narrowing follow-up names its one required read.
+      toolChoice: { name: 'filterPreviousResults' },
     });
 
     const { body } = lastRequest();
@@ -528,6 +530,7 @@ unitSuite('OpenRouter provider — Anthropic /v1/messages wire mapping', () => {
 
     // Every shipped tool travels with the JSON Schema under input_schema.
     // (Compared as a set: the catalogue's own order is tools.ts's to define.)
+    assert.deepEqual(body.tool_choice, { type: 'tool', name: 'filterPreviousResults' });
     assert.equal(body.tools.length, EXPECTED_TOOLS.length);
     assert.deepEqual([...body.tools.map((t) => t.name)].sort(), [...EXPECTED_TOOLS].sort());
     for (const tool of body.tools) {
