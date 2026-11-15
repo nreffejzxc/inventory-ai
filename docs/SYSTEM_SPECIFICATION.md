@@ -939,6 +939,20 @@ Example questions:
 
 The AI must answer using controlled backend tools.
 
+### Contextual entry points
+
+The product detail screen and the stock-row detail screen offer **Ask AI**. Each opens a new
+conversation with a question prepared from the recorded product name, SKU and (for a stock row) the
+location already on screen. The question is placed in the composer and is **not sent automatically**:
+the member reviews it and presses Send, so no provider turn is spent by navigation alone. The same
+prefill path is bounded by the assistant's 4,000-character message limit.
+
+The restock screen and the assistant's restock tools consume the same reorder row. That row carries
+`unitsBelowMinimum`, computed server-side from availability and the product's configured minimum
+stock: zero at the threshold, a positive gap below it, and `null` when no minimum is configured. It
+is the shortfall to the threshold, not a recommended purchase quantity; the assistant is told to
+quote it rather than recalculate it.
+
 ### Simple inventory route
 
 Five narrow shapes are eligible for a free-first route when `AI_PROVIDER=openrouter` and a
@@ -1036,7 +1050,7 @@ identity lookup by name, SKU or barcode (AI-91); `getStockValue` groups value by
 location reads; `listBrands` is a reference lookup like `listLocations` and `listCategories`; and
 the two research tools are the gated web-research fallback described in Guide 17. `getReorderNeededProducts` (Phase 11A)
 returns the ACTIVE products at or below their minimum, flagged `OUT_OF_STOCK` or
-`LOW_STOCK`. `listLocations` and `listCategories` (AI-14) are reference lookups: they answer *"which
+`LOW_STOCK`, with `unitsBelowMinimum` as the computed gap to the configured minimum (AI-110). `listLocations` and `listCategories` (AI-14) are reference lookups: they answer *"which
 locations/categories do I have"* and resolve a name whose exact form is unknown. They read the
 same records as `GET /api/locations` and `GET /api/categories`, which are authentication-only,
 and are gated on `inventory.view` / `products.view`. No tool writes.

@@ -59,6 +59,7 @@ const LOW_ROW = {
   sku: 'CK-1',
   availableQuantity: 12,
   minimumStock: 20,
+  unitsBelowMinimum: 8,
   stockStatus: 'LOW_STOCK',
 };
 
@@ -68,6 +69,7 @@ const OUT_ROW = {
   sku: 'HT-9',
   availableQuantity: 0,
   minimumStock: 4,
+  unitsBelowMinimum: 4,
   stockStatus: 'OUT_OF_STOCK',
 };
 
@@ -108,12 +110,14 @@ describe('restock list', () => {
     expect(getByText('Low')).toBeTruthy();
   });
 
-  it('shows available stock against the row’s own minimum', async () => {
+  it('shows available stock against the row’s own minimum and the shortfall', async () => {
     const { getByText } = await mount(<RestockScreen />);
 
     await waitFor(() => expect(getByText(/12 available/)).toBeTruthy());
     expect(getByText(/minimum 20/)).toBeTruthy();
+    expect(getByText(/8 below minimum/)).toBeTruthy();
     expect(getByText(/0 available/)).toBeTruthy();
+    expect(getByText(/4 below minimum/)).toBeTruthy();
   });
 
   it('opens the product a row names', async () => {

@@ -398,7 +398,14 @@ function productDetailCore(doc: ProductDTOSource) {
 }
 
 function stockCard(doc: StockCardSource) {
-  return { ...productCore(doc), availableQuantity: Number.isFinite(doc.available) ? doc.available : null };
+  return {
+    ...productCore(doc),
+    availableQuantity: Number.isFinite(doc.available) ? doc.available : null,
+    // The gap to the configured threshold, computed once by the service. A restock
+    // question should never make the model subtract two numbers when the same read
+    // can state the difference. `null` means no minimum is configured.
+    unitsBelowMinimum: productService.unitsBelowMinimum(doc.available, doc.minimumStock),
+  };
 }
 
 /**
@@ -1232,7 +1239,7 @@ const tools: Tool[] = [
   {
     name: 'getLowStockProducts',
     description:
-      'ACTIVE products whose available quantity is at or below their configured minimum stock (availability summed across all locations by default), including products with nothing available. Pass `location`/`locationId` to judge each product against what ONE place holds — use that whenever the member asks what is low AT a named place, because a full store room otherwise hides a selling shelf that has run down. `count` is every matching product and `items` is the current page; when `hasMore` is true, say the list is partial and give the total. For a restock list that flags each item as out-of-stock or low-stock, prefer getReorderNeededProducts.',
+      'ACTIVE products whose available quantity is at or below their configured minimum stock (availability summed across all locations by default), including products with nothing available. Pass `location`/`locationId` to judge each product against what ONE place holds — use that whenever the member asks what is low AT a named place, because a full store room otherwise hides a selling shelf that has run down. `count` is every matching product and `items` is the current page; when `hasMore` is true, say the list is partial and give the total. Each item also carries `unitsBelowMinimum`, the gap to that product\'s configured minimum (0 at the threshold, null when no minimum is configured); quote it rather than subtracting. For a restock list that flags each item as out-of-stock or low-stock, prefer getReorderNeededProducts.',
     permission: PERMISSIONS.INVENTORY_VIEW,
     defaultLimit: 20,
     parameters: {
@@ -1402,7 +1409,7 @@ const tools: Tool[] = [
   {
     name: 'getReorderNeededProducts',
     description:
-      'Products that need restocking: ACTIVE products whose available quantity (summed across all locations) is at or below their configured minimum stock. Each result is flagged stockStatus OUT_OF_STOCK when nothing is available, otherwise LOW_STOCK, and out-of-stock items are listed first. A category may be given as `categoryId` or as the exact `category` name (an ACTIVE category of this business). `count` is every product that needs restocking and `items` is the current page; when `hasMore` is true, say the list is partial and give the total. Use for "what products need restocking", "which products are low in stock or out of stock", "what should I reorder", or "what is running low".',
+      'Products that need restocking: ACTIVE products whose available quantity (summed across all locations) is at or below their configured minimum stock. Each result is flagged stockStatus OUT_OF_STOCK when nothing is available, otherwise LOW_STOCK, and out-of-stock items are listed first; `unitsBelowMinimum` is how many units are needed to reach the configured minimum (0 at the threshold, null when no minimum is configured). A category may be given as `categoryId` or as the exact `category` name (an ACTIVE category of this business). `count` is every product that needs restocking and `items` is the current page; when `hasMore` is true, say the list is partial and give the total. Use for "what products need restocking", "which products are low in stock or out of stock", "what should I reorder", or "what is running low".',
     permission: PERMISSIONS.INVENTORY_VIEW,
     // The page is sized so an ordinary restock list is complete in ONE read. A 20-row
     // default cut a 47-product answer to 20 and let the model call it the whole list.

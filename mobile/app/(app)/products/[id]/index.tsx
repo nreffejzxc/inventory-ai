@@ -5,6 +5,7 @@ import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { printAsync, printToFileAsync } from 'expo-print';
 import * as Sharing from 'expo-sharing';
 
+import AssistantPromptCard from '../../../../components/AssistantPromptCard';
 import Badge, { StatusBadge } from '../../../../components/Badge';
 import Button from '../../../../components/Button';
 import Card from '../../../../components/Card';
@@ -20,8 +21,9 @@ import { useSession } from '../../../../lib/auth';
 import { confirm } from '../../../../lib/confirm';
 import { barcodeLabelHtml, isEan13 } from '../../../../lib/ean13';
 import type { BarcodeLabel } from '../../../../lib/ean13';
+import { productAssistantPrompt } from '../../../../lib/assistantContext';
 import { formatDateTime, formatMoney, formatNumber } from '../../../../lib/format';
-import { canAdjustStock, canManageProducts } from '../../../../lib/permissions';
+import { canAdjustStock, canManageProducts, canUseAi } from '../../../../lib/permissions';
 import { useProductDetail } from '../../../../hooks/useProductDetail';
 import useRefetchOnFocus from '../../../../hooks/useRefetchOnFocus';
 import { radius, spacing, type } from '../../../../lib/theme';
@@ -261,6 +263,15 @@ export default function ProductDetailScreen() {
         <Field label="Updated" value={formatDateTime(product.updatedAt)} />
       </Card>
 
+      {canUseAi(user) ? (
+        <AssistantPromptCard
+          prompt={productAssistantPrompt(product)}
+          title="Ask about this product"
+          description="Check stock across every location or ask about its recent movement."
+          style={styles.assistantCard}
+        />
+      ) : null}
+
       {product.barcode && isEan13(product.barcode) ? (
         <Card style={styles.barcodeCard}>
           <SectionHeader
@@ -352,6 +363,7 @@ const createStyles = (colors: Palette) => StyleSheet.create({
   specificationsBlock: { marginTop: spacing.md },
   specificationsLabel: { ...type.bodySmall, color: colors.textMuted, fontWeight: '700', marginBottom: spacing.xs },
   divider: { height: StyleSheet.hairlineWidth, backgroundColor: colors.divider, marginVertical: spacing.lg },
+  assistantCard: { marginTop: spacing.lg },
   barcodeCard: { marginTop: spacing.lg },
   barcodeTitle: { ...type.h3, color: colors.text },
   barcodeHint: { ...type.bodySmall, color: colors.textSecondary, lineHeight: 19, marginTop: spacing.sm },

@@ -202,6 +202,13 @@ dbSuite('Phase 11 — inventory intelligence (reorder + health) over real HTTP',
     assert.equal(byId.get(lowAtMin).category?.id, mainCatId);
     assert.equal(byId.get(lowAtMin).category?.name, 'Health Category');
 
+    // AI-110 — the arithmetic is the server's. A manager asking "how many should
+    // I order?" reads one computed gap per row, not a subtraction exercise.
+    assert.equal(byId.get(lowAtMin).unitsBelowMinimum, 0, 'at the threshold there is no gap');
+    assert.equal(byId.get(out).unitsBelowMinimum, 2);
+    assert.equal(byId.get(empty).unitsBelowMinimum, 1);
+    assert.equal(byId.get(scarce).unitsBelowMinimum, 3);
+
     // Worst first: all OUT_OF_STOCK rows precede LOW_STOCK rows, availability ascending.
     const firstLow = res.json.items.findIndex((i) => i.stockStatus === STOCK_STATUSES.LOW_STOCK);
     assert.ok(firstLow >= 0);
@@ -327,6 +334,15 @@ dbSuite('Phase 11 — inventory intelligence (reorder + health) over real HTTP',
     assert.equal(searched.ok, true);
     assert.equal(searched.result.count, 1);
     assert.equal(searched.result.items[0].id, scarce);
+    assert.equal(searched.result.items[0].unitsBelowMinimum, 3);
+
+    // The low-stock list shares the same stock card, so the same computed gap is
+    // available when a member asks what is low without asking for the restock tool.
+    const low = await executeTool('getLowStockProducts', { limit: 50 }, ownerCtxOf(main));
+    assert.equal(low.ok, true, JSON.stringify(low));
+    const lowById = new Map(low.result.items.map((item) => [item.id, item]));
+    assert.equal(lowById.get(scarce).unitsBelowMinimum, 3);
+    assert.equal(lowById.get(lowAtMin).unitsBelowMinimum, 0);
   });
 
   it('the restock tool is scoped to the authenticated business and role', async () => {

@@ -98,6 +98,10 @@ export default function RestockScreen() {
     const isOut = item.stockStatus === 'OUT_OF_STOCK';
     const available = formatNumber(item.availableQuantity);
     const minimum = formatNumber(item.minimumStock);
+    const belowMinimum =
+      typeof item.unitsBelowMinimum === 'number' && item.unitsBelowMinimum > 0
+        ? `${formatNumber(item.unitsBelowMinimum)} below minimum`
+        : null;
     return (
       <PressableCard onPress={() => router.push(`/products/${item.id}`)} accessibilityRole="button">
         <ListRow
@@ -107,6 +111,7 @@ export default function RestockScreen() {
             item.sku ? `SKU ${item.sku}` : null,
             `${available} available`,
             `minimum ${minimum}`,
+            belowMinimum,
           ]
             .filter(Boolean)
             .join(' · ')}

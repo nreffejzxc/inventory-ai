@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { router, useLocalSearchParams } from 'expo-router';
 import { StyleSheet, Text, View } from 'react-native';
 
+import AssistantPromptCard from '../../../components/AssistantPromptCard';
 import Badge, { StatusBadge } from '../../../components/Badge';
 import Button from '../../../components/Button';
 import Card from '../../../components/Card';
@@ -12,9 +13,10 @@ import SectionHeader from '../../../components/SectionHeader';
 import StatCard from '../../../components/StatCard';
 import { inventoryApi } from '../../../lib/api';
 import type { ApiResponse } from '../../../lib/api';
+import { inventoryAssistantPrompt } from '../../../lib/assistantContext';
 import { isSessionError, useSession } from '../../../lib/auth';
 import { formatDateTime, formatNumber } from '../../../lib/format';
-import { canAdjustStock, canTransferStock } from '../../../lib/permissions';
+import { canAdjustStock, canTransferStock, canUseAi } from '../../../lib/permissions';
 import useRefetchOnFocus from '../../../hooks/useRefetchOnFocus';
 import { radius, spacing, type } from '../../../lib/theme';
 import type { Palette } from '../../../lib/theme';
@@ -127,6 +129,15 @@ export default function InventoryRowScreen() {
         </View>
       </View>
 
+      {canUseAi(user) ? (
+        <AssistantPromptCard
+          prompt={inventoryAssistantPrompt(row)}
+          title="Ask about this stock"
+          description="Check this location's availability, reservations or recent movement."
+          style={styles.assistantCard}
+        />
+      ) : null}
+
       {productActive ? (
         <>
           <SectionHeader title="Move stock" style={styles.section} />
@@ -174,6 +185,7 @@ const createStyles = (colors: Palette) => StyleSheet.create({
   section: { marginTop: spacing.xxl },
   statGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md, marginTop: spacing.lg },
   statCell: { flexGrow: 1, flexBasis: '46%', minWidth: '46%' },
+  assistantCard: { marginTop: spacing.lg },
   actions: { flexDirection: 'row', gap: spacing.sm },
   flexBtn: { flex: 1 },
   transferBtn: { marginTop: spacing.sm },

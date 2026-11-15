@@ -227,6 +227,31 @@ function toProductDTO(doc: ProductDTOsource) {
 }
 
 /**
+ * Units needed to reach a product's configured minimum stock.
+ *
+ * A manager reading "3 available, minimum 10" still has to subtract before they
+ * can act, and a model doing that subtraction in prose is a place an arithmetic
+ * error can enter an otherwise grounded answer. This is the subtraction itself:
+ *
+ *   - `null` when no minimum is configured (0) or availability is unknown, because
+ *     "0 units below minimum" would look like purchasing advice when there is no
+ *     threshold to measure against;
+ *   - `0` when availability is exactly at the threshold;
+ *   - otherwise the positive gap, clamped at zero.
+ *
+ * It is a SHORTFALL TO THE THRESHOLD, not a recommended order quantity: the app
+ * records a minimum trigger, not a par level or an order multiple.
+ */
+export function unitsBelowMinimum(
+  available: number | null | undefined,
+  minimumStock: number | null | undefined,
+): number | null {
+  if (typeof minimumStock !== 'number' || !Number.isFinite(minimumStock) || minimumStock <= 0) return null;
+  if (typeof available !== 'number' || !Number.isFinite(available)) return null;
+  return Math.max(0, minimumStock - available);
+}
+
+/**
  * Product-level restock item: the catalog fields a restock decision needs plus
  * the product's summed availability and its stock status (OUT_OF_STOCK vs
  * LOW_STOCK, §19). Shared by the /api/products/reorder endpoint and the
@@ -248,6 +273,7 @@ function reorderItemPublic(doc: ReorderItemSource) {
     // travel with the price rather than being assumed from the business's locale.
     currency: base.currency,
     availableQuantity: Number.isFinite(doc.available) ? doc.available : null,
+    unitsBelowMinimum: unitsBelowMinimum(doc.available, base.minimumStock),
     stockStatus: classifyStockStatus(doc.available, base.minimumStock),
   };
 }
@@ -444,6 +470,7 @@ async function hydrateStockPage(
 export const productService = {
   toProductDTO,
   reorderItemPublic,
+  unitsBelowMinimum,
 
   async assertCategoryOfBusiness(businessId: IdLike, categoryId: string | undefined) {
     if (!categoryId) return null;
