@@ -25291,3 +25291,48 @@ provider was changed.
 **Evidence.** `docs/evidence/closeout-2026-11-11/README.md`, with the launch and Google-failure
 screenshots. The scheduled-watch blocker and the sign-in blocker are recorded as such, not as
 passes.
+
+# 27IA. Post-deploy phone proof, orphan triage and scheduled read-only monitoring (2026-11-15)
+
+**Scope.** The three follow-ups approved after the stock-in/audit/device close-out: repeat the
+transfer journey on the deployed production build, separate the 2,517 orphan findings without
+repairing them, and establish a scheduled read-only audit with a baseline and history.
+
+**Post-deploy phone proof — passed.** The installed 1.0.2 build ran against
+`https://ai-inventory-l1mi.onrender.com` while `/api/health` reported commit `cd3b1c0`, `status: ok`,
+`db: connected` and **0** `5xx`. Run `2026-11-15T04-38-41-598Z-transfer` completed **60/60 steps,
+exit 0**: one stock-in, a forward transfer, a reverse transfer, the same-location refusal, the
+over-quantity refusal and one stock-out. Both refusals ended with `Transfer stock` disabled and
+wrote no `SAME`/`OVER` row. The verifier read back **six** referenced rows; source **3**,
+destination **0**, both net zero. A standalone verifier returned `result.ok: true`, `rows: 6`,
+`errors: []`. Evidence: `docs/evidence/device-runs/2026-11-15T04-38-41-598Z-transfer/`.
+
+**Triage — read-only, no repair.** The 2,517 findings are **2,502** in the synthetic `PERF SEED`
+tenant and **15** in `steelseries`; all are `STOCK_IN`, all belong to those two synthetic tenants,
+and `rak gears` is clean. In the perf tenant, **2,216** are `SEED-*` seeded movements and **286**
+are purchase-order receipts; all 286 reference a receipt line across 186 POs, and the unreceipted
+PO count is **0**. The options, backup requirement and explicit approval gate are in
+`docs/evidence/inventory-integrity-2026-11-15/TRIAGE.md`. The recommendation is to keep the rows as
+accepted history and monitor for new findings. No row was deleted or repaired.
+
+**Scheduled monitor — installed, strictly read-only.** `server/scripts/lib/inventory-integrity-monitor.mjs`
+holds the baseline, comparison, report and notification policy; `server/scripts/monitor-inventory-integrity.mjs`
+is the CLI and never opens a database itself. The baseline contains the 2,517 triaged ids, accepted
+at `2026-11-15T04:45:59Z`. Windows task `InventoryAI Inventory Integrity Audit` runs daily at
+**07:30 local** with `StartWhenAvailable`, through `scripts/run-integrity-audit.ps1`. Its first run
+was **UNCHANGED**, **0 new / 0 resolved**, scanned **4,891** rows, task result **0**, next run
+**2026-11-16 07:30 local**. History is local at
+`%LOCALAPPDATA%\InventoryAI\integrity-audit\latest.json`, `latest.md` and `history.jsonl`; a new
+finding opens one GitHub issue, `[inventory-integrity] New findings detected`. The alert path is
+unit-tested; no real issue was opened because there were no new findings. The monitor tests are
+**16/16**, including a source scan that refuses a write call.
+
+**Limits.** The trigger is a current-user Windows task, not a hosted pager: it runs only while the
+user is signed in and the laptop is awake and online. GitHub's own `schedule` trigger has never
+fired for this repository, so no workflow cron is used. The baseline accepts known candidates; it
+does not make them correct.
+
+**Evidence.** `docs/evidence/inventory-integrity-2026-11-15/TRIAGE.md`,
+`docs/evidence/inventory-integrity-monitor/` (baseline and first run), and
+`docs/evidence/device-runs/2026-11-15T04-38-41-598Z-transfer/`. The runbook additions are in
+`docs/INVENTORY_INTEGRITY.md`, `docs/MONITORING.md` and `docs/guides/6-scripts-and-commands.md`.

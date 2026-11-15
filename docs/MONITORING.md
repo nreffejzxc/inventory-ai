@@ -117,6 +117,32 @@ The wrapper uses the operator's existing `gh` login and stores no token. Re-enab
 UptimeRobot is unavailable; `gh workflow run production-health-watch-v2.yml` remains the manual
 fallback.
 
+### Inventory integrity watch (daily, read-only)
+
+The health monitors above answer “is the process serving?”. They cannot see a ledger row that no
+longer has its inventory row. The inventory-integrity monitor answers that separate question without
+modifying anything.
+
+- **Task:** `InventoryAI Inventory Integrity Audit`, daily at **07:30 local**, `StartWhenAvailable`.
+- **Wrapper:** `scripts/run-integrity-audit.ps1`; **registration:**
+  `scripts/register-integrity-audit-scheduler.ps1`.
+- **Command:** `node server/scripts/monitor-inventory-integrity.mjs --with-production --notify`.
+- **Baseline:** `docs/evidence/inventory-integrity-monitor/baseline.json` — the 2,517 triaged seed
+  findings accepted on 2026-11-15. A normal run reports `UNCHANGED / 0 new`.
+- **History:** `%LOCALAPPDATA%\InventoryAI\integrity-audit\latest.json`, `latest.md` and
+  `history.jsonl`; the scheduler log is `%LOCALAPPDATA%\InventoryAI\integrity-audit-scheduler.log`.
+- **Alert:** one GitHub issue titled `[inventory-integrity] New findings detected`; it is updated only
+  when the new set changes and closed after recovery. A NOT CHECKED run also alerts.
+- **Exit codes:** `0` no new finding, `1` new finding, `2` NOT CHECKED. Task Scheduler records `1`/`2`
+  as a non-zero last result, but the issue is the actionable signal.
+
+**Limits.** The trigger is a current-user Windows task, not a hosted pager: it runs only while the
+operator is signed in and the laptop is awake and online. GitHub's schedule trigger has never fired
+for this repository, so no workflow cron is used. The baseline accepts known candidates; it does not
+repair them. The audit itself and the installed-app transfer checks are documented in
+[`INVENTORY_INTEGRITY.md`](INVENTORY_INTEGRITY.md); the baseline evidence is
+[`inventory-integrity-monitor`](evidence/inventory-integrity-monitor/README.md).
+
 ### Hosted scheduler: UptimeRobot
 
 UptimeRobot provides the five-minute automatic checks. The two monitors are:
@@ -299,5 +325,7 @@ grep "AI turn" <log> | grep -oE "model=[^ ]+ tier=[^ ]+" | sort | uniq -c
 | Archived scheduling experiments | Dispatcher removed; private watch repository archived; TypeScript watch weekly-only; v2 manual-only |
 | Scheduler evidence | `docs/evidence/production-health-scheduler-2026-11-11/README.md` |
 | Hosted scheduler evidence | `docs/evidence/production-health-scheduler-hosted-2026-11-12/README.md` |
+| Inventory-integrity monitor | `server/scripts/monitor-inventory-integrity.mjs`; baseline and first run in `docs/evidence/inventory-integrity-monitor/` |
+| Inventory-integrity task | `scripts/run-integrity-audit.ps1`, `scripts/register-integrity-audit-scheduler.ps1` |
 | Probe tests | `server/test/ops-production-health.test.mjs` |
 | Recorded design | `docs/DEVELOPMENT_ROADMAP.md` §27DI (the pulse), §27HU–§27HX (AI-99 through the external watch) |

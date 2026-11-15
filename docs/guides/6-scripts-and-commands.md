@@ -478,6 +478,15 @@ five-minute SLA. GitHub has not emitted a scheduled run for v2 as of 2026-11-11,
 `production-health-watch-v2.yml` by hand with the command above; it uses the same probe and alert
 path.
 
+A separate **inventory-integrity** watch runs daily at **07:30 local** from the current-user task
+`InventoryAI Inventory Integrity Audit`. It runs the read-only audit against production, compares it
+with the accepted baseline of 2,517 known seed findings, appends to
+`%LOCALAPPDATA%\InventoryAI\integrity-audit\history.jsonl`, and opens one GitHub issue only when a
+**new** finding appears. It never deletes or repairs anything. The task needs the laptop awake and
+online; GitHub's own schedule trigger has never fired for this repository, which is why the task is
+the trigger. See [`INVENTORY_INTEGRITY.md`](../INVENTORY_INTEGRITY.md) and
+[`MONITORING.md`](../MONITORING.md).
+
 ## Part 8 — The whole list
 
 **`server/`**
@@ -490,6 +499,7 @@ path.
 | `npm run audit:indexes` | are declared indexes really there | ✅ reads |
 | `npm run audit:duplicates` | suspected historical duplicate ledger rows | ✅ reads |
 | `npm run audit:integrity` | orphan STOCK_IN rows / unreceipted PO receipts | ✅ reads |
+| `npm run audit:integrity:monitor` | the same audit against an accepted baseline; records local history and can open one issue for new findings | ✅ reads |
 | `npm run verify:transfer-ui` | one device transfer run's six rows and final stock | ✅ reads |
 | `npm run backup:db` | recoverable copy (needs `BACKUP_DIR` outside the project) | ✅ reads; safe on production |
 | `npm run restore:db -- --from=…` | put a copy back (needs `CONFIRM=restore-db`) | ⚠️⚠️ test/dev only; `--dry-run` |
