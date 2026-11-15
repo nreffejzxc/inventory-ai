@@ -128,14 +128,21 @@ node scripts/device/run.mjs --all --sku=SMOKE-1               # + print a label,
 node scripts/device/run.mjs --journey=draft --allow-writes
 node scripts/device/run.mjs --journey=stock --sku=SMOKE-1 --source="Smoke shelf" --allow-writes
 node scripts/device/run.mjs --journey=transfer --sku=SMOKE-1 \
-  --source="Smoke shelf" --destination="Smoke" --allow-writes
+  --source="Smoke shelf" --destination="Smoke" --allow-writes \
+  --verify-ledger --verify-production
 ```
 
 - Exit **0** all steps passed, **1** a step failed, **2** blocked (no device, no session, no debuggable
   build) — a block is never a pass. `--until=<n>` stops after step `n` and writes `state.json`.
 - The write journeys are **net-zero** (`stock` 5 in/5 out; `transfer` stocks 1 in, moves it across and
   back, then stocks it out) and check the app's own confirmation arithmetic. `transfer` supplies its own
-  unit because a transfer never creates stock.
+  unit because a transfer never creates stock. It also checks the same-location and over-quantity
+  warnings with the submit button proved disabled.
+- `--verify-ledger` appends a read-only MongoDB check of the transfer's six referenced rows (one IN,
+  two legs forward, two legs back, one OUT): exact signs, net zero at both locations, and final stock
+  equal to each location's last run movement. `--verify-production` makes that check read production;
+  otherwise it reads development. The same check is available as
+  `npm run verify:transfer-ui -- --run-id=… --sku=… --source=… --destination=…` in `server/`.
 - **No journey takes an internal id.** A product is named by its `--sku`, which the harness types into
   the products search the way a person would, and it proceeds only once the product screen prints that
   SKU back. The product must belong to the tenant you are signed in as — another business's slug simply
@@ -481,6 +488,9 @@ path.
 | `npm run typecheck`, `lint`, `test:unit`, `test:db`, `test` | checks and tests | ✅ |
 | `npm run check:extensions`, `check:specifiers` | module-graph plumbing | ✅ |
 | `npm run audit:indexes` | are declared indexes really there | ✅ reads |
+| `npm run audit:duplicates` | suspected historical duplicate ledger rows | ✅ reads |
+| `npm run audit:integrity` | orphan STOCK_IN rows / unreceipted PO receipts | ✅ reads |
+| `npm run verify:transfer-ui` | one device transfer run's six rows and final stock | ✅ reads |
 | `npm run backup:db` | recoverable copy (needs `BACKUP_DIR` outside the project) | ✅ reads; safe on production |
 | `npm run restore:db -- --from=…` | put a copy back (needs `CONFIRM=restore-db`) | ⚠️⚠️ test/dev only; `--dry-run` |
 | `npm run ai:usage`, `ai:models`, `ai:check`, `ai:health` | cost, allowance, models, health | ✅ reads |

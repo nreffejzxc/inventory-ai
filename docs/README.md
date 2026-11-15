@@ -55,6 +55,7 @@ Guide 6; no rule, command or safety procedure was removed.
 | [`FIREBASE_CREDENTIAL_RUNBOOK.md`](FIREBASE_CREDENTIAL_RUNBOOK.md) | The Firebase Admin credential: where it comes from, how it is stored, verified and rotated |
 | [`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md) | The mobile visual language: tokens, type, primitives, accessibility rules |
 | [`DEVELOPING_ON_A_PHYSICAL_DEVICE.md`](DEVELOPING_ON_A_PHYSICAL_DEVICE.md) | The deep phone reference: verified commands, log reading, failure → fix |
+| [`INVENTORY_INTEGRITY.md`](INVENTORY_INTEGRITY.md) | The read-only orphan STOCK_IN / unreceipted-PO audit, its exit codes and what to do with a finding |
 | [`MONITORING.md`](MONITORING.md) | The operator's health endpoints, response pulse, AI turn records, alert rules and incident procedure |
 | [`../README.md`](../README.md) | The front door: stack, layout, how to run each half, deployment |
 
@@ -75,6 +76,7 @@ Reference documents are consulted rather than read once, so they are reviewed on
 | [`FIREBASE_CREDENTIAL_RUNBOOK.md`](FIREBASE_CREDENTIAL_RUNBOOK.md) | 90 days | 2026-11-07 |
 | [`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md) | 90 days | 2026-11-07 |
 | [`DEVELOPING_ON_A_PHYSICAL_DEVICE.md`](DEVELOPING_ON_A_PHYSICAL_DEVICE.md) | 90 days | 2026-11-07 |
+| [`INVENTORY_INTEGRITY.md`](INVENTORY_INTEGRITY.md) | 90 days | 2026-11-15 |
 | [`MONITORING.md`](MONITORING.md) | 90 days | 2026-11-11 |
 | [`../README.md`](../README.md) | 90 days | 2026-11-09 |
 

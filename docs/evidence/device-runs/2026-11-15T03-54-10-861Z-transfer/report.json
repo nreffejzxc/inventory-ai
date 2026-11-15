@@ -1,0 +1,369 @@
+{
+  "journey": "transfer",
+  "startedAt": "2026-11-15T03:54:10.861Z",
+  "runId": "2026-11-15T03-54-10-861Z",
+  "device": "CPH1969 · Android 11 (API 30) · PV4DDMIZZLTCIVSK",
+  "steps": [
+    {
+      "title": "find the product with SKU PHONE-SMOKE-20261115 through the products search",
+      "status": "pass",
+      "detail": "opened Phone Smoke Product (SKU PHONE-SMOKE-20261115) through the products search in 56210ms",
+      "durationMs": 56212
+    },
+    {
+      "title": "tap \"Stock In\"",
+      "status": "pass",
+      "detail": "tapped Stock In at 204,2091 after 1 scroll",
+      "durationMs": 24920
+    },
+    {
+      "title": "choose \"Phone Smoke Location\" from the \"Location\" picker",
+      "status": "pass",
+      "detail": "chose \"Phone Smoke Location\"",
+      "durationMs": 11094
+    },
+    {
+      "title": "type into the focused field",
+      "status": "pass",
+      "detail": "\"Quantity\" now reads 1, keyboard closed",
+      "durationMs": 19324
+    },
+    {
+      "title": "type into the focused field",
+      "status": "pass",
+      "detail": "\"Reference (optional)\" now reads PHONE-TRF-2026-11-15T03-54-10-861Z-IN, keyboard closed",
+      "durationMs": 19835
+    },
+    {
+      "title": "tap \"Add stock\"",
+      "status": "pass",
+      "detail": "tapped Add stock at 540,1824",
+      "durationMs": 3396
+    },
+    {
+      "title": "check the movement arithmetic (1)",
+      "status": "pass",
+      "detail": "3 → 4 (1)",
+      "durationMs": 1933
+    },
+    {
+      "title": "tap \"OK\"",
+      "status": "pass",
+      "detail": "tapped OK at 873,1303",
+      "durationMs": 3426
+    },
+    {
+      "title": "open inventoryai://transfer",
+      "status": "pass",
+      "detail": "inventoryai://transfer",
+      "durationMs": 1000
+    },
+    {
+      "title": "expect \"From location\"",
+      "status": "pass",
+      "detail": "seen after 2003ms",
+      "durationMs": 2003
+    },
+    {
+      "title": "choose \"Phone Smoke Product\" from the \"Product\" picker",
+      "status": "pass",
+      "detail": "chose \"Phone Smoke Product\"",
+      "durationMs": 10970
+    },
+    {
+      "title": "choose \"Phone Smoke Location\" from the \"From location\" picker",
+      "status": "pass",
+      "detail": "chose \"Phone Smoke Location\"",
+      "durationMs": 19737
+    },
+    {
+      "title": "choose \"Phone Smoke Location 2\" from the \"To location\" picker",
+      "status": "pass",
+      "detail": "chose \"Phone Smoke Location 2\"",
+      "durationMs": 28506
+    },
+    {
+      "title": "type into the focused field",
+      "status": "pass",
+      "detail": "\"Quantity\" now reads 1, keyboard closed",
+      "durationMs": 36943
+    },
+    {
+      "title": "type into the focused field",
+      "status": "pass",
+      "detail": "\"Reference (optional)\" now reads PHONE-TRF-2026-11-15T03-54-10-861Z-F, keyboard closed",
+      "durationMs": 37487
+    },
+    {
+      "title": "tap \"Transfer stock\"",
+      "status": "pass",
+      "detail": "tapped Transfer stock at 540,1899",
+      "durationMs": 12173
+    },
+    {
+      "title": "check the movement arithmetic (-1, 1)",
+      "status": "pass",
+      "detail": "4 → 3, 0 → 1 (-1, 1)",
+      "durationMs": 1931
+    },
+    {
+      "title": "tap \"OK\"",
+      "status": "pass",
+      "detail": "tapped OK at 873,1385",
+      "durationMs": 3408
+    },
+    {
+      "title": "open inventoryai://transfer",
+      "status": "pass",
+      "detail": "inventoryai://transfer",
+      "durationMs": 991
+    },
+    {
+      "title": "expect \"From location\"",
+      "status": "pass",
+      "detail": "seen after 1984ms",
+      "durationMs": 1984
+    },
+    {
+      "title": "choose \"Phone Smoke Product\" from the \"Product\" picker",
+      "status": "pass",
+      "detail": "chose \"Phone Smoke Product\"",
+      "durationMs": 11145
+    },
+    {
+      "title": "choose \"Phone Smoke Location 2\" from the \"From location\" picker",
+      "status": "pass",
+      "detail": "chose \"Phone Smoke Location 2\"",
+      "durationMs": 19798
+    },
+    {
+      "title": "choose \"Phone Smoke Location\" from the \"To location\" picker",
+      "status": "pass",
+      "detail": "chose \"Phone Smoke Location\"",
+      "durationMs": 28585
+    },
+    {
+      "title": "type into the focused field",
+      "status": "pass",
+      "detail": "\"Quantity\" now reads 1, keyboard closed",
+      "durationMs": 37096
+    },
+    {
+      "title": "type into the focused field",
+      "status": "pass",
+      "detail": "\"Reference (optional)\" now reads PHONE-TRF-2026-11-15T03-54-10-861Z-R, keyboard closed",
+      "durationMs": 38328
+    },
+    {
+      "title": "tap \"Transfer stock\"",
+      "status": "pass",
+      "detail": "tapped Transfer stock at 540,1899",
+      "durationMs": 12233
+    },
+    {
+      "title": "check the movement arithmetic (-1, 1)",
+      "status": "pass",
+      "detail": "1 → 0, 3 → 4 (-1, 1)",
+      "durationMs": 1952
+    },
+    {
+      "title": "tap \"OK\"",
+      "status": "pass",
+      "detail": "tapped OK at 873,1385",
+      "durationMs": 3430
+    },
+    {
+      "title": "open inventoryai://transfer",
+      "status": "pass",
+      "detail": "inventoryai://transfer",
+      "durationMs": 1002
+    },
+    {
+      "title": "expect \"From location\"",
+      "status": "pass",
+      "detail": "seen after 1973ms",
+      "durationMs": 1973
+    },
+    {
+      "title": "choose \"Phone Smoke Product\" from the \"Product\" picker",
+      "status": "pass",
+      "detail": "chose \"Phone Smoke Product\"",
+      "durationMs": 11073
+    },
+    {
+      "title": "choose \"Phone Smoke Location\" from the \"From location\" picker",
+      "status": "pass",
+      "detail": "chose \"Phone Smoke Location\"",
+      "durationMs": 20455
+    },
+    {
+      "title": "choose \"Phone Smoke Location\" from the \"To location\" picker",
+      "status": "pass",
+      "detail": "chose \"Phone Smoke Location\"",
+      "durationMs": 28645
+    },
+    {
+      "title": "type into the focused field",
+      "status": "pass",
+      "detail": "\"Quantity\" now reads 1, keyboard closed",
+      "durationMs": 38512
+    },
+    {
+      "title": "scroll up",
+      "status": "pass",
+      "detail": "scrolled up",
+      "durationMs": 1715
+    },
+    {
+      "title": "expect \"Choose two different locations\"",
+      "status": "pass",
+      "detail": "seen after 10847ms",
+      "durationMs": 10847
+    },
+    {
+      "title": "scroll down",
+      "status": "pass",
+      "detail": "scrolled down",
+      "durationMs": 1732
+    },
+    {
+      "title": "expect \"Transfer stock\" to be disabled",
+      "status": "pass",
+      "detail": "\"Transfer stock\" is disabled",
+      "durationMs": 10801
+    },
+    {
+      "title": "open inventoryai://dashboard",
+      "status": "pass",
+      "detail": "inventoryai://dashboard",
+      "durationMs": 1014
+    },
+    {
+      "title": "wait 700ms",
+      "status": "pass",
+      "detail": "700ms",
+      "durationMs": 715
+    },
+    {
+      "title": "open inventoryai://transfer",
+      "status": "pass",
+      "detail": "inventoryai://transfer",
+      "durationMs": 988
+    },
+    {
+      "title": "expect \"From location\"",
+      "status": "pass",
+      "detail": "seen after 1997ms",
+      "durationMs": 1997
+    },
+    {
+      "title": "choose \"Phone Smoke Product\" from the \"Product\" picker",
+      "status": "pass",
+      "detail": "chose \"Phone Smoke Product\"",
+      "durationMs": 12242
+    },
+    {
+      "title": "choose \"Phone Smoke Location\" from the \"From location\" picker",
+      "status": "pass",
+      "detail": "chose \"Phone Smoke Location\"",
+      "durationMs": 19700
+    },
+    {
+      "title": "choose \"Phone Smoke Location 2\" from the \"To location\" picker",
+      "status": "pass",
+      "detail": "chose \"Phone Smoke Location 2\"",
+      "durationMs": 28425
+    },
+    {
+      "title": "type into the focused field",
+      "status": "pass",
+      "detail": "\"Quantity\" now reads 999999, keyboard closed",
+      "durationMs": 36826
+    },
+    {
+      "title": "scroll up",
+      "status": "pass",
+      "detail": "scrolled up",
+      "durationMs": 1742
+    },
+    {
+      "title": "expect \"available to move\"",
+      "status": "pass",
+      "detail": "seen after 10635ms",
+      "durationMs": 10635
+    },
+    {
+      "title": "scroll down",
+      "status": "pass",
+      "detail": "scrolled down",
+      "durationMs": 1742
+    },
+    {
+      "title": "expect \"Transfer stock\" to be disabled",
+      "status": "pass",
+      "detail": "\"Transfer stock\" is disabled",
+      "durationMs": 10671
+    },
+    {
+      "title": "find the product with SKU PHONE-SMOKE-20261115 through the products search",
+      "status": "pass",
+      "detail": "opened Phone Smoke Product (SKU PHONE-SMOKE-20261115) through the products search in 54427ms",
+      "durationMs": 54427
+    },
+    {
+      "title": "tap \"Stock Out\"",
+      "status": "pass",
+      "detail": "tapped Stock Out at 540,2091 after 1 scroll",
+      "durationMs": 25069
+    },
+    {
+      "title": "choose \"Phone Smoke Location\" from the \"Location\" picker",
+      "status": "pass",
+      "detail": "chose \"Phone Smoke Location\"",
+      "durationMs": 19791
+    },
+    {
+      "title": "type into the focused field",
+      "status": "pass",
+      "detail": "\"Quantity\" now reads 1, keyboard closed",
+      "durationMs": 27924
+    },
+    {
+      "title": "type into the focused field",
+      "status": "pass",
+      "detail": "\"Reference (optional)\" now reads PHONE-TRF-2026-11-15T03-54-10-861Z-OUT, keyboard closed",
+      "durationMs": 28550
+    },
+    {
+      "title": "tap \"Remove stock\"",
+      "status": "pass",
+      "detail": "tapped Remove stock at 540,1899",
+      "durationMs": 12235
+    },
+    {
+      "title": "check the movement arithmetic (-1)",
+      "status": "pass",
+      "detail": "4 → 3 (-1)",
+      "durationMs": 1926
+    },
+    {
+      "title": "tap \"OK\"",
+      "status": "pass",
+      "detail": "tapped OK at 873,1303",
+      "durationMs": 3406
+    },
+    {
+      "title": "screenshot \"transfer-done\"",
+      "status": "pass",
+      "detail": "C:\\Users\\jeffe\\inventory-ai\\docs\\evidence\\device-runs\\2026-11-15T03-54-10-861Z-transfer\\transfer-done.png",
+      "durationMs": 613
+    },
+    {
+      "title": "verify the six movements and final stock against MongoDB",
+      "status": "pass",
+      "detail": "6 row(s) reconcile; source 3, destination 0; nothing was modified",
+      "durationMs": 3252
+    }
+  ],
+  "notes": "evidence: C:\\Users\\jeffe\\inventory-ai\\docs\\evidence\\device-runs\\2026-11-15T03-54-10-861Z-transfer"
+}

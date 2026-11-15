@@ -489,18 +489,27 @@ export const inventoryService = {
     const filter = { businessId: oid(businessId), productId: oid(productId), locationId: oid(locationId) };
     const inc = { $inc: { quantity } };
 
+    // A concurrent first stock-in can win the upsert and then remove the row it
+    // created if its own transaction write fails. Retry the WHOLE upsert, not an
+    // update-only retry: the latter would return null for the vanished row, and
+    // the caller would record a ledger entry for stock that is not on the shelf.
+    // Three attempts bound a pathological insert/delete/insert race; any later
+    // duplicate is surfaced rather than turned into a false success.
     let prev;
-    try {
-      prev = await Inventory.findOneAndUpdate(filter, inc, {
-        returnDocument: 'before',
-        upsert: true,
-        setDefaultsOnInsert: true,
-        runValidators: true,
-      });
-    } catch (err) {
-      if (!isDuplicateKey(err)) throw err;
-      // Another stock-in created the row between our assert and this upsert.
-      prev = await Inventory.findOneAndUpdate(filter, inc, { returnDocument: 'before', runValidators: true });
+    let createdRow = false;
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      try {
+        prev = await Inventory.findOneAndUpdate(filter, inc, {
+          returnDocument: 'before',
+          upsert: true,
+          setDefaultsOnInsert: true,
+          runValidators: true,
+        });
+        createdRow = prev == null;
+        break;
+      } catch (err) {
+        if (!isDuplicateKey(err) || attempt === 2) throw err;
+      }
     }
 
     const previousQuantity = prev?.quantity ?? 0;
@@ -526,10 +535,10 @@ export const inventoryService = {
         // True when this stock-in created the inventory row (upsert inserted a
         // new row). Lets a caller that must undo this movement choose between
         // deleting the freshly created row and reverting a pre-existing one.
-        createdRow: prev == null,
+        createdRow,
       };
     } catch (err) {
-      if (prev == null) {
+      if (createdRow) {
         // This stock-in created the row (first stock-in, upsert inserted it).
         // Compensate by deleting the freshly created row — never by decrementing
         // it to zero and leaving an orphan row (L5). The delete is anchored on
@@ -539,6 +548,10 @@ export const inventoryService = {
       } else {
         // Existing row: revert only while it is still exactly at the quantity
         // this operation produced; a concurrent movement makes it a no-op.
+        // `createdRow === false` means the upsert returned a row, but the guard
+        // makes that fact explicit to the type checker (and would catch a broken
+        // driver result rather than dereferencing null).
+        if (!prev) throw new Error('stock-in upsert returned no row', { cause: err });
         await rollbackInventory(
           { _id: prev._id, quantity: newQuantity },
           { $inc: { quantity: -quantity } },

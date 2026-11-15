@@ -435,4 +435,49 @@ dbSuite('Phase 07A — inventory compensation failure-injection', dbOk, () => {
     assert.equal(await txnCount(p, l, 'STOCK_IN'), 1, 'only the concurrent stock-in has a transaction');
     assert.equal(await auditCountForProduct('INVENTORY_STOCK_IN', p), 1);
   });
+
+  it('duplicate-key retry re-creates a winning row that vanished before the retry, never orphaning the ledger', async () => {
+    const p = await newProduct(owner);
+    const l = await newLocation(owner);
+    const realFindOneAndUpdate = Inventory.findOneAndUpdate.bind(Inventory);
+    let calls = 0;
+
+    // First upsert: a concurrent winner inserts the row at 7, then its own
+    // transaction write fails and its compensation removes the row. The losing
+    // upsert sees a duplicate key and must retry the FULL upsert, not a
+    // no-upsert update that returns null for the vanished row.
+    Inventory.findOneAndUpdate = async function (...args) {
+      calls += 1;
+      if (calls === 1) {
+        await Inventory.create({
+          businessId: owner.businessId,
+          productId: p,
+          locationId: l,
+          quantity: 7,
+        });
+        const err = new Error('E11000 duplicate key');
+        err.code = 11000;
+        await Inventory.deleteOne({ businessId: owner.businessId, productId: p, locationId: l });
+        throw err;
+      }
+      return realFindOneAndUpdate(...args);
+    };
+
+    try {
+      const res = await inventoryService.stockIn(owner.businessId, owner.userId, {
+        productId: p,
+        locationId: l,
+        quantity: 5,
+        reason: 'duplicate-key retry',
+      });
+      assert.equal(res.previousQuantity, 0, 'the vanished winner left no quantity behind');
+      assert.equal(res.newQuantity, 5);
+      assert.equal(res.createdRow, true, 'the retry created the row itself');
+      assert.equal(await rowQuantity(p, l), 5, 'the retry must leave the stock on the shelf');
+      assert.equal(await txnCount(p, l, 'STOCK_IN'), 1, 'the movement has exactly one ledger row');
+      assert.equal(await auditCountForProduct('INVENTORY_STOCK_IN', p), 1);
+    } finally {
+      Inventory.findOneAndUpdate = realFindOneAndUpdate;
+    }
+  });
 });

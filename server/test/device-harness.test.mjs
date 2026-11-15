@@ -20,6 +20,7 @@ import { fileURLToPath } from 'node:url';
 
 import {
   describeListState,
+  disabledTarget,
   escapeInputText,
   exitCodeFor,
   fieldBelow,
@@ -250,6 +251,84 @@ describe('a deep link survives the device shell', () => {
   });
 });
 
+const DISABLED = `<?xml version='1.0' encoding='UTF-8' standalone='yes' ?>
+<hierarchy rotation="0">
+  <node index="0" text="Transfer stock" class="android.widget.Button" clickable="true" enabled="false" bounds="[48,1930][1032,2068]" />
+  <node index="1" text="Add stock" class="android.widget.Button" clickable="true" bounds="[48,1930][1032,2068]" />
+</hierarchy>`;
+
+describe('a refusal is pinned to the disabled control, not only its warning', () => {
+  const nodes = parseDump(DISABLED).nodes;
+
+  it('reads Android enabled state, treating a missing attribute as enabled', () => {
+    assert.equal(nodes.find((node) => node.label === 'Transfer stock').enabled, false);
+    assert.equal(nodes.find((node) => node.label === 'Add stock').enabled, true);
+  });
+
+  it('returns only an explicitly disabled node', () => {
+    assert.equal(disabledTarget(nodes, 'Transfer stock').enabled, false);
+    assert.equal(disabledTarget(nodes, 'Add stock'), null);
+  });
+
+  it('returns null for a label that is not on screen (control)', () => {
+    assert.equal(disabledTarget(nodes, 'Remove stock'), null);
+  });
+
+  it('accepts the verb in a journey and refuses an empty label', () => {
+    assert.deepEqual(
+      validateJourneys([{ id: 'r', summary: 's', steps: [{ expectDisabled: 'Transfer stock' }] }]),
+      []
+    );
+    assert.match(
+      validateJourneys([{ id: 'r', summary: 's', steps: [{ expectDisabled: '' }] }]).join(' '),
+      /expectDisabled/
+    );
+  });
+});
+
+describe('the transfer journey exercises both refusals and both directions', () => {
+  const transfer = JOURNEYS.find((journey) => journey.id === 'transfer');
+  const labels = transfer.steps.map((step) => Object.keys(step)[0]);
+  const text = JSON.stringify(transfer.steps);
+
+  it('has the forward and reverse transfers', () => {
+    assert.equal(labels.filter((verb) => verb === 'movement').length, 4, 'stock-in, two transfers, stock-out');
+    assert.equal(text.includes('PHONE-TRF-{{runId}}-F'), true);
+    assert.equal(text.includes('PHONE-TRF-{{runId}}-R'), true);
+  });
+
+  it('checks the same-location warning and the over-quantity warning, each with a disabled submit', () => {
+    assert.equal(text.includes('Choose two different locations'), true);
+    assert.equal(text.includes('available to move'), true);
+    assert.equal(labels.filter((verb) => verb === 'expectDisabled').length, 2);
+
+    // The warning is a banner above the form. Typing leaves the form scrolled to
+    // Quantity; the banner is outside the accessibility tree until the journey
+    // scrolls to the top, and the submit is at the bottom. Pin that order, or a
+    // future edit reintroduces the false failure measured on 2026-11-15.
+    const disabledAt = labels.flatMap((verb, index) => (verb === 'expectDisabled' ? [index] : []));
+    for (const index of disabledAt) {
+      assert.deepEqual(transfer.steps[index - 1], { scroll: 'down' });
+      assert.match(Object.keys(transfer.steps[index - 2])[0], /^expect$/);
+      assert.deepEqual(transfer.steps[index - 3], { scroll: 'up' });
+    }
+
+    // Opening the same transfer deep link while the form is mounted does not reset it.
+    // The over-quantity check must leave the route first; otherwise it inherits the
+    // same-location form and its scroll position (measured 2026-11-15).
+    const dashboardAt = transfer.steps.findIndex((step) => step.open === 'inventoryai://dashboard');
+    const overAt = transfer.steps.findIndex((step) => step.type?.value === '999999');
+    assert.ok(dashboardAt > disabledAt[0], 'the over-quantity form must leave the mounted transfer route');
+    assert.ok(dashboardAt < overAt, 'the dashboard reset must happen before the over-quantity form');
+  });
+
+  it('carries the references the database verifier reconciles', () => {
+    for (const suffix of ['IN', 'F', 'R', 'OUT']) {
+      assert.equal(text.includes(`PHONE-TRF-{{runId}}-${suffix}`), true, suffix);
+    }
+  });
+});
+
 describe('a selector field is tapped on the control, not on its words', () => {
   const nodes = parseDump(SELECTOR).nodes;
 
@@ -398,6 +477,24 @@ describe('a blank or stale dump is never read as a screen', () => {
 
   it('accepts a dump that carries nodes', () => {
     assert.equal(isBlankDump(DUMP), false);
+  });
+});
+
+describe('a typed value is filled before it reaches the form', () => {
+  it('substitutes {{runId}} in a value, not only in a label', () => {
+    assert.equal(
+      fillTemplate('PHONE-TRF-{{runId}}-IN', { runId: '2026-11-15T03-05-40-157Z' }),
+      'PHONE-TRF-2026-11-15T03-05-40-157Z-IN'
+    );
+  });
+
+  it('resolves the value before typing it, and blocks when a flag is missing', () => {
+    const runner = readFileSync(new URL('../../scripts/device/run.mjs', import.meta.url), 'utf8');
+    const resolveAt = runner.indexOf('resolveStepText(spec.value, ctx)');
+    const typeAt = runner.indexOf('device.typeText(escapeInputText(spec.value)');
+    assert.ok(resolveAt > 0, 'the type branch does not resolve its value');
+    assert.ok(typeAt > resolveAt, 'the value is typed before placeholders are resolved');
+    assert.match(runner.slice(resolveAt, typeAt), /status: 'blocked'/);
   });
 });
 
@@ -808,15 +905,27 @@ describe('the declared journeys are well formed', () => {
       );
     }
 
-    // The transfer form's picker filters on the NAME, so it needs the name the phone read back.
+    // The transfer form's product picker filters on the NAME, so it needs the name the phone
+    // read back. EVERY picker is opened with `pick`, never with a bare `tap`: on 2026-11-15 a
+    // slow-loading location picker took more than the tap helper's 700 ms check, the helper
+    // re-tapped three times, and the open/close toggling left the next step on a closed form.
     const transfer = JOURNEYS.find((j) => j.id === 'transfer');
     const picks = transfer.steps.filter((step) => step.pick);
-    assert.equal(picks.length, 2, 'both legs of the transfer choose the product from its picker');
-    for (const step of picks) {
+    const productPicks = picks.filter((step) => step.pick.sheet === 'Product');
+    assert.equal(productPicks.length, 4, 'both transfers and both refusal forms choose the product');
+    for (const step of productPicks) {
       assert.equal(step.pick.option, '{{productName}}');
       // Never a search term: with the keyboard up a searchable sheet's rows are clipped out of view
       // (measured 2026-10-26), so a journey that types into it cannot pick anything.
       assert.equal('search' in step.pick, false);
+    }
+
+    const locationPicks = picks.filter((step) => step.pick.sheet !== 'Product');
+    assert.equal(locationPicks.length, 10, 'stock in/out and both transfers and refusals use location pickers');
+    for (const step of locationPicks) {
+      assert.match(step.pick.field, /^Choose (a location|the source|the destination)…$/);
+      assert.match(step.pick.sheet, /^(Location|From location|To location)$/);
+      assert.match(step.pick.option, /^\{\{(source|destination)\}\}$/);
     }
   });
 
