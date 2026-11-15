@@ -44,23 +44,23 @@ at the end of every development session, newest entry first.
 **Goal:** finish and harden Inventory AI **V1** through production testing. No Play Store or App
 Store release is being prepared.
 
-**Current production server (2026-11-15):** `996e49b` — PR #287, the transfer test/evidence merge,
-auto-deployed at 02:24Z. `/api/health` reports `status: ok`, `db: connected`, `environment:
-production`, commit `996e49b`, 0 `5xx`; `/api/health/ready` returns 200. The merge changed only the
-DB-backed test and documentation, so no runtime behavior changed. Before it, production served
-`cb4fcf7` (the PR #282 stock-value centavo fix), `cd4efcc` (the PR #275 reliability merge), `8245e54`
-(PR #273), `304e2ea` (PR #272) and `65d9ef1` (PR #270).
+**Current production server (2026-11-15):** `cd3b1c0` — PR #289, the stock-in retry, integrity audit
+and automated transfer merge, auto-deployed at 04:18Z. `/api/health` reports `status: ok`, `db:
+connected`, `environment: production`, commit `cd3b1c0`, 0 `5xx`; `/api/health/ready` returns 200.
+Before it, production served `996e49b` (PR #287), `cb4fcf7` (the PR #282 stock-value centavo fix),
+`cd4efcc` (the PR #275 reliability merge), `8245e54` (PR #273), `304e2ea` (PR #272) and `65d9ef1`
+(PR #270).
 The current production OTA is `2110458d-40ca-4975-813c-f182acb3e3aa`, published from `a7be9cd`
 on runtime `1.0.2`; the prior group was `39f78213-cc77-45f6-8b1b-0b9232b44a62` from `8b99f46`;
-local `main` contains the PR #287 merge `996e49b`, the PR #271 delivery `42229e5` (the current-position alignment) and the PR #275 reliability merge `cd4efcc`. The installed-app/audit entry is the newest below; the transfer follow-up, original stock-transfer, restock, stock-out, stock-value centavo and product-creation entries follow it.
+local `main` contains the PR #289 merge `cd3b1c0`, the PR #287 merge `996e49b`, the PR #271 delivery `42229e5` (the current-position alignment) and the PR #275 reliability merge `cd4efcc`. The stock-in/audit/device entry is the newest below; the installed-app/audit, transfer follow-up, original stock-transfer, restock, stock-out, stock-value centavo and product-creation entries follow it.
 
-**Inventory reliability (2026-11-15, branch pending):** the working branch retries the full stock-in
-upsert after a duplicate key, adds the read-only `audit:integrity` command, and makes the installed-app
-transfer journey prove both directions, both refusals and the six ledger rows. Local checks pass, and
-the production phone run passed **60/60** with the fixture back at **3 / 0**. The production audit is
-read-only and found **2,517 orphan `STOCK_IN` rows** (2,502 synthetic perf-seed, 15 old
-`steelseries` demo rows) and **0 unreceipted PO receipts**; `rak gears` is clean. The audit exits 1
-because findings exist. Merge/deploy is still pending, so production remains `996e49b`.
+**Inventory reliability (2026-11-15):** PR #289 merged as `cd3b1c0` and deployed; the stock-in
+upsert now retries the full write after a duplicate key, the read-only `audit:integrity` command is
+available, and the installed-app transfer journey proves both directions, both refusals and the six
+ledger rows. Local checks pass, and the production phone run passed **60/60** with the fixture back at
+**3 / 0**. The production audit is read-only and found **2,517 orphan `STOCK_IN` rows** (2,502
+synthetic perf-seed, 15 old `steelseries` demo rows) and **0 unreceipted PO receipts**; `rak gears`
+is clean. The audit exits 1 because findings exist; no production data was modified.
 
 **Production product creation + required-name test (2026-11-14):** the designated test tenant
 `rak gears` now holds one test product, `Phone Smoke Product` (`PHONE-SMOKE-20261115`), and
@@ -194,11 +194,12 @@ Known limits, checked before spending one of them:
 
 ## 2026-11-15 — Stock-in retry, read-only integrity audit, and automated transfer proof
 
-**Status.** PASS locally and on the production phone; the branch/PR is the remaining delivery step.
+**Status.** PASS. PR #289 merged as `cd3b1c0` with all four required checks green and deployed; the
+production health endpoint reports `status: ok`, `db: connected`, **0** `5xx`, and readiness 200.
 The stock-in retry was hardened, the read-only inventory audit was added and run against production,
 and the installed-app transfer journey now covers both directions, both refusals, and the ledger.
 Only the test fixture `Phone Smoke Product` at the two smoke locations was written; the audit
-modified nothing. Production remains `996e49b` until this branch deploys.
+modified nothing.
 
 **Stock-in retry.** `inventoryService.stockIn` now retries the **whole upsert** after a duplicate-key
 race, up to three attempts, instead of retrying an update-only write. The old retry returned `null`
