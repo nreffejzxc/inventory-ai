@@ -68,9 +68,25 @@ new**. A new finding opens `[inventory-integrity] New findings detected`; the is
 when the new set changes and closed after recovery.
 
 **Limits.** The trigger is a current-user Windows task, not a hosted pager: it runs only while this
-user is signed in and the laptop is awake and online. GitHub's own `schedule` trigger has never fired
-for this repository, so no workflow cron is used. The baseline is an acceptance of known candidates,
-not a repair.
+user is signed in and the laptop is awake and online. The audit itself remains read-only. The only
+write is one operational heartbeat document, made by a separate writer after a completed run; it
+never touches inventory, ledger, purchase-order, product, location, user or baseline data.
+
+### Hosted freshness
+
+The daily task publishes the latest aggregate result to one document in
+`integrity_monitor_heartbeats`. The public endpoint `GET /api/health/integrity` returns **200** only
+while that heartbeat is fresh (at most **26 hours** old and marked `UNCHANGED` or `NEW_FINDINGS`);
+it returns **503** for a missing, stale, malformed or `NOT CHECKED` heartbeat. It publishes the
+timestamp, age, audit status and aggregate counts only — no tenant, product, location or user data.
+An UptimeRobot HTTP monitor checks it every five minutes, so a stopped laptop becomes visible even
+when the laptop's own logs cannot be read.
+
+This is a metadata write, not an audit write: `server/scripts/write-integrity-heartbeat.mjs` is the
+only writer, and the audit and monitor source guards still refuse any inventory or ledger write.
+
+GitHub's own `schedule` trigger has never fired for this repository, so no workflow cron is used.
+The baseline is an acceptance of known candidates, not a repair.
 
 ## How the two checks work
 

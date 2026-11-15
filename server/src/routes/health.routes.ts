@@ -4,6 +4,7 @@ import env from '../config/env.ts';
 import { buildInfo } from '../config/deploymentReadiness.ts';
 import { getDatabaseState, isDatabaseReady } from '../config/db.ts';
 import { operationalCounters } from '../config/operationalCounters.ts';
+import { readIntegrityHeartbeat } from '../services/integrityHeartbeat.service.ts';
 
 /**
  * Health endpoints (Phase 07D / M1). Three complementary signals:
@@ -87,6 +88,9 @@ function timestamp() {
  *        answer from outside the host, and a deployment silently serving from
  *        the development database is exactly the fault that question catches.
  *        It is a posture name, never a value from the environment.
+ * @param {() => Promise<IntegrityHeartbeatView>} [options.readIntegrity]
+ *        The hosted freshness signal. Injectable so the 200/503 branches can be
+ *        pinned without writing a heartbeat or waiting for a scheduled task.
  */
 export function createHealthRouter({
   getState = getDatabaseState,
@@ -94,6 +98,7 @@ export function createHealthRouter({
   build = buildInfo,
   counters = operationalCounters,
   environment = () => env.nodeEnv,
+  readIntegrity = readIntegrityHeartbeat,
 } = {}) {
   const router = Router();
 
@@ -130,6 +135,35 @@ export function createHealthRouter({
       db: getState(),
       timestamp: timestamp(),
     });
+  });
+
+  // Hosted freshness: is the laptop-based audit still reporting? The endpoint
+  // is public because it is a monitor target, but it publishes only the audit's
+  // freshness and aggregate counts — no tenant, product, location or user data.
+  // A missing, malformed, stale or NOT CHECKED heartbeat is a 503 on purpose:
+  // an uptime monitor must be able to treat it as an incident with no parsing.
+  router.get('/integrity', async (_req, res) => {
+    res.setHeader('Cache-Control', 'no-store');
+    try {
+      const heartbeat = await readIntegrity();
+      return res.status(heartbeat.fresh ? 200 : 503).json({
+        ...heartbeat,
+        timestamp: timestamp(),
+      });
+    } catch {
+      return res.status(503).json({
+        state: 'not_checked',
+        fresh: false,
+        lastCheckedAt: null,
+        ageSeconds: null,
+        maxAgeSeconds: null,
+        auditStatus: null,
+        newCount: 0,
+        resolvedCount: 0,
+        scannedStockIns: null,
+        timestamp: timestamp(),
+      });
+    }
   });
 
   return router;

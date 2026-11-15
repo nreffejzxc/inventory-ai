@@ -24,6 +24,7 @@
     "audit:duplicates": "node scripts/audit-duplicate-ledger.mjs",
     "audit:integrity": "node scripts/audit-inventory-integrity.mjs",
     "audit:integrity:monitor": "node scripts/monitor-inventory-integrity.mjs",
+    "integrity:heartbeat": "node scripts/write-integrity-heartbeat.mjs",
     "verify:transfer-ui": "node scripts/verify-transfer-ui.mjs",
     "backup:db": "node scripts/backup-db.mjs",
     "restore:db": "node scripts/restore-db.mjs",
