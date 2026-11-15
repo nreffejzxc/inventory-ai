@@ -1,7 +1,8 @@
 # Scheduled read-only inventory-integrity monitor
 
-**Status:** installed, run and merged as `9d09962` on 2026-11-15. The audit is still read-only: no
-inventory row, ledger row, purchase order or index was changed.
+**Status:** installed, run and merged as `9d09962` on 2026-11-15; hosted freshness added in
+`7ebc9a3` (PR #293). The audit is still read-only: no inventory row, ledger row, purchase order or
+index was changed.
 
 ## Why this exists
 
@@ -24,7 +25,7 @@ history and opens one GitHub issue when a new candidate appears.
 | Local history | `%LOCALAPPDATA%\InventoryAI\integrity-audit\` (`latest.json`, `latest.md`, `history.jsonl`) |
 | Scheduler log | `%LOCALAPPDATA%\InventoryAI\integrity-audit-scheduler.log` |
 | Hosted freshness | One document in `integrity_monitor_heartbeats`; `GET /api/health/integrity` returns 200 only while it is at most 26 hours old |
-| Independent check | UptimeRobot HTTP monitor on the freshness endpoint, every five minutes |
+| Independent check | UptimeRobot `Inventory AI integrity freshness` (id **804681164**) on the freshness endpoint, every five minutes, currently **Up** |
 | Alert | One open GitHub issue titled `[inventory-integrity] New findings detected`; updated only when the new set changes, closed on recovery |
 
 The 07:30 task ran at 12:46 local on 2026-11-15 as a manual verification. Task result was **0**, the
@@ -41,6 +42,9 @@ write, not a monitor repair. The baseline was **not** modified, as instructed, s
 remains 1 until an explicitly approved baseline refresh.
 
 The first automatic daily run is still scheduled for 2026-11-16 07:30 local.
+
+The deployed endpoint, production heartbeat and independent monitor are recorded in
+[`hosted-heartbeat-2026-11-15.md`](hosted-heartbeat-2026-11-15.md).
 
 ## How the baseline works
 

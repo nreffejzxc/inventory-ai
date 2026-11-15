@@ -134,8 +134,8 @@ modifying anything.
 - **Hosted freshness:** after a completed run, `write-integrity-heartbeat.mjs` upserts one document in
   `integrity_monitor_heartbeats`. `GET /api/health/integrity` returns **200** only for a completed
   heartbeat at most **26 hours** old, and **503** for missing, stale, malformed or `NOT CHECKED`.
-  UptimeRobot checks it every five minutes. This is the only write; it touches no inventory, ledger,
-  PO, product, location, user or baseline row.
+  UptimeRobot `Inventory AI integrity freshness` (id 804681164) checks it every five minutes. This
+  is the only write; it touches no inventory, ledger, PO, product, location, user or baseline row.
 - **Alert:** one GitHub issue titled `[inventory-integrity] New findings detected`; it is updated only
   when the new set changes and closed after recovery. A NOT CHECKED run also alerts. The hosted
   freshness endpoint is the independent alert for a monitor that stops running at all.

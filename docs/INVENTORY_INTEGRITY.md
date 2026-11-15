@@ -79,8 +79,8 @@ The daily task publishes the latest aggregate result to one document in
 while that heartbeat is fresh (at most **26 hours** old and marked `UNCHANGED` or `NEW_FINDINGS`);
 it returns **503** for a missing, stale, malformed or `NOT CHECKED` heartbeat. It publishes the
 timestamp, age, audit status and aggregate counts only — no tenant, product, location or user data.
-An UptimeRobot HTTP monitor checks it every five minutes, so a stopped laptop becomes visible even
-when the laptop's own logs cannot be read.
+An UptimeRobot HTTP monitor, `Inventory AI integrity freshness` (id 804681164), checks it every five
+minutes, so a stopped laptop becomes visible even when the laptop's own logs cannot be read.
 
 This is a metadata write, not an audit write: `server/scripts/write-integrity-heartbeat.mjs` is the
 only writer, and the audit and monitor source guards still refuse any inventory or ledger write.

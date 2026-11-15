@@ -44,19 +44,21 @@ at the end of every development session, newest entry first.
 **Goal:** finish and harden Inventory AI **V1** through production testing. No Play Store or App
 Store release is being prepared.
 
-**Current production server (2026-11-15):** `9d09962` — PR #291, the scheduled read-only
-inventory-integrity monitor with its triage and post-deploy phone evidence, auto-deployed at 05:12Z.
-`/api/health` reports `status: ok`, `db: connected`, `environment: production`, commit `9d09962`,
-0 `5xx`; `/api/health/ready` returns 200. Before it, production served `cd3b1c0` (PR #289),
+**Current production server (2026-11-15):** `7ebc9a3` — PR #293, hosted freshness for the
+inventory-integrity monitor, auto-deployed at 11:29Z. `/api/health` reports `status: ok`,
+`db: connected`, `environment: production`, commit `7ebc9a3`, 0 `5xx`; `/api/health/ready` returns
+200 and `/api/health/integrity` returns 200 `fresh`. Before it, production served `9d09962`
+(PR #291, the scheduled read-only monitor), then `cd3b1c0` (PR #289),
 `996e49b` (PR #287), `cb4fcf7` (the PR #282 stock-value centavo fix), `cd4efcc` (the PR #275
 reliability merge), `8245e54` (PR #273), `304e2ea` (PR #272) and `65d9ef1` (PR #270).
 The current production OTA is `2110458d-40ca-4975-813c-f182acb3e3aa`, published from `a7be9cd`
 on runtime `1.0.2`; the prior group was `39f78213-cc77-45f6-8b1b-0b9232b44a62` from `8b99f46`;
 local `main` contains the PR #291 merge `9d09962`, the PR #290 merge `c4b5995`, the PR #289 merge
 `cd3b1c0`, the PR #287 merge `996e49b`, the PR #271 delivery `42229e5` and the PR #275 reliability
-merge `cd4efcc`. The post-deploy/monitor entry is the newest below; the stock-in/audit/device entry,
-installed-app/audit, transfer follow-up, original stock-transfer, restock, stock-out, stock-value
-centavo and product-creation entries follow it.
+merge `cd4efcc`. The scheduler-proof/hosted-freshness entry is the newest below; the
+post-deploy/monitor entry, stock-in/audit/device entry, installed-app/audit, transfer follow-up,
+original stock-transfer, restock, stock-out, stock-value centavo and product-creation entries follow
+it.
 
 **Post-deploy proof and monitoring (2026-11-15):** the deployed `cd3b1c0` build passed the phone
 transfer journey **60/60** with six ledger rows and the fixture back at **3 / 0**; the 2,517 orphan
@@ -64,6 +66,15 @@ findings were triaged read-only into 2,502 perf-seed and 15 SteelSeries rows, wi
 daily read-only monitor now compares against an accepted baseline of those ids, records local
 history, and alerts only on new findings. The first run was **UNCHANGED / 0 new**, task result `0`.
 The complete record is §27IA.
+
+**Scheduler proof and hosted freshness (2026-11-15):** a temporary one-off Task Scheduler task
+fired the wrapper automatically at **19:11:35 local**, returned task result **0**, and was then
+removed; the daily task remained Ready with its 07:30 next run. That run reported **UNCHANGED**,
+**0 new**, **1 resolved**, **4,896** rows: one old SteelSeries orphan had been resolved by an
+external PO receipt (`PO-DEMO-00006`), not by any repair, and the accepted baseline was left
+unchanged. PR #293 added one operational heartbeat document and the public
+`GET /api/health/integrity` freshness endpoint; UptimeRobot monitor `Inventory AI integrity
+freshness` (**804681164**) checks it every five minutes and is **Up**. The complete record is §27IB.
 
 **Inventory reliability (2026-11-15):** PR #289 merged as `cd3b1c0` and deployed; the stock-in
 upsert now retries the full write after a duplicate key, the read-only `audit:integrity` command is
@@ -202,6 +213,59 @@ Known limits, checked before spending one of them:
   bulk; a delivery failure is not a code regression until the provider log says so.
 
 ---
+
+## 2026-11-15 — Scheduler proof and hosted freshness for the integrity monitor
+
+**Status.** PASS for the trigger proof and the hosted freshness path. PR #293 merged as `7ebc9a3`
+with all four required CI checks green and auto-deployed; `/api/health` reports `status: ok`,
+`db: connected`, commit `7ebc9a3`, **0** `5xx`, and `/api/health/integrity` returns **200** `fresh`.
+The audit and monitor remain read-only with respect to inventory and ledger data; the accepted
+2,517-id baseline was not modified.
+
+**1. The scheduler mechanism — proven now, without waiting.** A temporary current-user task,
+`InventoryAI Integrity Audit - Trigger Proof`, was registered with a single one-off trigger at
+**2026-11-15 19:11:35 local** and the same wrapper action as the daily task. It fired automatically;
+`LastTaskResult` was **0** and the scheduler log ended `finished with exit 0`. The temporary task was
+then unregistered. The permanent `InventoryAI Inventory Integrity Audit` task was unchanged:
+**Ready**, last result **0**, next run **2026-11-16 07:30 local**, and no duplicate task remains.
+Evidence: [`scheduler-trigger-proof-2026-11-15.md`](evidence/inventory-integrity-monitor/scheduler-trigger-proof-2026-11-15.md).
+
+**2. What changed during the proof — one resolved, none new.** The proof run recorded
+`2026-11-15T11:11:36.859Z`: **UNCHANGED**, **0 new**, **1 resolved**, **4,896** `STOCK_IN` rows.
+The resolved id is `ORPHAN_STOCK_IN:6aef380db94b2abdac698af8` (SteelSeries, `DEMO-8-8`, quantity
+14). A matching inventory row was created at **2026-11-15T09:43:59.735Z** by external PO receipt
+activity (`PO-DEMO-00006`), alongside five new stock-ins; the scan count rose from 4,891 to 4,896.
+This was not a monitor repair. The baseline still contains the resolved id, so it will report one
+resolved row on each run until an explicitly approved refresh. Current findings are **2,516**
+(2,502 perf-seed + 14 SteelSeries). Addendum:
+[`TRIAGE.md`](evidence/inventory-integrity-2026-11-15/TRIAGE.md).
+
+**3. Hosted freshness — deployed and monitored.** The wrapper now calls
+`server/scripts/write-integrity-heartbeat.mjs`, which upserts **one** document in
+`integrity_monitor_heartbeats`; it imports no inventory, ledger, purchase-order, product, location,
+user or business model. `GET /api/health/integrity` returns **200** only when that heartbeat is at
+most **26 hours** old and marked `UNCHANGED` or `NEW_FINDINGS`; missing, stale, malformed and
+`NOT CHECKED` all return **503**. The production document was written and read back: `UNCHANGED`,
+4,896 scanned, 0 new, 1 resolved. UptimeRobot monitor **Inventory AI integrity freshness**
+(**804681164**) checks the endpoint every five minutes, is **Up**, and reported a test notification
+sent to the account e-mail. Evidence:
+[`hosted-heartbeat-2026-11-15.md`](evidence/inventory-integrity-monitor/hosted-heartbeat-2026-11-15.md).
+
+**Verification.** `npm run test:unit`: **2,079 pass, 0 fail, 64 skipped**. The new
+`integrity-heartbeat.test.mjs` is **14/14**: the 26-hour threshold, missing/stale/NOT CHECKED/invalid
+states, the HTTP 200/503 contract, the writer's single-collection surface and its refusal of a
+free-form database. `npm run typecheck` passed; scoped ESLint on the changed server files passed;
+the route/module documentation guards passed after updating §2.6 and the Phase 23 public register.
+The four CI jobs are green.
+
+**Limits.** The live transition to stale was **not** forced on the production heartbeat; the 503
+branches are unit-tested and the 26-hour threshold is the production setting. The first automatic
+daily run is still pending at **2026-11-16 07:30 local**; this entry proves the trigger mechanism
+and the monitor, not that daily run.
+
+**Next.** After the 07:30 run, verify `LastRunTime`, task result, new/resolved counts, history and
+logs, then confirm the endpoint advanced its `checkedAt`. No repair or baseline refresh is approved
+by this entry.
 
 ## 2026-11-15 — Post-deploy phone proof, orphan triage, and scheduled read-only monitor
 
