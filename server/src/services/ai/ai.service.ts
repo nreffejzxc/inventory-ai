@@ -148,6 +148,15 @@ import {
   type ResearchSource,
 } from './webResearch.ts';
 import { localDate, localTime, resolveTimeZone, utcOffsetLabel } from '../../utils/timeZone.ts';
+import {
+  buildAnswerContext,
+  filterLabels,
+  isPreviousResultFollowUp,
+  toolReadContext,
+  type AnswerContext,
+  type PreviousResultContext,
+  type ToolReadContext,
+} from './answerContext.ts';
 
 /**
  * One prior turn as this service replays it to the provider. The controller
@@ -167,6 +176,11 @@ interface ChatParams {
   role: string;
   message: string;
   history?: ChatTurn[];
+  /**
+   * AI-116 — the previous answer's bounded product set, when this question is a
+   * follow-up that narrows it. Membership and time only; no quantities.
+   */
+  previousResult?: PreviousResultContext;
   /**
    * Aborted when the caller has gone away (AI-1). The turn then ends promptly
    * rather than running to its deadline, so a client that gave up stops costing
@@ -327,6 +341,8 @@ interface ChatResult {
   productLinks?: ProductLink[];
   /** Direct screen destinations and the bounded rows behind a paged answer. */
   answerActions?: AnswerActions;
+  /** AI-116 — what this answer read, for the footer and the next follow-up. */
+  answerContext: AnswerContext;
   usage?: ProviderUsage;
   iterations: number;
   /**
@@ -644,6 +660,7 @@ export async function runAiChat({
   userId,
   role,
   history = [],
+  previousResult,
   message,
   signal,
   onTextDelta,
@@ -663,6 +680,13 @@ export async function runAiChat({
   const webResearchIntent = asksForWebResearch(message);
   const sourceRestricted =
     inventoryOnly || (!webResearchIntent && asksForSourceSensitiveQuestion(message));
+  // AI-116 — a follow-up is recognised from the MEMBER'S words, not from the model's
+  // willingness to look backwards. The previous set is membership only: the filtering
+  // tool re-reads every quantity from the database before it answers.
+  const followUp =
+    previousResult && previousResult.productIds.length > 0 && isPreviousResultFollowUp(message)
+      ? previousResult
+      : null;
   const provider = selectProvider();
   // AI-99 — the configured primary, as the provider reports it. Resolved before the prompt
   // because the simple route must know whether a free candidate would actually be a
@@ -748,6 +772,21 @@ export async function runAiChat({
   // property of this turn rather than a rule the model has to recall from 38 numbered lines.
   const languageReminder = languageDirective(message);
   if (languageReminder) prompt += `\n\n${languageReminder}`;
+  if (followUp) {
+    const applied = filterLabels(followUp.input)
+      .map((entry) => `${entry.label}: ${entry.value}`)
+      .join('; ');
+    prompt +=
+      '\n\nPREVIOUS RESULT SET (membership only, not current stock)\n' +
+      `The previous answer was about ${followUp.productIds.length} product(s) read with ` +
+      `${followUp.tool} at ${followUp.retrievedAt}` +
+      (applied ? `, with filters ${applied}` : '') +
+      '. This question narrows that same set. Call filterPreviousResults with the new ' +
+      'category, location, lowStock or outOfStock filter; it re-reads current inventory for ' +
+      'exactly those products. Never reuse a quantity from the earlier answer and do not start ' +
+      'a broad catalogue search for this follow-up. If the question is actually a new question, '
+      + 'ignore this block and read the data it needs.';
+  }
 
   const messages: ProviderMessage[] = history
     .slice(-cfg.contextMessages)
@@ -769,20 +808,23 @@ export async function runAiChat({
   let nativeResearchToolBlocked = false;
   const nativeWebToolsUsed = new Set<WebToolName>();
   const localResearchToolNames = new Set(['researchInventoryProducts', 'researchMarketPrices']);
-  const toolDefsWithNativeWeb = AI_TOOL_DEFS.filter(
+  const offeredToolDefs = AI_TOOL_DEFS.filter(
+    (tool) => tool.name !== 'filterPreviousResults' || Boolean(followUp),
+  );
+  const toolDefsWithNativeWeb = offeredToolDefs.filter(
     (tool) => !localResearchToolNames.has(tool.name),
   ) as ToolDefinition[];
   // AI-88 — without an explicit public-web request, the research tools are not offered
   // at all. They are web reads (inventory-bound, but still network research), so a locked
   // turn must not be able to reach them on a model's second attempt either.
-  const toolDefsWithoutLocalResearch = AI_TOOL_DEFS.filter(
+  const toolDefsWithoutLocalResearch = offeredToolDefs.filter(
     (tool) => !localResearchToolNames.has(tool.name),
   ) as ToolDefinition[];
   const toolsForTurn = (): ToolDefinition[] =>
     webResearchIntent
       ? nativeWebActive
         ? toolDefsWithNativeWeb
-        : (AI_TOOL_DEFS as ToolDefinition[])
+        : (offeredToolDefs as ToolDefinition[])
       : toolDefsWithoutLocalResearch;
 
   let finalText: string | null = null;
@@ -790,6 +832,10 @@ export async function runAiChat({
   // AI-99 — which tools actually RAN successfully. `toolsUsed` is written before
   // executeTool, so it records an attempt; this records the read the answer may use.
   const toolsSucceeded = new Set<string>();
+  // AI-116 — the last row-shaped read whose rows the answer can build actions from. Its
+  // product IDs become the membership set for a follow-up; its timestamp and filters are
+  // the footer's provenance. The output itself is never stored here.
+  let lastReadContext: ToolReadContext | null = null;
   // Research URLs are collected from successful tool results and appended after
   // the model's answer, so a model that names a publication without linking it
   // cannot leave the member unable to review the claim.
@@ -2450,6 +2496,43 @@ export async function runAiChat({
         console.warn(`AI stock-range question — added findProducts for ${brand}`);
       }
     }
+    // AI-116 — a follow-up must filter the previous set, not quietly start a fresh
+    // catalogue-wide search. The classifier is narrow, but the model can still choose
+    // the old list tool out of habit; rewrite that choice before it runs so the rows
+    // are the previous products re-read, not the whole catalogue.
+    if (followUp) {
+      const previousFilterTools = new Set([
+        'getInventory',
+        'getProductsByLocation',
+        'getLowStockProducts',
+        'getOutOfStockProducts',
+        'getReorderNeededProducts',
+        'searchProducts',
+        'findProducts',
+        'getProductsNeverSold',
+        'getHighestStockProducts',
+      ]);
+      const rewritten = calls.map((call) => {
+        const name = String(call?.name ?? '');
+        if (!previousFilterTools.has(name)) return call;
+        const input = (call?.input ?? {}) as Record<string, unknown>;
+        const filtered: Record<string, unknown> = {};
+        for (const key of [
+          'category',
+          'categoryId',
+          'location',
+          'locationId',
+          'lowStock',
+          'outOfStock',
+          'limit',
+        ]) {
+          if (input[key] !== undefined) filtered[key] = input[key];
+        }
+        console.warn(`AI follow-up — rewrote ${name} to filterPreviousResults`);
+        return { ...call, name: 'filterPreviousResults', input: filtered };
+      });
+      calls = rewritten;
+    }
 
     messages.push({
       role: 'assistant',
@@ -2567,7 +2650,15 @@ export async function runAiChat({
         : toolController.signal;
       try {
         output = await withBudget(
-          executeTool(name, toolInput, { businessId, userId, role, timeZone, signal: toolSignal, deadlineAt }),
+          executeTool(name, toolInput, {
+            businessId,
+            userId,
+            role,
+            timeZone,
+            signal: toolSignal,
+            deadlineAt,
+            previousResult: followUp ?? undefined,
+          }),
           toolBudgetMs,
           signal,
         );
@@ -2600,7 +2691,12 @@ export async function runAiChat({
       if (name && output && typeof output === 'object' && (output as { ok?: unknown }).ok === true) {
         toolsSucceeded.add(name);
         const action = answerActionsForTool(name, toolInput, output);
-        if (action) answerActions = mergeAnswerActions(answerActions, action);
+        if (action) {
+          answerActions = mergeAnswerActions(answerActions, action);
+          if (action.list) {
+            lastReadContext = toolReadContext(name, toolInput, output, new Date().toISOString());
+          }
+        }
       }
       if (name === 'listBrands' && output && typeof output === 'object') {
         const result = (output as { result?: unknown }).result;
@@ -3145,6 +3241,14 @@ export async function runAiChat({
     : toolsSucceeded.has('getHighestStockProducts')
       ? withoutInventoryActions(answerActions)
       : answerActions;
+  // AI-116 — even an answer that read nothing carries a context: the footer then says
+  // "no data source" rather than letting the member assume an inventory read happened.
+  const answerContext = buildAnswerContext({
+    tools: [...toolsSucceeded],
+    retrievedAt: lastReadContext?.retrievedAt ?? new Date().toISOString(),
+    read: lastReadContext,
+    webSources: researchSources,
+  });
   return {
     content: finalText,
     turnId,
@@ -3153,6 +3257,7 @@ export async function runAiChat({
     productLinks: productLinks.length ? productLinks : undefined,
     answerActions:
       finalAnswerActions.screens.length || finalAnswerActions.list ? finalAnswerActions : undefined,
+    answerContext,
     usage: usage ?? undefined,
     iterations: steps,
     degraded: degraded ?? undefined,

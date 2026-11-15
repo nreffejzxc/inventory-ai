@@ -1163,6 +1163,28 @@ export const aiApi = {
       release();
     }
   },
+
+  /**
+   * AI-115 — rate one stored assistant answer.
+   *
+   * The message id is the only identity the client sends; the server derives the
+   * business, member and turn, and refuses an answer in another member's thread.
+   * Repeating the call changes the rating rather than creating a second one.
+   */
+  feedback: (
+    token: string,
+    messageId: string,
+    payload: { rating: 'UP' | 'DOWN'; reason?: string; comment?: string },
+  ): Promise<ApiResponse> =>
+    apiFetch('/api/ai/feedback', { token, method: 'POST', body: { messageId, ...payload } }),
+
+  /** The OWNER/ADMIN review queue and its all-time counts. */
+  feedbackList: (token: string, params?: QueryParams): Promise<ApiResponse> =>
+    apiFetch('/api/ai/feedback', { token, params }),
+
+  /** Mark one report read, or reopen it. */
+  reviewFeedback: (token: string, id: string, reviewed: boolean): Promise<ApiResponse> =>
+    apiFetch(`/api/ai/feedback/${id}`, { token, method: 'PATCH', body: { reviewed } }),
 };
 
 /**

@@ -11,9 +11,11 @@ import { aiApi } from '../lib/api';
 import type { ApiResponse } from '../lib/api';
 import { MAX_ASSISTANT_MESSAGE_CHARS, readAssistantPrompt } from '../lib/assistantContext';
 import { answerPlainText } from '../lib/assistantMarkdown';
+import { FEEDBACK_REASONS, isFeedbackReason } from '../lib/aiFeedback';
+import type { AnswerFeedback, FeedbackRating, FeedbackReason } from '../lib/aiFeedback';
 import { isSessionError, useSession } from '../lib/auth';
 import { REQUEST_CANCELLED } from '../lib/client';
-import { formatClock12 } from '../lib/format';
+import { formatClock12, formatDateTime } from '../lib/format';
 import { toolTrace } from '../lib/toolLabels';
 import { radius, spacing, type } from '../lib/theme';
 import type { Palette } from '../lib/theme';
@@ -185,6 +187,10 @@ export interface ChatRow {
   productLinks?: ProductLink[];
   /** Direct destinations and the bounded rows behind a paged read. */
   answerActions?: AnswerActions;
+  /** AI-115 — this member's own rating of this answer, when one exists. */
+  feedback?: AnswerFeedback;
+  /** AI-116 — what this answer read, for the freshness line and Inspect panel. */
+  answerContext?: AnswerContext;
   /**
    * AI-8 — the server's mark on a turn that did not finish cleanly. Only
    * `'OUTPUT_LIMIT'` (an answer cut off by the output cap) is drawn as a note; the two
@@ -200,6 +206,18 @@ export interface ChatRow {
    * rather than only the live reply being traceable.
    */
   turnId?: string;
+}
+
+/** The bounded provenance the server stores with a new answer. */
+export interface AnswerContext {
+  retrievedAt: string;
+  tools: string[];
+  sources: string[];
+  productCount: number;
+  total: number | null;
+  hasMore: boolean;
+  filters: { label: string; value: string }[];
+  webSources: { title: string; url: string }[];
 }
 
 export interface AnswerListRow {
@@ -247,6 +265,11 @@ export function toRow(m: ApiResponse): ChatRow {
     toolsUsed: m.toolsUsed,
     productLinks: Array.isArray(m.productLinks) ? m.productLinks : undefined,
     answerActions: m.answerActions && typeof m.answerActions === 'object' ? m.answerActions : undefined,
+    feedback: m.feedback && typeof m.feedback === 'object' ? m.feedback : undefined,
+    answerContext:
+      m.answerContext && typeof m.answerContext === 'object'
+        ? (m.answerContext as AnswerContext)
+        : undefined,
     degraded: m.degraded,
     turnId: m.turnId,
   };
@@ -298,15 +321,47 @@ export function restockPathForTools(toolsUsed?: string[]): string | null {
   return toolsUsed?.some((tool) => RESTOCK_TOOLS.has(tool)) ? '/restock' : null;
 }
 
+/**
+ * AI-116 — the one compact line above every answer.
+ *
+ * It says what was read and how much, with the clock beside it. The full filter
+ * list and source URLs live behind Inspect so a normal answer is not turned into
+ * a provenance report.
+ */
+export function freshnessText(item: ChatRow): string | null {
+  const context = item.answerContext;
+  if (!context) return toolTrace(item.toolsUsed);
+  const sources = context.sources.length ? context.sources.join(' + ') : 'No data read';
+  const count = context.productCount
+    ? `${context.productCount} product${context.productCount === 1 ? '' : 's'}`
+    : null;
+  const filters = context.filters
+    .filter((entry) => entry.label === 'Category' || entry.label === 'Location')
+    .slice(0, 2)
+    .map((entry) => `${entry.label} ${entry.value}`);
+  return [sources, count, ...filters].filter(Boolean).join(' · ');
+}
+
 /** One destination for every product link, so the component does not rebuild a handler per row. */
 function openProduct(productId: string): void {
   router.push(`/products/${encodeURIComponent(productId)}`);
 }
 
-export function MessageBubble({ item }: { item: ChatRow }) {
+export function MessageBubble({ item, token }: { item: ChatRow; token?: string | null }) {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const [copied, setCopied] = useState(false);
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [contextOpen, setContextOpen] = useState(false);
+  const [feedback, setFeedback] = useState<AnswerFeedback | undefined>(item.feedback);
+  const [feedbackFormOpen, setFeedbackFormOpen] = useState(false);
+  const [feedbackReason, setFeedbackReason] = useState<FeedbackReason | undefined>(
+    isFeedbackReason(item.feedback?.reason) ? item.feedback.reason : undefined,
+  );
+  const [feedbackComment, setFeedbackComment] = useState(item.feedback?.comment ?? '');
+  const [feedbackSaving, setFeedbackSaving] = useState(false);
+  const [feedbackError, setFeedbackError] = useState<string | null>(null);
+  const [feedbackNotice, setFeedbackNotice] = useState<string | null>(null);
   const [visibleResults, setVisibleResults] = useState(5);
   const user = item.role === 'user';
   const wide = !user && isTableAnswer(item.content);
@@ -316,6 +371,45 @@ export function MessageBubble({ item }: { item: ChatRow }) {
   const list = user ? undefined : item.answerActions?.list;
   const showList = Boolean(list && list.total > 5 && list.rows.length > 0);
   const legacyRestockPath = screens.some((entry) => entry.kind === 'restock') ? null : restockPath;
+  const trace = user ? null : toolTrace(item.toolsUsed);
+  const showFooter = !user && Boolean(item.messageId || screens.length || legacyRestockPath || trace || item.turnId || item.createdAt);
+
+  useEffect(() => {
+    setFeedback(item.feedback);
+    setFeedbackReason(isFeedbackReason(item.feedback?.reason) ? item.feedback.reason : undefined);
+    setFeedbackComment(item.feedback?.comment ?? '');
+  }, [item.feedback]);
+
+  async function sendFeedback(rating: FeedbackRating, reason?: FeedbackReason): Promise<void> {
+    if (!token || !item.messageId || feedbackSaving) return;
+    setFeedbackSaving(true);
+    setFeedbackError(null);
+    setFeedbackNotice(null);
+    try {
+      const res = await aiApi.feedback(token, item.messageId, {
+        rating,
+        reason: rating === 'DOWN' ? reason : undefined,
+        comment: rating === 'DOWN' ? feedbackComment.trim() || undefined : undefined,
+      });
+      setFeedback(res?.feedback);
+      setFeedbackFormOpen(false);
+      setFeedbackNotice(
+        rating === 'UP' ? 'Thanks — this helps us improve.' : 'Thanks — we will review this answer.',
+      );
+    } catch (err) {
+      setFeedbackError(errorText(err, 'Your feedback could not be sent. Please try again.'));
+    } finally {
+      setFeedbackSaving(false);
+    }
+  }
+
+  function openDownForm(): void {
+    setFeedbackReason(isFeedbackReason(feedback?.reason) ? feedback.reason : undefined);
+    setFeedbackComment(feedback?.comment ?? '');
+    setFeedbackError(null);
+    setFeedbackNotice(null);
+    setFeedbackFormOpen(true);
+  }
   return (
     <View style={[styles.bubbleRow, user ? styles.rowUser : styles.rowAssistant]}>
       <View
@@ -335,23 +429,6 @@ export function MessageBubble({ item }: { item: ChatRow }) {
             onProductPress={openProduct}
           />
         )}
-        {/* AI-111 — the whole answer, as plain text, for a purchase order or supplier message.
-            Only a stored answer can be copied: a row still streaming has no server id and is
-            not yet the answer the member will keep. */}
-        {!user && item.messageId ? (
-          <Pressable
-            testID="chat-copy-answer"
-            accessibilityRole="button"
-            accessibilityLabel={copied ? 'Answer copied' : 'Copy answer'}
-            onPress={() => {
-              Clipboard.setString(answerPlainText(item.content));
-              setCopied(true);
-            }}
-            style={styles.copyButton}
-          >
-            <Text style={styles.copyText}>{copied ? 'Copied' : 'Copy answer'}</Text>
-          </Pressable>
-        ) : null}
         {showList && list ? (
           <View testID="chat-results" style={styles.results}>
             <Text style={styles.resultsHeading}>
@@ -403,60 +480,285 @@ export function MessageBubble({ item }: { item: ChatRow }) {
             </Text>
           </View>
         ) : null}
-        {/* AI-26 — the restock link is drawn on EVERY stock-list answer, not only a
-            truncated one. Rule 3 tells the model to send the member to "the matching
-            screen in the app" for the full list, and a paginated 36-product answer is
-            just as unreachable as a truncated one: before this, a complete answer that
-            showed five of 8,976 ended with that sentence and no way to act on it — the
-            link existed only when the model happened to run out of output tokens. The
-            destination is the same screen for all three stock tools (the reorder
-            endpoint is the list they all describe), so the link says the same thing. */}
-        {screens.map((screen) => (
-          <Pressable
-            key={screen.path}
-            testID={`chat-screen-${screen.kind}`}
-            accessibilityRole="button"
-            onPress={() => router.push(screen.path)}
-          >
-            <Text style={styles.incompleteLink}>Open {screen.label}</Text>
-          </Pressable>
-        ))}
-        {legacyRestockPath ? (
-          <Pressable
-            testID="chat-restock-link"
-            accessibilityRole="button"
-            onPress={() => router.push(legacyRestockPath)}
-          >
-            <Text style={styles.incompleteLink}>Open the full restock list</Text>
-          </Pressable>
+        {/* AI-115 — one quiet footer instead of a stack of links.
+
+            The action bar follows the reference design: compact icon+label pills for the
+            things a member does with an answer, and a single muted metadata line underneath.
+            The support reference is the one item that is not needed on every read, so it
+            lives behind the overflow control; the control is labelled for screen readers and
+            reports its expanded state. Nothing is added to the stored message: these are the
+            same messageId, screen actions, tool trace and turn id the bubble already had. */}
+        {showFooter ? (
+          <View testID="chat-answer-footer" style={styles.footer}>
+            {item.messageId || screens.length || legacyRestockPath || item.turnId ? (
+              <View style={styles.actionRow}>
+                {/* AI-111 — the whole answer, as plain text, for a purchase order or
+                    supplier message. Only a stored answer can be copied: a row still
+                    streaming has no server id and is not yet the answer the member keeps. */}
+                {item.messageId ? (
+                  <Pressable
+                    testID="chat-copy-answer"
+                    accessibilityRole="button"
+                    accessibilityLabel={copied ? 'Answer copied' : 'Copy answer'}
+                    onPress={() => {
+                      Clipboard.setString(answerPlainText(item.content));
+                      setCopied(true);
+                    }}
+                    style={[styles.actionButton, copied && styles.actionButtonActive]}
+                  >
+                    <Icon
+                      name={copied ? 'check' : 'copy'}
+                      size={16}
+                      color={copied ? colors.success : colors.textSecondary}
+                    />
+                    <Text style={[styles.actionText, copied && styles.actionTextActive]}>
+                      {copied ? 'Copied' : 'Copy'}
+                    </Text>
+                  </Pressable>
+                ) : null}
+                {/* AI-26 — the restock link is drawn on EVERY stock-list answer, not
+                    only a truncated one. Rule 3 tells the model to send the member to
+                    "the matching screen in the app" for the full list, and a paginated
+                    36-product answer is just as unreachable as a truncated one. The
+                    destination is the same screen for all three stock tools, so the
+                    label is the server's own screen name. */}
+                {screens.map((screen) => (
+                  <Pressable
+                    key={screen.path}
+                    testID={`chat-screen-${screen.kind}`}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Open ${screen.label}`}
+                    onPress={() => router.push(screen.path)}
+                    style={[styles.actionButton, styles.actionButtonPrimary]}
+                  >
+                    <Icon name="layers" size={16} color={colors.primary} />
+                    <Text style={[styles.actionText, styles.actionTextPrimary]}>Open {screen.label}</Text>
+                  </Pressable>
+                ))}
+                {legacyRestockPath ? (
+                  <Pressable
+                    testID="chat-restock-link"
+                    accessibilityRole="button"
+                    accessibilityLabel="Open restock list"
+                    onPress={() => router.push(legacyRestockPath)}
+                    style={[styles.actionButton, styles.actionButtonPrimary]}
+                  >
+                    <Icon name="layers" size={16} color={colors.primary} />
+                    <Text style={[styles.actionText, styles.actionTextPrimary]}>Open restock list</Text>
+                  </Pressable>
+                ) : null}
+                {/* The turn's reference is support's handle on this answer. It is
+                    selectable when open so it can be copied into a support message. */}
+                {item.turnId ? (
+                  <Pressable
+                    testID="chat-answer-details"
+                    accessibilityRole="button"
+                    accessibilityLabel={detailsOpen ? 'Hide answer details' : 'Show answer details'}
+                    accessibilityState={{ expanded: detailsOpen }}
+                    onPress={() => setDetailsOpen((value) => !value)}
+                    style={styles.detailsButton}
+                  >
+                    <Icon name="more" size={20} color={colors.textMuted} />
+                  </Pressable>
+                ) : null}
+              </View>
+            ) : null}
+            {item.messageId ? (
+              <View style={styles.feedbackRow} testID="chat-feedback">
+                <Text style={styles.feedbackPrompt}>
+                  {feedback
+                    ? feedback.rating === 'UP'
+                      ? 'Thanks for rating this answer.'
+                      : 'Reported — thank you.'
+                    : 'Was this answer helpful?'}
+                </Text>
+                <View style={styles.feedbackButtons}>
+                  <Pressable
+                    testID="chat-feedback-up"
+                    accessibilityRole="button"
+                    accessibilityLabel="Good response"
+                    accessibilityState={{ selected: feedback?.rating === 'UP', disabled: feedbackSaving }}
+                    disabled={feedbackSaving}
+                    onPress={() => void sendFeedback('UP')}
+                    style={[
+                      styles.feedbackButton,
+                      feedback?.rating === 'UP' && styles.feedbackButtonUp,
+                    ]}
+                  >
+                    <Icon
+                      name="thumbUp"
+                      size={18}
+                      color={feedback?.rating === 'UP' ? colors.success : colors.textSecondary}
+                    />
+                  </Pressable>
+                  <Pressable
+                    testID="chat-feedback-down"
+                    accessibilityRole="button"
+                    accessibilityLabel="Bad response"
+                    accessibilityState={{ selected: feedback?.rating === 'DOWN', disabled: feedbackSaving }}
+                    disabled={feedbackSaving}
+                    onPress={openDownForm}
+                    style={[
+                      styles.feedbackButton,
+                      feedback?.rating === 'DOWN' && styles.feedbackButtonDown,
+                    ]}
+                  >
+                    <Icon
+                      name="thumbDown"
+                      size={18}
+                      color={feedback?.rating === 'DOWN' ? colors.warning : colors.textSecondary}
+                    />
+                  </Pressable>
+                </View>
+              </View>
+            ) : null}
+            {feedbackFormOpen ? (
+              <View style={styles.feedbackForm} testID="chat-feedback-form">
+                <Text style={styles.feedbackTitle}>What went wrong?</Text>
+                <View style={styles.feedbackReasons}>
+                  {FEEDBACK_REASONS.map((option) => {
+                    const selected = feedbackReason === option.value;
+                    return (
+                      <Pressable
+                        key={option.value}
+                        testID={`chat-feedback-reason-${option.value}`}
+                        accessibilityRole="button"
+                        accessibilityState={{ selected }}
+                        onPress={() => setFeedbackReason(option.value)}
+                        style={[styles.feedbackReason, selected && styles.feedbackReasonSelected]}
+                      >
+                        <Text
+                          style={[
+                            styles.feedbackReasonText,
+                            selected && styles.feedbackReasonTextSelected,
+                          ]}
+                        >
+                          {option.label}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+                <TextInput
+                  testID="chat-feedback-comment"
+                  style={styles.feedbackInput}
+                  value={feedbackComment}
+                  onChangeText={setFeedbackComment}
+                  placeholder="Add a note (optional)"
+                  placeholderTextColor={colors.placeholder}
+                  multiline
+                  maxLength={500}
+                />
+                <Text style={styles.feedbackCount}>{feedbackComment.length}/500</Text>
+                {feedbackError ? (
+                  <Text testID="chat-feedback-error" style={styles.feedbackError}>
+                    {feedbackError}
+                  </Text>
+                ) : null}
+                <View style={styles.feedbackActions}>
+                  <Button
+                    title="Send"
+                    testID="chat-feedback-send"
+                    onPress={() => feedbackReason && void sendFeedback('DOWN', feedbackReason)}
+                    disabled={!feedbackReason || feedbackSaving}
+                    loading={feedbackSaving}
+                    style={styles.feedbackSend}
+                  />
+                  <Button
+                    title="Cancel"
+                    variant="ghost"
+                    onPress={() => {
+                      setFeedbackFormOpen(false);
+                      setFeedbackError(null);
+                    }}
+                    disabled={feedbackSaving}
+                  />
+                </View>
+              </View>
+            ) : null}
+            {feedbackNotice ? (
+              <Text testID="chat-feedback-thanks" style={styles.feedbackThanks}>
+                {feedbackNotice}
+              </Text>
+            ) : null}
+            {item.turnId && detailsOpen ? (
+              <Text selectable testID="chat-turn-ref" style={styles.turnRef}>
+                Ref: {item.turnId}
+              </Text>
+            ) : null}
+            {trace || item.createdAt ? (
+              <View style={styles.metaRow}>
+                {freshnessText(item) ? (
+                  <Text style={styles.tools} numberOfLines={2} testID="chat-tools">
+                    {item.answerContext ? freshnessText(item) : `Read: ${freshnessText(item)}`}
+                  </Text>
+                ) : (
+                  <View style={styles.metaSpacer} />
+                )}
+                {/* AI-17 — the message's own clock time, 12-hour with a suffix so it
+                    reads as a time on sight rather than as a duration. */}
+                {item.createdAt ? (
+                  <Text testID="chat-time-assistant" style={[styles.time, styles.timeMeta]}>
+                    {formatClock12(item.createdAt)}
+                  </Text>
+                ) : null}
+                {item.answerContext ? (
+                  <Pressable
+                    testID="chat-scope-inspect"
+                    accessibilityRole="button"
+                    accessibilityLabel={contextOpen ? 'Hide answer sources' : 'Inspect answer sources'}
+                    accessibilityState={{ expanded: contextOpen }}
+                    onPress={() => setContextOpen((value) => !value)}
+                    style={styles.inspectButton}
+                  >
+                    <Text style={styles.inspectText}>{contextOpen ? 'Hide' : 'Inspect'}</Text>
+                  </Pressable>
+                ) : null}
+              </View>
+            ) : null}
+            {item.answerContext && contextOpen ? (
+              <View testID="chat-answer-context" style={styles.contextPanel}>
+                <Text style={styles.contextLine}>
+                  Retrieved {formatDateTime(item.answerContext.retrievedAt) || 'unknown'}
+                </Text>
+                <Text style={styles.contextLine}>
+                  Sources: {item.answerContext.sources.join(', ') || 'No data read'}
+                </Text>
+                <Text style={styles.contextLine}>
+                  Tools: {toolTrace(item.answerContext.tools) ?? 'None'}
+                </Text>
+                <Text style={styles.contextLine}>
+                  Products: {item.answerContext.productCount}
+                  {item.answerContext.total !== null &&
+                  item.answerContext.total !== item.answerContext.productCount
+                    ? ` of ${item.answerContext.total} matching`
+                    : ''}
+                </Text>
+                {item.answerContext.filters.length ? (
+                  item.answerContext.filters.map((entry) => (
+                    <Text key={`${entry.label}:${entry.value}`} style={styles.contextLine}>
+                      {entry.label}: {entry.value}
+                    </Text>
+                  ))
+                ) : (
+                  <Text style={styles.contextLine}>Filters: None</Text>
+                )}
+                {item.answerContext.webSources.length ? (
+                  <View style={styles.contextSources}>
+                    <Text style={styles.contextLine}>Web sources</Text>
+                    {item.answerContext.webSources.map((source) => (
+                      <Text key={source.url} style={styles.contextSource} numberOfLines={2}>
+                        {source.title} — {source.url}
+                      </Text>
+                    ))}
+                  </View>
+                ) : null}
+              </View>
+            ) : null}
+          </View>
         ) : null}
-        {/* AI-21 — the chip names what was READ, not which function read it: the owner's
-            judgement was that `Read: getProductsByLocation` is jargon. The stored message
-            and `restockPathForTools` above keep the real names, so the trace and the
-            routing are unchanged. */}
-        {!user && toolTrace(item.toolsUsed) ? (
-          <Text style={styles.tools} numberOfLines={2} testID="chat-tools">
-            Read: {toolTrace(item.toolsUsed)}
-          </Text>
-        ) : null}
-        {/* AI-17 — the footer used to be a bare `14:05`, which the owner read as a
-            response time and asked about. It is the message's own clock time: 12-hour with
-            a suffix, so it reads as a time on sight. The owner chose the bare time over a
-            "Sent"/"Answered" prefix — the words were tried on the device and cluttered the
-            bubble, while "2:58 AM" needs no label to be understood. */}
-        {/* The turn's reference, selectable so it can be copied into a support message.
-            Only on an assistant answer the server returned it for: a question has no turn
-            of its own, and a message stored before the id existed shows nothing extra. */}
-        {!user && item.turnId ? (
-          <Text selectable testID="chat-turn-ref" style={styles.turnRef}>
-            Ref: {item.turnId}
-          </Text>
-        ) : null}
-        {item.createdAt ? (
-          <Text
-            testID={user ? 'chat-time-user' : 'chat-time-assistant'}
-            style={[styles.time, user && styles.timeUser]}
-          >
+        {user && item.createdAt ? (
+          <Text testID="chat-time-user" style={[styles.time, styles.timeUser]}>
             {formatClock12(item.createdAt)}
           </Text>
         ) : null}
@@ -836,7 +1138,7 @@ export default function AiChat({ conversationId = null, initialPrompt = '' }: Ai
         style={styles.flex}
         data={displayRows}
         keyExtractor={(item) => item.key}
-        renderItem={({ item }) => <MessageBubble item={item} />}
+        renderItem={({ item }) => <MessageBubble item={item} token={token} />}
         ListEmptyComponent={<Welcome onAsk={send} />}
         ListFooterComponent={
           // AI-40 — the thinking row is for the wait BEFORE any text; once words are arriving
@@ -919,18 +1221,118 @@ const createStyles = (colors: Palette) =>
     bubbleWide: { flex: 1 },
     bubbleText: { ...type.body, color: colors.text },
     bubbleTextUser: { color: colors.textOnPrimary },
-    tools: { ...type.caption, color: colors.textMuted, marginTop: spacing.sm },
+    // AI-115 — the answer footer is a quiet surface, not another paragraph.
+    // The hairline separates actions from the answer; the pills keep every target at
+    // 44 px while the compact caption size keeps the chrome visually light.
+    footer: {
+      marginTop: spacing.md,
+      paddingTop: spacing.sm + 2,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: colors.divider,
+    },
+    actionRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: spacing.sm },
+    actionButton: {
+      minHeight: 44,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      paddingHorizontal: spacing.md,
+      borderRadius: radius.pill,
+      backgroundColor: colors.surfaceMuted,
+    },
+    actionButtonPrimary: { backgroundColor: colors.primarySoft },
+    actionButtonActive: { backgroundColor: colors.successSoft },
+    actionText: { ...type.caption, color: colors.textSecondary, fontWeight: '700' },
+    actionTextPrimary: { color: colors.primary },
+    actionTextActive: { color: colors.success },
+    detailsButton: {
+      width: 44,
+      height: 44,
+      marginLeft: 'auto',
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: radius.pill,
+    },
+    feedbackRow: {
+      marginTop: spacing.xs,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: spacing.sm,
+    },
+    feedbackPrompt: { ...type.caption, color: colors.textMuted, flex: 1 },
+    feedbackButtons: { flexDirection: 'row', gap: spacing.xs },
+    feedbackButton: {
+      width: 44,
+      height: 44,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: radius.pill,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    feedbackButtonUp: { backgroundColor: colors.successSoft, borderColor: colors.success },
+    feedbackButtonDown: { backgroundColor: colors.warningSoft, borderColor: colors.warning },
+    feedbackForm: {
+      marginTop: spacing.sm,
+      padding: spacing.md,
+      borderRadius: radius.md,
+      backgroundColor: colors.surfaceMuted,
+      gap: spacing.sm,
+    },
+    feedbackTitle: { ...type.label, color: colors.text },
+    feedbackReasons: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs },
+    feedbackReason: {
+      minHeight: 40,
+      justifyContent: 'center',
+      paddingHorizontal: spacing.md,
+      borderRadius: radius.pill,
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.surface,
+    },
+    feedbackReasonSelected: { backgroundColor: colors.primarySoft, borderColor: colors.primary },
+    feedbackReasonText: { ...type.caption, color: colors.textSecondary },
+    feedbackReasonTextSelected: { color: colors.primary, fontWeight: '700' },
+    feedbackInput: {
+      ...type.bodySmall,
+      color: colors.text,
+      backgroundColor: colors.surface,
+      borderRadius: radius.md,
+      borderWidth: 1,
+      borderColor: colors.borderStrong,
+      paddingHorizontal: spacing.sm,
+      paddingVertical: spacing.sm,
+      minHeight: 72,
+      maxHeight: 120,
+      textAlignVertical: 'top',
+    },
+    feedbackCount: { ...type.caption, color: colors.textMuted, textAlign: 'right' },
+    feedbackError: { ...type.caption, color: colors.danger },
+    feedbackActions: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+    feedbackSend: { flex: 1 },
+    feedbackThanks: { ...type.caption, color: colors.success, marginTop: spacing.xs },
+    metaRow: { marginTop: spacing.xs, flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm },
+    metaSpacer: { flex: 1 },
+    // AI-21 — the provenance chip names what was READ, not which function read it.
+    tools: { ...type.caption, color: colors.textMuted, flexShrink: 1 },
+    inspectButton: { minHeight: 32, justifyContent: 'center', paddingHorizontal: spacing.xs },
+    inspectText: { ...type.caption, color: colors.primary, fontWeight: '700' },
+    contextPanel: {
+      marginTop: spacing.xs,
+      padding: spacing.sm,
+      borderRadius: radius.sm,
+      backgroundColor: colors.surfaceMuted,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.border,
+      gap: 2,
+    },
+    contextLine: { ...type.caption, color: colors.textSecondary },
+    contextSources: { marginTop: spacing.xs, gap: 2 },
+    contextSource: { ...type.caption, color: colors.textMuted },
     // AI-8 — a caveat inside the assistant bubble, in the warning colour so it reads as
     // one. `marginTop` keeps it clear of the answer's last line, which it qualifies.
     incomplete: { ...type.caption, color: colors.warning, marginTop: spacing.sm },
-    incompleteLink: { ...type.caption, color: colors.primary, fontWeight: '700', marginTop: spacing.xs },
-    copyButton: {
-      alignSelf: 'flex-start',
-      minHeight: 44,
-      justifyContent: 'center',
-      marginTop: spacing.xs,
-    },
-    copyText: { ...type.caption, color: colors.primary, fontWeight: '700' },
     results: {
       marginTop: spacing.sm,
       paddingTop: spacing.sm,
@@ -944,8 +1346,9 @@ const createStyles = (colors: Palette) =>
     resultsMore: { minHeight: 44, justifyContent: 'center' },
     resultsMoreText: { ...type.caption, color: colors.primary, fontWeight: '700' },
 
-    turnRef: { ...type.caption, color: colors.textMuted, marginTop: 4, opacity: 0.75 },
+    turnRef: { ...type.caption, color: colors.textMuted, marginTop: 2, opacity: 0.75 },
     time: { ...type.caption, color: colors.textMuted, marginTop: 4, textAlign: 'right' },
+    timeMeta: { marginTop: 0, marginLeft: 'auto' },
     // On the primary-filled user bubble: readable in both themes without a
     // hardcoded white, which would vanish against the dark theme's light blue.
     timeUser: { color: colors.textOnPrimary, opacity: 0.75 },

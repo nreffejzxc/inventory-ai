@@ -8,12 +8,14 @@ document, not a specification: behaviour is still owned by
 [`guides/18-ai-assistant-limits.md`](guides/18-ai-assistant-limits.md), and what shipped by the
 roadmap records in [`DEVELOPMENT_ROADMAP.md`](DEVELOPMENT_ROADMAP.md).
 
-**Last reviewed:** 2026-11-16, against AI-114 merged as `e5c1c1d`, the production server at
-`e5c1c1d`, and the production Android app on runtime `1.0.2` with OTA
+**Last reviewed:** 2026-11-16, against AI-114 merged as `e5c1c1d`, AI-115/AI-116 in the working
+tree, the production server at `e5c1c1d`, and the production Android app on runtime `1.0.2` with OTA
 `9d759ee5-82c5-4fbe-afe0-3a0ea2c44f6c`. AI-114 renders an explicit complete restock/low-stock
 list deterministically, including an `OUTPUT_LIMIT` turn whose rows were complete; the production
 phone returned **19 products / 721 units**, copied all 19, and returned **9 products / 272 units**
-for the filtered list.
+for the filtered list. AI-115 adds member ratings and the OWNER/ADMIN review queue. AI-116 adds the
+bounded previous-result follow-up and the per-answer freshness/Inspect panel. Both are implemented
+and covered by focused tests; deployment and the mirrored-phone pass are pending at this review.
 
 **The rule that outranks every item below:** the assistant is **read-only**. It may read, compare,
 summarise and recommend from tenant-scoped records. It may never write stock, create a product, a
@@ -39,16 +41,25 @@ piece is not implied to work because a related tool exists.
 | 1 | Copy Answer, Restock Navigation, Product Navigation | 1 | **Implemented — production-verified** | Copy Answer copies the complete stored answer as plain text. Product names named by the final answer are inline links, using only ids captured from the turn's read tools. Restock navigation remains, and every paged list answer now also carries filter-preserving screen links. `ai111-answer-actions.test.tsx`, `ai112-answer-navigation.test.tsx` and the server AI-111/AI-112 suites cover the actions. Device proof: Copy pasted the full answer; the Razer link opened SKU `DEMOSKU-73`; the filtered Restock link carried **9 products** and **Keyboards & Mice**. | No functional gap in the three actions. The Copy control uses React Native core `Clipboard`, whose deprecation warning is expected. |
 | 2 | Complete list and pagination | 2 | **Implemented — production-verified** | Every paged tool answer now carries its total, a bounded page of the rows already read, and a screen link built from the filters the tool actually used. The mobile thread reveals those rows five at a time with “Showing X of Y” and keeps the screen link for the complete set. Inventory, Restock, Products and History initialize their filters from the link. Device proof: **5 of 19 → 10 of 19**, and Restock opened with **19 products**. | No search-within-results and no tool page cursor: “next 5” reveals only rows captured in this answer; a new tool read still requires a new turn. A destination filter that the screen cannot represent is omitted rather than claimed. |
 | 3 | Smarter inventory answers | High, sequence 3 | **Partial — strong** | Deterministic finalizers cover restock counts and explicit complete restock/low-stock lists, stock-value totals, product/location totals, most-expensive, top stock-out and several ranking shapes; tools compute counts over the whole matched set. AI-113 adds a server-ranked highest-stock read and answer, and the whole-set `totalUnitsBelowMinimum` replaces page-row addition. AI-114 renders every complete restock row in a bounded answer and can rescue an output-limited turn from those rows. AI-2/AI-60 tests guard grounding and partial lists. Device proof: **19 / 721**, Copy all 19, and the filtered **9 / 272**. | Coverage is still shape-by-shape: other comparisons, trends and report combinations can remain model-composed. Correctness must be proved per question shape, not inferred from the tool list. |
-| 4 | Better follow-up conversations | 4 | **Partial** | The server replays the last 20 USER/ASSISTANT messages (`AI_CONTEXT_MESSAGES`), so ordinary conversational context exists. | Tool rows are not replayed, and prompt rule 30 tells the model every question sets its own scope. A follow-up such as “which ones are from Samsung?” can re-query Samsung but is not guaranteed to preserve the previous “low stock” result set. There is no structured result-set handle. |
+| 4 | Better follow-up conversations | 4 | **Implemented** | The server replays the last 20 USER/ASSISTANT messages (`AI_CONTEXT_MESSAGES`) and now stores a bounded membership set from the immediately previous answer. An explicit referent offers `filterPreviousResults`, which re-reads current stock for exactly those products with the new category/location/stock filter; an old list-tool call is rewritten to it. A new question never inherits the old scope. | The set is a flat product-id list capped at 100, not a general query cursor or a signed cross-turn query. A follow-up cannot add a filter the tool does not expose (for example a free-text search inside the previous set). |
 | 5 | Inventory comparison | 5 | **Partial** | `getLocationBreakdown` compares all locations in one read; `getProduct` returns per-location stock; product-stock-by-location and history totals have deterministic answers; history rows distinguish direction and transfer legs. | No deterministic two-product comparison, no compare-to-minimum table, and no “decreasing inventory” verdict. A trend read must be assembled by the model from movements; the tool reports movement, not a forecast. |
 | 6 | Inventory insights and recommendations | High, sequence 6 | **Partial** | Reorder-needed, low/out-of-stock, never-sold and history tools support restock priorities and dead-stock observations. Recommendations are explicitly read-only; no write tool exists. | No run-out-soon calculation (no sales-velocity forecast), no excess-inventory rule, and no monitoring score. These need defined data rules and disclosed windows, not model intuition. |
-| 7 | Better error handling and transparency | 7 (cross-cutting) | **Implemented — residual hardening** | Grounding re-asks, degraded reasons, output-limit annotations, partial-list totals and the final restock completeness guard; AI-60 is 64/64; the integrity endpoint was last recorded fresh. | Not every list shape gets a generic completeness marker; the 4,000-character trim does not add its own degraded marker; an unavailable service and a genuinely zero result rely on the answer copy. These are UX contracts to finish, not new AI writes. |
+| 7 | Better error handling and transparency | 7 (cross-cutting) | **Implemented — residual hardening** | Grounding re-asks, degraded reasons, output-limit annotations, partial-list totals and the final restock completeness guard; AI-60 is 64/64. AI-116 adds retrieval time, sources, tools, product count and filters to every new answer, with Inspect for the details; an answer that read nothing says `No data read`. | Not every list shape gets a generic completeness marker; the 4,000-character trim does not add its own degraded marker; an unavailable service and a genuinely zero result rely on the answer copy. These are UX contracts to finish, not new AI writes. |
 | 8 | Inventory report summaries | 8 | **Partial** | `getInventorySummary` returns active products, healthy/low/out counts, total on-hand quantity and recent activity; `getCatalogOverview` adds category counts; `getLocationBreakdown` adds per-location totals. | No single deterministic report read that guarantees one summary containing catalogue totals, low/out counts, category split, location split and the reporting window. The model currently composes it from up to three reads. |
 
 **Important reading of the priority table.** Items 3 and 7 are marked high priority, but they are also
 release gates for every slice: no new answer shape ships without grounded numbers, and no incomplete
 answer ships without saying so. Their remaining dedicated work still follows the owner's sequence.
 The sequence is a dependency order, not permission to defer correctness.
+
+**Member feedback (delivered 2026-11-16).** Every assistant answer can be rated UP or DOWN. A
+DOWN rating requires one of four reasons and accepts a bounded optional note; a member can change
+their rating, which updates the one row per answer/member. OWNER and ADMIN review the
+business-scoped queue through the existing `ai.metrics.view` capability, see bounded question and
+answer excerpts, and mark an item REVIEWED. The message list returns only the caller's own
+rating. Feedback is not a write to inventory, and it is deleted with its author's account and with
+the tenant. The server coverage is `AI115-ai-feedback.test.mjs`; the footer and review UI are
+covered by `ai115-answer-footer.test.tsx` and `ai115-feedback-review.test.tsx`.
 
 ## 2. Item-by-item review and next slice
 
@@ -124,20 +135,18 @@ invents a product or quantity; no matching product is silently excluded.
 
 ### 4. Better follow-up conversations — priority 4
 
-**Already working.** Recent USER/ASSISTANT text is sent as context, so “what about the other one?”
-can sometimes work. The assistant can call a tool again with a narrower filter.
+**Implemented.** The controller loads the immediately previous assistant message's
+`answerContext.resultProductIds` — a bounded membership set, never a quantity snapshot. Only an
+explicit referent (`which of those`, `among them`, `narrow that list`) offers the read-only
+`filterPreviousResults` tool, and a model call to an old list tool on such a turn is rewritten to
+it before execution. The tool re-reads current stock for those ids under the authenticated
+business and applies only an exact category, location, low-stock/out-of-stock filter and a bounded
+limit. A question without a referent gets a fresh read; an ambiguous referent has no set and falls
+back to ordinary scoped retrieval. No raw tool JSON is replayed.
 
-**Missing.** The previous structured result is not available to the next turn. Prompt rule 30
-deliberately prevents carrying a location/product/category/period from an earlier question unless
-this question names it. That protects against stale scope, but it means “which ones are from
-Samsung?” does not necessarily preserve the earlier low-stock filter. Replaying raw tool output is
-not safe or bounded.
-
-**Next slice.** Define a small, server-owned **previous result context** for follow-ups: a bounded,
-signed/validated summary of the last answer's scope and ids, used only when the new question clearly
-refers to it (“those”, “which ones”, “the same list”). The model must still re-read current data for
-fresh quantities; cached ids are not evidence of current stock. If the referent is ambiguous, ask a
-short clarifying question instead of guessing. Do not replay unbounded tool JSON.
+**Bound.** At most 100 ids, only the previous answer, only same-conversation, only with `ai.use`;
+page and output limits are unchanged. Product ids stay server-side: the API returns provenance and
+freshness, never `resultProductIds`.
 
 **Accepted when.** A two-turn test proves a filter is retained only on an explicit referent; a new
 question with a different scope does not inherit the old one; stale ids are re-read; an ambiguous
@@ -192,14 +201,16 @@ a total and a qualification; the final text-only guard catches a false “full l
 errors map to member-facing copy through the error-code guide. Integrity monitoring is separate
 from the assistant and currently fresh.
 
-**Missing.** Transparency is shape-specific. A generic list answer does not always state that it is
-a page. The final 4,000-character trim does not add its own notice. “Zero” and “unavailable” can
-still be confused in prose, and a service failure's copy depends on the error path.
+**Implemented for answer provenance.** Every new stored answer carries `answerContext` with the
+retrieval time, tool names, source classes, product count, total/hasMore, the filters the tool
+actually applied, and up to ten cited web sources — never tool payloads or result ids. The compact
+footer line names the sources and count; **Inspect** shows the timestamp, tools, filters and URLs.
+An answer that read no data says `No data read`. Legacy messages keep the old `Read:` label.
 
-**Next slice.** Make completeness a renderable property of every list answer, not a sentence the
-model must remember. Distinguish **zero matches**, **not recorded**, **not authorised**, and
-**service unavailable** in the copy and tests. Mark a trimmed answer; never silently trim. Keep the
-server-computed total authoritative when a page is shown.
+**Residual.** Transparency is still shape-specific. A generic list answer does not always state that
+it is a page. The final 4,000-character trim does not add its own notice. “Zero” and “unavailable”
+can still be confused in prose, and a service failure's copy depends on the error path. The
+provenance line describes what was read; it does not by itself prove completeness.
 
 **Accepted when.** Each degraded/partial/empty path has a test and member-facing copy; no path
 shows an invented quantity; a page never claims to be complete; a failure says what failed without
@@ -241,7 +252,10 @@ same file.
 | F | Insights and recommendations | Turns facts into priorities, never writes | Insufficient-data tests, no write path |
 | G | Report summaries | A consistent, explainable snapshot | Reconciliation and as-of tests |
 
-As of 2026-11-16, **slices A, B and C are implemented, merged, deployed and device-verified**.
+As of 2026-11-16, **slices A, B and C are implemented, merged, deployed and device-verified**;
+**slice D (follow-up result context)** and the answer-provenance part of item 7 are implemented with
+focused tests, and the member-feedback slice is implemented end to end. Deployment, OTA and the
+mirrored-phone pass for AI-115/AI-116 are the remaining gate.
 PR #304 merged as `af366c1`; OTA group `9d759ee5-82c5-4fbe-afe0-3a0ea2c44f6c` runs on the
 installed app; production serves `e5c1c1d` after the auxiliary-list correction and AI-114. A and B
 share the stored answer-actions shape and the mobile action controls; C adds the highest-stock

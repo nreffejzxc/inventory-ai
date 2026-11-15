@@ -174,7 +174,7 @@ set.
 
 ## 2.6 Route inventory
 
-Phase 23 classifies **87 routes**: **51 permission-gated**, **14 authenticated**, **22 public**, **0 role-gated**. The `PUBLIC` and `AUTHENTICATED` buckets are explicit lists that each carry a
+Phase 23 classifies **90 routes**: **54 permission-gated**, **14 authenticated**, **22 public**, **0 role-gated**. The `PUBLIC` and `AUTHENTICATED` buckets are explicit lists that each carry a
 written reason; a route in no bucket fails the guard, and a declared exemption that has stopped being
 true also fails. The guard deliberately asserts **no route count** — a route is *declared* or it is not,
 and the number is derived from the declarations — so the figure above is pinned separately, by
@@ -271,6 +271,13 @@ fails if the two disagree.
 > other health endpoints. It publishes only the audit timestamp, age, status and aggregate counts;
 > it names no tenant, product, location, user, inventory row or ledger row, and it performs one
 > read-only lookup of the operational heartbeat collection.
+
+> **AI-115 feedback (2026-11-16) added three permission-gated routes — 87 + 3 gated = **90** (54
+> permission-gated, 14 authenticated, 22 public, 0 role-gated).** `POST /api/ai/feedback` requires
+> `ai.use`; `GET /api/ai/feedback` and `PATCH /api/ai/feedback/:id` require the existing
+> `ai.metrics.view` capability, granted only to OWNER and ADMIN. The write is a member's opinion of a
+> stored answer — not inventory — and the review routes never widen tenant scope. This is the first
+> change to the gated tier since invitations (50 → 51 with AI-102, now 54).
 
 The auth surface (`server/src/routes/auth.routes.ts`):
 

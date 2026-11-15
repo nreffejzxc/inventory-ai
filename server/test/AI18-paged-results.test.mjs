@@ -31,7 +31,7 @@ import { systemPrompt } from '../src/services/ai/ai.service.ts';
 const here = dirname(fileURLToPath(import.meta.url));
 const TOOLS_SOURCE = readFileSync(join(here, '..', 'src', 'services', 'ai', 'tools.ts'), 'utf8');
 
-/** The twelve list tools whose result is one page of a possibly larger set. */
+/** The fourteen list tools whose result is one page of a possibly larger set. */
 const PAGED_TOOLS = [
   'searchProducts',
   'getInventory',
@@ -46,6 +46,8 @@ const PAGED_TOOLS = [
   'listCategories',
   'listBrands',
   'findProducts',
+  // AI-116: the previous result set, filtered and re-read with current stock.
+  'filterPreviousResults',
 ];
 
 const { dbOk, baseUrl, server } = await startServer();

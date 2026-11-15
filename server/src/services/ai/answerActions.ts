@@ -231,6 +231,40 @@ export function answerActionsForTool(
     };
   }
 
+  if (name === 'filterPreviousResults') {
+    const kind = text(result.listKind);
+    const categoryId = text(result.categoryId);
+    const category = text(result.categoryName);
+    const locationId = text(result.locationId);
+    const location = text(result.locationName);
+    let path = '';
+    if (kind === 'restock' && !locationId && !location) {
+      path = pathWith('/restock', { categoryId, category });
+    } else if (kind === 'products') {
+      path = pathWith('/products', { categoryId, category, locationId, location });
+    } else if (kind === 'inventory' && !categoryId && !category) {
+      path = pathWith('/inventory', {
+        locationId,
+        location,
+        status: result.lowStock === true ? 'low' : result.outOfStock === true ? 'out' : undefined,
+      });
+    }
+    // A filtered list the destination cannot represent gets no link. A button that
+    // opens a wider list than the answer just described is worse than no button.
+    if (!path) return null;
+    const label = kind === 'restock' ? 'Restock' : kind === 'products' ? 'Products' : 'Inventory';
+    return {
+      list: {
+        kind: kind as AnswerListKind,
+        label,
+        path,
+        total: pageTotal(result),
+        rows: kind === 'products' ? productRows(result) : restockRows(result),
+      },
+      screen: screen(kind, label, path),
+    };
+  }
+
   if (name === 'findProducts' || name === 'searchProducts') {
     const path = pathWith('/products', {
       q: name === 'findProducts' ? text(args.keywords) : text(args.q),

@@ -43,6 +43,8 @@ const TOOL_LABELS: Record<string, string> = {
   // deliberate word, and the parity test fails when a read is added to the server without
   // a decision made here.
   getLocationBreakdown: 'Stock by location',
+  // AI-116's follow-up read. It is a filter of the previous answer, not a new search.
+  filterPreviousResults: 'Filtered previous results',
 };
 
 /**

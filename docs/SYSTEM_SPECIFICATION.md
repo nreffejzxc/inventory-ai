@@ -1034,6 +1034,56 @@ re-derived. It is an opaque correlation label for the server's AI records and gr
 is not an authorization token, a resource id, or a substitute for `businessId` scoping. User messages
 and messages written before the field existed have no reference.
 
+### Answer provenance and follow-up context
+
+Every new assistant answer stores a bounded `answerContext` beside its text. It contains the
+retrieval time of the last row-shaped read, the successful tool names, the source classes
+(`Inventory records`, `Public web`), the product count, the tool's total and `hasMore` state, the
+filters the tool actually applied, and up to ten cited web sources. It contains no tool payload,
+no tenant id and no quantity snapshot. The mobile footer draws this as one compact line — for
+example `Inventory records · 19 products · Category Keyboards & Mice` — with the answer clock and
+an **Inspect** control. Inspect lists the retrieval date/time, sources, tools, product count,
+filters and web-source URLs. An answer that read no data says `No data read`; it is not allowed to
+look like an inventory read. Messages stored before this field existed keep the older
+`Read: <tool>` label and have no Inspect control.
+
+The same context is the only follow-up handle. `answerContext.resultProductIds` is a bounded
+(100-id) membership set from the immediately previous assistant answer; no older answer can be
+“those”. If the new question contains an explicit referent (`which of those`, `among them`,
+`narrow that list`), the chat turn offers the read-only tool `filterPreviousResults`, whose
+arguments are an optional exact category, location, `lowStock`/`outOfStock` and a bounded limit.
+The tool re-reads current inventory for exactly those product ids, scoped to the authenticated
+business, and returns current quantities. Ids, filters and captured quantities are never evidence
+of current stock; a quantity is always read again per turn. If the model chooses an old list tool
+on such a follow-up, the server rewrites that call to `filterPreviousResults` before it runs. A
+question without a referent starts a fresh read and never inherits the old scope.
+
+### Member feedback
+
+A member can rate one stored assistant answer with `UP` or `DOWN`. A DOWN rating carries one
+reason (`INCORRECT_DATA`, `MISSING_INFORMATION`, `HARD_TO_UNDERSTAND`, `OTHER`) and an optional
+comment of at most 500 characters; an UP rating cannot carry either. One row exists per
+`{businessId, messageId, userId}`, so changing a rating updates it rather than creating a second
+opinion. The message must be an ASSISTANT message in a conversation owned by the caller; any other
+message is `404`, including a colleague's answer in the same business. The thread read attaches
+only the caller's own rating to each message.
+
+```http
+POST  /api/ai/feedback
+GET   /api/ai/feedback?status=OPEN&rating=DOWN&page=1&limit=20
+PATCH /api/ai/feedback/:id
+Authorization: Bearer <token>
+```
+
+POST requires `ai.use`; GET and PATCH require the existing `ai.metrics.view` capability, so only
+OWNER and ADMIN can review. The queue is business-scoped and returns bounded excerpts of the
+reported question (500 characters) and answer (1,200 characters), the member's name and role, the
+turn reference and the answer's tools — never the member's email or whole conversation. Its
+`summary` reports all-time `total`, `open`, `up` and `down` counts for the business, independent of
+the current filter. PATCH toggles `OPEN`/`REVIEWED` and records the reviewer and time. Feedback is
+deleted with its author's account and with the tenant during teardown. All three responses are
+`Cache-Control: no-store`.
+
 ### Turn metrics
 
 Each completed turn — success, degraded or failed — also writes one operational row to
@@ -1082,6 +1132,7 @@ getProductsByLocation
 listLocations
 listCategories
 listBrands
+filterPreviousResults
 researchInventoryProducts
 researchMarketPrices
 ```
@@ -1090,7 +1141,9 @@ The list above is the current set as implemented, and no tool writes. `findProdu
 identity lookup by name, SKU or barcode (AI-91); `getStockValue` groups value by recorded currency;
 `getProductsNeverSold`, `getCatalogOverview` and `getLocationBreakdown` complete the catalogue and
 location reads; `listBrands` is a reference lookup like `listLocations` and `listCategories`; and
-the two research tools are the gated web-research fallback described in Guide 17. `getReorderNeededProducts` (Phase 11A)
+`filterPreviousResults` is offered only when the immediately previous answer left a bounded product
+set and the current question explicitly refers to it; it re-reads current stock for those ids and
+applies only a category/place/stock filter. The two research tools are the gated web-research fallback described in Guide 17. `getReorderNeededProducts` (Phase 11A)
 returns the ACTIVE products at or below their minimum, flagged `OUT_OF_STOCK` or
 `LOW_STOCK`, with `unitsBelowMinimum` as the computed gap to the configured minimum (AI-110), and `totalUnitsBelowMinimum` as the whole matching set's summed gap. `getHighestStockProducts` ranks ACTIVE products by the same availability figure (on hand minus reserved, summed across locations by default) and returns the top page plus the count of every product with positive stock; a location name or id narrows the ranking to that place. It exists so “which products have the most stock?” is a server ranking rather than the first page of an unsorted inventory read. `listLocations` and `listCategories` (AI-14) are reference lookups: they answer *"which
 locations/categories do I have"* and resolve a name whose exact form is unknown. They read the

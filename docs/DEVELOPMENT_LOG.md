@@ -44,6 +44,21 @@ at the end of every development session, newest entry first.
 **Goal:** finish and harden Inventory AI **V1** through production testing. No Play Store or App
 Store release is being prepared.
 
+**Feedback, follow-up context and answer freshness, AI-115/AI-116 (2026-11-16, in progress):** the
+assistant footer now rates an answer UP or DOWN. DOWN requires one of four reasons and accepts a
+bounded note; a changed rating updates the same row. OWNER and ADMIN review a business-scoped queue
+with bounded excerpts and an OPEN/REVIEWED toggle through `ai.metrics.view`; MANAGER and STAFF do
+not see the entry. The previous answer now leaves a bounded product-id set, and an explicit
+referent such as “which of those” offers `filterPreviousResults`, which re-reads current stock for
+exactly those ids with the new category/location/stock filter. A new question never inherits the
+old scope; no cached quantity is used. Every new answer also stores retrieval time, tools, source
+classes, product count, total and filters, rendered as one freshness line with **Inspect**; an
+answer that read nothing says `No data read`. Focused tests pass: AI-115 server **3/3**, footer
+**7/7** and review **3/3**; AI-116 pure **5/5**, DB **3/3** and mobile **4/4**. The full server unit suite passed
+**2,117 / 66 skipped / 0 failed** (434 suites), the full mobile Jest run passed **110 suites /
+1,268 tests**, the documentation guards passed **25/25**, and both typechecks and targeted ESLint
+pass. **Not yet deployed, OTA-published or phone-verified.** Records §27IG/§27IH.
+
 **Deterministic complete restock list, AI-114 (2026-11-16):** a complete `getReorderNeededProducts`
 or `getLowStockProducts` read is now rendered by the server instead of being retyped by the
 model. The answer states the total, the whole-set unit gap when present, and one line per product
@@ -85,10 +100,10 @@ found a misleading auxiliary list under the ranking; PR #305 removed it
 Copy Answer and **no** unrelated “Showing 5 of 12”. Production serves `91d635d` with `status: ok`,
 `db: connected`, 0 `5xx`.
 
-**Known limitation.** The verbose question “List every product that needs restocking” produced a
-model-composed answer that hit the output limit and exposed reasoning fragments before the list.
-That shape still relies on the model; the deterministic count, ranking, shortfall and paged-list
-answers are clean. The complete record is §27IE.
+**Known limitation (superseded by AI-114).** The verbose question “List every product that needs
+restocking” previously produced a model-composed answer that hit the output limit and exposed
+reasoning fragments. AI-114 now renders a complete restock/low-stock list deterministically; the
+limitation remains only for sets that do not fit the answer ceiling. The complete record is §27IF.
 
 **Current production server (2026-11-16):** `e5c1c1d` — PR #307, the deterministic complete
 restock-list release, auto-deployed and confirmed by `/api/health` with `status: ok`, `db:

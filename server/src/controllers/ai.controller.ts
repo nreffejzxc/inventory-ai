@@ -13,7 +13,7 @@ import type mongoose from 'mongoose';
 
 import { AIConversation, AIMessage } from '../models/index.ts';
 import { parsePagination, pageResult } from '../utils/pagination.ts';
-import { optionalObjectId, requiredString, isObjectId } from '../utils/validate.ts';
+import { optionalObjectId, optionalString, requiredString, isObjectId } from '../utils/validate.ts';
 import { invalidId, notFound, throwValidation } from '../utils/errors.ts';
 import ApiError from '../utils/ApiError.ts';
 import { aiConfig } from '../services/ai/aiConfig.ts';
@@ -27,6 +27,14 @@ import {
 } from '../services/ai/aiErrors.ts';
 import { runAiChat, type ChatTurn } from '../services/ai/ai.service.ts';
 import { getAiMetrics, parseAiMetricsDays } from '../services/ai/aiMetrics.service.ts';
+import {
+  AI_FEEDBACK_REASON_VALUES,
+  feedbackForMessages,
+  listFeedback,
+  reviewFeedback,
+  submitFeedback,
+} from '../services/ai/aiFeedback.service.ts';
+import type { PreviousResultContext } from '../services/ai/answerContext.ts';
 import { asksForResearchModel } from '../services/ai/webCapabilities.ts';
 import { ROLES } from '../constants/roles.ts';
 
@@ -68,7 +76,7 @@ function conversationPublic(conv: ConversationDoc) {
   };
 }
 
-function messagePublic(msg: MessageDoc) {
+function messagePublic(msg: MessageDoc, feedback?: unknown) {
   const usage = msg.usage
     ? { inputTokens: msg.usage.inputTokens ?? undefined, outputTokens: msg.usage.outputTokens ?? undefined }
     : undefined;
@@ -94,6 +102,27 @@ function messagePublic(msg: MessageDoc) {
         })),
       }
     : undefined;
+  // AI-116 — provenance for the footer and Inspect panel. Product ids stay server-side:
+  // the client needs what was read and under which filters, not the membership set.
+  const rawContext = msg.answerContext;
+  const answerContext = rawContext
+    ? {
+        retrievedAt: rawContext.retrievedAt,
+        tools: rawContext.tools ?? [],
+        sources: rawContext.sources ?? [],
+        productCount: rawContext.productCount ?? 0,
+        total: rawContext.total ?? null,
+        hasMore: rawContext.hasMore === true,
+        filters: (rawContext.filters ?? []).map((entry) => ({
+          label: entry.label,
+          value: entry.value,
+        })),
+        webSources: (rawContext.webSources ?? []).map((source) => ({
+          title: source.title,
+          url: source.url,
+        })),
+      }
+    : undefined;
   return {
     id: String(msg._id),
     conversationId: String(msg.conversationId),
@@ -113,11 +142,16 @@ function messagePublic(msg: MessageDoc) {
           }))
         : undefined,
     answerActions,
+    answerContext,
     usage,
     // AI-8 — the mark travels with the message, so a conversation read back from the
     // database says the same thing about a truncated answer as the screen that received
     // it did. Absent, not null, on every turn that was not degraded.
     degraded: msg.degraded || undefined,
+    // AI-115 — the CALLER'S OWN rating of this answer, when one exists. The
+    // controller fills it from a (business, user, message) query; a newly stored
+    // answer has no rating yet, so the field is simply absent.
+    feedback,
     createdAt: msg.createdAt,
   };
 }
@@ -325,6 +359,8 @@ interface PreparedTurn {
   message: string;
   conversation: ConversationDoc | null;
   history: ChatTurn[];
+  /** AI-116 — the previous answer's bounded product set, if it had one. */
+  previousResult?: PreviousResultContext;
   /** The member's clock time for the question, taken before the model is called (AI-24). */
   askedAt: Date;
   /**
@@ -371,6 +407,7 @@ async function prepareTurn(req: AuthenticatedRequest, res: Response): Promise<Pr
   // the authenticated session). A new conversation is created lazily below.
   let conversation: ConversationDoc | null = null;
   let history: ChatTurn[] = [];
+  let previousResult: PreviousResultContext | undefined;
   if (convId.value) {
     conversation = await AIConversation.findOne({
       _id: convId.value,
@@ -379,6 +416,33 @@ async function prepareTurn(req: AuthenticatedRequest, res: Response): Promise<Pr
     });
     if (!conversation) notFound('Conversation not found');
     history = await priorTurnHistory(conversation._id, cfg.contextMessages);
+    // AI-116 — only the IMMEDIATELY previous answer can be "those". A list from
+    // five turns ago is not what an anaphor refers to, so no older context is used.
+    const lastAnswer = await AIMessage.findOne({
+      conversationId: conversation._id,
+      role: 'ASSISTANT',
+    })
+      .sort({ createdAt: -1, _id: -1 })
+      .select('answerContext')
+      .lean();
+    const context = lastAnswer?.answerContext;
+    const ids = Array.isArray(context?.resultProductIds) ? context.resultProductIds : [];
+    if (context?.resultTool && ids.length) {
+      const retrievedAt =
+        context.retrievedAt instanceof Date ? context.retrievedAt : new Date(context.retrievedAt);
+      if (Number.isFinite(retrievedAt.getTime())) {
+        previousResult = {
+          tool: context.resultTool,
+          input:
+            context.resultInput && typeof context.resultInput === 'object'
+              ? (context.resultInput as Record<string, string | number | boolean>)
+              : {},
+          productIds: ids.filter((id): id is string => typeof id === 'string').slice(0, 100),
+          retrievedAt: retrievedAt.toISOString(),
+          total: typeof context.total === 'number' ? context.total : null,
+        };
+      }
+    }
   }
 
   // AI-1 — the caller's continued interest, as a signal the model call can be
@@ -435,6 +499,7 @@ async function prepareTurn(req: AuthenticatedRequest, res: Response): Promise<Pr
     message,
     conversation,
     history,
+    previousResult,
     askedAt,
     timeZone,
     researchDrill,
@@ -498,6 +563,7 @@ async function persistTurn({
     toolsUsed: result.toolsUsed?.length ? result.toolsUsed : undefined,
     productLinks: result.productLinks?.length ? result.productLinks : undefined,
     answerActions: result.answerActions,
+    answerContext: result.answerContext,
     usage: result.usage || undefined,
     // AI-8 — a degraded turn is still a completed turn (AI-2), so it is still stored;
     // what is new is that the STORE now knows it was degraded. Only the reason is kept,
@@ -610,6 +676,7 @@ async function sendStreamedTurn(req: AuthenticatedRequest, res: Response): Promi
       userId,
       role,
       history: turn.history,
+      previousResult: turn.previousResult,
       message: turn.message,
       signal: turn.clientGone.signal,
       timeZone: turn.timeZone,
@@ -701,7 +768,115 @@ const aiController = {
       AIMessage.countDocuments(filter),
       AIMessage.find(filter).sort({ createdAt: 1, _id: 1 }).skip(skip).limit(limit),
     ]);
-    res.json(pageResult(docs.map(messagePublic), total, page, limit));
+    const ratings = await feedbackForMessages(
+      req.user!.businessId,
+      req.user!.id,
+      docs.map((doc) => doc._id),
+    );
+    res.json(
+      pageResult(
+        docs.map((doc) => messagePublic(doc, ratings.get(String(doc._id)))),
+        total,
+        page,
+        limit,
+      ),
+    );
+  },
+
+  /**
+   * POST /api/ai/feedback -> rate one stored assistant answer.
+   *
+   * The body names only the message and the opinion. Business, member and turn
+   * are derived server-side; an answer in another business or another member's
+   * conversation is a 404, never a rating.
+   */
+  async submitFeedback(req: AuthenticatedRequest, res: Response) {
+    const problems = [];
+    const messageId = req.body?.messageId;
+    if (!isObjectId(messageId)) {
+      problems.push({ field: 'messageId', message: 'messageId must be a valid id' });
+    }
+    const rawRating = typeof req.body?.rating === 'string' ? req.body.rating.trim().toUpperCase() : '';
+    if (rawRating !== 'UP' && rawRating !== 'DOWN') {
+      problems.push({ field: 'rating', message: 'rating must be UP or DOWN' });
+    }
+    const reason = optionalString(req.body?.reason, 'reason', 40);
+    problems.push(...reason.problems);
+    const normalizedReason = reason.value?.trim().toUpperCase();
+    if (normalizedReason && !AI_FEEDBACK_REASON_VALUES.includes(normalizedReason)) {
+      problems.push({ field: 'reason', message: 'reason is not a supported feedback reason' });
+    }
+    if (rawRating === 'DOWN' && !normalizedReason) {
+      problems.push({ field: 'reason', message: 'reason is required for a DOWN rating' });
+    }
+    const comment = optionalString(req.body?.comment, 'comment', 500);
+    problems.push(...comment.problems);
+    if (problems.length) throwValidation(problems);
+
+    const feedback = await submitFeedback({
+      businessId: req.user!.businessId,
+      userId: req.user!.id,
+      messageId,
+      rating: rawRating as 'UP' | 'DOWN',
+      reason: normalizedReason,
+      comment: comment.value,
+    });
+    res.setHeader('Cache-Control', 'no-store');
+    res.json({ feedback });
+  },
+
+  /**
+   * GET /api/ai/feedback -> the OWNER/ADMIN review queue.
+   *
+   * The capability is the existing ai.metrics.view: it is the operator-only
+   * audience for AI quality data. The controller still scopes every query to the
+   * authenticated business and returns only bounded excerpts of the reported
+   * question and answer.
+   */
+  async listFeedback(req: AuthenticatedRequest, res: Response) {
+    const { page, limit, skip } = parsePagination(req.query);
+    const status = typeof req.query?.status === 'string' ? req.query.status.trim().toUpperCase() : '';
+    if (status && status !== 'OPEN' && status !== 'REVIEWED') {
+      throwValidation([{ field: 'status', message: 'status must be OPEN or REVIEWED' }]);
+    }
+    const rating = typeof req.query?.rating === 'string' ? req.query.rating.trim().toUpperCase() : '';
+    if (rating && rating !== 'UP' && rating !== 'DOWN') {
+      throwValidation([{ field: 'rating', message: 'rating must be UP or DOWN' }]);
+    }
+
+    const result = await listFeedback(req.user!.businessId, {
+      page,
+      limit,
+      skip,
+      status: (status || undefined) as 'OPEN' | 'REVIEWED' | undefined,
+      rating: (rating || undefined) as 'UP' | 'DOWN' | undefined,
+    });
+    res.setHeader('Cache-Control', 'no-store');
+    res.json({ ...pageResult(result.items, result.total, page, limit), summary: result.summary });
+  },
+
+  /** PATCH /api/ai/feedback/:id -> mark one report reviewed or reopen it. */
+  async reviewFeedback(req: AuthenticatedRequest, res: Response) {
+    const rawId = req.params.id;
+    const id = Array.isArray(rawId) ? rawId[0] ?? '' : rawId ?? '';
+    if (!isObjectId(id)) invalidId();
+    if (typeof req.body?.reviewed !== 'boolean') {
+      throwValidation([{ field: 'reviewed', message: 'reviewed must be true or false' }]);
+    }
+    const doc = await reviewFeedback({
+      businessId: req.user!.businessId,
+      feedbackId: id,
+      reviewerId: req.user!.id,
+      reviewed: req.body.reviewed,
+    });
+    res.setHeader('Cache-Control', 'no-store');
+    res.json({
+      feedback: {
+        id: String(doc._id),
+        status: doc.status,
+        reviewedAt: doc.reviewedAt || null,
+      },
+    });
   },
 
   /**
@@ -738,6 +913,7 @@ const aiController = {
         userId,
         role,
         history: turn.history,
+        previousResult: turn.previousResult,
         message: turn.message,
         signal: turn.clientGone.signal,
         timeZone: turn.timeZone,

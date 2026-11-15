@@ -17,6 +17,16 @@ router.post('/chat', requireAuth, requirePermission(PERMISSIONS.AI_USE), aiRateL
 // aggregation to req.user.businessId.
 router.get('/metrics', requireAuth, requirePermission(PERMISSIONS.AI_METRICS_VIEW), aiController.metrics);
 
+// AI-115 — a member rates one stored assistant answer. The body names the answer
+// and the opinion only; business, member and turn are derived server-side.
+router.post('/feedback', requireAuth, requirePermission(PERMISSIONS.AI_USE), aiController.submitFeedback);
+
+// AI-115 — the review queue for the owner/admin who can already read AI quality
+// data. It returns bounded excerpts of the reported question and answer, never a
+// member's whole conversation.
+router.get('/feedback', requireAuth, requirePermission(PERMISSIONS.AI_METRICS_VIEW), aiController.listFeedback);
+router.patch('/feedback/:id', requireAuth, requirePermission(PERMISSIONS.AI_METRICS_VIEW), aiController.reviewFeedback);
+
 // Conversation/message retrieval.
 router.get('/conversations', requireAuth, requirePermission(PERMISSIONS.AI_USE), aiController.listConversations);
 router.post('/conversations', requireAuth, requirePermission(PERMISSIONS.AI_USE), aiController.createConversation);

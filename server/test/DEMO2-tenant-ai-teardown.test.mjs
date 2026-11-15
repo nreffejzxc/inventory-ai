@@ -184,6 +184,7 @@ async function seedEveryCleanupCollection(businessId, userId) {
     audit_logs: 11,
     invitations: 1,
     ai_turn_metrics: 12,
+    ai_feedback: 0,
   };
 }
 

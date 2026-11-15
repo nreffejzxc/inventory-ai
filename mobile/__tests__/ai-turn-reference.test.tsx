@@ -1,4 +1,4 @@
-import { render } from '@testing-library/react-native';
+import { fireEvent, render, waitFor } from '@testing-library/react-native';
 import type { ReactNode } from 'react';
 
 import { MessageBubble, toRow } from '../components/AiChat';
@@ -29,18 +29,26 @@ const row = (over: Partial<ChatRow> = {}): ChatRow => ({
 });
 
 describe('the AI turn reference is readable from the app', () => {
-  it('★ shows the turn id on an assistant answer', async () => {
-    const { getByTestId } = await withTheme(<MessageBubble item={row({ turnId: 'f0dc8264' })} />);
+  it('★ keeps the turn id one tap away without cluttering the answer', async () => {
+    const view = await withTheme(<MessageBubble item={row({ turnId: 'f0dc8264' })} />);
 
-    expect(getByTestId('chat-turn-ref').props.children).toContain('f0dc8264');
+    expect(view.queryByTestId('chat-turn-ref')).toBeNull();
+    fireEvent.press(view.getByTestId('chat-answer-details'));
+    await waitFor(() => expect(view.getByTestId('chat-turn-ref')).toBeTruthy());
+    expect(view.getByTestId('chat-turn-ref').props.children).toContain('f0dc8264');
+
+    fireEvent.press(view.getByTestId('chat-answer-details'));
+    await waitFor(() => expect(view.queryByTestId('chat-turn-ref')).toBeNull());
   });
 
   it('is drawn only on an assistant answer that carries one', async () => {
     const question = await withTheme(<MessageBubble item={row({ role: 'user', turnId: 'f0dc8264' })} />);
     expect(question.queryByTestId('chat-turn-ref')).toBeNull();
+    expect(question.queryByTestId('chat-answer-details')).toBeNull();
 
     const legacy = await withTheme(<MessageBubble item={row()} />);
     expect(legacy.queryByTestId('chat-turn-ref')).toBeNull();
+    expect(legacy.queryByTestId('chat-answer-details')).toBeNull();
   });
 
   it('keeps the id through the mapping a reloaded thread uses', () => {

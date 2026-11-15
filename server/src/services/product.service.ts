@@ -98,6 +98,8 @@ type ProductListFilters = {
   withStock?: boolean;
   /** AI-71 — product ids to leave out, so a dead-stock read can filter in the database. */
   excludeIds?: string[];
+  /** AI-116 — product ids to keep, so a follow-up filters the previous result set in the database. */
+  includeIds?: string[];
   skip: number;
   limit: number;
 };
@@ -751,6 +753,7 @@ export const productService = {
       categoryId,
       maxSellingPrice,
       excludeIds,
+      includeIds,
       skip,
       limit,
     }: ProductListFilters
@@ -761,7 +764,12 @@ export const productService = {
     if (maxSellingPrice !== undefined) filter.sellingPrice = { $lt: maxSellingPrice };
     // AI-71 — "which products never sold" must be answered by the database, not by a page
     // compared against another page: the exclusion set is every product that HAS moved.
-    if (excludeIds?.length) filter._id = { $nin: excludeIds.map((id) => new ObjectId(id)) };
+    if (excludeIds?.length || includeIds?.length) {
+      filter._id = {
+        ...(includeIds?.length ? { $in: includeIds.map((id) => new ObjectId(id)) } : {}),
+        ...(excludeIds?.length ? { $nin: excludeIds.map((id) => new ObjectId(id)) } : {}),
+      };
+    }
     const textOr = textSearchOr({ q, terms, exactTerms, includeDescription });
     if (textOr) filter.$or = textOr;
     const total = await Product.countDocuments(filter);
@@ -799,6 +807,7 @@ export const productService = {
       outOfStock,
       inStockOnly,
       excludeIds,
+      includeIds,
       skip,
       limit,
     }: ProductListFilters
@@ -811,7 +820,12 @@ export const productService = {
     if (maxSellingPrice !== undefined) match.sellingPrice = { $lt: maxSellingPrice };
     // AI-71 — same exclusion as `listSimple`, applied before the stock merge so the page
     // window only ever counts products that have not moved.
-    if (excludeIds?.length) match._id = { $nin: excludeIds.map((id) => new ObjectId(id)) };
+    if (excludeIds?.length || includeIds?.length) {
+      match._id = {
+        ...(includeIds?.length ? { $in: includeIds.map((id) => new ObjectId(id)) } : {}),
+        ...(excludeIds?.length ? { $nin: excludeIds.map((id) => new ObjectId(id)) } : {}),
+      };
+    }
     const textOr = textSearchOr({ q, terms, exactTerms, includeDescription });
     if (textOr) match.$or = textOr;
 
@@ -1393,6 +1407,7 @@ export const productService = {
       inStockOnly,
       withStock,
       excludeIds,
+      includeIds,
       skip,
       limit,
     } = query;
@@ -1411,6 +1426,7 @@ export const productService = {
         outOfStock,
         inStockOnly,
         excludeIds,
+        includeIds,
         skip,
         limit,
       });
@@ -1424,6 +1440,7 @@ export const productService = {
       categoryId,
       maxSellingPrice,
       excludeIds,
+      includeIds,
       skip,
       limit,
     });

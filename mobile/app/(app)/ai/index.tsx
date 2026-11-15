@@ -13,7 +13,7 @@ import { aiApi } from '../../../lib/api';
 import type { ApiResponse } from '../../../lib/api';
 import { useSession } from '../../../lib/auth';
 import { formatDateTime } from '../../../lib/format';
-import { canUseAi } from '../../../lib/permissions';
+import { canUseAi, canViewAiMetrics } from '../../../lib/permissions';
 import usePagedList from '../../../hooks/usePagedList';
 import useRefetchOnFocus from '../../../hooks/useRefetchOnFocus';
 import { radius, spacing, type } from '../../../lib/theme';
@@ -54,7 +54,7 @@ export default function AiHubScreen() {
 function AiConversations() {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const { token, signOut } = useSession();
+  const { token, signOut, user } = useSession();
 
   const fetcher = useCallback(
     (page: number, limit: number) => aiApi.conversations(token as string, { page, limit }),
@@ -67,6 +67,16 @@ function AiConversations() {
   const header = (
     <View>
       <Button title="New chat" icon="add" onPress={() => router.push('/ai/new')} full style={styles.newBtn} />
+      {canViewAiMetrics(user) ? (
+        <Button
+          title="Response feedback"
+          icon="feedback"
+          variant="secondary"
+          onPress={() => router.push('/ai/feedback')}
+          full
+          style={styles.feedbackBtn}
+        />
+      ) : null}
       <View style={styles.noteCard}>
         <Text style={styles.noteText}>
           The assistant reads your catalog and stock to answer questions. It is read-only and never changes data.
@@ -115,6 +125,7 @@ function AiConversations() {
 const createStyles = (colors: Palette) => StyleSheet.create({
   content: { padding: spacing.lg, paddingBottom: spacing.huge, flexGrow: 1 },
   newBtn: { marginBottom: spacing.md },
+  feedbackBtn: { marginBottom: spacing.md },
   noteCard: {
     backgroundColor: colors.primarySoft,
     borderRadius: radius.md,

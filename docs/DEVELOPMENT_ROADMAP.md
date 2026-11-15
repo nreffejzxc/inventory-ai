@@ -8,9 +8,9 @@ of truth for *what actually happened*, and it is why this file is long.
 
 **How to read it.** Do not read it top to bottom. Either find a record by number (§27FJ, §27DM — the
 numbers are cited from `CLAUDE.md` and from source comments), or use the index: `CLAUDE.md` §7 lists
-all **238** records by the title each gives itself.
+all **240** records by the title each gives itself.
 
-**Current state:** V1 complete and in production testing. The records that answer *where are we now* are §27IF (AI-114 deterministic complete restock lists, deployed and device-verified), §27ID (the permanent assistant improvement roadmap and implementation audit; docs-only), §27IC (AI-110 contextual assistant entry and restock shortfall, deployed `7315675` and OTA-verified; the partial-restock guards completed in `1c3928b`), §27IB (scheduler proof and hosted freshness), §27IA (post-deploy phone proof, triage and monitor), §27HV (AI-99 10,256-product gate, 24/25 with one output-limit finding), §27HU (AI-99 free-first simple inventory, deployed with the 1.0.2 OTA), §27HT (AI-91/AI-92 exact product identity and per-location stock), §27HS (the AI-50–AI-84 increment register), §27HR (AI-48–AI-84 merged and deployed), §27HQ (grounded answers and scoped stock reads), §27HP (market prices from cited pages), §27HO (recorded specifications and the real seed catalogue), §27HN (inventory-only web research), §27HH (a transfer as one event to the assistant), §27HG (the stock-in link's product), §27HF (the single-location default's timing), §27HE (the stock-in link's location), §27HD (the movement fixes and the production device pass), §27HC (the assistant's local-time answers), §27FM (the V1 re-verification) and §27FJ (the two open advisories).
+**Current state:** V1 complete and in production testing. The records that answer *where are we now* are §27IH (AI-116 bounded follow-up context and answer freshness, implementation-tested; deployment pending at this record), §27IG (AI-115 member feedback and the owner/admin review queue, implementation-tested; deployment pending), §27IF (AI-114 deterministic complete restock lists, deployed and device-verified), §27ID (the permanent assistant improvement roadmap and implementation audit; docs-only), §27IC (AI-110 contextual assistant entry and restock shortfall, deployed `7315675` and OTA-verified; the partial-restock guards completed in `1c3928b`), §27IB (scheduler proof and hosted freshness), §27IA (post-deploy phone proof, triage and monitor), §27HV (AI-99 10,256-product gate, 24/25 with one output-limit finding), §27HU (AI-99 free-first simple inventory, deployed with the 1.0.2 OTA), §27HT (AI-91/AI-92 exact product identity and per-location stock), §27HS (the AI-50–AI-84 increment register), §27HR (AI-48–AI-84 merged and deployed), §27HQ (grounded answers and scoped stock reads), §27HP (market prices from cited pages), §27HO (recorded specifications and the real seed catalogue), §27HN (inventory-only web research), §27HH (a transfer as one event to the assistant), §27HG (the stock-in link's product), §27HF (the single-location default's timing), §27HE (the stock-in link's location), §27HD (the movement fixes and the production device pass), §27HC (the assistant's local-time answers), §27FM (the V1 re-verification) and §27FJ (the two open advisories).
 
 ---
 
@@ -25643,3 +25643,101 @@ Keyboards and Mice” returned **9 products / 272 units**, items 1–9, with Ope
 ceiling. A set larger than the ceiling still uses the count-plus-qualification path. The dev client
 loaded on the phone but could not sign in locally (no auth request reached the server); the
 finalizer's DB-free tests and the production app supplied the end-to-end proof.
+
+---
+
+# 27IG. AI-115 — member feedback and the owner/admin review queue (2026-11-16)
+
+**The gap.** The assistant could be wrong in ways only the member noticed, but there was no
+accountability loop. A member could copy an answer or open a screen; they could not say “this was
+wrong”, and an OWNER/ADMIN had no queue of the answers members doubted.
+
+**Data model.** `ai_feedback` stores one current opinion per
+`{businessId, messageId, userId}`. The rating is `UP` or `DOWN`; a DOWN rating requires one of
+`INCORRECT_DATA`, `MISSING_INFORMATION`, `HARD_TO_UNDERSTAND`, `OTHER` and accepts an optional
+note of at most 500 characters. An UP rating stores neither reason nor note. `status` is `OPEN` or
+`REVIEWED`; review records the reviewer and time. The unique compound index makes a changed rating
+an update, not a second vote.
+
+**Server boundary.** `POST /api/ai/feedback` requires `ai.use` and resolves the conversation by
+`businessId` + caller `userId`; a colleague's message in the same business is `404`, and a USER
+message is rejected. `GET /api/ai/feedback` and `PATCH /api/ai/feedback/:id` require the existing
+`ai.metrics.view` capability, so only OWNER and ADMIN review. The list is business-scoped, supports
+`status`, `rating`, `page` and `limit`, and returns bounded 500-character question and
+1,200-character answer excerpts, member name/role, turn reference and tool names — never email or
+the whole conversation. Its summary counts all-time `total`, `open`, `up` and `down` independently
+of the current filter. PATCH only moves `OPEN` ↔ `REVIEWED`. Message reads attach only the caller's
+own rating; no member sees another member's opinion. All routes are `no-store`.
+
+**Mobile.** The assistant footer now has a compact action bar, one metadata line, a `Ref`, a
+feedback row and the expandable detail. A thumb opens an inline form: DOWN requires a reason radio
+and accepts a note; UP submits immediately. The current rating is filled from the message read, so
+reopening a conversation shows what was chosen. A changed rating updates the same row. OWNER and
+ADMIN get a **Response feedback** entry on the assistant screen and a review screen with summary
+cards, status/rating filters, bounded excerpts, member role and a REVIEWED toggle; the screen
+states that feedback is not used to change inventory. MANAGER and STAFF do not see the entry.
+
+**Tenant and deletion.** Every read and write derives `businessId` from the authenticated user.
+The model is registered with the tenant models; account deletion removes the member's feedback and
+tenant teardown deletes the collection. No AI tool can read or write feedback.
+
+**Verification.** The DB-backed `AI115-ai-feedback.test.mjs` passed **3/3**: create/upsert and
+change, DOWN reason enforcement, and tenant/member isolation including the review query. The mobile
+`ai115-answer-footer.test.tsx` passed **7/7**, covering UP, DOWN reason/note, changing a rating and
+reload; `ai115-feedback-review.test.tsx` passed **3/3**, covering the bounded report, the REVIEWED
+write and the MANAGER access denial. The full server unit suite passed **2,117 / 66 skipped / 0
+failed** (434 suites); the full mobile Jest run passed **110 suites / 1,268 tests**; server and
+mobile `tsc --noEmit` passed; targeted server ESLint passed. Production deploy,
+OTA and the mirrored-OPPO pass are recorded after delivery; at the time of this record the change
+is implementation-tested only.
+
+**Limits.** Feedback is an opinion, not a correction to inventory. The review screen cannot reply
+to the member, and feedback does not train or automatically alter the model. Those would be new
+features, not omissions from this slice.
+
+---
+
+# 27IH. AI-116 — bounded follow-up context and answer freshness (2026-11-16)
+
+**The gap.** Two questions shared surface text but not facts. “Which products need restocking?”
+then “Which of those are in Keyboards & Mice?” could re-run a fresh catalogue search and lose the
+restock filter, because no structured result set survived the turn. Separately, an answer said
+`Read: Restock list` but not when the data was read, how many products it covered or which filters
+were applied; a member could not tell fresh data from a stale answer.
+
+**Previous-result handle.** `answerContext` now stores a bounded membership set of product ids from
+the last row-shaped read (maximum 100), plus the tool name, total, `hasMore` state, filters,
+sources and retrieval time. Only the immediately previous assistant message is loaded. An explicit
+referent (`which of those`, `among them`, `narrow that list`) offers `filterPreviousResults`;
+without a referent the turn starts fresh and never inherits the set. If the model chooses an old
+list tool on a referent turn, the server rewrites that call to `filterPreviousResults` before it
+runs. The tool accepts only an exact category, location, low/out-of-stock flag and limit, and
+re-reads current stock for exactly those ids through `productService.list({ includeIds })`, scoped
+to the authenticated business. No cached quantity is evidence: availability is read again. A
+second follow-up can use the filtered answer's own set; there is no chain to an older answer.
+
+**Provenance.** The same context carries the last read's retrieval timestamp, successful tool
+names, source classes, product count, total and filters. It stores no tool payload, prompt,
+quantity snapshot or tenant id, and the API never returns `resultProductIds`. The footer renders a
+compact line (`Inventory records · 19 products · Category Keyboards & Mice`), the answer clock and
+an **Inspect** expansion with retrieval date/time, sources, tools, count, filters and up to ten
+web-source URLs. An answer that read no data says `No data read`; legacy messages keep `Read:` and
+have no Inspect control. A web-research answer is labelled `Public web`, not inventory.
+
+**Read-only and isolation.** The only new tool is a read. It is offered only on a referent turn,
+re-checks the caller's business and accepts no tenant argument. The set is server-derived from a
+message in the same conversation. No write path, inventory transaction, model discretion over
+`businessId` or client-side id lookup was added.
+
+**Verification.** `AI116-follow-up-context.test.mjs` passed **5/5** pure tests and **3/3** DB tests:
+referent detection, bounded membership extraction, reference-source labelling, filter rewrite and fresh stock re-read with
+tenant isolation. Mobile `ai116-answer-context.test.tsx` passed **4/4**: freshness text, Inspect
+detail, `No data read` and legacy fallback. Server and mobile `tsc --noEmit` passed; targeted
+server ESLint passed; the full server unit suite passed **2,117 / 66 skipped / 0 failed** and the
+full mobile run **110 suites / 1,268 tests**. Production deploy, OTA and the mirrored-OPPO pass are recorded after
+delivery; at the time of this record the change is implementation-tested only.
+
+**Limits.** The handle is a flat id set, not a general cursor: it cannot page the old set, search
+inside it with free text, or carry a query across more than one prior answer. A turn with no
+row-shaped read leaves no follow-up set. The provenance line describes what was read; it does not
+prove that a model-composed list is complete.
