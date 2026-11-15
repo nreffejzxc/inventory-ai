@@ -77,10 +77,10 @@ TEST_MODE=db node --test --test-name-pattern="writes both legs once" \
   test/INVENTORY-IDEMPOTENCY.test.mjs
 ```
 
-**1 pass, 0 fail.** Full output: [`focused-test.log`](focused-test.log). ESLint on the test file
-exited 0. The complete idempotency suite was also run: **10 pass, 0 fail**
-([`idempotency-suite.log`](idempotency-suite.log)). The existing Phase 19 suite still covers the
-same-location and insufficient-stock refusal paths.
+**1 pass, 0 fail.** ESLint on the test file exited 0. The complete idempotency suite was also run:
+**10 pass, 0 fail**. The generated logs are not committed because the repository ignores `*.log`;
+the commands and observed pass counts are recorded here. The existing Phase 19 suite still covers
+the same-location and insufficient-stock refusal paths.
 
 ## Production health
 
