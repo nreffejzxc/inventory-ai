@@ -108,6 +108,7 @@ in scope.
 | Document | Answers |
 | --- | --- |
 | [`DEVELOPMENT_LOG.md`](DEVELOPMENT_LOG.md) | What is being worked on now, what each session finished and verified, what is blocked, what is next — plus the resource budgets (EAS builds, OTA, CI minutes) |
+| [`AI_ASSISTANT_IMPROVEMENT_ROADMAP.md`](AI_ASSISTANT_IMPROVEMENT_ROADMAP.md) | The permanent eight-item assistant roadmap: what already exists, what is missing, the delivery order and the release gates |
 
 It is newest-first and is updated at the end of every development session. It does **not** replace
 the roadmap: the roadmap records what shipped, with measurements; the log records what is true

@@ -90,6 +90,15 @@ misleading `first N` lead-in, #299 counted a claim's own names when tool rows we
 **19** as the total and ended `Showing 10 of 19 restock products; open the Restock screen for all
 of them.` (`Ref: 5740bc83`). The complete record is §27IC.
 
+**Assistant improvement roadmap (2026-11-16):** the owner's eight assistant improvements were
+audited against the current implementation and recorded permanently in
+[`AI_ASSISTANT_IMPROVEMENT_ROADMAP.md`](AI_ASSISTANT_IMPROVEMENT_ROADMAP.md). This was a docs-only
+review: no tool, route, schema, UI or production deployment changed. Restock navigation already
+exists; Copy Answer and product navigation do not; complete-list paths, deterministic answer
+coverage, follow-ups, comparisons, insights and report summaries are partially present. The
+baseline remains production server `1c3928b` and OTA
+`1d139ae9-c7e2-48a2-b33e-63561b761515`. The complete record is §27ID.
+
 **Scheduler proof and hosted freshness (2026-11-15):** a temporary one-off Task Scheduler task
 fired the wrapper automatically at **19:11:35 local**, returned task result **0**, and was then
 removed; the daily task remained Ready with its 07:30 next run. That run reported **UNCHANGED**,
@@ -234,6 +243,36 @@ Known limits, checked before spending one of them:
   space that a backup or an index change would explain.
 - **Brevo** — used for verification codes, reset codes and invitations. Do not send test mail in
   bulk; a delivery failure is not a code regression until the provider log says so.
+
+---
+
+## 2026-11-16 — AI Assistant improvement roadmap and implementation audit
+
+**Status.** PASS (docs-only). The owner's eight-item improvement list was reviewed against the
+current code and production baseline and established as a permanent roadmap. No product code was
+changed, no deployment was made, and no AI provider turn was spent.
+
+**What changed.** Added
+[`AI_ASSISTANT_IMPROVEMENT_ROADMAP.md`](AI_ASSISTANT_IMPROVEMENT_ROADMAP.md), linked it from the
+docs map and the AI limits guide, and recorded the audit as §27ID. The roadmap separates what is
+already implemented from what is planned. In particular, **Open the full restock list** is already
+implemented and tested; **Copy Answer** and **direct product navigation from an answer** are not.
+The complete-list work is partially served by the app's Inventory, Restock, History, Products and
+Locations screens, but the assistant has no in-chat paging or search. Deterministic finalizers cover
+many high-value figures, but not every wording. Follow-ups carry text history, not the previous
+structured result set. Location comparison and restock priorities exist; two-product/minimum
+comparison, decreasing-inventory verdicts, run-out forecasts, excess rules and a single consistent
+report read do not. Transparency is strong for grounding and partial restock pages, with residual
+gaps for generic lists and silent length trimming.
+
+**Verification.** The docs map guard and whitespace check were run after the edit; no server or
+mobile typecheck/test was appropriate because no executable source changed. Production health,
+readiness and integrity were not re-queried for this docs-only record; their last recorded results
+remain `1c3928b`, 0 `5xx`, ready 200 and integrity `fresh`.
+
+**Next.** Slice A is the answer-actions increment already prioritised by the owner: copy the full
+answer, verify the existing Restock action, and add product-detail actions backed by server-issued
+ids. No later slice starts until Slice A is tested, documented and verified in production.
 
 ---
 

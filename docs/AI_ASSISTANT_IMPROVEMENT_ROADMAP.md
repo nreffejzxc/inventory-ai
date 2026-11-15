@@ -1,0 +1,285 @@
+# AI Assistant Improvement Roadmap
+
+**What this file is.** The living plan for the Inventory AI assistant, newest review first. It
+records the eight improvements the owner asked for, what already exists in the code, what is
+missing, and the order in which the gaps should be closed. It is a **status and planning**
+document, not a specification: behaviour is still owned by
+[`SYSTEM_SPECIFICATION.md`](SYSTEM_SPECIFICATION.md), limits by
+[`guides/18-ai-assistant-limits.md`](guides/18-ai-assistant-limits.md), and what shipped by the
+roadmap records in [`DEVELOPMENT_ROADMAP.md`](DEVELOPMENT_ROADMAP.md).
+
+**Last reviewed:** 2026-11-16, against `main` at `1670e2d`, the production server at `1c3928b`, and
+the production Android app on runtime `1.0.2` with OTA
+`1d139ae9-c7e2-48a2-b33e-63561b761515`. The audit is code-and-record based; it did not spend
+provider turns or make a new production deployment.
+
+**The rule that outranks every item below:** the assistant is **read-only**. It may read, compare,
+summarise and recommend from tenant-scoped records. It may never write stock, create a product, a
+movement or a transaction, change a minimum, or execute a purchase order. “Recommended” is always a
+suggestion for a member to review, never an automatic action.
+
+## Status legend
+
+| Status | Meaning |
+| --- | --- |
+| **Implemented** | The capability exists and has automated coverage and/or a recorded production proof. |
+| **Partial** | Some of the capability exists, but a named part of the requested outcome is missing. |
+| **Planned** | Not built. The next slice is described, but no code has been written. |
+| **Not started** | No design or implementation work yet. |
+
+## 1. Audit summary
+
+The table uses the owner's priority order. “What exists” is deliberately evidence-based; a missing
+piece is not implied to work because a related tool exists.
+
+| # | Improvement | Priority | Status | What exists now | Main gap |
+|---|---|---|---|---|---|
+| 1 | Copy Answer, Restock Navigation, Product Navigation | 1 | **Partial — 1 of 3** | The assistant's stock-list answers show **Open the full restock list**, using the server's own `toolsUsed` and routing to `/restock`. `ai26-restock-link.test.tsx` covers it. | Copy Answer is absent. Product names in answers are plain text; there is no direct product-detail action. |
+| 2 | Complete list and pagination | 2 | **Partial** | Every list tool is paged, returns a total and `hasMore`/`truncated`, and the UI has full Inventory, Restock, History, Products and Locations screens with their own list and filter controls. The restock shortfall wording keeps the total when only a page is shown. | No in-chat “next page”, “view all results”, or search-within-answer. Tool schemas start at `skip: 0` and expose no page cursor, so the model cannot ask for the next page. Only stock-list answers get a screen link. |
+| 3 | Smarter inventory answers | High, sequence 3 | **Partial — strong** | Deterministic finalizers cover restock counts and lists, stock-value totals, product/location totals, most-expensive and several ranking shapes; tools compute counts over the whole matched set, and AI-2/AI-60 tests guard grounding and partial lists. | Coverage is shape-by-shape, not universal. A wording not covered by a finalizer can still be model-composed; “highest stock quantity” has no dedicated deterministic finalizer. Correctness must be proved per question shape, not inferred from the tool list. |
+| 4 | Better follow-up conversations | 4 | **Partial** | The server replays the last 20 USER/ASSISTANT messages (`AI_CONTEXT_MESSAGES`), so ordinary conversational context exists. | Tool rows are not replayed, and prompt rule 30 tells the model every question sets its own scope. A follow-up such as “which ones are from Samsung?” can re-query Samsung but is not guaranteed to preserve the previous “low stock” result set. There is no structured result-set handle. |
+| 5 | Inventory comparison | 5 | **Partial** | `getLocationBreakdown` compares all locations in one read; `getProduct` returns per-location stock; product-stock-by-location and history totals have deterministic answers; history rows distinguish direction and transfer legs. | No deterministic two-product comparison, no compare-to-minimum table, and no “decreasing inventory” verdict. A trend read must be assembled by the model from movements; the tool reports movement, not a forecast. |
+| 6 | Inventory insights and recommendations | High, sequence 6 | **Partial** | Reorder-needed, low/out-of-stock, never-sold and history tools support restock priorities and dead-stock observations. Recommendations are explicitly read-only; no write tool exists. | No run-out-soon calculation (no sales-velocity forecast), no excess-inventory rule, and no monitoring score. These need defined data rules and disclosed windows, not model intuition. |
+| 7 | Better error handling and transparency | 7 (cross-cutting) | **Implemented — residual hardening** | Grounding re-asks, degraded reasons, output-limit annotations, partial-list totals and the final restock completeness guard; AI-60 is 64/64; the integrity endpoint was last recorded fresh. | Not every list shape gets a generic completeness marker; the 4,000-character trim does not add its own degraded marker; an unavailable service and a genuinely zero result rely on the answer copy. These are UX contracts to finish, not new AI writes. |
+| 8 | Inventory report summaries | 8 | **Partial** | `getInventorySummary` returns active products, healthy/low/out counts, total on-hand quantity and recent activity; `getCatalogOverview` adds category counts; `getLocationBreakdown` adds per-location totals. | No single deterministic report read that guarantees one summary containing catalogue totals, low/out counts, category split, location split and the reporting window. The model currently composes it from up to three reads. |
+
+**Important reading of the priority table.** Items 3 and 7 are marked high priority, but they are also
+release gates for every slice: no new answer shape ships without grounded numbers, and no incomplete
+answer ships without saying so. Their remaining dedicated work still follows the owner's sequence.
+The sequence is a dependency order, not permission to defer correctness.
+
+## 2. Item-by-item review and next slice
+
+### 1. Copy Answer, Restock Navigation, Product Navigation — priority 1
+
+**Already working.** `restockPathForTools` recognises `getReorderNeededProducts`,
+`getLowStockProducts` and `getOutOfStockProducts`; `MessageBubble` renders a
+`chat-restock-link` that pushes `/restock`. The existing test asserts that navigation. This is a
+real direct action, not a sentence asking the member to find the screen.
+
+**Missing.**
+
+- **Copy Answer.** The turn reference is selectable, but there is no action that copies the whole
+  answer. The copy must include the same product names and quantities the member sees, so it can be
+  pasted into a purchase order or supplier message. Markdown/table markers must not turn the pasted
+  result into noise.
+- **Product Navigation.** Product names are rendered as plain text. A link must use a
+  server-provided product id from the rows the read tools returned. The client must not match a
+  displayed name against a local catalogue: names are not unique and the answer can mention a
+  product the client did not load.
+
+**Next slice.** One approved increment, delivered together because all three are answer actions:
+copy the complete stored answer; keep/verify the Restock action; add product-detail actions from
+server-issued ids. A product link is valid only when the name appears in the final answer and the id
+came from a tool row in that turn. Ambiguous duplicate names are not linked. Stored answers keep
+working after reopening the conversation; messages written before the field existed simply show no
+product actions.
+
+**Accepted when.** Tests prove: copy contains the full answer and not just the visible part; the
+Restock action still opens the complete Restock screen; a product action opens the exact product
+id; no action appears on a user message or on an answer with no product/provenance data; the AI-2
+read-only scan stays green.
+
+### 2. Complete list and pagination — priority 2
+
+**Already working.** Tools return pages with totals and `hasMore`, and oversized payloads are
+structurally truncated with a note. The app's Inventory, Restock, History, Products and Locations
+screens already hold the complete lists with their own filters. The assistant's restock answer now
+states a total and directs the member to the Restock screen rather than calling a page complete.
+
+**Missing.** There is no in-chat page control and no page argument in the tool schemas. Once a page
+is returned, the model cannot fetch the next one; a follow-up may cause a new read or repeat the
+same page. Only stock-list answers generate a screen button. “Search within results” is not an
+assistant action.
+
+**Next slice.** Prefer the existing app screens as the complete-list destination before building a
+new result set in chat. Give every paged list answer a direct, filter-preserving destination where
+one exists; only then decide whether in-chat “next page” is worth its state, security and latency
+cost. Any paging UI must show the total and the range (for example “1–10 of 100”) and must never
+imply that a page is the whole set.
+
+**Accepted when.** A list with more rows than one page has a path to every match; the total and page
+range are visible; a search can narrow the complete set; tenant isolation is unchanged; a page
+boundary cannot duplicate or silently drop a match.
+
+### 3. Smarter inventory answers — high priority, sequence 3
+
+**Already working.** The assistant reads tenant-scoped tools; several question shapes are finalised
+deterministically from captured tool rows instead of trusting prose. This includes restock counts
+and lists, total stock value, product and location quantity totals, low-stock value, most-expensive
+and several top-out shapes. Counts are computed over the whole matched set, not by adding page rows.
+AI-60 covers partial-page and false-completeness cases.
+
+**Missing.** Not every numerical question has a finalizer. A question shape outside the covered set
+can still be answered by the model from a page, and “highest quantity” is not a dedicated
+deterministic answer. A tool being available is not proof that a particular claim is grounded.
+
+**Next slice.** Close the highest-value gaps first: highest/lowest stock quantity, category and
+brand counts, and any count that currently requires summing rows. Every finalizer reads only rows
+from the turn, states the scope and the unit, and refuses when the required rows are absent rather
+than guessing. Wording variants get tests; a shape without a finalizer is treated as unverified.
+
+**Accepted when.** Each covered question has a fixture with known database rows and an exact
+expected figure; an empty/partial/ambiguous result produces an explicit limitation; no finalizer
+invents a product or quantity; no matching product is silently excluded.
+
+### 4. Better follow-up conversations — priority 4
+
+**Already working.** Recent USER/ASSISTANT text is sent as context, so “what about the other one?”
+can sometimes work. The assistant can call a tool again with a narrower filter.
+
+**Missing.** The previous structured result is not available to the next turn. Prompt rule 30
+deliberately prevents carrying a location/product/category/period from an earlier question unless
+this question names it. That protects against stale scope, but it means “which ones are from
+Samsung?” does not necessarily preserve the earlier low-stock filter. Replaying raw tool output is
+not safe or bounded.
+
+**Next slice.** Define a small, server-owned **previous result context** for follow-ups: a bounded,
+signed/validated summary of the last answer's scope and ids, used only when the new question clearly
+refers to it (“those”, “which ones”, “the same list”). The model must still re-read current data for
+fresh quantities; cached ids are not evidence of current stock. If the referent is ambiguous, ask a
+short clarifying question instead of guessing. Do not replay unbounded tool JSON.
+
+**Accepted when.** A two-turn test proves a filter is retained only on an explicit referent; a new
+question with a different scope does not inherit the old one; stale ids are re-read; an ambiguous
+follow-up asks rather than answers the wrong set; tenant scoping remains server-derived.
+
+### 5. Inventory comparison — priority 5
+
+**Already working.** `getLocationBreakdown` answers “compare my locations” in one read, including
+zero-stock locations and archived locations. `getProduct` plus per-location rows answers a named
+product's distribution. History totals and top-out findings are computed over the matched set.
+
+**Missing.** Two-product comparison, product-versus-minimum comparison, and “decreasing inventory”
+are composed by the model. History records movements and signed deltas, but the assistant has no
+computed trend/velocity object. A model must not turn one movement into a trend.
+
+**Next slice.** Add deterministic comparison helpers for named products and for
+current-versus-minimum. For “decreasing”, define an explicit window and use only recorded
+outflows/transfers; state the window, the movement count and the fact that it is a recent-movement
+observation, not a forecast. Never compare values in different currencies without keeping them
+separate.
+
+**Accepted when.** Comparisons use a single scoped read where possible; both sides are labelled;
+missing fields are said to be missing; a decrease is reported only from recorded movements, with
+its window; no cross-tenant or cross-currency arithmetic.
+
+### 6. Inventory insights and recommendations — high priority, sequence 6
+
+**Already working.** Reorder-needed, low/out-of-stock and dead-stock tools provide the facts for
+restock priorities. The prompt forbids inventing a reason, a supplier or a quality claim, and the
+assistant has no write tool.
+
+**Missing.** Run-out-soon and excess-inventory insights require rules that do not exist yet. There
+is no sales velocity, no configured excess threshold, and no monitoring score. “Needs closer
+monitoring” is currently a human judgement, not a computed fact.
+
+**Next slice.** Start with **restock priority** using facts already recorded: units below minimum,
+out-of-stock status, and recent recorded outflow. Label the basis and the window. Add a run-out
+estimate only when both stock and a defined outflow rate exist; otherwise say the data is
+insufficient. Treat excess stock as a configurable rule, not a guess. Every output is a
+recommendation with its evidence, and every action remains the member's.
+
+**Accepted when.** No insight is generated from a missing field; a run-out estimate states its
+window and does not pretend to be a guarantee; an excess recommendation states its rule; no
+automatic stock change, purchase order or transaction is created; tests cover the
+insufficient-data path.
+
+### 7. Better error handling and transparency — priority 7, every release
+
+**Already working.** Grounding re-asks stop an answer that has no read; a failed grounding becomes a
+canned honest sentence. `OUTPUT_LIMIT` is annotated rather than hidden. Partial restock pages carry
+a total and a qualification; the final text-only guard catches a false “full list” claim. Provider
+errors map to member-facing copy through the error-code guide. Integrity monitoring is separate
+from the assistant and currently fresh.
+
+**Missing.** Transparency is shape-specific. A generic list answer does not always state that it is
+a page. The final 4,000-character trim does not add its own notice. “Zero” and “unavailable” can
+still be confused in prose, and a service failure's copy depends on the error path.
+
+**Next slice.** Make completeness a renderable property of every list answer, not a sentence the
+model must remember. Distinguish **zero matches**, **not recorded**, **not authorised**, and
+**service unavailable** in the copy and tests. Mark a trimmed answer; never silently trim. Keep the
+server-computed total authoritative when a page is shown.
+
+**Accepted when.** Each degraded/partial/empty path has a test and member-facing copy; no path
+shows an invented quantity; a page never claims to be complete; a failure says what failed without
+exposing internal fields or secrets.
+
+### 8. Inventory report summaries — priority 8
+
+**Already working.** The assistant can read dashboard counts, catalogue/category counts and
+location totals. A sentence such as “500 products, 25 low, 8 out” is possible from
+`getInventorySummary`.
+
+**Missing.** There is no single deterministic report object combining catalogue totals, low/out
+counts, category split, location split and a stated reporting window. Multiple reads can disagree
+if one is stale or scoped differently, and the model can omit a section.
+
+**Next slice.** Define one bounded summary read or finalizer that returns the agreed sections from
+one consistent snapshot. State the as-of time and the definitions (low = available at or below
+minimum; out = available at or below zero). Do not add revenue or cost: the system records neither.
+Keep category/location sections optional and explicit when empty.
+
+**Accepted when.** A report fixture proves every count against known rows; counts reconcile
+(healthy + low = active; low includes out where defined by the domain rule); the as-of time and
+window are visible; a missing section is stated, not silently dropped; no revenue or cost is
+invented.
+
+## 3. Delivery order and release gates
+
+The order below follows the owner's recommendation. Each slice is separately planned, tested,
+documented and production-verified; do not merge two slices just because their code touches the
+same file.
+
+| Slice | Scope | Why now | Gate before the next slice |
+|---|---|---|---|
+| A | Answer actions: Copy Answer, verified Restock navigation, product navigation from server ids | The member already has the answer; they need to use it without retyping or hunting | Copy/navigation tests, AI-2 read-only scan, device proof |
+| B | Complete-list paths and one paging pattern | Prevents the assistant from looking complete when it only saw a page | Boundary/total/search tests, no hidden matches |
+| C | Remaining high-value deterministic answers | Accuracy is the product's trust boundary | Fixture-backed counts/rankings, partial-data refusal |
+| D | Follow-up result context | Removes repetition without replaying stale facts | Two-turn scope/isolation tests |
+| E | Comparisons and trends | Makes distribution questions actionable | Windowed, recorded-movement-only tests |
+| F | Insights and recommendations | Turns facts into priorities, never writes | Insufficient-data tests, no write path |
+| G | Report summaries | A consistent, explainable snapshot | Reconciliation and as-of tests |
+
+**Cross-cutting gates, every slice:**
+
+1. **Read-only:** no new write tool, no automatic stock change, no transaction or purchase-order
+   creation. The AI-2 scan must stay green.
+2. **Tenant isolation:** `businessId` comes from the authenticated server context, never from model
+   arguments, a URL or the client.
+3. **Grounding:** every number, name, id and location traces to a tool row from this turn or a
+   server-owned current read. No model arithmetic when the server can compute it.
+4. **Bounded work:** page sizes, output, context, iterations and payloads stay bounded; a new read
+   must not turn one question into an unbounded catalogue scan.
+5. **Honest failure:** empty, partial, unavailable and degraded are different states and have
+   different copy.
+6. **Tests:** unit coverage for the helper/finalizer, route/controller coverage where relevant, and
+   a production/device check for user-visible navigation or copy.
+7. **Documentation:** update this file's status, the owning specification or limit guide, the
+   development log and a dated roadmap record.
+
+## 4. Explicit non-goals
+
+These stay out unless the owner separately approves a change to the read-only contract:
+
+- AI-created or AI-edited products, stock, minimums, locations or suppliers.
+- Automatic stock adjustments, transfers, purchase orders or transaction creation.
+- A general-purpose SQL/query tool, arbitrary filters, or a model-supplied business id.
+- Sending an entire catalogue to the model to “let it decide”.
+- Revenue, profit, cost-of-goods or supplier-lead-time claims from data the system does not record.
+- Forecasts presented as facts. A run-out estimate may be labelled as an estimate only after its
+  input window and rule are defined.
+
+## 5. Review checklist for the next increment
+
+Before writing code for any item:
+
+- [ ] Name the exact user outcome and the current evidence that it is missing.
+- [ ] Confirm no existing tool or UI already delivers it; reuse before adding.
+- [ ] Write the failure/empty/partial cases before the happy path.
+- [ ] Decide what the server computes and what the model is allowed to phrase.
+- [ ] Confirm the change adds no write capability and no client-side id/name matching.
+- [ ] Add the smallest focused test set, then run the affected typecheck/lint.
+- [ ] Record the slice in `DEVELOPMENT_LOG.md` and a dated `DEVELOPMENT_ROADMAP.md` record.
+- [ ] After deployment, verify the member-visible path on the installed app, not only the API.
