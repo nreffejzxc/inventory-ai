@@ -170,6 +170,10 @@ Additional tool ceilings:
   search allows 80. Product ids and store text have their own 120/160/220-character schema limits.
 - A repeated identical tool call is still executed, but the result carries a `repeatNotice` so
   the model is told not to repeat it.
+- Restock and low-stock rows carry `unitsBelowMinimum`: the server-computed gap to the product's
+  configured minimum (`0` at the threshold, `null` when `minimumStock` is `0` or availability is
+  unknown). It is a floor, not a recommended order quantity. `getReorderNeededProducts`,
+  `getLowStockProducts`, `getOutOfStockProducts` and the product search cards share it.
 
 **Purpose:** each page is sized to answer a normal question without flooding the model's context,
 while the hard maximum stops a model from asking for the entire catalogue. The 12,000-character
@@ -356,6 +360,8 @@ are the cost ceiling; there is no additional per-turn dollar cap.
 | Conversation/message pagination | Default `20`, maximum `100` per page | fixed | Preview and history screens can page without loading an unbounded thread. |
 | AI metrics window | Default `7`, maximum `90` UTC days | fixed | Operational reports cannot scan all history. Metrics are OWNER/ADMIN only and scoped to the caller's business. |
 | Model health watchdog | First check after `60 s`, then every `30 min` | **env** interval/initial delay | Detects a dead or degraded model before the first member of the day; production only unless explicitly enabled in development. |
+| Contextual assistant entry | Question prefilled, never auto-sent | fixed | Product and stock-row screens open `/ai/new` with the recorded name, SKU and location already in the composer. The member reviews it and presses Send, so navigation alone spends no provider turn. |
+| Restock shortfall | `unitsBelowMinimum`, server-computed | fixed | The app and the assistant read one subtraction from the server. `0` means exactly at the threshold; `null` means no minimum is configured (or availability is unknown), not "order zero". |
 
 ## 11. What is intentionally **not** limited
 

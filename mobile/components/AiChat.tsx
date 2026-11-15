@@ -8,6 +8,7 @@ import { Icon } from './icons';
 import { CenterLoader, ErrorState, errorText } from './ListState';
 import { aiApi } from '../lib/api';
 import type { ApiResponse } from '../lib/api';
+import { MAX_ASSISTANT_MESSAGE_CHARS, readAssistantPrompt } from '../lib/assistantContext';
 import { isSessionError, useSession } from '../lib/auth';
 import { REQUEST_CANCELLED } from '../lib/client';
 import { formatClock12 } from '../lib/format';
@@ -17,7 +18,7 @@ import type { Palette } from '../lib/theme';
 import { useTheme } from '../lib/theme-context';
 
 /** Server default for AI_MAX_MESSAGE_CHARS — keep the composer bounded to match. */
-const MAX_MESSAGE_CHARS = 4000;
+const MAX_MESSAGE_CHARS = MAX_ASSISTANT_MESSAGE_CHARS;
 
 const SUGGESTIONS = [
   'Which products are low on stock?',
@@ -430,6 +431,12 @@ function Welcome({ onAsk }: { onAsk: (text: string) => void }) {
 export interface AiChatProps {
   /** Set for an existing thread; null starts a new one on the first message. */
   conversationId?: string | null;
+  /**
+   * A question prepared by the screen the member came from. It fills the composer
+   * and is NOT sent until the member presses Send, so a contextual entry point can
+   * never spend a provider turn on their behalf.
+   */
+  initialPrompt?: string;
 }
 
 /**
@@ -442,7 +449,7 @@ export interface AiChatProps {
  * stored. Sends surface 503/502/429 through a banner above the composer rather
  * than pretending a reply exists.
  */
-export default function AiChat({ conversationId = null }: AiChatProps) {
+export default function AiChat({ conversationId = null, initialPrompt = '' }: AiChatProps) {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { token, signOut } = useSession();
@@ -451,7 +458,7 @@ export default function AiChat({ conversationId = null }: AiChatProps) {
   const [loading, setLoading] = useState(Boolean(conversationId));
   const [loadError, setLoadError] = useState<unknown>(null);
   const [sending, setSending] = useState(false);
-  const [input, setInput] = useState('');
+  const [input, setInput] = useState(() => readAssistantPrompt(initialPrompt));
   const [sendError, setSendError] = useState<string | null>(null);
   /**
    * AI-40 — the answer as it is being written.
