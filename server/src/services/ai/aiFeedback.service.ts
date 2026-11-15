@@ -157,6 +157,47 @@ export interface ReviewFeedbackItem {
   answer: { content: string; createdAt: Date; toolsUsed: string[] } | null;
 }
 
+/** How many stored messages on each side of the reported answer the preview returns. */
+export const REVIEW_CONTEXT_MESSAGES = 6;
+
+/** One message in the review preview: the reported answer or a bounded neighbour. */
+export interface ReviewConversationMessage {
+  id: string;
+  role: 'USER' | 'ASSISTANT';
+  content: string;
+  createdAt: Date;
+  reported: boolean;
+}
+
+/**
+ * The complete reported turn and a bounded window around it.
+ *
+ * The review queue deliberately returns excerpts. This read is the explicit,
+ * OWNER/ADMIN-only expansion of one report: the reported answer is returned in
+ * full, never trimmed, and at most six stored USER/ASSISTANT messages on either
+ * side are included so the reviewer can judge what preceded and followed it.
+ * The window remains bounded so this cannot become a way to page through an
+ * entire member conversation.
+ */
+export interface ReviewConversation {
+  feedback: {
+    id: string;
+    rating: 'UP' | 'DOWN';
+    reason: string | null;
+    comment: string | null;
+    status: 'OPEN' | 'REVIEWED';
+    createdAt: Date;
+    reviewedAt: Date | null;
+    turnId: string | null;
+    messageId: string;
+    conversationId: string;
+    reportedBy: { id: string; name: string; role: string } | null;
+  };
+  messages: ReviewConversationMessage[];
+  omittedBefore: boolean;
+  omittedAfter: boolean;
+}
+
 /**
  * The owner/admin review page.
  *
@@ -257,6 +298,120 @@ export async function listFeedback(
   };
 }
 
+/**
+ * The complete reported answer plus a bounded window of surrounding messages.
+ *
+ * Every lookup is business-scoped, and the feedback row's own user must still own
+ * the conversation. The read is deliberately narrow: only USER and ASSISTANT
+ * content is returned, with no email address, product id, tool payload or other
+ * stored metadata. The reported answer is included in full; the neighbours are
+ * capped by REVIEW_CONTEXT_MESSAGES on each side.
+ */
+export async function getFeedbackConversation(
+  businessId: string,
+  feedbackId: string,
+): Promise<ReviewConversation> {
+  const row = await AiFeedback.findOne({ _id: feedbackId, businessId }).lean();
+  if (!row) notFound('Feedback not found');
+
+  const conversation = await AIConversation.findOne({
+    _id: row.conversationId,
+    businessId,
+    userId: row.userId,
+  })
+    .select('_id')
+    .lean();
+  if (!conversation) notFound('Conversation not found');
+
+  const target = await AIMessage.findOne({
+    _id: row.messageId,
+    conversationId: row.conversationId,
+    role: 'ASSISTANT',
+  })
+    .select('_id role content createdAt')
+    .lean();
+  if (!target) notFound('Conversation not found');
+
+  const beforeFilter = {
+    conversationId: row.conversationId,
+    role: { $in: ['USER', 'ASSISTANT'] },
+    $or: [
+      { createdAt: { $lt: target.createdAt } },
+      { createdAt: target.createdAt, _id: { $lt: target._id } },
+    ],
+  };
+  const afterFilter = {
+    conversationId: row.conversationId,
+    role: { $in: ['USER', 'ASSISTANT'] },
+    $or: [
+      { createdAt: { $gt: target.createdAt } },
+      { createdAt: target.createdAt, _id: { $gt: target._id } },
+    ],
+  };
+
+  const [beforeDesc, after, user] = await Promise.all([
+    AIMessage.find(beforeFilter)
+      .sort({ createdAt: -1, _id: -1 })
+      .limit(REVIEW_CONTEXT_MESSAGES + 1)
+      .select('_id role content createdAt')
+      .lean(),
+    AIMessage.find(afterFilter)
+      .sort({ createdAt: 1, _id: 1 })
+      .limit(REVIEW_CONTEXT_MESSAGES + 1)
+      .select('_id role content createdAt')
+      .lean(),
+    User.findOne({ _id: row.userId, businessId }).select('_id name role').lean(),
+  ]);
+
+  const omittedBefore = beforeDesc.length > REVIEW_CONTEXT_MESSAGES;
+  const omittedAfter = after.length > REVIEW_CONTEXT_MESSAGES;
+  const before = beforeDesc
+    .slice(0, REVIEW_CONTEXT_MESSAGES)
+    .reverse()
+    .map((message) => ({
+      id: String(message._id),
+      role: message.role as 'USER' | 'ASSISTANT',
+      content: message.content,
+      createdAt: message.createdAt,
+      reported: false,
+    }));
+  const targetMessage: ReviewConversationMessage = {
+    id: String(target._id),
+    role: 'ASSISTANT',
+    content: target.content,
+    createdAt: target.createdAt,
+    reported: true,
+  };
+  const following = after.slice(0, REVIEW_CONTEXT_MESSAGES).map((message) => ({
+    id: String(message._id),
+    role: message.role as 'USER' | 'ASSISTANT',
+    content: message.content,
+    createdAt: message.createdAt,
+    reported: false,
+  }));
+
+  return {
+    feedback: {
+      id: String(row._id),
+      rating: row.rating,
+      reason: row.reason || null,
+      comment: row.comment || null,
+      status: row.status,
+      createdAt: row.createdAt,
+      reviewedAt: row.reviewedAt || null,
+      turnId: row.turnId || null,
+      messageId: String(row.messageId),
+      conversationId: String(row.conversationId),
+      reportedBy: user
+        ? { id: String(user._id), name: user.name, role: user.role }
+        : null,
+    },
+    messages: [...before, targetMessage, ...following],
+    omittedBefore,
+    omittedAfter,
+  };
+}
+
 /** Mark one report read, or reopen it. Scoped to the caller's business. */
 export async function reviewFeedback({
   businessId,
@@ -288,5 +443,6 @@ export default {
   feedbackForMessages,
   submitFeedback,
   listFeedback,
+  getFeedbackConversation,
   reviewFeedback,
 };

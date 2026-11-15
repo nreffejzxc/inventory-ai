@@ -68,7 +68,7 @@ snapshot as current.
 | Authentication | Required | fixed | `/api/ai/chat` and all conversation routes require a valid session. The assistant never runs anonymously. |
 | Permission | `ai.use` | fixed | All four roles (OWNER, ADMIN, MANAGER, STAFF) hold it. A user without it gets `403`. |
 | Metrics access | `ai.metrics.view` | fixed | Only OWNER and ADMIN can read aggregate AI turn metrics. Metrics are operational data, not member chat. |
-| Feedback review | `ai.metrics.view` | fixed | Only OWNER and ADMIN can read or review member feedback. A member may rate only a stored answer in their own conversation. |
+| Feedback review | `ai.metrics.view` | fixed | Only OWNER and ADMIN can read or review member feedback, or open one report's bounded conversation preview (the complete reported answer plus six messages each side). A member may rate only a stored answer in their own conversation. |
 | Conversation ownership | Same user **and** business | fixed | A conversation is looked up by `businessId` + `userId`; another user in the same business gets `404`. |
 | Tool data scope | Caller's business only | fixed | `businessId` comes from the authenticated user, never from the model or request body. Tool schemas reject unknown arguments, so a model cannot supply a different tenant id. |
 | Tool permissions | Existing role permissions | fixed | Every tool checks its declared permission again at execution time. A STAFF user can use product/inventory reads but not dashboard-only reads such as `getInventorySummary` or `getLocationBreakdown`. |

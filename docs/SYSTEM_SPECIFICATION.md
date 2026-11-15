@@ -1074,18 +1074,22 @@ only the caller's own rating to each message.
 ```http
 POST  /api/ai/feedback
 GET   /api/ai/feedback?status=OPEN&rating=DOWN&page=1&limit=20
+GET   /api/ai/feedback/:id/conversation
 PATCH /api/ai/feedback/:id
 Authorization: Bearer <token>
 ```
 
-POST requires `ai.use`; GET and PATCH require the existing `ai.metrics.view` capability, so only
-OWNER and ADMIN can review. The queue is business-scoped and returns bounded excerpts of the
-reported question (500 characters) and answer (1,200 characters), the member's name and role, the
-turn reference and the answer's tools — never the member's email or whole conversation. Its
-`summary` reports all-time `total`, `open`, `up` and `down` counts for the business, independent of
-the current filter. PATCH toggles `OPEN`/`REVIEWED` and records the reviewer and time. Feedback is
-deleted with its author's account and with the tenant during teardown. All three responses are
-`Cache-Control: no-store`.
+POST requires `ai.use`; GET, the conversation preview and PATCH require the existing
+`ai.metrics.view` capability, so only OWNER and ADMIN can review. The queue is business-scoped and
+returns bounded excerpts of the reported question (500 characters) and answer (1,200 characters),
+the member's name and role, the turn reference and the answer's tools — never the member's email or
+whole conversation. Its `summary` reports all-time `total`, `open`, `up` and `down` counts for the
+business, independent of the current filter. The conversation preview is the explicit expansion
+behind one report: it returns the complete reported answer, exactly as stored, plus at most six
+USER/ASSISTANT messages on either side and `omittedBefore`/`omittedAfter` flags. The preview is
+still bounded and returns no email, product id, tool payload or other stored metadata. PATCH toggles
+`OPEN`/`REVIEWED` and records the reviewer and time. Feedback is deleted with its author's account
+and with the tenant during teardown. All four responses are `Cache-Control: no-store`.
 
 ### Turn metrics
 

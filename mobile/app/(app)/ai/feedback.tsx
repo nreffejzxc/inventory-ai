@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
-import { Stack } from 'expo-router';
+import { router, Stack } from 'expo-router';
 import { StyleSheet, Text, View } from 'react-native';
 
 import AccessDenied from '../../../components/AccessDenied';
@@ -48,10 +48,12 @@ function FeedbackRow({
   item,
   busy,
   onToggle,
+  onOpen,
 }: {
   item: ApiResponse;
   busy: boolean;
   onToggle: () => void;
+  onOpen: () => void;
 }) {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -116,14 +118,25 @@ function FeedbackRow({
         </Text>
       ) : null}
 
-      <Button
-        title={item.status === 'REVIEWED' ? 'Reopen report' : 'Mark reviewed'}
-        variant="secondary"
-        size="md"
-        loading={busy}
-        onPress={onToggle}
-        style={styles.reviewButton}
-      />
+      {/* AI-117 — the queue stays excerpt-only. This opens the explicit
+          OWNER/ADMIN preview with the complete reported answer before review. */}
+      <View style={styles.reviewActions}>
+        <Button
+          title="View conversation"
+          variant="secondary"
+          size="md"
+          onPress={onOpen}
+          style={styles.reviewButton}
+        />
+        <Button
+          title={item.status === 'REVIEWED' ? 'Reopen report' : 'Mark reviewed'}
+          variant="secondary"
+          size="md"
+          loading={busy}
+          onPress={onToggle}
+          style={styles.reviewButton}
+        />
+      </View>
     </Card>
   );
 }
@@ -229,7 +242,12 @@ function FeedbackList() {
         items={list.items}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
-          <FeedbackRow item={item} busy={busyId === item.id} onToggle={() => void toggleReviewed(item)} />
+          <FeedbackRow
+            item={item}
+            busy={busyId === item.id}
+            onToggle={() => void toggleReviewed(item)}
+            onOpen={() => router.push({ pathname: '/ai/feedback-preview', params: { id: item.id } })}
+          />
         )}
         header={header}
         loading={list.loading}
@@ -298,5 +316,11 @@ const createStyles = (colors: Palette) =>
     missingAnswer: { ...type.caption, color: colors.warning, marginTop: spacing.md },
     provenance: { ...type.caption, color: colors.textMuted, marginTop: spacing.md },
     reference: { ...type.caption, color: colors.textMuted, marginTop: 2, opacity: 0.8 },
-    reviewButton: { marginTop: spacing.md },
+    reviewActions: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: spacing.sm,
+      marginTop: spacing.md,
+    },
+    reviewButton: { flexGrow: 1, flexBasis: 140 },
   });

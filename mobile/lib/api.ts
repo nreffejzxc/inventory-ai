@@ -1182,6 +1182,13 @@ export const aiApi = {
   feedbackList: (token: string, params?: QueryParams): Promise<ApiResponse> =>
     apiFetch('/api/ai/feedback', { token, params }),
 
+  /**
+   * AI-117 — the complete reported answer and a bounded window of surrounding
+   * USER/ASSISTANT messages. OWNER/ADMIN only; the queue remains excerpt-only.
+   */
+  feedbackConversation: (token: string, id: string): Promise<ApiResponse> =>
+    apiFetch(`/api/ai/feedback/${id}/conversation`, { token }),
+
   /** Mark one report read, or reopen it. */
   reviewFeedback: (token: string, id: string, reviewed: boolean): Promise<ApiResponse> =>
     apiFetch(`/api/ai/feedback/${id}`, { token, method: 'PATCH', body: { reviewed } }),
