@@ -3,7 +3,8 @@
 This is the reference for what can go wrong on the assistant's chat route and what the Android app
 does about it. The server's code is the authoritative classification; the Android sentence is what
 the member actually sees. Both were read from the AI runtime at commit `705d192` on
-**2026-11-13**; later commits are tests and documentation only.
+**2026-11-13**; AI-110 (`7315675`) added the contextual entry and the restock shortfall but did not
+change this classification or the Android messages below.
 
 Source of truth: `server/src/controllers/ai.controller.ts` (`mapAiFailure`, `sseFailure`),
 `server/src/services/ai/aiErrors.ts`, `server/src/services/ai/rateLimiter.ts`,
