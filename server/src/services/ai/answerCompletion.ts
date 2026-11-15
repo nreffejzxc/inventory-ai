@@ -947,6 +947,51 @@ export interface CatalogueFact {
   stockValue?: number | null;
 }
 
+/** A product the answer names, with the catalogue id the read tool supplied. */
+export interface ProductLink {
+  productId: string;
+  name: string;
+  sku?: string;
+}
+
+/**
+ * AI-111 — the products an answer can safely open.
+ *
+ * The mobile screen must never resolve a name itself: names are not unique and the answer can
+ * mention a product the client did not load. This keeps only rows that carried an id, whose
+ * exact name appears as a whole word in the final answer, and whose name is not shared by two
+ * different products. A duplicate name is omitted rather than linked to a guess.
+ */
+export function mentionedProductLinks(
+  answer: string,
+  rows: readonly CatalogueFact[],
+): ProductLink[] {
+  const text = String(answer ?? '');
+  if (!text) return [];
+  const byId = new Map<string, ProductLink>();
+  for (const row of rows) {
+    const productId = typeof row?.id === 'string' ? row.id.trim() : '';
+    const name = typeof row?.name === 'string' ? row.name.trim() : '';
+    if (!productId || !name || byId.has(productId)) continue;
+    const wholeName = new RegExp(`(^|[^A-Za-z0-9])${escapeRegExp(name)}(?![A-Za-z0-9])`, 'i');
+    if (!wholeName.test(text)) continue;
+    const sku = typeof row.sku === 'string' && row.sku.trim() ? row.sku.trim() : undefined;
+    byId.set(productId, { productId, name, ...(sku ? { sku } : {}) });
+  }
+  const nameCounts = new Map<string, number>();
+  for (const link of byId.values()) {
+    const key = link.name.toLowerCase();
+    nameCounts.set(key, (nameCounts.get(key) ?? 0) + 1);
+  }
+  return [...byId.values()]
+    .filter((link) => nameCounts.get(link.name.toLowerCase()) === 1)
+    .sort((a, b) => {
+      const lower = text.toLowerCase();
+      return lower.indexOf(a.name.toLowerCase()) - lower.indexOf(b.name.toLowerCase());
+    })
+    .slice(0, 8);
+}
+
 function finiteNumber(value: unknown): number | null {
   return typeof value === 'number' && Number.isFinite(value) ? value : null;
 }
@@ -1037,10 +1082,14 @@ const RESTOCK_LIST_WORDING =
 // question. The other list predicates still keep "show me ... and how many" out.
 const ASKS_ONLY_FOR_A_COUNT = /\b(?:how\s+(?:many|much)|pila|ilan)\b/i;
 const ALSO_ASKS_WHICH_ONES = /\b(?:list|name|show|which|what\s+are|who)\b/i;
+// "How many UNITS do we need" is a shortfall total, not a count of products. Without this
+// distinction the restock count finalizer answered a unit question with a product count.
+const ASKS_UNITS = /\b(?:units?|pieces?|pcs|qty|quantity)\b/i;
 
 export function asksForRestockList(question: string): boolean {
   const text = String(question ?? '');
   if (!text || !RESTOCK_LIST_WORDING.test(text)) return false;
+  if (ASKS_ONLY_FOR_A_COUNT.test(text) && ASKS_UNITS.test(text)) return false;
   if (ASKS_ONLY_FOR_A_COUNT.test(text) && !ALSO_ASKS_WHICH_ONES.test(text)) return false;
   return !asksForLowStockValue(text);
 }
@@ -1062,11 +1111,35 @@ export function asksForRestockCount(question: string): boolean {
   const text = String(question ?? '');
   if (!RESTOCK_LIST_WORDING.test(text)) return false;
   if (!ASKS_ONLY_FOR_A_COUNT.test(text)) return false;
+  if (ASKS_UNITS.test(text)) return false;
   // A count is one of the two facts in "how many are low on stock and what is their total
   // value?". The value finalizer's sentence already states the count, so the count finalizer
   // must not run after it and overwrite the value with a bare number.
   if (asksForLowStockValue(text)) return false;
   return !ALSO_ASKS_WHICH_ONES.test(text);
+}
+
+/** A question about how many units the whole restock list needs, not how many products. */
+export function asksForRestockShortfall(question: string): boolean {
+  const text = String(question ?? '');
+  if (!RESTOCK_LIST_WORDING.test(text) || !ASKS_UNITS.test(text)) return false;
+  if (!/\b(?:how\s+(?:many|much)|total|combined|altogether|in\s+total)\b/i.test(text)) return false;
+  return !asksForLowStockValue(text);
+}
+
+/** The whole matching set's shortfall, computed by the tool over every product, not the page. */
+export function restockShortfallAnswer(
+  totalUnits: number,
+  productCount: number,
+  maxChars: number,
+): string | null {
+  if (!Number.isFinite(totalUnits) || totalUnits < 0) return null;
+  if (!Number.isFinite(productCount) || productCount < 0) return null;
+  const answer =
+    productCount === 0
+      ? 'No products need restocking right now.'
+      : `${formatUnits(productCount)} ${productCount === 1 ? 'product needs' : 'products need'} restocking, with a combined gap of ${formatUnits(totalUnits)} units to their configured minimums.`;
+  return answer.length <= maxChars ? answer : null;
 }
 
 /**
@@ -1177,6 +1250,106 @@ export function asksForTopOut(question: string): boolean {
     /\b(?:which|what)\s+(?:item|product|sku)\b[\s\S]{0,100}\b(?:most|highest|largest|top)\b[\s\S]{0,100}\b(?:units?|quantity|qty|stock)\b[\s\S]{0,120}\b(?:leave|left|out|move|moved|sold)\b/i.test(text) ||
     /\b(?:most|highest|largest|top)\b[\s\S]{0,60}\b(?:units?|quantity|qty)\b[\s\S]{0,60}\b(?:leave|left|out|move|moved|sold)\b/i.test(text)
   );
+}
+
+/**
+ * AI-113 — a question that ranks products by how much stock they hold.
+ *
+ * The model was measured treating a page of `getInventory` as a ranking and calling the first
+ * rows the highest-stock products. A page is ordered by the read, not by quantity, so the
+ * answer needs a tool that ranks the whole catalogue and a finalizer that quotes that order.
+ * Excluded: stock VALUE (its own tool and finalizer), stock-out/sales rankings, low-stock and
+ * restock questions, and any question with a second requested fact.
+ */
+const HIGHEST_STOCK_QUANTITY =
+  /\b(?:highest|largest|greatest|most|top)\b[\s\S]{0,50}\b(?:stock|inventory|units?|quantity|qty|on[\s-]?hand|available)\b/i;
+
+export function asksForHighestStockQuantity(question: string): boolean {
+  const text = String(question ?? '').trim();
+  if (!text || !HIGHEST_STOCK_QUANTITY.test(text)) return false;
+  if (SECOND_REQUEST.test(text) || SECOND_AVAILABILITY.test(text)) return false;
+  if (asksForTopOut(text) || asksForHighestStockValue(text) || asksForMostExpensive(text)) return false;
+  // Those shapes would make a quantity ranking answer the wrong question. "At Main Warehouse"
+  // is NOT excluded: the tool accepts the same location argument and ranks that scope.
+  if (
+    /\b(?:low|shortage|restock|reorder|minimum|out\s+of\s+stock|stock[\s-]?outs?|value|worth|prices?|costs?|sales?|sold|movements?|revenue|profit)\b/i.test(
+      text,
+    )
+  ) {
+    return false;
+  }
+  return true;
+}
+
+/** How many rows the question asks to see, bounded to the tool's own maximum page. */
+function requestedHighestStockLimit(question: string): number {
+  const text = String(question ?? '');
+  const numberWord = /\b(?:top|first|highest|largest)\s+(\d+|one|two|three|four|five|six|seven|eight|nine|ten)\b/i.exec(text);
+  const words: Record<string, number> = {
+    one: 1,
+    two: 2,
+    three: 3,
+    four: 4,
+    five: 5,
+    six: 6,
+    seven: 7,
+    eight: 8,
+    nine: 9,
+    ten: 10,
+  };
+  if (numberWord) {
+    const raw = numberWord[1]?.toLowerCase() ?? '';
+    const value = /^\d+$/.test(raw) ? Number(raw) : words[raw];
+    if (value !== undefined && Number.isFinite(value) && value > 0) {
+      return Math.min(Math.trunc(value), 10);
+    }
+  }
+  const singular =
+    /\b(?:which|what)\s+(?:single\s+)?(?:product|item|sku)\b/i.test(text) &&
+    !/\b(?:products|items|skus)\b/i.test(text);
+  return singular ? 1 : 5;
+}
+
+/** Rank the facts the read returned, never the order a page happened to arrive in. */
+export function highestStockQuantityAnswer(
+  rows: readonly CatalogueFact[],
+  total: number,
+  maxChars: number,
+  question = '',
+  scopeLabel: string | null = null,
+): string | null {
+  const unique = new Map<string, { name: string; sku?: string | null; quantity: number }>();
+  for (const row of rows) {
+    const name = typeof row?.name === 'string' ? row.name.trim() : '';
+    const quantity = finiteNumber(row?.availableQuantity);
+    if (!name || quantity === null || quantity < 0) continue;
+    // One answer line per product NAME: two catalogue rows with the same name would read as
+    // the same product twice, and the member cannot tell which id the ranking meant.
+    const key = name.toLowerCase();
+    const existing = unique.get(key);
+    if (!existing || quantity > existing.quantity) unique.set(key, { name, sku: row.sku, quantity });
+  }
+  const ranked = [...unique.values()].sort(
+    (a, b) => b.quantity - a.quantity || a.name.localeCompare(b.name),
+  );
+  if (ranked.length === 0) return null;
+
+  const limit = requestedHighestStockLimit(question);
+  const shown = ranked.slice(0, limit);
+  const count = Number.isFinite(total) && total > 0 ? total : ranked.length;
+  const scope = scopeLabel ? ` at ${scopeLabel}` : '';
+  const heading =
+    shown.length === 1 && (limit === 1 || count <= 1)
+      ? `The product with the highest stock${scope} is:`
+      : count > shown.length
+        ? `Top ${shown.length} of ${count} products with stock${scope}:`
+        : `The products with the highest stock${scope} are:`;
+  const lines = shown.map((row, index) => {
+    const sku = row.sku ? ` (SKU ${row.sku})` : '';
+    return `${shown.length === 1 && limit === 1 ? '' : `${index + 1}. `}**${row.name}**${sku} — ${formatUnits(row.quantity)} units`;
+  });
+  const answer = `${heading}\n\n${lines.join('\n')}`;
+  return answer.length <= maxChars ? answer : null;
 }
 
 /** A question about which product is worth the most at the recorded selling price. */

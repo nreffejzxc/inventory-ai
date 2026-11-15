@@ -96,7 +96,7 @@ const AGGREGATE_NOUN =
  * None of them may be shortened into the simple prompt.
  */
 const ADVANCED_INTENT =
-  /\b(?:prices?|pricing|presyo|presyuhan|costs?|worth|value|revenue|sales?|sold|profit|margin|compare|comparison|versus|vs|recommend\w*|best|cheapest|expensive|brands?|categor(?:y|ies)|suppliers?|vendors?|distributors?|wholesalers?|history|movements?|dead\s+stock|never\s+sold|top|rank\w*|under|over|breakdown|summary|per\s+location|each\s+location|every\s+location|all\s+locations|across\s+locations|where\s+(?:is|are))\b/i;
+  /\b(?:prices?|pricing|presyo|presyuhan|costs?|worth|value|revenue|sales?|sold|profit|margin|compare|comparison|versus|vs|recommend\w*|best|cheapest|expensive|highest|largest|lowest|smallest|brands?|categor(?:y|ies)|suppliers?|vendors?|distributors?|wholesalers?|history|movements?|dead\s+stock|never\s+sold|top|rank\w*|under|over|breakdown|summary|per\s+location|each\s+location|every\s+location|all\s+locations|across\s+locations|where\s+(?:is|are))\b/i;
 
 const LIST_QUESTION = /\b(?:which|what|list|name|show|give)\b/i;
 

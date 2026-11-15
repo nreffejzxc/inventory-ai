@@ -72,6 +72,28 @@ function messagePublic(msg: MessageDoc) {
   const usage = msg.usage
     ? { inputTokens: msg.usage.inputTokens ?? undefined, outputTokens: msg.usage.outputTokens ?? undefined }
     : undefined;
+  const answerActions = msg.answerActions
+    ? {
+        list: msg.answerActions.list
+          ? {
+              kind: msg.answerActions.list.kind,
+              label: msg.answerActions.list.label,
+              path: msg.answerActions.list.path,
+              total: msg.answerActions.list.total,
+              rows: (msg.answerActions.list.rows ?? []).map((row) => ({
+                productId: row.productId || undefined,
+                title: row.title,
+                detail: row.detail || undefined,
+              })),
+            }
+          : undefined,
+        screens: (msg.answerActions.screens ?? []).map((entry) => ({
+          kind: entry.kind,
+          label: entry.label,
+          path: entry.path,
+        })),
+      }
+    : undefined;
   return {
     id: String(msg._id),
     conversationId: String(msg.conversationId),
@@ -82,6 +104,15 @@ function messagePublic(msg: MessageDoc) {
     // reopened tomorrow can still name the turn in the server logs.
     turnId: msg.turnId || undefined,
     toolsUsed: Array.isArray(msg.toolsUsed) && msg.toolsUsed.length ? msg.toolsUsed : undefined,
+    productLinks:
+      Array.isArray(msg.productLinks) && msg.productLinks.length
+        ? msg.productLinks.map((link) => ({
+            productId: link.productId,
+            name: link.name,
+            sku: link.sku || undefined,
+          }))
+        : undefined,
+    answerActions,
     usage,
     // AI-8 — the mark travels with the message, so a conversation read back from the
     // database says the same thing about a truncated answer as the screen that received
@@ -465,6 +496,8 @@ async function persistTurn({
     model: result.model || undefined,
     turnId: result.turnId,
     toolsUsed: result.toolsUsed?.length ? result.toolsUsed : undefined,
+    productLinks: result.productLinks?.length ? result.productLinks : undefined,
+    answerActions: result.answerActions,
     usage: result.usage || undefined,
     // AI-8 — a degraded turn is still a completed turn (AI-2), so it is still stored;
     // what is new is that the STORE now knows it was degraded. Only the reason is kept,

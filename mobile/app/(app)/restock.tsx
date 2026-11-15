@@ -1,5 +1,5 @@
-import { useCallback, useMemo, useState } from 'react';
-import { router } from 'expo-router';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { router, useLocalSearchParams } from 'expo-router';
 import { StyleSheet, Text, View } from 'react-native';
 import type { ListRenderItem } from 'react-native';
 
@@ -8,8 +8,9 @@ import { Icon } from '../../components/icons';
 import ListRow from '../../components/ListRow';
 import ListScreen from '../../components/ListScreen';
 import SearchField from '../../components/SearchField';
+import SelectField from '../../components/SelectField';
 import { PressableCard } from '../../components/Card';
-import { productsApi } from '../../lib/api';
+import { categoriesApi, productsApi } from '../../lib/api';
 import type { ApiResponse } from '../../lib/api';
 import { useSession } from '../../lib/auth';
 import type { QueryParams } from '../../lib/client';
@@ -18,8 +19,14 @@ import { spacing, type } from '../../lib/theme';
 import type { Palette } from '../../lib/theme';
 import { useTheme } from '../../lib/theme-context';
 import useDebounced from '../../hooks/useDebounced';
+import { useActiveRef } from '../../hooks/useReferences';
 import usePagedList from '../../hooks/usePagedList';
 import useRefetchOnFocus from '../../hooks/useRefetchOnFocus';
+
+/** Route params are `string | string[]` (a key repeated in the link yields an array). */
+function str(v: string | string[] | undefined): string {
+  return Array.isArray(v) ? (v[0] ?? '') : (v ?? '');
+}
 
 /**
  * The restock list — every product at or below its minimum stock, worst first.
@@ -48,11 +55,33 @@ export default function RestockScreen() {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { token, signOut } = useSession();
+  const params = useLocalSearchParams();
+  const categories = useActiveRef(token, categoriesApi);
 
-  const [q, setQ] = useState('');
+  const [q, setQ] = useState(() => str(params.q));
+  const [categoryId, setCategoryId] = useState(() => str(params.categoryId));
+  const paramCategoryName = str(params.category);
+  const resolvedNamedCategory = useRef(false);
   const debouncedQ = useDebounced(q, 300);
 
-  const queryParams = useCallback((): QueryParams => ({ page: undefined, q: debouncedQ || undefined }), [debouncedQ]);
+  useEffect(() => {
+    if (resolvedNamedCategory.current || categoryId || !paramCategoryName) return;
+    const match = categories.items.find(
+      (category) => category.name.toLowerCase() === paramCategoryName.toLowerCase(),
+    );
+    if (!match) return;
+    resolvedNamedCategory.current = true;
+    setCategoryId(match.id);
+  }, [categories.items, categoryId, paramCategoryName]);
+
+  const queryParams = useCallback(
+    (): QueryParams => ({
+      page: undefined,
+      q: debouncedQ || undefined,
+      categoryId: categoryId || undefined,
+    }),
+    [debouncedQ, categoryId],
+  );
 
   const fetcher = useCallback(
     (page: number, limit: number) => productsApi.reorder(token as string, { ...queryParams(), page, limit }),
@@ -78,6 +107,16 @@ export default function RestockScreen() {
         onChangeText={setQ}
         placeholder="Search restock by name, SKU or barcode…"
         style={styles.search}
+      />
+      <SelectField
+        label="Category"
+        placeholder="All categories"
+        options={[
+          { value: '', label: 'All categories' },
+          ...categories.items.map((category) => ({ value: category.id, label: category.name })),
+        ]}
+        value={categoryId}
+        onChange={setCategoryId}
       />
     </View>
   );

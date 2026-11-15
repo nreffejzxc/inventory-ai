@@ -164,6 +164,11 @@ interface GetInventoryArgs extends ToolArguments, LocationRef {
   limit?: number;
 }
 
+/** AI-113 — a ranking read with no filter of its own, so the scope cannot drift. */
+interface GetHighestStockArgs extends ToolArguments, LocationRef {
+  limit?: number;
+}
+
 /** AI-61 — a stock list that can be narrowed to one place ("what's low at the counter?"). */
 interface LocationLimitArgs extends ToolArguments, LocationRef {
   limit?: number;
@@ -1120,7 +1125,7 @@ const tools: Tool[] = [
   {
     name: 'getInventory',
     description:
-      'Inventory rows (a product at a location) with on-hand quantity, reserved quantity, and available quantity. Filter by product, location, product search text, product status, low stock, or out of stock. A location may be given as `locationId` or as the exact `location` name (an ACTIVE location of this business). When the member names a product and asks where it is, pass `q` (the product name) so the rows come back for EVERY location — an unfiltered page is sorted arbitrarily and can cut off exactly the rows that answer the question. Every row also carries product.sellingPrice and product.currency — the recorded price and its ISO code — so a value question can be answered by multiplying the recorded price by availableQuantity; both are null when the price was never recorded, and that is what to report instead of an estimate.',
+      'Inventory rows (a product at a location) with on-hand quantity, reserved quantity, and available quantity. Filter by product, location, product search text, product status, low stock, or out of stock. A location may be given as `locationId` or as the exact `location` name (an ACTIVE location of this business). When the member names a product and asks where it is, pass `q` (the product name) so the rows come back for EVERY location — an unfiltered page is sorted arbitrarily and can cut off exactly the rows that answer the question. Every row also carries product.sellingPrice and product.currency — the recorded price and its ISO code — but do NOT multiply them by a quantity to answer a value question: use getStockValue, which computes the total at the recorded price and reports unpriced products instead of treating them as zero. Both fields are null when the price was never recorded, and that is what to report instead of an estimate.',
     permission: PERMISSIONS.INVENTORY_VIEW,
     defaultLimit: 15,
     parameters: {
@@ -1230,6 +1235,46 @@ const tools: Tool[] = [
                 'may be in the part you did not receive: call getInventory again with `q` set to the ' +
                 'product name (and no location) to see every location that holds it before saying ' +
                 'where it is or that somewhere else has none.',
+            }
+          : {}),
+      });
+    },
+  },
+
+  {
+    name: 'getHighestStockProducts',
+    description:
+      'The ACTIVE products holding the LARGEST available quantity, already ranked highest first by the server. Use this for "which products have the highest stock", "what is our largest stock quantity", or "show the top products by stock". Available quantity is on hand minus reserved, summed across all locations by default. Pass `location`/`locationId` when the member asks for the highest stock AT a named place; the ranking then uses that place\'s quantity only. `count` is every product with positive available stock in that scope and `items` is the top page; when `hasMore` is true say this is the top N of that total, not the whole set. Quote each row\'s `availableQuantity` exactly; never sort a getInventory page or perform the comparison yourself. Archived products are excluded because they are not stock the member buys again.',
+    permission: PERMISSIONS.INVENTORY_VIEW,
+    defaultLimit: 5,
+    parameters: {
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        locationId: objectId,
+        location: {
+          type: 'string',
+          maxLength: 100,
+          description: 'Exact name of an ACTIVE location, e.g. "Main Warehouse". Use instead of locationId when no id is known.',
+        },
+        limit: limitParam(5, 25),
+      },
+    },
+    async executor(ctx: ToolContext, args: GetHighestStockArgs) {
+      const location = await resolveLocation(ctx, args, { required: false });
+      if (!location.ok) return location.result;
+      const { items, total } = await productService.highestStock(ctx.businessId, {
+        limit: Math.min(args.limit ?? 5, 25),
+        ...(location.id ? { locationId: location.id } : {}),
+      });
+      return page(total, items.map(stockCard), {
+        ...(location.id ? { locationId: location.id } : {}),
+        ...(args.location ? { locationName: args.location.trim() } : {}),
+        ...(total > items.length
+          ? {
+              note:
+                `This is the top ${items.length} of ${total} products with positive available stock. ` +
+                'Say it is the top of the ranking and give the total; never call these rows the whole set.',
             }
           : {}),
       });
@@ -1409,7 +1454,7 @@ const tools: Tool[] = [
   {
     name: 'getReorderNeededProducts',
     description:
-      'Products that need restocking: ACTIVE products whose available quantity (summed across all locations) is at or below their configured minimum stock. Each result is flagged stockStatus OUT_OF_STOCK when nothing is available, otherwise LOW_STOCK, and out-of-stock items are listed first; `unitsBelowMinimum` is how many units are needed to reach the configured minimum (0 at the threshold, null when no minimum is configured). A category may be given as `categoryId` or as the exact `category` name (an ACTIVE category of this business). `count` is every product that needs restocking and `items` is the current page; when `hasMore` is true, say the list is partial and give the total. Use for "what products need restocking", "which products are low in stock or out of stock", "what should I reorder", or "what is running low".',
+      'Products that need restocking: ACTIVE products whose available quantity (summed across all locations) is at or below their configured minimum stock. Each result is flagged stockStatus OUT_OF_STOCK when nothing is available, otherwise LOW_STOCK, and out-of-stock items are listed first; `unitsBelowMinimum` is how many units are needed to reach the configured minimum (0 at the threshold, null when no minimum is configured). `count` is every product that needs restocking and `items` is the current page; `totalUnitsBelowMinimum` is the summed gap over EVERY matching product, not just this page, so "how many units do we need" reads that figure instead of adding the rows. When `hasMore` is true, say the list is partial and give the total. A category may be given as `categoryId` or as the exact `category` name (an ACTIVE category of this business). Use for "what products need restocking", "which products are low in stock or out of stock", "what should I reorder", or "what is running low".',
     permission: PERMISSIONS.INVENTORY_VIEW,
     // The page is sized so an ordinary restock list is complete in ONE read. A 20-row
     // default cut a 47-product answer to 20 and let the model call it the whole list.
@@ -1431,7 +1476,7 @@ const tools: Tool[] = [
     async executor(ctx: ToolContext, args: ReorderArgs) {
       const category = await resolveCategory(ctx, args);
       if (!category.ok) return category.result;
-      const { items, total } = await productService.listReorder(ctx.businessId, {
+      const { items, total, totalUnitsBelowMinimum } = await productService.listReorder(ctx.businessId, {
         q: args.q,
         categoryId: category.id,
         skip: 0,
@@ -1441,6 +1486,7 @@ const tools: Tool[] = [
       // the whole list whenever a tenant had more, which is the same false completeness the
       // low-stock tool now states in words.
       return page(total, items.map(productService.reorderItemPublic), {
+        totalUnitsBelowMinimum,
         ...(total > items.length
           ? {
               note:

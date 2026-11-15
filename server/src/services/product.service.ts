@@ -906,7 +906,24 @@ export const productService = {
       { $match: { $expr: { $lte: ['$available', '$minimumStock'] } } },
       {
         $facet: {
-          metadata: [{ $count: 'total' }],
+          metadata: [
+            {
+              $group: {
+                _id: null,
+                total: { $sum: 1 },
+                // AI-113 — the whole matching set's gap, not this page's. A member asking
+                // "how many units do we need" should read a number, not add rows.
+                totalUnitsBelowMinimum: {
+                  $sum: {
+                    $max: [
+                      { $subtract: [{ $ifNull: ['$minimumStock', 0] }, '$available'] },
+                      0,
+                    ],
+                  },
+                },
+              },
+            },
+          ],
           // Worst-off first (available ascending), then newest, then `_id` so a
           // tie on both leading keys still pages deterministically. The sort sits in
           // this branch rather than above the facet because the count does not depend
@@ -927,7 +944,43 @@ export const productService = {
     const [result] = await Product.aggregate(pipeline, { allowDiskUse: true });
     const items = await hydrateStockPage(bizOid, result?.data ?? []);
     const total = result?.metadata?.[0]?.total ?? 0;
-    return { items, total };
+    const totalUnitsBelowMinimum = result?.metadata?.[0]?.totalUnitsBelowMinimum ?? 0;
+    return { items, total, totalUnitsBelowMinimum };
+  },
+
+  /**
+   * AI-113 — the products holding the most stock, ranked by the same availability figure
+   * every other stock read uses (on hand minus reserved, summed across locations). The
+   * model must never sort a page itself: a page is not the catalogue, and the first page
+   * of a name search is not the highest-stock set. ACTIVE products only, because an
+   * archived product is not stock the member buys again. `total` is every product with a
+   * positive available quantity, so a five-row answer can say it is the top five rather
+   * than the whole set.
+   */
+  async highestStock(
+    businessId: IdLike,
+    { limit = 5, locationId }: { limit?: number; locationId?: string } = {}
+  ) {
+    const bizOid = new ObjectId(businessId);
+    const pipeline: PipelineStage[] = [
+      { $match: { businessId: bizOid, status: 'ACTIVE' } },
+      ...availabilityIdStages(bizOid, locationId),
+      {
+        $facet: {
+          metadata: [{ $match: { available: { $gt: 0 } } }, { $count: 'total' }],
+          // Highest first, then `_id` so equal quantities still have a stable order. This
+          // sort is in the data branch only; the count does not depend on page order.
+          data: [
+            { $match: { available: { $gt: 0 } } },
+            { $sort: { available: -1, _id: 1 } },
+            { $limit: limit },
+          ],
+        },
+      },
+    ];
+    const [result] = await Product.aggregate(pipeline, { allowDiskUse: true });
+    const items = await hydrateStockPage(bizOid, result?.data ?? []);
+    return { items, total: result?.metadata?.[0]?.total ?? 0 };
   },
 
   /**

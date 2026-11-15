@@ -1,5 +1,7 @@
 import { memo, useMemo } from 'react';
+import type { ReactNode } from 'react';
 import { Alert, Linking, StyleSheet, Text, View } from 'react-native';
+import type { StyleProp, TextStyle } from 'react-native';
 
 import { parseAssistantMarkdown, type Block, type Cell, type Row } from '../lib/assistantMarkdown';
 import { radius, spacing, type } from '../lib/theme';
@@ -50,13 +52,81 @@ function isGrid(headers: number): boolean {
 
 type Styles = ReturnType<typeof createStyles>;
 
+/** A product the server proved this answer names, with its catalogue id. */
+export interface ProductLink {
+  productId: string;
+  name: string;
+  sku?: string;
+}
+
+const NO_PRODUCT_LINKS: ProductLink[] = [];
+
 /** Inline spans as plain text — used where a cell is a label, not styled copy. */
 function plain(spans: Cell): string {
   return spans.map((span) => span.text).join('');
 }
 
+/** Split one text run around product names the answer is allowed to open. */
+function withProductLinks(
+  text: string,
+  textStyle: StyleProp<TextStyle>,
+  styles: Styles,
+  productLinks: ProductLink[],
+  onProductPress?: (productId: string) => void,
+): ReactNode {
+  if (!text || !productLinks.length || !onProductPress) return text;
+  const lower = text.toLowerCase();
+  const matches: { link: ProductLink; at: number }[] = [];
+  for (const link of productLinks) {
+    const name = link.name.trim();
+    if (!name) continue;
+    let at = lower.indexOf(name.toLowerCase());
+    while (at >= 0) {
+      const before = at > 0 ? text[at - 1] : '';
+      const after = text[at + name.length] ?? '';
+      if (!/[A-Za-z0-9]/.test(before) && !/[A-Za-z0-9]/.test(after)) {
+        matches.push({ link, at });
+        break;
+      }
+      at = lower.indexOf(name.toLowerCase(), at + 1);
+    }
+  }
+  if (!matches.length) return text;
+  matches.sort((a, b) => a.at - b.at);
+  const nodes: ReactNode[] = [];
+  let cursor = 0;
+  for (const match of matches) {
+    if (match.at < cursor) continue;
+    if (match.at > cursor) nodes.push(text.slice(cursor, match.at));
+    nodes.push(
+      <Text
+        key={`${match.link.productId}-${match.at}`}
+        testID={`chat-product-link-${match.link.productId}`}
+        accessibilityRole="button"
+        style={[textStyle, styles.productLink]}
+        onPress={() => onProductPress(match.link.productId)}
+      >
+        {text.slice(match.at, match.at + match.link.name.length)}
+      </Text>,
+    );
+    cursor = match.at + match.link.name.length;
+  }
+  if (cursor < text.length) nodes.push(text.slice(cursor));
+  return nodes;
+}
+
 /** Inline spans, as nested `<Text>` — so bold is bold rather than markered. */
-function Spans({ spans, styles }: { spans: Cell; styles: Styles }) {
+function Spans({
+  spans,
+  styles,
+  productLinks = NO_PRODUCT_LINKS,
+  onProductPress,
+}: {
+  spans: Cell;
+  styles: Styles;
+  productLinks?: ProductLink[];
+  onProductPress?: (productId: string) => void;
+}) {
   return (
     <>
       {spans.map((span, index) => {
@@ -84,9 +154,19 @@ function Spans({ spans, styles }: { spans: Cell; styles: Styles }) {
             </Text>
           );
         }
+        const content =
+          span.code || span.href
+            ? span.text
+            : withProductLinks(
+                span.text,
+                style.length ? (style as StyleProp<TextStyle>) : undefined,
+                styles,
+                productLinks,
+                onProductPress,
+              );
         return (
           <Text key={index} style={style.length ? style : undefined}>
-            {span.text}
+            {content}
           </Text>
         );
       })}
@@ -95,18 +175,30 @@ function Spans({ spans, styles }: { spans: Cell; styles: Styles }) {
 }
 
 /** One table row as a card: the row's own name, then its attributes. */
-function RowCard({ row, header, styles }: { row: Row; header: Row; styles: Styles }) {
+function RowCard({
+  row,
+  header,
+  styles,
+  productLinks,
+  onProductPress,
+}: {
+  row: Row;
+  header: Row;
+  styles: Styles;
+  productLinks: ProductLink[];
+  onProductPress?: (productId: string) => void;
+}) {
   const [title, ...rest] = row;
   return (
     <View style={styles.card} testID="assistant-md-row-card">
       <Text style={styles.cardTitle}>
-        <Spans spans={title ?? []} styles={styles} />
+        <Spans spans={title ?? []} styles={styles} productLinks={productLinks} onProductPress={onProductPress} />
       </Text>
       {rest.map((cell, index) => (
         <View key={index} style={styles.cardLine}>
           <Text style={styles.cardLabel}>{plain(header[index + 1] ?? [])}</Text>
           <Text style={styles.cardValue}>
-            <Spans spans={cell} styles={styles} />
+            <Spans spans={cell} styles={styles} productLinks={productLinks} onProductPress={onProductPress} />
           </Text>
         </View>
       ))}
@@ -115,7 +207,19 @@ function RowCard({ row, header, styles }: { row: Row; header: Row; styles: Style
 }
 
 /** A narrow table as a real grid: header row, then aligned body rows. */
-function Grid({ header, rows, styles }: { header: Row; rows: Row[]; styles: Styles }) {
+function Grid({
+  header,
+  rows,
+  styles,
+  productLinks,
+  onProductPress,
+}: {
+  header: Row;
+  rows: Row[];
+  styles: Styles;
+  productLinks: ProductLink[];
+  onProductPress?: (productId: string) => void;
+}) {
   return (
     <View style={styles.grid} testID="assistant-md-table-grid">
       <View style={[styles.gridRow, styles.gridHeadRow]}>
@@ -129,7 +233,12 @@ function Grid({ header, rows, styles }: { header: Row; rows: Row[]; styles: Styl
         <View key={rowIndex} style={styles.gridRow}>
           {header.map((_cell, cellIndex) => (
             <Text key={cellIndex} style={[styles.gridCell, cellIndex === 0 && styles.gridFirstCell]}>
-              {plain(row[cellIndex] ?? [])}
+              <Spans
+                spans={row[cellIndex] ?? []}
+                styles={styles}
+                productLinks={productLinks}
+                onProductPress={onProductPress}
+              />
             </Text>
           ))}
         </View>
@@ -145,7 +254,15 @@ function Grid({ header, rows, styles }: { header: Row; rows: Row[]; styles: Styl
  * pre-processing on the way in, so history reloads and live replies render
  * identically through this one path.
  */
-export default memo(function AssistantMarkdown({ content }: { content: string }) {
+export default memo(function AssistantMarkdown({
+  content,
+  productLinks = NO_PRODUCT_LINKS,
+  onProductPress,
+}: {
+  content: string;
+  productLinks?: ProductLink[];
+  onProductPress?: (productId: string) => void;
+}) {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const blocks: Block[] = useMemo(() => parseAssistantMarkdown(content), [content]);
@@ -163,13 +280,13 @@ export default memo(function AssistantMarkdown({ content }: { content: string })
                 key={index}
                 style={[block.level <= 2 ? styles.h2 : styles.h3, !first && styles.spaced]}
               >
-                <Spans spans={block.spans} styles={styles} />
+                <Spans spans={block.spans} styles={styles} productLinks={productLinks} onProductPress={onProductPress} />
               </Text>
             );
           case 'paragraph':
             return (
               <Text key={index} style={[styles.paragraph, !first && styles.spaced]}>
-                <Spans spans={block.spans} styles={styles} />
+                <Spans spans={block.spans} styles={styles} productLinks={productLinks} onProductPress={onProductPress} />
               </Text>
             );
           case 'list':
@@ -179,7 +296,7 @@ export default memo(function AssistantMarkdown({ content }: { content: string })
                   <View key={itemIndex} style={styles.listItem}>
                     <Text style={styles.listMarker}>{item.marker}</Text>
                     <Text style={styles.listText}>
-                      <Spans spans={item.spans} styles={styles} />
+                      <Spans spans={item.spans} styles={styles} productLinks={productLinks} onProductPress={onProductPress} />
                     </Text>
                   </View>
                 ))}
@@ -192,11 +309,24 @@ export default memo(function AssistantMarkdown({ content }: { content: string })
             return (
               <View key={index} style={!first && styles.spaced}>
                 {isGrid(columns) ? (
-                  <Grid header={block.header} rows={block.rows} styles={styles} />
+                  <Grid
+                    header={block.header}
+                    rows={block.rows}
+                    styles={styles}
+                    productLinks={productLinks}
+                    onProductPress={onProductPress}
+                  />
                 ) : (
                   <View testID="assistant-md-table-cards">
                     {block.rows.map((row, rowIndex) => (
-                      <RowCard key={rowIndex} row={row} header={block.header} styles={styles} />
+                      <RowCard
+                        key={rowIndex}
+                        row={row}
+                        header={block.header}
+                        styles={styles}
+                        productLinks={productLinks}
+                        onProductPress={onProductPress}
+                      />
                     ))}
                   </View>
                 )}
@@ -237,6 +367,7 @@ const createStyles = (colors: Palette) =>
       backgroundColor: colors.surfaceMuted,
     },
     link: { color: colors.link, textDecorationLine: 'underline' },
+    productLink: { color: colors.primary, fontWeight: '700', textDecorationLine: 'underline' },
 
     list: { gap: spacing.xs },
     listItem: { flexDirection: 'row', gap: spacing.sm },

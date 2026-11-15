@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import type { ListRenderItem } from 'react-native';
@@ -39,12 +39,27 @@ export default function InventoryScreen() {
   // Dashboard stat cards deep-link here with ?status=low|out. The backend's
   // inventory endpoint filters via lowStock/outOfStock flags, so the navigation
   // shorthand is mapped onto those flags here (UI concern only).
-  const statusParam = str(useLocalSearchParams().status);
-  const [q, setQ] = useState('');
+  const params = useLocalSearchParams();
+  const statusParam = str(params.status);
+  const paramLocationName = str(params.location);
+  const [q, setQ] = useState(() => str(params.q));
   const debouncedQ = useDebounced(q, 300);
-  const [locationId, setLocationId] = useState('');
+  const [locationId, setLocationId] = useState(() => str(params.locationId));
+  const resolvedNamedLocation = useRef(false);
   const [low, setLow] = useState(statusParam === 'low');
   const [out, setOut] = useState(statusParam === 'out');
+
+  // A tool may know a location by its exact name rather than its id. Resolve that name once the
+  // active-location list arrives, so the screen opens with the same filter the answer used.
+  useEffect(() => {
+    if (resolvedNamedLocation.current || locationId || !paramLocationName) return;
+    const match = locations.items.find(
+      (location) => location.name.toLowerCase() === paramLocationName.toLowerCase(),
+    );
+    if (!match) return;
+    resolvedNamedLocation.current = true;
+    setLocationId(match.id);
+  }, [locationId, locations.items, paramLocationName]);
 
   const queryParams = useCallback((): QueryParams => {
     const p: QueryParams = { page: undefined, q: debouncedQ || undefined, locationId: locationId || undefined };

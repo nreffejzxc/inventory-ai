@@ -8,7 +8,7 @@ of truth for *what actually happened*, and it is why this file is long.
 
 **How to read it.** Do not read it top to bottom. Either find a record by number (§27FJ, §27DM — the
 numbers are cited from `CLAUDE.md` and from source comments), or use the index: `CLAUDE.md` §7 lists
-all **236** records by the title each gives itself.
+all **237** records by the title each gives itself.
 
 **Current state:** V1 complete and in production testing. The records that answer *where are we now* are §27ID (the permanent assistant improvement roadmap and implementation audit; docs-only), §27IC (AI-110 contextual assistant entry and restock shortfall, deployed `7315675` and OTA-verified; the partial-restock guards completed in `1c3928b`), §27IB (scheduler proof and hosted freshness), §27IA (post-deploy phone proof, triage and monitor), §27HV (AI-99 10,256-product gate, 24/25 with one output-limit finding), §27HU (AI-99 free-first simple inventory, deployed with the 1.0.2 OTA), §27HT (AI-91/AI-92 exact product identity and per-location stock), §27HS (the AI-50–AI-84 increment register), §27HR (AI-48–AI-84 merged and deployed), §27HQ (grounded answers and scoped stock reads), §27HP (market prices from cited pages), §27HO (recorded specifications and the real seed catalogue), §27HN (inventory-only web research), §27HH (a transfer as one event to the assistant), §27HG (the stock-in link's product), §27HF (the single-location default's timing), §27HE (the stock-in link's location), §27HD (the movement fixes and the production device pass), §27HC (the assistant's local-time answers), §27FM (the V1 re-verification) and §27FJ (the two open advisories).
 
@@ -25500,3 +25500,61 @@ and integrity results; this audit made no deployment and spent no AI provider tu
 question shape works. It does not measure new answer latency or model quality. The roadmap is
 deliberately a separate living document so future increments can update status without rewriting
 the append-only history here.
+
+---
+
+# 27IE. AI-111–AI-113 answer actions, complete-list navigation and deterministic stock answers (2026-11-15)
+
+**What changed.** This is the first implementation slice from the permanent assistant roadmap
+(§27ID). It delivers the three approved pieces in the owner's order: answer actions, access to a
+complete list, and deterministic inventory answers. Nothing in the assistant gained a write
+capability; every new read remains business-scoped from the authenticated server context.
+
+**AI-111 — answer actions.** A completed assistant turn now persists `productLinks` for products
+the final answer names, using only ids captured from the read tools that succeeded in that turn.
+The client renders those names as inline product links; it never resolves a display name against a
+locally loaded catalogue. A duplicate name with more than one id is omitted rather than linked to
+the wrong product. **Copy Answer** copies the entire stored answer through React Native's bundled
+`Clipboard`, after converting the rendered Markdown to plain text: tables paste as
+`cell — cell` rather than pipe markup. The pre-existing Restock action is still rendered for
+messages written before the new action fields existed.
+
+**AI-112 — complete list and bounded rows.** Each successful paged read now builds
+`answerActions` from the call the server actually executed: a bounded page of rows already read,
+the tool's own total, and up to three allowlisted screen destinations. Inventory, Restock,
+Products and History carry the filters the tool used (`q`, location, category, status, low/out
+stock) and resolve a name the tool knew by exact name against the business's own active reference
+list. A filter the destination cannot apply is omitted instead of claimed. The chat shows
+“Showing X of Y”, reveals the captured rows five at a time, and keeps the screen link for every
+match. The stored action shape is additive; old messages simply have no actions.
+
+**AI-113 — deterministic answers.** The assistant gained one read-only tool,
+`getHighestStockProducts`, which ranks ACTIVE products by on-hand minus reserved across the
+selected scope, returns the top page and counts every product with positive stock. The finalizer
+rebuilds the ranking from the returned rows (never from page order), deduplicates duplicate names,
+handles singular and top-N wording, and states a location scope. `getReorderNeededProducts` now
+also returns `totalUnitsBelowMinimum` over the whole matching set; a question about how many
+**units** are needed reads that figure, and the product-count finalizer no longer answers a unit
+question with a product count. The `getInventory` tool description no longer tells the model to
+multiply a price by a quantity; value questions stay on `getStockValue`.
+
+**Read-only and isolation.** The AI-2 structural scan was extended with the one new read method,
+`productService.highestStock`; no write method, route or tool was added. Product, location and
+category ids still come from the tool result or the authenticated tenant lookup, never from model
+arguments or the client. Answer actions contain no business id and cannot perform a query.
+
+**Verification.** `cd server && npm run typecheck` passed; `cd mobile && npm run typecheck` passed.
+The server unit suite passed **2,108 tests / 64 skipped / 0 failed** (430 suites) after the
+documentation count was updated. The focused AI-110–AI-113 suites passed **21/21**, and the AI-2
+read-only scan stayed green. The full mobile Jest run passed **107 suites / 1,252 tests**. The
+changed server files and tests passed targeted ESLint; the repository-wide `npm run lint` still
+reports two pre-existing `no-useless-assignment` errors in `server/.scratch/` scripts that this
+change did not touch. `node scripts/check-docs.mjs` and `git diff --check` are the documentation and
+whitespace gates for the close-out.
+
+**Limits.** Nothing in this record is deployed or verified on the installed app. “Show next 5”
+reveals only rows captured in that answer; there is still no tool page cursor or
+search-within-results. The copy control emits React Native's bundled-`Clipboard` deprecation
+warning; moving to `@react-native-clipboard/clipboard` would be a native dependency change and was
+not taken. Production remains server `1c3928b` on OTA
+`1d139ae9-c7e2-48a2-b33e-63561b761515`.

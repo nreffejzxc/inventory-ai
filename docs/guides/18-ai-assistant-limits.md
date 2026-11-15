@@ -156,6 +156,7 @@ payload cap.
 | `searchProducts` | 15 | 25 |
 | `findProducts` | 15 | 25 |
 | `getInventory` | 15 | 25 |
+| `getHighestStockProducts` | 5 | 25 |
 | `getLowStockProducts` | 20 | 50 |
 | `getOutOfStockProducts` | 20 | 50 |
 | `getProductsNeverSold` | 15 | 25 |
@@ -182,6 +183,12 @@ Additional tool ceilings:
   configured minimum (`0` at the threshold, `null` when `minimumStock` is `0` or availability is
   unknown). It is a floor, not a recommended order quantity. `getReorderNeededProducts`,
   `getLowStockProducts`, `getOutOfStockProducts` and the product search cards share it.
+- `getReorderNeededProducts` also carries `totalUnitsBelowMinimum`, summed over every matching
+  product rather than the page. A unit-shortfall question reads that figure; a product-count
+  question reads `count`. Neither is computed by adding page rows.
+- `getHighestStockProducts` ranks ACTIVE products by available quantity and returns the top page
+  plus a `count` of every product with positive stock in scope. `location`/`locationId` narrows the
+  ranking; archived products are excluded.
 
 **Purpose:** each page is sized to answer a normal question without flooding the model's context,
 while the hard maximum stops a model from asking for the entire catalogue. The 12,000-character

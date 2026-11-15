@@ -74,6 +74,8 @@ const EXPECTED_TOOLS = [
   'getInventoryHistory',
   'getProductsByLocation',
   'getReorderNeededProducts',
+  // AI-113: the highest-stock ranking, so the answer is not the first page of a stock read.
+  'getHighestStockProducts',
   // AI-71: dead stock — ACTIVE products with no stock-out on record at all.
   'getProductsNeverSold',
   // AI-14: the two reference lists the id-taking tools needed to be usable.

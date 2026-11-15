@@ -82,8 +82,8 @@ function productServiceProblems(rawSrc) {
     problems.push('the page must be hydrated AFTER the group (`hydrateStockPage`), not carried through it');
   }
   const paged = (src.match(/Product\.aggregate\(pipeline, \{ allowDiskUse: true \}\)/g) || []).length;
-  if (paged !== 2) {
-    problems.push(`both paged catalog aggregates must pass allowDiskUse (found ${paged})`);
+  if (paged !== 3) {
+    problems.push(`every paged catalog aggregate must pass allowDiskUse (found ${paged})`);
   }
   if (src.includes('categoryStages')) {
     problems.push('the category join moved out of the pipeline; its return means the hydration changed');

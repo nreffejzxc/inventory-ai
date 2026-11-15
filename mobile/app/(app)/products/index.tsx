@@ -1,5 +1,5 @@
-import { useCallback, useState } from 'react';
-import { router } from 'expo-router';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { router, useLocalSearchParams } from 'expo-router';
 import { StyleSheet, View } from 'react-native';
 import type { ListRenderItem } from 'react-native';
 
@@ -24,6 +24,11 @@ import { canManageProducts } from '../../../lib/permissions';
 import { spacing } from '../../../lib/theme';
 import { useTheme } from '../../../lib/theme-context';
 
+/** Route params are `string | string[]` (a key repeated in the link yields an array). */
+function str(v: string | string[] | undefined): string {
+  return Array.isArray(v) ? (v[0] ?? '') : (v ?? '');
+}
+
 /** "SKU x · Category · Barcode" — only the parts this product actually has. */
 function productMeta(item: ApiResponse): string {
   return [item.brand, item.sku ? `SKU ${item.sku}` : null, item.category?.name, item.barcode ? `Barcode ${item.barcode}` : null]
@@ -37,14 +42,42 @@ export default function ProductsScreen() {
   const manage = canManageProducts(user);
   const categories = useActiveRef(token, categoriesApi);
   const locations = useActiveRef(token, locationsApi);
+  const params = useLocalSearchParams();
+  const paramCategoryName = str(params.category);
+  const paramLocationName = str(params.location);
 
-  const [q, setQ] = useState('');
+  const [q, setQ] = useState(() => str(params.q));
   const debouncedQ = useDebounced(q, 300);
-  const [status, setStatus] = useState('ALL');
-  const [categoryId, setCategoryId] = useState('');
-  const [locationId, setLocationId] = useState('');
-  const [low, setLow] = useState(false);
-  const [out, setOut] = useState(false);
+  const requestedStatus = str(params.status).toUpperCase();
+  const [status, setStatus] = useState(() =>
+    requestedStatus === 'ACTIVE' || requestedStatus === 'ARCHIVED' ? requestedStatus : 'ALL',
+  );
+  const [categoryId, setCategoryId] = useState(() => str(params.categoryId));
+  const [locationId, setLocationId] = useState(() => str(params.locationId));
+  const [low, setLow] = useState(() => str(params.lowStock) === 'true');
+  const [out, setOut] = useState(() => str(params.outOfStock) === 'true');
+  const resolvedNamedCategory = useRef(false);
+  const resolvedNamedLocation = useRef(false);
+
+  useEffect(() => {
+    if (resolvedNamedCategory.current || categoryId || !paramCategoryName) return;
+    const match = categories.items.find(
+      (category) => category.name.toLowerCase() === paramCategoryName.toLowerCase(),
+    );
+    if (!match) return;
+    resolvedNamedCategory.current = true;
+    setCategoryId(match.id);
+  }, [categories.items, categoryId, paramCategoryName]);
+
+  useEffect(() => {
+    if (resolvedNamedLocation.current || locationId || !paramLocationName) return;
+    const match = locations.items.find(
+      (location) => location.name.toLowerCase() === paramLocationName.toLowerCase(),
+    );
+    if (!match) return;
+    resolvedNamedLocation.current = true;
+    setLocationId(match.id);
+  }, [locationId, locations.items, paramLocationName]);
 
   const queryParams = useCallback((): QueryParams => {
     const p: QueryParams = {
