@@ -25,6 +25,10 @@ router.post('/feedback', requireAuth, requirePermission(PERMISSIONS.AI_USE), aiC
 // data. It returns bounded excerpts of the reported question and answer, never a
 // member's whole conversation.
 router.get('/feedback', requireAuth, requirePermission(PERMISSIONS.AI_METRICS_VIEW), aiController.listFeedback);
+// AI-117 — the explicit full-answer view behind one report. The queue stays
+// excerpt-only; this read is the bounded expansion an OWNER/ADMIN needs before
+// marking the report reviewed.
+router.get('/feedback/:id/conversation', requireAuth, requirePermission(PERMISSIONS.AI_METRICS_VIEW), aiController.feedbackConversation);
 router.patch('/feedback/:id', requireAuth, requirePermission(PERMISSIONS.AI_METRICS_VIEW), aiController.reviewFeedback);
 
 // Conversation/message retrieval.

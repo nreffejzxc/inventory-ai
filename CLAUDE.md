@@ -270,12 +270,13 @@ The project is built in phases: one phase, one purpose, one verification record.
 | AI-114 | Deterministic rendering of a complete restock/low-stock list, including recovery from an output-limited turn — §27IF |
 | AI-115 | Member answer ratings, required DOWN reasons and notes, and the OWNER/ADMIN feedback review queue — §27IG |
 | AI-116 | Previous-result follow-up filtering with fresh stock reads, plus per-answer provenance and Inspect — §27IH |
+| AI-117 | Complete reported-answer preview with a bounded surrounding window for OWNER/ADMIN review — §27II |
 | AI Roadmap | Permanent eight-item assistant improvement plan and the 2026-11-16 implementation audit — §27ID |
 | Close-out / OPS-4 | Scheduled-watch diagnosis (no automatic GitHub schedule), standalone `com.inventoryai` APK built/installed, AI-105 staging retry — §27HZ |
 | Reliability / OPS-5 | Post-deploy phone proof, the 2,517-finding read-only triage, and the scheduled baseline/history monitor — §27IA |
 | Reliability / OPS-6 | One-off Task Scheduler proof, the externally resolved SteelSeries finding, and hosted freshness behind UptimeRobot — §27IB |
 
-Most letter-numbered increments are roadmap records; AI-87/AI-88 are log-only and AI-91/AI-92 are in §27HT. AI-99 is in §27HU, its 10k gate is in §27HV, AI-103/OPS-3 is in §27HW, AI-84/AI-105/OPS-4 is in §27HX, and AI-106 with the reset-UX OTA is in §27HY, and the close-out is in §27HZ. The post-deploy proof, triage and scheduled monitor are in §27IA; the scheduler proof and hosted freshness are in §27IB; the contextual assistant entry and restock shortfall are in §27IC; the permanent assistant improvement roadmap and audit are in §27ID; the answer actions, complete-list navigation and deterministic stock ranking are in §27IE; the deterministic complete restock list is in §27IF; member feedback is in §27IG and follow-up context/provenance is in §27IH; the index below is complete.
+Most letter-numbered increments are roadmap records; AI-87/AI-88 are log-only and AI-91/AI-92 are in §27HT. AI-99 is in §27HU, its 10k gate is in §27HV, AI-103/OPS-3 is in §27HW, AI-84/AI-105/OPS-4 is in §27HX, and AI-106 with the reset-UX OTA is in §27HY, and the close-out is in §27HZ. The post-deploy proof, triage and scheduled monitor are in §27IA; the scheduler proof and hosted freshness are in §27IB; the contextual assistant entry and restock shortfall are in §27IC; the permanent assistant improvement roadmap and audit are in §27ID; the answer actions, complete-list navigation and deterministic stock ranking are in §27IE; the deterministic complete restock list is in §27IF; member feedback is in §27IG and follow-up context/provenance is in §27IH; the complete feedback conversation preview is in §27II; the index below is complete.
 
 ## Operational traps worth knowing
 
@@ -616,6 +617,7 @@ anchor (`§27…`) in that file.
 - **§27IF** — AI-114 — a complete restock list is rendered, not reasoned (2026-11-16)
 - **§27IG** — AI-115 — member feedback and the owner/admin review queue (2026-11-16)
 - **§27IH** — AI-116 — bounded follow-up context and answer freshness (2026-11-16)
+- **§27II** — AI-117 — complete feedback conversation preview (2026-11-16)
 
 ---
 

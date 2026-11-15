@@ -30,6 +30,7 @@ import { getAiMetrics, parseAiMetricsDays } from '../services/ai/aiMetrics.servi
 import {
   AI_FEEDBACK_REASON_VALUES,
   feedbackForMessages,
+  getFeedbackConversation,
   listFeedback,
   reviewFeedback,
   submitFeedback,
@@ -853,6 +854,20 @@ const aiController = {
     });
     res.setHeader('Cache-Control', 'no-store');
     res.json({ ...pageResult(result.items, result.total, page, limit), summary: result.summary });
+  },
+
+  /**
+   * GET /api/ai/feedback/:id/conversation -> the complete reported answer and a
+   * bounded window around it. OWNER/ADMIN only through `ai.metrics.view`, and
+   * every lookup is scoped to the authenticated business.
+   */
+  async feedbackConversation(req: AuthenticatedRequest, res: Response) {
+    const rawId = req.params.id;
+    const id = Array.isArray(rawId) ? rawId[0] ?? '' : rawId ?? '';
+    if (!isObjectId(id)) invalidId();
+    const conversation = await getFeedbackConversation(req.user!.businessId, id);
+    res.setHeader('Cache-Control', 'no-store');
+    res.json(conversation);
   },
 
   /** PATCH /api/ai/feedback/:id -> mark one report reviewed or reopen it. */

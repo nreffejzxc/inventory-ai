@@ -8,9 +8,9 @@ of truth for *what actually happened*, and it is why this file is long.
 
 **How to read it.** Do not read it top to bottom. Either find a record by number (§27FJ, §27DM — the
 numbers are cited from `CLAUDE.md` and from source comments), or use the index: `CLAUDE.md` §7 lists
-all **240** records by the title each gives itself.
+all **241** records by the title each gives itself.
 
-**Current state:** V1 complete and in production testing. The records that answer *where are we now* are §27IH (AI-116 bounded follow-up context and answer freshness, implementation-tested; deployment pending at this record), §27IG (AI-115 member feedback and the owner/admin review queue, implementation-tested; deployment pending), §27IF (AI-114 deterministic complete restock lists, deployed and device-verified), §27ID (the permanent assistant improvement roadmap and implementation audit; docs-only), §27IC (AI-110 contextual assistant entry and restock shortfall, deployed `7315675` and OTA-verified; the partial-restock guards completed in `1c3928b`), §27IB (scheduler proof and hosted freshness), §27IA (post-deploy phone proof, triage and monitor), §27HV (AI-99 10,256-product gate, 24/25 with one output-limit finding), §27HU (AI-99 free-first simple inventory, deployed with the 1.0.2 OTA), §27HT (AI-91/AI-92 exact product identity and per-location stock), §27HS (the AI-50–AI-84 increment register), §27HR (AI-48–AI-84 merged and deployed), §27HQ (grounded answers and scoped stock reads), §27HP (market prices from cited pages), §27HO (recorded specifications and the real seed catalogue), §27HN (inventory-only web research), §27HH (a transfer as one event to the assistant), §27HG (the stock-in link's product), §27HF (the single-location default's timing), §27HE (the stock-in link's location), §27HD (the movement fixes and the production device pass), §27HC (the assistant's local-time answers), §27FM (the V1 re-verification) and §27FJ (the two open advisories).
+**Current state:** V1 complete and in production testing. The records that answer *where are we now* are §27II (AI-117 complete feedback conversation preview, implementation-tested; deployment pending at this record), §27IH (AI-116 bounded follow-up context and answer freshness, deployed and device-verified), §27IG (AI-115 member feedback and the owner/admin review queue, deployed and device-verified), §27IF (AI-114 deterministic complete restock lists, deployed and device-verified), §27ID (the permanent assistant improvement roadmap and implementation audit; docs-only), §27IC (AI-110 contextual assistant entry and restock shortfall, deployed `7315675` and OTA-verified; the partial-restock guards completed in `1c3928b`), §27IB (scheduler proof and hosted freshness), §27IA (post-deploy phone proof, triage and monitor), §27HV (AI-99 10,256-product gate, 24/25 with one output-limit finding), §27HU (AI-99 free-first simple inventory, deployed with the 1.0.2 OTA), §27HT (AI-91/AI-92 exact product identity and per-location stock), §27HS (the AI-50–AI-84 increment register), §27HR (AI-48–AI-84 merged and deployed), §27HQ (grounded answers and scoped stock reads), §27HP (market prices from cited pages), §27HO (recorded specifications and the real seed catalogue), §27HN (inventory-only web research), §27HH (a transfer as one event to the assistant), §27HG (the stock-in link's product), §27HF (the single-location default's timing), §27HE (the stock-in link's location), §27HD (the movement fixes and the production device pass), §27HC (the assistant's local-time answers), §27FM (the V1 re-verification) and §27FJ (the two open advisories).
 
 ---
 
@@ -25750,3 +25750,40 @@ Mice`. Evidence: [`ai115-ai116-2026-11-16`](evidence/ai115-ai116-2026-11-16/READ
 inside it with free text, or carry a query across more than one prior answer. A turn with no
 row-shaped read leaves no follow-up set. The provenance line describes what was read; it does not
 prove that a model-composed list is complete.
+
+---
+
+# 27II. AI-117 — complete feedback conversation preview (2026-11-16)
+
+**The gap.** The review queue deliberately returns a 500-character question excerpt and a
+1,200-character answer excerpt. That is enough to triage a report but not to judge a long answer:
+an OWNER/ADMIN could mark a report REVIEWED without ever seeing the complete response the member
+was complaining about, or the messages immediately around it.
+
+**Server boundary.** `GET /api/ai/feedback/:id/conversation` binds the existing `ai.metrics.view`
+capability, so only OWNER and ADMIN can call it. Every lookup is business-scoped: the feedback row
+must belong to the caller's business, its conversation must still be owned by the report's user,
+and the reported message must be an ASSISTANT message in that conversation. The response contains
+the complete stored answer (never trimmed), at most six USER/ASSISTANT messages on either side, and
+`omittedBefore`/`omittedAfter` flags. It returns no email address, product id, tool payload, prompt
+or other stored metadata. A foreign tenant gets the same `404` as an unknown report; MANAGER and
+STAFF get `403`; all responses are `Cache-Control: no-store`.
+
+**Mobile.** Each report in the OWNER/ADMIN queue now has **View conversation** beside its review
+toggle. The preview screen shows the rating, reason, note, member and turn reference, then the
+bounded thread in order; the reported answer is outlined and labelled **Reported answer**. The
+screen can mark the report reviewed or reopen it, and the queue reloads on return.
+
+**Verification.** The new DB-backed `AI117-ai-feedback-conversation.test.mjs` passed **4/4**: the
+queue remains excerpt-only, the preview returns the full answer and the exact six-before/six-after
+window, both OWNER and ADMIN pass while MANAGER/STAFF get `403`, another business gets `404`, and a
+deleted report is unreachable. The mobile suite now passes **4/4** for the queue (including opening
+the preview) and **3/3** for the preview screen (full answer, review write and MANAGER denial).
+Server and mobile `tsc --noEmit` pass; targeted ESLint passes; the full server unit suite passed
+**2,118 / 67 skipped / 0 failed** (435 suites); the full mobile Jest run passed **111 suites /
+1,273 tests**; the route-inventory guard passed **11/11** and the docs map guard passed. Deployment,
+OTA and the production OPPO checks are the next step at this record.
+
+**Limits.** The preview is a bounded window, not the full conversation: six messages on each side
+is enough context for one report without turning the review surface into a transcript browser. It
+does not add replies, feedback-driven model changes or any AI write path.

@@ -1,4 +1,5 @@
 import { fireEvent, render, waitFor } from '@testing-library/react-native';
+import { router } from 'expo-router';
 
 import { aiApi } from '../lib/api';
 import { useSession } from '../lib/auth';
@@ -90,6 +91,18 @@ describe('AI-115 — feedback review queue', () => {
     expect(screen.getByText('Ref: d7c73b39')).toBeTruthy();
     expect(screen.getByText('Total')).toBeTruthy();
     expect(screen.getByText('Mark reviewed')).toBeTruthy();
+  });
+
+  it('opens the conversation preview for the report', async () => {
+    const screen = await mount();
+    await screen.findByText('Bad response');
+
+    fireEvent.press(screen.getByText('View conversation'));
+
+    expect(router.push).toHaveBeenCalledWith({
+      pathname: '/ai/feedback-preview',
+      params: { id: 'feedback-1' },
+    });
   });
 
   it('marks the report reviewed through the API and reloads the queue', async () => {

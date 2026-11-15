@@ -44,6 +44,17 @@ at the end of every development session, newest entry first.
 **Goal:** finish and harden Inventory AI **V1** through production testing. No Play Store or App
 Store release is being prepared.
 
+**Feedback conversation preview, AI-117 (2026-11-16, in progress):** the OWNER/ADMIN review
+queue gained **View conversation**. `GET /api/ai/feedback/:id/conversation` returns the complete
+reported answer, six USER/ASSISTANT messages on each side and `omittedBefore`/`omittedAfter`; it
+is business-scoped, requires `ai.metrics.view`, returns no email or product id, and answers `404`
+to another tenant. The preview screen shows the report context, labels the reported answer and can
+mark the report reviewed or reopen it. Focused checks pass: AI-117 server **4/4**, feedback review
+**4/4**, preview **3/3**, both typechecks, targeted ESLint, route inventory **11/11** and the docs
+map guard. The full server unit suite passed **2,118 / 67 skipped / 0 failed** (435 suites); the
+full mobile Jest run passed **111 suites / 1,273 tests**. Deployment, OTA and the OPPO permission
+and follow-up passes are in progress; the record is §27II.
+
 **Feedback, follow-up context and answer freshness, AI-115/AI-116 (2026-11-16, in progress):** the
 assistant footer now rates an answer UP or DOWN. DOWN requires one of four reasons and accepts a
 bounded note; a changed rating updates the same row. OWNER and ADMIN review a business-scoped queue
@@ -318,6 +329,29 @@ Known limits, checked before spending one of them:
   space that a backup or an index change would explain.
 - **Brevo** — used for verification codes, reset codes and invitations. Do not send test mail in
   bulk; a delivery failure is not a code regression until the provider log says so.
+
+---
+
+## 2026-11-16 — AI-117 feedback conversation preview
+
+**Status.** IN PROGRESS. Server and mobile implementation are tested; deployment, OTA and the
+production OPPO passes are the remaining gate.
+
+**What changed.** The review queue remains excerpt-only. A new OWNER/ADMIN-only read returns one
+report's complete stored answer and at most six surrounding USER/ASSISTANT messages, with the
+reported message marked and the window's omissions explicit. The mobile queue gains **View
+conversation**, and the preview screen can mark the report reviewed. The design records the new
+permission-gated route as **91 routes / 55 gated**; §27II records the feature and its limits.
+
+**Verification so far.** `AI117-ai-feedback-conversation.test.mjs` passed **4/4**; the two mobile
+suites passed **7/7**; server and mobile `tsc --noEmit` passed; targeted ESLint passed; the
+route-inventory guard passed **11/11**; `scripts/check-docs.mjs` passed. The full server unit suite
+passed **2,118 / 67 skipped / 0 failed** (435 suites) and the full mobile Jest run passed **111
+suites / 1,273 tests**. No production turn was spent and no data was written outside the test DB.
+
+**Next.** Commit and merge, let Render serve the new route, publish the JS-only OTA, then run the
+three ordered device passes: preview, MANAGER/STAFF denial, and location/low/out-of-stock
+follow-ups.
 
 ---
 

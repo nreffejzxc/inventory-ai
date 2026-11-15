@@ -160,6 +160,7 @@ const PURE_DB = [
 ];
 const MIXED = [
   'AI115-ai-feedback.test.mjs', // AI-115: a member rates only a stored answer in their own thread, a changed rating updates one row, thread reload carries only the caller's rating, OWNER/ADMIN review is tenant-scoped, and the queue keeps bounded Q/A excerpts and all-time counts
+  'AI117-ai-feedback-conversation.test.mjs', // AI-117: the preview returns the complete reported answer and a bounded window, only OWNER/ADMIN may read it, another business gets 404, and no email/product id crosses the boundary
   'AI116-follow-up-context.test.mjs', // AI-116: only an anaphoric follow-up uses the previous set, filtering re-reads current stock for exactly those products, category/place filters cannot escape the set or the tenant, and the stored context carries provenance without a payload
   'AI102-ai-metrics.test.mjs', // AI-102: one durable metrics row per turn (retries do not double-count, turn-id collisions stay separate), free/paid/unknown and failover/retry/re-ask stay distinct, provider cost is complete/partial/unknown and never invented, the endpoint is OWNER/ADMIN only and tenant-scoped, its UTC day window fills empty days, and a real turn writes the row from reportTurn
   'AI107-ai-single-flight.test.mjs', // AI-107: one active turn per user and conversation — the second request is 409 AI_TURN_IN_PROGRESS before the provider, another conversation or member still runs, and finish, close/abort, failure, new-chat and the bounded safety hold each release the slot

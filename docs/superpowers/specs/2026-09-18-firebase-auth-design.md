@@ -174,7 +174,7 @@ set.
 
 ## 2.6 Route inventory
 
-Phase 23 classifies **90 routes**: **54 permission-gated**, **14 authenticated**, **22 public**, **0 role-gated**. The `PUBLIC` and `AUTHENTICATED` buckets are explicit lists that each carry a
+Phase 23 classifies **91 routes**: **55 permission-gated**, **14 authenticated**, **22 public**, **0 role-gated**. The `PUBLIC` and `AUTHENTICATED` buckets are explicit lists that each carry a
 written reason; a route in no bucket fails the guard, and a declared exemption that has stopped being
 true also fails. The guard deliberately asserts **no route count** — a route is *declared* or it is not,
 and the number is derived from the declarations — so the figure above is pinned separately, by
@@ -278,6 +278,14 @@ fails if the two disagree.
 > `ai.metrics.view` capability, granted only to OWNER and ADMIN. The write is a member's opinion of a
 > stored answer — not inventory — and the review routes never widen tenant scope. This is the first
 > change to the gated tier since invitations (50 → 51 with AI-102, now 54).
+>
+> **AI-117 conversation preview (2026-11-16) added one permission-gated route — 90 + 1 gated = **91**
+> (55 permission-gated, 14 authenticated, 22 public, 0 role-gated).**
+> `GET /api/ai/feedback/:id/conversation` requires the same `ai.metrics.view` capability as the review
+> queue. It returns the complete reported answer plus at most six USER/ASSISTANT messages on either
+> side; every lookup is scoped to the authenticated business and the report's own user must still own
+> the conversation. The queue remains excerpt-only; the preview is the explicit expansion an
+> OWNER/ADMIN reads before marking a report REVIEWED.
 
 The auth surface (`server/src/routes/auth.routes.ts`):
 
