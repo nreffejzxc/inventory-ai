@@ -1973,6 +1973,8 @@ dbSuite('OpenRouter provider — real full-catalogue workload', dbOk, () => {
       // AI-49: a valid-shaped id that is not in this tenant makes the tool answer a
       // soft result without any market search, so the workload needs no web stub.
       { id: 't19', name: 'researchMarketPrices', input: { productIds: '000000000000000000000000' } },
+      // AI-113: the server-ranked highest-stock read, with no arguments it accepts.
+      { id: 't20', name: 'getHighestStockProducts', input: {} },
     ];
   }
 
