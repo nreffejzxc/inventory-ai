@@ -10,7 +10,7 @@ of truth for *what actually happened*, and it is why this file is long.
 numbers are cited from `CLAUDE.md` and from source comments), or use the index: `CLAUDE.md` §7 lists
 all **238** records by the title each gives itself.
 
-**Current state:** V1 complete and in production testing. The records that answer *where are we now* are §27ID (the permanent assistant improvement roadmap and implementation audit; docs-only), §27IC (AI-110 contextual assistant entry and restock shortfall, deployed `7315675` and OTA-verified; the partial-restock guards completed in `1c3928b`), §27IB (scheduler proof and hosted freshness), §27IA (post-deploy phone proof, triage and monitor), §27HV (AI-99 10,256-product gate, 24/25 with one output-limit finding), §27HU (AI-99 free-first simple inventory, deployed with the 1.0.2 OTA), §27HT (AI-91/AI-92 exact product identity and per-location stock), §27HS (the AI-50–AI-84 increment register), §27HR (AI-48–AI-84 merged and deployed), §27HQ (grounded answers and scoped stock reads), §27HP (market prices from cited pages), §27HO (recorded specifications and the real seed catalogue), §27HN (inventory-only web research), §27HH (a transfer as one event to the assistant), §27HG (the stock-in link's product), §27HF (the single-location default's timing), §27HE (the stock-in link's location), §27HD (the movement fixes and the production device pass), §27HC (the assistant's local-time answers), §27FM (the V1 re-verification) and §27FJ (the two open advisories).
+**Current state:** V1 complete and in production testing. The records that answer *where are we now* are §27IF (AI-114 deterministic complete restock lists, deployed and device-verified), §27ID (the permanent assistant improvement roadmap and implementation audit; docs-only), §27IC (AI-110 contextual assistant entry and restock shortfall, deployed `7315675` and OTA-verified; the partial-restock guards completed in `1c3928b`), §27IB (scheduler proof and hosted freshness), §27IA (post-deploy phone proof, triage and monitor), §27HV (AI-99 10,256-product gate, 24/25 with one output-limit finding), §27HU (AI-99 free-first simple inventory, deployed with the 1.0.2 OTA), §27HT (AI-91/AI-92 exact product identity and per-location stock), §27HS (the AI-50–AI-84 increment register), §27HR (AI-48–AI-84 merged and deployed), §27HQ (grounded answers and scoped stock reads), §27HP (market prices from cited pages), §27HO (recorded specifications and the real seed catalogue), §27HN (inventory-only web research), §27HH (a transfer as one event to the assistant), §27HG (the stock-in link's product), §27HF (the single-location default's timing), §27HE (the stock-in link's location), §27HD (the movement fixes and the production device pass), §27HC (the assistant's local-time answers), §27FM (the V1 re-verification) and §27FJ (the two open advisories).
 
 ---
 
@@ -25627,11 +25627,19 @@ passed, and both module-graph checks passed (691 modules; 3,192 relative specifi
 three AI-114 tests cover exact rendering, the minimum/gap extraction, and refusal of partial,
 duplicated or oversized sets.
 
-**Delivery.** On branch `fix/deterministic-restock-list`; deployment and device proof follow the
-normal PR, CI, Render and OTA path. Production remains `91d635d` on OTA
-`9d759ee5-82c5-4fbe-afe0-3a0ea2c44f6c` until that promotion.
+**Delivery.** PR #307 merged as `e5c1c1d` after CI run `43753948213` passed **secret-guard**,
+**mobile**, **attribution-guard** and **server** (full DB-backed suite and boot smoke). Render
+deployed `e5c1c1d`; `/api/health` reported `status: ok`, `db: connected`, the matching commit and
+0 `5xx`. The existing OTA `9d759ee5-82c5-4fbe-afe0-3a0ea2c44f6c` renders the new server answer; no
+client change or new build was needed.
+
+**Device verification.** On the production OPPO app, “List every product that needs restocking”
+returned **19 products / 721 units**, items 1–19 with SKU, availability, minimum and gap, and no
+reasoning or duplicate structured list. Copy Answer pasted the complete 19-item answer, including
+the header and item 19. The filtered question “List every product that needs restocking in
+Keyboards and Mice” returned **9 products / 272 units**, items 1–9, with Open Restock preserved.
 
 **Limits.** This covers explicit restock and low-stock lists whose complete rows fit the message
 ceiling. A set larger than the ceiling still uses the count-plus-qualification path. The dev client
-loaded on the phone but could not sign in locally (no auth request reached the server), so the
-end-to-end proof uses the production app after promotion; the finalizer's own tests are DB-free.
+loaded on the phone but could not sign in locally (no auth request reached the server); the
+finalizer's DB-free tests and the production app supplied the end-to-end proof.
