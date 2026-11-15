@@ -25552,16 +25552,39 @@ reports two pre-existing `no-useless-assignment` errors in `server/.scratch/` sc
 change did not touch. `node scripts/check-docs.mjs` and `git diff --check` are the documentation and
 whitespace gates for the close-out.
 
-**Delivery.** Committed as `ff2ecec` on `feat/ai-111-113-answer-actions` and opened as PR #304;
-merge and deployment are separate decisions. **Live correction.** Device verification of the highest-stock answer found that an auxiliary
-`getInventory` read — made to explain where the winner's stock sat — was published as
-“Showing 5 of 12” beneath a “Top 5 of 103” ranking. That list described different rows. Inventory
-actions are now dropped when the turn used `getHighestStockProducts`; an unrelated Restock or
-product screen survives. The AI-112 suite covers the removal and the preservation.
+**Delivery.** PR #304 merged as `af366c1` after CI run `43748694544` passed **secret-guard**,
+**mobile**, **attribution-guard** and **server** (full DB-backed suite and boot smoke). Render
+deployed `af366c1`; `/api/health` reported `status: ok`, `db: connected`, `environment:
+production`, the matching commit and 0 `5xx`. OTA group
+`9d759ee5-82c5-4fbe-afe0-3a0ea2c44f6c` was published to the production channel for runtime
+`1.0.2`, message “Copy answers, open products and full lists, and rank highest stock”.
 
-**Limits.** Nothing in this record is deployed or verified on the installed app. “Show next 5”
-reveals only rows captured in that answer; there is still no tool page cursor or
-search-within-results. The copy control emits React Native's bundled-`Clipboard` deprecation
-warning; moving to `@react-native-clipboard/clipboard` would be a native dependency change and was
-not taken. Production remains server `1c3928b` on OTA
-`1d139ae9-c7e2-48a2-b33e-63561b761515`.
+**Device verification (OPPO CPH1969, `com.inventoryai.app` 1.0.2, Owner).** Copy Answer changed to
+**Copied** and pasted the complete answer. The Razer BlackWidow V4 Pro link opened the correct
+product, SKU `DEMOSKU-73`, 0 available, minimum 40. **Show next 5** moved **Showing 5 of 19** to
+**Showing 10 of 19**, revealing rows 6–10. Open Restock showed **19 products at or below minimum
+stock**; the filtered question “Which products need restocking in Keyboards & Mice” returned
+**Showing 5 of 9**, and Open Restock carried **9 products** with **Category: Keyboards & Mice**
+selected. The highest-stock answer was **Top 5 of 103** (Razer 846, ASUS 834, Royal Kludge 800,
+Anker 786, Logitech 719). The shortfall question returned **19 products … combined gap of 721
+units**. The production baseline was **113 active products, 94 in stock, 19 low, 10 out, 26,975
+total on-hand**.
+
+**Live correction.** Device verification found that an auxiliary `getInventory` read — made to
+explain where the winner's stock sat — was published as “Showing 5 of 12” beneath the “Top 5 of
+103” ranking. That list described different rows. `withoutInventoryActions` now drops Inventory
+list and screen actions when the turn used `getHighestStockProducts`; an unrelated Restock or
+product screen survives. PR #305 merged as `91d635d` after CI run `43750784987` passed all four
+jobs. Render deployed `91d635d`; the repeat device run showed the ranking with Copy Answer and
+**no** unrelated inventory list. The AI-112 suite covers the removal and the preservation.
+
+**Known limitation.** “List every product that needs restocking” is still composed by the model;
+with 19 rows it hit the output limit and exposed reasoning fragments ahead of the list. The
+deterministic count, ranking, shortfall and paged-list answers are unaffected. Fixing that shape
+needs a deterministic full-list finalizer and is not part of this release.
+
+**Limits.** “Show next 5” reveals only rows captured in that answer; there is still no tool page
+cursor or search-within-results. The copy control emits React Native's bundled-`Clipboard`
+deprecation warning; moving to `@react-native-clipboard/clipboard` would be a native dependency
+change and was not taken. Production is server `91d635d` on OTA
+`9d759ee5-82c5-4fbe-afe0-3a0ea2c44f6c`.

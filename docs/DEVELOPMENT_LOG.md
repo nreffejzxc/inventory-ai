@@ -44,34 +44,52 @@ at the end of every development session, newest entry first.
 **Goal:** finish and harden Inventory AI **V1** through production testing. No Play Store or App
 Store release is being prepared.
 
-**AI answer actions and deterministic answers, PR #304 (2026-11-15):** AI-111–AI-113 are
-implemented, committed as `ff2ecec` and pushed on `feat/ai-111-113-answer-actions`; they are **not
-merged, deployed or device-verified**. The assistant now copies the full
-stored answer as plain text, renders product links only from server-issued ids, and attaches
-filter-preserving screen links plus a bounded “Show next 5” page to list answers. A new read-only
-`getHighestStockProducts` tool ranks products by availability, and `getReorderNeededProducts`
-returns the whole-set `totalUnitsBelowMinimum` so a unit-shortfall question is no longer answered
-by adding page rows. Server typecheck, mobile typecheck, the server unit suite (**2,108 pass / 64
-skipped / 0 fail**), the focused AI-110–AI-113 suites (**21/21**), the AI-2 read-only scan and the
-full mobile Jest run (**107 suites / 1,252 tests**) pass. Targeted ESLint on the changed files
-passes; repository-wide `npm run lint` still fails on two pre-existing `.scratch/` scripts this
-change did not touch. Production remains server `1c3928b` and OTA
-`1d139ae9-c7e2-48a2-b33e-63561b761515`. The next step is review/commit, then a device check of
-copy, product links, screen filters and the paging control. The complete record is §27IE.
+**AI answer actions and deterministic answers, PR #304 (2026-11-15–16):** AI-111–AI-113 are
+**merged, deployed and device-verified**. PR #304 merged as `af366c1` after CI run `43748694544`
+passed all four jobs; OTA group `9d759ee5-82c5-4fbe-afe0-3a0ea2c44f6c` published from that commit
+on runtime `1.0.2`. The assistant copies the complete stored answer as plain text, renders product
+links only from server-issued ids, and attaches filter-preserving screen links plus a bounded
+“Show next 5” page to list answers. A new read-only `getHighestStockProducts` tool ranks products
+by availability, and `getReorderNeededProducts` returns the whole-set `totalUnitsBelowMinimum` so
+a unit-shortfall question is no longer answered by adding page rows. Server typecheck, mobile
+typecheck, the server unit suite (**2,108 pass / 64 skipped / 0 fail**), the focused AI-110–AI-113
+suites (**21/21**), the AI-2 read-only scan and the full mobile Jest run (**107 suites / 1,252
+tests**) pass. Targeted ESLint passed; repository-wide `npm run lint` still fails on two
+pre-existing `.scratch/` scripts this change did not touch.
 
-**Current production server (2026-11-16):** `1c3928b` — PR #300, the final partial-restock
-completeness guard, auto-deployed at 17:18Z. `/api/health` reports `status: ok`,
-`db: connected`, `environment: production`, commit `1c3928b`, 0 `5xx`; `/api/health/ready` returns
-200 and `/api/health/integrity` returns 200 `fresh`. Before it, production served `af13bf6`
+**Production device verification (2026-11-16):** on the OPPO (`com.inventoryai.app`, version
+`1.0.2`, signed in as Owner), Copy Answer changed to **Copied** and pasted the full answer; the
+Razer BlackWidow V4 Pro link opened SKU `DEMOSKU-73` at 0 available, minimum 40; **Show next 5**
+moved **5 of 19** to **10 of 19**; Open Restock showed **19 products at or below minimum stock**;
+and the question “Which products need restocking in Keyboards & Mice” returned **Showing 5 of 9**
+from **9 products** with **Category: Keyboards & Mice** already selected. The highest-stock answer
+ranked **Top 5 of 103**: Razer 846, ASUS 834, Royal Kludge 800, Anker 786, Logitech 719. The
+unit-shortfall answer read **19 products … combined gap of 721 units**. Device verification also
+found a misleading auxiliary list under the ranking; PR #305 removed it
+(`withoutInventoryActions`, merged as `91d635d`), and the repeat device run showed the ranking with
+Copy Answer and **no** unrelated “Showing 5 of 12”. Production serves `91d635d` with `status: ok`,
+`db: connected`, 0 `5xx`.
+
+**Known limitation.** The verbose question “List every product that needs restocking” produced a
+model-composed answer that hit the output limit and exposed reasoning fragments before the list.
+That shape still relies on the model; the deterministic count, ranking, shortfall and paged-list
+answers are clean. The complete record is §27IE.
+
+**Current production server (2026-11-16):** `91d635d` — PR #305, the auxiliary-list correction,
+auto-deployed and confirmed by `/api/health` with `status: ok`, `db: connected`, `environment:
+production`, commit `91d635d`, 0 `5xx`. Before it, production served `af366c1` (PR #304, the answer
+actions release), `1c3928b` (PR #300, the final partial-restock completeness guard), `af13bf6`
 (PR #299), `233d47f` (PR #298), `657e041` (PR #297, the first partial-restock guard), `7315675`
 (PR #295, AI-110 contextual assistant entry and restock shortfall), `7ebc9a3` (PR #293, hosted
 freshness), `9d09962` (PR #291, the scheduled read-only monitor), then `cd3b1c0` (PR #289),
 `996e49b` (PR #287), `cb4fcf7` (the PR #282 stock-value centavo fix), `cd4efcc` (the PR #275
 reliability merge), `8245e54` (PR #273), `304e2ea` (PR #272) and `65d9ef1` (PR #270).
-The current production OTA is `1d139ae9-c7e2-48a2-b33e-63561b761515` (update
-`01a1df51-b3a3-71a8-b8cf-244282f91ff4`), published from `7315675` on runtime `1.0.2`; the prior
-group was `2110458d-40ca-4975-813c-f182acb3e3aa` from `a7be9cd`, then
-`39f78213-cc77-45f6-8b1b-0b9232b44a62` from `8b99f46`. Local `main` contains the PR #300 merge
+The current production OTA is `9d759ee5-82c5-4fbe-afe0-3a0ea2c44f6c`, message “Copy answers,
+open products and full lists, and rank highest stock”, published from `af366c1` on runtime `1.0.2`;
+the prior group was `1d139ae9-c7e2-48a2-b33e-63561b761515` from `7315675`, then
+`2110458d-40ca-4975-813c-f182acb3e3aa` from `a7be9cd` and
+`39f78213-cc77-45f6-8b1b-0b9232b44a62` from `8b99f46`. Local `main` contains the PR #305 merge
+`91d635d`, the PR #304 merge `af366c1`, the PR #300 merge
 `1c3928b`, the PR #299 merge `af13bf6`, the PR #298 merge `233d47f`, the PR #297 merge
 `657e041`, the PR #296 docs merge `698a856`, the PR #295 merge `7315675`, the PR #294 docs merge
 `315fe9f`, the PR #293 merge `7ebc9a3`, the PR #291 merge `9d09962` and the PR #289 merge

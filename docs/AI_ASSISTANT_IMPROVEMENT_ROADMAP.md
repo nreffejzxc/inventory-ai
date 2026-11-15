@@ -34,8 +34,8 @@ piece is not implied to work because a related tool exists.
 
 | # | Improvement | Priority | Status | What exists now | Main gap |
 |---|---|---|---|---|---|
-| 1 | Copy Answer, Restock Navigation, Product Navigation | 1 | **Implemented — local, device proof pending** | Copy Answer copies the complete stored answer as plain text. Product names named by the final answer are inline links, using only ids captured from the turn's read tools. Restock navigation remains, and every paged list answer now also carries filter-preserving screen links. `ai111-answer-actions.test.tsx`, `ai112-answer-navigation.test.tsx` and the server AI-111/AI-112 suites cover the actions. | Not yet verified on the installed app or deployed; the Copy control uses React Native core `Clipboard`, whose deprecation warning is expected. |
-| 2 | Complete list and pagination | 2 | **Implemented — local, device proof pending** | Every paged tool answer now carries its total, a bounded page of the rows already read, and a screen link built from the filters the tool actually used. The mobile thread reveals those rows five at a time with “Showing X of Y” and keeps the screen link for the complete set. Inventory, Restock, Products and History initialize their filters from the link. | No search-within-results and no tool page cursor: “next 5” reveals only rows captured in this answer; a new tool read still requires a new turn. A destination filter that the screen cannot represent is omitted rather than claimed. |
+| 1 | Copy Answer, Restock Navigation, Product Navigation | 1 | **Implemented — production-verified** | Copy Answer copies the complete stored answer as plain text. Product names named by the final answer are inline links, using only ids captured from the turn's read tools. Restock navigation remains, and every paged list answer now also carries filter-preserving screen links. `ai111-answer-actions.test.tsx`, `ai112-answer-navigation.test.tsx` and the server AI-111/AI-112 suites cover the actions. Device proof: Copy pasted the full answer; the Razer link opened SKU `DEMOSKU-73`; the filtered Restock link carried **9 products** and **Keyboards & Mice**. | No functional gap in the three actions. The Copy control uses React Native core `Clipboard`, whose deprecation warning is expected. |
+| 2 | Complete list and pagination | 2 | **Implemented — production-verified** | Every paged tool answer now carries its total, a bounded page of the rows already read, and a screen link built from the filters the tool actually used. The mobile thread reveals those rows five at a time with “Showing X of Y” and keeps the screen link for the complete set. Inventory, Restock, Products and History initialize their filters from the link. Device proof: **5 of 19 → 10 of 19**, and Restock opened with **19 products**. | No search-within-results and no tool page cursor: “next 5” reveals only rows captured in this answer; a new tool read still requires a new turn. A destination filter that the screen cannot represent is omitted rather than claimed. |
 | 3 | Smarter inventory answers | High, sequence 3 | **Partial — strong** | Deterministic finalizers cover restock counts and lists, stock-value totals, product/location totals, most-expensive, top stock-out and several ranking shapes; tools compute counts over the whole matched set. AI-113 adds a server-ranked highest-stock read and answer, and the whole-set `totalUnitsBelowMinimum` replaces page-row addition. AI-2/AI-60 tests guard grounding and partial lists. | Coverage is still shape-by-shape: other comparisons, trends and report combinations can remain model-composed. Correctness must be proved per question shape, not inferred from the tool list. |
 | 4 | Better follow-up conversations | 4 | **Partial** | The server replays the last 20 USER/ASSISTANT messages (`AI_CONTEXT_MESSAGES`), so ordinary conversational context exists. | Tool rows are not replayed, and prompt rule 30 tells the model every question sets its own scope. A follow-up such as “which ones are from Samsung?” can re-query Samsung but is not guaranteed to preserve the previous “low stock” result set. There is no structured result-set handle. |
 | 5 | Inventory comparison | 5 | **Partial** | `getLocationBreakdown` compares all locations in one read; `getProduct` returns per-location stock; product-stock-by-location and history totals have deterministic answers; history rows distinguish direction and transfer legs. | No deterministic two-product comparison, no compare-to-minimum table, and no “decreasing inventory” verdict. A trend read must be assembled by the model from movements; the tool reports movement, not a forecast. |
@@ -60,9 +60,10 @@ only products the final answer names, only with ids a read tool returned, and dr
 duplicate name; `AssistantMarkdown` and the result rows open `/products/<id>` from that id. The
 client never resolves a display name against a local catalogue.
 
-**Residual.** The installed app has not yet been used to copy an answer or open a linked product;
-those are device checks, not code gaps. The copy path uses React Native's bundled `Clipboard`,
-which emits a deprecation warning but needs no native dependency or rebuild.
+**Residual.** No functional gap in the three actions. Production device checks on the installed
+app confirmed Copy Answer, the exact product link, the unfiltered Restock link and the
+filter-preserving Restock link. The copy path uses React Native's bundled `Clipboard`, which emits
+a deprecation warning but needs no native dependency or rebuild.
 
 **Accepted when.** Tests prove: copy contains the full answer and not just the visible part; the
 Restock action still opens the complete Restock screen; a product action opens the exact product
@@ -236,9 +237,12 @@ same file.
 | F | Insights and recommendations | Turns facts into priorities, never writes | Insufficient-data tests, no write path |
 | G | Report summaries | A consistent, explainable snapshot | Reconciliation and as-of tests |
 
-As of 2026-11-15, **slices A, B and C are implemented, committed in PR #304 and locally verified**;
-none is deployed or device-verified. A and B share the stored answer-actions shape and
-the mobile action controls; C adds the highest-stock ranking and the whole-set restock shortfall.
+As of 2026-11-16, **slices A, B and C are implemented, merged, deployed and device-verified**.
+PR #304 merged as `af366c1`; OTA group `9d759ee5-82c5-4fbe-afe0-3a0ea2c44f6c` runs on the
+installed app; production serves `91d635d` after the auxiliary-list correction. A and B share the
+stored answer-actions shape and the mobile action controls; C adds the highest-stock ranking and
+the whole-set restock shortfall. A verbose full-list request remains model-composed and can hit
+the output limit — the known limitation recorded in §27IE.
 
 **Cross-cutting gates, every slice:**
 
