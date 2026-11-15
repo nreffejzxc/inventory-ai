@@ -236,8 +236,8 @@ same file.
 | F | Insights and recommendations | Turns facts into priorities, never writes | Insufficient-data tests, no write path |
 | G | Report summaries | A consistent, explainable snapshot | Reconciliation and as-of tests |
 
-As of 2026-11-15, **slices A, B and C are implemented in the working tree and locally verified**;
-none is committed, deployed or device-verified. A and B share the stored answer-actions shape and
+As of 2026-11-15, **slices A, B and C are implemented, committed in PR #304 and locally verified**;
+none is deployed or device-verified. A and B share the stored answer-actions shape and
 the mobile action controls; C adds the highest-stock ranking and the whole-set restock shortfall.
 
 **Cross-cutting gates, every slice:**

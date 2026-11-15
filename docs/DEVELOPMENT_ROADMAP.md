@@ -25552,7 +25552,9 @@ reports two pre-existing `no-useless-assignment` errors in `server/.scratch/` sc
 change did not touch. `node scripts/check-docs.mjs` and `git diff --check` are the documentation and
 whitespace gates for the close-out.
 
-**Limits.** Nothing in this record is deployed or verified on the installed app. “Show next 5”
+**Delivery.** Committed as `ff2ecec` on `feat/ai-111-113-answer-actions` and opened as PR #304;
+merge and deployment are separate decisions. **Limits.** Nothing in this record is deployed or
+verified on the installed app. “Show next 5”
 reveals only rows captured in that answer; there is still no tool page cursor or
 search-within-results. The copy control emits React Native's bundled-`Clipboard` deprecation
 warning; moving to `@react-native-clipboard/clipboard` would be a native dependency change and was

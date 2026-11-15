@@ -44,8 +44,9 @@ at the end of every development session, newest entry first.
 **Goal:** finish and harden Inventory AI **V1** through production testing. No Play Store or App
 Store release is being prepared.
 
-**AI answer actions and deterministic answers, working tree (2026-11-15):** AI-111–AI-113 are
-implemented but **not committed, deployed or device-verified**. The assistant now copies the full
+**AI answer actions and deterministic answers, PR #304 (2026-11-15):** AI-111–AI-113 are
+implemented, committed as `ff2ecec` and pushed on `feat/ai-111-113-answer-actions`; they are **not
+merged, deployed or device-verified**. The assistant now copies the full
 stored answer as plain text, renders product links only from server-issued ids, and attaches
 filter-preserving screen links plus a bounded “Show next 5” page to list answers. A new read-only
 `getHighestStockProducts` tool ranks products by availability, and `getReorderNeededProducts`
