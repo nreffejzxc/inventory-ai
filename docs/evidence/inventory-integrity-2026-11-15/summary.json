@@ -1,14 +1,14 @@
 {
   "command": "audit:integrity",
   "readOnly": true,
-  "generatedAt": "2026-11-15T04:13:34.906Z",
+  "generatedAt": "2026-11-15T04:46:21.973Z",
   "database": "inventoryai_prod_db",
   "scope": {
     "days": "all",
     "since": null,
     "businessId": null
   },
-  "scannedStockIns": 4889,
+  "scannedStockIns": 4891,
   "totals": {
     "orphanStockIns": 2517,
     "unreceiptedPoStockIns": 0,
@@ -16,24 +16,28 @@
   },
   "orphansByBusiness": [
     {
-      "business": "6af18628a9a409131a84235b|PERF SEED — AI assistant stress test (do not use)",
-      "orphans": 2502
+      "id": "6af18628a9a409131a84235b",
+      "name": "PERF SEED — AI assistant stress test (do not use)",
+      "count": 2502
     },
     {
-      "business": "6aef37412ad6688f871a7bc7|steelseries",
-      "orphans": 15
+      "id": "6aef37412ad6688f871a7bc7",
+      "name": "steelseries",
+      "count": 15
     }
   ],
   "orphansByReason": [
     {
       "reason": "Seeded movement",
-      "orphans": 2231
+      "count": 2231
     },
     {
       "reason": "Purchase order receipt",
-      "orphans": 286
+      "count": 286
     }
   ],
   "unreceiptedPoStockIns": 0,
-  "note": "Summary of a read-only production run. The full transaction-level report was inspected locally and is not committed because it contains 2,517 rows."
+  "triage": "TRIAGE.md",
+  "monitoredBy": "../inventory-integrity-monitor/README.md",
+  "note": "Summary of a read-only production run. The full transaction-level report was inspected locally and is not committed because it contains 2,517 rows. No inventory was modified."
 }

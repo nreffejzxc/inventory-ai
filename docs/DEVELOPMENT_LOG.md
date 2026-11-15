@@ -54,6 +54,13 @@ The current production OTA is `2110458d-40ca-4975-813c-f182acb3e3aa`, published 
 on runtime `1.0.2`; the prior group was `39f78213-cc77-45f6-8b1b-0b9232b44a62` from `8b99f46`;
 local `main` contains the PR #289 merge `cd3b1c0`, the PR #287 merge `996e49b`, the PR #271 delivery `42229e5` (the current-position alignment) and the PR #275 reliability merge `cd4efcc`. The stock-in/audit/device entry is the newest below; the installed-app/audit, transfer follow-up, original stock-transfer, restock, stock-out, stock-value centavo and product-creation entries follow it.
 
+**Post-deploy proof and monitoring (2026-11-15):** the deployed `cd3b1c0` build passed the phone
+transfer journey **60/60** with six ledger rows and the fixture back at **3 / 0**; the 2,517 orphan
+findings were triaged read-only into 2,502 perf-seed and 15 SteelSeries rows, with no repair; and a
+daily read-only monitor now compares against an accepted baseline of those ids, records local
+history, and alerts only on new findings. The first run was **UNCHANGED / 0 new**, task result `0`.
+The complete record is §27IA.
+
 **Inventory reliability (2026-11-15):** PR #289 merged as `cd3b1c0` and deployed; the stock-in
 upsert now retries the full write after a duplicate key, the read-only `audit:integrity` command is
 available, and the installed-app transfer journey proves both directions, both refusals and the six
@@ -192,6 +199,57 @@ Known limits, checked before spending one of them:
 
 ---
 
+## 2026-11-15 — Post-deploy phone proof, orphan triage, and scheduled read-only monitor
+
+**Status.** PASS for all three approved steps. The deployed production commit `cd3b1c0` answered
+health with `status: ok`, `db: connected`, **0** `5xx` before the run. Only the designated
+`Phone Smoke Product` fixture was written; no production inventory outside it was modified.
+
+**1. The deployed build on the phone — 60/60, exit 0.** Run
+`2026-11-15T04-38-41-598Z-transfer` on the CPH1969, Android 11, against
+`https://ai-inventory-l1mi.onrender.com` at commit `cd3b1c0`. The journey did one stock-in, a forward
+transfer, a reverse transfer, the same-location refusal, the over-quantity refusal and one stock-out.
+Both refusals ended with `Transfer stock` disabled, and no `SAME` or `OVER` row was written. The
+run's own verifier read six rows and the standalone verifier returned `result.ok: true`, `rows: 6`,
+`errors: []`, net `0` at both locations, source **3**, destination **0**. Report and screenshot:
+[`evidence/device-runs/2026-11-15T04-38-41-598Z-transfer`](evidence/device-runs/2026-11-15T04-38-41-598Z-transfer/report.md).
+
+**2. The 2,517 orphan findings — triaged, not repaired.** The read-only provenance pass confirmed
+**2,502** in the synthetic `PERF SEED` tenant and **15** old `steelseries` `DEMO-*` movements; all
+are `STOCK_IN`, all belong to those two synthetic tenants, and `rak gears` is clean. In the perf
+tenant, **2,216** are `SEED-*` seeded movements and **286** are purchase-order receipts; all 286
+reference a receipt line across 186 POs. `unreceiptedPoStockIns` is **0**. The options, the backup
+requirement and the explicit approval gate are in
+[`TRIAGE.md`](evidence/inventory-integrity-2026-11-15/TRIAGE.md). The recommendation is to keep the
+rows as accepted history and monitor for new findings; **no row was deleted or repaired.**
+
+**3. The scheduled monitor — installed and run.** `server/scripts/lib/inventory-integrity-monitor.mjs`
+compares the audit with an accepted baseline; `server/scripts/monitor-inventory-integrity.mjs` is the
+CLI; `scripts/run-integrity-audit.ps1` is the task wrapper. The baseline of 2,517 ids was accepted at
+`2026-11-15T04:45:59Z`. Windows task `InventoryAI Inventory Integrity Audit` runs daily at **07:30
+local** with `StartWhenAvailable`; its first run was `UNCHANGED`, **0 new / 0 resolved**, scanned
+**4,891** rows, task result **0**, next run **2026-11-16 07:30 local**. History is in
+`%LOCALAPPDATA%\InventoryAI\integrity-audit\` (`latest.json`, `latest.md`, `history.jsonl`), and a new
+finding opens one GitHub issue titled `[inventory-integrity] New findings detected`. The monitor
+tests are **16/16**, including a source scan that refuses a write call; the alert path itself was not
+exercised against GitHub because there were no new findings.
+
+**Verification.** `TEST_MODE=unit node --test test/inventory-integrity-monitor.test.mjs` **16/16**.
+The six targeted suites (phase 04 inventory, inventory idempotency, integrity audit, transfer UI
+verification, device harness, monitor) passed **163/163** with `TEST_MODE=db`, 0 fail and 0 skipped.
+`npm run typecheck`, scoped ESLint on the three new JavaScript files, and
+`node scripts/check-docs.mjs` passed. The wrapper ran once under Task Scheduler and once manually
+after the GitHub CLI fallback guard was added; both exited 0, and the second run at 04:59:55Z was
+**UNCHANGED / 0 new** with three local history entries.
+
+**Limits.** The monitor is a current-user Windows task, not a hosted pager: it runs only while the
+laptop is signed in and online. GitHub's own `schedule` trigger has never fired in this repository.
+The baseline accepts known candidates; it does not make them correct.
+
+**Next.** Commit the monitor, baseline, triage and documentation in one review, wait for the four CI
+checks, merge, and confirm production health after the merge. The first scheduled run is 2026-11-16
+07:30 local; review only a **new** finding against the baseline.
+
 ## 2026-11-15 — Stock-in retry, read-only integrity audit, and automated transfer proof
 
 **Status.** PASS. PR #289 merged as `cd3b1c0` with all four required checks green and deployed; the
@@ -219,7 +277,7 @@ and no repair flag. Both read-only CLIs disable Mongoose `autoIndex`/`autoCreate
 cannot build indexes. The audit passed **22/22** against real MongoDB fixtures, including tenant and
 cutoff controls, plus a source scan that fails if a write call or index build is reintroduced.
 
-**Production audit finding.** The read-only run scanned **4,889** `STOCK_IN` rows and found
+**Production audit finding.** The read-only run scanned **4,891** `STOCK_IN` rows and found
 **2,517 orphans** and **0 unreceipted PO receipts**. It exited **1** by contract, not as a pass. The
 findings are confined to the synthetic `PERF SEED — AI assistant stress test (do not use)` tenant
 (**2,502**, mostly `Seeded movement` plus 286 perf-seed `Purchase order receipt` rows) and

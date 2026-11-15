@@ -1,0 +1,63 @@
+{
+  "command": "audit:integrity:monitor",
+  "readOnly": true,
+  "status": "UNCHANGED",
+  "checkedAt": "2026-11-15T04:46:21.973Z",
+  "database": "inventoryai_prod_db",
+  "audit": {
+    "exitCode": 1,
+    "scannedStockIns": 4891,
+    "totals": {
+      "orphanStockIns": 2517,
+      "unreceiptedPoStockIns": 0,
+      "total": 2517
+    },
+    "error": null
+  },
+  "baseline": {
+    "acceptedAt": "2026-11-15T04:45:59.382Z",
+    "knownCount": 2517,
+    "counts": {
+      "orphanStockIns": 2517,
+      "unreceiptedPoStockIns": 0,
+      "total": 2517
+    }
+  },
+  "comparison": {
+    "currentCount": 2517,
+    "newCount": 0,
+    "resolvedCount": 0,
+    "newFindingIds": [],
+    "resolvedFindingIds": [],
+    "newFindings": []
+  },
+  "byBusiness": [
+    {
+      "id": "6af18628a9a409131a84235b",
+      "name": "PERF SEED — AI assistant stress test (do not use)",
+      "count": 2502
+    },
+    {
+      "id": "6aef37412ad6688f871a7bc7",
+      "name": "steelseries",
+      "count": 15
+    }
+  ],
+  "byReason": [
+    {
+      "reason": "Seeded movement",
+      "count": 2231
+    },
+    {
+      "reason": "Purchase order receipt",
+      "count": 286
+    }
+  ],
+  "note": "Read-only. A finding is a candidate for review, not proof of intent. The baseline is an acceptance of known findings, not a repair.",
+  "notification": {
+    "requested": true,
+    "action": "none",
+    "issueNumber": null,
+    "error": null
+  }
+}

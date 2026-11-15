@@ -13,7 +13,7 @@ node scripts/audit-inventory-integrity.mjs --with-production --format=json
 
 | Measure | Count |
 | --- | ---: |
-| `STOCK_IN` rows scanned (all history) | **4,889** |
+| `STOCK_IN` rows scanned (all history) | **4,891** |
 | Orphan `STOCK_IN` rows | **2,517** |
 | Unreceipted PO receipt rows | **0** |
 
@@ -32,7 +32,9 @@ datasets: the perf tenant is explicitly marked "do not use", and the `steelserie
 `Shop Front` demo-seed movements (`DEMOSKU-*`, `Seeded movement`) written before the current
 write paths. The orphan rule is exact — a ledger row with no inventory row for the same
 business/product/location — so these are real candidates in those datasets, not a runtime
-regression.
+regression. The read-only provenance triage is in [`TRIAGE.md`](TRIAGE.md); no row was deleted or
+repaired. The same 2,517 ids are the accepted baseline of the scheduled monitor, documented in
+[`../inventory-integrity-monitor/README.md`](../inventory-integrity-monitor/README.md).
 
 ### Orphans by recorded reason
 
@@ -49,7 +51,9 @@ reference not referenced by a receipt. The dedicated check found **0** such rows
 
 - No inventory row, ledger row, purchase order or index was created, changed or deleted.
 - The audit has no repair flag. Correcting an orphan needs an owner decision; deleting the ledger
-  row is not the first response because history is the audit trail.
+  row is not the first response because history is the audit trail. The triage's recommendation is
+  to keep the rows as accepted history and watch for **new** findings; any tenant cleanup needs its
+  own backup, written approval and whole-tenant command.
 - The full transaction-level JSON was inspected locally but is not committed: it contains 2,517
   findings and would obscure the summary. [`summary.json`](summary.json) is the committed summary.
 
@@ -60,5 +64,7 @@ reference not referenced by a receipt. The dedicated check found **0** such rows
   `autoIndex`/`autoCreate` at connect.
 - `server/test/phase07a-inventory-compensation.test.mjs` — the duplicate-key retry regression
   (a winning row inserted and removed before the loser retries).
-- The installed-app transfer run on the same day is recorded in
-  [`docs/evidence/device-runs/2026-11-15T03-54-10-861Z-transfer`](../device-runs/2026-11-15T03-54-10-861Z-transfer).
+- `server/test/inventory-integrity-monitor.test.mjs` — the baseline/comparison/issue policy and the
+  source guard that keeps the monitor from opening a database itself.
+- The post-deploy transfer run on the same day is recorded in
+  [`docs/evidence/device-runs/2026-11-15T04-38-41-598Z-transfer`](../device-runs/2026-11-15T04-38-41-598Z-transfer).

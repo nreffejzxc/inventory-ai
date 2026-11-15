@@ -175,6 +175,19 @@ while its form was mounted did not reset it (the over-quantity form now goes via
 The refusal checks are still pinned to `enabled="false"` on `Transfer stock`, not only to the
 warning copy.
 
+**2026-11-15 — the post-deploy repeat on `cd3b1c0`.** After PR #289 was auto-deployed, the same
+production fixture was driven again against the deployed commit:
+
+| directory | what it shows | result |
+|---|---|---|
+| `2026-11-15T04-38-41-598Z-transfer` | one stock-in, forward and reverse transfers, both refusals with the submit disabled, one stock-out; six referenced rows, no `SAME`/`OVER` rows; source **3**, destination **0**, both net zero | **60/60 pass, exit 0** |
+
+A standalone `verify:transfer-ui` read of run `2026-11-15T04-38-41-598Z` returned `result.ok: true`,
+`rows: 6`, `errors: []`, net `0` at both locations, source **3**, destination **0**. The final
+screenshot is [`transfer-done.png`](2026-11-15T04-38-41-598Z-transfer/transfer-done.png); the report
+is [`report.md`](2026-11-15T04-38-41-598Z-transfer/report.md). This is the proof that the transfer
+surface still works **after** the Render deployment of `cd3b1c0`, not only on the pre-deploy build.
+
 **What these runs do NOT prove.** iOS (no macOS on this host — Phase 30B stays open), physical paper
 (no printer; the PDF decode rules out clipped or distorted bars but it is not a scan of paper), and a
 camera reading a barcode in the room, which stays a manual item — though that too has now been done

@@ -29,10 +29,12 @@ The database is a fixed choice: development by default, production only with
 way this command can point at production. Both read-only CLIs connect with Mongoose `autoIndex` and
 `autoCreate` disabled, so merely connecting cannot build an index.
 
-The production run after the installed-app checks (2026-11-15) scanned 4,889 `STOCK_IN` rows and found 2,517 orphans and 0
+The production run after the installed-app checks (2026-11-15) scanned 4,891 `STOCK_IN` rows and found 2,517 orphans and 0
 unreceipted PO receipts. It exited 1 because findings exist; `rak gears` was clean. The breakdown,
 scope and interpretation are in
 [`evidence/inventory-integrity-2026-11-15`](evidence/inventory-integrity-2026-11-15/README.md).
+The read-only provenance triage and the separately approved remediation options are in
+[`TRIAGE.md`](evidence/inventory-integrity-2026-11-15/TRIAGE.md); **no row has been deleted or repaired.**
 
 Exit codes follow the repository convention:
 
@@ -41,6 +43,34 @@ Exit codes follow the repository convention:
 | `0` | Ran to completion; neither finding is present. |
 | `1` | Ran to completion; at least one candidate was found. |
 | `2` | **NOT CHECKED** — bad arguments, no connection string, the test database, or an unreachable database. Nothing is known. |
+
+## Scheduled read-only monitoring
+
+`npm run audit:integrity:monitor` runs the same audit, compares the findings with an explicitly
+accepted baseline, records a local history, and can open one GitHub issue when a **new** finding
+appears. It is still read-only: it never writes inventory, ledger, purchase-order or index data.
+
+```bash
+cd server
+npm run audit:integrity:monitor -- --with-production --format=json   # check, no alert
+npm run audit:integrity:monitor -- --with-production --notify        # check + issue alert
+node scripts/monitor-inventory-integrity.mjs --with-production --accept-baseline  # after review
+```
+
+The installed Windows task is `InventoryAI Inventory Integrity Audit`: daily at **07:30 local**, with
+`StartWhenAvailable`. The wrapper is `scripts/run-integrity-audit.ps1`; register it with
+`scripts/register-integrity-audit-scheduler.ps1`. Its local history is
+`%LOCALAPPDATA%\InventoryAI\integrity-audit\` (`latest.json`, `latest.md`, `history.jsonl`), and the
+task log is beside it. The baseline is
+[`evidence/inventory-integrity-monitor/baseline.json`](evidence/inventory-integrity-monitor/baseline.json);
+the 2,517 known seed findings were accepted after triage, and a normal run reports **UNCHANGED / 0
+new**. A new finding opens `[inventory-integrity] New findings detected`; the issue is updated only
+when the new set changes and closed after recovery.
+
+**Limits.** The trigger is a current-user Windows task, not a hosted pager: it runs only while this
+user is signed in and the laptop is awake and online. GitHub's own `schedule` trigger has never fired
+for this repository, so no workflow cron is used. The baseline is an acceptance of known candidates,
+not a repair.
 
 ## How the two checks work
 
@@ -74,6 +104,9 @@ The related duplicate-history audit is `npm run audit:duplicates`; it answers a 
 - `server/test/audit-inventory-integrity.test.mjs` — argument refusals, both pipeline shapes, real
   MongoDB fixtures (normal receipt, unreceipted PO stock-in, orphan controls, tenant/cutoff scoping),
   the report, and a source scan that fails if either file grows a write call.
+- `server/test/inventory-integrity-monitor.test.mjs` — the baseline/comparison contract, new versus
+  resolved rows, a missing baseline treated as all-new, malformed baselines refused, the once-per-set
+  issue policy, and a source scan proving the monitor never opens a database itself.
 - `server/test/phase07a-inventory-compensation.test.mjs` — the duplicate-key retry regression: a
   winning first stock-in inserts a row, then its compensation removes it before the loser retries; the
   loser must retry the full upsert and leave both the row and its ledger row, never a ledger-only
