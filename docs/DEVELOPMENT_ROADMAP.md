@@ -10,7 +10,7 @@ of truth for *what actually happened*, and it is why this file is long.
 numbers are cited from `CLAUDE.md` and from source comments), or use the index: `CLAUDE.md` §7 lists
 all **241** records by the title each gives itself.
 
-**Current state:** V1 complete and in production testing. The records that answer *where are we now* are §27II (AI-117 complete feedback conversation preview, implementation-tested; deployment pending at this record), §27IH (AI-116 bounded follow-up context and answer freshness, deployed and device-verified), §27IG (AI-115 member feedback and the owner/admin review queue, deployed and device-verified), §27IF (AI-114 deterministic complete restock lists, deployed and device-verified), §27ID (the permanent assistant improvement roadmap and implementation audit; docs-only), §27IC (AI-110 contextual assistant entry and restock shortfall, deployed `7315675` and OTA-verified; the partial-restock guards completed in `1c3928b`), §27IB (scheduler proof and hosted freshness), §27IA (post-deploy phone proof, triage and monitor), §27HV (AI-99 10,256-product gate, 24/25 with one output-limit finding), §27HU (AI-99 free-first simple inventory, deployed with the 1.0.2 OTA), §27HT (AI-91/AI-92 exact product identity and per-location stock), §27HS (the AI-50–AI-84 increment register), §27HR (AI-48–AI-84 merged and deployed), §27HQ (grounded answers and scoped stock reads), §27HP (market prices from cited pages), §27HO (recorded specifications and the real seed catalogue), §27HN (inventory-only web research), §27HH (a transfer as one event to the assistant), §27HG (the stock-in link's product), §27HF (the single-location default's timing), §27HE (the stock-in link's location), §27HD (the movement fixes and the production device pass), §27HC (the assistant's local-time answers), §27FM (the V1 re-verification) and §27FJ (the two open advisories).
+**Current state:** V1 complete and in production testing. The records that answer *where are we now* are §27II (AI-117 complete feedback conversation preview, deployed `13fb3f8` and device-verified; one out-of-stock wording finding remains open), §27IH (AI-116 bounded follow-up context and answer freshness, deployed and device-verified), §27IG (AI-115 member feedback and the owner/admin review queue, deployed and device-verified), §27IF (AI-114 deterministic complete restock lists, deployed and device-verified), §27ID (the permanent assistant improvement roadmap and implementation audit; docs-only), §27IC (AI-110 contextual assistant entry and restock shortfall, deployed `7315675` and OTA-verified; the partial-restock guards completed in `1c3928b`), §27IB (scheduler proof and hosted freshness), §27IA (post-deploy phone proof, triage and monitor), §27HV (AI-99 10,256-product gate, 24/25 with one output-limit finding), §27HU (AI-99 free-first simple inventory, deployed with the 1.0.2 OTA), §27HT (AI-91/AI-92 exact product identity and per-location stock), §27HS (the AI-50–AI-84 increment register), §27HR (AI-48–AI-84 merged and deployed), §27HQ (grounded answers and scoped stock reads), §27HP (market prices from cited pages), §27HO (recorded specifications and the real seed catalogue), §27HN (inventory-only web research), §27HH (a transfer as one event to the assistant), §27HG (the stock-in link's product), §27HF (the single-location default's timing), §27HE (the stock-in link's location), §27HD (the movement fixes and the production device pass), §27HC (the assistant's local-time answers), §27FM (the V1 re-verification) and §27FJ (the two open advisories).
 
 ---
 
@@ -25781,9 +25781,23 @@ deleted report is unreachable. The mobile suite now passes **4/4** for the queue
 the preview) and **3/3** for the preview screen (full answer, review write and MANAGER denial).
 Server and mobile `tsc --noEmit` pass; targeted ESLint passes; the full server unit suite passed
 **2,118 / 67 skipped / 0 failed** (435 suites); the full mobile Jest run passed **111 suites /
-1,273 tests**; the route-inventory guard passed **11/11** and the docs map guard passed. Deployment,
-OTA and the production OPPO checks are the next step at this record.
+1,273 tests**; the route-inventory guard passed **11/11** and the docs map guard passed.
+
+**Production verification.** PR #312 merged as `13fb3f8`; production serves that commit with
+`status: ok`, `db: connected` and **0** `5xx`, and an unauthenticated feedback request answers
+**401**. The JS-only OTA was group `a6c66e94-8672-4308-a817-1ca679a283b6` (Android update
+`01a1e151-8a83-7213-94a5-c2382069afbe`, runtime 1.0.2). On the OPPO, OWNER opened the queue with
+**View conversation**, read the complete 19-line reported answer and the surrounding 05:24–05:44
+thread in the outlined **Reported answer** card, and marked the report Reviewed; the queue
+reloaded with **Reviewed** and **Reopen report**. MANAGER and STAFF both signed in separately and
+were denied with “Only the business owner and admins can review assistant feedback.” The temporary
+accounts were disabled afterwards. Follow-ups narrowed the fresh 19-product answer to **10** at
+Shop Front and then **6** out of stock, with Inspect naming `Filtered previous results` and the
+location. The out-of-stock card also displayed “I could not read that from your records just now”
+beside the correct six zero-quantity rows; that contradiction is recorded as an open text finding,
+not a data leak. Evidence: [`ai117-2026-11-16`](evidence/ai117-2026-11-16/README.md).
 
 **Limits.** The preview is a bounded window, not the full conversation: six messages on each side
 is enough context for one report without turning the review surface into a transcript browser. It
-does not add replies, feedback-driven model changes or any AI write path.
+does not add replies, feedback-driven model changes or any AI write path. The out-of-stock wording
+defect has no code fix in this record.

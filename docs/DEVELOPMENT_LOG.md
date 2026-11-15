@@ -44,7 +44,7 @@ at the end of every development session, newest entry first.
 **Goal:** finish and harden Inventory AI **V1** through production testing. No Play Store or App
 Store release is being prepared.
 
-**Feedback conversation preview, AI-117 (2026-11-16, in progress):** the OWNER/ADMIN review
+**Feedback conversation preview, AI-117 (2026-11-16, deployed and device-verified; one finding):** the OWNER/ADMIN review
 queue gained **View conversation**. `GET /api/ai/feedback/:id/conversation` returns the complete
 reported answer, six USER/ASSISTANT messages on each side and `omittedBefore`/`omittedAfter`; it
 is business-scoped, requires `ai.metrics.view`, returns no email or product id, and answers `404`
@@ -52,8 +52,16 @@ to another tenant. The preview screen shows the report context, labels the repor
 mark the report reviewed or reopen it. Focused checks pass: AI-117 server **4/4**, feedback review
 **4/4**, preview **3/3**, both typechecks, targeted ESLint, route inventory **11/11** and the docs
 map guard. The full server unit suite passed **2,118 / 67 skipped / 0 failed** (435 suites); the
-full mobile Jest run passed **111 suites / 1,273 tests**. Deployment, OTA and the OPPO permission
-and follow-up passes are in progress; the record is §27II.
+full mobile Jest run passed **111 suites / 1,273 tests**. PR #312 merged as `13fb3f8`; production
+serves that commit with `status: ok` / `db: connected` / **0** `5xx`, and an unauthenticated
+feedback request answers **401**. OTA group `a6c66e94-8672-4308-a817-1ca679a283b6` (Android
+`01a1e151-8a83-7213-94a5-c2382069afbe`, runtime 1.0.2) applied on the OPPO. OWNER read the
+complete 19-line reported answer in the preview and marked it Reviewed; MANAGER and STAFF were
+both denied the queue on the installed app; follow-ups narrowed 19 low-stock products to **10** at
+Shop Front and **6** out of stock. The out-of-stock card also printed “I could not read that from
+your records just now” beside the correct six zero-quantity rows; that contradiction is an open
+text finding. Temporary accounts were disabled. Evidence:
+[`ai117-2026-11-16`](evidence/ai117-2026-11-16/README.md); the record is §27II.
 
 **Feedback, follow-up context and answer freshness, AI-115/AI-116 (2026-11-16, in progress):** the
 assistant footer now rates an answer UP or DOWN. DOWN requires one of four reasons and accepts a
@@ -334,8 +342,9 @@ Known limits, checked before spending one of them:
 
 ## 2026-11-16 — AI-117 feedback conversation preview
 
-**Status.** IN PROGRESS. Server and mobile implementation are tested; deployment, OTA and the
-production OPPO passes are the remaining gate.
+**Status.** DEPLOYED AND DEVICE-VERIFIED; one out-of-stock wording finding. Server and mobile
+implementation are tested, PR #312 merged as `13fb3f8`, and the OTA plus the ordered OPPO passes
+are complete.
 
 **What changed.** The review queue remains excerpt-only. A new OWNER/ADMIN-only read returns one
 report's complete stored answer and at most six surrounding USER/ASSISTANT messages, with the
@@ -347,11 +356,24 @@ permission-gated route as **91 routes / 55 gated**; §27II records the feature a
 suites passed **7/7**; server and mobile `tsc --noEmit` passed; targeted ESLint passed; the
 route-inventory guard passed **11/11**; `scripts/check-docs.mjs` passed. The full server unit suite
 passed **2,118 / 67 skipped / 0 failed** (435 suites) and the full mobile Jest run passed **111
-suites / 1,273 tests**. No production turn was spent and no data was written outside the test DB.
+suites / 1,273 tests**.
 
-**Next.** Commit and merge, let Render serve the new route, publish the JS-only OTA, then run the
-three ordered device passes: preview, MANAGER/STAFF denial, and location/low/out-of-stock
-follow-ups.
+**Production and device verification.** Production serves `13fb3f8` with `status: ok`,
+`db: connected` and **0** `5xx`; an unauthenticated feedback request answers **401**. OTA group
+`a6c66e94-8672-4308-a817-1ca679a283b6` (Android update `01a1e151-8a83-7213-94a5-c2382069afbe`,
+runtime 1.0.2) applied after clearing a stale local update state on the test device. In the app,
+OWNER opened the queue with **View conversation**, read the complete 19-line reported answer and
+the surrounding 05:24–05:44 thread, saw the outlined **Reported answer** card, marked the report
+Reviewed and saw the queue reload with **Reviewed** / **Reopen report**. MANAGER and STAFF each
+signed in and were denied with the role message. Follow-ups narrowed a fresh 19-product low-stock
+answer to **10** at Shop Front and then **6** out of stock; Inspect named `Filtered previous
+results`, `Products: 10` and `Location: Shop Front`. The out-of-stock answer also printed “I could
+not read that from your records just now” beside the correct six zero-quantity rows; this is
+recorded as an open answer-composition defect, not a data leak. The temporary accounts were
+disabled after the pass. Evidence: [`ai117-2026-11-16`](evidence/ai117-2026-11-16/README.md).
+
+**Next.** No AI-117 code change remains. Fix the contradictory out-of-stock sentence separately;
+the role and tenant boundaries are intact.
 
 ---
 
