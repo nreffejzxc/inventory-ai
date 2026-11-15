@@ -130,9 +130,10 @@ AI-50–AI-84 increment register. §27HT is the delivered AI-91/AI-92 record, an
 AI-99 record. AI-103/OPS-3 is §27HW, AI-106 is §27HY, and the close-out follow-ups are §27HZ.
 The first assistant-roadmap implementation slice (AI-111–AI-113: Copy Answer, server-id product
 links, filter-preserving screen links with bounded result rows, the highest-stock ranking and the
-whole-set restock shortfall) is §27IE and is committed in PR #304, not yet deployed. The 2026-11-15
-post-deploy/triage/monitor close-out is §27IA; production currently serves `1c3928b`
-and the newest OTA is `1d139ae9-c7e2-48a2-b33e-63561b761515`. The AI-105 retry fix and the
+whole-set restock shortfall) is §27IE, merged as `af366c1`, deployed and device-verified; the
+auxiliary-list correction is `91d635d`. The 2026-11-15 post-deploy/triage/monitor close-out is §27IA;
+production currently serves `91d635d` and the newest OTA is
+`9d759ee5-82c5-4fbe-afe0-3a0ea2c44f6c`. The AI-105 retry fix and the
 live label are recorded in `DEVELOPMENT_LOG.md` and
 [`evidence/ai105-production-2026-11-11`](evidence/ai105-production-2026-11-11/README.md). Release engineering remains in
 §27FN (EAS retention and the plan gate on OTA signing), §27EZ (the production parity gate that
