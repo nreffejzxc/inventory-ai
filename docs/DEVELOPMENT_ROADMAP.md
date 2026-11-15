@@ -25384,3 +25384,61 @@ the refusal of a free-form database. `npm run test:unit` **2,079 pass / 0 fail /
 production threshold. The first automatic daily run is still pending at **2026-11-16 07:30 local**;
 this record proves the trigger mechanism and the hosted monitor, not the daily run. No repair,
 cleanup or baseline refresh is approved here.
+
+---
+
+# 27IC. AI-110 — contextual assistant entry and the restock shortfall (2026-11-15)
+
+**Scope.** Make the assistant start where the member already is, and stop a restock question from
+requiring mental arithmetic. Product and stock-row screens know the exact product, SKU and location
+on display; asking about that row used to mean opening the assistant, starting a new chat and
+retyping those details, which is how the wrong variant gets discussed. The same change exposes the
+shortfall to the configured minimum once, on the server, so the screen and the assistant cannot
+disagree about it. The assistant remains read-only and no tool, permission or data scope changed.
+
+**Contextual entry.** `mobile/lib/assistantContext.ts` builds the prepared question from the
+recorded name and SKU, plus the location for a stock row, and bounds it at the same
+`MAX_ASSISTANT_MESSAGE_CHARS` (`4,000`) the composer enforces. `AssistantPromptCard` is a reusable
+card that pushes `/ai/new` with a `prompt` route parameter; it never sends. `AiChat` accepts that
+initial prompt, puts it in the composer and leaves Send to the member, so opening a card spends no
+provider turn. Product detail and per-location stock detail render the card only when
+`canUseAi(user)`, matching the assistant's existing permission gate. The `prompt` reader is
+defensive about a missing or oversized parameter, and a blank prepared question renders nothing.
+
+**Shortfall.** `productService.unitsBelowMinimum(available, minimumStock)` returns `null` when no
+minimum is configured or availability is unknown, `0` at the threshold, and the positive gap below
+it. It is the shortfall to the threshold, not a recommended order quantity: the product has a
+minimum trigger, not a par level or an order multiple. `reorderItemPublic` carries the field, and
+the assistant's `stockCard` carries it too, so the restock screen, `getLowStockProducts` and
+`getReorderNeededProducts` all quote the number the server computed. The restock row now reads
+`0 available · minimum 40 · 40 below minimum`; the assistant is instructed to quote the field
+rather than subtract. The AI-2 read-only scan gained an explicit allow-list entry for the helper
+(`productService.unitsBelowMinimum`) with a comment that it is a pure formatter, after CI correctly
+refused the unexplained call.
+
+**Verification.** Server `npm run typecheck` and mobile `npm run typecheck` passed; mobile
+`npm run lint` passed; scoped server ESLint on the changed files passed. Focused Jest: **2 suites /
+15 tests** passed. The AI-110 server tests are **4/4**, the AI-2 read-only suite is **14/14**, and
+the full server unit suite is **2,147 tests — 2,083 pass, 64 skipped, 0 fail**. The full mobile Jest
+run is **105 suites / 1,240 tests, all pass**. `node scripts/check-docs.mjs` and `git diff --check`
+passed. PR #295 passed all four CI jobs and squash-merged as `7315675`; the allow-list follow-up is
+`a5eb4dd`.
+
+**Production and device.** Render auto-deployed `server/` and `/api/health` reports commit
+`7315675`, `status: ok`, `db: connected`, **0** `5xx`; `/api/health/ready` returned **200**. OTA
+group `1d139ae9-c7e2-48a2-b33e-63561b761515` (update `01a1df51-b3a3-71a8-b8cf-244282f91ff4`,
+runtime `1.0.2`, from `7315675`) was published to the production channel. On the installed
+`com.inventoryai.app`, after a cold start, the Restock screen showed **19** products with rows such
+as **40**, **63**, **73**, **87** and **11 below minimum**. The Razer BlackWidow V4 Pro detail opened
+**Ask about this product**, and **Ask AI** opened **New Chat** with
+`How much stock do we have for Razer BlackWidow V4 Pro (SKU DEMOSKU-73), and at which locations?`
+already in the composer and no turn spent. Pressing Send returned the grounded answer **0 units at
+Shop Front and 0 units at Main Warehouse**, with `Read: Inventory rows` and `Ref: cf0f55c5`.
+
+**Limits.** The contextual card exists only on product detail and per-location stock detail; history,
+purchase-order and restock rows do not yet offer one. The shortfall is not a purchasing suggestion
+and does not account for lead time, pack size or supplier minimum. The installed production app was
+the device proof because the local `com.inventoryai` development client still cannot complete
+Firebase sign-in (its native `google-services.json` is absent), so the same UI was not re-run in the
+dev client; the unit and type checks cover the shared code, and the production run is recorded above.
+No AI write capability, copy-answer action, supplier tool or purchase-order tool was added.

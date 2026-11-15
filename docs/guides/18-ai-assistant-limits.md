@@ -3,8 +3,9 @@
 This is the reference for every limit the assistant enforces today. It describes the code, not
 a plan or a target. Defaults are the values shipped in source; a deployment can change the ones
 marked **env**. Values marked **fixed** are source constants and cannot be changed from `.env`.
-Production values were checked against the live Render service on **2026-11-13** and are listed in
-§0. Values that are not set there use the source defaults in the tables below.
+The production settings were read from the live Render service on **2026-11-13** and are listed in
+§0; the deployment was re-checked on **2026-11-15**. Values that are not set there use the source
+defaults in the tables below.
 
 The assistant is deliberately bounded in four places: **who may ask**, **how often**, **how long
 and how much one turn may use**, and **what the answer is allowed to claim**.
@@ -15,12 +16,15 @@ Source of truth: `server/src/services/ai/aiConfig.ts`, `ai.service.ts`, `tools.t
 `server/src/controllers/ai.controller.ts`, `server/src/routes/ai.routes.ts`, `mobile/lib/config.ts`,
 and `mobile/lib/sse.ts`.
 
-## 0. Production snapshot (verified 2026-11-13)
+## 0. Production snapshot (settings read 2026-11-13; deployment re-checked 2026-11-15)
 
 Read from the Render API for the live `ai-inventory` service on branch `main`, at commit
-`705d192` — the AI runtime commit. Later commits are tests and documentation only and do not
-change the behaviour described here. Secret values were not read. The service has these non-secret AI settings; everything not listed is absent and uses
-the source default.
+`705d192`. On **2026-11-15** the deployment was re-checked at commit `7315675` (AI-110):
+`/api/health` reported `status: ok`, `db: connected`, 0 `5xx`, and `/api/health/ready` returned
+200. AI-110 adds the contextual question entry and the restock `unitsBelowMinimum` field; it
+changes no limit in this guide. The non-secret AI settings below were **not re-read** on
+2026-11-15, so they remain the 2026-11-13 reading. Secret values were not read. The service has
+these non-secret AI settings; everything not listed is absent and uses the source default.
 
 | Variable | Production value | Source default | Effect in production |
 |---|---|---|---|
