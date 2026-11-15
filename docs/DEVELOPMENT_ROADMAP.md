@@ -8,7 +8,7 @@ of truth for *what actually happened*, and it is why this file is long.
 
 **How to read it.** Do not read it top to bottom. Either find a record by number (§27FJ, §27DM — the
 numbers are cited from `CLAUDE.md` and from source comments), or use the index: `CLAUDE.md` §7 lists
-all **233** records by the title each gives itself.
+all **234** records by the title each gives itself.
 
 **Current state:** V1 complete and in production testing. The records that answer *where are we now* are §27HV (AI-99 10,256-product gate, 24/25 with one output-limit finding), §27HU (AI-99 free-first simple inventory, deployed with the 1.0.2 OTA), §27HT (AI-91/AI-92 exact product identity and per-location stock), §27HS (the AI-50–AI-84 increment register), §27HR (AI-48–AI-84 merged and deployed), §27HQ (grounded answers and scoped stock reads), §27HP (market prices from cited pages), §27HO (recorded specifications and the real seed catalogue), §27HN (inventory-only web research), §27HH (a transfer as one event to the assistant), §27HG (the stock-in link's product), §27HF (the single-location default's timing), §27HE (the stock-in link's location), §27HD (the movement fixes and the production device pass), §27HC (the assistant's local-time answers), §27FM (the V1 re-verification) and §27FJ (the two open advisories).
 
@@ -25340,3 +25340,47 @@ were no new findings; its policy and source are unit-tested.
 `docs/evidence/inventory-integrity-monitor/` (baseline and first run), and
 `docs/evidence/device-runs/2026-11-15T04-38-41-598Z-transfer/`. The runbook additions are in
 `docs/INVENTORY_INTEGRITY.md`, `docs/MONITORING.md` and `docs/guides/6-scripts-and-commands.md`.
+
+# 27IB. Scheduler trigger proof and hosted freshness monitoring (2026-11-15)
+
+**Scope.** Prove the Windows Task Scheduler trigger immediately, verify the one resolved change
+without modifying the accepted baseline, and give the laptop-based audit an independent hosted
+freshness signal.
+
+**Scheduler proof — passed.** A temporary current-user task `InventoryAI Integrity Audit - Trigger
+Proof` had a single one-off trigger at **2026-11-15 19:11:35 local** and the same wrapper action as
+the daily task. It fired automatically; task result **0**, scheduler log `finished with exit 0`. The
+temporary task was removed. The permanent `InventoryAI Inventory Integrity Audit` task is **Ready**,
+last result **0**, next run **2026-11-16 07:30 local**, with no duplicate. Evidence:
+`docs/evidence/inventory-integrity-monitor/scheduler-trigger-proof-2026-11-15.md`.
+
+**What the proof observed.** History entry `2026-11-15T11:11:36.859Z`: **UNCHANGED**, **0 new**,
+**1 resolved**, **4,896** scanned. The resolved id was
+`ORPHAN_STOCK_IN:6aef380db94b2abdac698af8` (SteelSeries, `DEMO-8-8`, quantity 14); an inventory row
+was created for it at `2026-11-15T09:43:59.735Z` by an external PO receipt (`PO-DEMO-00006`), amid
+five new stock-ins. The scan rose from 4,891 to 4,896. The baseline was **not** changed, as
+instructed, so the resolved count remains 1 until an explicitly approved refresh. Current findings:
+**2,516** = 2,502 perf-seed + 14 SteelSeries. No new orphan was introduced and no monitor repair ran.
+
+**Hosted freshness — deployed.** The wrapper calls `server/scripts/write-integrity-heartbeat.mjs`,
+which upserts exactly one document in `integrity_monitor_heartbeats` and imports no inventory,
+ledger, PO, product, location, user or business model. `GET /api/health/integrity` returns **200**
+only for a completed heartbeat at most **26 hours** old, and **503** for missing, stale, malformed or
+`NOT CHECKED`. PR #293 merged as `7ebc9a3` and auto-deployed; `/api/health` reports commit
+`7ebc9a3`, `status: ok`, `db: connected`, 0 `5xx`; the endpoint returned 200 `fresh`. The production
+heartbeat read back `UNCHANGED`, 4,896 scanned, 0 new, 1 resolved. UptimeRobot monitor
+`Inventory AI integrity freshness` (**804681164**) checks every five minutes, is **Up**, and
+reported a test notification sent. Evidence:
+`docs/evidence/inventory-integrity-monitor/hosted-heartbeat-2026-11-15.md`.
+
+**Guard and tests.** The new public route moved the Phase 23 inventory **86 → 87** (public
+**21 → 22**; gated **51**, authenticated **14**, role-gated **0**); §2.6 and the public register were
+updated in the same change. New `server/test/integrity-heartbeat.test.mjs` **14/14** pins the
+threshold, every non-fresh state, the 200/503 contract, the writer's single-collection surface and
+the refusal of a free-form database. `npm run test:unit` **2,079 pass / 0 fail / 64 skipped**;
+`npm run typecheck` and scoped ESLint passed; all four CI jobs green.
+
+**Limits.** The live 503 transition was not forced; it is unit-tested, with 26 hours as the
+production threshold. The first automatic daily run is still pending at **2026-11-16 07:30 local**;
+this record proves the trigger mechanism and the hosted monitor, not the daily run. No repair,
+cleanup or baseline refresh is approved here.
