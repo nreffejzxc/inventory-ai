@@ -25553,8 +25553,13 @@ change did not touch. `node scripts/check-docs.mjs` and `git diff --check` are t
 whitespace gates for the close-out.
 
 **Delivery.** Committed as `ff2ecec` on `feat/ai-111-113-answer-actions` and opened as PR #304;
-merge and deployment are separate decisions. **Limits.** Nothing in this record is deployed or
-verified on the installed app. “Show next 5”
+merge and deployment are separate decisions. **Live correction.** Device verification of the highest-stock answer found that an auxiliary
+`getInventory` read — made to explain where the winner's stock sat — was published as
+“Showing 5 of 12” beneath a “Top 5 of 103” ranking. That list described different rows. Inventory
+actions are now dropped when the turn used `getHighestStockProducts`; an unrelated Restock or
+product screen survives. The AI-112 suite covers the removal and the preservation.
+
+**Limits.** Nothing in this record is deployed or verified on the installed app. “Show next 5”
 reveals only rows captured in that answer; there is still no tool page cursor or
 search-within-results. The copy control emits React Native's bundled-`Clipboard` deprecation
 warning; moving to `@react-native-clipboard/clipboard` would be a native dependency change and was

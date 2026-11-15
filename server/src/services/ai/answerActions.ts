@@ -268,6 +268,18 @@ export function answerActionsForTool(
   return null;
 }
 
+/**
+ * A ranking answer owns its rows. The model may also read one product's inventory to explain
+ * where that stock sits; that auxiliary read is not the complete list behind the ranking, and
+ * advertising it under the answer says "Showing 5 of 12" about the wrong twelve products.
+ * Drop only Inventory actions, so an unrelated but genuinely useful screen survives.
+ */
+export function withoutInventoryActions(actions: AnswerActions): AnswerActions {
+  const list = actions.list?.kind === 'inventory' ? undefined : actions.list;
+  const screens = actions.screens.filter((entry) => entry.kind !== 'inventory');
+  return { ...(list ? { list } : {}), screens };
+}
+
 /** Merge one tool's action into the turn's actions, keeping the most specific list. */
 export function mergeAnswerActions(
   current: AnswerActions,

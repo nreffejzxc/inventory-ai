@@ -1007,6 +1007,10 @@ produced it:
   is omitted rather than claimed. The Restock link remains for answers stored before these
   actions existed.
 
+A highest-stock answer is a ranking, not an Inventory page: an auxiliary `getInventory`
+read made to explain where the winner's stock sits is not turned into the answer's “complete
+list”, and no Inventory screen action is attached to it.
+
 When a list answer has more matches than the rows shown, the server also stores a bounded page
 of the rows it already read. The mobile thread can reveal that page five rows at a time and
 always prints “Showing X of Y”; it never labels the stored page as the complete set. The screen
