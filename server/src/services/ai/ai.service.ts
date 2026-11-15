@@ -41,6 +41,7 @@ import {
   withCompleteBrandList,
   canonicalBrandListAnswer,
   withCompleteRestockNames,
+  qualifyRestockFullListClaim,
   restockThreeAnswer,
   asksForThreeRestockNames,
   lowStockValueAnswer,
@@ -3011,6 +3012,14 @@ export async function runAiChat({
     }
   }
   finalText = normaliseSkuTypography(stripModelGlitchPreamble(finalText));
+  if (!degraded && asksForRestockList(message)) {
+    const total = reorderFacts.length > 0 ? reorderTotal : lowStockTotal;
+    const qualified = qualifyRestockFullListClaim(finalText, total);
+    if (qualified !== finalText) {
+      console.warn('AI qualified a partial restock list from its own names');
+      finalText = qualified;
+    }
+  }
   finalText = truncate(finalText, cfg.maxMessageChars);
   if (!degraded && researchSources.length > 0) {
     finalText = appendMissingSourceUrls(finalText, researchSources);
