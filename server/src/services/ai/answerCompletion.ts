@@ -1570,6 +1570,35 @@ export function withCompleteRestockNames(
   return appendWithRoom(body, `The full ${label} list is: ${names.join(', ')}.`, maxChars);
 }
 
+/**
+ * Rewrite a full-list claim that carries fewer names than the answer's own total.
+ *
+ * AI-110's last live retest showed the failure the row-based guard could not see: the tool
+ * result had not been captured, so the finalizer had no rows and no count, and it left the
+ * model's “The full restock list is:” sentence untouched. The sentence itself still carries
+ * the evidence — ten names and a stated total of nineteen — so use it. This runs at the end
+ * of the turn, after every other finalizer, and only changes that sentence.
+ */
+export function qualifyRestockFullListClaim(answer: string, total: number): string {
+  const text = String(answer ?? '');
+  const claim = /(?:^|\n)\s*(?:the\s+)?full\s+(restock\s+|low[- ]stock\s+)?list\s+is:\s*([^\n]+)/i.exec(text);
+  if (!claim || claim.index === undefined) return text;
+  const names = (claim[2] ?? '')
+    .split(',')
+    .map((name) => name.trim())
+    .filter(Boolean);
+  if (names.length === 0) return text;
+  const statedTotal = Number.isFinite(total) && total > 0
+    ? total
+    : Number((/([\d,]+)\s+products?\s+need\s+restocking\b/i.exec(text)?.[1] ?? '').replace(/,/g, ''));
+  if (!Number.isFinite(statedTotal) || names.length >= statedTotal) return text;
+  const label = /low[- ]stock/i.test(claim[1] ?? '') ? 'low-stock' : 'restock';
+  const note = `Showing ${names.length} of ${statedTotal} ${label} products; open the Restock screen for all of them.`;
+  const before = text.slice(0, claim.index).trimEnd();
+  const after = text.slice(claim.index + claim[0].length).trimStart();
+  return `${before ? `${before}\n\n` : ''}${note}${after ? `\n\n${after}` : ''}`;
+}
+
 /** A count plus three exact names, in the order the restock tool returned them. */
 export function restockThreeAnswer(
   rows: readonly CatalogueFact[],

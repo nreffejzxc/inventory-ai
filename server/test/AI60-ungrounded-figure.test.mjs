@@ -18,6 +18,7 @@ import {
   canonicalBrandListAnswer,
   asksForRestockList,
   withCompleteRestockNames,
+  qualifyRestockFullListClaim,
   lowStockValueAnswer,
   mostExpensiveProductAnswer,
   brandStockRangeAnswer,
@@ -504,6 +505,17 @@ test('AI-110: a full-list claim is qualified from its own names when no rows wer
     complete: false,
     total: 19,
   });
+  assert.match(answer, /Showing 10 of 19 restock products/);
+  assert.match(answer, /Restock screen/);
+  assert.doesNotMatch(answer, /The full restock list is:/);
+});
+
+test('AI-110: the final guard reads the total from the answer when the tool count is missing', () => {
+  const names = Array.from({ length: 10 }, (_, index) => `Product ${index + 1}`);
+  const draft =
+    '19 products need restocking; the 5 most urgent are listed first.\n\n' +
+    `The full restock list is: ${names.join(', ')}.`;
+  const answer = qualifyRestockFullListClaim(draft, 0);
   assert.match(answer, /Showing 10 of 19 restock products/);
   assert.match(answer, /Restock screen/);
   assert.doesNotMatch(answer, /The full restock list is:/);
