@@ -10,7 +10,7 @@ of truth for *what actually happened*, and it is why this file is long.
 numbers are cited from `CLAUDE.md` and from source comments), or use the index: `CLAUDE.md` §7 lists
 all **235** records by the title each gives itself.
 
-**Current state:** V1 complete and in production testing. The records that answer *where are we now* are §27IC (AI-110 contextual assistant entry and restock shortfall, deployed `7315675` and OTA-verified), §27IB (scheduler proof and hosted freshness), §27IA (post-deploy phone proof, triage and monitor), §27HV (AI-99 10,256-product gate, 24/25 with one output-limit finding), §27HU (AI-99 free-first simple inventory, deployed with the 1.0.2 OTA), §27HT (AI-91/AI-92 exact product identity and per-location stock), §27HS (the AI-50–AI-84 increment register), §27HR (AI-48–AI-84 merged and deployed), §27HQ (grounded answers and scoped stock reads), §27HP (market prices from cited pages), §27HO (recorded specifications and the real seed catalogue), §27HN (inventory-only web research), §27HH (a transfer as one event to the assistant), §27HG (the stock-in link's product), §27HF (the single-location default's timing), §27HE (the stock-in link's location), §27HD (the movement fixes and the production device pass), §27HC (the assistant's local-time answers), §27FM (the V1 re-verification) and §27FJ (the two open advisories).
+**Current state:** V1 complete and in production testing. The records that answer *where are we now* are §27IC (AI-110 contextual assistant entry and restock shortfall, deployed `7315675` and OTA-verified; the partial-restock guards completed in `1c3928b`), §27IB (scheduler proof and hosted freshness), §27IA (post-deploy phone proof, triage and monitor), §27HV (AI-99 10,256-product gate, 24/25 with one output-limit finding), §27HU (AI-99 free-first simple inventory, deployed with the 1.0.2 OTA), §27HT (AI-91/AI-92 exact product identity and per-location stock), §27HS (the AI-50–AI-84 increment register), §27HR (AI-48–AI-84 merged and deployed), §27HQ (grounded answers and scoped stock reads), §27HP (market prices from cited pages), §27HO (recorded specifications and the real seed catalogue), §27HN (inventory-only web research), §27HH (a transfer as one event to the assistant), §27HG (the stock-in link's product), §27HF (the single-location default's timing), §27HE (the stock-in link's location), §27HD (the movement fixes and the production device pass), §27HC (the assistant's local-time answers), §27FM (the V1 re-verification) and §27FJ (the two open advisories).
 
 ---
 
@@ -25418,27 +25418,46 @@ refused the unexplained call.
 
 **Verification.** Server `npm run typecheck` and mobile `npm run typecheck` passed; mobile
 `npm run lint` passed; scoped server ESLint on the changed files passed. Focused Jest: **2 suites /
-15 tests** passed. The AI-110 server tests are **4/4**, the AI-2 read-only suite is **14/14**, and
-the full server unit suite is **2,147 tests — 2,083 pass, 64 skipped, 0 fail**. The full mobile Jest
-run is **105 suites / 1,240 tests, all pass**. `node scripts/check-docs.mjs` and `git diff --check`
-passed. PR #295 passed all four CI jobs and squash-merged as `7315675`; the allow-list follow-up is
-`a5eb4dd`.
+15 tests** passed. The AI-110 server tests are **4/4**, the AI-2 read-only suite is **14/14**, the AI-60
+suite is **64/64** including the partial-page guards and the final text-only case, and the full
+server unit suite is **2,151 tests — 2,087 pass, 64 skipped, 0 fail**. The full mobile Jest run is
+**105 suites / 1,240 tests, all pass**. `node scripts/check-docs.mjs` and `git diff --check`
+passed. PR #295 passed all four CI jobs and squash-merged as `7315675`; the allow-list follow-up
+is `a5eb4dd`.
 
-**Production and device.** Render auto-deployed `server/` and `/api/health` reports commit
-`7315675`, `status: ok`, `db: connected`, **0** `5xx`; `/api/health/ready` returned **200**. OTA
-group `1d139ae9-c7e2-48a2-b33e-63561b761515` (update `01a1df51-b3a3-71a8-b8cf-244282f91ff4`,
-runtime `1.0.2`, from `7315675`) was published to the production channel. On the installed
+**False-completeness follow-up.** A production restock turn then read **10 of 19** rows and wrote
+“The full restock list is:” followed by those 10 names. The AI-90 guard stopped the finalizer from
+extending a partial page but did not correct the model's own claim. Four changes closed every path
+seen in production: #297 qualified a model-written full-list claim; #298 corrected a `first N are
+below` lead-in to the rows actually shown; #299 counted the names in the claim when the tool rows
+were not captured; and #300 added a text-only guard **after every other transformation** that
+reads the total from the answer itself. The result is `Showing 10 of 19 restock products; open the
+Restock screen for all of them.`, with the correct total and urgent rows kept. An answer whose
+names already match its total is untouched. PRs #297–#300 passed all four CI jobs and merged as
+`657e041`, `233d47f`, `af13bf6` and `1c3928b`.
+
+**Production and device.** Render auto-deployed `server/`; `/api/health` reports commit
+`1c3928b`, `status: ok`, `db: connected`, **0** `5xx`; `/api/health/ready` returned **200** and
+`/api/health/integrity` returned **200 fresh**. OTA group
+`1d139ae9-c7e2-48a2-b33e-63561b761515` (update `01a1df51-b3a3-71a8-b8cf-244282f91ff4`, runtime
+`1.0.2`, from `7315675`) was published to the production channel; PRs #297–#300 are server-only,
+so no new OTA was needed. On the installed
 `com.inventoryai.app`, after a cold start, the Restock screen showed **19** products with rows such
 as **40**, **63**, **73**, **87** and **11 below minimum**. The Razer BlackWidow V4 Pro detail opened
 **Ask about this product**, and **Ask AI** opened **New Chat** with
 `How much stock do we have for Razer BlackWidow V4 Pro (SKU DEMOSKU-73), and at which locations?`
 already in the composer and no turn spent. Pressing Send returned the grounded answer **0 units at
-Shop Front and 0 units at Main Warehouse**, with `Read: Inventory rows` and `Ref: cf0f55c5`.
+Shop Front and 0 units at Main Warehouse**, with `Read: Inventory rows` and `Ref: cf0f55c5`. The
+final retest at **2026-11-16 01:22 local** (17:22Z) on the wirelessly mirrored OPPO CPH1969
+returned **19 products need restocking** and ended `Showing 10 of 19 restock products; open the
+Restock screen for all of them.` — `Ref: 5740bc83`, with no “full restock list” claim.
 
 **Limits.** The contextual card exists only on product detail and per-location stock detail; history,
 purchase-order and restock rows do not yet offer one. The shortfall is not a purchasing suggestion
-and does not account for lead time, pack size or supplier minimum. The installed production app was
-the device proof because the local `com.inventoryai` development client still cannot complete
-Firebase sign-in (its native `google-services.json` is absent), so the same UI was not re-run in the
-dev client; the unit and type checks cover the shared code, and the production run is recorded above.
-No AI write capability, copy-answer action, supplier tool or purchase-order tool was added.
+and does not account for lead time, pack size or supplier minimum. The guard corrects a
+completeness claim; it does not turn a ten-row page into the whole restock list, so the answer
+still links to the Restock screen for all 19. The installed production app was the device proof
+because the local `com.inventoryai` development client still cannot complete Firebase sign-in (its
+native `google-services.json` is absent), so the same UI was not re-run in the dev client; the unit
+and type checks cover the shared code, and the production run is recorded above. No AI write
+capability, copy-answer action, supplier tool or purchase-order tool was added.

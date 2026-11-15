@@ -40,27 +40,30 @@ at the end of every development session, newest entry first.
 
 ## Current position
 
-**Updated:** 2026-11-15
+**Updated:** 2026-11-16
 **Goal:** finish and harden Inventory AI **V1** through production testing. No Play Store or App
 Store release is being prepared.
 
-**Current production server (2026-11-15):** `7315675` — PR #295, AI-110 contextual assistant
-entry and the server-computed restock shortfall, auto-deployed at 13:05Z. `/api/health` reports
-`status: ok`, `db: connected`, `environment: production`, commit `7315675`, 0 `5xx`;
-`/api/health/ready` returns 200 and `/api/health/integrity` returns 200 `fresh`. Before it,
-production served `7ebc9a3` (PR #293, hosted freshness), `9d09962` (PR #291, the scheduled
-read-only monitor), then `cd3b1c0` (PR #289), `996e49b` (PR #287), `cb4fcf7` (the PR #282
-stock-value centavo fix), `cd4efcc` (the PR #275 reliability merge), `8245e54` (PR #273),
-`304e2ea` (PR #272) and `65d9ef1` (PR #270).
+**Current production server (2026-11-16):** `1c3928b` — PR #300, the final partial-restock
+completeness guard, auto-deployed at 17:18Z. `/api/health` reports `status: ok`,
+`db: connected`, `environment: production`, commit `1c3928b`, 0 `5xx`; `/api/health/ready` returns
+200 and `/api/health/integrity` returns 200 `fresh`. Before it, production served `af13bf6`
+(PR #299), `233d47f` (PR #298), `657e041` (PR #297, the first partial-restock guard), `7315675`
+(PR #295, AI-110 contextual assistant entry and restock shortfall), `7ebc9a3` (PR #293, hosted
+freshness), `9d09962` (PR #291, the scheduled read-only monitor), then `cd3b1c0` (PR #289),
+`996e49b` (PR #287), `cb4fcf7` (the PR #282 stock-value centavo fix), `cd4efcc` (the PR #275
+reliability merge), `8245e54` (PR #273), `304e2ea` (PR #272) and `65d9ef1` (PR #270).
 The current production OTA is `1d139ae9-c7e2-48a2-b33e-63561b761515` (update
 `01a1df51-b3a3-71a8-b8cf-244282f91ff4`), published from `7315675` on runtime `1.0.2`; the prior
 group was `2110458d-40ca-4975-813c-f182acb3e3aa` from `a7be9cd`, then
-`39f78213-cc77-45f6-8b1b-0b9232b44a62` from `8b99f46`. Local `main` contains the PR #295 merge
-`7315675`, the PR #294 docs merge `315fe9f`, the PR #293 merge `7ebc9a3`, the PR #291 merge
-`9d09962` and the PR #289 merge `cd3b1c0`. The contextual-assistant entry is the newest below; the
-scheduler-proof/hosted-freshness entry, post-deploy/monitor entry, stock-in/audit/device entry,
-installed-app/audit, transfer follow-up, original stock-transfer, restock, stock-out, stock-value
-centavo and product-creation entries follow it.
+`39f78213-cc77-45f6-8b1b-0b9232b44a62` from `8b99f46`. Local `main` contains the PR #300 merge
+`1c3928b`, the PR #299 merge `af13bf6`, the PR #298 merge `233d47f`, the PR #297 merge
+`657e041`, the PR #296 docs merge `698a856`, the PR #295 merge `7315675`, the PR #294 docs merge
+`315fe9f`, the PR #293 merge `7ebc9a3`, the PR #291 merge `9d09962` and the PR #289 merge
+`cd3b1c0`. The contextual-assistant entry is the newest below; the scheduler-proof/hosted-freshness
+entry, post-deploy/monitor entry, stock-in/audit/device entry, installed-app/audit, transfer
+follow-up, original stock-transfer, restock, stock-out, stock-value centavo and product-creation
+entries follow it.
 
 **Post-deploy proof and monitoring (2026-11-15):** the deployed `cd3b1c0` build passed the phone
 transfer journey **60/60** with six ledger rows and the fixture back at **3 / 0**; the 2,517 orphan
@@ -79,8 +82,13 @@ the assistant is told to quote it rather than subtract. PR #295 passed all four 
 as `7315675`; Render reports that commit with `status: ok` and 0 `5xx`. OTA group
 `1d139ae9-c7e2-48a2-b33e-63561b761515` loaded on the installed production app: the restock
 shortfall was visible, the Razer product card opened **New Chat** with the exact-SKU question
-prefilled, and Send returned **0 units at both locations** with `Ref: cf0f55c5`. The complete
-record is §27IC.
+prefilled, and Send returned **0 units at both locations** with `Ref: cf0f55c5`. A follow-up
+restock question then found a **false completeness claim**: the answer read 10 of 19 rows and
+called them “The full restock list”. PR #297 added a deterministic qualification; #298 fixed a
+misleading `first N` lead-in, #299 counted a claim's own names when tool rows were missing, and
+#300 added the final text-only guard after every other transformation. The final retest named
+**19** as the total and ended `Showing 10 of 19 restock products; open the Restock screen for all
+of them.` (`Ref: 5740bc83`). The complete record is §27IC.
 
 **Scheduler proof and hosted freshness (2026-11-15):** a temporary one-off Task Scheduler task
 fired the wrapper automatically at **19:11:35 local**, returned task result **0**, and was then
@@ -233,7 +241,9 @@ Known limits, checked before spending one of them:
 
 **Status.** PASS. PR #295 merged as `7315675` with all four required CI checks green and
 auto-deployed; the production OTA from the same commit loaded on the installed app and the new
-entry points and shortfall were exercised there.
+entry points and shortfall were exercised there. A follow-up turn found a false completeness claim
+in a partial restock answer; PRs #297–#300 closed the remaining wording paths and the final
+production retest showed the truthful partial-list sentence on the phone.
 
 **What changed.** Product detail now offers **Ask about this product** and a per-location stock row
 offers **Ask about this stock** to members with assistant access. Both open `/ai/new` with a
@@ -246,16 +256,28 @@ the positive gap. The reorder row and the assistant's stock card carry it, so th
 and the assistant quote the same number. It is a threshold shortfall, not a recommended order
 quantity. The assistant remains read-only; no tool, permission or data scope changed.
 
+The same restock question exposed a false completeness claim: the answer read 10 of 19 rows and
+called them “The full restock list”. The existing AI-90 guard stopped the finalizer from adding
+names to a partial page, but did not correct the model's own claim. Four deterministic changes
+closed it: `withCompleteRestockNames` qualifies a partial page; #298 corrects a `first N are below`
+lead-in to the rows actually shown; #299 counts the names in a full-list sentence when the tool
+rows were not captured; and #300 adds a text-only guard **after every other transformation** that
+reads the total from the answer itself. The result is `Showing 10 of 19 restock products; open the
+Restock screen for all of them.` The correct total and urgent rows are kept, and an answer whose
+names already match its total is untouched.
+
 **Verification.** `npm run typecheck` passed on both server and mobile; mobile `npm run lint` and
 scoped server ESLint passed. Focused Jest **2 suites / 15 tests** passed. The AI-110 server tests
-are **4/4**, the AI-2 read-only invariant suite is **14/14**, and the full server unit suite is
-**2,147 tests — 2,083 pass, 64 skipped, 0 fail**. Full mobile Jest is **105 suites / 1,240 tests,
+are **4/4**, the AI-2 read-only invariant suite is **14/14**, and the AI-60 suite is **64/64**
+including the partial-page guards and the final text-only case. The full server unit suite is
+**2,151 tests — 2,087 pass, 64 skipped, 0 fail**. Full mobile Jest is **105 suites / 1,240 tests,
 all pass**. `node scripts/check-docs.mjs` and `git diff --check` passed. The AI-2 scan initially
 refused the new service call, correctly; the fix names `productService.unitsBelowMinimum` in the
 allow-list as a pure formatter. That follow-up is `a5eb4dd`.
 
-**Production and phone.** Render auto-deployed the server change. `/api/health` reports commit
-`7315675`, `status: ok`, `db: connected`, **0** `5xx`; `/api/health/ready` returned **200**. OTA
+**Production and phone.** Render auto-deployed the server changes. `/api/health` reports commit
+`1c3928b`, `status: ok`, `db: connected`, **0** `5xx`; `/api/health/ready` returned **200** and
+`/api/health/integrity` returned **200 fresh**. OTA
 group `1d139ae9-c7e2-48a2-b33e-63561b761515` (update
 `01a1df51-b3a3-71a8-b8cf-244282f91ff4`, runtime `1.0.2`, from `7315675`) was published to the
 production channel. On the installed `com.inventoryai.app`, the Restock screen showed **19**
@@ -263,13 +285,20 @@ products with shortfall lines from **11** to **87** units; the Razer BlackWidow 
 showed the assistant card, and its button opened **New Chat** with
 `How much stock do we have for Razer BlackWidow V4 Pro (SKU DEMOSKU-73), and at which locations?`
 in the composer and no turn spent. Send returned **0 units at Shop Front and 0 units at Main
-Warehouse**, `Read: Inventory rows`, `Ref: cf0f55c5`.
+Warehouse**, `Read: Inventory rows`, `Ref: cf0f55c5`. A follow-up restock question produced the
+10-of-19 “full list” answer; after the four guards, the final fresh-chat retest at
+**2026-11-16 01:22 local** (17:22Z) named **19** as the total and ended with
+`Showing 10 of 19 restock products; open the Restock screen for all of them.` — `Ref: 5740bc83`,
+on the wirelessly mirrored OPPO CPH1969. No “full restock list” claim remained.
 
 **Limits and resource use.** The contextual card is not on history, purchase-order or restock rows.
-The shortfall ignores lead time, pack size and supplier minimums. The device proof used the
-production app because the local `com.inventoryai` development client cannot complete Firebase
-sign-in without its native `google-services.json`; the shared code is unit-tested, but this UI was
-not re-run in the dev client. One production OTA was published; no EAS build was spent.
+The shortfall ignores lead time, pack size and supplier minimums. The guard corrects a completeness
+claim; it does not turn a ten-row page into the whole restock list, so the answer still links to the
+Restock screen for all 19. The device proof used the production app because the local
+`com.inventoryai` development client cannot complete Firebase sign-in without its native
+`google-services.json`; the shared code is unit-tested, but this UI was not re-run in the dev
+client. One production OTA was published; no EAS build was spent. PRs #298–#300 are server-only, so
+no further OTA was needed.
 
 ---
 

@@ -19,11 +19,12 @@ and `mobile/lib/sse.ts`.
 ## 0. Production snapshot (settings read 2026-11-13; deployment re-checked 2026-11-15)
 
 Read from the Render API for the live `ai-inventory` service on branch `main`, at commit
-`705d192`. On **2026-11-15** the deployment was re-checked at commit `7315675` (AI-110):
-`/api/health` reported `status: ok`, `db: connected`, 0 `5xx`, and `/api/health/ready` returned
-200. AI-110 adds the contextual question entry and the restock `unitsBelowMinimum` field; it
-changes no limit in this guide. The non-secret AI settings below were **not re-read** on
-2026-11-15, so they remain the 2026-11-13 reading. Secret values were not read. The service has
+`705d192`. On **2026-11-16** the deployment was re-checked at commit `1c3928b` (PR #300, the final
+partial-restock completeness guard): `/api/health` reported `status: ok`, `db: connected`,
+0 `5xx`, and `/api/health/ready` returned 200. PRs #297–#300 add the contextual question entry,
+the restock `unitsBelowMinimum` field and the partial-list wording guard; they change no limit in
+this guide. The non-secret AI settings below were **not re-read** on 2026-11-16, so they remain
+the 2026-11-13 reading. Secret values were not read. The service has
 these non-secret AI settings; everything not listed is absent and uses the source default.
 
 | Variable | Production value | Source default | Effect in production |
