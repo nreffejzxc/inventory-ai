@@ -463,7 +463,8 @@ test('AI-110: a model-written complete claim on a partial page is corrected', ()
   const rows = Array.from({ length: 10 }, (_, index) => ({ name: `Product ${index + 1}` }));
   const draft =
     '19 products need restocking. The 5 most urgent are Product 1 to Product 5.\n\n' +
-    'The full restock list is: Product 1, Product 2, Product 3, Product 4, Product 5.';
+    'The full restock list is: Product 1, Product 2, Product 3, Product 4, Product 5, ' +
+    'Product 6, Product 7, Product 8, Product 9, Product 10.';
   const answer = withCompleteRestockNames(draft, rows, 2000, {
     label: 'restock',
     complete: false,
@@ -491,6 +492,21 @@ test('AI-110: a first-N lead-in names the rows actually shown', () => {
   assert.match(answer, /The first 10 are below/);
   assert.doesNotMatch(answer, /The first 5 are below/);
   assert.match(answer, /19 products need restocking/);
+});
+
+test('AI-110: a full-list claim is qualified from its own names when no rows were captured', () => {
+  const names = Array.from({ length: 10 }, (_, index) => `Product ${index + 1}`);
+  const draft =
+    '19 products need restocking. The remaining items have some stock available.\n\n' +
+    `The full restock list is: ${names.join(', ')}.`;
+  const answer = withCompleteRestockNames(draft, [], 2000, {
+    label: 'restock',
+    complete: false,
+    total: 19,
+  });
+  assert.match(answer, /Showing 10 of 19 restock products/);
+  assert.match(answer, /Restock screen/);
+  assert.doesNotMatch(answer, /The full restock list is:/);
 });
 
 test('AI-90: every returned restock product is named once', () => {

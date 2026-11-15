@@ -1517,13 +1517,28 @@ function correctRestockLeadIn(body: string, shown: number): string {
   });
 }
 
+/**
+ * Count the names a full-list sentence actually carries. The model's own rows are not
+ * required: this is the last line of defence when a tool result was not captured.
+ */
+function claimedRestockNames(body: string): number {
+  const match = /(?:^|\n)\s*(?:the\s+)?full\s+(?:restock\s+|low[- ]stock\s+)?list\s+is:\s*([^\n]+)/i.exec(body);
+  if (!match) return 0;
+  return (match[1] ?? '')
+    .split(',')
+    .map((name) => name.trim())
+    .filter(Boolean).length;
+}
+
 function qualifyPartialRestockAnswer(body: string, shown: number, options: RestockListOptions): string {
   const label = String(options.label ?? 'restock').trim() || 'restock';
   const total = finiteNumber(options.total);
+  const claimed = claimedRestockNames(body);
+  const visible = claimed > 0 ? claimed : shown;
   const note =
-    total !== null && total > shown
-      ? `Showing ${shown} of ${total} ${label} products; open the Restock screen for all of them.`
-      : `Showing ${shown} ${label} products; open the Restock screen for the complete list.`;
+    total !== null && total > visible
+      ? `Showing ${visible} of ${total} ${label} products; open the Restock screen for all of them.`
+      : `Showing ${visible} ${label} products; open the Restock screen for the complete list.`;
   const claim = /\b(?:the\s+)?full\s+(?:restock\s+|low[- ]stock\s+)?list\s+is:[\s\S]*$/i;
   if (!claim.test(body)) return body;
   const prefix = body.replace(claim, '').trimEnd();
