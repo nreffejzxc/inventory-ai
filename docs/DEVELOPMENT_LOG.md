@@ -44,6 +44,18 @@ at the end of every development session, newest entry first.
 **Goal:** finish and harden Inventory AI **V1** through production testing. No Play Store or App
 Store release is being prepared.
 
+**Deterministic complete restock list, AI-114 (2026-11-16):** a complete `getReorderNeededProducts`
+or `getLowStockProducts` read is now rendered by the server instead of being retyped by the
+model. The answer states the total, the whole-set unit gap when present, and one line per product
+with SKU, availability, minimum and gap; it can rescue an `OUTPUT_LIMIT` turn when the rows are
+complete. Partial, duplicated, malformed or oversized sets keep the existing qualification path.
+The structured list is suppressed when the answer itself carries every row, while its screen
+links survive. Server typecheck, focused suites **70/70**, full unit suite **2,111 / 64 skipped / 0
+failed**, targeted ESLint and both module-graph checks pass. The dev client loaded on the phone but
+could not sign in locally (no auth request reached the server), so end-to-end proof is pending the
+production promotion; code is on `fix/deterministic-restock-list`, not yet merged or deployed.
+The complete record is §27IF.
+
 **AI answer actions and deterministic answers, PR #304 (2026-11-15–16):** AI-111–AI-113 are
 **merged, deployed and device-verified**. PR #304 merged as `af366c1` after CI run `43748694544`
 passed all four jobs; OTA group `9d759ee5-82c5-4fbe-afe0-3a0ea2c44f6c` published from that commit

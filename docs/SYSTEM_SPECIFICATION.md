@@ -1011,6 +1011,15 @@ A highest-stock answer is a ranking, not an Inventory page: an auxiliary `getInv
 read made to explain where the winner's stock sits is not turned into the answer's “complete
 list”, and no Inventory screen action is attached to it.
 
+An explicit complete restock or low-stock list is rendered by the server from the rows the
+tool returned, not retyped by the model. The renderer runs only when the read's own total
+matches the unique rows, every product line fits the message ceiling, and the question asks
+for one list rather than a second fact. It replaces a model draft that may have spent its
+output budget on reasoning, and it can rescue an `OUTPUT_LIMIT` turn from those rows. A partial
+page, a count that disagrees with the rows, malformed rows or an oversized answer falls back
+to the existing qualification path. Because the answer itself carries every row, the
+structured answer-actions list is not repeated underneath it; its screen links survive.
+
 When a list answer has more matches than the rows shown, the server also stores a bounded page
 of the rows it already read. The mobile thread can reveal that page five rows at a time and
 always prints “Showing X of Y”; it never labels the stored page as the complete set. The screen

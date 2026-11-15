@@ -102,8 +102,8 @@ dbSuite('Phase 06 — AI chat behavior', dbOk, () => {
 
   it('Q1 "which products are low on stock?" returns the real low-stock set', async () => {
     let turn = 0;
-    // The model reads the rows but answers with only a count; the completion step must add
-    // the products it failed to name. The names come from the tool result, not the test.
+    // The model reads the rows but answers with only a count. AI-114 replaces that draft with
+    // a deterministic complete list, so every row is named without model prose or reasoning.
     const toolNames = [];
     setFakeScenario((ctx) => {
       turn += 1;
@@ -115,8 +115,10 @@ dbSuite('Phase 06 — AI chat behavior', dbOk, () => {
     const res = await chat(biz.token, { message: 'Which products are low on stock?' });
     assert.equal(res.status, 201);
     const content = res.json.assistantMessage.content;
-    assert.match(content, /^You have 2 low-stock products\./);
-    assert.match(content, /The full low-stock list is: /);
+    assert.match(content, /^2 products are low on stock\./);
+    assert.match(content, /1\. \*\*[^*]+\*\*/);
+    assert.match(content, /2\. \*\*[^*]+\*\*/);
+    assert.doesNotMatch(content, /\b(?:I think|The result shows|Let's examine)\b/);
     assert.equal(toolNames.length, 2);
     for (const name of toolNames) {
       assert.ok(content.includes(name), `${name} must be named in the completed answer`);

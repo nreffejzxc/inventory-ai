@@ -41,6 +41,7 @@ import {
   withCompleteBrandList,
   canonicalBrandListAnswer,
   withCompleteRestockNames,
+  restockFullListAnswer,
   qualifyRestockFullListClaim,
   restockThreeAnswer,
   asksForThreeRestockNames,
@@ -802,6 +803,10 @@ export async function runAiChat({
   const lowStockFacts: CatalogueFact[] = [];
   const reorderFacts: CatalogueFact[] = [];
   let answerActions: AnswerActions = { screens: [] };
+  // AI-114 — a complete restock list is rendered in the answer itself. The structured
+  // answer-actions list would repeat the same rows underneath it, so only its screen links
+  // survive that turn.
+  let restockListInAnswer = false;
   const historyTopOutFacts: TopOutFact[] = [];
   const locationFacts: CatalogueFact[] = [];
   let locationPageComplete = false;
@@ -2980,7 +2985,10 @@ export async function runAiChat({
       console.warn('AI product-level stock range computed from the returned rows');
     }
   }
-  if (!degraded && asksForRestockList(message)) {
+  // AI-114 — an OUTPUT_LIMIT draft may still have a complete restock read behind it. The
+  // rows are authoritative, so a bounded deterministic list can rescue the turn even though
+  // the model spent its output budget on reasoning. Other degraded reasons stay untouched.
+  if ((!degraded || degraded === 'OUTPUT_LIMIT') && asksForRestockList(message)) {
     // The restock tool is the direct answer (it flags each row), but a plain "what is low on
     // stock" turn reads getLowStockProducts instead. Use whichever rows this turn actually
     // returned, together with that read's own total.
@@ -2993,20 +3001,39 @@ export async function runAiChat({
     // finalizer exists to prevent, so a partial page is left to the model and its total.
     const complete = rows.length >= count;
     let completed = finalText;
-    if (fromRestock && asksForThreeRestockNames(message)) {
-      const exact = restockThreeAnswer(rows, count, cfg.maxMessageChars);
-      if (exact) {
-        completed = exact;
-        console.warn('AI exact restock names taken from the returned rows');
+    let usedCanonical = false;
+    // Replace a model-composed list only when the whole set is present and the question is
+    // one list request. A second requested fact (value, count, another scope) keeps the
+    // model's draft, because a bare list would delete it.
+    if (complete && !asksForMultipleFacts(message)) {
+      const canonical = restockFullListAnswer(rows, count, cfg.maxMessageChars, {
+        label: fromRestock ? 'restock' : 'low-stock',
+        shortfall: fromRestock ? reorderUnitsBelowMinimum : null,
+      });
+      if (canonical) {
+        completed = canonical;
+        usedCanonical = true;
+        restockListInAnswer = true;
+        if (degraded === 'OUTPUT_LIMIT') degraded = null;
+        console.warn('AI complete restock list rendered from the returned rows');
       }
     }
-    completed = withCompleteRestockNames(completed, rows, cfg.maxMessageChars, {
-      label: fromRestock ? 'restock' : 'low-stock',
-      complete,
-      total: count,
-    });
-    if (rows.length > 0) {
-      completed = replaceRestockCountClaims(completed, count);
+    if (!usedCanonical) {
+      if (fromRestock && asksForThreeRestockNames(message)) {
+        const exact = restockThreeAnswer(rows, count, cfg.maxMessageChars);
+        if (exact) {
+          completed = exact;
+          console.warn('AI exact restock names taken from the returned rows');
+        }
+      }
+      completed = withCompleteRestockNames(completed, rows, cfg.maxMessageChars, {
+        label: fromRestock ? 'restock' : 'low-stock',
+        complete,
+        total: count,
+      });
+      if (rows.length > 0) {
+        completed = replaceRestockCountClaims(completed, count);
+      }
     }
     if (completed !== finalText) {
       finalText = completed;
@@ -3113,9 +3140,11 @@ export async function runAiChat({
   ]);
   // AI-113 — a highest-stock answer is a ranking, not an inventory page. The model can read one
   // product's locations after the ranking; that read must not become the answer's "complete" list.
-  const finalAnswerActions = toolsSucceeded.has('getHighestStockProducts')
-    ? withoutInventoryActions(answerActions)
-    : answerActions;
+  const finalAnswerActions = restockListInAnswer
+    ? { screens: answerActions.screens }
+    : toolsSucceeded.has('getHighestStockProducts')
+      ? withoutInventoryActions(answerActions)
+      : answerActions;
   return {
     content: finalText,
     turnId,
