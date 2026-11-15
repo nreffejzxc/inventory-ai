@@ -328,4 +328,4 @@ grep "AI turn" <log> | grep -oE "model=[^ ]+ tier=[^ ]+" | sort | uniq -c
 | Inventory-integrity monitor | `server/scripts/monitor-inventory-integrity.mjs`; baseline and first run in `docs/evidence/inventory-integrity-monitor/` |
 | Inventory-integrity task | `scripts/run-integrity-audit.ps1`, `scripts/register-integrity-audit-scheduler.ps1` |
 | Probe tests | `server/test/ops-production-health.test.mjs` |
-| Recorded design | `docs/DEVELOPMENT_ROADMAP.md` §27DI (the pulse), §27HU–§27HX (AI-99 through the external watch) |
+| Recorded design | `docs/DEVELOPMENT_ROADMAP.md` §27DI (the pulse), §27HU–§27HX (AI-99 through the external watch), §27IA (the integrity monitor) |
