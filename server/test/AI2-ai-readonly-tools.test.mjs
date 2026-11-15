@@ -57,6 +57,9 @@ const READ_ONLY_SERVICE_CALLS = new Set([
   'productService.getByIdentifier',
   'productService.toProductDTO',
   'productService.reorderItemPublic',
+  // AI-110: a pure formatter for the shortfall to a configured minimum. It reads no record
+  // and writes nothing; listing it keeps the scan exhaustive instead of exempting helpers.
+  'productService.unitsBelowMinimum',
   // AI-44: one aggregate read over the brand field, no write path.
   'productService.brandSummary',
   // AI-46: one aggregate read for catalogue contents and coverage, no write path.
