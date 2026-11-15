@@ -35,6 +35,7 @@ export interface ButtonProps {
   style?: StyleProp<ViewStyle>;
   full?: boolean;
   textStyle?: StyleProp<TextStyle>;
+  testID?: string;
 }
 
 /**
@@ -53,6 +54,7 @@ export default function Button({
   style,
   full = false,
   textStyle,
+  testID,
 }: ButtonProps) {
   const { colors } = useTheme();
   const variants = useMemo(() => createVariants(colors), [colors]);
@@ -60,6 +62,7 @@ export default function Button({
   const isDisabled = disabled || loading;
   return (
     <Pressable
+      testID={testID}
       accessibilityRole="button"
       onPress={onPress}
       disabled={isDisabled}

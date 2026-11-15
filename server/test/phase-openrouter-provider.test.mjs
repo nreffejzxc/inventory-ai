@@ -76,6 +76,8 @@ const EXPECTED_TOOLS = [
   'getReorderNeededProducts',
   // AI-113: the highest-stock ranking, so the answer is not the first page of a stock read.
   'getHighestStockProducts',
+  // AI-116: the previous answer's bounded product set, re-read with current stock.
+  'filterPreviousResults',
   // AI-71: dead stock — ACTIVE products with no stock-out on record at all.
   'getProductsNeverSold',
   // AI-14: the two reference lists the id-taking tools needed to be usable.
@@ -87,6 +89,10 @@ const EXPECTED_TOOLS = [
   // shelf. Listed here because this array is the wire-level statement of what ships.
   'getLocationBreakdown',
 ];
+
+// AI-116 is offered only after a row-shaped answer, so a first question advertises the
+// other twenty tools. The wire-mapping test above still sends the complete exported list.
+const ALWAYS_OFFERED_TOOLS = EXPECTED_TOOLS.filter((name) => name !== 'filterPreviousResults');
 
 const { dbOk, baseUrl, server: appServer } = await startServer();
 const api = makeApi(baseUrl);
@@ -1999,16 +2005,16 @@ dbSuite('OpenRouter provider — real full-catalogue workload', dbOk, () => {
       assert.equal(out.iterations, 4);
       assert.equal(out.degraded, 'UNVERIFIED_RESEARCH');
       assert.match(out.content, /couldn't verify current online information/i);
-      assert.deepEqual([...out.toolsUsed].sort(), [...EXPECTED_TOOLS].sort());
+      assert.deepEqual([...out.toolsUsed].sort(), [...ALWAYS_OFFERED_TOOLS].sort());
 
       const results = parsedToolResults(requests[1].body);
-      assert.equal(results.length, EXPECTED_TOOLS.length);
+      assert.equal(results.length, ALWAYS_OFFERED_TOOLS.length);
       for (const [i, result] of results.entries()) {
         assert.equal(result.ok, true, `tool ${allToolCalls()[i].name} failed: ${JSON.stringify(result)}`);
       }
 
       // The wire carried every tool schema in the same request.
-      assert.deepEqual([...requests[0].body.tools.map((t) => t.name)].sort(), [...EXPECTED_TOOLS].sort());
+      assert.deepEqual([...requests[0].body.tools.map((t) => t.name)].sort(), [...ALWAYS_OFFERED_TOOLS].sort());
     } finally {
       restoreAll(restores);
     }

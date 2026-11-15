@@ -159,6 +159,8 @@ export const canReceivePurchaseOrders = (u: PermissionSubject | null | undefined
   can(u, PERMISSIONS.PURCHASE_ORDERS_RECEIVE);
 export const canManageUsers = (u: PermissionSubject | null | undefined): boolean => can(u, PERMISSIONS.USERS_MANAGE);
 export const canViewAudit = (u: PermissionSubject | null | undefined): boolean => can(u, PERMISSIONS.AUDIT_VIEW);
+export const canViewAiMetrics = (u: PermissionSubject | null | undefined): boolean =>
+  can(u, PERMISSIONS.AI_METRICS_VIEW);
 
 /**
  * Roles an actor may assign when creating/editing a user. OWNER may assign

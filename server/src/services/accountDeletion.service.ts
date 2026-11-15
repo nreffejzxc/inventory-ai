@@ -97,6 +97,7 @@ import EmailVerificationChallenge from '../models/emailVerificationChallenge.mod
 import Invitation from '../models/invitation.model.ts';
 import AIConversation from '../models/aiConversation.model.ts';
 import AIMessage from '../models/aiMessage.model.ts';
+import AiFeedback from '../models/aiFeedback.model.ts';
 import { recordAudit } from './audit.service.ts';
 import { AUDIT_ACTIONS, AUDIT_ENTITY_TYPES } from '../constants/audit.ts';
 import { deleteFirebaseUser, verifyFirebaseIdToken } from './firebase/index.ts';
@@ -314,6 +315,9 @@ async function deleteOwnedRecords(user: {
 
   const conversations = await AIConversation.find({ userId: user._id }).select('_id').lean();
   const conversationIds = conversations.map((row) => row._id);
+  // AI-115 — a rating may carry the member's own note, so it is personal data too.
+  // Delete it by author before the messages it points at, so no orphan row survives.
+  await AiFeedback.deleteMany({ userId: user._id });
   if (conversationIds.length > 0) {
     await AIMessage.deleteMany({ conversationId: { $in: conversationIds } });
   }

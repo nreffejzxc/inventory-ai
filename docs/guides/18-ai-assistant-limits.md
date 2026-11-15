@@ -68,6 +68,7 @@ snapshot as current.
 | Authentication | Required | fixed | `/api/ai/chat` and all conversation routes require a valid session. The assistant never runs anonymously. |
 | Permission | `ai.use` | fixed | All four roles (OWNER, ADMIN, MANAGER, STAFF) hold it. A user without it gets `403`. |
 | Metrics access | `ai.metrics.view` | fixed | Only OWNER and ADMIN can read aggregate AI turn metrics. Metrics are operational data, not member chat. |
+| Feedback review | `ai.metrics.view` | fixed | Only OWNER and ADMIN can read or review member feedback. A member may rate only a stored answer in their own conversation. |
 | Conversation ownership | Same user **and** business | fixed | A conversation is looked up by `businessId` + `userId`; another user in the same business gets `404`. |
 | Tool data scope | Caller's business only | fixed | `businessId` comes from the authenticated user, never from the model or request body. Tool schemas reject unknown arguments, so a model cannot supply a different tenant id. |
 | Tool permissions | Existing role permissions | fixed | Every tool checks its declared permission again at execution time. A STAFF user can use product/inventory reads but not dashboard-only reads such as `getInventorySummary` or `getLocationBreakdown`. |
@@ -125,6 +126,10 @@ It never falls back after streamed text, after a quota/rate/auth refusal, or aft
 | Limit | Value | Type | How it works and why |
 |---|---|---|---|
 | Conversation context | Last `20` stored messages | **env** `AI_CONTEXT_MESSAGES` | Only USER and ASSISTANT rows are loaded; tool messages are not replayed. This keeps prompts bounded and avoids sending stale tool output as fresh evidence. |
+| Follow-up result set | Immediately previous answer, at most **100 product ids** | fixed | Only an explicit referent (`which of those`, `among them`, `narrow that list`) offers `filterPreviousResults`. It re-reads current stock for those ids; it never replays an old quantity, payload, tenant id or an older answer's set. |
+| Answer provenance | 1 timestamp, up to 10 tools/sources, 10 web URLs | fixed | The stored `answerContext` names what produced the answer, the count and the applied filters. It stores no tool result, prompt or member identifier. |
+| Feedback note | `500` characters | fixed | Comments are trimmed and bounded at the HTTP boundary; an UP rating cannot carry a reason or note. |
+| Feedback queue excerpts | `500` question / `1,200` answer characters | fixed | The OWNER/ADMIN review page returns bounded excerpts, not a member's whole conversation or email address. |
 | Input message | `4,000` characters | **env** `AI_MAX_MESSAGE_CHARS` | Same setting as the request validation cap. |
 | Output tokens | `1,200` | **env** `AI_MAX_OUTPUT_TOKENS` | Per provider call. Limits generation time and prevents a runaway answer from consuming the turn. |
 | Answer characters | `4,000` before source URLs | **env** `AI_MAX_MESSAGE_CHARS` | The final answer is trimmed to this length. Research source URLs are appended afterwards, so a sourced answer can be slightly longer. This trim does not add a separate degraded marker. |

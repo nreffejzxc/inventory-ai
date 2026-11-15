@@ -56,6 +56,46 @@ const answerActionsSchema = new Schema(
   { _id: false },
 );
 
+const answerFilterSchema = new Schema(
+  {
+    label: { type: String, required: true, trim: true },
+    value: { type: String, required: true, trim: true },
+  },
+  { _id: false },
+);
+
+const answerWebSourceSchema = new Schema(
+  {
+    title: { type: String, required: true, trim: true },
+    url: { type: String, required: true, trim: true },
+  },
+  { _id: false },
+);
+
+/**
+ * AI-116 — what an answer read, bounded to ids and provenance.
+ *
+ * The ids are MEMBERSHIP for a follow-up, not a stock snapshot. `retrievedAt` is
+ * the last successful row read, and the follow-up tool re-reads current stock for
+ * those ids, so nothing here can become a stale quantity in the next answer.
+ */
+const answerContextSchema = new Schema(
+  {
+    retrievedAt: { type: Date, required: true },
+    tools: { type: [String], default: [] },
+    sources: { type: [String], default: [] },
+    productCount: { type: Number, default: 0, min: 0 },
+    total: { type: Number, default: null, min: 0 },
+    hasMore: { type: Boolean, default: false },
+    filters: { type: [answerFilterSchema], default: [] },
+    resultTool: { type: String, trim: true },
+    resultInput: { type: Schema.Types.Mixed },
+    resultProductIds: { type: [String], default: [] },
+    webSources: { type: [answerWebSourceSchema], default: [] },
+  },
+  { _id: false },
+);
+
 const aiMessageSchema = new Schema(
   {
     conversationId: {
@@ -100,6 +140,11 @@ const aiMessageSchema = new Schema(
     /** AI-112 — direct screen destinations and a bounded page of the rows behind the answer. */
     answerActions: {
       type: answerActionsSchema,
+      default: undefined,
+    },
+    /** AI-116 — provenance and bounded membership behind this answer. */
+    answerContext: {
+      type: answerContextSchema,
       default: undefined,
     },
     usage: {

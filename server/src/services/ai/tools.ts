@@ -31,6 +31,7 @@ import { transactionsService, TRANSACTION_TYPES } from '../transactions.service.
 import { researchInventoryWeb, WEB_RESEARCH_NOTE, type ResearchFocus, type ResearchSubject } from './webResearch.ts';
 import { MARKET_PRICE_NOTE, researchMarketPrices, type PriceSubject } from './marketPrices.ts';
 import { aiConfig } from './aiConfig.ts';
+import type { PreviousResultContext } from './answerContext.ts';
 import { hasPermission, PERMISSIONS } from '../../constants/roles.ts';
 import { localDateTime } from '../../utils/timeZone.ts';
 
@@ -57,6 +58,12 @@ interface ToolContext {
    * that was collected.
    */
   deadlineAt?: number;
+  /**
+   * AI-116 — the bounded previous result set a follow-up may filter. It carries
+   * product ids and the retrieval time, never a quantity: the filtering tool
+   * re-reads current inventory for exactly those products.
+   */
+  previousResult?: PreviousResultContext;
 }
 
 /**
@@ -220,6 +227,13 @@ interface ProductsByLocationArgs extends ToolArguments, LocationRef {
 interface ReferenceListArgs extends ToolArguments {
   q?: string;
   status?: string;
+  limit?: number;
+}
+
+/** AI-116 — narrow the previous answer's products by category and/or place. */
+interface FilterPreviousArgs extends ToolArguments, CategoryRef, LocationRef {
+  lowStock?: boolean;
+  outOfStock?: boolean;
   limit?: number;
 }
 
@@ -1237,6 +1251,95 @@ const tools: Tool[] = [
                 'where it is or that somewhere else has none.',
             }
           : {}),
+      });
+    },
+  },
+
+  {
+    name: 'filterPreviousResults',
+    description:
+      'Filter ONLY the products in the previous answer, for a follow-up that narrows that list ("which of those are in Keyboards & Mice?", "which of those are at Main Warehouse?", "how many of those are low?"). The server re-reads current stock for exactly those product ids, so every quantity is fresh; never reuse a quantity from the previous answer. Pass an exact category name or id and/or an exact location name or id when the follow-up adds one. `count` is every previous product that matches and `items` is the current page. Do NOT use this for a new question, for a different product set, or when no previous result set is offered.',
+    permission: PERMISSIONS.INVENTORY_VIEW,
+    defaultLimit: 50,
+    parameters: {
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        categoryId: objectId,
+        category: {
+          type: 'string',
+          maxLength: 100,
+          description: 'Exact name of an ACTIVE category, e.g. "Keyboards & Mice".',
+        },
+        locationId: objectId,
+        location: {
+          type: 'string',
+          maxLength: 100,
+          description: 'Exact name of an ACTIVE location, e.g. "Main Warehouse".',
+        },
+        lowStock: {
+          type: 'boolean',
+          description: 'When true, keep only previous products at or below their minimum stock.',
+        },
+        outOfStock: {
+          type: 'boolean',
+          description: 'When true, keep only previous products with no available stock.',
+        },
+        limit: limitParam(50, 50),
+      },
+    },
+    async executor(ctx: ToolContext, args: FilterPreviousArgs) {
+      const previous = ctx.previousResult;
+      if (!previous?.productIds.length) {
+        return {
+          available: false,
+          code: 'NO_PREVIOUS_RESULT',
+          note: 'There is no previous result set to filter. Start a fresh read for this question.',
+        };
+      }
+      const category = await resolveCategory(ctx, args);
+      if (!category.ok) return category.result;
+      const location = await resolveLocation(ctx, args, { required: false });
+      if (!location.ok) return location.result;
+
+      const limit = Math.min(args.limit ?? 50, 50);
+      const { items, total } = await productService.list(ctx.businessId, {
+        includeIds: previous.productIds,
+        categoryId: category.id,
+        locationId: location.id,
+        lowStock: args.lowStock === true,
+        outOfStock: args.outOfStock === true,
+        status: 'ACTIVE',
+        withStock: true,
+        skip: 0,
+        limit,
+      });
+      const listKind =
+        previous.tool === 'getReorderNeededProducts' ||
+        (previous.tool === 'getLowStockProducts' && !location.id)
+          ? 'restock'
+          : ['findProducts', 'searchProducts', 'getProductsByLocation', 'getProductsNeverSold', 'getHighestStockProducts', 'getProduct', 'getStockValue'].includes(previous.tool)
+            ? 'products'
+            : 'inventory';
+      return page(total, items.map(stockCard), {
+        scope: 'previous-result-set',
+        previousTool: previous.tool,
+        previousRetrievedAt: previous.retrievedAt,
+        previousCount: previous.productIds.length,
+        listKind,
+        ...(args.lowStock === true ? { lowStock: true } : {}),
+        ...(args.outOfStock === true ? { outOfStock: true } : {}),
+        ...(category.id ? { categoryId: category.id } : {}),
+        ...(args.category ? { categoryName: args.category.trim() } : {}),
+        ...(location.id ? { locationId: location.id } : {}),
+        ...(args.location ? { locationName: args.location.trim() } : {}),
+        note:
+          `These rows are the CURRENT stock for the ${previous.productIds.length} product(s) in the ` +
+          'previous answer, filtered by this request. Quote their current quantities; do not reuse a ' +
+          'quantity from the previous answer, and do not call this a new catalogue search. ' +
+          (total > items.length
+            ? `This page shows ${items.length} of ${total} matching previous products; say it is partial.`
+            : 'Every matching previous product is included.'),
       });
     },
   },
