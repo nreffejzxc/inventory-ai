@@ -8,9 +8,9 @@ of truth for *what actually happened*, and it is why this file is long.
 
 **How to read it.** Do not read it top to bottom. Either find a record by number (§27FJ, §27DM — the
 numbers are cited from `CLAUDE.md` and from source comments), or use the index: `CLAUDE.md` §7 lists
-all **235** records by the title each gives itself.
+all **236** records by the title each gives itself.
 
-**Current state:** V1 complete and in production testing. The records that answer *where are we now* are §27IC (AI-110 contextual assistant entry and restock shortfall, deployed `7315675` and OTA-verified; the partial-restock guards completed in `1c3928b`), §27IB (scheduler proof and hosted freshness), §27IA (post-deploy phone proof, triage and monitor), §27HV (AI-99 10,256-product gate, 24/25 with one output-limit finding), §27HU (AI-99 free-first simple inventory, deployed with the 1.0.2 OTA), §27HT (AI-91/AI-92 exact product identity and per-location stock), §27HS (the AI-50–AI-84 increment register), §27HR (AI-48–AI-84 merged and deployed), §27HQ (grounded answers and scoped stock reads), §27HP (market prices from cited pages), §27HO (recorded specifications and the real seed catalogue), §27HN (inventory-only web research), §27HH (a transfer as one event to the assistant), §27HG (the stock-in link's product), §27HF (the single-location default's timing), §27HE (the stock-in link's location), §27HD (the movement fixes and the production device pass), §27HC (the assistant's local-time answers), §27FM (the V1 re-verification) and §27FJ (the two open advisories).
+**Current state:** V1 complete and in production testing. The records that answer *where are we now* are §27ID (the permanent assistant improvement roadmap and implementation audit; docs-only), §27IC (AI-110 contextual assistant entry and restock shortfall, deployed `7315675` and OTA-verified; the partial-restock guards completed in `1c3928b`), §27IB (scheduler proof and hosted freshness), §27IA (post-deploy phone proof, triage and monitor), §27HV (AI-99 10,256-product gate, 24/25 with one output-limit finding), §27HU (AI-99 free-first simple inventory, deployed with the 1.0.2 OTA), §27HT (AI-91/AI-92 exact product identity and per-location stock), §27HS (the AI-50–AI-84 increment register), §27HR (AI-48–AI-84 merged and deployed), §27HQ (grounded answers and scoped stock reads), §27HP (market prices from cited pages), §27HO (recorded specifications and the real seed catalogue), §27HN (inventory-only web research), §27HH (a transfer as one event to the assistant), §27HG (the stock-in link's product), §27HF (the single-location default's timing), §27HE (the stock-in link's location), §27HD (the movement fixes and the production device pass), §27HC (the assistant's local-time answers), §27FM (the V1 re-verification) and §27FJ (the two open advisories).
 
 ---
 
@@ -25461,3 +25461,42 @@ because the local `com.inventoryai` development client still cannot complete Fir
 native `google-services.json` is absent), so the same UI was not re-run in the dev client; the unit
 and type checks cover the shared code, and the production run is recorded above. No AI write
 capability, copy-answer action, supplier tool or purchase-order tool was added.
+
+---
+
+# 27ID. AI Assistant improvement roadmap and implementation audit (2026-11-16)
+
+**What changed.** A permanent plan, [`AI_ASSISTANT_IMPROVEMENT_ROADMAP.md`](AI_ASSISTANT_IMPROVEMENT_ROADMAP.md),
+records the owner's eight assistant improvements and audits each against the implementation at
+`1670e2d` / production server `1c3928b`. No product code, tool, route, schema or UI changed in this
+record; it is a docs-only planning increment. The worktree was returned to the `1670e2d` baseline
+before the audit, so no half-finished answer-action code is carried forward.
+
+**Audit result.** The existing assistant is stronger than a blank-slate plan would suggest, but the
+eight asks are not equally complete. **Restock navigation is already implemented**
+(`restockPathForTools`, `/restock`, covered by `ai26-restock-link.test.tsx`); **Copy Answer and
+product navigation are not**. Complete lists are bounded and the app screens hold them, but the
+assistant has no in-chat next page or search-within-results. Deterministic finalizers cover many
+high-value figures, but not every question shape; follow-ups carry text history rather than the
+previous structured result; location comparison and restock priorities exist, while two-product /
+minimum comparisons, decreasing-inventory verdicts, run-out forecasts, excess rules and a single
+consistent report read do not. Transparency is strong on grounding and partial restock pages, with
+residual gaps for generic lists and silent length trimming.
+
+The recommended order is the owner's: (1) answer actions, (2) complete-list paths, (3) remaining
+deterministic answers, (4) follow-up result context, (5) comparison, (6) insights, (7) transparency
+hardening, (8) report summaries. The roadmap marks items 3 and 7 as release gates for every slice,
+not as work that can be skipped until their turn. Every future slice must keep the assistant
+read-only, derive `businessId` only from the authenticated server context, refuse on missing data
+rather than guess, stay within the existing bounded page/output/iteration limits, add focused
+tests, and update the permanent roadmap's status.
+
+**Verification.** `node scripts/check-docs.mjs` and `git diff --check` are the appropriate checks for
+a docs-only change; no server or mobile typecheck/test was run because no executable source was
+touched. The production baseline remains `1c3928b` with its previously recorded health, readiness
+and integrity results; this audit made no deployment and spent no AI provider turn.
+
+**Limits.** The status table is a dated code-and-record audit, not a promise that every listed
+question shape works. It does not measure new answer latency or model quality. The roadmap is
+deliberately a separate living document so future increments can update status without rewriting
+the append-only history here.

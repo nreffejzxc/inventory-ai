@@ -8,7 +8,10 @@ The production settings were read from the live Render service on **2026-11-13**
 defaults in the tables below.
 
 The assistant is deliberately bounded in four places: **who may ask**, **how often**, **how long
-and how much one turn may use**, and **what the answer is allowed to claim**.
+and how much one turn may use**, and **what the answer is allowed to claim**. The product-level
+improvement order and the current gap audit are kept separately in
+[`../AI_ASSISTANT_IMPROVEMENT_ROADMAP.md`](../AI_ASSISTANT_IMPROVEMENT_ROADMAP.md); this guide
+remains the source for the limits themselves.
 
 Source of truth: `server/src/services/ai/aiConfig.ts`, `ai.service.ts`, `tools.ts`,
 `webCapabilities.ts`, `webResearch.ts`, `marketPrices.ts`, `freeWeb.ts`, `quota.ts`,
