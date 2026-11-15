@@ -139,7 +139,7 @@ import {
   type SimplePaidBudgetReservation,
 } from './simplePaidBudget.ts';
 import { executeTool, AI_TOOL_DEFS } from './tools.ts';
-import { answerActionsForTool, mergeAnswerActions } from './answerActions.ts';
+import { answerActionsForTool, mergeAnswerActions, withoutInventoryActions } from './answerActions.ts';
 import type { AnswerActions } from './answerActions.ts';
 import {
   appendMissingSourceUrls,
@@ -3111,13 +3111,19 @@ export async function runAiChat({
     ...reorderFacts,
     ...locationFacts,
   ]);
+  // AI-113 — a highest-stock answer is a ranking, not an inventory page. The model can read one
+  // product's locations after the ranking; that read must not become the answer's "complete" list.
+  const finalAnswerActions = toolsSucceeded.has('getHighestStockProducts')
+    ? withoutInventoryActions(answerActions)
+    : answerActions;
   return {
     content: finalText,
     turnId,
     model: model ?? undefined,
     toolsUsed: [...toolsUsed],
     productLinks: productLinks.length ? productLinks : undefined,
-    answerActions: answerActions.screens.length || answerActions.list ? answerActions : undefined,
+    answerActions:
+      finalAnswerActions.screens.length || finalAnswerActions.list ? finalAnswerActions : undefined,
     usage: usage ?? undefined,
     iterations: steps,
     degraded: degraded ?? undefined,

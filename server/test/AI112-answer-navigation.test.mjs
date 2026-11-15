@@ -6,7 +6,11 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { answerActionsForTool, mergeAnswerActions } from '../src/services/ai/answerActions.ts';
+import {
+  answerActionsForTool,
+  mergeAnswerActions,
+  withoutInventoryActions,
+} from '../src/services/ai/answerActions.ts';
 import AIMessage from '../src/models/aiMessage.model.ts';
 
 const envelope = (result) => ({ ok: true, result });
@@ -88,6 +92,25 @@ test('AI-112: history and reference reads get their own screens', () => {
 
 test('AI-112: a single-product read does not invent a list destination', () => {
   assert.equal(answerActionsForTool('getProduct', { id: 'p1' }, envelope({ product: { id: 'p1' } })), null);
+});
+
+test('AI-112: a highest-stock ranking drops the auxiliary inventory page, not a useful screen', () => {
+  const auxiliary = answerActionsForTool(
+    'getInventory',
+    { productId: 'p1' },
+    envelope({
+      total: 12,
+      items: [{ product: { id: 'p1', name: 'Razer BlackWidow V4 Pro' }, location: { name: 'Shop Front' }, availableQuantity: 8 }],
+    }),
+  );
+  const alone = withoutInventoryActions(mergeAnswerActions({ screens: [] }, auxiliary));
+  assert.equal(alone.list, undefined);
+  assert.deepEqual(alone.screens, []);
+
+  const useful = answerActionsForTool('getReorderNeededProducts', {}, restock);
+  const mixed = withoutInventoryActions(mergeAnswerActions(mergeAnswerActions({ screens: [] }, auxiliary), useful));
+  assert.equal(mixed.list.kind, 'restock');
+  assert.deepEqual(mixed.screens.map((entry) => entry.kind), ['restock']);
 });
 
 test('AI-112: one turn keeps the most useful list and at most three screen links', () => {
