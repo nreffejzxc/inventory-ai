@@ -878,6 +878,12 @@ export function catalogueFactFromRow(raw: unknown): CatalogueFact | null {
   const price = typeof product.sellingPrice === 'number' ? product.sellingPrice : null;
   const directQuantity = typeof record.availableQuantity === 'number' ? record.availableQuantity : null;
   const productQuantity = typeof product.availableQuantity === 'number' ? product.availableQuantity : null;
+  const minimumSource = record.minimumStock ?? product.minimumStock;
+  const minimumStock =
+    typeof minimumSource === 'number' && Number.isFinite(minimumSource) ? minimumSource : null;
+  const gapSource = record.unitsBelowMinimum ?? product.unitsBelowMinimum;
+  const unitsBelowMinimum =
+    typeof gapSource === 'number' && Number.isFinite(gapSource) ? gapSource : null;
   return {
     id: typeof product.id === 'string' ? product.id : undefined,
     name,
@@ -891,6 +897,8 @@ export function catalogueFactFromRow(raw: unknown): CatalogueFact | null {
         ? location.name.trim()
         : null,
     stockValue: typeof record.value === 'number' ? record.value : null,
+    minimumStock,
+    unitsBelowMinimum,
   };
 }
 
@@ -945,6 +953,10 @@ export interface CatalogueFact {
   locationName?: string | null;
   /** The recorded on-hand value when the stock-value tool supplied it. */
   stockValue?: number | null;
+  /** The configured minimum, when a restock/low-stock read supplied it. */
+  minimumStock?: number | null;
+  /** The server-computed gap to that minimum; null when no minimum is configured. */
+  unitsBelowMinimum?: number | null;
 }
 
 /** A product the answer names, with the catalogue id the read tool supplied. */
@@ -1770,6 +1782,68 @@ export function qualifyRestockFullListClaim(answer: string, total: number): stri
   const before = text.slice(0, claim.index).trimEnd();
   const after = text.slice(claim.index + claim[0].length).trimStart();
   return `${before ? `${before}\n\n` : ''}${note}${after ? `\n\n${after}` : ''}`;
+}
+
+/**
+ * AI-114 — a complete restock read is rendered by the server, not retyped by the model.
+ *
+ * Measured in production on 2026-11-15: “List every product that needs restocking” read
+ * all 19 rows, then spent its output budget narrating its own reasoning (“The result
+ * shows…”, “I think…”, “Let’s examine each item”) before reaching the list. The turn was
+ * truthful but unusable, and the truncated draft hid the very rows the member asked for.
+ *
+ * The tool already returned the whole set. Rendering it is arithmetic-free and bounded:
+ * one numbered line per product, the same quantity / minimum / gap the Restock screen
+ * shows, and a hard character ceiling. A partial page, a count that disagrees with the
+ * rows, malformed rows or an answer that would exceed the ceiling returns null so the
+ * existing partial-list qualification remains in charge.
+ */
+export interface RestockFullListOptions {
+  label?: string;
+  /** The tool's whole-set gap, when the restock read supplied it. */
+  shortfall?: number | null;
+}
+
+export function restockFullListAnswer(
+  rows: readonly CatalogueFact[],
+  total: number,
+  maxChars: number,
+  options: RestockFullListOptions = {},
+): string | null {
+  const facts = uniqueFacts(rows);
+  const count = finiteNumber(total);
+  if (facts.length === 0 || count === null || count <= 0 || facts.length !== count) return null;
+  const label = String(options.label ?? 'restock').trim() || 'restock';
+  const shortfall = finiteNumber(options.shortfall);
+  const state =
+    label === 'low-stock'
+      ? count === 1
+        ? 'product is low on stock'
+        : 'products are low on stock'
+      : count === 1
+        ? 'product needs restocking'
+        : 'products need restocking';
+  const header =
+    shortfall !== null && shortfall >= 0
+      ? `${formatUnits(count)} ${state}, with a combined gap of ${formatUnits(shortfall)} units to their configured minimums.`
+      : `${formatUnits(count)} ${state}.`;
+  const lines: string[] = [];
+  for (const [index, row] of facts.entries()) {
+    const details: string[] = [];
+    if (row.sku) details.push(`SKU ${row.sku}`);
+    const available = finiteNumber(row.availableQuantity);
+    if (available !== null) details.push(`${formatUnits(available)} available`);
+    const minimum = finiteNumber(row.minimumStock);
+    if (minimum !== null) details.push(`minimum ${formatUnits(minimum)}`);
+    const gap = finiteNumber(row.unitsBelowMinimum);
+    if (gap !== null && gap > 0) details.push(`${formatUnits(gap)} below minimum`);
+    lines.push(
+      `${index + 1}. **${row.name}**${details.length > 0 ? ` — ${details.join(' · ')}` : ''}`,
+    );
+  }
+  const answer = `${header}\n\n${lines.join('\n')}`;
+  const limit = Number.isFinite(maxChars) && maxChars > 0 ? maxChars : answer.length;
+  return answer.length <= limit ? answer : null;
 }
 
 /** A count plus three exact names, in the order the restock tool returned them. */

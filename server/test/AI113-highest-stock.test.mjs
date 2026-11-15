@@ -9,6 +9,8 @@ import {
   asksForRestockShortfall,
   asksForHighestStockQuantity,
   highestStockQuantityAnswer,
+  catalogueFactFromRow,
+  restockFullListAnswer,
   restockShortfallAnswer,
 } from '../src/services/ai/answerCompletion.ts';
 import { aiToolsById } from '../src/services/ai/tools.ts';
@@ -104,6 +106,63 @@ test('AI-113: a unit-shortfall question is not answered with a product count', (
   );
   assert.equal(restockShortfallAnswer(0, 0, 300), 'No products need restocking right now.');
   assert.equal(restockShortfallAnswer(-1, 3, 300), null);
+});
+
+test('AI-114: a complete restock read is rendered exactly, without model reasoning', () => {
+  const rows = [
+    {
+      id: 'p1',
+      name: 'Razer BlackWidow V4 Pro',
+      sku: 'DEMOSKU-73',
+      availableQuantity: 0,
+      minimumStock: 40,
+      unitsBelowMinimum: 40,
+    },
+    {
+      id: 'p2',
+      name: 'ASUS ROG Strix Flare II Animate',
+      sku: 'DEMOSKU-44',
+      availableQuantity: 9,
+      minimumStock: 28,
+      unitsBelowMinimum: 19,
+    },
+  ];
+  assert.equal(
+    restockFullListAnswer(rows, 2, 4000, { shortfall: 59 }),
+    '2 products need restocking, with a combined gap of 59 units to their configured minimums.\n\n' +
+      '1. **Razer BlackWidow V4 Pro** — SKU DEMOSKU-73 · 0 available · minimum 40 · 40 below minimum\n' +
+      '2. **ASUS ROG Strix Flare II Animate** — SKU DEMOSKU-44 · 9 available · minimum 28 · 19 below minimum',
+  );
+});
+
+test('AI-114: the restock row keeps the minimum and the server-computed gap', () => {
+  const fact = catalogueFactFromRow({
+    id: 'p1',
+    name: 'Razer BlackWidow V4 Pro',
+    sku: 'DEMOSKU-73',
+    availableQuantity: 0,
+    minimumStock: 40,
+    unitsBelowMinimum: 40,
+  });
+  assert.equal(fact.minimumStock, 40);
+  assert.equal(fact.unitsBelowMinimum, 40);
+});
+
+test('AI-114: a partial, duplicated or oversized restock set is never called complete', () => {
+  const rows = Array.from({ length: 3 }, (_, index) => ({
+    id: `p${index + 1}`,
+    name: `Product ${index + 1}`,
+    availableQuantity: 0,
+    minimumStock: 4,
+    unitsBelowMinimum: 4,
+  }));
+  assert.equal(restockFullListAnswer(rows, 4, 4000), null);
+  const deduped = restockFullListAnswer([...rows, rows[0]], 3, 4000);
+  assert.ok(deduped);
+  assert.equal(deduped.match(/\*\*Product 1\*\*/g)?.length, 1);
+  assert.equal(restockFullListAnswer(rows, 3, 80), null);
+  assert.equal(restockFullListAnswer([], 0, 4000), null);
+  assert.equal(restockFullListAnswer(rows, 3, 40, { label: 'low-stock' }), null);
 });
 
 test('AI-113: the restock tool exposes the whole-set shortfall and the prompt says to quote it', () => {

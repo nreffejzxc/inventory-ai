@@ -25588,3 +25588,50 @@ cursor or search-within-results. The copy control emits React Native's bundled-`
 deprecation warning; moving to `@react-native-clipboard/clipboard` would be a native dependency
 change and was not taken. Production is server `91d635d` on OTA
 `9d759ee5-82c5-4fbe-afe0-3a0ea2c44f6c`.
+
+---
+
+# 27IF. AI-114 — a complete restock list is rendered, not reasoned (2026-11-16)
+
+**The defect.** AI-111–AI-113's production verification found one remaining answer-quality
+failure. Asked “List every product that needs restocking”, the model read all 19 rows and then
+spent its 1,200-token output budget narrating its own process (“The result shows…”, “I think…”,
+“Let’s examine each item”) before reaching the list. The answer was marked `OUTPUT_LIMIT`, and the
+member had to scroll past reasoning to find a truncated list. The rows were already complete; the
+model was the wrong renderer.
+
+**What changed.** `restockFullListAnswer` builds the answer from the complete restock/low-stock
+read: a count, the tool's whole-set gap when present, and one numbered line per product with SKU,
+available quantity, configured minimum and the server-computed gap. `catalogueFactFromRow` now
+carries `minimumStock` and `unitsBelowMinimum`, so the answer and the Restock screen quote the same
+values. The renderer is used only when the tool's total equals the unique rows, the question asks
+for one list rather than a second fact, and the result fits `AI_MAX_MESSAGE_CHARS`. A partial set,
+duplicate-driven count disagreement, malformed row or oversized result returns `null` and keeps
+the existing partial-list qualification.
+
+**Output-limit rescue.** The restock finalizer may now run on an `OUTPUT_LIMIT` turn when the read
+is complete, because the rows — not the model's prose — are authoritative. A successful render
+clears the degraded marker; no provider retry is spent. Other degraded reasons remain untouched.
+
+**No duplicate list.** When the answer itself carries every row, the structured answer-actions
+list is omitted from that message so the thread does not print the same products twice. Its screen
+links (for example Open Restock) survive; product names in the answer remain server-id links.
+
+**Read-only and isolation.** No tool, route, write path, tenant boundary or client-side name
+lookup changed. The renderer only formats rows the existing `getReorderNeededProducts` or
+`getLowStockProducts` read returned for the authenticated business.
+
+**Verification.** Server `tsc --noEmit` passed. The focused AI-112/AI-113/AI-60 suites passed
+**70/70**; the full unit suite passed **2,111 / 64 skipped / 0 failed** (430 suites). Targeted ESLint
+passed, and both module-graph checks passed (691 modules; 3,192 relative specifiers resolved). The
+three AI-114 tests cover exact rendering, the minimum/gap extraction, and refusal of partial,
+duplicated or oversized sets.
+
+**Delivery.** On branch `fix/deterministic-restock-list`; deployment and device proof follow the
+normal PR, CI, Render and OTA path. Production remains `91d635d` on OTA
+`9d759ee5-82c5-4fbe-afe0-3a0ea2c44f6c` until that promotion.
+
+**Limits.** This covers explicit restock and low-stock lists whose complete rows fit the message
+ceiling. A set larger than the ceiling still uses the count-plus-qualification path. The dev client
+loaded on the phone but could not sign in locally (no auth request reached the server), so the
+end-to-end proof uses the production app after promotion; the finalizer's own tests are DB-free.
