@@ -1,0 +1,75 @@
+{
+  "generatedAt": "2026-11-15T02:36:56.982Z",
+  "tenant": "rak gears",
+  "product": {
+    "id": "6af888b6a860111ff47c31c4",
+    "name": "Phone Smoke Product",
+    "sku": "PHONE-SMOKE-20261115"
+  },
+  "locations": [
+    {
+      "id": "6af88e5aa860111ff47c31c6",
+      "name": "Phone Smoke Location"
+    },
+    {
+      "id": "6af8a2de739e48312d42f533",
+      "name": "Phone Smoke Location 2"
+    }
+  ],
+  "inventory": [
+    {
+      "location": "Phone Smoke Location",
+      "quantity": 3,
+      "reservedQuantity": 0
+    },
+    {
+      "location": "Phone Smoke Location 2",
+      "quantity": 0,
+      "reservedQuantity": 0
+    }
+  ],
+  "totalQuantity": 3,
+  "historyTotal": 14,
+  "transferRowCount": 8,
+  "byReference": {
+    "SMOKE-UI-TRANSFER-001": {
+      "count": 2,
+      "rows": [
+        {
+          "location": "Phone Smoke Location",
+          "type": "TRANSFER",
+          "quantity": 2,
+          "previousQuantity": 3,
+          "newQuantity": 1
+        },
+        {
+          "location": "Phone Smoke Location 2",
+          "type": "TRANSFER",
+          "quantity": 2,
+          "previousQuantity": 0,
+          "newQuantity": 2
+        }
+      ]
+    },
+    "SMOKE-UI-TRANSFER-002": {
+      "count": 2,
+      "rows": [
+        {
+          "location": "Phone Smoke Location 2",
+          "type": "TRANSFER",
+          "quantity": 2,
+          "previousQuantity": 2,
+          "newQuantity": 0
+        },
+        {
+          "location": "Phone Smoke Location",
+          "type": "TRANSFER",
+          "quantity": 2,
+          "previousQuantity": 1,
+          "newQuantity": 3
+        }
+      ]
+    }
+  },
+  "invalidReferencesPresent": 0
+}

@@ -40,18 +40,19 @@ at the end of every development session, newest entry first.
 
 ## Current position
 
-**Updated:** 2026-11-14
+**Updated:** 2026-11-15
 **Goal:** finish and harden Inventory AI **V1** through production testing. No Play Store or App
 Store release is being prepared.
 
-**Current production server (2026-11-14):** `cb4fcf7` — Render auto-deployed the PR #282
-stock-value centavo fix at 17:04Z. `/api/health` reports `status: ok`, `db: connected`, `environment:
-production`, commit `cb4fcf7`, 0 `5xx`; `/api/health/ready` returns 200. The deploy also carries the
-staging drills/evidence and the AI-107 finalizer. Before it, production served `cd4efcc` (the PR #275
-reliability merge), `8245e54` (PR #273), `304e2ea` (PR #272) and `65d9ef1` (PR #270).
+**Current production server (2026-11-15):** `996e49b` — PR #287, the transfer test/evidence merge,
+auto-deployed at 02:24Z. `/api/health` reports `status: ok`, `db: connected`, `environment:
+production`, commit `996e49b`, 0 `5xx`; `/api/health/ready` returns 200. The merge changed only the
+DB-backed test and documentation, so no runtime behavior changed. Before it, production served
+`cb4fcf7` (the PR #282 stock-value centavo fix), `cd4efcc` (the PR #275 reliability merge), `8245e54`
+(PR #273), `304e2ea` (PR #272) and `65d9ef1` (PR #270).
 The current production OTA is `2110458d-40ca-4975-813c-f182acb3e3aa`, published from `a7be9cd`
 on runtime `1.0.2`; the prior group was `39f78213-cc77-45f6-8b1b-0b9232b44a62` from `8b99f46`;
-local `main` contains the PR #271 delivery `42229e5` (the current-position alignment) and the PR #275 reliability merge `cd4efcc`. The transfer follow-up entry is the newest below; the original stock-transfer entry, restock, stock-out, stock-value centavo and product-creation entries follow it.
+local `main` contains the PR #287 merge `996e49b`, the PR #271 delivery `42229e5` (the current-position alignment) and the PR #275 reliability merge `cd4efcc`. The installed-app/audit entry is the newest below; the transfer follow-up, original stock-transfer, restock, stock-out, stock-value centavo and product-creation entries follow it.
 
 **Production product creation + required-name test (2026-11-14):** the designated test tenant
 `rak gears` now holds one test product, `Phone Smoke Product` (`PHONE-SMOKE-20261115`), and
@@ -60,7 +61,7 @@ the original test location, `Phone Smoke Location`; the transfer check added `Ph
 force-stop/cold start. The stock-out checks then blocked a 7-unit attempt, recorded a valid `6 → 4`
 movement, and took the product to **0 units** through a repeated-press boundary test. A 3-unit
 restock then returned it to **3 units**, with **In stock 1**, **Low stock 0**, **Out of stock 0**,
-and six movements; the product is healthy above its minimum of 2. After the transfer follow-up, all 3 units are back at `Phone Smoke Location`; `Phone Smoke Location 2` is at 0 and the product has ten movements. The empty-name retest on the same production build focused the
+and six movements; the product is healthy above its minimum of 2. After the installed-app transfer checks, all 3 units are back at `Phone Smoke Location`; `Phone Smoke Location 2` is at 0 and the product has **14 movements**. The two UI transfers used `SMOKE-UI-TRANSFER-001` and `SMOKE-UI-TRANSFER-002`. The empty-name retest on the same production build focused the
 name field and showed `Name is required`; PR #278 merged as `a7be9cd`, and the component test merged
 as PR #279 (`6b6ef1f`). A 5-unit movement then a double-pressed 1-unit movement produced exactly
 `0 → 5` and `5 → 6`, not a duplicate. The stock-value answer initially rendered the exact `94.50`
@@ -71,6 +72,7 @@ as `PHP 95`; PR #282 fixed only the monetary formatter, and the production retes
 [centavo evidence](evidence/stock-value-cents-2026-11-14/README.md) /
 [stock-out evidence](evidence/stock-out-and-negative-2026-11-14/README.md) /
 [restock evidence](evidence/restock-2026-11-14/README.md). The transfer checks are recorded in
+[installed-app and write-path audit evidence](evidence/transfer-ui-and-write-audit-2026-11-15/README.md),
 [transfer follow-up evidence](evidence/transfer-followups-2026-11-14/README.md) and
 [the original transfer evidence](evidence/transfer-2026-11-14/README.md).
 
@@ -179,6 +181,55 @@ Known limits, checked before spending one of them:
   space that a backup or an index change would explain.
 - **Brevo** — used for verification codes, reset codes and invitations. Do not send test mail in
   bulk; a delivery failure is not a code regression until the provider log says so.
+
+---
+
+## 2026-11-15 — Installed-app transfer checks and inventory write-path audit
+
+**Status.** PASS. PR #287 merged the permanent transfer regression as `996e49b` with all four
+required checks green; Render auto-deployed it at 02:24Z, and `/api/health` reported `status: ok`,
+`db: connected`, commit `996e49b`, 0 `5xx` while readiness returned **200**. The installed
+`com.inventoryai.app` **1.0.2** build then exercised the transfer form on a CPH1969 Android device,
+and the other inventory write paths were reviewed and tested. Only the two smoke locations and
+`Phone Smoke Product` were touched; no operational location or inventory changed.
+
+**Installed-app transfers.** The forward form moved **2** units, showing `Phone Smoke Location:
+3 → 1` and `Phone Smoke Location 2: 0 → 2` under `SMOKE-UI-TRANSFER-001`. The reverse form moved
+them back, showing `Phone Smoke Location 2: 2 → 0` and `Phone Smoke Location: 1 → 3` under
+`SMOKE-UI-TRANSFER-002`. The final dashboard showed **In stock 1**, **Low stock 0**, **Out of stock
+0**, **Active products 1** and **Total on-hand qty 3**. The ledger read back **14 movements**, of
+which **8** are `TRANSFER` rows; each UI reference has exactly one row per location, and there are
+**0** rows whose reference contains `SAME` or `OVER`.
+
+**Installed-app refusals.** Choosing `Phone Smoke Location` as both source and destination showed
+“Choose two different locations — a transfer moves stock somewhere else” and left the submit button
+disabled. With 3 available, quantity 4 showed “Only 3 available to move — the server will not let
+stock go below zero” and also left submit disabled. Neither attempt called the API, changed stock,
+or wrote a ledger row. The matching server-side refusals remain independently covered by the
+production API checks and Phase 19.
+
+**Write-path audit.** Every quantity-changing route mounts `idempotent()`:
+`POST /api/inventory/stock-in`, `/stock-out`, `/adjust`, `/transfer` and
+`POST /api/purchase-orders/:id/receive`; PO creation is also keyed. The services use atomic
+single-document guards plus quantity-anchored compensation, write one transaction per movement
+(two for a transfer), and the PO path is claim-first so a losing concurrent receive moves no stock.
+PO update/issue/cancel are guarded state transitions with no inventory movement. The four relevant
+DB-backed files passed **69/69** (`phase04-inventory`, `phase07a-inventory-compensation`,
+`phase13-receiving`, `phase19-transfers`), and the idempotency file passed **10/10**.
+
+**Residual risks.** The architecture is deliberately single-document atomic plus compensation, not
+a multi-document transaction: a concurrent movement can make a compensation no-op, which is logged
+and leaves the original movement durable. A narrow stock-in duplicate-key retry window remains — if
+the winning row is removed by its own compensation before the loser's retry, the loser can write a
+ledger row without the row. It requires a concurrent failed first stock-in, was not reproduced here,
+and is a hardening candidate. Idempotency also applies only when the caller sends
+`Idempotency-Key`; every current mobile write form does. These are recorded in the evidence rather
+than treated as observed production failures.
+
+**Limit.** Android only; no iOS device is available. No APK, OTA, runtime source, deployment
+configuration or AI model changed. The screenshots are of the installed build, not a new one.
+Evidence:
+[`transfer-ui-and-write-audit-2026-11-15`](evidence/transfer-ui-and-write-audit-2026-11-15/README.md).
 
 ---
 
