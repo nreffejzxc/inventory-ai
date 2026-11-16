@@ -97,6 +97,13 @@ unitSuite('PLAT-2 console origin and CSP', () => {
       assert.equal(body.includes('JWT_SECRET'), false);
       assert.equal(body.includes('MFA_ENCRYPTION'), false);
       assert.equal(body.includes('mongodb'), false);
+
+      // The config is an origin; the app must append the API mount itself. The
+      // browser E2E caught this when the console requested /auth/login instead
+      // of /api/platform/auth/login and the server answered 404.
+      const appJs = await (await fetch(`${base}/app.js`)).text();
+      assert.match(appJs, /\/api\/platform/);
+      assert.match(appJs, /API = String\(config\.apiOrigin[\s\S]*?\+ '\/api\/platform'/);
     });
   });
 

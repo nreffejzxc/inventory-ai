@@ -9,7 +9,9 @@
   'use strict';
 
   var config = window.__PLATFORM_CONSOLE__ || {};
-  var API = String(config.apiOrigin || '').replace(/\/+$/, '');
+  // The config value is the API origin only (the console server refuses a path).
+  // Every platform endpoint lives under the API's `/api/platform` mount.
+  var API = String(config.apiOrigin || '').replace(/\/+$/, '') + '/api/platform';
   var CSRF_COOKIE = 'platform_csrf';
   var state = {
     csrf: '',
