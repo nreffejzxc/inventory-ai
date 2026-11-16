@@ -1114,6 +1114,112 @@ days. Cost is provider-reported only: a missing charge stays unknown, partial co
 (`totals.cost.estimatedUsd` is `null`, `totals.cost.estimatedAvailable` is `false`). The response is
 `Cache-Control: no-store`. Guide 16 §10 holds the full field reference.
 
+### Platform Operations (internal)
+
+Platform Operations is the INTERNAL monitoring surface for the Inventory AI owner, support team and
+developers. It is not a tenant feature: no business OWNER/ADMIN role, tenant token, `operations.view`
+permission or mobile screen can reach it. The tenant-facing OPS-7 draft was removed before commit.
+
+```http
+POST /api/platform/auth/login                 (email + password -> MFA challenge, NEVER a session)
+POST /api/platform/auth/mfa/enroll/start      (enrollment challenge -> TOTP secret, once)
+POST /api/platform/auth/mfa/enroll/confirm    (enrollment challenge + code -> first session)
+POST /api/platform/auth/mfa/verify            (login challenge + TOTP -> session)
+POST /api/platform/auth/mfa/webauthn/options  (login challenge -> assertion options)
+POST /api/platform/auth/mfa/webauthn/verify   (assertion -> session)
+POST /api/platform/auth/webauthn/register/options  (authenticated; registration options)
+POST /api/platform/auth/webauthn/register/verify   (authenticated; stores a credential)
+POST /api/platform/auth/renew                 (fresh token for the same session)
+POST /api/platform/auth/logout
+GET  /api/platform/auth/csrf                 (cookie session; rotate the CSRF value)
+GET  /api/platform/auth/me
+GET  /api/platform/operations?days=7           platform.metrics.read
+GET  /api/platform/audit?limit=50              platform.audit.read
+```
+
+**MFA IS MANDATORY.** A password check returns only a purpose-bound challenge token; no access
+token, no cookie and no session row are created until a TOTP code or a registered WebAuthn
+assertion succeeds. The first successful password check opens TOTP enrollment; the secret is shown
+once and stored encrypted with AES-256-GCM under `PLATFORM_MFA_ENCRYPTION_KEY`. A TOTP code is
+single-use: an atomic `lastTotpCounter` update refuses a replay. WebAuthn registration is available
+only inside an authenticated platform session, requires user verification, and advances the stored
+credential counter. A WebAuthn login challenge is stored as a hash and consumed in the same atomic
+update that advances the counter, so a captured assertion cannot replay even when the authenticator
+reports a zero counter. A missing MFA key fails closed with `503 PLATFORM_MFA_NOT_CONFIGURED` before
+the password is checked, so configuration cannot become a credential oracle.
+
+**TWO CREDENTIAL CARRIERS.** API clients use `Authorization: Bearer <platform token>`. The dedicated
+console uses an HttpOnly `platform_session` cookie (Path `/api/platform`, `SameSite=Strict`, `Secure`
+in production) plus a readable `platform_csrf` cookie. A cookie-authenticated request is accepted
+only from the exact `PLATFORM_CONSOLE_ORIGIN` and only when `X-Platform-CSRF` matches the CSRF
+cookie; Bearer clients need no CSRF because a browser does not attach the header automatically. A
+cross-origin console that cannot read the API host's CSRF cookie after a reload calls
+`GET /api/platform/auth/csrf`: GET-only, exact Origin, existing session, and it issues only a fresh
+CSRF value. The console is a separate static listener (`server/platform-console/`, `npm run platform-console`) with
+no MongoDB connection, a strict CSP (`script-src 'self'`, `connect-src` only the API origin,
+`frame-ancestors 'none'`), no inline script or style, and no browser token storage.
+
+**AUDIT IS APPEND-ONLY.** `platform_audit_events` records login success/failure, MFA and WebAuthn
+changes, capability denials, operations reads, audit reads, renewal and logout. The model refuses
+update, replace and delete operations. There is no TTL; retention is an explicit operator decision.
+Only SECURITY and SUPERADMIN hold `platform.audit.read`. Every event is bounded metadata — no
+password, token, TOTP code, WebAuthn response, tenant id or tenant data.
+
+**SEPARATE PLATFORM IDENTITY REALM.** `platform_admins` has no `businessId`, no tenant role and no
+row in a tenant collection. A tenant password, token or session is invalid here, and the platform
+credential is invalid on `/api/auth`. An external dedicated identity project is a deployment
+boundary, not a claim made by this repository: the current realm is local to this server and is not
+connected to any tenant Firebase project.
+
+Platform tokens are signed with `PLATFORM_ADMIN_JWT_SECRET`, issuer `inventory-ai-platform`,
+audience `platform-admin`, and name a `platform_admin_sessions` row with a 15-minute idle timeout
+and an 8-hour absolute cap. The platform capabilities are `platform.health.read`,
+`platform.metrics.read`, `platform.audit.read` and `platform.admin.manage`; they are not tenant
+permissions. `GET /api/platform/operations` requires `platform.metrics.read` (`SUPPORT`, `SECURITY`,
+`SUPERADMIN`); `GET /api/platform/audit` requires `platform.audit.read` (`SECURITY`, `SUPERADMIN`
+only).
+
+`days` defaults to `7` and must be an integer from `1` to `30`. The report has NO tenant selector:
+there is no `businessId` parameter and the service cannot be aimed at one business. It returns
+cross-tenant aggregates only:
+
+- `service` — build, database, environment, uptime and the OPS-2 response counters;
+- `platform` — business counts by status, account counts and tenants active in the window;
+- `ai` — turns, clean/degraded/failed counts, failover rate, p95 latency, provider-cost provenance
+  and daily buckets, derived from `ai_turn_metrics` across every tenant;
+- `feedback` — all-time rating totals plus the window's UP/DOWN counts and DOWN reasons;
+- `usage` — distinct active members, feature presence, active/archived products, locations,
+  suppliers, open purchase orders and stock movements;
+- `issues` — 5xx count, affected-tenant count, groups by code and route, and bounded recent rows.
+
+No business name, member name, email, user id, AI prompt, answer, feedback note, request body or raw
+error message is returned. A pre-authentication 5xx is counted in the platform total but not as an
+affected tenant. Every response is `Cache-Control: no-store`.
+
+#### Durable monitoring records
+
+Two collections make the facts that used to reset with the process queryable:
+
+- `ops_error_events` — one row per 5xx, with status, a safe code, method, a route whose dynamic id
+  segments are replaced by `:id`, and `businessId` when the request was authenticated. It stores no
+  message, stack, body, query string, header, token or user id. Rows expire after 90 days; tenant
+  rows are removed with the tenant.
+- `ops_feature_usage` — one row per `(businessId, UTC date, feature, userId)` for a successful
+  request to a tracked feature. A repeated visit updates `lastSeenAt`; it does not add a document.
+  Rows expire after 90 days and are removed with the tenant. `operations` is no longer a feature key;
+  `/api/ai/metrics` counts as `ai`.
+
+The feature writer runs after the response finishes, so monitoring can never delay or alter it.
+Presence is eventual: a report requested in the same instant as another successful request may not
+yet include that request's row. A 5xx that occurs while MongoDB itself is unreachable cannot be
+written to MongoDB; the log line remains the immediate record, and durable rows resume when the
+database is reachable. This limit is stated rather than hidden.
+
+The platform plane, its dedicated console, mandatory MFA and append-only audit trail are implemented
+in the working tree but **not deployed or publicly exposed**. Support grants and tenant-detail reads
+remain future gates. The aligned design is
+[`superpowers/specs/2026-11-16-platform-admin-architecture.md`](superpowers/specs/2026-11-16-platform-admin-architecture.md).
+
 ---
 
 # 22. AI Tool Architecture
@@ -2601,6 +2707,7 @@ JWT_SECRET
 JWT_EXPIRES_IN
 JWT_ISSUER
 JWT_AUDIENCE
+PLATFORM_ADMIN_JWT_SECRET
 JWT_REFRESH_SECRET
 AI_PROVIDER
 OPENROUTER_API_KEY

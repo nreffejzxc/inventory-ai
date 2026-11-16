@@ -134,7 +134,11 @@ whole-set restock shortfall) is §27IE, merged as `af366c1`, deployed and device
 auxiliary-list correction is `91d635d`. AI-114, the deterministic complete restock/low-stock list,
 is §27IF and merged as `e5c1c1d`. AI-115 (member ratings and the OWNER/ADMIN review queue) is
 §27IG, and AI-116 (bounded previous-result follow-ups and per-answer freshness/Inspect) is §27IH;
-both are implementation-tested in the working tree and pending deployment at this record. The
+both are implementation-tested in the working tree and pending deployment at this record. PLAT-1, the
+INTERNAL Platform Operations plane for the Inventory AI owner/support/developers, is §27IJ; OPS-8,
+the durable 5xx and feature-presence stores it reads, is §27IL; the platform-admin architecture is
+aligned with the implemented interim plane and its remaining gates in §27IK. The tenant-facing
+Operations dashboard was removed before commit. The
 2026-11-15 post-deploy/triage/monitor close-out is §27IA;
 production currently serves `e5c1c1d` and the newest OTA is
 `9d759ee5-82c5-4fbe-afe0-3a0ea2c44f6c`. The AI-105 retry fix and the

@@ -66,8 +66,8 @@ Reference documents are consulted rather than read once, so they are reviewed on
 
 | Document | Cadence | Last reviewed |
 | --- | --- | --- |
-| [`../CLAUDE.md`](../CLAUDE.md) | 90 days | 2026-11-11 |
-| [`SYSTEM_SPECIFICATION.md`](SYSTEM_SPECIFICATION.md) | 90 days | 2026-11-10 |
+| [`../CLAUDE.md`](../CLAUDE.md) | 90 days | 2026-11-15 |
+| [`SYSTEM_SPECIFICATION.md`](SYSTEM_SPECIFICATION.md) | 90 days | 2026-11-15 |
 | [`AUTHENTICATION_AND_USER_VERIFICATION_TARGET_ARCHITECTURE.md`](AUTHENTICATION_AND_USER_VERIFICATION_TARGET_ARCHITECTURE.md) | 90 days | 2026-11-07 |
 | [`AUTH_SECURITY_MASTER_CHECKLIST.md`](AUTH_SECURITY_MASTER_CHECKLIST.md) | 90 days | 2026-11-07 |
 | [`SECURITY_DEPENDENCY_DECISIONS.md`](SECURITY_DEPENDENCY_DECISIONS.md) | 30 days | 2026-11-11 |
@@ -77,7 +77,7 @@ Reference documents are consulted rather than read once, so they are reviewed on
 | [`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md) | 90 days | 2026-11-07 |
 | [`DEVELOPING_ON_A_PHYSICAL_DEVICE.md`](DEVELOPING_ON_A_PHYSICAL_DEVICE.md) | 90 days | 2026-11-07 |
 | [`INVENTORY_INTEGRITY.md`](INVENTORY_INTEGRITY.md) | 90 days | 2026-11-15 |
-| [`MONITORING.md`](MONITORING.md) | 90 days | 2026-11-11 |
+| [`MONITORING.md`](MONITORING.md) | 90 days | 2026-11-15 |
 | [`../README.md`](../README.md) | 90 days | 2026-11-09 |
 
 The 2026-11-07 date starts each clock at adoption: it records when the cadence began, not that every
@@ -97,6 +97,7 @@ date they were written. **Read them for an audit, not for orientation.**
 | [`TS-MIGRATION-MANIFEST.md`](TS-MIGRATION-MANIFEST.md) | The completed TypeScript migration and the one module left in JavaScript |
 | [`AI_LANGUAGE_REVIEW_14_2026-11-06.md`](AI_LANGUAGE_REVIEW_14_2026-11-06.md) | The dated native-speaker review sheet for 14 assistant answers; scores stay blank until a reviewer fills them |
 | [`superpowers/`](superpowers/) | Dated plans and design specs written before work began |
+| [`superpowers/specs/2026-11-16-platform-admin-architecture.md`](superpowers/specs/2026-11-16-platform-admin-architecture.md) | Platform Operations architecture: the implemented separate platform-admin identity/session/capability plane, dedicated console, mandatory TOTP/WebAuthn, append-only audit trail, and the remaining support-grant and external-identity gates |
 | [`evidence/`](evidence/device-runs/README.md) | Device runs, scale measurements and captured output |
 | [`freebuff/`](freebuff/README.md) | An older agent-activity log. Forensic only — not architecture, history or specification, and its status statements are frozen at their dates |
 

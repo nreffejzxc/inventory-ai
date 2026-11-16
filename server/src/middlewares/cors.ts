@@ -44,6 +44,22 @@ export function createCors(origins: readonly string[] = []) {
   const allowed = new Set(origins.map(normalizeOrigin));
 
   return cors({
+    // The dedicated platform console authenticates with an HttpOnly cookie, so
+    // credentialed CORS is required for the exact allow-listed origins. Allowing
+    // credentials does not widen the allow-list: an unlisted Origin still gets
+    // no grant at all, and the platform cookie is additionally Origin+CSRF gated.
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: [
+      'Content-Type',
+      'Authorization',
+      'X-Platform-CSRF',
+      'X-Platform-Console',
+      'X-Request-ID',
+    ],
+    exposedHeaders: ['X-Request-ID'],
+    maxAge: 600,
+    optionsSuccessStatus: 204,
     origin(requestOrigin, callback) {
       // Native mobile / no-Origin or disallowed: grant nothing. cors then calls
       // next() WITHOUT applying any Access-Control-* header, so no-Origin flows

@@ -193,6 +193,8 @@ const aiTurnMetricSchema = new Schema(
 
 // The metrics query is always tenant-scoped and time-windowed. This is the index it uses.
 aiTurnMetricSchema.index({ businessId: 1, completedAt: -1 });
+// PLAT-1 reads the same window across every tenant, with no businessId filter.
+aiTurnMetricSchema.index({ completedAt: -1 });
 // One row per turn. `startedAt` makes a turn-id collision between two real turns harmless.
 aiTurnMetricSchema.index({ businessId: 1, turnId: 1, startedAt: 1 }, { unique: true });
 

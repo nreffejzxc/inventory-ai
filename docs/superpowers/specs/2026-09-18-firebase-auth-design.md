@@ -174,7 +174,7 @@ set.
 
 ## 2.6 Route inventory
 
-Phase 23 classifies **91 routes**: **55 permission-gated**, **14 authenticated**, **22 public**, **0 role-gated**. The `PUBLIC` and `AUTHENTICATED` buckets are explicit lists that each carry a
+Phase 23 classifies **105 routes**: **57 permission-gated**, **20 authenticated**, **28 public**, **0 role-gated**. The `PUBLIC` and `AUTHENTICATED` buckets are explicit lists that each carry a
 written reason; a route in no bucket fails the guard, and a declared exemption that has stopped being
 true also fails. The guard deliberately asserts **no route count** — a route is *declared* or it is not,
 and the number is derived from the declarations — so the figure above is pinned separately, by
@@ -286,6 +286,29 @@ fails if the two disagree.
 > side; every lookup is scoped to the authenticated business and the report's own user must still own
 > the conversation. The queue remains excerpt-only; the preview is the explicit expansion an
 > OWNER/ADMIN reads before marking a report REVIEWED.
+>
+> **PLAT-1 Platform Operations (2026-11-16) removed one tenant route and added five platform routes —
+> 92 − 1 + 5 = **96** (56 permission-gated, 17 authenticated, 23 public, 0 role-gated).** The
+> customer-facing `GET /api/operations` and its `operations.view` permission are **gone**. The new
+> `/api/platform` plane has its own credential store (`platform_admins`), signing secret
+> (`PLATFORM_ADMIN_JWT_SECRET`), issuer `inventory-ai-platform`, audience `platform-admin` and session
+> collection (`platform_admin_sessions`). `POST /api/platform/auth/login` is public (rate-limited);
+> renew, logout and me are authenticated; `GET /api/platform/operations` requires the platform-only
+> `platform.metrics.read` capability. No tenant role or tenant token reaches this plane, and no
+> platform token authenticates a tenant route. The durable 5xx and feature-presence stores are
+> unchanged and are read across tenants by the platform report.
+>
+> **PLAT-2/PLAT-3 platform security (2026-11-16) added nine routes and re-gated nothing —
+> 96 + 9 = **105** (57 permission-gated, 20 authenticated, 28 public, 0 role-gated).** Five public
+> MFA/WebAuthn challenge routes are PRE-SESSION by design: MFA is mandatory, so a password alone
+> never creates a session, and each challenge is a short-lived, audience-separated, purpose-bound
+> token rather than a credential. The two WebAuthn registration routes are authenticated and act
+> only on the caller’s own `PlatformAdmin`; `GET /api/platform/audit` is the one new gated route and
+> requires the platform-only `platform.audit.read` capability, held by SECURITY and SUPERADMIN
+> only. `GET /api/platform/auth/csrf` is authenticated and rotates only the caller’s own CSRF value
+> for a cross-origin console; it is GET-only, exact-Origin-bound and creates no session. The console
+> remains a separate static listener, not a route in this inventory. No tenant route, tenant
+> permission or tenant credential changed.
 
 The auth surface (`server/src/routes/auth.routes.ts`):
 

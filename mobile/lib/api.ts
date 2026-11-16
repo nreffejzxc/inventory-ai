@@ -935,6 +935,11 @@ export const dashboardApi = {
   summary: (token: string): Promise<ApiResponse> => apiFetch('/api/dashboard', { token }),
 };
 
+// NOTE: there is deliberately no Operations client here. The operations report
+// is internal Platform Operations data behind a separate administrator login,
+// not a tenant capability — see /api/platform in the server. No mobile screen or
+// navigation entry may call it.
+
 // ---------------------------------------------------------------------------
 // AI Assistant (Phase 06)
 // ---------------------------------------------------------------------------

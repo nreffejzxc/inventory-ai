@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <title>Inventory AI — Platform Operations</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <div class="shell">
+    <header class="topbar">
+      <div class="brand">
+        <span class="mark" aria-hidden="true">IA</span>
+        <span>
+          <strong>Inventory AI</strong>
+          <small>Platform Operations</small>
+        </span>
+      </div>
+      <div id="topbar-session" class="session" hidden>
+        <span id="session-name" class="session-name"></span>
+        <span id="session-role" class="pill"></span>
+        <button id="logout-button" class="button ghost" type="button">Sign out</button>
+      </div>
+    </header>
+
+    <main id="login-view" class="auth-layout">
+      <section class="auth-intro">
+        <p class="eyebrow">Internal control center</p>
+        <h1>Platform Operations</h1>
+        <p class="lede">
+          Cross-tenant reliability, AI usage and the append-only platform audit trail.
+          This console is separate from every customer account and tenant surface.
+        </p>
+        <ul class="assurances">
+          <li>Dedicated platform identity — no business account can sign in here.</li>
+          <li>Password plus mandatory multi-factor authentication.</li>
+          <li>HttpOnly session, CSRF-protected requests, strict CSP.</li>
+        </ul>
+      </section>
+
+      <section class="card auth-card" aria-labelledby="login-title">
+        <div class="card-head">
+          <p class="eyebrow">Restricted access</p>
+          <h2 id="login-title">Sign in</h2>
+          <p class="muted">Platform administrators only.</p>
+        </div>
+        <form id="login-form" novalidate>
+          <label for="email">Email</label>
+          <input id="email" name="email" type="email" autocomplete="username" required>
+          <label for="password">Password</label>
+          <input id="password" name="password" type="password" autocomplete="current-password" required>
+          <p id="login-error" class="error" role="alert" hidden></p>
+          <button id="login-submit" class="button primary" type="submit">Continue</button>
+        </form>
+        <p class="fineprint">A password alone does not create a session. Every login requires TOTP or a registered security key.</p>
+      </section>
+    </main>
+
+    <main id="mfa-view" class="auth-layout" hidden>
+      <section class="auth-intro">
+        <p class="eyebrow">Second factor</p>
+        <h1>Verify it’s you</h1>
+        <p class="lede">Enter the six-digit code from your authenticator app, or use a registered security key.</p>
+        <p class="muted">The challenge expires shortly. Start over if it does.</p>
+      </section>
+      <section class="card auth-card" aria-labelledby="mfa-title">
+        <div class="card-head">
+          <p class="eyebrow">Step 2 of 2</p>
+          <h2 id="mfa-title">Multi-factor authentication</h2>
+          <p id="mfa-account" class="muted"></p>
+        </div>
+        <form id="mfa-form" novalidate>
+          <label for="mfa-code">Authentication code</label>
+          <input id="mfa-code" name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]*" maxlength="6" placeholder="000000" required>
+          <p id="mfa-error" class="error" role="alert" hidden></p>
+          <button id="mfa-submit" class="button primary" type="submit">Verify</button>
+          <button id="webauthn-login-button" class="button secondary" type="button" hidden>Use a security key</button>
+          <button id="mfa-back" class="button link" type="button">Use a different account</button>
+        </form>
+      </section>
+    </main>
+
+    <main id="enroll-view" class="auth-layout" hidden>
+      <section class="auth-intro">
+        <p class="eyebrow">First sign-in</p>
+        <h1>Set up your second factor</h1>
+        <p class="lede">Add this secret to an authenticator app, then confirm the six-digit code it shows.</p>
+        <p class="muted">The secret is shown once and stored encrypted at rest. Keep it somewhere safe.</p>
+      </section>
+      <section class="card auth-card" aria-labelledby="enroll-title">
+        <div class="card-head">
+          <p class="eyebrow">Required</p>
+          <h2 id="enroll-title">Enroll TOTP</h2>
+          <p id="enroll-account" class="muted"></p>
+        </div>
+        <p class="label">Manual setup key</p>
+        <div class="secret-row">
+          <code id="enroll-secret" class="secret"></code>
+          <button id="copy-secret" class="button ghost small" type="button">Copy</button>
+        </div>
+        <p id="enroll-copy-status" class="muted small" aria-live="polite"></p>
+        <p class="muted small">Issuer: <span id="enroll-issuer"></span> · Account: <span id="enroll-account-name"></span></p>
+        <form id="enroll-form" novalidate>
+          <label for="enroll-code">Code from your authenticator</label>
+          <input id="enroll-code" name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]*" maxlength="6" placeholder="000000" required>
+          <p id="enroll-error" class="error" role="alert" hidden></p>
+          <button id="enroll-submit" class="button primary" type="submit">Confirm and sign in</button>
+          <button id="enroll-back" class="button link" type="button">Use a different account</button>
+        </form>
+      </section>
+    </main>
+
+    <main id="dashboard-view" class="dashboard" hidden>
+      <aside class="sidebar">
+        <nav aria-label="Platform sections">
+          <button class="nav-item active" type="button" data-view="overview">Overview</button>
+          <button class="nav-item" type="button" data-view="audit" id="nav-audit" hidden>Audit trail</button>
+          <button class="nav-item" type="button" data-view="security">Security</button>
+        </nav>
+        <div class="sidebar-foot">
+          <p class="muted small">Internal only</p>
+          <p class="muted small">No tenant data is written.</p>
+        </div>
+      </aside>
+
+      <section class="workspace">
+        <div class="workspace-head">
+          <div>
+            <p class="eyebrow" id="view-eyebrow">Platform-wide</p>
+            <h1 id="view-title">Overview</h1>
+            <p id="view-subtitle" class="muted">Aggregate reliability and usage across every tenant.</p>
+          </div>
+          <div class="actions">
+            <label class="select-label" for="days">Window
+              <select id="days">
+                <option value="1">24 hours</option>
+                <option value="7" selected>7 days</option>
+                <option value="30">30 days</option>
+              </select>
+            </label>
+            <button id="refresh-button" class="button secondary" type="button">Refresh</button>
+          </div>
+        </div>
+        <p id="dashboard-error" class="error" role="alert" hidden></p>
+        <p id="dashboard-status" class="status-line" aria-live="polite"></p>
+
+        <section id="view-overview">
+          <div id="overview-service" class="service-strip"></div>
+          <div id="overview-cards" class="metric-grid"></div>
+          <div class="panel-grid">
+            <section class="panel">
+              <div class="panel-head"><h2>AI turns</h2><span class="muted small">Per day, UTC</span></div>
+              <div id="ai-daily" class="table-wrap"></div>
+            </section>
+            <section class="panel">
+              <div class="panel-head"><h2>Recent issues</h2><span class="muted small">No request bodies</span></div>
+              <div id="recent-issues" class="table-wrap"></div>
+            </section>
+          </div>
+          <section class="panel">
+            <div class="panel-head"><h2>Feature presence</h2><span class="muted small">Distinct members in the window</span></div>
+            <div id="feature-usage" class="table-wrap"></div>
+          </section>
+        </section>
+
+        <section id="view-audit" hidden>
+          <div class="panel">
+            <div class="panel-head">
+              <h2>Append-only audit trail</h2>
+              <span class="muted small">Newest first</span>
+            </div>
+            <div class="audit-tools">
+              <label class="select-label" for="audit-outcome">Outcome
+                <select id="audit-outcome">
+                  <option value="">All</option>
+                  <option value="SUCCESS">Success</option>
+                  <option value="DENIED">Denied</option>
+                  <option value="FAILURE">Failure</option>
+                </select>
+              </label>
+              <button id="audit-refresh" class="button secondary" type="button">Load trail</button>
+            </div>
+            <div id="audit-table" class="table-wrap"></div>
+            <p id="audit-note" class="muted small"></p>
+          </div>
+        </section>
+
+        <section id="view-security" hidden>
+          <div class="panel-grid">
+            <section class="panel">
+              <div class="panel-head"><h2>Your sign-in</h2></div>
+              <dl class="detail-list">
+                <dt>Role</dt><dd id="security-role"></dd>
+                <dt>MFA</dt><dd id="security-mfa"></dd>
+                <dt>Security keys</dt><dd id="security-keys"></dd>
+                <dt>Session</dt><dd>HttpOnly cookie · CSRF protected · 15-minute token</dd>
+              </dl>
+            </section>
+            <section class="panel">
+              <div class="panel-head"><h2>Register a security key</h2></div>
+              <p class="muted">A registered key can be used instead of a TOTP code at sign-in. TOTP enrollment remains mandatory.</p>
+              <label for="key-label">Key label</label>
+              <input id="key-label" maxlength="80" placeholder="YubiKey or this device">
+              <p id="webauthn-error" class="error" role="alert" hidden></p>
+              <p id="webauthn-status" class="status-line" aria-live="polite"></p>
+              <button id="webauthn-register-button" class="button primary" type="button">Register security key</button>
+            </section>
+          </div>
+          <section class="panel">
+            <div class="panel-head"><h2>Capabilities</h2></div>
+            <div id="capability-list" class="chips"></div>
+          </section>
+        </section>
+      </section>
+    </main>
+  </div>
+  <script src="/config.js"></script>
+  <script src="/app.js" defer></script>
+</body>
+</html>

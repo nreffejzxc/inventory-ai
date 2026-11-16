@@ -28,6 +28,8 @@
     "verify:transfer-ui": "node scripts/verify-transfer-ui.mjs",
     "backup:db": "node scripts/backup-db.mjs",
     "restore:db": "node scripts/restore-db.mjs",
+    "platform-admin:create": "node scripts/create-platform-admin.mjs",
+    "platform-console": "node platform-console/server.ts",
     "seed": "node scripts/seed.mjs",
     "seed:perf": "node scripts/seed-perf-data.mjs",
     "seed:perf-tenant": "node scripts/seed-perf-tenant.mjs",
@@ -60,6 +62,7 @@
     "eval:deployed-gate": "node scripts/perf/deployed-gate.mjs"
   },
   "dependencies": {
+    "@simplewebauthn/server": "^13.3.3",
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.6",
     "dotenv": "^18.0.9",

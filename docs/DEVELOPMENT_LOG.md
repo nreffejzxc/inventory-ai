@@ -44,6 +44,10 @@ at the end of every development session, newest entry first.
 **Goal:** finish and harden Inventory AI **V1** through production testing. No Play Store or App
 Store release is being prepared.
 
+**Internal Platform Operations, PLAT-1 (2026-11-16, tested in the working tree; not committed or deployed):** the customer-facing OPS-7 draft was removed before commit — `GET /api/operations`, `operations.view`, the mobile Operations tile/screen, stack entry, API helper and RBAC-mirror entry are gone. In their place is a separate `/api/platform` plane: `platform_admins` with no businessId or tenant role, `platform_admin_sessions` with a 15-minute idle timeout and 8-hour absolute cap, a distinct `PLATFORM_ADMIN_JWT_SECRET` with fixed issuer/audience, and platform-only capabilities. `GET /api/platform/operations` returns cross-tenant aggregate service, AI, feedback, usage and 5xx data with no tenant selector and no PII. `ops_error_events` and `ops_feature_usage` are preserved with their 90-day TTLs and tenant teardown; the `operations` feature key was removed and `/api/ai/metrics` counts as `ai`. The focused PLAT-1 suite passed **14 tests with its two unit suites mode-skipped in db mode**; phase 23 **21/21** (32/32 with the route-inventory guard), runtime matrix **10/10**, route inventory **96 routes / 56 gated / 17 authenticated / 23 public / 0 role-gated**, tenant teardown **8/8**, server `tsc`; mobile Jest **111 suites / 1,273 tests**; full server unit suite **2,125 pass / 69 skipped / 0 failed** (439 suites); docs guards **31/31** and `scripts/check-docs.mjs` **35 active documents**. No commit, deploy, OTA, device run or production exposure was performed. There is no operator UI, dedicated admin origin, WebAuthn/TOTP, platform audit log or support grant; a password-only platform login is a release gate, not the final design.
+
+**Platform Operations console, MFA and audit, PLAT-2/PLAT-3 (2026-11-16, tested in the working tree; not committed or deployed):** the three approved layers are implemented. A dedicated static console (`cd server && npm run platform-console`, `http://localhost:4100`) uses an HttpOnly `platform_session` cookie plus a readable `platform_csrf` cookie and requires both the exact `PLATFORM_CONSOLE_ORIGIN` and a matching `X-Platform-CSRF` header; Bearer API clients are unchanged. Its CSP is `default-src 'none'`, same-origin script/style, API-origin-only `connect-src`, `frame-ancestors 'none'`, with no inline script, style or handler. Platform login is password + **mandatory** TOTP (WebAuthn as an enrolled alternative); a password alone returns only a challenge. TOTP secrets and WebAuthn public keys are AES-256-GCM encrypted under `PLATFORM_MFA_ENCRYPTION_KEY`, codes are single-use, WebAuthn registration exists only inside an authenticated session, and a WebAuthn login challenge is stored as a hash and consumed atomically with the counter so an assertion cannot be replayed. `platform_audit_events` records login failure, MFA/WebAuthn changes, capability denials, operations/audit reads, renewal and logout, and its model refuses update/replace/delete/save-existing with no TTL; SECURITY and SUPERADMIN alone hold `platform.audit.read`. Route inventory is **105 / 57 gated / 20 authenticated / 28 public / 0 role-gated**. `PLAT2` **9/9**, `PLAT3` **8/8 with one unit suite mode-skipped in db mode**, `OPS7` **14/0 with two unit suites mode-skipped**, phase 23 **32/32** and the route-inventory guard pass; server `tsc` passes. No deployment, commit, OTA or public exposure was performed. A completed WebAuthn assertion and an external dedicated identity project remain unverified; support grants and tenant-detail reads remain open gates.
+
 **Feedback conversation preview, AI-117 (2026-11-16, deployed and device-verified; one finding):** the OWNER/ADMIN review
 queue gained **View conversation**. `GET /api/ai/feedback/:id/conversation` returns the complete
 reported answer, six USER/ASSISTANT messages on each side and `omittedBefore`/`omittedAfter`; it
@@ -339,6 +343,44 @@ Known limits, checked before spending one of them:
   bulk; a delivery failure is not a code regression until the provider log says so.
 
 ---
+
+## 2026-11-16 — PLAT-1 internal Platform Operations, durable monitoring and platform-admin alignment
+
+**Status.** IMPLEMENTED AND TESTED IN THE WORKING TREE; NOT COMMITTED OR DEPLOYED. No operator UI,
+device/emulator pass or production exposure was performed.
+
+**What changed.** The customer-facing OPS-7 draft was removed before commit: `GET /api/operations`,
+the `operations.view` capability, the mobile Operations tile/screen, its stack entry, API helper and
+RBAC-mirror entry are gone. In their place is a separate `/api/platform` plane: `platform_admins`
+with no `businessId` and no tenant role, `platform_admin_sessions` with a 15-minute idle timeout and
+8-hour absolute cap, a distinct `PLATFORM_ADMIN_JWT_SECRET` with fixed issuer
+`inventory-ai-platform` and audience `platform-admin`, and platform-only capabilities
+(`platform.health.read`, `platform.metrics.read`, `platform.audit.read`,
+`platform.admin.manage`). `GET /api/platform/operations` returns cross-tenant aggregate service,
+AI, feedback, usage and 5xx data with no tenant selector and no PII. `ops_error_events` and
+`ops_feature_usage` are preserved with their 90-day TTLs and tenant teardown; the `operations`
+feature key was removed and `/api/ai/metrics` counts as `ai`. The bootstrap is
+`npm run platform-admin:create`; the password is read from the environment and never printed.
+
+**Verification.** PLAT-1 suite **14 pass / 2 mode-skipped unit suites** in db mode: unauthenticated
+401; OWNER/ADMIN/MANAGER/STAFF all 401; both-direction token rejection; READ_ONLY 403 on the
+report; missing-secret 503 on both the report and login, with no right/wrong-password oracle;
+same-token demotion/disable; logout revocation; renewal without a second
+session row; exact two-tenant aggregation in a fixed window; ignored `businessId`; no emails or user
+ids in the body; durable writers preserved. Phase 23 **21/21** (32/32 with route inventory); runtime
+matrix **10/10**; route inventory **96 routes / 56 gated / 17 authenticated / 23 public / 0 role-gated**; DEMO-2 tenant
+teardown **8/8** (both new collections are seeded, previewed and removed); server
+`tsc --noEmit` and targeted ESLint pass; mobile `tsc` and targeted ESLint pass; mobile Jest **111
+suites / 1,273 tests**; full server unit suite **2,125 pass / 69 skipped / 0 failed** (439 suites);
+docs guards **31/31**; `scripts/check-docs.mjs` reports 35 indexed active documents.
+
+**Not done at PLAT-1 (superseded for the first three by §27IM).** There was no console UI, dedicated
+admin origin, WebAuthn/TOTP or platform audit log at that point; §27IM later implement them in the
+working tree. A support grant, hosted load test, restart drill and real database outage remain
+undone. The interim platform credential was a local password. No commit, push, PR, deploy or OTA.
+
+**Next.** Review the working tree; run mobile Jest and the docs guards; close the identity/console
+gates in the platform-admin design before any production exposure.
 
 ## 2026-11-16 — AI-117 feedback conversation preview
 

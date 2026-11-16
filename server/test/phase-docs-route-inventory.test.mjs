@@ -127,9 +127,13 @@ function classifyDeclaration(declaration) {
   // variant that relaxes ONLY token expiry so the client can replace the token it was
   // just refused. It is authentication, not a public route — a tier count is a statement
   // about who may call a route, not about which middleware spelling was used.
-  if (!/\brequireAuth\b|\brequireAuthForRenewal\b/.test(declaration)) return 'public';
+  if (!/\brequireAuth\b|\brequireAuthForRenewal\b|\brequirePlatformAdmin\b/.test(declaration)) {
+    return 'public';
+  }
   if (/\brequireRole\b/.test(declaration)) return 'roleGated';
-  if (/\brequirePermission\b/.test(declaration)) return 'gated';
+  // PLAT-1: the platform plane's gate is a capability from its own catalogue,
+  // not `requirePermission` (which consults the tenant role matrix).
+  if (/\brequirePermission\b|\brequirePlatformCapability\b/.test(declaration)) return 'gated';
   return 'authenticated';
 }
 

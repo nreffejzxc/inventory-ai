@@ -394,21 +394,14 @@ export interface AiMetricsResult {
  * completedAt) index serves the match. Days with no turns are emitted as zeros so a chart has
  * a continuous axis rather than gaps that look like missing data.
  */
-export async function getAiMetrics(
-  businessId: string,
-  { days, now = new Date() }: { days: number; now?: Date },
+async function aggregateAiMetrics(
+  match: Record<string, unknown>,
+  boundedDays: number,
+  from: Date,
+  to: Date,
 ): Promise<AiMetricsResult> {
-  const boundedDays = Math.min(MAX_AI_METRICS_DAYS, Math.max(1, Math.trunc(days)));
-  const from = rangeStart(now, boundedDays);
-  const to = now;
-
   const [facet] = await AiTurnMetric.aggregate([
-    {
-      $match: {
-        businessId: new mongoose.Types.ObjectId(businessId),
-        completedAt: { $gte: from, $lte: to },
-      },
-    },
+    { $match: match },
     {
       $facet: {
         totals: [{ $group: { _id: null, ...GROUP_FIELDS } }],
@@ -455,6 +448,54 @@ export async function getAiMetrics(
   };
 }
 
+/**
+ * The metrics report for one business over the last `days` UTC calendar days.
+ * Tenant-scoped: the match names exactly one `businessId`.
+ */
+export async function getAiMetrics(
+  businessId: string,
+  { days, now = new Date() }: { days: number; now?: Date },
+): Promise<AiMetricsResult> {
+  const boundedDays = Math.min(MAX_AI_METRICS_DAYS, Math.max(1, Math.trunc(days)));
+  const from = rangeStart(now, boundedDays);
+  return aggregateAiMetrics(
+    {
+      businessId: new mongoose.Types.ObjectId(businessId),
+      completedAt: { $gte: from, $lte: now },
+    },
+    boundedDays,
+    from,
+    now,
+  );
+}
+
+/**
+ * PLAT-1 — the same report across EVERY tenant, for the platform operations
+ * surface only.
+ *
+ * The aggregation is shared with `getAiMetrics` so the platform console and a
+ * tenant's own AI metrics cannot define "a failed turn" or "p95" differently.
+ * The match deliberately carries no `businessId`: this is a read of aggregate
+ * facts, never a tenant-scoped row, and the caller is a platform capability, not
+ * a tenant role.
+ */
+export async function getPlatformAiMetrics({
+  days,
+  now = new Date(),
+}: {
+  days: number;
+  now?: Date;
+}): Promise<AiMetricsResult> {
+  const boundedDays = Math.min(MAX_AI_METRICS_DAYS, Math.max(1, Math.trunc(days)));
+  const from = rangeStart(now, boundedDays);
+  return aggregateAiMetrics(
+    { completedAt: { $gte: from, $lte: now } },
+    boundedDays,
+    from,
+    now,
+  );
+}
+
 export default {
   DEFAULT_AI_METRICS_DAYS,
   MAX_AI_METRICS_DAYS,
@@ -462,4 +503,5 @@ export default {
   recordAiTurnMetric,
   parseAiMetricsDays,
   getAiMetrics,
+  getPlatformAiMetrics,
 };
