@@ -44,6 +44,20 @@ at the end of every development session, newest entry first.
 **Goal:** finish and harden Inventory AI **V1** through production testing. No Play Store or App
 Store release is being prepared.
 
+**Platform Operations console live, PLAT-6 (2026-11-16, `56e8c27`):** the INTERNAL console is deployed at
+`https://ai-inventory-l1mi.onrender.com/platform` on the existing Render API service, with no new
+paid service. PR #315 passed all five observed CI jobs (`server`, `mobile`, `webauthn-e2e`,
+`attribution-guard`, `secret-guard`) and squash-merged as `56e8c27`; Render auto-deployed that
+commit and `/api/health` reports `status: ok`, `db: connected`, `environment: production`. Production
+browser proof completed password + TOTP, rendered the dashboard and signed out with no console
+errors. The API smoke observed 200 for status/operations/deployments/tickets, the exact cookie
+flags, a 204 preflight from the exact origin, a 403 for a foreign Origin, 200 logout and 401 on the
+old cookie; no tenant row was read or written. Full server suite: **3,143 passed / 0 failed / 0
+skipped / 503 suites**, exit 0 (663 s). The deployment is internal and the residual gates stay open: network
+isolation (PR-03), forced recovery ceremony/break-glass drill (PR-06), audit retention/least
+privilege (PR-09) and named security sign-off (PR-15). The local browser smoke left the production
+administrator enrolled in TOTP; the bootstrap credential file is ignored and was not printed.
+
 **Internal Platform Operations, PLAT-1 (2026-11-16, committed in `d02a549`; not deployed):** the customer-facing OPS-7 draft was removed before commit — `GET /api/operations`, `operations.view`, the mobile Operations tile/screen, stack entry, API helper and RBAC-mirror entry are gone. In their place is a separate `/api/platform` plane: `platform_admins` with no businessId or tenant role, `platform_admin_sessions` with a 15-minute idle timeout and 8-hour absolute cap, a distinct `PLATFORM_ADMIN_JWT_SECRET` with fixed issuer/audience, and platform-only capabilities. `GET /api/platform/operations` returns cross-tenant aggregate service, AI, feedback, usage and 5xx data with no tenant selector and no PII. `ops_error_events` and `ops_feature_usage` are preserved with their 90-day TTLs and tenant teardown; the `operations` feature key was removed and `/api/ai/metrics` counts as `ai`. The focused PLAT-1 suite passed **14 tests with its two unit suites mode-skipped in db mode**; phase 23 **21/21** (32/32 with the route-inventory guard), runtime matrix **10/10**, route inventory **96 routes / 56 gated / 17 authenticated / 23 public / 0 role-gated**, tenant teardown **8/8**, server `tsc`; mobile Jest **111 suites / 1,273 tests**; full server unit suite **2,125 pass / 69 skipped / 0 failed** (439 suites); docs guards **31/31** and `scripts/check-docs.mjs` **35 active documents**. Committed in `d02a549`; no deploy, OTA, device run or production exposure was performed. There is no operator UI, dedicated admin origin, WebAuthn/TOTP, platform audit log or support grant at PLAT-1; a password-only platform login was a release gate, not the final design.
 
 **Platform Operations console, MFA and audit, PLAT-2/PLAT-3 (2026-11-16, committed and browser-verified; not deployed):** the three approved layers are implemented. A dedicated static console (`cd server && npm run platform-console`, `http://localhost:4100`) uses an HttpOnly `platform_session` cookie plus a readable `platform_csrf` cookie and requires both the exact `PLATFORM_CONSOLE_ORIGIN` and a matching `X-Platform-CSRF` header; Bearer API clients are unchanged. Its CSP is `default-src 'none'`, same-origin script/style, API-origin-only `connect-src`, `frame-ancestors 'none'`, with no inline script, style or handler. Platform login is password + **mandatory** TOTP (WebAuthn as an enrolled alternative); a password alone returns only a challenge. TOTP secrets and WebAuthn public keys are AES-256-GCM encrypted under `PLATFORM_MFA_ENCRYPTION_KEY`, codes are single-use, WebAuthn registration exists only inside an authenticated session, and a WebAuthn login challenge is stored as a hash and consumed atomically with the counter so an assertion cannot be replayed. `platform_audit_events` records login failure, MFA/WebAuthn changes, capability denials, operations/audit reads, renewal and logout, and its model refuses update/replace/delete/save-existing with no TTL; SECURITY and SUPERADMIN alone hold `platform.audit.read`. Route inventory is **105 / 57 gated / 20 authenticated / 28 public / 0 role-gated**. `PLAT2` **9/9**, `PLAT3` **8/8 with one unit suite mode-skipped in db mode**, `OPS7` **14/0 with two unit suites mode-skipped**, phase 23 **32/32** and the route-inventory guard pass; server `tsc` passes. Committed in `d02a549`, followed by the CORS-contract fix and browser-E2E support; no deployment, OTA or public exposure was performed. The first full server run found that the new fixed CORS `allowedHeaders` list changed the established preflight response; removing it restored reflection and `phase07c-http-security.test.mjs`. The final full server suite passed **3,121/3,121, 499 suites, 0 failures, 0 skipped**. `npm run test:webauthn-e2e` then passed against headless Chrome with a CDP virtual authenticator: TOTP enrollment, security-key registration, security-key login, replay refusal (`PLATFORM_WEBAUTHN_INVALID`) and a tampered assertion refused with no session; the disposable administrator and its audit rows were removed. That run also caught and fixed the console's missing `/api/platform` fetch base, now asserted by `PLAT2` (9/9). An external dedicated identity project remains unverified; support grants and tenant-detail reads remain open gates.
@@ -142,9 +156,10 @@ restocking” previously produced a model-composed answer that hit the output li
 reasoning fragments. AI-114 now renders a complete restock/low-stock list deterministically; the
 limitation remains only for sets that do not fit the answer ceiling. The complete record is §27IF.
 
-**Current production server (2026-11-16):** `e5c1c1d` — PR #307, the deterministic complete
-restock-list release, auto-deployed and confirmed by `/api/health` with `status: ok`, `db:
-connected`, `environment: production`, commit `e5c1c1d`, 0 `5xx`. Before it, production served
+**Current production server (2026-11-16):** `56e8c27` — PR #315, the Platform Operations console
+release, auto-deployed and confirmed by `/api/health` with `status: ok`, `db: connected`,
+`environment: production`, commit `56e8c27`, 0 `5xx`. Before it, production served
+`e5c1c1d` (PR #307, the deterministic complete restock-list release),
 `91d635d` (PR #305, the auxiliary-list correction), `af366c1` (PR #304, the answer
 actions release), `1c3928b` (PR #300, the final partial-restock completeness guard), `af13bf6`
 (PR #299), `233d47f` (PR #298), `657e041` (PR #297, the first partial-restock guard), `7315675`

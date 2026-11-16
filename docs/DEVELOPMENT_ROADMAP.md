@@ -8,9 +8,9 @@ of truth for *what actually happened*, and it is why this file is long.
 
 **How to read it.** Do not read it top to bottom. Either find a record by number (§27FJ, §27DM — the
 numbers are cited from `CLAUDE.md` and from source comments), or use the index: `CLAUDE.md` §7 lists
-all **247** records by the title each gives itself.
+all **248** records by the title each gives itself.
 
-**Current state:** V1 complete and in production testing. The records that answer *where are we now* are §27IJ (the INTERNAL Platform Operations plane — separate administrator identity, sessions and capabilities; committed in `d02a549`, not deployed), §27IK (platform-admin architecture, now aligned with the implemented interim plane and its remaining gates), §27IL (the durable 5xx and feature-presence stores that report reads), §27IM (the dedicated console, mandatory TOTP/WebAuthn and append-only platform audit — committed and browser-verified, not deployed), §27IN (fresh security review, CI browser WebAuthn, production-readiness checklist and prioritized recommendations), §27IO (recovery codes, durable account-scoped MFA lockout, password change, administrator lifecycle and fail-closed origin/cookie hardening), §27II (AI-117 complete feedback conversation preview, deployed `13fb3f8` and device-verified; one out-of-stock wording finding remains open), §27IH (AI-116 bounded follow-up context and answer freshness, deployed and device-verified), §27IG (AI-115 member feedback and the owner/admin review queue, deployed and device-verified), §27IF (AI-114 deterministic complete restock lists, deployed and device-verified), §27ID (the permanent assistant improvement roadmap and implementation audit; docs-only), §27IC (AI-110 contextual assistant entry and restock shortfall, deployed `7315675` and OTA-verified; the partial-restock guards completed in `1c3928b`), §27IB (scheduler proof and hosted freshness), §27IA (post-deploy phone proof, triage and monitor), §27HV (AI-99 10,256-product gate, 24/25 with one output-limit finding), §27HU (AI-99 free-first simple inventory, deployed with the 1.0.2 OTA), §27HT (AI-91/AI-92 exact product identity and per-location stock), §27HS (the AI-50–AI-84 increment register), §27HR (AI-48–AI-84 merged and deployed), §27HQ (grounded answers and scoped stock reads), §27HP (market prices from cited pages), §27HO (recorded specifications and the real seed catalogue), §27HN (inventory-only web research), §27HH (a transfer as one event to the assistant), §27HG (the stock-in link's product), §27HF (the single-location default's timing), §27HE (the stock-in link's location), §27HD (the movement fixes and the production device pass), §27HC (the assistant's local-time answers), §27FM (the V1 re-verification) and §27FJ (the two open advisories).
+**Current state:** V1 complete and in production testing. The records that answer *where are we now* are §27IP (the Platform Operations console is deployed at `56e8c27`, with browser sign-in, TOTP, assets/CSP and API smoke observed), §27IJ (the INTERNAL Platform Operations plane — separate administrator identity, sessions and capabilities; committed in `d02a549`, now deployed through §27IP), §27IK (platform-admin architecture, now aligned with the implemented interim plane and its remaining gates), §27IL (the durable 5xx and feature-presence stores that report reads), §27IM (the dedicated console, mandatory TOTP/WebAuthn and append-only platform audit — committed and browser-verified; now deployed through §27IP), §27IN (fresh security review, CI browser WebAuthn, production-readiness checklist and prioritized recommendations), §27IO (recovery codes, durable account-scoped MFA lockout, password change, administrator lifecycle and fail-closed origin/cookie hardening), §27II (AI-117 complete feedback conversation preview, deployed `13fb3f8` and device-verified; one out-of-stock wording finding remains open), §27IH (AI-116 bounded follow-up context and answer freshness, deployed and device-verified), §27IG (AI-115 member feedback and the owner/admin review queue, deployed and device-verified), §27IF (AI-114 deterministic complete restock lists, deployed and device-verified), §27ID (the permanent assistant improvement roadmap and implementation audit; docs-only), §27IC (AI-110 contextual assistant entry and restock shortfall, deployed `7315675` and OTA-verified; the partial-restock guards completed in `1c3928b`), §27IB (scheduler proof and hosted freshness), §27IA (post-deploy phone proof, triage and monitor), §27HV (AI-99 10,256-product gate, 24/25 with one output-limit finding), §27HU (AI-99 free-first simple inventory, deployed with the 1.0.2 OTA), §27HT (AI-91/AI-92 exact product identity and per-location stock), §27HS (the AI-50–AI-84 increment register), §27HR (AI-48–AI-84 merged and deployed), §27HQ (grounded answers and scoped stock reads), §27HP (market prices from cited pages), §27HO (recorded specifications and the real seed catalogue), §27HN (inventory-only web research), §27HH (a transfer as one event to the assistant), §27HG (the stock-in link's product), §27HF (the single-location default's timing), §27HE (the stock-in link's location), §27HD (the movement fixes and the production device pass), §27HC (the assistant's local-time answers), §27FM (the V1 re-verification) and §27FJ (the two open advisories).
 
 ---
 
@@ -26098,3 +26098,41 @@ their reasons and Phase 23 passes **21/21**.
 performed. The console remains **not ready to expose** until the P0 readiness gates close, including
 a forced first-login recovery-code ceremony, a rehearsed break-glass runbook, audit retention/least
 privilege and deployment-boundary proof.
+
+---
+
+# 27IP. PLAT-6 — the Platform Operations console in production (2026-11-16)
+
+**The gap.** PLAT-1–PLAT-5 built a separate platform plane, a console, mandatory MFA, recovery and
+audit, but the console was not deployed and the operator had no production surface for tickets,
+deployments or cross-tenant monitoring. The owner asked for the console to be live and verified in
+the Inventory AI production environment without adding a paid service.
+
+**What shipped.** The console is served by the existing Render API service at `/platform`; the shell
+is static and every `/api/platform` read still requires the separate platform session and capability.
+PLAT-6 adds a health-only `/status` view, support tickets and notes with no tenant id or tenant data,
+boot-observed deployment history, infrastructure and monitoring aggregates, and console views for
+Overview, Live, Infrastructure, AI, Database, Mobile, Jobs, Businesses, Inventory, Support, Errors,
+Security/Audit, Team, Deployments and Checks. Same-origin GETs omit `Origin`, so the API accepts
+that narrow case only with `X-Platform-Console: 1` and `Sec-Fetch-Site: same-origin`; every other
+cookie request still needs the exact configured Origin and CSRF header. An overview request race was
+fixed by tagging requests with a session epoch, so a stale 401 cannot clear a fresh sign-in state.
+
+**Verification.** PR #315 passed all five observed checks on run `43946639285`: `server` (3 m 5 s),
+`mobile`, `webauthn-e2e` (48 s), `attribution-guard` and `secret-guard`; it squash-merged as
+`56e8c27`. The clean local full run passed **3,143 / 3,143 tests across 503 suites** (0 failed,
+0 skipped, 0 todo, exit 0, 663 s). Targeted `tsc`, ESLint and docs guards passed. The E2E job is
+not yet one of the four branch-protection contexts.
+
+**Production proof.** Render auto-deployed `56e8c27`; `/api/health` reports `status: ok`, `db:
+connected`, `environment: production`. `/platform/` returns 200 with the strict CSP and `no-store`,
+all three assets return 200, and the HTTP origin redirects to HTTPS with HSTS. A real Chrome run
+completed password + TOTP, showed the dashboard and signed out with no console errors. The API smoke
+observed 200 for status/operations/deployments/tickets, the exact `HttpOnly`/`Secure`/
+`SameSite=Strict`/Path `/api/platform` session cookie, a 204 exact-origin preflight, a foreign-Origin
+403, 200 logout and 401 on the old cookie. No tenant row was read or written.
+
+**Still open.** PR-03 network isolation is not present; the platform login is the only edge gate.
+PR-06's forced recovery-code ceremony and break-glass drill, PR-09 audit retention/database least
+privilege, and PR-15 named security sign-off remain open. Support grants (Gate E) remain blocked, so
+the console must not be given tenant-detail reads.

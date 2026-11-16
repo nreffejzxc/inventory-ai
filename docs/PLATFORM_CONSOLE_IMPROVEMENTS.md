@@ -4,10 +4,12 @@
 implemented recovery, lockout and lifecycle controls are recorded in
 [`PLATFORM_SECURITY_RECOMMENDATIONS.md`](PLATFORM_SECURITY_RECOMMENDATIONS.md) and
 [`SYSTEM_SPECIFICATION.md`](SYSTEM_SPECIFICATION.md); this page is the next layer of improvements.
-The pre-exposure gate remains [`PLATFORM_PRODUCTION_READINESS.md`](PLATFORM_PRODUCTION_READINESS.md).
+The public/wider-operator gate remains [`PLATFORM_PRODUCTION_READINESS.md`](PLATFORM_PRODUCTION_READINESS.md).
+The console is now live internally at `/platform` on `56e8c27`; CI-01 (forced recovery ceremony/drill)
+and CI-07 (non-public listener/edge attestation) remain P0 before wider exposure.
 
 **Reviewed:** 2026-11-16
-**Basis:** the Platform Operations records (§27IJ–§27IO), the browser E2E, the production-readiness
+**Basis:** the Platform Operations records (§27IJ–§27IP), the browser E2E, the production-readiness
 review, and the earlier authentication, audit, release-engineering and AI-support records.
 
 ## Priority scale

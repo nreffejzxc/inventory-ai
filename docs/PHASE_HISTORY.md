@@ -141,10 +141,11 @@ aligned with the implemented interim plane and its remaining gates in §27IK. PL
 dedicated console, mandatory TOTP/WebAuthn and append-only platform audit, is §27IM; PLAT-4, the
 fresh review, CI browser proof, production-readiness checklist and prioritized recommendations, is
 §27IN. PLAT-5, the recovery-code, durable MFA-lockout, password-change and administrator-lifecycle
-hardening with fail-closed origin and cookie checks, is §27IO. The tenant-facing
+hardening with fail-closed origin and cookie checks, is §27IO. PLAT-6, the deployed operations console
+with support tickets, deployment history and production smoke, is §27IP at `56e8c27`. The tenant-facing
 Operations dashboard was removed before commit. The
 2026-11-15 post-deploy/triage/monitor close-out is §27IA;
-production currently serves `e5c1c1d` and the newest OTA is
+production currently serves `56e8c27` and the newest OTA is
 `9d759ee5-82c5-4fbe-afe0-3a0ea2c44f6c`. The AI-105 retry fix and the
 live label are recorded in `DEVELOPMENT_LOG.md` and
 [`evidence/ai105-production-2026-11-11`](evidence/ai105-production-2026-11-11/README.md). Release engineering remains in
