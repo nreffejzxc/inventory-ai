@@ -17,13 +17,14 @@
  * REQUIREMENTS
  *   * MongoDB reachable through the repository's normal test configuration;
  *   * Google Chrome or Microsoft Edge installed (or CHROME_PATH set);
- *   * an unused API port (WEBAUTHN_E2E_API_PORT, default 4400) and console port
- *     (PLATFORM_CONSOLE_PORT, default 4100).
+ *   * unused API, console and Chrome DevTools ports (WEBAUTHN_E2E_API_PORT,
+ *     PLATFORM_CONSOLE_PORT, WEBAUTHN_E2E_CDP_PORT; defaults 4400, 4100, 9333).
  *
  * The script creates one unique SUPERADMIN in the TEST database and removes the
  * administrator, its sessions and its audit rows afterwards. It never prints the
  * password, a TOTP secret or a session token. It does not run as part of
- * `npm test` because CI may not have a browser; run it explicitly:
+ * `npm test`; the CI `webauthn-e2e` job runs it explicitly with a browser, and
+ * the same command is the local fallback:
  *
  *   cd server && npm run test:webauthn-e2e
  */
@@ -40,6 +41,7 @@ import { currentTotpCounter, generateTotp } from '../src/services/platformMfa/to
 const serverRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const API_PORT = Number(process.env.WEBAUTHN_E2E_API_PORT || 4400);
 const CONSOLE_PORT = Number(process.env.PLATFORM_CONSOLE_PORT || 4100);
+const CDP_PORT = Number(process.env.WEBAUTHN_E2E_CDP_PORT || 9333);
 const API_ORIGIN = `http://localhost:${API_PORT}`;
 const CONSOLE_ORIGIN = `http://localhost:${CONSOLE_PORT}`;
 const STARTED_AT = new Date();
@@ -55,7 +57,12 @@ const chromeCandidates = [
   'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
   'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
   '/usr/bin/google-chrome',
+  '/usr/bin/google-chrome-stable',
   '/usr/bin/chromium',
+  '/usr/bin/chromium-browser',
+  '/snap/bin/chromium',
+  '/opt/google/chrome/chrome',
+  '/opt/google/chrome/google-chrome',
   '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
 ].filter(Boolean);
 const chromePath = chromeCandidates.find((candidate) => existsSync(candidate));
@@ -316,7 +323,9 @@ async function main() {
         '--no-first-run',
         '--no-default-browser-check',
         '--disable-background-networking',
-        '--remote-debugging-port=9333',
+        '--disable-dev-shm-usage',
+        ...(process.env.CI ? ['--no-sandbox'] : []),
+        `--remote-debugging-port=${CDP_PORT}`,
         `--user-data-dir=${profileDir}`,
         'about:blank',
       ],
@@ -330,7 +339,7 @@ async function main() {
       'the Chrome DevTools endpoint',
       async () => {
         try {
-          const response = await fetch('http://127.0.0.1:9333/json/list');
+          const response = await fetch(`http://127.0.0.1:${CDP_PORT}/json/list`);
           if (!response.ok) return false;
           const list = await response.json();
           return list.find((target) => target.type === 'page') || false;
@@ -420,16 +429,24 @@ async function main() {
       };
       const textOf = async (id) => evaluate(`${byId(id)}.textContent || ''`);
       const shown = async (id) => evaluate(`!${byId(id)}.hidden`);
-      const waitForPasswordResponse = () =>
+      const loginCallCount = () =>
+        evaluate(`window.__e2eCalls.filter((call) => call.url.endsWith('/auth/login')).length`);
+      const waitForPasswordResponse = (since) =>
         waitFor(
           'the password response',
           async () => {
-            const calls = await evaluate('window.__e2eCalls');
-            const last = [...calls].reverse().find((call) => call.url.endsWith('/auth/login'));
-            return Boolean(last && last.status !== null);
+            const calls = await evaluate(
+              `window.__e2eCalls.filter((call) => call.url.endsWith('/auth/login'))`,
+            );
+            return calls.length > since && calls[calls.length - 1].status !== null;
           },
           20000,
         );
+      const submitLogin = async () => {
+        const before = await loginCallCount();
+        await evaluate(`${byId('login-form')}.requestSubmit()`, true);
+        await waitForPasswordResponse(before);
+      };
 
       await cdp.send('Page.navigate', { url: `${CONSOLE_ORIGIN}/` });
       await waitFor('the console login form', async () => shown('login-view'), 20000);
@@ -444,8 +461,7 @@ async function main() {
       // 1. Password -> mandatory TOTP enrollment -> console session.
       await setValue('email', EMAIL);
       await setValue('password', PASSWORD);
-      await evaluate(`${byId('login-form')}.requestSubmit()`, true);
-      await waitForPasswordResponse();
+      await submitLogin();
       await waitFor(
         'the TOTP enrollment view',
         async () => {
@@ -548,8 +564,7 @@ async function main() {
       await waitFor('the login view after sign-out', async () => shown('login-view'), 10000);
       await setValue('email', EMAIL);
       await setValue('password', PASSWORD);
-      await evaluate(`${byId('login-form')}.requestSubmit()`, true);
-      await waitForPasswordResponse();
+      await submitLogin();
       await waitFor(
         'the WebAuthn option',
         async () => {
@@ -611,8 +626,7 @@ async function main() {
       );
       await setValue('email', EMAIL);
       await setValue('password', PASSWORD);
-      await evaluate(`${byId('login-form')}.requestSubmit()`, true);
-      await waitForPasswordResponse();
+      await submitLogin();
       await waitFor(
         'the WebAuthn option before the invalid attempt',
         async () => {

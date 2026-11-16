@@ -8,9 +8,9 @@ of truth for *what actually happened*, and it is why this file is long.
 
 **How to read it.** Do not read it top to bottom. Either find a record by number (§27FJ, §27DM — the
 numbers are cited from `CLAUDE.md` and from source comments), or use the index: `CLAUDE.md` §7 lists
-all **245** records by the title each gives itself.
+all **246** records by the title each gives itself.
 
-**Current state:** V1 complete and in production testing. The records that answer *where are we now* are §27IJ (the INTERNAL Platform Operations plane — separate administrator identity, sessions and capabilities; committed in `d02a549`, not deployed), §27IK (platform-admin architecture, now aligned with the implemented interim plane and its remaining gates), §27IL (the durable 5xx and feature-presence stores that report reads), §27IM (the dedicated console, mandatory TOTP/WebAuthn and append-only platform audit — committed and browser-verified, not deployed), §27II (AI-117 complete feedback conversation preview, deployed `13fb3f8` and device-verified; one out-of-stock wording finding remains open), §27IH (AI-116 bounded follow-up context and answer freshness, deployed and device-verified), §27IG (AI-115 member feedback and the owner/admin review queue, deployed and device-verified), §27IF (AI-114 deterministic complete restock lists, deployed and device-verified), §27ID (the permanent assistant improvement roadmap and implementation audit; docs-only), §27IC (AI-110 contextual assistant entry and restock shortfall, deployed `7315675` and OTA-verified; the partial-restock guards completed in `1c3928b`), §27IB (scheduler proof and hosted freshness), §27IA (post-deploy phone proof, triage and monitor), §27HV (AI-99 10,256-product gate, 24/25 with one output-limit finding), §27HU (AI-99 free-first simple inventory, deployed with the 1.0.2 OTA), §27HT (AI-91/AI-92 exact product identity and per-location stock), §27HS (the AI-50–AI-84 increment register), §27HR (AI-48–AI-84 merged and deployed), §27HQ (grounded answers and scoped stock reads), §27HP (market prices from cited pages), §27HO (recorded specifications and the real seed catalogue), §27HN (inventory-only web research), §27HH (a transfer as one event to the assistant), §27HG (the stock-in link's product), §27HF (the single-location default's timing), §27HE (the stock-in link's location), §27HD (the movement fixes and the production device pass), §27HC (the assistant's local-time answers), §27FM (the V1 re-verification) and §27FJ (the two open advisories).
+**Current state:** V1 complete and in production testing. The records that answer *where are we now* are §27IJ (the INTERNAL Platform Operations plane — separate administrator identity, sessions and capabilities; committed in `d02a549`, not deployed), §27IK (platform-admin architecture, now aligned with the implemented interim plane and its remaining gates), §27IL (the durable 5xx and feature-presence stores that report reads), §27IM (the dedicated console, mandatory TOTP/WebAuthn and append-only platform audit — committed and browser-verified, not deployed), §27IN (fresh security review, CI browser WebAuthn, production-readiness checklist and prioritized recommendations), §27II (AI-117 complete feedback conversation preview, deployed `13fb3f8` and device-verified; one out-of-stock wording finding remains open), §27IH (AI-116 bounded follow-up context and answer freshness, deployed and device-verified), §27IG (AI-115 member feedback and the owner/admin review queue, deployed and device-verified), §27IF (AI-114 deterministic complete restock lists, deployed and device-verified), §27ID (the permanent assistant improvement roadmap and implementation audit; docs-only), §27IC (AI-110 contextual assistant entry and restock shortfall, deployed `7315675` and OTA-verified; the partial-restock guards completed in `1c3928b`), §27IB (scheduler proof and hosted freshness), §27IA (post-deploy phone proof, triage and monitor), §27HV (AI-99 10,256-product gate, 24/25 with one output-limit finding), §27HU (AI-99 free-first simple inventory, deployed with the 1.0.2 OTA), §27HT (AI-91/AI-92 exact product identity and per-location stock), §27HS (the AI-50–AI-84 increment register), §27HR (AI-48–AI-84 merged and deployed), §27HQ (grounded answers and scoped stock reads), §27HP (market prices from cited pages), §27HO (recorded specifications and the real seed catalogue), §27HN (inventory-only web research), §27HH (a transfer as one event to the assistant), §27HG (the stock-in link's product), §27HF (the single-location default's timing), §27HE (the stock-in link's location), §27HD (the movement fixes and the production device pass), §27HC (the assistant's local-time answers), §27FM (the V1 re-verification) and §27FJ (the two open advisories).
 
 ---
 
@@ -25996,4 +25996,60 @@ its audit rows were removed. Final full suite: **3,121 / 3,121, 499 suites, 0 fa
 **Not verified / not claimed.** No external dedicated Firebase identity project was provisioned.
 No deploy, OTA or public exposure was performed. Support grants and tenant-detail reads remain open
 gates.
+---
+
+# 27IN. PLAT-4 — review, CI browser proof and production gates (2026-11-16)
+
+**The gap.** The platform console, MFA and audit work passed its focused suites, but the browser
+proof was still a manual command, the review had not separated dead code from the shipped controls,
+and there was no single answer to “what must be true before this is exposed?” or “what should be
+fixed next?”. The owner approved four follow-ups: an independent review, CI WebAuthn automation, a
+production-readiness checklist and a prioritized security recommendations list. Nothing was to be
+pushed or deployed.
+
+**Independent review.** The four platform commits were re-read with the CORS fix, the console
+API-base fix and the browser E2E as the focus. The review is committed as `40f2758` (no AI
+attribution) and contains only platform files:
+
+- removed the unused `platformApiOrigin()`, `platformMfaReady()` and `PLATFORM_MFA_REQUIRED_CODE`;
+- the console origin is added to CORS only when `PLATFORM_ADMIN_JWT_SECRET` is configured, rather
+  than always adding its loopback default;
+- production validation requires `PLATFORM_CONSOLE_ORIGIN` when the platform secret is set;
+- the WebAuthn E2E cleanup now removes the actorless refusal rows created by replay/tamper checks,
+  verifies zero admins/sessions/audit rows, and exits non-zero if cleanup cannot prove that.
+
+The CORS fix was confirmed by a new regression test that requests `x-platform-csrf,
+x-platform-console` on a preflight and asserts the exact reflection. The console mount was confirmed
+by `PLAT2` **9/9** and by the real browser sign-in, not only by source inspection. `PLAT3` passed
+**12/12** and `phase07c` passed **17/17** after the review. The original commits and the review commit
+contain neither AI-118 file; the AI-118 working-tree changes remain uncommitted and were not staged.
+
+**CI browser proof.** `.github/workflows/ci.yml` now has a fifth job, `webauthn-e2e`. It starts a
+disposable `mongo:7` service, installs the server dependencies, verifies `/usr/bin/google-chrome`,
+and runs `npm run test:webauthn-e2e`. The E2E script gained Linux Chrome paths, a configurable
+`WEBAUTHN_E2E_CDP_PORT` (default 9333), `--disable-dev-shm-usage`, and a CI-only `--no-sandbox` flag.
+The job is bounded by `timeout-minutes: 10` and adds roughly one to two minutes on this public
+repository. Its first GitHub run has not been observed because the branch was not pushed.
+
+**Production gate and recommendations.** Two living reference documents were added:
+`docs/PLATFORM_PRODUCTION_READINESS.md` is the pre-exposure checklist (HTTPS/domains, network
+isolation, separate credentials, cookie/CORS proof, MFA recovery, audit retention and database
+permissions, support grants, CI evidence and sign-off); `docs/PLATFORM_SECURITY_RECOMMENDATIONS.md`
+is the P0–P2 list with what/why/benefit for each item. Recommendations were not implemented in this
+step. The first blockers are recovery/break-glass and administrator lifecycle, per-account MFA
+attempt budgeting, a fail-closed HTTPS/network deployment guard, and audit retention/least-privilege
+database access.
+
+**Verification.** `npx tsc --noEmit`, ESLint on the changed files and `git diff --check` pass. The
+focused suites are PLAT2 **9/9**, PLAT3 **12/12** and phase07c **17/17**. The local E2E passes with
+its cleanup verification; a local `CI=true` run exposed a harness race where the wait could accept
+an earlier `/auth/login` response before the new one, so it now counts new login calls, and the
+CI-flag run passes. The CI job itself is unrun. The full server suite was not rerun after the
+review commit; the last pre-review run was **3,121/3,121**. `node scripts/check-docs.mjs` passes with
+**37 active documents** and **15 living-reference cadence rows**; the focused documentation tests are
+run separately.
+
+**Not claimed.** No push, PR, deployment, OTA, external identity project, support grant or tenant
+detail read. The console remains not ready to expose until the P0 gates and the readiness checklist
+close.
 ---

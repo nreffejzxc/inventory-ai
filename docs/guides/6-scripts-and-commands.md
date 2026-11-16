@@ -59,6 +59,7 @@ npm run lint             # silent when clean
 npm run test:unit        # fast, no database
 npm test                 # everything, including database tests
 npm run test:db          # database tests only
+npm run test:webauthn-e2e # real browser + MongoDB; TOTP/WebAuthn proof
 npm run check:extensions # half-finished file rename
 npm run check:specifiers # import pointing at nothing
 ```
@@ -447,12 +448,21 @@ Two things a reader arriving here usually wants to know:
 
 ## Part 7 — What runs by itself
 
-CI has four jobs. The **server** job runs `typecheck`, `lint`, `check:extensions`, `check:specifiers`, the
+CI has five jobs. The **server** job runs `typecheck`, `lint`, `check:extensions`, `check:specifiers`, the
 full test suite and a boot smoke test. The **mobile** job runs `typecheck`, the build-environment contract,
 Jest, the Metro/Expo bundle check, the printable-label barcode check and the wireless helper's
-`--self-test`. The **secret-guard** job proves its scanner can fail before scanning, and the
-**attribution-guard** job checks the commit messages the event introduces. Not automatic, because they
-write or need your credentials: the seeders, cleanups, performance probes and `audit-access.mjs`.
+`--self-test`. The **webauthn-e2e** job starts a disposable MongoDB, uses headless Chrome with a CDP
+virtual authenticator and runs `npm run test:webauthn-e2e`. The **secret-guard** job proves its scanner
+can fail before scanning, and the **attribution-guard** job checks the commit messages the event
+introduces. Not automatic, because they write or need your credentials: the seeders, cleanups,
+performance probes and `audit-access.mjs`.
+
+The browser job adds about one to two minutes on a public repository and is bounded by
+`timeout-minutes`. A browser failure is reported as the `webauthn-e2e` job, not hidden in the full
+server run. The E2E still needs Chrome/Edge, MongoDB and the configurable API/console/CDP ports
+(defaults 4400/4100/9333). If a future runner cannot provide Chrome, run the same command locally and
+record the output; do not replace it with a unit test. The job was added on 2026-11-16 and has not
+yet been observed on GitHub because that work was not pushed.
 
 Separately, the **TypeScript 7 watch** runs every Monday at **06:17 UTC** and on manual dispatch. It
 runs the read-only `check-upgrade-watches` gate against both workspaces and opens **one** issue only
@@ -495,6 +505,7 @@ the trigger. See [`INVENTORY_INTEGRITY.md`](../INVENTORY_INTEGRITY.md) and
 |---|---|---|
 | `npm start` / `npm run dev` | backend on 4000 / restarting on edits | ✅ |
 | `npm run typecheck`, `lint`, `test:unit`, `test:db`, `test` | checks and tests | ✅ |
+| `npm run test:webauthn-e2e` | real-browser TOTP/WebAuthn proof; needs Chrome/Edge, MongoDB and free ports | ✅ reads/writes only a disposable test admin |
 | `npm run check:extensions`, `check:specifiers` | module-graph plumbing | ✅ |
 | `npm run audit:indexes` | are declared indexes really there | ✅ reads |
 | `npm run audit:duplicates` | suspected historical duplicate ledger rows | ✅ reads |

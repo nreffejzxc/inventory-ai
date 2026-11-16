@@ -57,6 +57,8 @@ Guide 6; no rule, command or safety procedure was removed.
 | [`DEVELOPING_ON_A_PHYSICAL_DEVICE.md`](DEVELOPING_ON_A_PHYSICAL_DEVICE.md) | The deep phone reference: verified commands, log reading, failure → fix |
 | [`INVENTORY_INTEGRITY.md`](INVENTORY_INTEGRITY.md) | The read-only orphan STOCK_IN / unreceipted-PO audit, its scheduled baseline/history monitor, its exit codes and what to do with a finding |
 | [`MONITORING.md`](MONITORING.md) | The operator's health endpoints, response pulse, AI turn records, alert rules and incident procedure |
+| [`PLATFORM_PRODUCTION_READINESS.md`](PLATFORM_PRODUCTION_READINESS.md) | The pre-exposure checklist for the Platform Operations console: HTTPS and domains, network isolation, credentials, cookies/CORS, MFA recovery, audit retention and database permissions, support grants, CI proof and sign-off |
+| [`PLATFORM_SECURITY_RECOMMENDATIONS.md`](PLATFORM_SECURITY_RECOMMENDATIONS.md) | Prioritized future platform security improvements, with what, why, benefit and P0–P2 ordering; recommendations only |
 | [`../README.md`](../README.md) | The front door: stack, layout, how to run each half, deployment |
 
 ### Review cadence
@@ -78,6 +80,8 @@ Reference documents are consulted rather than read once, so they are reviewed on
 | [`DEVELOPING_ON_A_PHYSICAL_DEVICE.md`](DEVELOPING_ON_A_PHYSICAL_DEVICE.md) | 90 days | 2026-11-07 |
 | [`INVENTORY_INTEGRITY.md`](INVENTORY_INTEGRITY.md) | 90 days | 2026-11-15 |
 | [`MONITORING.md`](MONITORING.md) | 90 days | 2026-11-15 |
+| [`PLATFORM_PRODUCTION_READINESS.md`](PLATFORM_PRODUCTION_READINESS.md) | 90 days | 2026-11-16 |
+| [`PLATFORM_SECURITY_RECOMMENDATIONS.md`](PLATFORM_SECURITY_RECOMMENDATIONS.md) | 90 days | 2026-11-16 |
 | [`../README.md`](../README.md) | 90 days | 2026-11-09 |
 
 The 2026-11-07 date starts each clock at adoption: it records when the cadence began, not that every

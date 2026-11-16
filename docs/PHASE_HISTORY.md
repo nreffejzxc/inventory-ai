@@ -138,7 +138,9 @@ both are implementation-tested in the working tree and pending deployment at thi
 INTERNAL Platform Operations plane for the Inventory AI owner/support/developers, is §27IJ; OPS-8,
 the durable 5xx and feature-presence stores it reads, is §27IL; the platform-admin architecture is
 aligned with the implemented interim plane and its remaining gates in §27IK. PLAT-2/PLAT-3, the
-dedicated console, mandatory TOTP/WebAuthn and append-only platform audit, is §27IM. The tenant-facing
+dedicated console, mandatory TOTP/WebAuthn and append-only platform audit, is §27IM; PLAT-4, the
+fresh review, CI browser proof, production-readiness checklist and prioritized recommendations, is
+§27IN. The tenant-facing
 Operations dashboard was removed before commit. The
 2026-11-15 post-deploy/triage/monitor close-out is §27IA;
 production currently serves `e5c1c1d` and the newest OTA is

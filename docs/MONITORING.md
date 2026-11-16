@@ -274,10 +274,12 @@ SUPERADMIN in the test database, and drives the real console through TOTP enroll
 registration and security-key sign-in. It then replays the exact successful assertion and submits a
 tampered signature, requiring both to be refused and the tampered attempt to leave no session. It
 refuses to run without a browser and is deliberately **not** part of `npm test`; it needs MongoDB,
-the normal test environment and unused ports 4400/4100/9333. The administrator, its sessions and its
-audit rows are removed afterwards. A successful login redirect alone would not be evidence: the
-script waits for the dashboard, inspects the returned assertion, and asserts the replay and tamper
-status codes.
+the normal test environment and unused ports 4400/4100/9333 (all configurable). The administrator,
+its sessions and its audit rows are removed afterwards, and the run fails if any remain. The CI
+`webauthn-e2e` job runs the same command with headless Chrome and a disposable MongoDB; the manual
+command remains the fallback when a runner cannot provide a browser. A successful login redirect
+alone would not be evidence: the script waits for the dashboard, inspects the returned assertion,
+and asserts the replay and tamper status codes.
 
 ---
 

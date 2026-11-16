@@ -48,6 +48,8 @@ Store release is being prepared.
 
 **Platform Operations console, MFA and audit, PLAT-2/PLAT-3 (2026-11-16, committed and browser-verified; not deployed):** the three approved layers are implemented. A dedicated static console (`cd server && npm run platform-console`, `http://localhost:4100`) uses an HttpOnly `platform_session` cookie plus a readable `platform_csrf` cookie and requires both the exact `PLATFORM_CONSOLE_ORIGIN` and a matching `X-Platform-CSRF` header; Bearer API clients are unchanged. Its CSP is `default-src 'none'`, same-origin script/style, API-origin-only `connect-src`, `frame-ancestors 'none'`, with no inline script, style or handler. Platform login is password + **mandatory** TOTP (WebAuthn as an enrolled alternative); a password alone returns only a challenge. TOTP secrets and WebAuthn public keys are AES-256-GCM encrypted under `PLATFORM_MFA_ENCRYPTION_KEY`, codes are single-use, WebAuthn registration exists only inside an authenticated session, and a WebAuthn login challenge is stored as a hash and consumed atomically with the counter so an assertion cannot be replayed. `platform_audit_events` records login failure, MFA/WebAuthn changes, capability denials, operations/audit reads, renewal and logout, and its model refuses update/replace/delete/save-existing with no TTL; SECURITY and SUPERADMIN alone hold `platform.audit.read`. Route inventory is **105 / 57 gated / 20 authenticated / 28 public / 0 role-gated**. `PLAT2` **9/9**, `PLAT3` **8/8 with one unit suite mode-skipped in db mode**, `OPS7` **14/0 with two unit suites mode-skipped**, phase 23 **32/32** and the route-inventory guard pass; server `tsc` passes. Committed in `d02a549`, followed by the CORS-contract fix and browser-E2E support; no deployment, OTA or public exposure was performed. The first full server run found that the new fixed CORS `allowedHeaders` list changed the established preflight response; removing it restored reflection and `phase07c-http-security.test.mjs`. The final full server suite passed **3,121/3,121, 499 suites, 0 failures, 0 skipped**. `npm run test:webauthn-e2e` then passed against headless Chrome with a CDP virtual authenticator: TOTP enrollment, security-key registration, security-key login, replay refusal (`PLATFORM_WEBAUTHN_INVALID`) and a tampered assertion refused with no session; the disposable administrator and its audit rows were removed. That run also caught and fixed the console's missing `/api/platform` fetch base, now asserted by `PLAT2` (9/9). An external dedicated identity project remains unverified; support grants and tenant-detail reads remain open gates.
 
+**Platform Operations review and CI browser proof, PLAT-4 (2026-11-16; committed locally, not pushed):** the fresh review is `40f2758` and touches only platform files. It removes dead helpers, gates the console CORS origin on a configured platform plane, requires `PLATFORM_CONSOLE_ORIGIN` in production and makes the WebAuthn E2E cleanup fail closed; the AI-118 files remain excluded. `.github/workflows/ci.yml` now has a `webauthn-e2e` job with a disposable MongoDB, headless Chrome and the existing virtual-authenticator script. The pre-exposure checklist is `docs/PLATFORM_PRODUCTION_READINESS.md`; the P0–P2 future list is `docs/PLATFORM_SECURITY_RECOMMENDATIONS.md`. Focused checks pass: PLAT2 **9/9**, PLAT3 **12/12**, phase07c **17/17**, local E2E, `tsc`, ESLint and `git diff --check`. The CI job and full suite were not rerun/observed; no push, deploy or OTA was made. The console remains **not ready to expose** until the readiness checklist's P0 items close.
+
 **Feedback conversation preview, AI-117 (2026-11-16, deployed and device-verified; one finding):** the OWNER/ADMIN review
 queue gained **View conversation**. `GET /api/ai/feedback/:id/conversation` returns the complete
 reported answer, six USER/ASSISTANT messages on each side and `omittedBefore`/`omittedAfter`; it
@@ -341,6 +343,43 @@ Known limits, checked before spending one of them:
   space that a backup or an index change would explain.
 - **Brevo** — used for verification codes, reset codes and invitations. Do not send test mail in
   bulk; a delivery failure is not a code regression until the provider log says so.
+
+---
+
+## 2026-11-16 — PLAT-4 review, CI browser proof and production gates
+
+**Status.** LOCALLY COMMITTED IN `40f2758`; NOT PUSHED, DEPLOYED OR PUBLICLY EXPOSED. No CI run
+was observed for the new job.
+
+**What changed.** The four platform commits were re-reviewed with the CORS fix, the console API-base
+fix and the browser E2E as the focus. `40f2758` removes unused platform helpers, adds the console
+origin to CORS only when the platform secret is configured, requires `PLATFORM_CONSOLE_ORIGIN` when
+that secret is set in production, and makes the E2E cleanup remove actorless replay/tamper audit rows
+and fail if any administrator, session or audit row remains. The CORS reflection regression is now
+pinned by a test using `x-platform-csrf` and `x-platform-console`; `PLAT2` and the real browser
+sign-in confirm the `/api/platform` mount. The AI-118 files are not in any of the five commits and
+remain uncommitted in the working tree.
+
+**CI and gates.** `.github/workflows/ci.yml` gained a fifth job, `webauthn-e2e`, with a disposable
+`mongo:7` service, headless Chrome and a 10-minute bound. The script now accepts a configurable CDP
+port, Linux Chrome paths and a CI-only no-sandbox flag. Two living reference documents were added:
+`docs/PLATFORM_PRODUCTION_READINESS.md` (HTTPS/domains, network isolation, separate credentials,
+cookie/CORS proof, MFA recovery, audit retention/database permissions, support grants, CI evidence
+and sign-off) and `docs/PLATFORM_SECURITY_RECOMMENDATIONS.md` (P0–P2 recommendations only).
+
+**Verification.** `npx tsc --noEmit`, ESLint on every changed file, `git diff --check`, PLAT2 **9/9**,
+PLAT3 **12/12**, phase07c **17/17**, `npm run test:webauthn-e2e` and `node scripts/check-docs.mjs`
+(**37 active documents**, **15 cadence rows**) pass. A `CI=true` E2E run found a harness race that
+could accept the previous `/auth/login` response; the wait now requires a new call, and the CI-flag
+rerun passes. The local E2E's cleanup
+verification reports zero administrators, sessions and audit rows; the CI job itself is unrun. The
+full server suite was not rerun after the review edits; the last run was **3,121/3,121**. No push,
+PR, deploy, OTA, external identity project or support grant was made.
+
+**Next.** Close the P0 items in the readiness checklist before any exposure: recovery/break-glass and
+administrator lifecycle, per-account MFA attempt budgeting, a fail-closed HTTPS/network deployment
+guard, and audit retention plus least-privilege database access. Then observe the `webauthn-e2e` CI
+job on GitHub and rerun the full suite.
 
 ---
 
