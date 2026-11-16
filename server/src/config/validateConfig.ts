@@ -155,6 +155,13 @@ export function validateProductionConfig(
   // The console origin is a browser boundary. Refuse a malformed value and, in
   // production, refuse plain HTTP unless it is explicitly loopback development.
   const platformConsoleOrigin = get('PLATFORM_CONSOLE_ORIGIN');
+  if (platformJwtSecret && !platformConsoleOrigin) {
+    problems.push({
+      variable: 'PLATFORM_CONSOLE_ORIGIN',
+      message:
+        'PLATFORM_CONSOLE_ORIGIN is required when PLATFORM_ADMIN_JWT_SECRET is configured; the default is loopback development only',
+    });
+  }
   if (platformConsoleOrigin) {
     try {
       const parsed = new URL(platformConsoleOrigin);

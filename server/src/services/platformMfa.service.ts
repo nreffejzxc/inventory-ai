@@ -10,7 +10,6 @@ import {
 } from '../config/platformJwt.ts';
 import {
   assertPlatformMfaConfigured,
-  isPlatformMfaConfigured,
   PLATFORM_MFA_ENROLLMENT_TTL_SECONDS,
   PLATFORM_MFA_ISSUER,
 } from '../config/platformSecurity.ts';
@@ -30,7 +29,6 @@ import { toPublicPlatformAdmin } from './platformAuth.service.ts';
  * authenticate any `/api/platform` route.
  */
 
-export const PLATFORM_MFA_REQUIRED_CODE = 'PLATFORM_MFA_REQUIRED';
 export const PLATFORM_MFA_INVALID_CODE = 'PLATFORM_MFA_INVALID';
 export const PLATFORM_MFA_ENROLLMENT_REQUIRED_CODE = 'PLATFORM_MFA_ENROLLMENT_REQUIRED';
 export const PLATFORM_MFA_ALREADY_ENROLLED_CODE = 'PLATFORM_MFA_ALREADY_ENROLLED';
@@ -305,13 +303,7 @@ export async function verifyPlatformMfaLogin({
   };
 }
 
-/** True only when the server can complete any MFA flow. */
-export function platformMfaReady(): boolean {
-  return isPlatformMfaConfigured();
-}
-
 export default {
-  PLATFORM_MFA_REQUIRED_CODE,
   PLATFORM_MFA_INVALID_CODE,
   PLATFORM_MFA_ENROLLMENT_REQUIRED_CODE,
   PLATFORM_MFA_ALREADY_ENROLLED_CODE,
@@ -319,5 +311,4 @@ export default {
   confirmPlatformMfaEnrollment,
   verifyPlatformMfaLogin,
   completePlatformLogin,
-  platformMfaReady,
 };

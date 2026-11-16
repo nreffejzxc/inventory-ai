@@ -46,11 +46,6 @@ export function platformConsoleOrigin(): string {
   return (trimmed('PLATFORM_CONSOLE_ORIGIN') || 'http://localhost:4100').replace(/\/+$/, '');
 }
 
-/** The origin the console calls. It is also the trusted WebAuthn origin by default. */
-export function platformApiOrigin(): string {
-  return (trimmed('PLATFORM_API_ORIGIN') || 'http://localhost:4000').replace(/\/+$/, '');
-}
-
 export function isPlatformConsoleOrigin(origin: unknown): boolean {
   return typeof origin === 'string' && origin.replace(/\/+$/, '') === platformConsoleOrigin();
 }
@@ -167,7 +162,6 @@ export default {
   PLATFORM_WEBAUTHN_TTL_SECONDS,
   PLATFORM_MFA_ISSUER,
   platformConsoleOrigin,
-  platformApiOrigin,
   isPlatformConsoleOrigin,
   isPlatformConsoleRequest,
   platformCookieSecure,

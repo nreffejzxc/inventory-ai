@@ -35,12 +35,15 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { currentTotpCounter, generateTotp } from '../src/services/platformMfa/totp.ts';
+
 const serverRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const API_PORT = Number(process.env.WEBAUTHN_E2E_API_PORT || 4400);
 const CONSOLE_PORT = Number(process.env.PLATFORM_CONSOLE_PORT || 4100);
 const API_ORIGIN = `http://localhost:${API_PORT}`;
 const CONSOLE_ORIGIN = `http://localhost:${CONSOLE_PORT}`;
-const RUN_ID = `${Date.now()}-${crypto.randomBytes(3).toString('hex')}`;
+const STARTED_AT = new Date();
+const RUN_ID = `${STARTED_AT.getTime()}-${crypto.randomBytes(3).toString('hex')}`;
 const EMAIL = `webauthn-e2e-${RUN_ID}@example.test`;
 const PASSWORD = crypto.randomBytes(24).toString('base64url');
 const PLATFORM_JWT_SECRET = crypto.randomBytes(48).toString('base64url');
@@ -176,56 +179,40 @@ async function cleanupAdmin() {
     const ok = await connectDatabase();
     if (!ok) process.exit(2);
     const admin = await PlatformAdmin.findOne({ email: process.env.E2E_EMAIL }).select('_id').lean();
+    const parsedStart = new Date(process.env.E2E_STARTED_AT || '');
+    const startedAt = Number.isNaN(parsedStart.getTime()) ? new Date() : parsedStart;
+    const auditFilters = [
+      { actorEmail: process.env.E2E_EMAIL },
+      // Replay and tampered-assertion refusals have no resolvable actor; clear
+      // every platform audit row this run created, including those.
+      { createdAt: { $gte: startedAt }, route: { $regex: '^/api/platform/' } },
+    ];
+    if (admin) auditFilters.push({ actorAdminId: admin._id });
+    await mongoose.connection.collection('platform_audit_events').deleteMany({ $or: auditFilters });
     if (admin) {
       await PlatformAdminSession.deleteMany({ adminId: admin._id });
-      await mongoose.connection.collection('platform_audit_events').deleteMany({
-        $or: [{ actorAdminId: admin._id }, { actorEmail: process.env.E2E_EMAIL }],
-      });
       await PlatformAdmin.deleteOne({ _id: admin._id });
     }
+    const admins = await PlatformAdmin.countDocuments({ email: process.env.E2E_EMAIL });
+    const sessions = admin ? await PlatformAdminSession.countDocuments({ adminId: admin._id }) : 0;
+    const audits = await mongoose.connection.collection('platform_audit_events').countDocuments({ $or: auditFilters });
     await disconnectDatabase();
+    console.log('[webauthn-e2e] cleanup: admins=' + admins + ' sessions=' + sessions + ' audits=' + audits);
+    if (admins || sessions || audits) process.exit(3);
   `;
   const result = spawnSync(process.execPath, ['--input-type=module', '-e', code], {
     cwd: serverRoot,
-    env: { ...env, E2E_EMAIL: EMAIL },
+    env: { ...env, E2E_EMAIL: EMAIL, E2E_STARTED_AT: STARTED_AT.toISOString() },
     encoding: 'utf8',
     timeout: 30000,
   });
-  if (result.status !== 0) {
-    console.error(`[webauthn-e2e] cleanup warning: ${(result.stderr || result.stdout || '').trim()}`);
+  if (result.error || result.status !== 0) {
+    console.error(
+      `[webauthn-e2e] cleanup failed: ${(result.error?.message || result.stderr || result.stdout || '').trim()}`,
+    );
+    return false;
   }
-}
-
-function base32Decode(value) {
-  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
-  let bits = 0;
-  let accumulator = 0;
-  const out = [];
-  for (const character of value.replace(/=+$/, '').toUpperCase()) {
-    const index = alphabet.indexOf(character);
-    if (index < 0) fail('TOTP secret contains a non-base32 character');
-    accumulator = (accumulator << 5) | index;
-    bits += 5;
-    if (bits >= 8) {
-      out.push((accumulator >>> (bits - 8)) & 0xff);
-      bits -= 8;
-    }
-  }
-  return Buffer.from(out);
-}
-
-function totp(secret, now = Date.now()) {
-  const counter = Math.floor(now / 1000 / 30);
-  const message = Buffer.alloc(8);
-  message.writeBigUInt64BE(BigInt(counter));
-  const digest = crypto.createHmac('sha1', base32Decode(secret)).update(message).digest();
-  const offset = digest[digest.length - 1] & 0x0f;
-  const value =
-    ((digest[offset] & 0x7f) << 24) |
-    (digest[offset + 1] << 16) |
-    (digest[offset + 2] << 8) |
-    digest[offset + 3];
-  return String(value % 1_000_000).padStart(6, '0');
+  return true;
 }
 
 class Cdp {
@@ -476,7 +463,7 @@ async function main() {
         },
         20000,
       );
-      await setValue('enroll-code', totp(secret));
+      await setValue('enroll-code', generateTotp(secret, currentTotpCounter()));
       await evaluate(`${byId('enroll-form')}.requestSubmit()`, true);
       await waitFor(
         'the dashboard after TOTP enrollment',
@@ -707,7 +694,11 @@ async function main() {
         /* Chrome may still hold a file; the OS temp cleaner can remove it */
       }
     }
-    await cleanupAdmin();
+    const cleaned = await cleanupAdmin();
+    if (!cleaned) {
+      failed = true;
+      process.exitCode = 1;
+    }
     if (failed) {
       for (const entry of children) {
         console.error(`[webauthn-e2e] ${entry.label} log tail:\n${entry.child.tail()}`);

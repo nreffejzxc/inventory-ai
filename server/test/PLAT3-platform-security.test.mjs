@@ -210,6 +210,13 @@ unitSuite('PLAT-2/3 audit vocabulary and cookie flags', () => {
     }).map((problem) => problem.variable);
     assert.ok(plainHttp.includes('PLATFORM_CONSOLE_ORIGIN'));
 
+    const missingConsole = validateProductionConfig({
+      ...base,
+      PLATFORM_MFA_ENCRYPTION_KEY: 'mfa-secret-0123456789abcdef0123456789abcdef',
+      PLATFORM_CONSOLE_ORIGIN: undefined,
+    }).map((problem) => problem.variable);
+    assert.ok(missingConsole.includes('PLATFORM_CONSOLE_ORIGIN'));
+
     const valid = validateProductionConfig({
       ...base,
       PLATFORM_MFA_ENCRYPTION_KEY: 'mfa-secret-0123456789abcdef0123456789abcdef',

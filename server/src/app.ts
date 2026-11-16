@@ -5,6 +5,7 @@ import env from './config/env.ts';
 import { INSTANCE_ID, INSTANCE_ID_HEADER } from './config/instanceIdentity.ts';
 import { recordResponse } from './config/operationalCounters.ts';
 import { createCors } from './middlewares/cors.ts';
+import { isPlatformAuthConfigured } from './config/platformJwt.ts';
 import { platformConsoleOrigin } from './config/platformSecurity.ts';
 import requestId from './middlewares/requestId.ts';
 import requestLogger from './middlewares/httpLogger.ts';
@@ -135,11 +136,13 @@ export function createApp({
   // mobile sends no Origin and is unaffected; browsers only get a grant for
   // allow-listed origins — never '*'.
   //
-  // PLAT-2: the dedicated console is always included because it is the only
-  // browser client the platform API supports, and it authenticates with a
-  // cookie. `createCors` grants credentials only to these exact origins; the
-  // platform middleware separately requires the console Origin AND a CSRF pair.
-  const resolvedCorsOrigins = [...new Set([...corsOrigins, platformConsoleOrigin()])];
+  // PLAT-2: include the dedicated console origin only when the platform plane
+  // is configured. The default is loopback; adding it to a deployment that has
+  // no platform secret would widen the CORS allow-list for a console that
+  // cannot authenticate. `createCors` grants credentials only to exact origins;
+  // the platform middleware separately requires the console Origin AND CSRF.
+  const platformCorsOrigins = isPlatformAuthConfigured() ? [platformConsoleOrigin()] : [];
+  const resolvedCorsOrigins = [...new Set([...corsOrigins, ...platformCorsOrigins])];
   app.use(createCors(resolvedCorsOrigins));
 
   // L2: explicit JSON body-size cap. Oversized bodies are rejected with a
