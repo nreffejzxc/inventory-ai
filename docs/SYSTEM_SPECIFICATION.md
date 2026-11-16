@@ -1140,7 +1140,16 @@ GET  /api/platform/admins                     platform.admin.manage
 PATCH /api/platform/admins/:id/status         platform.admin.manage
 DELETE /api/platform/admins/:id               platform.admin.manage
 DELETE /api/platform/admins/:id/webauthn/:credentialId  platform.admin.manage
+GET  /platform                                (same-origin console shell; no API data)
+GET  /api/platform/status                     platform.health.read
 GET  /api/platform/operations?days=7           platform.metrics.read
+GET  /api/platform/deployments?limit=50       platform.deployments.read
+GET  /api/platform/tickets?limit=50           platform.support.manage
+POST /api/platform/tickets                    platform.support.manage
+GET  /api/platform/tickets/assignees          platform.support.manage
+GET  /api/platform/tickets/:id                platform.support.manage
+PATCH /api/platform/tickets/:id               platform.support.manage
+POST /api/platform/tickets/:id/notes          platform.support.manage
 GET  /api/platform/audit?limit=50              platform.audit.read
 ```
 
@@ -1169,12 +1178,21 @@ whenever `NODE_ENV=production` or the configured console origin is HTTPS) plus a
 fragment or userinfo); the API and the console reject any other value rather than silently weakening
 WebAuthn or cookie origin checks. A cookie-authenticated request is accepted
 only from the exact `PLATFORM_CONSOLE_ORIGIN` and only when `X-Platform-CSRF` matches the CSRF
-cookie; Bearer clients need no CSRF because a browser does not attach the header automatically. A
+cookie. The one exception is a same-origin GET, where browsers omit `Origin`; the API accepts it
+only when the request also carries `X-Platform-Console: 1` and the browser-controlled
+`Sec-Fetch-Site: same-origin`, and still requires the CSRF header. Bearer clients need no CSRF
+because a browser does not attach the header automatically. A
 cross-origin console that cannot read the API host's CSRF cookie after a reload calls
 `GET /api/platform/auth/csrf`: GET-only, exact Origin, existing session, and it issues only a fresh
 CSRF value. The console is a separate static listener (`server/platform-console/`, `npm run platform-console`) with
 no MongoDB connection, a strict CSP (`script-src 'self'`, `connect-src` only the API origin,
 `frame-ancestors 'none'`), no inline script or style, and no browser token storage.
+
+The production deployment also mounts the same `server/platform-console/public/` assets at
+`/platform` on the API origin. That route is a static shell only: it rewrites `config.js` to the
+request origin with `sameOrigin: true`, uses `connect-src 'self'`, and still leaves every data
+endpoint behind platform authentication and capability middleware. Serving the shell beside the API
+removes the cross-site cookie/CSRF bootstrap step; it does not make the console a tenant route.
 
 **AUDIT IS APPEND-ONLY.** `platform_audit_events` records login success/failure, MFA and WebAuthn
 changes, capability denials, operations reads, audit reads, renewal and logout. The model refuses
@@ -1199,10 +1217,14 @@ connected to any tenant Firebase project.
 Platform tokens are signed with `PLATFORM_ADMIN_JWT_SECRET`, issuer `inventory-ai-platform`,
 audience `platform-admin`, and name a `platform_admin_sessions` row with a 15-minute idle timeout
 and an 8-hour absolute cap. The platform capabilities are `platform.health.read`,
-`platform.metrics.read`, `platform.audit.read` and `platform.admin.manage`; they are not tenant
-permissions. `GET /api/platform/operations` requires `platform.metrics.read` (`SUPPORT`, `SECURITY`,
-`SUPERADMIN`); `GET /api/platform/audit` requires `platform.audit.read` (`SECURITY`, `SUPERADMIN`
-only); the administrator lifecycle routes require `platform.admin.manage` (`SUPERADMIN` only).
+`platform.metrics.read`, `platform.audit.read`, `platform.admin.manage`, `platform.support.manage`
+and `platform.deployments.read`; they are not tenant permissions. `GET /api/platform/status`
+requires `platform.health.read`; `GET /api/platform/operations` requires `platform.metrics.read`
+(`SUPPORT`, `SECURITY`, `SUPERADMIN`); `GET /api/platform/deployments` requires
+`platform.deployments.read` (`SUPPORT`, `SECURITY`, `SUPERADMIN`); the ticket routes require
+`platform.support.manage` (`SUPPORT`, `SECURITY`, `SUPERADMIN`); `GET /api/platform/audit` requires
+`platform.audit.read` (`SECURITY`, `SUPERADMIN` only); the administrator lifecycle routes require
+`platform.admin.manage` (`SUPERADMIN` only).
 
 `days` defaults to `7` and must be an integer from `1` to `30`. The report has NO tenant selector:
 there is no `businessId` parameter and the service cannot be aimed at one business. It returns
@@ -1220,6 +1242,21 @@ cross-tenant aggregates only:
 No business name, member name, email, user id, AI prompt, answer, feedback note, request body or raw
 error message is returned. A pre-authentication 5xx is counted in the platform total but not as an
 affected tenant. Every response is `Cache-Control: no-store`.
+
+The console's `status` response is the health-only subset with current process uptime and the
+response counters. The `operations` report adds the AI model/outcome/token breakdowns, support
+summary, inventory aggregates, platform-audit security aggregates and infrastructure facts. The
+infrastructure service reports only observable process memory/CPU/uptime, MongoDB `dbStats`
+(cached for 30 seconds), configured integration predicates and read-only checks. Host CPU and
+memory pressure, Atlas cluster metrics, backup status, mobile crash/install/startup telemetry and
+durable background-job telemetry are explicitly listed as unavailable; no figure is inferred.
+
+Support tickets are internal records in `platform_tickets`. They contain no `businessId`, no
+tenant member and no tenant data. Status changes follow a closed workflow (NEW → UNDER_INVESTIGATION
+→ ESCALATED → FIX_IN_PROGRESS → RESOLVED → CLOSED, with the supported reopen/close paths); every
+transition and note is audited with the platform actor. Deployment history is boot-observed only:
+the process records the commit, environment, Node version and start time after it boots, so a build
+that failed before boot is not observable from the application.
 
 #### Durable monitoring records
 

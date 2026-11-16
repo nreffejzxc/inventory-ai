@@ -151,9 +151,17 @@ function cookieValues(response) {
 
 async function fetchJson(
   pathname,
-  { cookie = '', csrf = '', origin = CONSOLE_ORIGIN, token = '', method = 'GET', requestBody } = {},
+  {
+    cookie = '',
+    csrf = '',
+    origin = CONSOLE_ORIGIN,
+    token = '',
+    method = 'GET',
+    requestBody,
+    headers: extraHeaders = {},
+  } = {},
 ) {
-  const headers = { Accept: 'application/json' };
+  const headers = { Accept: 'application/json', ...extraHeaders };
   if (cookie) headers.Cookie = cookie;
   if (csrf) headers['X-Platform-CSRF'] = csrf;
   if (origin) headers.Origin = origin;
@@ -433,6 +441,53 @@ dbSuite('PLAT-2/3 platform security end to end', dbOk, () => {
     });
     assert.equal(wrongOrigin.response.status, 403);
     assert.equal(wrongOrigin.body.code, 'PLATFORM_CSRF_ORIGIN');
+
+    // A browser omits Origin on a same-origin GET. The console header plus the
+    // browser-controlled Sec-Fetch-Site value is the proof for that one case.
+    const sameOriginGet = await fetchJson('/api/platform/auth/me', {
+      cookie: cookieHeader,
+      csrf: cookieCsrf,
+      origin: '',
+      headers: {
+        'X-Platform-Console': '1',
+        'Sec-Fetch-Site': 'same-origin',
+      },
+    });
+    assert.equal(sameOriginGet.response.status, 200, JSON.stringify(sameOriginGet.body));
+
+    const sameOriginWithoutConsoleHeader = await fetchJson('/api/platform/auth/me', {
+      cookie: cookieHeader,
+      csrf: cookieCsrf,
+      origin: '',
+      headers: { 'Sec-Fetch-Site': 'same-origin' },
+    });
+    assert.equal(sameOriginWithoutConsoleHeader.response.status, 403);
+    assert.equal(sameOriginWithoutConsoleHeader.body.code, 'PLATFORM_CSRF_ORIGIN');
+
+    const sameSiteRequest = await fetchJson('/api/platform/auth/me', {
+      cookie: cookieHeader,
+      csrf: cookieCsrf,
+      origin: '',
+      headers: {
+        'X-Platform-Console': '1',
+        'Sec-Fetch-Site': 'same-site',
+      },
+    });
+    assert.equal(sameSiteRequest.response.status, 403);
+    assert.equal(sameSiteRequest.body.code, 'PLATFORM_CSRF_ORIGIN');
+
+    // A supplied foreign Origin is never replaced by the same-origin shortcut.
+    const foreignWithSameOriginProof = await fetchJson('/api/platform/auth/me', {
+      cookie: cookieHeader,
+      csrf: cookieCsrf,
+      origin: 'http://evil.example',
+      headers: {
+        'X-Platform-Console': '1',
+        'Sec-Fetch-Site': 'same-origin',
+      },
+    });
+    assert.equal(foreignWithSameOriginProof.response.status, 403);
+    assert.equal(foreignWithSameOriginProof.body.code, 'PLATFORM_CSRF_ORIGIN');
 
     // A Bearer client remains exempt: it does not use an ambient cookie.
     const bearer = await fetchJson('/api/platform/auth/me', {

@@ -18,6 +18,7 @@ import assert from 'node:assert/strict';
 
 import { unitSuite } from './testEnv.mjs';
 import { createConsoleApp } from '../platform-console/server.ts';
+import { createApp } from '../src/app.ts';
 import {
   base32Decode,
   base32Encode,
@@ -117,6 +118,35 @@ unitSuite('PLAT-2 console origin and CSP', () => {
       const body = await traversal.text();
       assert.equal(body.includes('"scripts"'), false);
     });
+  });
+});
+
+unitSuite('PLAT-6 same-origin console mount', () => {
+  it('serves the console shell under /platform with rewritten assets and self-only CSP', async () => {
+    const app = createApp({ requestLogging: false });
+    const server = app.listen(0, '127.0.0.1');
+    await new Promise((resolve) => server.once('listening', resolve));
+    const base = `http://127.0.0.1:${server.address().port}`;
+    try {
+      const page = await fetch(`${base}/platform`);
+      assert.equal(page.status, 200);
+      assert.match(page.headers.get('content-security-policy') || '', /connect-src 'self'/);
+      assert.match(page.headers.get('content-security-policy') || '', /frame-ancestors 'none'/);
+      const html = await page.text();
+      assert.match(html, /src="\/platform\/config\.js"/);
+      assert.match(html, /src="\/platform\/app\.js"/);
+      assert.match(html, /href="\/platform\/styles\.css"/);
+
+      const config = await (await fetch(`${base}/platform/config.js`)).text();
+      assert.match(config, /apiOrigin/);
+      assert.equal(config.includes('JWT_SECRET'), false);
+      assert.equal(config.includes('MFA_ENCRYPTION'), false);
+
+      const missing = await fetch(`${base}/platform/not-a-page`);
+      assert.equal(missing.status, 404);
+    } finally {
+      await new Promise((resolve) => server.close(resolve));
+    }
   });
 });
 

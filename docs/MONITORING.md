@@ -45,6 +45,48 @@ credential and it changes on restart. It is how a stale process on the same port
 error messages, integration configuration and credentials. Findings stay in the logs, behind the
 hosting account.
 
+## 1b. The Platform Operations console
+
+The owner/support console is served by the API at **`/platform`** (the repository also keeps the
+standalone `npm run platform-console` listener for isolated development). It is a static shell only;
+every panel reads `/api/platform/*`, which requires a separate platform administrator session and
+capability. A tenant login, tenant token or business role cannot open it. The shell has a strict CSP
+with `connect-src 'self'`; the session is an HttpOnly, Secure, SameSite=Strict cookie scoped to
+`/api/platform`, and each request carries a double-submit CSRF header. Cookie requests are accepted
+only from the configured console origin, except a same-origin GET, which browsers send without
+`Origin`; that case additionally requires `X-Platform-Console: 1` and `Sec-Fetch-Site: same-origin`.
+
+The console groups its read-only and operational views as follows:
+
+| View | Source | Operator use |
+| --- | --- | --- |
+| Overview | `GET /api/platform/operations?days=7` | Business/account counts, AI volume and success, open tickets, 5xx and provider-reported AI cost |
+| Live status | `GET /api/platform/status` | Health-only process/build view; available to `platform.health.read` |
+| Infrastructure & API | operations + `/status` | Process uptime/RSS/CPU, MongoDB state and `dbStats`, configured integrations and explicit unavailable sources |
+| AI operations | operations | Model, outcome, token, latency and cost breakdowns from `ai_turn_metrics`; no prompt or answer body |
+| Database & storage | operations | Read-only database size/collection/object counts; no Atlas cluster or backup telemetry |
+| Mobile / Jobs | operations | Honest unavailable panels; the app reports no crash/install telemetry and there is no durable job store |
+| Businesses / Inventory | operations | Cross-tenant counts and movement aggregates only; no tenant selector, names, emails or product ids |
+| Support center | `/api/platform/tickets` | Internal ticket create, queue, status workflow, assignment and notes; tickets deliberately contain no tenant or member data |
+| Errors & incidents | operations | Durable 5xx totals, codes, bounded route labels and recent events; no request body or raw message |
+| Security & audit | `/api/platform/audit`, lifecycle routes | Sign-in/MFA/refusal/read events; SECURITY and SUPERADMIN only for the trail |
+| Team management | `/api/platform/admins` | SUPERADMIN lifecycle: list, disable/enable, delete, remove WebAuthn key; no self-disable or last-SUPERADMIN removal |
+| Deployments & releases | `/api/platform/deployments` | Boot-observed commit/environment/Node/start history; failed builds that never boot are not observable |
+| System checks | `/api/platform/status` | Real configuration predicates and the list of sources that are unavailable |
+
+**Alerting.** The console is an investigation surface, not a pager. The external UptimeRobot and
+GitHub probes in §2 remain the automatic alert path. Alert on repeated `/api/health/ready` failure,
+two or more new `5xx` responses, a missing production posture, or a failed platform login/MFA burst
+that the audit trail records. The process-local counters reset on restart; durable `ops_error_events`
+survive a restart and are what the overview's 5xx counts use for the selected window.
+
+**Limits.** The console cannot show host CPU/memory pressure, Atlas cluster metrics, backup status,
+mobile crash/install telemetry or background-job health because those sources are not available to
+this service. Those panels say so. AI cost is provider-reported only and unknown charges are not
+estimated. Deployment history begins when the console is enabled; a failed build before process boot
+is absent by design. See [`PLATFORM_PRODUCTION_READINESS.md`](PLATFORM_PRODUCTION_READINESS.md) for
+the edge, credential and residual-risk gates.
+
 ---
 
 ## 2. What to alert on

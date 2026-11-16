@@ -24,6 +24,7 @@ import {
   PLATFORM_CSRF_HEADER,
   PLATFORM_SESSION_COOKIE,
   isPlatformConsoleOrigin,
+  isPlatformConsoleRequest,
 } from '../config/platformSecurity.ts';
 import { readPlatformCookie } from '../utils/platformCookies.ts';
 import { recordPlatformAudit } from '../services/platformAudit.service.ts';
@@ -103,8 +104,22 @@ function extractToken(req: Request): { token: string; mode: 'bearer' | 'cookie' 
   return { token: cookie, mode: 'cookie' };
 }
 
+function isSameOriginConsoleGet(req: Request): boolean {
+  // Browsers omit Origin on same-origin GET requests. A same-origin console
+  // fetch still proves its origin with the browser-controlled Sec-Fetch-Site
+  // header and the console's explicit client header. A cross-origin page gets
+  // `cross-site`/`same-site`, so the exact configured Origin remains the only
+  // accepted proof for every other request.
+  return (
+    req.method === 'GET' &&
+    !req.headers.origin &&
+    isPlatformConsoleRequest(req.headers) &&
+    String(req.headers['sec-fetch-site'] || '').trim().toLowerCase() === 'same-origin'
+  );
+}
+
 function assertConsoleCsrf(req: Request): void {
-  if (!isPlatformConsoleOrigin(req.headers.origin)) {
+  if (!isPlatformConsoleOrigin(req.headers.origin) && !isSameOriginConsoleGet(req)) {
     throw new ApiError(
       403,
       'Platform cookie requests must come from the configured console origin',

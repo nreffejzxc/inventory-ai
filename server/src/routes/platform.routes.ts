@@ -6,6 +6,8 @@ import platformAuthController from '../controllers/platformAuth.controller.ts';
 import platformMfaController from '../controllers/platformMfa.controller.ts';
 import platformAuditController from '../controllers/platformAudit.controller.ts';
 import platformOperationsController from '../controllers/platformOperations.controller.ts';
+import platformSupportController from '../controllers/platformSupport.controller.ts';
+import platformDeploymentsController from '../controllers/platformDeployments.controller.ts';
 import platformAdminController from '../controllers/platformAdmin.controller.ts';
 import { PLATFORM_CAPABILITIES } from '../constants/platformRoles.ts';
 import {
@@ -170,10 +172,58 @@ router.delete(
 );
 
 router.get(
+  '/status',
+  requirePlatformAdmin,
+  requirePlatformCapability(PLATFORM_CAPABILITIES.HEALTH_READ),
+  platformOperationsController.status,
+);
+router.get(
   '/operations',
   requirePlatformAdmin,
   requirePlatformCapability(PLATFORM_CAPABILITIES.METRICS_READ),
   platformOperationsController.summary,
+);
+router.get(
+  '/deployments',
+  requirePlatformAdmin,
+  requirePlatformCapability(PLATFORM_CAPABILITIES.DEPLOYMENTS_READ),
+  platformDeploymentsController.list,
+);
+router.get(
+  '/tickets',
+  requirePlatformAdmin,
+  requirePlatformCapability(PLATFORM_CAPABILITIES.SUPPORT_MANAGE),
+  platformSupportController.list,
+);
+router.get(
+  '/tickets/assignees',
+  requirePlatformAdmin,
+  requirePlatformCapability(PLATFORM_CAPABILITIES.SUPPORT_MANAGE),
+  platformSupportController.assignees,
+);
+router.post(
+  '/tickets',
+  requirePlatformAdmin,
+  requirePlatformCapability(PLATFORM_CAPABILITIES.SUPPORT_MANAGE),
+  platformSupportController.create,
+);
+router.get(
+  '/tickets/:id',
+  requirePlatformAdmin,
+  requirePlatformCapability(PLATFORM_CAPABILITIES.SUPPORT_MANAGE),
+  platformSupportController.get,
+);
+router.patch(
+  '/tickets/:id',
+  requirePlatformAdmin,
+  requirePlatformCapability(PLATFORM_CAPABILITIES.SUPPORT_MANAGE),
+  platformSupportController.update,
+);
+router.post(
+  '/tickets/:id/notes',
+  requirePlatformAdmin,
+  requirePlatformCapability(PLATFORM_CAPABILITIES.SUPPORT_MANAGE),
+  platformSupportController.note,
 );
 router.get(
   '/audit',

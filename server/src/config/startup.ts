@@ -34,6 +34,7 @@ import {
 import type { Logger, ShutdownHandler, ShutdownServer, SignalTarget } from './shutdown.ts';
 import { validateProductionConfig } from './validateConfig.ts';
 import type { ConfigProblem } from './validateConfig.ts';
+import { recordPlatformDeployment } from '../services/platformDeployments.service.ts';
 import { INSTANCE_ID } from './instanceIdentity.ts';
 import { checkModelCatalogue } from '../services/ai/modelCheck.ts';
 import type { CatalogueResult } from '../services/ai/modelCheck.ts';
@@ -298,6 +299,15 @@ export async function startServer({
   });
   bootRef.server = server as unknown as BootServer;
   const bootServer = bootRef.server;
+
+  // PLAT-6 — record the observed boot for deployment history. Best-effort and
+  // never awaited: a monitoring write must not delay or fail the API boot. Test
+  // processes are excluded so a suite never adds rows to a shared database.
+  if (connected && nodeEnv !== 'test') {
+    void recordPlatformDeployment().catch(() => {
+      // The service already logs a sanitized failure; serving continues.
+    });
+  }
 
   // A port this process could not take at all is a boot failure, and it must read as one instead of as an
   // unhandled 'error' event.

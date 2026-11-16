@@ -1,13 +1,17 @@
 # Platform Operations — production readiness
 
-**Status:** **NOT READY TO EXPOSE.** The implementation is committed and locally verified, but the
-gate is not closed until every **P0** item in
-[`PLATFORM_SECURITY_RECOMMENDATIONS.md`](PLATFORM_SECURITY_RECOMMENDATIONS.md) and every **OPEN**
-item below has an owner and evidence.
+**Status:** **LIVE, INTERNAL RELEASE — GATES REMAIN OPEN.** The console is served at
+`https://ai-inventory-l1mi.onrender.com/platform` under the separate platform administrator login.
+This is not a clean security sign-off: network isolation (PR-03), audit retention/database least
+privilege (PR-09), forced recovery-code ceremony/break-glass drill (PR-06), observed CI browser job
+(PR-12) and named security review (PR-15) remain open or residual. The owner requested production
+availability; the residual exposure is recorded here rather than treated as closed.
 
 **Reviewed:** 2026-11-16
-**Scope:** the INTERNAL `/api/platform` plane and `server/platform-console/`. This does not authorize
-a tenant feature, a public console, or a deployment. Nothing here has been pushed or deployed.
+**Scope:** the INTERNAL `/api/platform` plane and `server/platform-console/`, including the
+same-origin `/platform` shell and the PLAT-6 operations surface. This does not authorize a tenant
+feature or tenant-detail reads. The production deployment is the API service's own origin; the
+platform login remains the only edge gate and PR-03 is still open.
 
 **Legend**
 
@@ -43,6 +47,16 @@ a tenant feature, a public console, or a deployment. Nothing here has been pushe
   longer downgrades the session cookie to non-Secure.
 - The CI workflow now has a dedicated `webauthn-e2e` job. Its first GitHub run has **not** been
   observed because this work was not pushed.
+- PLAT-6 adds the operator surface behind the existing platform boundary: a health-only status
+  route, an expanded operations report (AI model/outcome/token breakdowns, support/inventory/security
+  aggregates), boot-observed deployment history, support ticket workflow/notes, and same-origin
+  `/platform` assets with a strict CSP. No tenant-detail read was added. All new routes remain behind
+  platform authentication and a platform capability; support tickets contain no tenant id or member
+  data.
+- PLAT-6 also fixes the same-origin browser case: a same-origin GET omits `Origin`, so the API now
+  accepts it only with `X-Platform-Console: 1` and `Sec-Fetch-Site: same-origin`, while every other
+  cookie request still requires the exact configured Origin and every request still requires the
+  CSRF header.
 
 ## 2. Go/no-go checklist
 
@@ -50,7 +64,7 @@ a tenant feature, a public console, or a deployment. Nothing here has been pushe
 | --- | --- | --- | --- |
 | PR-01 | API and console are served only over HTTPS, on the intended hostnames, with a valid certificate and an HTTP-to-HTTPS redirect. | **OPEN** | The console server does not enforce HTTPS itself. Terminate TLS at a reviewed reverse proxy and block plain HTTP before the listener. |
 | PR-02 | `PLATFORM_CONSOLE_ORIGIN`, `PLATFORM_API_ORIGIN`, `PLATFORM_WEBAUTHN_ORIGIN` and `PLATFORM_WEBAUTHN_RP_ID` are exact, explicit production values. | **PARTIAL** | Production validation now requires `PLATFORM_CONSOLE_ORIGIN` when the platform secret is set, and both the validator and runtime reject a WebAuthn origin with a path, query, fragment or userinfo. The four values still need a deployment review and proof on the real origin. |
-| PR-03 | The console is not publicly reachable without an additional access layer (VPN, identity-aware proxy, IP allowlist or equivalent). | **OPEN** | The listener binds `127.0.0.1` by default but can be changed with `PLATFORM_CONSOLE_HOST`. Put it behind an authenticated proxy; do not expose port 4100 directly. |
+| PR-03 | The console is not publicly reachable without an additional access layer (VPN, identity-aware proxy, IP allowlist or equivalent). | **OPEN / residual** | The production shell is publicly reachable at `/platform` on the API origin; the separate platform login is the only edge gate. Owner requested availability; a network access layer is still not provided. |
 | PR-04 | Platform credentials are stored in the deployment's secret store, are distinct from every tenant secret, and have a documented rotation and recovery procedure. | **OPEN** | `PLATFORM_ADMIN_JWT_SECRET` and `PLATFORM_MFA_ENCRYPTION_KEY` are separate; rotation currently means updating the environment and restarting. There is no console-driven rotation. |
 | PR-05 | The session cookie is `HttpOnly`, `Secure`, `SameSite=Strict` and Path `/api/platform`; the CSRF cookie is readable but not a credential by itself; CORS grants credentials only to exact origins. | **READY** in code | `PLAT3` cookie/CORS checks pass. `Secure` is set in production, for any HTTPS console origin, and for an unknown `NODE_ENV`; only an explicit development/test environment on loopback HTTP may omit it. Verify the actual `Set-Cookie` headers on the production origin before exposing. |
 | PR-06 | Both TOTP and WebAuthn are exercised in a real browser, and recovery codes, a second security key and a break-glass procedure exist. | **PARTIAL** | Browser E2E passes. One-time recovery codes are implemented and tested, and multiple security keys can be enrolled. The break-glass runbook and a mandatory first-login code-generation step are still required before exposure. |
@@ -61,7 +75,7 @@ a tenant feature, a public console, or a deployment. Nothing here has been pushe
 | PR-11 | A time-bounded, reason-bound, approved support grant exists before any tenant-detail read. | **BLOCKED** | Gate E in the platform architecture is not implemented. This is a prerequisite for support use, not for the current aggregate report. |
 | PR-12 | The browser WebAuthn proof runs in CI, and the full server suite, CORS checks, docs guards and type/lint checks pass on the event being exposed. | **PARTIAL** | The `webauthn-e2e` job is in `.github/workflows/ci.yml` but is not yet a branch-protection-required check; observe its first green GitHub run and add it to the required set. The local focused suites and E2E pass, and the full server suite is **3,135 passed / 0 failed / 0 skipped / 501 suites** after the lifecycle additions. The CI job itself is still unobserved and not a required check. |
 | PR-13 | Health checks, platform login/MFA/denial alerts, an incident runbook and a tested rollback exist. | **OPEN** | The API has the standard health endpoints and the audit trail records denials. There is no platform-specific pager or dashboard, and no tested console rollback. |
-| PR-14 | A deployment sequence proves the actual production origin, cookie flags, CORS preflight, sign-in, audit read and sign-out before announcing availability. | **OPEN** | Use §4 below. A local `curl` or a successful build is not this proof. |
+| PR-14 | A deployment sequence proves the actual production origin, cookie flags, CORS preflight, sign-in, audit read and sign-out before announcing availability. | **PARTIAL** | The PLAT-6 production smoke is recorded in §4.5 and the verification table. It proves the deployed build, `/platform` assets/CSP, login challenge, authenticated status/operations and support route; a second named browser/security reviewer and the edge isolation remain open. |
 | PR-15 | The owner and a security reviewer sign off with names, date and accepted residual risks. | **OPEN** | Record the sign-off in §5. |
 
 ## 3. Blocking findings
@@ -133,6 +147,29 @@ If they are on different same-site hosts, verify the CSRF bootstrap after a relo
 There is no admin self-service disable yet. The safe rollback is: stop the console listener, remove
 its edge route, rotate `PLATFORM_ADMIN_JWT_SECRET` (which invalidates every platform access token),
 and keep the audit rows for investigation. Do not delete the audit collection as a rollback step.
+
+### 4.5 Same-origin PLAT-6 production smoke
+
+Run against the deployed `https://ai-inventory-l1mi.onrender.com` origin. Record the observed
+commit, status codes and the platform route responses; never paste a cookie, CSRF value, password,
+TOTP code or recovery code.
+
+1. `GET /api/health` and `GET /api/health/ready` return `200`, production posture and the deployed
+   commit.
+2. `GET /platform/` returns `200` HTML with `connect-src 'self'`, `frame-ancestors 'none'` and
+   `Cache-Control: no-store`; `GET /platform/app.js`, `/platform/config.js` and
+   `/platform/styles.css` return `200` with the expected content types.
+3. `POST /api/platform/auth/login` with a password returns an MFA challenge, not a session. A fresh
+   administrator gets `mfaEnrollmentRequired: true`; an enrolled one gets `mfaRequired: true`.
+4. A completed TOTP enrollment or verification sets `platform_session` (HttpOnly, Secure,
+   SameSite=Strict, Path `/api/platform`) and `platform_csrf` (readable, Secure).
+5. Authenticated `GET /api/platform/status`, `/operations`, `/deployments`, `/tickets` and `/audit`
+   return `200` for a SUPERADMIN. A ticket create/read/note test removes or leaves only explicitly
+   labelled internal data; no tenant row is touched.
+6. A cookie request with a foreign or missing Origin is refused; a same-origin GET without Origin
+   is accepted only with `X-Platform-Console: 1`, `Sec-Fetch-Site: same-origin` and the CSRF header.
+7. Sign out clears both cookies. Any test administrator created for the smoke is removed after the
+   test; the bootstrap administrator remains.
 
 ## 5. Sign-off
 

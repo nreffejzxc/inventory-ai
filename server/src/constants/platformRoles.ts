@@ -42,6 +42,8 @@ export const PLATFORM_CAPABILITIES = Object.freeze({
   METRICS_READ: 'platform.metrics.read',
   AUDIT_READ: 'platform.audit.read',
   ADMIN_MANAGE: 'platform.admin.manage',
+  SUPPORT_MANAGE: 'platform.support.manage',
+  DEPLOYMENTS_READ: 'platform.deployments.read',
 });
 
 const ALL_PLATFORM_CAPABILITIES = Object.freeze(Object.values(PLATFORM_CAPABILITIES));
@@ -49,9 +51,9 @@ const ALL_PLATFORM_CAPABILITIES = Object.freeze(Object.values(PLATFORM_CAPABILIT
 /**
  * Role -> capabilities. Least privilege:
  *   READ_ONLY  sees service health only.
- *   SUPPORT    sees aggregate platform metrics (the operations report).
+ *   SUPPORT    sees aggregate platform metrics and manages support tickets.
  *   SECURITY   additionally sees the platform audit trail.
- *   SUPERADMIN is reserved for future platform-administrator management.
+ *   SUPERADMIN is reserved for platform-administrator management.
  *
  * `platform.metrics.read` is the capability behind GET /api/platform/operations.
  * It is NOT held by READ_ONLY, so a health-only observer cannot read cross-tenant
@@ -62,11 +64,14 @@ export const PLATFORM_ROLE_CAPABILITIES = Object.freeze({
   SUPPORT: Object.freeze([
     PLATFORM_CAPABILITIES.HEALTH_READ,
     PLATFORM_CAPABILITIES.METRICS_READ,
+    PLATFORM_CAPABILITIES.SUPPORT_MANAGE,
+    PLATFORM_CAPABILITIES.DEPLOYMENTS_READ,
   ]),
   SECURITY: Object.freeze([
     PLATFORM_CAPABILITIES.HEALTH_READ,
     PLATFORM_CAPABILITIES.METRICS_READ,
     PLATFORM_CAPABILITIES.AUDIT_READ,
+    PLATFORM_CAPABILITIES.DEPLOYMENTS_READ,
   ]),
   SUPERADMIN: ALL_PLATFORM_CAPABILITIES,
 });

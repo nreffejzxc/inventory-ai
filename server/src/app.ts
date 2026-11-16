@@ -27,6 +27,7 @@ import productRoutes from './routes/products.routes.ts';
 import inventoryRoutes from './routes/inventory.routes.ts';
 import dashboardRoutes from './routes/dashboard.routes.ts';
 import platformRoutes from './routes/platform.routes.ts';
+import platformConsoleRoutes from './routes/platformConsole.routes.ts';
 import aiRoutes from './routes/ai.routes.ts';
 import auditRoutes from './routes/audit.routes.ts';
 import notFound from './middlewares/notFound.ts';
@@ -153,6 +154,12 @@ export function createApp({
   app.get('/', (req, res) => {
     res.json({ service: 'inventory-ai-server', status: 'ok' });
   });
+
+  // PLAT-6 — the INTERNAL console shell. It is public HTML because it is the
+  // sign-in page; every data request behind it still requires the dedicated
+  // platform identity and capability. Keeping it on this origin avoids a second
+  // paid service and the cross-origin cookie path entirely.
+  app.use('/platform', platformConsoleRoutes);
 
   // API routes
   app.use('/api/health', healthRoutes);

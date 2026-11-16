@@ -6,6 +6,8 @@ import { getDatabaseState } from '../config/db.ts';
 import { operationalCounters } from '../config/operationalCounters.ts';
 import { parseOperationsDays } from '../services/operations.service.ts';
 import { getPlatformOperationsSummary } from '../services/platformOperations.service.ts';
+import { getPlatformMonitoringExtras } from '../services/platformMonitoring.service.ts';
+import { getPlatformInfrastructure } from '../services/platformInfrastructure.service.ts';
 import { throwValidation } from '../utils/errors.ts';
 import { recordPlatformAudit } from '../services/platformAudit.service.ts';
 import { PLATFORM_AUDIT_ACTIONS, PLATFORM_AUDIT_OUTCOMES } from '../constants/platformAudit.ts';
@@ -24,11 +26,39 @@ import type { PlatformRequest } from '../middlewares/platformAuthenticate.ts';
  * The response is no-store because it describes internal reliability and usage.
  */
 const platformOperationsController = {
+  /** Health-only read for READ_ONLY auditors; contains no cross-tenant metrics. */
+  async status(_req: PlatformRequest, res: Response) {
+    const build = buildInfo();
+    const counters = operationalCounters();
+    const infrastructure = await getPlatformInfrastructure();
+    res.setHeader('Cache-Control', 'no-store');
+    return res.json({
+      metricsAvailable: false,
+      service: {
+        status: 'ok',
+        database: getDatabaseState(),
+        environment: env.nodeEnv,
+        commit: build.commit,
+        uptimeSeconds: build.uptimeSeconds,
+        counters: {
+          responsesSinceBoot: counters.responses,
+          serverErrorsSinceBoot: counters.serverErrors,
+          lastServerErrorAt: counters.lastServerErrorAt,
+        },
+      },
+      infrastructure,
+    });
+  },
+
   async summary(req: PlatformRequest, res: Response) {
     const parsed = parseOperationsDays(req.query.days);
     if (parsed.problem) throwValidation([{ field: 'days', message: parsed.problem }]);
 
-    const report = await getPlatformOperationsSummary({ days: parsed.days });
+    const [report, extras, infrastructure] = await Promise.all([
+      getPlatformOperationsSummary({ days: parsed.days }),
+      getPlatformMonitoringExtras({ days: parsed.days }),
+      getPlatformInfrastructure(),
+    ]);
     const build = buildInfo();
     const counters = operationalCounters();
 
@@ -48,6 +78,18 @@ const platformOperationsController = {
     res.setHeader('Cache-Control', 'no-store');
     res.json({
       ...report,
+      metricsAvailable: true,
+      platform: {
+        ...report.platform,
+        businesses: {
+          ...report.platform.businesses,
+          newInWindow: extras.businesses.newInWindow,
+        },
+      },
+      support: extras.support,
+      inventory: extras.inventory,
+      security: extras.security,
+      infrastructure,
       service: {
         status: 'ok',
         database: getDatabaseState(),

@@ -43,6 +43,11 @@ export const PLATFORM_AUDIT_ACTIONS = Object.freeze({
   ADMIN_STATUS_CHANGED: 'platform.admin.status_changed',
   ADMIN_DELETED: 'platform.admin.deleted',
   WEBAUTHN_KEY_REMOVED: 'platform.webauthn.key_removed',
+  SUPPORT_TICKET_CREATED: 'platform.support.ticket_created',
+  SUPPORT_TICKET_UPDATED: 'platform.support.ticket_updated',
+  SUPPORT_TICKET_NOTE_ADDED: 'platform.support.ticket_note_added',
+  SUPPORT_TICKETS_READ: 'platform.support.tickets_read',
+  DEPLOYMENTS_READ: 'platform.deployments.read',
 });
 
 export const PLATFORM_AUDIT_ACTION_VALUES: readonly string[] = Object.freeze(

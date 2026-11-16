@@ -120,9 +120,27 @@
     <main id="dashboard-view" class="dashboard" hidden>
       <aside class="sidebar">
         <nav aria-label="Platform sections">
-          <button class="nav-item active" type="button" data-view="overview">Overview</button>
-          <button class="nav-item" type="button" data-view="audit" id="nav-audit" hidden>Audit trail</button>
-          <button class="nav-item" type="button" data-view="security">Security</button>
+          <p class="nav-group">Overview</p>
+          <button class="nav-item active" type="button" data-view="overview" data-capability="platform.metrics.read">Operations overview</button>
+          <button class="nav-item" type="button" data-view="live" data-capability="platform.health.read">Live system status</button>
+          <p class="nav-group">Monitoring</p>
+          <button class="nav-item" type="button" data-view="infrastructure" data-capability="platform.metrics.read">Infrastructure &amp; API</button>
+          <button class="nav-item" type="button" data-view="ai" data-capability="platform.metrics.read">AI operations</button>
+          <button class="nav-item" type="button" data-view="database" data-capability="platform.metrics.read">Database &amp; storage</button>
+          <button class="nav-item" type="button" data-view="mobile" data-capability="platform.metrics.read">Mobile app health</button>
+          <button class="nav-item" type="button" data-view="jobs" data-capability="platform.metrics.read">Background jobs</button>
+          <p class="nav-group">Operations</p>
+          <button class="nav-item" type="button" data-view="businesses" data-capability="platform.metrics.read">Businesses &amp; tenants</button>
+          <button class="nav-item" type="button" data-view="inventory" data-capability="platform.metrics.read">Inventory analytics</button>
+          <button class="nav-item" type="button" data-view="support" data-capability="platform.support.manage">Support center</button>
+          <button class="nav-item" type="button" data-view="errors" data-capability="platform.metrics.read">Errors &amp; incidents</button>
+          <p class="nav-group">Security &amp; team</p>
+          <button class="nav-item" type="button" data-view="security">Security &amp; access</button>
+          <button class="nav-item" type="button" data-view="audit" id="nav-audit" data-capability="platform.audit.read" hidden>Audit trail</button>
+          <button class="nav-item" type="button" data-view="team" data-capability="platform.admin.manage">Team management</button>
+          <p class="nav-group">Releases</p>
+          <button class="nav-item" type="button" data-view="deployments" data-capability="platform.deployments.read">Deployments &amp; releases</button>
+          <button class="nav-item" type="button" data-view="checks" data-capability="platform.health.read">System checks &amp; reports</button>
         </nav>
         <div class="sidebar-foot">
           <p class="muted small">Internal only</p>
@@ -167,6 +185,233 @@
           <section class="panel">
             <div class="panel-head"><h2>Feature presence</h2><span class="muted small">Distinct members in the window</span></div>
             <div id="feature-usage" class="table-wrap"></div>
+          </section>
+        </section>
+
+        <section id="view-live" hidden>
+          <div id="live-service" class="service-strip"></div>
+          <div id="live-cards" class="metric-grid"></div>
+          <div class="panel-grid">
+            <section class="panel">
+              <div class="panel-head"><h2>Readiness checks</h2><span class="muted small">Observed from this process</span></div>
+              <div id="live-checks" class="check-list"></div>
+            </section>
+            <section class="panel">
+              <div class="panel-head"><h2>Not instrumented</h2><span class="muted small">Never estimated</span></div>
+              <div id="live-unavailable" class="note-list"></div>
+            </section>
+          </div>
+        </section>
+
+        <section id="view-infrastructure" hidden>
+          <div id="infra-cards" class="metric-grid"></div>
+          <div class="panel-grid">
+            <section class="panel">
+              <div class="panel-head"><h2>Process</h2><span class="muted small">Node runtime</span></div>
+              <div id="infra-process" class="table-wrap"></div>
+            </section>
+            <section class="panel">
+              <div class="panel-head"><h2>Configured integrations</h2><span class="muted small">Configuration, not live probes</span></div>
+              <div id="infra-integrations" class="check-list"></div>
+            </section>
+          </div>
+          <section class="panel">
+            <div class="panel-head"><h2>System checks</h2><span class="muted small">API · DB · platform auth · integrations</span></div>
+            <div id="infra-checks" class="check-list"></div>
+          </section>
+          <section class="panel">
+            <div class="panel-head"><h2>Unavailable infrastructure sources</h2></div>
+            <div id="infra-unavailable" class="note-list"></div>
+          </section>
+        </section>
+
+        <section id="view-ai" hidden>
+          <div id="ai-cards" class="metric-grid"></div>
+          <div class="panel-grid">
+            <section class="panel">
+              <div class="panel-head"><h2>Models</h2><span class="muted small">Observed turns, not provider calls</span></div>
+              <div id="ai-models" class="table-wrap"></div>
+            </section>
+            <section class="panel">
+              <div class="panel-head"><h2>Outcomes</h2><span class="muted small">Turn exit reasons</span></div>
+              <div id="ai-outcomes" class="table-wrap"></div>
+            </section>
+          </div>
+          <div class="panel-grid">
+            <section class="panel">
+              <div class="panel-head"><h2>Free-first daily split</h2><span class="muted small">UTC</span></div>
+              <div id="ai-daily-full" class="table-wrap"></div>
+            </section>
+            <section class="panel">
+              <div class="panel-head"><h2>Answer feedback</h2><span class="muted small">Member ratings</span></div>
+              <div id="ai-feedback" class="table-wrap"></div>
+            </section>
+          </div>
+          <section class="panel">
+            <div class="panel-head"><h2>AI monitoring limits</h2></div>
+            <div class="note-list">
+              <p>Concurrent in-flight turns and model availability are not exposed by the current process-local AI runtime. No concurrency or availability figure is inferred.</p>
+              <p>Cost is the sum of provider-reported charges only. Unknown charges stay unknown; the console does not estimate prices.</p>
+              <p>Accuracy is not inferred from member ratings. Ratings are reported separately as feedback.</p>
+            </div>
+          </section>
+        </section>
+
+        <section id="view-database" hidden>
+          <div id="db-cards" class="metric-grid"></div>
+          <section class="panel">
+            <div class="panel-head"><h2>Storage snapshot</h2><span class="muted small">Read-only dbStats, cached 30 seconds</span></div>
+            <div id="db-storage" class="table-wrap"></div>
+          </section>
+          <section class="panel">
+            <div class="panel-head"><h2>Database limits</h2></div>
+            <div id="db-unavailable" class="note-list"></div>
+          </section>
+        </section>
+
+        <section id="view-mobile" hidden>
+          <section class="panel unavailable-panel">
+            <p class="eyebrow">Not instrumented</p>
+            <h2>Mobile telemetry is not reported</h2>
+            <p class="muted">The Android application does not send crash, install, version-distribution, startup or failed-connection telemetry to this backend. This console therefore does not show a mobile version, crash rate or device distribution; those would be guesses.</p>
+            <div id="mobile-state" class="note-list"></div>
+          </section>
+        </section>
+
+        <section id="view-jobs" hidden>
+          <div id="jobs-cards" class="metric-grid"></div>
+          <section class="panel">
+            <div class="panel-head"><h2>External delivery configuration</h2><span class="muted small">No live probes on this page</span></div>
+            <div id="jobs-services" class="check-list"></div>
+          </section>
+          <section class="panel">
+            <div class="panel-head"><h2>Job telemetry limits</h2></div>
+            <div id="jobs-unavailable" class="note-list"></div>
+          </section>
+        </section>
+
+        <section id="view-businesses" hidden>
+          <div id="business-cards" class="metric-grid"></div>
+          <div class="panel-grid">
+            <section class="panel">
+              <div class="panel-head"><h2>Tenant distribution</h2><span class="muted small">Aggregate only</span></div>
+              <div id="business-window" class="table-wrap"></div>
+            </section>
+            <section class="panel">
+              <div class="panel-head"><h2>Isolation boundary</h2></div>
+              <div class="note-list">
+                <p>No business name, email, user id, product row or inventory row is returned by this report. A tenant-detail capability is not enabled.</p>
+                <p>Business storage per tenant, suspended-account counts and tenant login-failure aggregates are not in a durable telemetry store; they are shown as unavailable rather than estimated.</p>
+              </div>
+            </section>
+          </div>
+          <section class="panel">
+            <div class="panel-head"><h2>Business activity</h2><span class="muted small">Real aggregate counts</span></div>
+            <div id="business-note" class="table-wrap"></div>
+          </section>
+        </section>
+
+        <section id="view-inventory" hidden>
+          <div id="inventory-cards" class="metric-grid"></div>
+          <section class="panel">
+            <div class="panel-head"><h2>Movements in the window</h2><span class="muted small">Counts and quantities, never rows</span></div>
+            <div id="inventory-movements" class="table-wrap"></div>
+          </section>
+          <section class="panel">
+            <div class="panel-head"><h2>Inventory analytics limits</h2></div>
+            <div id="inventory-unavailable" class="note-list"></div>
+          </section>
+        </section>
+
+        <section id="view-support" hidden>
+          <div id="support-summary" class="metric-grid"></div>
+          <div class="panel-grid support-grid">
+            <section class="panel">
+              <div class="panel-head"><h2>Open a ticket</h2><span class="muted small">Internal record only</span></div>
+              <form id="ticket-form" novalidate>
+                <label for="ticket-title">Title</label>
+                <input id="ticket-title" maxlength="160" placeholder="Short concern" required>
+                <label for="ticket-description">Description</label>
+                <textarea id="ticket-description" maxlength="4000" rows="4" placeholder="Observed behaviour, impact and reproduction. Do not include passwords or tokens." required></textarea>
+                <div class="form-row">
+                  <div><label for="ticket-category">Category</label><select id="ticket-category"><option value="BUG">Bug</option><option value="FEATURE_REQUEST">Feature request</option><option value="INVENTORY">Inventory</option><option value="AUTHENTICATION">Authentication</option><option value="AI_ASSISTANT">AI assistant</option><option value="DATA_SYNC">Data sync</option><option value="OTHER">Other</option></select></div>
+                  <div><label for="ticket-priority">Priority</label><select id="ticket-priority"><option value="LOW">Low</option><option value="MEDIUM" selected>Medium</option><option value="HIGH">High</option><option value="URGENT">Urgent</option></select></div>
+                </div>
+                <div class="form-row">
+                  <div><label for="ticket-severity">Severity</label><select id="ticket-severity"><option value="LOW">Low</option><option value="MEDIUM" selected>Medium</option><option value="HIGH">High</option><option value="CRITICAL">Critical</option></select></div>
+                  <div><label for="ticket-assignee">Assign to</label><select id="ticket-assignee"><option value="">Unassigned</option></select></div>
+                </div>
+                <p id="ticket-form-error" class="error" role="alert" hidden></p>
+                <p id="ticket-form-status" class="status-line" aria-live="polite"></p>
+                <button id="ticket-create-button" class="button primary" type="submit">Create ticket</button>
+              </form>
+            </section>
+            <section class="panel">
+              <div class="panel-head"><h2>Ticket queue</h2><span class="muted small">Newest first</span></div>
+              <div class="audit-tools">
+                <label class="select-label" for="ticket-status-filter">Status
+                  <select id="ticket-status-filter"><option value="">All</option><option value="NEW">New</option><option value="UNDER_INVESTIGATION">Under investigation</option><option value="ESCALATED">Escalated</option><option value="FIX_IN_PROGRESS">Fix in progress</option><option value="RESOLVED">Resolved</option><option value="CLOSED">Closed</option></select>
+                </label>
+                <button id="ticket-refresh" class="button secondary" type="button">Refresh</button>
+              </div>
+              <p id="ticket-list-status" class="status-line"></p>
+              <div id="ticket-list" class="table-wrap"></div>
+            </section>
+          </div>
+          <section class="panel" id="ticket-detail-panel" hidden>
+            <div class="panel-head"><h2 id="ticket-detail-title">Ticket</h2><span id="ticket-detail-ref" class="muted small"></span></div>
+            <div id="ticket-detail"></div>
+            <div class="form-row">
+              <div><label for="ticket-detail-status">Status</label><select id="ticket-detail-status"><option value="NEW">New</option><option value="UNDER_INVESTIGATION">Under investigation</option><option value="ESCALATED">Escalated</option><option value="FIX_IN_PROGRESS">Fix in progress</option><option value="RESOLVED">Resolved</option><option value="CLOSED">Closed</option></select></div>
+              <div><label for="ticket-detail-priority">Priority</label><select id="ticket-detail-priority"><option value="LOW">Low</option><option value="MEDIUM">Medium</option><option value="HIGH">High</option><option value="URGENT">Urgent</option></select></div>
+            </div>
+            <label for="ticket-detail-assignee">Assignee</label>
+            <select id="ticket-detail-assignee"><option value="">Unassigned</option></select>
+            <p id="ticket-detail-error" class="error" role="alert" hidden></p>
+            <p id="ticket-detail-status-line" class="status-line" aria-live="polite"></p>
+            <button id="ticket-update-button" class="button secondary" type="button">Save workflow changes</button>
+            <label for="ticket-note">Internal note</label>
+            <textarea id="ticket-note" maxlength="4000" rows="3" placeholder="Investigation detail. Never include credentials or customer inventory data."></textarea>
+            <button id="ticket-note-button" class="button secondary" type="button">Add note</button>
+          </section>
+        </section>
+
+        <section id="view-errors" hidden>
+          <div id="error-cards" class="metric-grid"></div>
+          <div class="panel-grid">
+            <section class="panel"><div class="panel-head"><h2>By route</h2><span class="muted small">5xx only</span></div><div id="error-by-route" class="table-wrap"></div></section>
+            <section class="panel"><div class="panel-head"><h2>By status and code</h2><span class="muted small">Bounded groups</span></div><div id="error-by-code" class="table-wrap"></div></section>
+          </div>
+          <section class="panel"><div class="panel-head"><h2>Recent error events</h2><span class="muted small">No messages, bodies or user ids</span></div><div id="error-recent" class="table-wrap"></div></section>
+          <section class="panel"><div class="panel-head"><h2>Incident policy</h2></div><div class="note-list"><p>Every row here is a server-side 5xx. Severity is not inferred from a status code; incidents require operator triage. Critical alerts are delivered by the existing external health watch, not by an invented in-console pager.</p><p>Mobile crashes, background-job failures and tenant authentication failures are not in a durable store and are marked unavailable.</p></div></section>
+        </section>
+
+        <section id="view-team" hidden>
+          <div id="team-summary" class="metric-grid"></div>
+          <section class="panel">
+            <div class="panel-head"><h2>Platform team</h2><span class="muted small">Read-only roster</span></div>
+            <p id="team-note" class="muted">Role and capability assignments are enforced by the backend. This view does not change permissions.</p>
+            <div id="team-list" class="table-wrap"></div>
+          </section>
+        </section>
+
+        <section id="view-deployments" hidden>
+          <div id="deploy-current" class="service-strip"></div>
+          <section class="panel">
+            <div class="panel-head"><h2>Observed boot history</h2><span class="muted small">Recorded by the API process</span></div>
+            <div id="deploy-table" class="table-wrap"></div>
+            <p id="deploy-note" class="muted small"></p>
+          </section>
+        </section>
+
+        <section id="view-checks" hidden>
+          <section class="panel">
+            <div class="panel-head"><h2>System checks</h2><span class="muted small">Real configuration and readiness predicates</span></div>
+            <div id="checks-list" class="check-list"></div>
+          </section>
+          <section class="panel">
+            <div class="panel-head"><h2>Unavailable sources</h2></div>
+            <div id="checks-unavailable" class="note-list"></div>
           </section>
         </section>
 
