@@ -459,7 +459,14 @@ const ROUTE_FILE_BY_IDENT = new Map(
   ].map((m) => [m[1] || m[2], m[3]])
 );
 
-const MOUNTS = [...APP_SRC.matchAll(/app\.use\('(\/api\/[^']*)',\s*([A-Za-z0-9_$]+)/g)].map((m) => ({
+// A mount may carry plain middleware before its router (PLAT-7's
+// `platformAccessGate`). The router is the LAST identifier in the chain; the
+// earlier identifiers are middleware and have no routes/ file to load. Inline
+// function mounts (the `/api/auth` guard) deliberately do not match this
+// pattern; the router mount on the next line is the one that supplies routes.
+const MOUNTS = [
+  ...APP_SRC.matchAll(/app\.use\('(\/api\/[^']*)',\s*(?:[A-Za-z0-9_$]+,\s*)*([A-Za-z0-9_$]+)/g),
+].map((m) => ({
   prefix: m[1],
   ident: m[2],
   file: ROUTE_FILE_BY_IDENT.get(m[2]),
