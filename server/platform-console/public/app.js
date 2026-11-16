@@ -105,6 +105,8 @@
     hide(byId('topbar-session'));
     showOnly('login-view');
     byId('password').value = '';
+    byId('recovery-code').value = '';
+    hide(byId('recovery-login-panel'));
     showError('login-error', '');
     showError('mfa-error', '');
     showError('enroll-error', '');
@@ -413,6 +415,9 @@
     text(byId('security-role'), admin.role || '—');
     text(byId('security-mfa'), admin.mfaEnabled ? 'TOTP enrolled' : 'Not enrolled');
     text(byId('security-keys'), formatNumber(admin.webauthnCredentialCount) + ' registered');
+    var remaining = Number(admin.recoveryCodesRemaining || 0);
+    text(byId('security-recovery'), formatNumber(remaining) + ' unused');
+    byId('recovery-warning').hidden = remaining > 0;
     var host = byId('capability-list');
     clear(host);
     (admin.capabilities || []).forEach(function (capability) {
@@ -421,10 +426,182 @@
       text(chip, capability);
       host.appendChild(chip);
     });
+    var canManage = Array.isArray(admin.capabilities) && admin.capabilities.indexOf('platform.admin.manage') >= 0;
+    byId('admin-panel').hidden = !canManage;
+    if (canManage && state.view === 'security') loadAdmins();
     var supported = !!(window.PublicKeyCredential && navigator.credentials && navigator.credentials.create);
     byId('webauthn-register-button').disabled = !supported;
     if (!supported) {
       showError('webauthn-error', 'This browser does not expose WebAuthn.');
+    }
+  }
+
+  function adminActionButton(label, className, onClick) {
+    var button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'button ' + className + ' small';
+    text(button, label);
+    button.addEventListener('click', onClick);
+    return button;
+  }
+
+  async function loadAdmins() {
+    if (!state.admin) return;
+    if (!Array.isArray(state.admin.capabilities) || state.admin.capabilities.indexOf('platform.admin.manage') < 0) return;
+    var host = byId('admin-list');
+    clear(host);
+    text(byId('admin-error'), '');
+    byId('admin-error').hidden = true;
+    text(byId('admin-status'), 'Loading administrators…');
+    try {
+      var data = await request('/admins');
+      clear(host);
+      (data.admins || []).forEach(function (admin) {
+        var row = document.createElement('div');
+        row.className = 'admin-row';
+        var main = document.createElement('div');
+        main.className = 'admin-row-main';
+        var title = document.createElement('strong');
+        text(title, admin.email);
+        main.appendChild(title);
+        var meta = document.createElement('p');
+        meta.className = 'muted small';
+        text(meta, (admin.role || '—') + ' · ' + (admin.status || '—') + ' · MFA ' + (admin.mfaEnabled ? 'enrolled' : 'not enrolled') + ' · ' + formatNumber(admin.recoveryCodesRemaining || 0) + ' recovery codes');
+        main.appendChild(meta);
+        (admin.webauthnKeys || []).forEach(function (key) {
+          var keyRow = document.createElement('div');
+          keyRow.className = 'key-row';
+          var label = document.createElement('span');
+          text(label, key.label + ' · added ' + formatTime(key.createdAt));
+          keyRow.appendChild(label);
+          keyRow.appendChild(adminActionButton('Remove key', 'ghost', function () {
+            removeAdminKey(admin.id, admin.email, key.id);
+          }));
+          main.appendChild(keyRow);
+        });
+        var actions = document.createElement('div');
+        actions.className = 'admin-row-actions';
+        if (admin.id !== state.admin.id) {
+          if (admin.status === 'ACTIVE') {
+            actions.appendChild(adminActionButton('Disable', 'secondary', function () {
+              changeAdminStatus(admin.id, admin.email, 'DISABLED');
+            }));
+          } else {
+            actions.appendChild(adminActionButton('Enable', 'secondary', function () {
+              changeAdminStatus(admin.id, admin.email, 'ACTIVE');
+            }));
+          }
+          actions.appendChild(adminActionButton('Delete', 'ghost', function () {
+            deleteAdmin(admin.id, admin.email);
+          }));
+        }
+        row.appendChild(main);
+        row.appendChild(actions);
+        host.appendChild(row);
+      });
+      if (!host.firstChild) text(host, 'No platform administrators found.');
+      text(byId('admin-status'), '');
+    } catch (error) {
+      showError('admin-error', errorMessage(error));
+      text(byId('admin-status'), '');
+    }
+  }
+
+  async function changeAdminStatus(id, email, status) {
+    try {
+      await request('/admins/' + encodeURIComponent(id) + '/status', {
+        method: 'PATCH',
+        body: { status: status }
+      });
+      text(byId('admin-status'), email + ' is now ' + status.toLowerCase() + '.');
+      await loadAdmins();
+    } catch (error) {
+      showError('admin-error', errorMessage(error));
+    }
+  }
+
+  async function deleteAdmin(id, email) {
+    if (!window.confirm('Delete ' + email + '? Their sessions are revoked immediately. This cannot be undone.')) return;
+    try {
+      await request('/admins/' + encodeURIComponent(id), { method: 'DELETE' });
+      text(byId('admin-status'), email + ' was deleted.');
+      await loadAdmins();
+    } catch (error) {
+      showError('admin-error', errorMessage(error));
+    }
+  }
+
+  async function removeAdminKey(id, email, credentialId) {
+    if (!window.confirm('Remove this security key from ' + email + '? Their platform sessions will be revoked.')) return;
+    try {
+      await request('/admins/' + encodeURIComponent(id) + '/webauthn/' + encodeURIComponent(credentialId), { method: 'DELETE' });
+      if (id === state.admin.id) {
+        resetToLogin();
+        showError('login-error', 'Security key removed. Sign in again with another key or TOTP.');
+        return;
+      }
+      text(byId('admin-status'), 'Security key removed from ' + email + '.');
+      await loadAdmins();
+    } catch (error) {
+      showError('admin-error', errorMessage(error));
+    }
+  }
+
+  async function generateRecoveryCodes() {
+    showError('recovery-error', '');
+    var password = byId('recovery-password').value;
+    var button = byId('recovery-generate-button');
+    if (!password) {
+      showError('recovery-error', 'Enter your current password to generate codes.');
+      return;
+    }
+    busy(button, true, 'Generating…');
+    try {
+      var data = await request('/auth/recovery-codes', {
+        method: 'POST',
+        body: { password: password }
+      });
+      byId('recovery-password').value = '';
+      var list = byId('recovery-code-list');
+      text(list, data.codes.join('\n'));
+      list.hidden = false;
+      state.admin.recoveryCodesRemaining = data.remaining;
+      renderSecurity();
+      text(byId('recovery-status'), 'New recovery codes generated. Store them offline now; they will not be shown again.');
+      byId('recovery-status').className = 'status-line good';
+    } catch (error) {
+      showError('recovery-error', errorMessage(error));
+    } finally {
+      busy(button, false);
+    }
+  }
+
+  async function changePassword() {
+    showError('password-error', '');
+    var currentPassword = byId('password-current').value;
+    var newPassword = byId('password-new').value;
+    var confirmPassword = byId('password-confirm').value;
+    var button = byId('password-change-button');
+    if (!currentPassword || !newPassword) {
+      showError('password-error', 'Enter your current and new password.');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      showError('password-error', 'The new passwords do not match.');
+      return;
+    }
+    busy(button, true, 'Changing…');
+    try {
+      await request('/auth/password', {
+        method: 'POST',
+        body: { currentPassword: currentPassword, newPassword: newPassword }
+      });
+      resetToLogin();
+      showError('login-error', 'Password changed. Every platform session was signed out.');
+    } catch (error) {
+      showError('password-error', errorMessage(error));
+    } finally {
+      busy(button, false);
     }
   }
 
@@ -536,6 +713,7 @@
           navigator.credentials &&
           navigator.credentials.get
         );
+        byId('recovery-login-panel').hidden = state.methods.indexOf('recovery') < 0;
         showOnly('mfa-view');
         byId('mfa-code').focus();
       } else {
@@ -694,6 +872,34 @@
     }
   }
 
+  async function recoveryLogin() {
+    showError('mfa-error', '');
+    var button = byId('recovery-login-button');
+    var code = byId('recovery-code').value.trim();
+    if (!code) {
+      showError('mfa-error', 'Enter a recovery code.');
+      return;
+    }
+    busy(button, true, 'Checking…');
+    try {
+      var data = await request('/auth/mfa/recovery', {
+        method: 'POST',
+        auth: false,
+        body: {
+          mfaToken: state.mfaToken,
+          recoveryCode: code,
+          deviceLabel: 'Platform console'
+        }
+      });
+      setSession(data);
+      text(byId('dashboard-status'), 'Recovery code accepted. ' + formatNumber(data.mfa && data.mfa.remaining) + ' unused codes remain.');
+    } catch (error) {
+      showError('mfa-error', errorMessage(error));
+    } finally {
+      busy(button, false);
+    }
+  }
+
   async function logout() {
     try { await request('/auth/logout', { method: 'POST', body: {} }); } catch { /* session is ending anyway */ }
     resetToLogin();
@@ -750,6 +956,10 @@
     byId('copy-secret').addEventListener('click', copySecret);
     byId('webauthn-login-button').addEventListener('click', webAuthnLogin);
     byId('webauthn-register-button').addEventListener('click', registerWebAuthn);
+    byId('recovery-login-button').addEventListener('click', recoveryLogin);
+    byId('recovery-generate-button').addEventListener('click', generateRecoveryCodes);
+    byId('password-change-button').addEventListener('click', changePassword);
+    byId('admin-refresh').addEventListener('click', loadAdmins);
     byId('logout-button').addEventListener('click', logout);
     byId('refresh-button').addEventListener('click', loadOverview);
     byId('audit-refresh').addEventListener('click', loadAudit);

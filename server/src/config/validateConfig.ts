@@ -173,10 +173,17 @@ export function validateProductionConfig(
             'PLATFORM_CONSOLE_ORIGIN must use https (http is accepted only for localhost/127.0.0.1)',
         });
       }
-      if (parsed.pathname !== '/' || parsed.search || parsed.hash) {
+      if (
+        parsed.pathname !== '/' ||
+        parsed.search ||
+        parsed.hash ||
+        parsed.username ||
+        parsed.password
+      ) {
         problems.push({
           variable: 'PLATFORM_CONSOLE_ORIGIN',
-          message: 'PLATFORM_CONSOLE_ORIGIN must be an origin, without a path, query or fragment',
+          message:
+            'PLATFORM_CONSOLE_ORIGIN must be an origin, without a path, query, fragment or userinfo',
         });
       }
     } catch {
@@ -197,6 +204,19 @@ export function validateProductionConfig(
           variable: 'PLATFORM_WEBAUTHN_ORIGIN',
           message:
             'PLATFORM_WEBAUTHN_ORIGIN must use https (http is accepted only for localhost/127.0.0.1)',
+        });
+      }
+      if (
+        parsed.pathname !== '/' ||
+        parsed.search ||
+        parsed.hash ||
+        parsed.username ||
+        parsed.password
+      ) {
+        problems.push({
+          variable: 'PLATFORM_WEBAUTHN_ORIGIN',
+          message:
+            'PLATFORM_WEBAUTHN_ORIGIN must be a bare origin without a path, query, fragment or userinfo',
         });
       }
     } catch {

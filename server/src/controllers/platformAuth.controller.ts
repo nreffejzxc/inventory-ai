@@ -3,6 +3,7 @@ import crypto from 'node:crypto';
 import type { Request, Response } from 'express';
 
 import {
+  changePlatformAdminPassword,
   loginPlatformAdmin,
   renewPlatformToken,
   type PublicPlatformAdmin,
@@ -23,6 +24,7 @@ import { normalizeEmail } from '../utils/validate.ts';
 import { recordPlatformAudit } from '../services/platformAudit.service.ts';
 import { PLATFORM_AUDIT_ACTIONS, PLATFORM_AUDIT_OUTCOMES } from '../constants/platformAudit.ts';
 import type { PlatformRequest } from '../middlewares/platformAuthenticate.ts';
+import { generateRecoveryCodesForAdmin } from '../services/platformRecovery.service.ts';
 
 /**
  * PLAT-1/PLAT-2 — the platform authentication surface.
@@ -207,6 +209,111 @@ export async function logout(req: PlatformRequest, res: Response) {
 }
 
 /**
+ * POST /api/platform/auth/password — change the signed-in administrator's own
+ * password. The current password is required again, and every session is
+ * revoked, including this one. The console re-authenticates after the response.
+ */
+export async function changePassword(req: PlatformRequest, res: Response) {
+  const currentPassword = req.body?.currentPassword;
+  const newPassword = req.body?.newPassword;
+  const problems: Array<{ field: string; message: string }> = [];
+  if (typeof currentPassword !== 'string' || !currentPassword) {
+    problems.push({ field: 'currentPassword', message: 'Current password is required' });
+  }
+  if (typeof newPassword !== 'string' || !newPassword) {
+    problems.push({ field: 'newPassword', message: 'A new password is required' });
+  }
+  if (problems.length > 0) throwValidation(problems);
+
+  let result;
+  try {
+    result = await changePlatformAdminPassword({
+      adminId: req.platformAdmin!.id,
+      currentPassword,
+      newPassword,
+    });
+  } catch (err) {
+    await recordPlatformAudit({
+      action: PLATFORM_AUDIT_ACTIONS.PASSWORD_CHANGED,
+      outcome: PLATFORM_AUDIT_OUTCOMES.FAILURE,
+      actor: {
+        adminId: req.platformAdmin!.id,
+        email: req.platformAdmin!.email,
+        role: req.platformAdmin!.role,
+      },
+      reason: err instanceof ApiError ? String(err.code || 'password_change_failed') : 'password_change_failed',
+      req,
+    });
+    throw err;
+  }
+
+  await recordPlatformAudit({
+    action: PLATFORM_AUDIT_ACTIONS.PASSWORD_CHANGED,
+    outcome: PLATFORM_AUDIT_OUTCOMES.SUCCESS,
+    actor: {
+      adminId: req.platformAdmin!.id,
+      email: req.platformAdmin!.email,
+      role: req.platformAdmin!.role,
+    },
+    metadata: { sessionsRevoked: result.sessionsRevoked },
+    req,
+  });
+  clearPlatformSessionCookies(res);
+  res.setHeader('Cache-Control', 'no-store');
+  return res.status(200).json({
+    message: 'Password changed. Every platform session has been signed out.',
+    changedAt: result.changedAt,
+    sessionsRevoked: result.sessionsRevoked,
+  });
+}
+
+/**
+ * POST /api/platform/auth/recovery-codes — replace this administrator's
+ * one-time recovery codes. Requires the current password, returns the codes
+ * once, and never returns a hash.
+ */
+export async function recoveryCodes(req: PlatformRequest, res: Response) {
+  const password = req.body?.password;
+  if (typeof password !== 'string' || !password) {
+    throwValidation([{ field: 'password', message: 'Current password is required' }]);
+  }
+  let result;
+  try {
+    result = await generateRecoveryCodesForAdmin({
+      adminId: req.platformAdmin!.id,
+      password,
+    });
+  } catch (err) {
+    await recordPlatformAudit({
+      action: PLATFORM_AUDIT_ACTIONS.RECOVERY_CODES_GENERATED,
+      outcome: PLATFORM_AUDIT_OUTCOMES.FAILURE,
+      actor: {
+        adminId: req.platformAdmin!.id,
+        email: req.platformAdmin!.email,
+        role: req.platformAdmin!.role,
+      },
+      reason: err instanceof ApiError ? String(err.code || 'recovery_codes_failed') : 'recovery_codes_failed',
+      req,
+    });
+    throw err;
+  }
+  await recordPlatformAudit({
+    action: PLATFORM_AUDIT_ACTIONS.RECOVERY_CODES_GENERATED,
+    outcome: PLATFORM_AUDIT_OUTCOMES.SUCCESS,
+    actor: {
+      adminId: req.platformAdmin!.id,
+      email: req.platformAdmin!.email,
+      role: req.platformAdmin!.role,
+    },
+    metadata: { remaining: result.remaining },
+    req,
+  });
+  res.setHeader('Cache-Control', 'no-store');
+  res.setHeader('Pragma', 'no-cache');
+  return res.status(200).json(result);
+}
+
+/**
  * GET /api/platform/auth/csrf — rotate and return the CSRF value for an existing
  * cookie session. Needed when the console is a different origin from the API:
  * the browser stores the API's `platform_csrf` cookie but the console's JS
@@ -232,4 +339,13 @@ export async function me(req: PlatformRequest, res: Response) {
   });
 }
 
-export default { login, renew, logout, me, csrf, sendPlatformSession };
+export default {
+  login,
+  renew,
+  logout,
+  changePassword,
+  recoveryCodes,
+  me,
+  csrf,
+  sendPlatformSession,
+};

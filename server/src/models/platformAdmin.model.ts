@@ -85,6 +85,44 @@ const platformAdminSchema = new Schema(
       type: Number,
       default: 0,
     },
+    // Recovery codes are generated only after a re-authentication with the
+    // current password. The plaintext code is shown once by the generating
+    // response; this collection stores only a SHA-256 digest and the time the
+    // code was spent. A code is single-use and cannot be selected by an
+    // ordinary administrator read.
+    recoveryCodes: {
+      type: [
+        new Schema(
+          {
+            codeHash: { type: String, required: true },
+            usedAt: { type: Date, default: null },
+          },
+          { _id: false },
+        ),
+      ],
+      default: [],
+      select: false,
+    },
+    recoveryCodesGeneratedAt: {
+      type: Date,
+      default: null,
+    },
+    // Account-scoped failed-MFA budget. An IP limiter cannot stop an attacker
+    // who rotates addresses, so these fields are the durable backstop shared by
+    // TOTP, WebAuthn and recovery-code verification. A lock is temporary; a
+    // successful factor clears the budget immediately.
+    mfaFailedAttempts: {
+      type: Number,
+      default: 0,
+    },
+    mfaFailedWindowStartedAt: {
+      type: Date,
+      default: null,
+    },
+    mfaLockedUntil: {
+      type: Date,
+      default: null,
+    },
     webauthnCredentials: {
       type: [
         new Schema(

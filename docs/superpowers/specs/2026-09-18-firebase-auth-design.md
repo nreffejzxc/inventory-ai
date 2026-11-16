@@ -174,7 +174,7 @@ set.
 
 ## 2.6 Route inventory
 
-Phase 23 classifies **105 routes**: **57 permission-gated**, **20 authenticated**, **28 public**, **0 role-gated**. The `PUBLIC` and `AUTHENTICATED` buckets are explicit lists that each carry a
+Phase 23 classifies **112 routes**: **61 permission-gated**, **22 authenticated**, **29 public**, **0 role-gated**. The `PUBLIC` and `AUTHENTICATED` buckets are explicit lists that each carry a
 written reason; a route in no bucket fails the guard, and a declared exemption that has stopped being
 true also fails. The guard deliberately asserts **no route count** — a route is *declared* or it is not,
 and the number is derived from the declarations — so the figure above is pinned separately, by
@@ -309,6 +309,13 @@ fails if the two disagree.
 > for a cross-origin console; it is GET-only, exact-Origin-bound and creates no session. The console
 > remains a separate static listener, not a route in this inventory. No tenant route, tenant
 > permission or tenant credential changed.
+>
+> **PLAT-5 administrator recovery and lifecycle (2026-11-16) added seven routes —
+> 105 + 7 = **112** (61 permission-gated, 22 authenticated, 29 public, 0 role-gated).** The public
+> recovery-code route is a login-challenge completion, like the existing MFA routes. Password
+> change and recovery-code generation are authenticated self-service. The four administrator
+> lifecycle routes require `platform.admin.manage` (SUPERADMIN only). No tenant route, permission
+> or credential changed.
 
 The auth surface (`server/src/routes/auth.routes.ts`):
 

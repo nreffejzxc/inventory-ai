@@ -76,6 +76,12 @@
           <p id="mfa-error" class="error" role="alert" hidden></p>
           <button id="mfa-submit" class="button primary" type="submit">Verify</button>
           <button id="webauthn-login-button" class="button secondary" type="button" hidden>Use a security key</button>
+          <div id="recovery-login-panel" hidden>
+            <p class="muted small">Lost your authenticator and security key? Use one unused recovery code.</p>
+            <label for="recovery-code">Recovery code</label>
+            <input id="recovery-code" name="recoveryCode" autocomplete="one-time-code" placeholder="XXXX-XXXX-XXXX">
+            <button id="recovery-login-button" class="button secondary" type="button">Use recovery code</button>
+          </div>
           <button id="mfa-back" class="button link" type="button">Use a different account</button>
         </form>
       </section>
@@ -194,6 +200,7 @@
                 <dt>Role</dt><dd id="security-role"></dd>
                 <dt>MFA</dt><dd id="security-mfa"></dd>
                 <dt>Security keys</dt><dd id="security-keys"></dd>
+                <dt>Recovery codes</dt><dd id="security-recovery"></dd>
                 <dt>Session</dt><dd>HttpOnly cookie · CSRF protected · 15-minute token</dd>
               </dl>
             </section>
@@ -207,6 +214,47 @@
               <button id="webauthn-register-button" class="button primary" type="button">Register security key</button>
             </section>
           </div>
+          <section class="panel">
+            <div class="panel-head"><h2>Recovery codes</h2></div>
+            <p id="recovery-warning" class="error" role="alert" hidden>
+              No unused recovery codes remain. Generate a new set before you need it; this is the
+              fallback if your authenticator and security keys are unavailable.
+            </p>
+            <p class="muted">One-time codes replace TOTP or a security key at sign-in. Generating a new set invalidates every old code.</p>
+            <label for="recovery-password">Current password</label>
+            <input id="recovery-password" type="password" autocomplete="current-password">
+            <p id="recovery-error" class="error" role="alert" hidden></p>
+            <p id="recovery-status" class="status-line" aria-live="polite"></p>
+            <button id="recovery-generate-button" class="button primary" type="button">Generate recovery codes</button>
+            <pre id="recovery-code-list" class="secret recovery-list" hidden></pre>
+            <p class="muted small">Store these codes offline. They are shown once and cannot be retrieved later.</p>
+          </section>
+
+          <section class="panel">
+            <div class="panel-head"><h2>Change password</h2></div>
+            <p class="muted">Changing the password signs out every platform session, including this one.</p>
+            <label for="password-current">Current password</label>
+            <input id="password-current" type="password" autocomplete="current-password">
+            <label for="password-new">New password</label>
+            <input id="password-new" type="password" autocomplete="new-password">
+            <label for="password-confirm">Confirm new password</label>
+            <input id="password-confirm" type="password" autocomplete="new-password">
+            <p id="password-error" class="error" role="alert" hidden></p>
+            <p id="password-status" class="status-line" aria-live="polite"></p>
+            <button id="password-change-button" class="button primary" type="button">Change password</button>
+          </section>
+
+          <section id="admin-panel" class="panel" hidden>
+            <div class="panel-head">
+              <h2>Platform administrators</h2>
+              <button id="admin-refresh" class="button ghost small" type="button">Refresh</button>
+            </div>
+            <p class="muted">Disable or delete an administrator immediately; disabling revokes every session. The last active SUPERADMIN and your own account are protected.</p>
+            <p id="admin-error" class="error" role="alert" hidden></p>
+            <p id="admin-status" class="status-line" aria-live="polite"></p>
+            <div id="admin-list" class="table-wrap"></div>
+          </section>
+
           <section class="panel">
             <div class="panel-head"><h2>Capabilities</h2></div>
             <div id="capability-list" class="chips"></div>

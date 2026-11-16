@@ -48,6 +48,11 @@ import {
   PLATFORM_AUDIT_ACTION_VALUES,
 } from '../src/constants/platformAudit.ts';
 import { validateProductionConfig } from '../src/config/validateConfig.ts';
+import {
+  platformConsoleOrigin,
+  platformCookieSecure,
+  platformWebAuthnConfig,
+} from '../src/config/platformSecurity.ts';
 import crypto from 'node:crypto';
 
 const PASSWORD = 'PlatformSecurity123!';
@@ -217,6 +222,13 @@ unitSuite('PLAT-2/3 audit vocabulary and cookie flags', () => {
     }).map((problem) => problem.variable);
     assert.ok(missingConsole.includes('PLATFORM_CONSOLE_ORIGIN'));
 
+    const webAuthnPath = validateProductionConfig({
+      ...base,
+      PLATFORM_MFA_ENCRYPTION_KEY: 'mfa-secret-0123456789abcdef0123456789abcdef',
+      PLATFORM_WEBAUTHN_ORIGIN: 'https://ops.example.com/not-a-bare-origin',
+    }).map((problem) => problem.variable);
+    assert.ok(webAuthnPath.includes('PLATFORM_WEBAUTHN_ORIGIN'));
+
     const valid = validateProductionConfig({
       ...base,
       PLATFORM_MFA_ENCRYPTION_KEY: 'mfa-secret-0123456789abcdef0123456789abcdef',
@@ -226,6 +238,48 @@ unitSuite('PLAT-2/3 audit vocabulary and cookie flags', () => {
       [],
       JSON.stringify(valid),
     );
+  });
+
+  it('fails closed on non-bare origins and keeps cookies Secure without NODE_ENV', () => {
+    const previousNodeEnv = process.env.NODE_ENV;
+    const previousConsoleOrigin = process.env.PLATFORM_CONSOLE_ORIGIN;
+    const previousWebAuthnOrigin = process.env.PLATFORM_WEBAUTHN_ORIGIN;
+    try {
+      process.env.NODE_ENV = '';
+      process.env.PLATFORM_CONSOLE_ORIGIN = 'https://ops.example.com';
+      process.env.PLATFORM_WEBAUTHN_ORIGIN = 'https://ops.example.com';
+      assert.equal(platformCookieSecure(), true, 'HTTPS must set Secure without NODE_ENV');
+      assert.equal(platformConsoleOrigin(), 'https://ops.example.com');
+
+      process.env.PLATFORM_CONSOLE_ORIGIN = 'http://ops.example.com';
+      assert.throws(() => platformConsoleOrigin(), /must use https|not configured/);
+
+      process.env.PLATFORM_CONSOLE_ORIGIN = 'https://ops.example.com/console';
+      assert.throws(() => platformConsoleOrigin(), /bare origin|must be a valid/);
+
+      process.env.PLATFORM_CONSOLE_ORIGIN = 'https://ops.example.com';
+      process.env.PLATFORM_WEBAUTHN_ORIGIN = 'https://ops.example.com/path';
+      assert.throws(() => platformWebAuthnConfig(), /not configured/);
+
+      process.env.NODE_ENV = '';
+      process.env.PLATFORM_CONSOLE_ORIGIN = 'http://localhost:4100';
+      assert.equal(
+        platformCookieSecure(),
+        true,
+        'an unknown environment must not emit an insecure cookie',
+      );
+
+      process.env.NODE_ENV = 'test';
+      process.env.PLATFORM_CONSOLE_ORIGIN = 'http://localhost:4100';
+      assert.equal(platformCookieSecure(), false, 'loopback HTTP development may omit Secure');
+    } finally {
+      if (previousNodeEnv === undefined) delete process.env.NODE_ENV;
+      else process.env.NODE_ENV = previousNodeEnv;
+      if (previousConsoleOrigin === undefined) delete process.env.PLATFORM_CONSOLE_ORIGIN;
+      else process.env.PLATFORM_CONSOLE_ORIGIN = previousConsoleOrigin;
+      if (previousWebAuthnOrigin === undefined) delete process.env.PLATFORM_WEBAUTHN_ORIGIN;
+      else process.env.PLATFORM_WEBAUTHN_ORIGIN = previousWebAuthnOrigin;
+    }
   });
 });
 

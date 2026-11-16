@@ -120,6 +120,21 @@ export async function touchPlatformSession(session: SessionDoc, now: Date = new 
   }
 }
 
+/**
+ * End every active session for one administrator. Used after a password change,
+ * a disable or an administrative deletion, so the action takes effect on every
+ * device immediately rather than waiting for token expiry.
+ */
+export async function revokeAllPlatformSessionsForAdmin(
+  adminId: string | mongoose.Types.ObjectId,
+  now: Date = new Date(),
+) {
+  return PlatformAdminSession.updateMany(
+    { adminId, revokedAt: null },
+    { $set: { revokedAt: now } },
+  );
+}
+
 /** End the session the current platform request authenticated with. */
 export async function revokePlatformSessionByJti({
   adminId,
@@ -150,5 +165,6 @@ export default {
   findPlatformSessionByJti,
   platformSessionState,
   touchPlatformSession,
+  revokeAllPlatformSessionsForAdmin,
   revokePlatformSessionByJti,
 };

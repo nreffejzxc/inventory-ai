@@ -39,7 +39,10 @@ import {
   encryptPlatformCredential,
 } from './platformMfa/secretVault.ts';
 import {
+  assertPlatformMfaNotLocked,
   completePlatformLogin,
+  recordPlatformMfaFailure,
+  resetPlatformMfaFailures,
   type PlatformSessionResult,
 } from './platformMfa.service.ts';
 
@@ -235,6 +238,7 @@ export async function beginPlatformWebAuthnLogin({ mfaToken }: { mfaToken: strin
   const config = platformWebAuthnConfig();
   const claims = verifyPlatformMfaToken(mfaToken, PLATFORM_MFA_PURPOSES.LOGIN);
   const admin = await loadActiveAdmin(claims.sub!);
+  assertPlatformMfaNotLocked(admin);
   const credentials = admin.webauthnCredentials ?? [];
   if (credentials.length === 0) {
     throw new ApiError(
@@ -315,10 +319,12 @@ export async function finishPlatformWebAuthnLogin({
     throw new ApiError(400, 'Invalid authentication response', PLATFORM_WEBAUTHN_INVALID_CODE);
   }
   const admin = await loadActiveAdmin(claims.sub!);
+  assertPlatformMfaNotLocked(admin);
   const credential = (admin.webauthnCredentials ?? []).find(
     (candidate) => candidate.credentialId === response.id,
   );
   if (!credential) {
+    await recordPlatformMfaFailure(admin._id);
     throw new ApiError(401, 'Invalid security key', PLATFORM_WEBAUTHN_INVALID_CODE);
   }
 
@@ -338,9 +344,11 @@ export async function finishPlatformWebAuthnLogin({
       },
     });
   } catch {
+    await recordPlatformMfaFailure(admin._id);
     throw new ApiError(401, 'Invalid security key', PLATFORM_WEBAUTHN_INVALID_CODE);
   }
   if (!verification.verified) {
+    await recordPlatformMfaFailure(admin._id);
     throw new ApiError(401, 'Invalid security key', PLATFORM_WEBAUTHN_INVALID_CODE);
   }
 
@@ -372,8 +380,10 @@ export async function finishPlatformWebAuthnLogin({
     { arrayFilters: [{ 'credential.credentialId': credential.credentialId }] },
   );
   if (consumed.modifiedCount !== 1) {
+    await recordPlatformMfaFailure(admin._id);
     throw new ApiError(401, 'Invalid security key', PLATFORM_WEBAUTHN_INVALID_CODE);
   }
+  await resetPlatformMfaFailures(admin._id);
 
   const session = await completePlatformLogin({ adminId: String(admin._id), deviceLabel });
   return { ...session, mfa: { method: 'webauthn' } };

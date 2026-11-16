@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import PlatformAdmin from '../models/platformAdmin.model.ts';
 import ApiError from '../utils/ApiError.ts';
 import { normalizeEmail } from '../utils/validate.ts';
+import { revokeAllPlatformSessionsForAdmin } from './platformSession.service.ts';
 import {
   isPlatformRole,
   platformCapabilitiesFor,
@@ -39,7 +40,7 @@ import {
  */
 
 const BCRYPT_ROUNDS = 10;
-const PLATFORM_PASSWORD_MIN_LENGTH = 16;
+export const PLATFORM_PASSWORD_MIN_LENGTH = 16;
 const ACTIVE = 'ACTIVE';
 
 /**
@@ -50,7 +51,7 @@ const ACTIVE = 'ACTIVE';
  */
 const DUMMY_HASH = bcrypt.hashSync('platform-timing-equalizer-placeholder', BCRYPT_ROUNDS);
 
-async function verifyPlatformPassword(
+export async function verifyPlatformPassword(
   password: string,
   storedHash: string | null | undefined,
 ): Promise<boolean> {
@@ -71,6 +72,13 @@ export type PublicPlatformAdmin = {
   capabilities: readonly string[];
   mfaEnabled: boolean;
   webauthnCredentialCount: number;
+  webauthnKeys: Array<{
+    id: string;
+    label: string;
+    createdAt: string | null;
+    lastUsedAt: string | null;
+  }>;
+  recoveryCodesRemaining: number;
 };
 
 /** The strict DTO the platform API returns. Never includes a hash or a session id. */
@@ -87,6 +95,17 @@ export function toPublicPlatformAdmin(
     mfaEnabled: Boolean(admin.mfaEnabled),
     webauthnCredentialCount: Array.isArray(admin.webauthnCredentials)
       ? admin.webauthnCredentials.length
+      : 0,
+    webauthnKeys: Array.isArray(admin.webauthnCredentials)
+      ? admin.webauthnCredentials.map((credential) => ({
+          id: credential.credentialId,
+          label: credential.label || 'Security key',
+          createdAt: credential.createdAt ? credential.createdAt.toISOString() : null,
+          lastUsedAt: credential.lastUsedAt ? credential.lastUsedAt.toISOString() : null,
+        }))
+      : [],
+    recoveryCodesRemaining: Array.isArray(admin.recoveryCodes)
+      ? admin.recoveryCodes.filter((code) => !code.usedAt).length
       : 0,
   };
 }
@@ -166,7 +185,7 @@ export type PlatformLoginChallenge =
       mfaRequired: true;
       mfaToken: string;
       expiresIn: number;
-      methods: Array<'totp' | 'webauthn'>;
+      methods: Array<'totp' | 'webauthn' | 'recovery'>;
       admin: PublicPlatformAdmin;
     };
 
@@ -203,8 +222,8 @@ export async function loginPlatformAdmin({
   const candidate = typeof password === 'string' ? password : '';
 
   const admin = normalizedEmail
-    ? await PlatformAdmin.findOne({ email: normalizedEmail }).select(
-        '+passwordHash +totpSecretEncrypted +webauthnCredentials',
+          ? await PlatformAdmin.findOne({ email: normalizedEmail }).select(
+        '+passwordHash +totpSecretEncrypted +webauthnCredentials +recoveryCodes',
       )
     : null;
   const matches = await verifyPlatformPassword(candidate, admin?.passwordHash);
@@ -230,8 +249,9 @@ export async function loginPlatformAdmin({
     };
   }
 
-  const methods: Array<'totp' | 'webauthn'> = ['totp'];
+  const methods: Array<'totp' | 'webauthn' | 'recovery'> = ['totp'];
   if ((admin.webauthnCredentials?.length ?? 0) > 0) methods.push('webauthn');
+  if ((admin.recoveryCodes ?? []).some((code) => !code.usedAt)) methods.push('recovery');
   return {
     mfaEnrollmentRequired: false,
     mfaRequired: true,
@@ -244,6 +264,62 @@ export async function loginPlatformAdmin({
     methods,
     admin: toPublicPlatformAdmin(admin),
   };
+}
+
+/**
+ * Change the signed-in administrator's own password after proving the current
+ * one. All platform sessions are revoked, including the caller's: a credential
+ * change must not leave an old token able to read the platform plane. The
+ * console clears its cookies when it receives this response.
+ */
+export async function changePlatformAdminPassword({
+  adminId,
+  currentPassword,
+  newPassword,
+  now = new Date(),
+}: {
+  adminId: string;
+  currentPassword: unknown;
+  newPassword: unknown;
+  now?: Date;
+}) {
+  if (typeof currentPassword !== 'string' || !currentPassword) {
+    throw new ApiError(400, 'Current password is required', 'VALIDATION_ERROR');
+  }
+  if (typeof newPassword !== 'string' || newPassword.length < PLATFORM_PASSWORD_MIN_LENGTH) {
+    throw new ApiError(
+      400,
+      `A platform administrator password must be at least ${PLATFORM_PASSWORD_MIN_LENGTH} characters`,
+      'VALIDATION_ERROR',
+    );
+  }
+  if (currentPassword === newPassword) {
+    throw new ApiError(
+      400,
+      'The new password must be different from the current password',
+      'VALIDATION_ERROR',
+    );
+  }
+
+  const admin = await PlatformAdmin.findById(adminId).select('+passwordHash');
+  if (!admin || admin.status !== ACTIVE) {
+    throw new ApiError(401, 'Platform authentication required', 'PLATFORM_INVALID_TOKEN');
+  }
+  if (!(await verifyPlatformPassword(currentPassword, admin.passwordHash))) {
+    throw new ApiError(401, 'Current password is incorrect', 'PLATFORM_CURRENT_PASSWORD_INVALID');
+  }
+
+  const passwordHash = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
+  const updated = await PlatformAdmin.findOneAndUpdate(
+    { _id: admin._id, status: ACTIVE },
+    { $set: { passwordHash, passwordChangedAt: now } },
+    { returnDocument: 'after' },
+  );
+  if (!updated) {
+    throw new ApiError(401, 'Platform authentication required', 'PLATFORM_INVALID_TOKEN');
+  }
+  const revoked = await revokeAllPlatformSessionsForAdmin(admin._id, now);
+  return { changedAt: now.toISOString(), sessionsRevoked: revoked.modifiedCount };
 }
 
 /**
@@ -266,5 +342,6 @@ export default {
   toPublicPlatformAdmin,
   createPlatformAdminAccount,
   loginPlatformAdmin,
+  changePlatformAdminPassword,
   renewPlatformToken,
 };

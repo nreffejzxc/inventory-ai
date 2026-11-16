@@ -264,6 +264,10 @@ const PUBLIC_ROUTES = [
     route: 'POST /api/platform/auth/mfa/webauthn/verify',
     why: 'PLAT-2/3: PRE-SESSION by design — verifies a WebAuthn assertion against a registered platform credential and only then creates the session; the challenge is purpose-bound, user verification is required, and the counter is advanced to refuse replay',
   },
+  {
+    route: 'POST /api/platform/auth/mfa/recovery',
+    why: 'PLAT-5: PRE-SESSION by design — a recovery code is the second-factor fallback for a caller who holds a short-lived purpose-bound login challenge but no session. The endpoint consumes one hashed, single-use code atomically, is rate-limited and shares the durable account MFA lock, and returns a session only after the code matches',
+  },
   { route: 'POST /api/auth/register', why: 'how a business is created; rate-limited' },
   {
     route: 'POST /api/auth/forgot-password',
@@ -316,6 +320,14 @@ const AUTHENTICATED_ROUTES = [
     why: 'account deletion: deletes only the CALLER’S OWN account — the subject is req.user.id with no id in the request that could aim it elsewhere, re-authentication is required first, and no permission key could express "may delete my own account" without inventing an authorization concept the catalogue does not have',
   },
   { route: 'POST /api/auth/logout', why: 'Phase 26A: ends only the caller’s own session' },
+  {
+    route: 'POST /api/platform/auth/password',
+    why: 'PLAT-5: changes only the CALLER’S OWN platform password — the current password is required, the route is rate-limited, and success revokes every platform session; there is no administrator id in the request that could aim it elsewhere',
+  },
+  {
+    route: 'POST /api/platform/auth/recovery-codes',
+    why: 'PLAT-5: generates recovery codes only for the CALLER’S OWN platform account — the current password is required, the route is rate-limited, and only SHA-256 digests are stored; there is no administrator id in the request that could aim it elsewhere',
+  },
   { route: 'GET /api/auth/sessions', why: 'Phase 26A: lists only the caller’s own sessions' },
   { route: 'DELETE /api/auth/sessions/:id', why: 'Phase 26A: ends only a session the caller owns' },
   {

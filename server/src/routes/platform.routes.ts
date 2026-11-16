@@ -6,6 +6,7 @@ import platformAuthController from '../controllers/platformAuth.controller.ts';
 import platformMfaController from '../controllers/platformMfa.controller.ts';
 import platformAuditController from '../controllers/platformAudit.controller.ts';
 import platformOperationsController from '../controllers/platformOperations.controller.ts';
+import platformAdminController from '../controllers/platformAdmin.controller.ts';
 import { PLATFORM_CAPABILITIES } from '../constants/platformRoles.ts';
 import {
   createLoginAccountLimiter,
@@ -34,10 +35,17 @@ import {
  *   POST /auth/mfa/enroll/start   public, enrollment challenge only
  *   POST /auth/mfa/enroll/confirm public, enrollment challenge + TOTP -> session
  *   POST /auth/mfa/verify         public, login challenge + TOTP -> session
+ *   POST /auth/mfa/recovery       public, login challenge + recovery code -> session
  *   POST /auth/mfa/webauthn/options public, login challenge -> assertion options
  *   POST /auth/mfa/webauthn/verify  public, assertion -> session
  *   POST /auth/webauthn/register/options authenticated, registration options
  *   POST /auth/webauthn/register/verify  authenticated, stores credential
+ *   POST /auth/password        authenticated, current password -> all sessions revoked
+ *   POST /auth/recovery-codes  authenticated, current password -> one-time codes
+ *   GET  /admins       requires `platform.admin.manage`.
+ *   PATCH /admins/:id/status  requires `platform.admin.manage`.
+ *   DELETE /admins/:id         requires `platform.admin.manage`.
+ *   DELETE /admins/:id/webauthn/:credentialId requires `platform.admin.manage`.
  *   GET  /operations   requires `platform.metrics.read`.
  *   GET  /audit        requires `platform.audit.read` (SECURITY/SUPERADMIN).
  *
@@ -68,10 +76,12 @@ router.post(
   platformAuthController.login,
 );
 
-// MFA challenge endpoints. The shared login account/ip budgets also cover them:
-// a challenge token is not guessable, but the submitted code is six digits and
-// must not be brute-forceable at an unbounded rate. The mfa token itself is the
-// only accepted input; no email/password is read here.
+// MFA challenge endpoints have TWO independent budgets:
+//   * this per-IP limiter, which bounds a single source; and
+//   * the durable account-scoped failure window in platformMfa.service.ts,
+//     which is shared across IPs. The second is the one that stops an
+//     attacker rotating addresses against a six-digit code. A challenge token
+//     is not guessable; the submitted factor is.
 const mfaIpLimiter = createLoginIpLimiter({ loginIpMax: 30 });
 router.post(
   '/auth/mfa/enroll/start',
@@ -89,6 +99,11 @@ router.post(
   platformMfaController.verifyLogin,
 );
 router.post(
+  '/auth/mfa/recovery',
+  createLoginIpLimiter({ loginIpMax: 30 }),
+  platformMfaController.recoveryLogin,
+);
+router.post(
   '/auth/mfa/webauthn/options',
   createLoginIpLimiter({ loginIpMax: 30 }),
   platformMfaController.webAuthnLoginOptions,
@@ -101,6 +116,18 @@ router.post(
 
 router.post('/auth/renew', requirePlatformAdmin, platformAuthController.renew);
 router.post('/auth/logout', requirePlatformAdmin, platformAuthController.logout);
+router.post(
+  '/auth/password',
+  requirePlatformAdmin,
+  createLoginIpLimiter({ loginIpMax: 10 }),
+  platformAuthController.changePassword,
+);
+router.post(
+  '/auth/recovery-codes',
+  requirePlatformAdmin,
+  createLoginIpLimiter({ loginIpMax: 10 }),
+  platformAuthController.recoveryCodes,
+);
 router.get('/auth/csrf', requirePlatformAdmin, platformAuthController.csrf);
 router.get('/auth/me', requirePlatformAdmin, platformAuthController.me);
 
@@ -115,6 +142,31 @@ router.post(
   '/auth/webauthn/register/verify',
   requirePlatformAdmin,
   platformMfaController.webAuthnRegisterVerify,
+);
+
+router.get(
+  '/admins',
+  requirePlatformAdmin,
+  requirePlatformCapability(PLATFORM_CAPABILITIES.ADMIN_MANAGE),
+  platformAdminController.list,
+);
+router.patch(
+  '/admins/:id/status',
+  requirePlatformAdmin,
+  requirePlatformCapability(PLATFORM_CAPABILITIES.ADMIN_MANAGE),
+  platformAdminController.status,
+);
+router.delete(
+  '/admins/:id',
+  requirePlatformAdmin,
+  requirePlatformCapability(PLATFORM_CAPABILITIES.ADMIN_MANAGE),
+  platformAdminController.remove,
+);
+router.delete(
+  '/admins/:id/webauthn/:credentialId',
+  requirePlatformAdmin,
+  requirePlatformCapability(PLATFORM_CAPABILITIES.ADMIN_MANAGE),
+  platformAdminController.removeKey,
 );
 
 router.get(

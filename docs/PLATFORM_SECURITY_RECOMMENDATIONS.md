@@ -56,6 +56,14 @@ is trying to prevent:
 | SEC-11 | CI/browser proof hardening and reproducibility | **P2** |
 | SEC-12 | Periodic access review, offboarding and rotation drills | **P2** |
 
+**Implementation status (2026-11-16, PLAT-5):** SEC-02 and SEC-03 are implemented and tested;
+SEC-01 is partially implemented (one-time recovery codes and password change exist, while a forced
+first-login generation step and a rehearsed break-glass runbook remain); SEC-04 is partially
+implemented (non-loopback origins and cookie flags fail closed, while HTTPS termination and network
+isolation remain deployment controls); SEC-05 and SEC-06 remain open. The remaining items are future
+work, not claims. The separate console-improvement list is
+[`PLATFORM_CONSOLE_IMPROVEMENTS.md`](PLATFORM_CONSOLE_IMPROVEMENTS.md).
+
 ---
 
 ## P0 — before any exposure

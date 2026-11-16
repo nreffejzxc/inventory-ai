@@ -33,7 +33,19 @@ function validOrigin(value: string | undefined, fallback: string): string {
   try {
     const parsed = new URL(candidate);
     if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') throw new Error('protocol');
-    if (parsed.pathname !== '/' || parsed.search || parsed.hash) throw new Error('origin');
+    const loopback = parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1';
+    if (parsed.protocol !== 'https:' && !(parsed.protocol === 'http:' && loopback)) {
+      throw new Error('https');
+    }
+    if (
+      parsed.pathname !== '/' ||
+      parsed.search ||
+      parsed.hash ||
+      parsed.username ||
+      parsed.password
+    ) {
+      throw new Error('origin');
+    }
     return parsed.origin;
   } catch {
     throw new Error(`Invalid console origin: ${candidate}`);

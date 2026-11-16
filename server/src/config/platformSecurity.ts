@@ -38,12 +38,61 @@ function trimmed(name: string): string {
   return (process.env[name] || '').trim();
 }
 
+function loopbackHost(hostname: string): boolean {
+  return hostname === 'localhost' || hostname === '127.0.0.1';
+}
+
+/**
+ * Parse a configured browser origin and fail closed on anything that is not a
+ * bare http(s) origin. Plain HTTP is accepted only for loopback development;
+ * every non-loopback value must be HTTPS. A path, query, fragment or userinfo
+ * is refused even when it happens to parse as a URL — WebAuthn's expected
+ * origin and a cookie's origin boundary are compared as exact values.
+ */
+function parsePlatformOrigin(candidate: string, variable: string): string {
+  let parsed: URL;
+  try {
+    parsed = new URL(candidate);
+  } catch {
+    throw new ApiError(
+      503,
+      `${variable} must be a valid http(s) origin`,
+      'PLATFORM_ORIGIN_INVALID',
+    );
+  }
+  const loopback = loopbackHost(parsed.hostname);
+  if (parsed.protocol !== 'https:' && !(parsed.protocol === 'http:' && loopback)) {
+    throw new ApiError(
+      503,
+      `${variable} must use https outside loopback development`,
+      'PLATFORM_ORIGIN_INVALID',
+    );
+  }
+  if (
+    parsed.pathname !== '/' ||
+    parsed.search ||
+    parsed.hash ||
+    parsed.username ||
+    parsed.password
+  ) {
+    throw new ApiError(
+      503,
+      `${variable} must be a bare origin without a path, query, fragment or userinfo`,
+      'PLATFORM_ORIGIN_INVALID',
+    );
+  }
+  return parsed.origin;
+}
+
 /** The console is a browser origin, never a wildcard. */
 export function platformConsoleOrigin(): string {
   // `localhost` rather than the IP: a browser treats loopback as a secure
   // context and WebAuthn accepts it as an RP ID, while a raw IP is commonly
   // refused by authenticators. The console listener still binds 127.0.0.1.
-  return (trimmed('PLATFORM_CONSOLE_ORIGIN') || 'http://localhost:4100').replace(/\/+$/, '');
+  return parsePlatformOrigin(
+    trimmed('PLATFORM_CONSOLE_ORIGIN') || 'http://localhost:4100',
+    'PLATFORM_CONSOLE_ORIGIN',
+  );
 }
 
 export function isPlatformConsoleOrigin(origin: unknown): boolean {
@@ -56,7 +105,19 @@ export function isPlatformConsoleRequest(headers: { [key: string]: unknown }): b
 }
 
 export function platformCookieSecure(): boolean {
-  return (process.env.NODE_ENV || '').trim().toLowerCase() === 'production';
+  // A missing NODE_ENV must not silently downgrade a deployed console to a
+  // non-Secure cookie. Secure is the default for an unknown environment; only
+  // the explicitly local development/test environments may omit it on loopback
+  // HTTP. An invalid origin also fails closed (Secure) rather than open.
+  const environment = (process.env.NODE_ENV || '').trim().toLowerCase();
+  if (environment === 'production') return true;
+  try {
+    const https = new URL(platformConsoleOrigin()).protocol === 'https:';
+    if (https) return true;
+    return environment !== 'development' && environment !== 'test';
+  } catch {
+    return true;
+  }
 }
 
 export function isPlatformMfaConfigured(): boolean {
@@ -112,13 +173,12 @@ export type PlatformWebAuthnConfig = {
  * production must set both values and use HTTPS.
  */
 export function platformWebAuthnConfig(): PlatformWebAuthnConfig {
-  const origin = (trimmed('PLATFORM_WEBAUTHN_ORIGIN') || platformConsoleOrigin()).replace(
-    /\/+$/,
-    '',
-  );
-  let parsed: URL;
+  let origin: string;
   try {
-    parsed = new URL(origin);
+    origin = parsePlatformOrigin(
+      trimmed('PLATFORM_WEBAUTHN_ORIGIN') || platformConsoleOrigin(),
+      'PLATFORM_WEBAUTHN_ORIGIN',
+    );
   } catch {
     throw new ApiError(
       503,
@@ -126,17 +186,15 @@ export function platformWebAuthnConfig(): PlatformWebAuthnConfig {
       PLATFORM_WEBAUTHN_NOT_CONFIGURED_CODE,
     );
   }
-  if (parsed.protocol !== 'https:' && parsed.hostname !== '127.0.0.1' && parsed.hostname !== 'localhost') {
-    throw new ApiError(
-      503,
-      PLATFORM_WEBAUTHN_NOT_CONFIGURED_MESSAGE,
-      PLATFORM_WEBAUTHN_NOT_CONFIGURED_CODE,
-    );
-  }
-  const rpID =
-    trimmed('PLATFORM_WEBAUTHN_RP_ID') ||
-    parsed.hostname;
-  if (!rpID || rpID.includes('/') || rpID.includes(':')) {
+  const parsed = new URL(origin);
+  const rpID = trimmed('PLATFORM_WEBAUTHN_RP_ID') || parsed.hostname;
+  if (
+    !rpID ||
+    rpID.includes('/') ||
+    rpID.includes(':') ||
+    !/^[a-z0-9.-]+$/i.test(rpID) ||
+    (rpID !== parsed.hostname && !parsed.hostname.endsWith(`.${rpID}`))
+  ) {
     throw new ApiError(
       503,
       PLATFORM_WEBAUTHN_NOT_CONFIGURED_MESSAGE,

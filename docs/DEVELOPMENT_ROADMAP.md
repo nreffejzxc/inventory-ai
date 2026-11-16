@@ -8,9 +8,9 @@ of truth for *what actually happened*, and it is why this file is long.
 
 **How to read it.** Do not read it top to bottom. Either find a record by number (§27FJ, §27DM — the
 numbers are cited from `CLAUDE.md` and from source comments), or use the index: `CLAUDE.md` §7 lists
-all **246** records by the title each gives itself.
+all **247** records by the title each gives itself.
 
-**Current state:** V1 complete and in production testing. The records that answer *where are we now* are §27IJ (the INTERNAL Platform Operations plane — separate administrator identity, sessions and capabilities; committed in `d02a549`, not deployed), §27IK (platform-admin architecture, now aligned with the implemented interim plane and its remaining gates), §27IL (the durable 5xx and feature-presence stores that report reads), §27IM (the dedicated console, mandatory TOTP/WebAuthn and append-only platform audit — committed and browser-verified, not deployed), §27IN (fresh security review, CI browser WebAuthn, production-readiness checklist and prioritized recommendations), §27II (AI-117 complete feedback conversation preview, deployed `13fb3f8` and device-verified; one out-of-stock wording finding remains open), §27IH (AI-116 bounded follow-up context and answer freshness, deployed and device-verified), §27IG (AI-115 member feedback and the owner/admin review queue, deployed and device-verified), §27IF (AI-114 deterministic complete restock lists, deployed and device-verified), §27ID (the permanent assistant improvement roadmap and implementation audit; docs-only), §27IC (AI-110 contextual assistant entry and restock shortfall, deployed `7315675` and OTA-verified; the partial-restock guards completed in `1c3928b`), §27IB (scheduler proof and hosted freshness), §27IA (post-deploy phone proof, triage and monitor), §27HV (AI-99 10,256-product gate, 24/25 with one output-limit finding), §27HU (AI-99 free-first simple inventory, deployed with the 1.0.2 OTA), §27HT (AI-91/AI-92 exact product identity and per-location stock), §27HS (the AI-50–AI-84 increment register), §27HR (AI-48–AI-84 merged and deployed), §27HQ (grounded answers and scoped stock reads), §27HP (market prices from cited pages), §27HO (recorded specifications and the real seed catalogue), §27HN (inventory-only web research), §27HH (a transfer as one event to the assistant), §27HG (the stock-in link's product), §27HF (the single-location default's timing), §27HE (the stock-in link's location), §27HD (the movement fixes and the production device pass), §27HC (the assistant's local-time answers), §27FM (the V1 re-verification) and §27FJ (the two open advisories).
+**Current state:** V1 complete and in production testing. The records that answer *where are we now* are §27IJ (the INTERNAL Platform Operations plane — separate administrator identity, sessions and capabilities; committed in `d02a549`, not deployed), §27IK (platform-admin architecture, now aligned with the implemented interim plane and its remaining gates), §27IL (the durable 5xx and feature-presence stores that report reads), §27IM (the dedicated console, mandatory TOTP/WebAuthn and append-only platform audit — committed and browser-verified, not deployed), §27IN (fresh security review, CI browser WebAuthn, production-readiness checklist and prioritized recommendations), §27IO (recovery codes, durable account-scoped MFA lockout, password change, administrator lifecycle and fail-closed origin/cookie hardening), §27II (AI-117 complete feedback conversation preview, deployed `13fb3f8` and device-verified; one out-of-stock wording finding remains open), §27IH (AI-116 bounded follow-up context and answer freshness, deployed and device-verified), §27IG (AI-115 member feedback and the owner/admin review queue, deployed and device-verified), §27IF (AI-114 deterministic complete restock lists, deployed and device-verified), §27ID (the permanent assistant improvement roadmap and implementation audit; docs-only), §27IC (AI-110 contextual assistant entry and restock shortfall, deployed `7315675` and OTA-verified; the partial-restock guards completed in `1c3928b`), §27IB (scheduler proof and hosted freshness), §27IA (post-deploy phone proof, triage and monitor), §27HV (AI-99 10,256-product gate, 24/25 with one output-limit finding), §27HU (AI-99 free-first simple inventory, deployed with the 1.0.2 OTA), §27HT (AI-91/AI-92 exact product identity and per-location stock), §27HS (the AI-50–AI-84 increment register), §27HR (AI-48–AI-84 merged and deployed), §27HQ (grounded answers and scoped stock reads), §27HP (market prices from cited pages), §27HO (recorded specifications and the real seed catalogue), §27HN (inventory-only web research), §27HH (a transfer as one event to the assistant), §27HG (the stock-in link's product), §27HF (the single-location default's timing), §27HE (the stock-in link's location), §27HD (the movement fixes and the production device pass), §27HC (the assistant's local-time answers), §27FM (the V1 re-verification) and §27FJ (the two open advisories).
 
 ---
 
@@ -26053,3 +26053,48 @@ run separately.
 detail read. The console remains not ready to expose until the P0 gates and the readiness checklist
 close.
 ---
+
+# 27IO. PLAT-5 — administrator recovery, MFA lockout and lifecycle hardening (2026-11-16)
+
+**The gap.** PLAT-4 closed the review, CI and documentation work but left four controls open: an
+administrator who lost every factor had no path back, a six-digit TOTP was bounded only per IP, a
+password could not be changed, and disable/delete/key removal were database or CLI work. PLAT-5
+implements those controls without exposing tenant data or adding a tenant route.
+
+**Recovery and lifecycle.** `platform_admins` now carries one-time recovery-code digests, a durable
+failed-MFA window and a temporary lock. `POST /api/platform/auth/recovery-codes` requires the current
+password, replaces every older code, returns the new codes once and stores only SHA-256 digests.
+`POST /api/platform/auth/mfa/recovery` consumes one digest atomically with a login challenge; a
+reused code is refused. `POST /api/platform/auth/password` proves the current password, changes the
+hash, stamps `passwordChangedAt` and revokes every platform session. SUPERADMIN-only routes list,
+disable/enable, delete and remove a WebAuthn key; disable/delete/key removal revoke the target's
+sessions, self-disable/self-delete are refused, and the last active SUPERADMIN is protected. Every
+success and failure is written to `platform_audit_events` with actor and target metadata, never a
+code or password.
+
+**MFA brute-force protection.** Every TOTP, WebAuthn and recovery-code failure spends an atomic
+account-scoped budget. Five failures in 15 minutes lock MFA for 15 minutes; the lock is checked
+before the factor comparison and is shared across IP addresses, so rotating addresses cannot reset
+it. A successful factor clears the budget. The route comment now states correctly that the per-IP
+limiter is one layer and the durable account lock is the other.
+
+**HTTPS and cookie hardening.** A non-loopback console, API or WebAuthn origin must be a bare HTTPS
+origin; paths, queries, fragments, userinfo and plain HTTP outside loopback fail closed at runtime
+and in production validation. `PLATFORM_WEBAUTHN_ORIGIN` is checked as a bare origin and the RP ID
+must be the origin host or a parent domain. `platform_session` and `platform_csrf` are `Secure` in
+production, for any HTTPS origin, and for an unknown `NODE_ENV`; only explicit development/test on
+loopback HTTP may omit it.
+
+**Verification.** `npx tsc --noEmit` and targeted ESLint pass. `PLAT2` **10/10**, `PLAT3`
+**13/13**, `PLAT4` **13/13** (including a separate WebAuthn-failure lock test); the focused platform
+run is **36/36**. The browser E2E still passes. The route inventory moved **105 → 112** (61 gated, 22 authenticated, 29 public, 0 role-gated) and
+the focused documentation guards pass. The full server suite passed **3,135 tests across 501 suites
+— 3,135 passed, 0 failed, 0 skipped, 0 todo** (585 s), exit 0; the later test-only WebAuthn-lock
+addition was verified separately in `PLAT4` **13/13**. The first full run found only the
+three new routes missing from the Phase 23 declaration register; the register now names them with
+their reasons and Phase 23 passes **21/21**.
+
+**Not claimed.** No push, deployment, OTA, public exposure, tenant-detail read or support grant was
+performed. The console remains **not ready to expose** until the P0 readiness gates close, including
+a forced first-login recovery-code ceremony, a rehearsed break-glass runbook, audit retention/least
+privilege and deployment-boundary proof.

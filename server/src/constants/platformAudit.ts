@@ -24,6 +24,9 @@ export const PLATFORM_AUDIT_ACTIONS = Object.freeze({
   MFA_ENROLLED: 'platform.mfa.enrolled',
   MFA_VERIFIED: 'platform.mfa.verified',
   MFA_FAILED: 'platform.mfa.failed',
+  RECOVERY_CODES_GENERATED: 'platform.mfa.recovery_codes_generated',
+  RECOVERY_CODE_SUCCEEDED: 'platform.mfa.recovery_code_succeeded',
+  RECOVERY_CODE_FAILED: 'platform.mfa.recovery_code_failed',
   WEBAUTHN_REGISTRATION_STARTED: 'platform.webauthn.registration_started',
   WEBAUTHN_REGISTERED: 'platform.webauthn.registered',
   WEBAUTHN_REGISTRATION_FAILED: 'platform.webauthn.registration_failed',
@@ -35,6 +38,11 @@ export const PLATFORM_AUDIT_ACTIONS = Object.freeze({
   AUDIT_READ: 'platform.audit.read',
   SESSION_RENEWED: 'platform.session.renewed',
   LOGOUT: 'platform.session.logout',
+  PASSWORD_CHANGED: 'platform.account.password_changed',
+  ADMIN_LISTED: 'platform.admin.listed',
+  ADMIN_STATUS_CHANGED: 'platform.admin.status_changed',
+  ADMIN_DELETED: 'platform.admin.deleted',
+  WEBAUTHN_KEY_REMOVED: 'platform.webauthn.key_removed',
 });
 
 export const PLATFORM_AUDIT_ACTION_VALUES: readonly string[] = Object.freeze(

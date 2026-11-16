@@ -140,7 +140,8 @@ the durable 5xx and feature-presence stores it reads, is §27IL; the platform-ad
 aligned with the implemented interim plane and its remaining gates in §27IK. PLAT-2/PLAT-3, the
 dedicated console, mandatory TOTP/WebAuthn and append-only platform audit, is §27IM; PLAT-4, the
 fresh review, CI browser proof, production-readiness checklist and prioritized recommendations, is
-§27IN. The tenant-facing
+§27IN. PLAT-5, the recovery-code, durable MFA-lockout, password-change and administrator-lifecycle
+hardening with fail-closed origin and cookie checks, is §27IO. The tenant-facing
 Operations dashboard was removed before commit. The
 2026-11-15 post-deploy/triage/monitor close-out is §27IA;
 production currently serves `e5c1c1d` and the newest OTA is

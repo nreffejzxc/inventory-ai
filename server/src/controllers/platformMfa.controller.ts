@@ -5,6 +5,7 @@ import {
   verifyPlatformMfaLogin,
   startPlatformMfaEnrollment,
 } from '../services/platformMfa.service.ts';
+import { verifyPlatformRecoveryCode } from '../services/platformRecovery.service.ts';
 import {
   beginPlatformWebAuthnLogin,
   beginPlatformWebAuthnRegistration,
@@ -146,6 +147,43 @@ export async function verifyLogin(req: PlatformRequest, res: Response) {
       role: result.admin.role,
     },
     metadata: { method: 'totp' },
+    req,
+  });
+  return sendPlatformSession(req, res, result, result.mfa);
+}
+
+/** POST /api/platform/auth/mfa/recovery — a one-time recovery code. */
+export async function recoveryLogin(req: PlatformRequest, res: Response) {
+  const mfaToken = requireString(req.body?.mfaToken, 'mfaToken', 'A login challenge is required');
+  const recoveryCode = requireString(
+    req.body?.recoveryCode,
+    'recoveryCode',
+    'A recovery code is required',
+  );
+  let result;
+  try {
+    result = await verifyPlatformRecoveryCode({
+      mfaToken,
+      recoveryCode,
+      deviceLabel: req.body?.deviceLabel,
+    });
+  } catch (err) {
+    await auditFailure(
+      req,
+      PLATFORM_AUDIT_ACTIONS.RECOVERY_CODE_FAILED,
+      err instanceof ApiError ? String(err.code || 'recovery_code_failed') : 'recovery_code_failed',
+    );
+    throw err;
+  }
+  await recordPlatformAudit({
+    action: PLATFORM_AUDIT_ACTIONS.RECOVERY_CODE_SUCCEEDED,
+    outcome: PLATFORM_AUDIT_OUTCOMES.SUCCESS,
+    actor: {
+      adminId: result.admin.id,
+      email: result.admin.email,
+      role: result.admin.role,
+    },
+    metadata: { method: 'recovery', remaining: result.mfa.remaining },
     req,
   });
   return sendPlatformSession(req, res, result, result.mfa);
@@ -300,6 +338,7 @@ export default {
   startEnrollment,
   confirmEnrollment,
   verifyLogin,
+  recoveryLogin,
   webAuthnLoginOptions,
   webAuthnLoginVerify,
   webAuthnRegisterOptions,

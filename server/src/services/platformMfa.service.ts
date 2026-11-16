@@ -32,6 +32,17 @@ import { toPublicPlatformAdmin } from './platformAuth.service.ts';
 export const PLATFORM_MFA_INVALID_CODE = 'PLATFORM_MFA_INVALID';
 export const PLATFORM_MFA_ENROLLMENT_REQUIRED_CODE = 'PLATFORM_MFA_ENROLLMENT_REQUIRED';
 export const PLATFORM_MFA_ALREADY_ENROLLED_CODE = 'PLATFORM_MFA_ALREADY_ENROLLED';
+export const PLATFORM_MFA_RATE_LIMITED_CODE = 'PLATFORM_MFA_RATE_LIMITED';
+
+/**
+ * Account-scoped MFA budget. Five failures in a 15-minute window lock the
+ * account's MFA verification for 15 minutes. This is deliberately separate from
+ * the per-IP limiter: an attacker rotating addresses still shares this budget,
+ * and a legitimate six-digit TOTP space cannot be walked at an unbounded rate.
+ */
+export const PLATFORM_MFA_MAX_FAILURES = 5;
+export const PLATFORM_MFA_FAILURE_WINDOW_MS = 15 * 60 * 1000;
+export const PLATFORM_MFA_LOCK_MS = 15 * 60 * 1000;
 
 const ACTIVE = 'ACTIVE';
 
@@ -44,7 +55,93 @@ type AdminWithMfa = InstanceType<typeof PlatformAdmin> & {
     label?: string;
     lastUsedAt?: Date | null;
   }> | null;
+  recoveryCodes?: Array<{ codeHash: string; usedAt?: Date | null }> | null;
+  mfaFailedAttempts?: number;
+  mfaFailedWindowStartedAt?: Date | null;
+  mfaLockedUntil?: Date | null;
 };
+
+type MfaLockState = {
+  mfaLockedUntil?: Date | null;
+};
+
+function retryMinutes(lockedUntil: Date, now: Date): number {
+  return Math.max(1, Math.ceil((lockedUntil.getTime() - now.getTime()) / 60000));
+}
+
+/** Refuse before a factor comparison when the account is inside a lock. */
+export function assertPlatformMfaNotLocked(
+  admin: MfaLockState | null,
+  now: Date = new Date(),
+): void {
+  if (admin?.mfaLockedUntil && admin.mfaLockedUntil.getTime() > now.getTime()) {
+    const minutes = retryMinutes(admin.mfaLockedUntil, now);
+    throw new ApiError(
+      429,
+      `Too many verification attempts. Try again in ${minutes} minute${minutes === 1 ? '' : 's'}.`,
+      PLATFORM_MFA_RATE_LIMITED_CODE,
+    );
+  }
+}
+
+/**
+ * Spend one failed attempt atomically. The update pipeline resets the window
+ * when it has elapsed, increments otherwise, and sets the lock at the limit in
+ * one write — concurrent failures cannot each pass a read-then-increment check.
+ */
+export async function recordPlatformMfaFailure(
+  adminId: string | { toString(): string },
+  now: Date = new Date(),
+) {
+  const cutoff = new Date(now.getTime() - PLATFORM_MFA_FAILURE_WINDOW_MS);
+  const expired = {
+    $or: [
+      { $eq: [{ $ifNull: ['$mfaFailedWindowStartedAt', null] }, null] },
+      { $lt: ['$mfaFailedWindowStartedAt', cutoff] },
+    ],
+  };
+  return PlatformAdmin.findOneAndUpdate(
+    { _id: adminId },
+    [
+      {
+        $set: {
+          mfaFailedAttempts: {
+            $cond: [
+              expired,
+              1,
+              { $add: [{ $ifNull: ['$mfaFailedAttempts', 0] }, 1] },
+            ],
+          },
+          mfaFailedWindowStartedAt: {
+            $cond: [expired, now, '$mfaFailedWindowStartedAt'],
+          },
+        },
+      },
+      {
+        $set: {
+          mfaLockedUntil: {
+            $cond: [
+              { $gte: ['$mfaFailedAttempts', PLATFORM_MFA_MAX_FAILURES] },
+              new Date(now.getTime() + PLATFORM_MFA_LOCK_MS),
+              '$mfaLockedUntil',
+            ],
+          },
+        },
+      },
+    ],
+    { returnDocument: 'after', updatePipeline: true },
+  ).select('mfaFailedAttempts mfaLockedUntil');
+}
+
+/** A successful factor clears the account budget immediately. */
+export async function resetPlatformMfaFailures(
+  adminId: string | { toString(): string },
+): Promise<void> {
+  await PlatformAdmin.updateOne(
+    { _id: adminId },
+    { $set: { mfaFailedAttempts: 0, mfaFailedWindowStartedAt: null, mfaLockedUntil: null } },
+  );
+}
 
 function assertActive(admin: AdminWithMfa | null): asserts admin is AdminWithMfa {
   if (!admin || admin.status !== ACTIVE) {
@@ -52,7 +149,10 @@ function assertActive(admin: AdminWithMfa | null): asserts admin is AdminWithMfa
   }
 }
 
-function assertChallengeIsCurrent(admin: AdminWithMfa, issuedAt: number | undefined): void {
+export function assertPlatformChallengeIsCurrent(
+  admin: AdminWithMfa,
+  issuedAt: number | undefined,
+): void {
   if (admin.passwordChangedAt) {
     const changedAt = Math.floor(admin.passwordChangedAt.getTime() / 1000);
     if ((issuedAt ?? 0) < changedAt) {
@@ -87,7 +187,9 @@ export async function completePlatformLogin({
   adminId: string;
   deviceLabel?: unknown;
 }): Promise<PlatformSessionResult> {
-  const admin = (await PlatformAdmin.findById(adminId)) as AdminWithMfa | null;
+  const admin = (await PlatformAdmin.findById(adminId).select(
+    '+webauthnCredentials +recoveryCodes',
+  )) as AdminWithMfa | null;
   assertActive(admin);
   const jti = newPlatformSessionId();
   const token = signPlatformAccessToken(admin._id, jti);
@@ -136,7 +238,7 @@ export async function startPlatformMfaEnrollment({
     '+totpSecretEncrypted',
   )) as AdminWithMfa | null;
   assertActive(admin);
-  assertChallengeIsCurrent(admin, claims.iat);
+  assertPlatformChallengeIsCurrent(admin, claims.iat);
   if (admin.mfaEnabled) {
     throw new ApiError(
       409,
@@ -157,7 +259,9 @@ export async function startPlatformMfaEnrollment({
     },
   );
 
-  const fresh = await PlatformAdmin.findById(admin._id);
+  const fresh = (await PlatformAdmin.findById(admin._id).select(
+    '+webauthnCredentials +recoveryCodes',
+  )) as AdminWithMfa | null;
   assertActive(fresh);
   return {
     enrollmentToken: signPlatformMfaToken(
@@ -198,7 +302,7 @@ export async function confirmPlatformMfaEnrollment({
     '+totpSecretEncrypted',
   )) as AdminWithMfa | null;
   assertActive(admin);
-  assertChallengeIsCurrent(admin, claims.iat);
+  assertPlatformChallengeIsCurrent(admin, claims.iat);
   if (admin.mfaEnabled) {
     throw new ApiError(
       409,
@@ -206,6 +310,7 @@ export async function confirmPlatformMfaEnrollment({
       PLATFORM_MFA_ALREADY_ENROLLED_CODE,
     );
   }
+  assertPlatformMfaNotLocked(admin);
   if (!admin.totpSecretEncrypted) {
     throw new ApiError(
       409,
@@ -218,6 +323,7 @@ export async function confirmPlatformMfaEnrollment({
     lastUsedCounter: 0,
   });
   if (!verification.valid) {
+    await recordPlatformMfaFailure(admin._id);
     throw new ApiError(401, 'Invalid authentication code', PLATFORM_MFA_INVALID_CODE);
   }
 
@@ -239,8 +345,10 @@ export async function confirmPlatformMfaEnrollment({
     { returnDocument: 'after' },
   );
   if (!updated) {
+    await recordPlatformMfaFailure(admin._id);
     throw new ApiError(401, 'Invalid authentication code', PLATFORM_MFA_INVALID_CODE);
   }
+  await resetPlatformMfaFailures(admin._id);
 
   const session = await completePlatformLogin({ adminId: String(admin._id), deviceLabel });
   return {
@@ -262,10 +370,10 @@ export async function verifyPlatformMfaLogin({
   assertPlatformMfaConfigured();
   const claims = verifyPlatformMfaToken(mfaToken, PLATFORM_MFA_PURPOSES.LOGIN);
   const admin = (await PlatformAdmin.findById(claims.sub).select(
-    '+totpSecretEncrypted +webauthnCredentials',
+    '+totpSecretEncrypted +webauthnCredentials +recoveryCodes',
   )) as AdminWithMfa | null;
   assertActive(admin);
-  assertChallengeIsCurrent(admin, claims.iat);
+  assertPlatformChallengeIsCurrent(admin, claims.iat);
   if (!admin.mfaEnabled || !admin.totpSecretEncrypted) {
     throw new ApiError(
       409,
@@ -273,11 +381,13 @@ export async function verifyPlatformMfaLogin({
       PLATFORM_MFA_ENROLLMENT_REQUIRED_CODE,
     );
   }
+  assertPlatformMfaNotLocked(admin);
 
   const verification = verifyTotp(decryptPlatformSecret(admin.totpSecretEncrypted), code, {
     lastUsedCounter: admin.lastTotpCounter ?? 0,
   });
   if (!verification.valid) {
+    await recordPlatformMfaFailure(admin._id);
     throw new ApiError(401, 'Invalid authentication code', PLATFORM_MFA_INVALID_CODE);
   }
 
@@ -293,8 +403,10 @@ export async function verifyPlatformMfaLogin({
     { returnDocument: 'after' },
   );
   if (!updated) {
+    await recordPlatformMfaFailure(admin._id);
     throw new ApiError(401, 'Invalid authentication code', PLATFORM_MFA_INVALID_CODE);
   }
+  await resetPlatformMfaFailures(admin._id);
 
   const session = await completePlatformLogin({ adminId: String(admin._id), deviceLabel });
   return {
@@ -307,6 +419,14 @@ export default {
   PLATFORM_MFA_INVALID_CODE,
   PLATFORM_MFA_ENROLLMENT_REQUIRED_CODE,
   PLATFORM_MFA_ALREADY_ENROLLED_CODE,
+  PLATFORM_MFA_RATE_LIMITED_CODE,
+  PLATFORM_MFA_MAX_FAILURES,
+  PLATFORM_MFA_FAILURE_WINDOW_MS,
+  PLATFORM_MFA_LOCK_MS,
+  assertPlatformChallengeIsCurrent,
+  assertPlatformMfaNotLocked,
+  recordPlatformMfaFailure,
+  resetPlatformMfaFailures,
   startPlatformMfaEnrollment,
   confirmPlatformMfaEnrollment,
   verifyPlatformMfaLogin,

@@ -1125,14 +1125,21 @@ POST /api/platform/auth/login                 (email + password -> MFA challenge
 POST /api/platform/auth/mfa/enroll/start      (enrollment challenge -> TOTP secret, once)
 POST /api/platform/auth/mfa/enroll/confirm    (enrollment challenge + code -> first session)
 POST /api/platform/auth/mfa/verify            (login challenge + TOTP -> session)
+POST /api/platform/auth/mfa/recovery           (login challenge + recovery code -> session)
 POST /api/platform/auth/mfa/webauthn/options  (login challenge -> assertion options)
 POST /api/platform/auth/mfa/webauthn/verify   (assertion -> session)
 POST /api/platform/auth/webauthn/register/options  (authenticated; registration options)
 POST /api/platform/auth/webauthn/register/verify   (authenticated; stores a credential)
+POST /api/platform/auth/password              (authenticated; current password -> all sessions revoked)
+POST /api/platform/auth/recovery-codes        (authenticated; current password -> one-time codes)
 POST /api/platform/auth/renew                 (fresh token for the same session)
 POST /api/platform/auth/logout
 GET  /api/platform/auth/csrf                 (cookie session; rotate the CSRF value)
 GET  /api/platform/auth/me
+GET  /api/platform/admins                     platform.admin.manage
+PATCH /api/platform/admins/:id/status         platform.admin.manage
+DELETE /api/platform/admins/:id               platform.admin.manage
+DELETE /api/platform/admins/:id/webauthn/:credentialId  platform.admin.manage
 GET  /api/platform/operations?days=7           platform.metrics.read
 GET  /api/platform/audit?limit=50              platform.audit.read
 ```
@@ -1148,9 +1155,19 @@ update that advances the counter, so a captured assertion cannot replay even whe
 reports a zero counter. A missing MFA key fails closed with `503 PLATFORM_MFA_NOT_CONFIGURED` before
 the password is checked, so configuration cannot become a credential oracle.
 
+**ACCOUNT-SCOPED MFA BUDGET.** The per-IP limiters are not the only defense. Five failed TOTP,
+WebAuthn or recovery-code attempts in a 15-minute window set a durable account lock for 15 minutes;
+the lock is shared across addresses and is checked before the factor comparison. A successful factor
+clears the budget. The lock is stored on `platform_admins`, so rotating IPs or reconnecting cannot
+reset it. Recovery codes are generated only after re-entering the current password, are stored as
+SHA-256 digests, are shown once, and are consumed atomically; each code is single-use.
+
 **TWO CREDENTIAL CARRIERS.** API clients use `Authorization: Bearer <platform token>`. The dedicated
 console uses an HttpOnly `platform_session` cookie (Path `/api/platform`, `SameSite=Strict`, `Secure`
-in production) plus a readable `platform_csrf` cookie. A cookie-authenticated request is accepted
+whenever `NODE_ENV=production` or the configured console origin is HTTPS) plus a readable
+`platform_csrf` cookie. A non-loopback origin must be HTTPS and a bare origin (no path, query,
+fragment or userinfo); the API and the console reject any other value rather than silently weakening
+WebAuthn or cookie origin checks. A cookie-authenticated request is accepted
 only from the exact `PLATFORM_CONSOLE_ORIGIN` and only when `X-Platform-CSRF` matches the CSRF
 cookie; Bearer clients need no CSRF because a browser does not attach the header automatically. A
 cross-origin console that cannot read the API host's CSRF cookie after a reload calls
@@ -1163,7 +1180,15 @@ no MongoDB connection, a strict CSP (`script-src 'self'`, `connect-src` only the
 changes, capability denials, operations reads, audit reads, renewal and logout. The model refuses
 update, replace and delete operations. There is no TTL; retention is an explicit operator decision.
 Only SECURITY and SUPERADMIN hold `platform.audit.read`. Every event is bounded metadata — no
-password, token, TOTP code, WebAuthn response, tenant id or tenant data.
+password, token, TOTP code, recovery code, WebAuthn response, tenant id or tenant data. Lifecycle
+operations (password change, recovery-code generation/use, disable/enable, delete and key removal)
+are audited with the actor and target, never with the secret.
+
+**ADMINISTRATOR LIFECYCLE.** `platform.admin.manage` (SUPERADMIN only) can list administrators,
+disable or re-enable one, delete one, and remove an enrolled WebAuthn key. Disabling and deletion
+revoke every session for the target immediately; a deleted administrator's audit history remains
+attributable by email and role. An administrator cannot disable or delete their own row, and the
+last active SUPERADMIN cannot be disabled or deleted.
 
 **SEPARATE PLATFORM IDENTITY REALM.** `platform_admins` has no `businessId`, no tenant role and no
 row in a tenant collection. A tenant password, token or session is invalid here, and the platform
@@ -1177,7 +1202,7 @@ and an 8-hour absolute cap. The platform capabilities are `platform.health.read`
 `platform.metrics.read`, `platform.audit.read` and `platform.admin.manage`; they are not tenant
 permissions. `GET /api/platform/operations` requires `platform.metrics.read` (`SUPPORT`, `SECURITY`,
 `SUPERADMIN`); `GET /api/platform/audit` requires `platform.audit.read` (`SECURITY`, `SUPERADMIN`
-only).
+only); the administrator lifecycle routes require `platform.admin.manage` (`SUPERADMIN` only).
 
 `days` defaults to `7` and must be an integer from `1` to `30`. The report has NO tenant selector:
 there is no `businessId` parameter and the service cannot be aimed at one business. It returns

@@ -205,7 +205,7 @@ export async function requirePlatformAdmin(
     }
 
     const admin = await PlatformAdmin.findById(adminId).select(
-      'name email role status passwordChangedAt mfaEnabled +webauthnCredentials',
+      'name email role status passwordChangedAt mfaEnabled +webauthnCredentials +recoveryCodes',
     );
     if (!admin) {
       const error = new ApiError(401, 'Invalid platform token', 'PLATFORM_INVALID_TOKEN');
