@@ -8,9 +8,9 @@ of truth for *what actually happened*, and it is why this file is long.
 
 **How to read it.** Do not read it top to bottom. Either find a record by number (§27FJ, §27DM — the
 numbers are cited from `CLAUDE.md` and from source comments), or use the index: `CLAUDE.md` §7 lists
-all **241** records by the title each gives itself.
+all **247** records by the title each gives itself.
 
-**Current state:** V1 complete and in production testing. The records that answer *where are we now* are §27II (AI-117 complete feedback conversation preview, deployed `13fb3f8` and device-verified; one out-of-stock wording finding remains open), §27IH (AI-116 bounded follow-up context and answer freshness, deployed and device-verified), §27IG (AI-115 member feedback and the owner/admin review queue, deployed and device-verified), §27IF (AI-114 deterministic complete restock lists, deployed and device-verified), §27ID (the permanent assistant improvement roadmap and implementation audit; docs-only), §27IC (AI-110 contextual assistant entry and restock shortfall, deployed `7315675` and OTA-verified; the partial-restock guards completed in `1c3928b`), §27IB (scheduler proof and hosted freshness), §27IA (post-deploy phone proof, triage and monitor), §27HV (AI-99 10,256-product gate, 24/25 with one output-limit finding), §27HU (AI-99 free-first simple inventory, deployed with the 1.0.2 OTA), §27HT (AI-91/AI-92 exact product identity and per-location stock), §27HS (the AI-50–AI-84 increment register), §27HR (AI-48–AI-84 merged and deployed), §27HQ (grounded answers and scoped stock reads), §27HP (market prices from cited pages), §27HO (recorded specifications and the real seed catalogue), §27HN (inventory-only web research), §27HH (a transfer as one event to the assistant), §27HG (the stock-in link's product), §27HF (the single-location default's timing), §27HE (the stock-in link's location), §27HD (the movement fixes and the production device pass), §27HC (the assistant's local-time answers), §27FM (the V1 re-verification) and §27FJ (the two open advisories).
+**Current state:** V1 complete and in production testing. The records that answer *where are we now* are §27IJ (the INTERNAL Platform Operations plane — separate administrator identity, sessions and capabilities; committed in `d02a549`, not deployed), §27IK (platform-admin architecture, now aligned with the implemented interim plane and its remaining gates), §27IL (the durable 5xx and feature-presence stores that report reads), §27IM (the dedicated console, mandatory TOTP/WebAuthn and append-only platform audit — committed and browser-verified, not deployed), §27IN (fresh security review, CI browser WebAuthn, production-readiness checklist and prioritized recommendations), §27IO (recovery codes, durable account-scoped MFA lockout, password change, administrator lifecycle and fail-closed origin/cookie hardening), §27II (AI-117 complete feedback conversation preview, deployed `13fb3f8` and device-verified; one out-of-stock wording finding remains open), §27IH (AI-116 bounded follow-up context and answer freshness, deployed and device-verified), §27IG (AI-115 member feedback and the owner/admin review queue, deployed and device-verified), §27IF (AI-114 deterministic complete restock lists, deployed and device-verified), §27ID (the permanent assistant improvement roadmap and implementation audit; docs-only), §27IC (AI-110 contextual assistant entry and restock shortfall, deployed `7315675` and OTA-verified; the partial-restock guards completed in `1c3928b`), §27IB (scheduler proof and hosted freshness), §27IA (post-deploy phone proof, triage and monitor), §27HV (AI-99 10,256-product gate, 24/25 with one output-limit finding), §27HU (AI-99 free-first simple inventory, deployed with the 1.0.2 OTA), §27HT (AI-91/AI-92 exact product identity and per-location stock), §27HS (the AI-50–AI-84 increment register), §27HR (AI-48–AI-84 merged and deployed), §27HQ (grounded answers and scoped stock reads), §27HP (market prices from cited pages), §27HO (recorded specifications and the real seed catalogue), §27HN (inventory-only web research), §27HH (a transfer as one event to the assistant), §27HG (the stock-in link's product), §27HF (the single-location default's timing), §27HE (the stock-in link's location), §27HD (the movement fixes and the production device pass), §27HC (the assistant's local-time answers), §27FM (the V1 re-verification) and §27FJ (the two open advisories).
 
 ---
 
@@ -25801,3 +25801,300 @@ not a data leak. Evidence: [`ai117-2026-11-16`](evidence/ai117-2026-11-16/README
 is enough context for one report without turning the review surface into a transcript browser. It
 does not add replies, feedback-driven model changes or any AI write path. The out-of-stock wording
 defect has no code fix in this record.
+
+# 27IJ. PLAT-1 — internal Platform Operations (2026-11-16; corrected)
+
+**The correction.** The first OPS-7 draft was customer-facing: a tenant-scoped `GET /api/operations`
+behind a new `operations.view` permission, an OWNER/ADMIN mobile tile and a mobile Operations screen.
+That was the wrong audience and the wrong trust boundary. It was rejected before commit and replaced
+by PLAT-1. The tenant route, permission, server files, mobile screen, tile, stack entry, API helper
+and RBAC-mirror entry are **removed**. Nothing in this record is deployed, committed or OTA-published.
+
+**Why a separate plane is required.** `OWNER` is the highest authority inside one business, not over
+the platform. A platform operator has no tenant, is not a `User`, and must never be reachable by a
+tenant JWT. The implementation therefore has its own identity table, credential, signing secret,
+issuer, audience, session collection and capability catalogue.
+
+**Identity and sessions.** `platform_admins` holds email, name, bcrypt hash, role and
+`ACTIVE`/`DISABLED`; it has **no `businessId` and no tenant role**. `platform_admin_sessions` is a
+separate collection named by the token's `jti`, with a 15-minute idle timeout, an 8-hour absolute cap
+and per-session revocation. Tokens are signed with `PLATFORM_ADMIN_JWT_SECRET` (never `JWT_SECRET`),
+issuer `inventory-ai-platform`, audience `platform-admin`, lifetime 15 minutes. Renewal mints a token
+for the SAME session and does not extend the cap. Production configuration refuses a platform secret
+that is short or equal to the tenant secret. With no platform secret the endpoints answer `503`
+rather than falling back.
+
+**Authorization.** `platform.*` capabilities are a catalogue separate from the tenant permissions.
+`READ_ONLY` holds `platform.health.read`; `SUPPORT` adds `platform.metrics.read`; `SECURITY` adds
+`platform.audit.read`; `SUPERADMIN` adds `platform.admin.manage`. Capabilities and status are reloaded
+from the `PlatformAdmin` row on every request, so demotion or disable takes effect on the same token.
+
+**Server boundary.** The separate router is mounted at `/api/platform`:
+
+```http
+POST /api/platform/auth/login     public, rate-limited
+POST /api/platform/auth/renew     authenticated, same session
+POST /api/platform/auth/logout    authenticated, current session
+GET  /api/platform/auth/me        authenticated
+GET  /api/platform/operations     platform.metrics.read
+```
+
+`GET /api/platform/operations?days=7` returns `service`, platform business/account counts, cross-tenant
+AI metrics, rating totals and reasons, usage and feature presence, and 5xx counts grouped by code and
+route with an affected-tenant count. It accepts **no `businessId`** and the service has no parameter
+for one. It returns aggregates only: no business name, member name, email, user id, product row,
+feedback note, prompt or answer. Every response is `Cache-Control: no-store`.
+
+**Durable monitoring preserved.** `ops_error_events` still stores one safe 5xx row (status, code,
+method, normalized route, optional business id) with no message/stack/body/query/user id, a 90-day TTL
+and tenant teardown. `ops_feature_usage` still stores one member/feature/UTC-day presence row with no
+path/request id/resource id/IP/name, the same TTL and teardown. Both writers remain best-effort and
+fire-and-forget. The feature key `operations` is gone; `/api/ai/metrics` is counted under `ai`.
+
+**Bootstrap.** `npm run platform-admin:create` creates one administrator from environment variables
+with a confirmation phrase (plus a production-only phrase). The password is never printed, written to
+a file or passed on the command line. There is no HTTP route that creates a platform administrator.
+
+**Verification.** `OPS7-platform-operations.test.mjs` passed **14 tests with its two unit suites
+mode-skipped in db mode**. It proves: unauthenticated request `401`; OWNER, ADMIN, MANAGER and STAFF all
+`401`; a tenant token cannot reach `/api/platform/auth/me`; a platform credential fails tenant login
+and a tenant credential fails platform login; a platform token is `401` on `/api/auth/me`,
+`/api/dashboard` and `/api/products`; READ_ONLY can identify itself but gets `403` on the report;
+missing platform secret is `503` on the report and on login, with the same answer for a right and a
+wrong password; same-token demotion and disable are enforced; logout revokes the
+session; renewal creates no second session row; the report is platform-wide and ignores a supplied
+`businessId`; no email/user id/business name is in the body; and the preserved durable writers still
+produce bounded rows. The fixed-window suite proves exact cross-tenant aggregation: two AI turns, two
+ratings, two members, two active tenants and three 5xx rows (two tenant rows plus one pre-auth row
+that counts in the total but not as an affected tenant) in one report.
+`phase23` passed **21/21** (**32/32** with the route-inventory guard); the runtime matrix **10/10**; the route-inventory guard moved to **96
+routes / 56 gated / 17 authenticated / 23 public / 0 role-gated**.
+
+**Not built at PLAT-1 (superseded by §27IM for the first three).** There was no operator console UI,
+no dedicated admin origin, no WebAuthn/TOTP, no platform audit log and no support grant. The interim
+credential was a local password. No deploy, OTA, device run, hosted load test or real database outage
+was exercised. The checkpoint is committed as `d02a549`; §27IM closed the console, MFA and audit
+gates, committed and browser-verified. Support grants and an external dedicated identity project
+remain open, and nothing has been deployed.
+
+# 27IK. Platform-admin architecture — implemented interim plane and remaining gates (2026-11-16)
+
+**The design is now aligned with the code.** The aligned record is
+[`superpowers/specs/2026-11-16-platform-admin-architecture.md`](superpowers/specs/2026-11-16-platform-admin-architecture.md).
+It separates what PLAT-1 implements (identity table, sessions, capabilities, cross-tenant aggregate)
+from what remains future work (dedicated identity project, mandatory WebAuthn/TOTP, admin origin and
+console, platform audit, support grants, break-glass).
+
+**Status at the time of this record.** No browser console, admin origin, MFA flow, platform audit
+collection or support-grant model existed. §27IM later implemented, committed and browser-verified
+the console, mandatory MFA and append-only audit; the support-grant model remains open. The record
+must not be described as an available customer or production console, and no public deployment has
+occurred.
+
+# 27IL. OPS-8 — durable usage and error monitoring (2026-11-16)
+
+**The gap.** Response counters and process logs disappear on restart, and logs are not a queryable
+trend. The platform operations report needed two facts that survive a restart without turning the
+product into a request archive.
+
+**Error rows.** `ops_error_events` stores one row per **5xx**: status, a safe code, method, a
+normalized route, `businessId` when the request was authenticated, and timestamps. The route replaces
+24-hex ids and numeric segments with `:id`, strips the query string and is capped at 200 characters.
+The row stores no message, stack, body, query string, header, token, IP or user id. Rows expire after
+90 days through a TTL index; tenant teardown removes the tenant's rows. The error handler writes
+best-effort and never awaits the write, so monitoring cannot turn one failure into another. If
+MongoDB is down, the row is skipped — the log line remains the immediate record and durable rows
+resume when the database returns.
+
+**Feature presence.** `ops_feature_usage` stores one row per `(businessId, UTC date, feature, userId)`
+with first and last seen times. The unique index makes a repeat visit an update, not a second row; a
+10-minute in-process throttle reduces writes without becoming the source of truth. The tracked
+features are dashboard, products, inventory, AI, feedback, purchase orders, suppliers, locations,
+categories, team and audit. `operations` was removed with the tenant screen, and `/api/ai/metrics`
+now counts as `ai`. The middleware records only `2xx`/`3xx` responses on a bounded prefix allowlist,
+after `finish`, and never stores a path, request id, resource id, IP or payload. Rows expire after 90
+days and are removed with the tenant.
+
+**The defect the test caught.** The first implementation read `req.path` inside the `finish`
+listener. Express restores `req.url` to `/` while unwinding a mounted router, so every successful
+authenticated request silently recorded nothing — while the `401`/`403` paths, which never entered a
+router, looked correct. The middleware now captures the feature from `req.originalUrl` before routing;
+the error writer likewise uses `originalUrl` so a mounted route keeps its label when it fails.
+
+**Verification.** The platform suite's db run included the real error-handler `5xx` (normalized route,
+no message or stack persisted), a successful authenticated request producing exactly one feature row
+for that member/day, and the duplicate-write guard. No deployment, restart drill or hosted-database
+load test was performed; the database-down path is stated as a limitation rather than measured in
+production.
+
+# 27IM. PLAT-2/PLAT-3 — console, mandatory MFA and append-only platform audit (2026-11-16)
+
+**The gap.** PLAT-1 was a separate API with a password-only login and no browser surface: a stolen
+platform password was enough, nobody could see who had signed in or been refused, and there was no
+operator UI. The owner approved the three remaining security layers and required implementation and
+verification before any public exposure.
+
+**Dedicated console.** `server/platform-console/` is a separate static Express listener
+(`npm run platform-console`, loopback on `http://localhost:4100` by default). It has no MongoDB
+connection and proxies nothing. It serves a strict-CSP HTML/CSS/JS console for sign-in, TOTP
+enrollment, WebAuthn verification, the cross-tenant operations report, the audit trail and security
+settings. The CSP allows only same-origin scripts/styles and the configured API origin:
+`default-src 'none'; script-src 'self'; style-src 'self'; connect-src <API>; frame-ancestors 'none';
+base-uri 'none'; object-src 'none'`. There are no inline scripts, styles or event handlers.
+
+**Cookie and CSRF session.** The API sets an HttpOnly `platform_session` cookie (Path
+`/api/platform`, SameSite=Strict, Secure in production) plus a readable `platform_csrf` cookie.
+Cookie-authenticated requests are accepted only from the exact `PLATFORM_CONSOLE_ORIGIN` and only
+with a matching `X-Platform-CSRF` header; Bearer API clients are unchanged and need no CSRF. The
+console response omits the bearer token, so the only browser-readable secret is the CSRF value.
+CORS grants credentials to exact allow-listed origins only and never uses `*`.
+
+**Mandatory MFA.** A password check now returns only an enrollment or login challenge. The first
+successful password check opens TOTP enrollment; the secret is shown once and stored encrypted with
+AES-256-GCM under `PLATFORM_MFA_ENCRYPTION_KEY` (HKDF-derived). A login session is created only after
+a TOTP code or WebAuthn assertion succeeds. TOTP is RFC 6238, six digits, a 30-second step and a
+one-step window; an atomic `lastTotpCounter` update refuses replay. WebAuthn uses
+`@simplewebauthn/server` 13.3.3, is registered only inside an authenticated platform session,
+requires user verification and advances the stored counter. A login challenge is stored as a hash and
+consumed in the same atomic update that advances the counter, so a captured assertion cannot replay,
+including on an authenticator with a zero counter. Both factors fail closed when the decryption key is
+absent.
+
+**Append-only audit.** `platform_audit_events` records login failures, MFA/WebAuthn changes, capability
+denials, operations and audit reads, renewal and logout. Mongoose update/replace/delete hooks throw,
+and saving a loaded document throws; there is no TTL. Only SECURITY and SUPERADMIN hold
+`platform.audit.read`. Records carry no password, token, TOTP code, assertion, tenant id or tenant
+data. A failed login may carry the submitted address for investigation.
+
+**Route inventory.** Nine routes were added: five public MFA/WebAuthn challenge routes, two
+authenticated WebAuthn registration routes, one authenticated CSRF bootstrap read and one gated audit
+read. The inventory moved from 96 to **105 routes / 57 gated / 20 authenticated / 28 public / 0
+role-gated**. Phase 23 is 32/32 and the route-inventory guard agrees with §2.6.
+
+**Verification (working tree, no deployment).** `PLAT2-platform-console.test.mjs` passed **9/9**:
+strict CSP, no inline script/style/handler, origin-only config, traversal refusal, RFC 6238 vectors,
+replay refusal and AES-GCM tamper rejection. `PLAT3-platform-security.test.mjs` passed **8/8 with
+one unit suite mode-skipped in db mode**: password-only returns no session, encrypted single-use
+TOTP, cookie flags, exact Origin + CSRF enforcement, Bearer exemption, audit writes, append-only
+guards, SECURITY/SUPERADMIN reads and WebAuthn challenge boundaries. `OPS7-platform-operations.test.mjs`
+passed **14/0 with two unit suites mode-skipped**, with every existing login now completing MFA.
+
+**Commit and follow-up verification (2026-11-16).** The platform checkpoint was committed as
+`d02a549` (62 files; no AI attribution; not pushed). The first full server run then found one
+regression: the CORS preflight answered with a fixed header list instead of reflecting the requested
+headers (`phase07c-http-security.test.mjs`). Removing the fixed `allowedHeaders` restored the
+established contract; the focused CORS suite passed 16/16 and the full suite passed **3,121/3,121**.
+A browser WebAuthn E2E (`cd server && npm run test:webauthn-e2e`, deliberately not part of `npm
+test`) then found that the console's fetch base omitted the `/api/platform` mount, so login asked
+`/auth/login` and received 404. `platform-console/public/app.js` now appends the mount, and `PLAT2`
+asserts it (9/9). The E2E launched the installed Chrome with a CDP virtual authenticator and drove
+the real console through TOTP enrollment, security-key registration and security-key login; it
+replayed the exact successful assertion (`401 PLATFORM_WEBAUTHN_INVALID`) and submitted a tampered
+assertion (refused, with `/auth/me` returning 401). The disposable administrator, its sessions and
+its audit rows were removed. Final full suite: **3,121 / 3,121, 499 suites, 0 failures, 0 skipped**.
+
+**Not verified / not claimed.** No external dedicated Firebase identity project was provisioned.
+No deploy, OTA or public exposure was performed. Support grants and tenant-detail reads remain open
+gates.
+---
+
+# 27IN. PLAT-4 — review, CI browser proof and production gates (2026-11-16)
+
+**The gap.** The platform console, MFA and audit work passed its focused suites, but the browser
+proof was still a manual command, the review had not separated dead code from the shipped controls,
+and there was no single answer to “what must be true before this is exposed?” or “what should be
+fixed next?”. The owner approved four follow-ups: an independent review, CI WebAuthn automation, a
+production-readiness checklist and a prioritized security recommendations list. Nothing was to be
+pushed or deployed.
+
+**Independent review.** The four platform commits were re-read with the CORS fix, the console
+API-base fix and the browser E2E as the focus. The review is committed as `40f2758` (no AI
+attribution) and contains only platform files:
+
+- removed the unused `platformApiOrigin()`, `platformMfaReady()` and `PLATFORM_MFA_REQUIRED_CODE`;
+- the console origin is added to CORS only when `PLATFORM_ADMIN_JWT_SECRET` is configured, rather
+  than always adding its loopback default;
+- production validation requires `PLATFORM_CONSOLE_ORIGIN` when the platform secret is set;
+- the WebAuthn E2E cleanup now removes the actorless refusal rows created by replay/tamper checks,
+  verifies zero admins/sessions/audit rows, and exits non-zero if cleanup cannot prove that.
+
+The CORS fix was confirmed by a new regression test that requests `x-platform-csrf,
+x-platform-console` on a preflight and asserts the exact reflection. The console mount was confirmed
+by `PLAT2` **9/9** and by the real browser sign-in, not only by source inspection. `PLAT3` passed
+**12/12** and `phase07c` passed **17/17** after the review. The original commits and the review commit
+contain neither AI-118 file; the AI-118 working-tree changes remain uncommitted and were not staged.
+
+**CI browser proof.** `.github/workflows/ci.yml` now has a fifth job, `webauthn-e2e`. It starts a
+disposable `mongo:7` service, installs the server dependencies, verifies `/usr/bin/google-chrome`,
+and runs `npm run test:webauthn-e2e`. The E2E script gained Linux Chrome paths, a configurable
+`WEBAUTHN_E2E_CDP_PORT` (default 9333), `--disable-dev-shm-usage`, and a CI-only `--no-sandbox` flag.
+The job is bounded by `timeout-minutes: 10` and adds roughly one to two minutes on this public
+repository. Its first GitHub run has not been observed because the branch was not pushed.
+
+**Production gate and recommendations.** Two living reference documents were added:
+`docs/PLATFORM_PRODUCTION_READINESS.md` is the pre-exposure checklist (HTTPS/domains, network
+isolation, separate credentials, cookie/CORS proof, MFA recovery, audit retention and database
+permissions, support grants, CI evidence and sign-off); `docs/PLATFORM_SECURITY_RECOMMENDATIONS.md`
+is the P0–P2 list with what/why/benefit for each item. Recommendations were not implemented in this
+step. The first blockers are recovery/break-glass and administrator lifecycle, per-account MFA
+attempt budgeting, a fail-closed HTTPS/network deployment guard, and audit retention/least-privilege
+database access.
+
+**Verification.** `npx tsc --noEmit`, ESLint on the changed files and `git diff --check` pass. The
+focused suites are PLAT2 **9/9**, PLAT3 **12/12** and phase07c **17/17**. The local E2E passes with
+its cleanup verification; a local `CI=true` run exposed a harness race where the wait could accept
+an earlier `/auth/login` response before the new one, so it now counts new login calls, and the
+CI-flag run passes. The CI job itself is unrun. The full server suite was not rerun after the
+review commit; the last pre-review run was **3,121/3,121**. `node scripts/check-docs.mjs` passes with
+**37 active documents** and **15 living-reference cadence rows**; the focused documentation tests are
+run separately.
+
+**Not claimed.** No push, PR, deployment, OTA, external identity project, support grant or tenant
+detail read. The console remains not ready to expose until the P0 gates and the readiness checklist
+close.
+---
+
+# 27IO. PLAT-5 — administrator recovery, MFA lockout and lifecycle hardening (2026-11-16)
+
+**The gap.** PLAT-4 closed the review, CI and documentation work but left four controls open: an
+administrator who lost every factor had no path back, a six-digit TOTP was bounded only per IP, a
+password could not be changed, and disable/delete/key removal were database or CLI work. PLAT-5
+implements those controls without exposing tenant data or adding a tenant route.
+
+**Recovery and lifecycle.** `platform_admins` now carries one-time recovery-code digests, a durable
+failed-MFA window and a temporary lock. `POST /api/platform/auth/recovery-codes` requires the current
+password, replaces every older code, returns the new codes once and stores only SHA-256 digests.
+`POST /api/platform/auth/mfa/recovery` consumes one digest atomically with a login challenge; a
+reused code is refused. `POST /api/platform/auth/password` proves the current password, changes the
+hash, stamps `passwordChangedAt` and revokes every platform session. SUPERADMIN-only routes list,
+disable/enable, delete and remove a WebAuthn key; disable/delete/key removal revoke the target's
+sessions, self-disable/self-delete are refused, and the last active SUPERADMIN is protected. Every
+success and failure is written to `platform_audit_events` with actor and target metadata, never a
+code or password.
+
+**MFA brute-force protection.** Every TOTP, WebAuthn and recovery-code failure spends an atomic
+account-scoped budget. Five failures in 15 minutes lock MFA for 15 minutes; the lock is checked
+before the factor comparison and is shared across IP addresses, so rotating addresses cannot reset
+it. A successful factor clears the budget. The route comment now states correctly that the per-IP
+limiter is one layer and the durable account lock is the other.
+
+**HTTPS and cookie hardening.** A non-loopback console, API or WebAuthn origin must be a bare HTTPS
+origin; paths, queries, fragments, userinfo and plain HTTP outside loopback fail closed at runtime
+and in production validation. `PLATFORM_WEBAUTHN_ORIGIN` is checked as a bare origin and the RP ID
+must be the origin host or a parent domain. `platform_session` and `platform_csrf` are `Secure` in
+production, for any HTTPS origin, and for an unknown `NODE_ENV`; only explicit development/test on
+loopback HTTP may omit it.
+
+**Verification.** `npx tsc --noEmit` and targeted ESLint pass. `PLAT2` **10/10**, `PLAT3`
+**13/13**, `PLAT4` **13/13** (including a separate WebAuthn-failure lock test); the focused platform
+run is **36/36**. The browser E2E still passes. The route inventory moved **105 → 112** (61 gated, 22 authenticated, 29 public, 0 role-gated) and
+the focused documentation guards pass. The full server suite passed **3,135 tests across 501 suites
+— 3,135 passed, 0 failed, 0 skipped, 0 todo** (585 s), exit 0; the later test-only WebAuthn-lock
+addition was verified separately in `PLAT4` **13/13**. The first full run found only the
+three new routes missing from the Phase 23 declaration register; the register now names them with
+their reasons and Phase 23 passes **21/21**.
+
+**Not claimed.** No push, deployment, OTA, public exposure, tenant-detail read or support grant was
+performed. The console remains **not ready to expose** until the P0 readiness gates close, including
+a forced first-login recovery-code ceremony, a rehearsed break-glass runbook, audit retention/least
+privilege and deployment-boundary proof.

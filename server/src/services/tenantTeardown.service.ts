@@ -33,6 +33,8 @@ import AIConversation from '../models/aiConversation.model.ts';
 import AIMessage from '../models/aiMessage.model.ts';
 import AiTurnMetric from '../models/aiTurnMetric.model.ts';
 import AiFeedback from '../models/aiFeedback.model.ts';
+import OpsErrorEvent from '../models/opsErrorEvent.model.ts';
+import OpsFeatureUsage from '../models/opsFeatureUsage.model.ts';
 import AuditLog from '../models/auditLog.model.ts';
 import Business from '../models/business.model.ts';
 import Category from '../models/category.model.ts';
@@ -85,6 +87,11 @@ export const TENANT_DATA_COLLECTIONS: Array<[string, TenantModel]> = [
   // AI-115 — a rating carries businessId and the member's note, so it is tenant data
   // and must not outlive the business it describes.
   ['ai_feedback', AiFeedback],
+  // OPS-8 — durable operations rows. A 5xx event with a businessId is tenant data;
+  // a feature-use row names a member and therefore must go with the tenant. Events
+  // without a businessId are platform-only and are not selected by this filter.
+  ['ops_error_events', OpsErrorEvent],
+  ['ops_feature_usage', OpsFeatureUsage],
   // Invitation-based onboarding (2026-10-25). An invitation carries a real address and a
   // working token, so it is data, not history: closing a tenant without removing its
   // pending invitations would leave emails that promise a business that no longer exists.

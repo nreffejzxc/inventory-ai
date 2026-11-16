@@ -58,3 +58,6 @@ Desktop.ini
 # Imported chat attachments and one-off device-test captures — never commit.
 .cloud-attachments/
 .tmp-*
+
+# One-time production platform bootstrap credential. Never commit.
+.platform-admin-bootstrap.txt

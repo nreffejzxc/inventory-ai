@@ -94,6 +94,11 @@ Every pull request must pass the four required checks before merge:
 - `secret-guard`
 - `attribution-guard`
 
+CI also runs the `webauthn-e2e` browser job. It is not yet a branch-protection-required check:
+observe its first green GitHub run, then add it to the required set rather than assuming the local
+`npm run test:webauthn-e2e` covers the hosted browser. A browser limitation is reported, never
+silently skipped.
+
 Do not bypass a failing check to make a branch mergeable. Fix the cause, or report the blocker.
 
 ## 4. Commit and open the pull request

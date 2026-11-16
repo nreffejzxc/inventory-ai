@@ -51,8 +51,8 @@ export async function startServer() {
 
 /** fetch wrapper over the running server. */
 export function makeApi(baseUrl) {
-  return async function api(method, path, { token, body } = {}) {
-    const headers = { 'content-type': 'application/json' };
+  return async function api(method, path, { token, body, headers: extraHeaders } = {}) {
+    const headers = { 'content-type': 'application/json', ...(extraHeaders || {}) };
     if (token) headers.authorization = `Bearer ${token}`;
     const res = await fetch(`${baseUrl}${path}`, {
       method,
@@ -65,7 +65,9 @@ export function makeApi(baseUrl) {
     } catch {
       json = null;
     }
-    return { status: res.status, json };
+    // `response` is the raw fetch Response for suites that must inspect
+    // Set-Cookie or another header. Existing callers only read status/json.
+    return { status: res.status, json, response: res };
   };
 }
 
@@ -103,12 +105,18 @@ export async function stampField(model, ids, field, value) {
 export function createTracker(dbOk) {
   const businessIds = [];
   const userIds = [];
+  const platformAdminIds = [];
   return {
     trackBusiness(id) {
       if (id) businessIds.push(String(id));
     },
     trackUser(id) {
       if (id) userIds.push(String(id));
+    },
+    // PLAT-1: platform administrators and their sessions are NOT tenant data,
+    // so they are cleaned by adminId rather than by businessId.
+    trackPlatformAdmin(id) {
+      if (id) platformAdminIds.push(String(id));
     },
     businessCount() {
       return businessIds.length;
@@ -134,6 +142,8 @@ export function createTracker(dbOk) {
       await deleteByBusiness('audit_logs');
       await deleteByBusiness('ai_turn_metrics');
       await deleteByBusiness('ai_feedback');
+      await deleteByBusiness('ops_error_events');
+      await deleteByBusiness('ops_feature_usage');
       await deleteByBusiness('suppliers');
       await deleteByBusiness('purchase_orders');
       // AI conversations/messages have no businessId on the message, so remove
@@ -154,6 +164,19 @@ export function createTracker(dbOk) {
         }
       }
       await deleteByBusiness('businesses');
+      if (platformAdminIds.length) {
+        const admins = platformAdminIds.map((x) => new ObjectId(x));
+        try {
+          await db.collection('platform_admin_sessions').deleteMany({ adminId: { $in: admins } });
+        } catch {
+          /* best effort */
+        }
+        try {
+          await db.collection('platform_admins').deleteMany({ _id: { $in: admins } });
+        } catch {
+          /* best effort */
+        }
+      }
       if (users.length) {
         try {
           // Phase 26A: sessions belong to a user, not a business, so they are

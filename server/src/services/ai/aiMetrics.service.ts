@@ -307,6 +307,13 @@ function normalizeTotals(row: RawRow | undefined) {
     retries: integer(source.retries),
     reasks: integer(source.reasks),
     emptyResponses: integer(source.emptyResponses),
+    calls: integer(source.calls),
+    toolRuns: integer(source.toolRuns),
+    tokens: {
+      input: integer(source.inputTokens),
+      output: integer(source.outputTokens),
+      total: integer(source.inputTokens) + integer(source.outputTokens),
+    },
     simpleEscalationTurns: integer(source.simpleEscalationTurns),
     simpleEscalations: integer(source.simpleEscalations),
     latency: {
@@ -362,6 +369,10 @@ const GROUP_FIELDS = {
   emptyResponses: { $sum: '$emptyResponses' },
   simpleEscalationTurns: { $sum: { $cond: [{ $gt: ['$escalations', 0] }, 1, 0] } },
   simpleEscalations: { $sum: '$escalations' },
+  calls: { $sum: '$calls' },
+  toolRuns: { $sum: '$toolRuns' },
+  inputTokens: { $sum: '$inputTokens' },
+  outputTokens: { $sum: '$outputTokens' },
   avgMs: { $avg: '$durationMs' },
   medianMs: { $percentile: { input: '$durationMs', p: [0.5], method: 'approximate' } },
   p95Ms: { $percentile: { input: '$durationMs', p: [0.95], method: 'approximate' } },
@@ -384,6 +395,24 @@ export interface AiMetricsResult {
   };
   totals: ReturnType<typeof normalizeTotals>;
   daily: Array<ReturnType<typeof normalizeDaily>>;
+  models: Array<{
+    model: string;
+    tier: string;
+    turns: number;
+    freeTurns: number;
+    paidTurns: number;
+    okTurns: number;
+    degradedTurns: number;
+    failedTurns: number;
+    failoverTurns: number;
+    failovers: number;
+    emptyResponses: number;
+    p95Ms: number | null;
+    avgMs: number | null;
+    tokens: { input: number; output: number; total: number };
+    cost: ReturnType<typeof costSummary>;
+  }>;
+  outcomes: Array<{ outcome: string; count: number }>;
 }
 
 /**
@@ -394,21 +423,14 @@ export interface AiMetricsResult {
  * completedAt) index serves the match. Days with no turns are emitted as zeros so a chart has
  * a continuous axis rather than gaps that look like missing data.
  */
-export async function getAiMetrics(
-  businessId: string,
-  { days, now = new Date() }: { days: number; now?: Date },
+async function aggregateAiMetrics(
+  match: Record<string, unknown>,
+  boundedDays: number,
+  from: Date,
+  to: Date,
 ): Promise<AiMetricsResult> {
-  const boundedDays = Math.min(MAX_AI_METRICS_DAYS, Math.max(1, Math.trunc(days)));
-  const from = rangeStart(now, boundedDays);
-  const to = now;
-
   const [facet] = await AiTurnMetric.aggregate([
-    {
-      $match: {
-        businessId: new mongoose.Types.ObjectId(businessId),
-        completedAt: { $gte: from, $lte: to },
-      },
-    },
+    { $match: match },
     {
       $facet: {
         totals: [{ $group: { _id: null, ...GROUP_FIELDS } }],
@@ -423,12 +445,29 @@ export async function getAiMetrics(
           },
           { $sort: { _id: 1 } },
         ],
+        models: [
+          {
+            $group: {
+              _id: { model: '$model', tier: '$tier' },
+              ...GROUP_FIELDS,
+            },
+          },
+          { $sort: { turns: -1, '_id.model': 1 } },
+          { $limit: 24 },
+        ],
+        outcomes: [
+          { $group: { _id: '$outcome', count: { $sum: 1 } } },
+          { $sort: { count: -1, _id: 1 } },
+          { $limit: 20 },
+        ],
       },
     },
   ]);
 
   const rawTotals = (facet?.totals?.[0] ?? undefined) as RawRow | undefined;
   const rawDaily = Array.isArray(facet?.daily) ? (facet.daily as RawRow[]) : [];
+  const rawModels = Array.isArray(facet?.models) ? (facet.models as RawRow[]) : [];
+  const rawOutcomes = Array.isArray(facet?.outcomes) ? (facet.outcomes as RawRow[]) : [];
   const byDate = new Map<string, RawRow>();
   for (const row of rawDaily) {
     const key = typeof row._id === 'string' ? row._id : '';
@@ -452,7 +491,85 @@ export async function getAiMetrics(
     },
     totals: normalizeTotals(rawTotals),
     daily,
+    models: rawModels.map((row) => {
+      const id = (row._id ?? {}) as RawRow;
+      const model = typeof id.model === 'string' && id.model.trim() ? id.model : 'unknown';
+      const tier = typeof id.tier === 'string' ? id.tier : 'unknown';
+      const turns = integer(row.turns);
+      return {
+        model,
+        tier,
+        turns,
+        freeTurns: integer(row.freeTurns),
+        paidTurns: integer(row.paidTurns),
+        okTurns: integer(row.okTurns),
+        degradedTurns: integer(row.degradedTurns),
+        failedTurns: integer(row.failedTurns),
+        failoverTurns: integer(row.failoverTurns),
+        failovers: integer(row.failovers),
+        emptyResponses: integer(row.emptyResponses),
+        p95Ms: percentile(row.p95Ms),
+        avgMs: rounded(row.avgMs),
+        tokens: {
+          input: integer(row.inputTokens),
+          output: integer(row.outputTokens),
+          total: integer(row.inputTokens) + integer(row.outputTokens),
+        },
+        cost: costSummary(row, turns),
+      };
+    }),
+    outcomes: rawOutcomes
+      .filter((row) => typeof row._id === 'string')
+      .map((row) => ({ outcome: String(row._id), count: integer(row.count) })),
   };
+}
+
+/**
+ * The metrics report for one business over the last `days` UTC calendar days.
+ * Tenant-scoped: the match names exactly one `businessId`.
+ */
+export async function getAiMetrics(
+  businessId: string,
+  { days, now = new Date() }: { days: number; now?: Date },
+): Promise<AiMetricsResult> {
+  const boundedDays = Math.min(MAX_AI_METRICS_DAYS, Math.max(1, Math.trunc(days)));
+  const from = rangeStart(now, boundedDays);
+  return aggregateAiMetrics(
+    {
+      businessId: new mongoose.Types.ObjectId(businessId),
+      completedAt: { $gte: from, $lte: now },
+    },
+    boundedDays,
+    from,
+    now,
+  );
+}
+
+/**
+ * PLAT-1 — the same report across EVERY tenant, for the platform operations
+ * surface only.
+ *
+ * The aggregation is shared with `getAiMetrics` so the platform console and a
+ * tenant's own AI metrics cannot define "a failed turn" or "p95" differently.
+ * The match deliberately carries no `businessId`: this is a read of aggregate
+ * facts, never a tenant-scoped row, and the caller is a platform capability, not
+ * a tenant role.
+ */
+export async function getPlatformAiMetrics({
+  days,
+  now = new Date(),
+}: {
+  days: number;
+  now?: Date;
+}): Promise<AiMetricsResult> {
+  const boundedDays = Math.min(MAX_AI_METRICS_DAYS, Math.max(1, Math.trunc(days)));
+  const from = rangeStart(now, boundedDays);
+  return aggregateAiMetrics(
+    { completedAt: { $gte: from, $lte: now } },
+    boundedDays,
+    from,
+    now,
+  );
 }
 
 export default {
@@ -462,4 +579,5 @@ export default {
   recordAiTurnMetric,
   parseAiMetricsDays,
   getAiMetrics,
+  getPlatformAiMetrics,
 };

@@ -42,8 +42,8 @@ Node.js **24** (pinned by `.nvmrc` and `engines.node`) · Express · TypeScript 
 TypeScript-first, **no build step**: the server runs its `.ts` sources through Node's native type
 stripping (`npm start` is `node src/index.ts`), so an older runtime cannot start it. `tsconfig.json`
 sets `noEmit` and `erasableSyntaxOnly`, so `tsc` is purely a checker and non-strippable syntax is a
-compile error rather than a runtime failure. `server/src` is **181** `.ts` modules (re-counted
-2026-11-16) and exactly one intentionally deferred `.js` module,
+compile error rather than a runtime failure. `server/src` is **220** `.ts` modules (re-counted
+2026-11-17) and exactly one intentionally deferred `.js` module,
 `server/src/services/entitlement.service.js`; `docs/TS-MIGRATION-MANIFEST.md` records the migration
 campaign.
 
@@ -275,8 +275,12 @@ The project is built in phases: one phase, one purpose, one verification record.
 | Close-out / OPS-4 | Scheduled-watch diagnosis (no automatic GitHub schedule), standalone `com.inventoryai` APK built/installed, AI-105 staging retry — §27HZ |
 | Reliability / OPS-5 | Post-deploy phone proof, the 2,517-finding read-only triage, and the scheduled baseline/history monitor — §27IA |
 | Reliability / OPS-6 | One-off Task Scheduler proof, the externally resolved SteelSeries finding, and hosted freshness behind UptimeRobot — §27IB |
+| Platform Operations / PLAT-1 | INTERNAL owner/support/developer monitoring plane — separate administrator identity, sessions and capabilities; no tenant Operations surface — §27IJ, §27IK; durable 5xx/feature stores — §27IL |
+| Platform Operations / PLAT-2–PLAT-3 | Dedicated console with HttpOnly cookie, CSRF and strict CSP; mandatory TOTP/WebAuthn; append-only platform audit read by SECURITY/SUPERADMIN; 105-route inventory — §27IM |
+| Platform Operations / PLAT-4 | Fresh security review, CI browser WebAuthn job, production-readiness checklist and prioritized future security recommendations — §27IN |
+| Platform Operations / PLAT-5 | Recovery codes, durable account-scoped MFA lockout, password change, administrator lifecycle and fail-closed origin/cookie hardening — §27IO |
 
-Most letter-numbered increments are roadmap records; AI-87/AI-88 are log-only and AI-91/AI-92 are in §27HT. AI-99 is in §27HU, its 10k gate is in §27HV, AI-103/OPS-3 is in §27HW, AI-84/AI-105/OPS-4 is in §27HX, and AI-106 with the reset-UX OTA is in §27HY, and the close-out is in §27HZ. The post-deploy proof, triage and scheduled monitor are in §27IA; the scheduler proof and hosted freshness are in §27IB; the contextual assistant entry and restock shortfall are in §27IC; the permanent assistant improvement roadmap and audit are in §27ID; the answer actions, complete-list navigation and deterministic stock ranking are in §27IE; the deterministic complete restock list is in §27IF; member feedback is in §27IG and follow-up context/provenance is in §27IH; the complete feedback conversation preview is in §27II; the index below is complete.
+Most letter-numbered increments are roadmap records; AI-87/AI-88 are log-only and AI-91/AI-92 are in §27HT. AI-99 is in §27HU, its 10k gate is in §27HV, AI-103/OPS-3 is in §27HW, AI-84/AI-105/OPS-4 is in §27HX, and AI-106 with the reset-UX OTA is in §27HY, and the close-out is in §27HZ. The post-deploy proof, triage and scheduled monitor are in §27IA; the scheduler proof and hosted freshness are in §27IB; the contextual assistant entry and restock shortfall are in §27IC; the permanent assistant improvement roadmap and audit are in §27ID; the answer actions, complete-list navigation and deterministic stock ranking are in §27IE; the deterministic complete restock list is in §27IF; member feedback is in §27IG and follow-up context/provenance is in §27IH; the complete feedback conversation preview is in §27II; the internal Platform Operations plane is §27IJ, its architecture and remaining gates are §27IK, and the durable monitoring stores are §27IL; the dedicated console, mandatory MFA and append-only platform audit are §27IM; the fresh review, CI browser proof and production gates are §27IN; recovery codes, MFA lockout, password change and administrator lifecycle are §27IO; the index below is complete.
 
 ## Operational traps worth knowing
 
@@ -353,8 +357,18 @@ with what is in progress, verified or blocked — is [`docs/DEVELOPMENT_LOG.md`]
   OWNER/ADMIN `GET /api/ai/metrics` aggregate, the alert thresholds and the incident procedure.
   `.github/workflows/production-health-watch-v2.yml` probes both production health endpoints every five
   minutes from GitHub, opens one issue after two consecutive failures and closes it on recovery.
-  There is still no hosted pager, dashboard or shared counter; the OPS-2 counters are process-local
-  and the runbook says so.
+  The INTERNAL Platform Operations API (§27IJ) reads cross-tenant aggregate AI, feedback, usage and
+  durable 5xx/feature data behind a separate platform-administrator login and capability. It is not
+  a tenant feature, not a hosted pager and not a cluster-wide counter. The dedicated console, its
+  HttpOnly cookie/CSRF session, mandatory TOTP/WebAuthn and the append-only platform audit trail are
+  committed in `d02a549` with the CORS-contract fix and browser WebAuthn E2E (§27IM), the fresh
+  review plus CI browser job are §27IN, and PLAT-5 adds recovery codes, a durable account-scoped MFA
+  lockout, password change and administrator lifecycle operations with fail-closed origin/cookie
+  checks (§27IO), but **not deployed or publicly exposed**. The pre-exposure checklist, the P0–P2
+  security recommendations and the console-improvement roadmap are
+  `docs/PLATFORM_PRODUCTION_READINESS.md`, `docs/PLATFORM_SECURITY_RECOMMENDATIONS.md` and
+  `docs/PLATFORM_CONSOLE_IMPROVEMENTS.md`. The OPS-2 counters are process-local and the runbook
+  says so.
 - **L-17 is closed as not applicable (2026-11-07)**: the active reset is AUTH-06's Brevo six-digit
   code, not Firebase's emailed action link. Firebase's Password Reset template remains hosted with
   no custom action URL; if that link path is reintroduced, L-17 reopens.
@@ -618,6 +632,12 @@ anchor (`§27…`) in that file.
 - **§27IG** — AI-115 — member feedback and the owner/admin review queue (2026-11-16)
 - **§27IH** — AI-116 — bounded follow-up context and answer freshness (2026-11-16)
 - **§27II** — AI-117 — complete feedback conversation preview (2026-11-16)
+- **§27IJ** — PLAT-1 — internal Platform Operations and the separate administrator plane (2026-11-16)
+- **§27IK** — Platform-admin architecture — implemented interim plane and remaining gates (2026-11-16)
+- **§27IL** — OPS-8 — durable usage and error monitoring (2026-11-16)
+- **§27IM** — PLAT-2/PLAT-3 — console, mandatory MFA and append-only platform audit (2026-11-16)
+- **§27IN** — PLAT-4 — review, CI browser proof and production gates (2026-11-16)
+- **§27IO** — PLAT-5 — administrator recovery, MFA lockout and lifecycle hardening (2026-11-16)
 
 ---
 

@@ -44,6 +44,14 @@ at the end of every development session, newest entry first.
 **Goal:** finish and harden Inventory AI **V1** through production testing. No Play Store or App
 Store release is being prepared.
 
+**Internal Platform Operations, PLAT-1 (2026-11-16, committed in `d02a549`; not deployed):** the customer-facing OPS-7 draft was removed before commit — `GET /api/operations`, `operations.view`, the mobile Operations tile/screen, stack entry, API helper and RBAC-mirror entry are gone. In their place is a separate `/api/platform` plane: `platform_admins` with no businessId or tenant role, `platform_admin_sessions` with a 15-minute idle timeout and 8-hour absolute cap, a distinct `PLATFORM_ADMIN_JWT_SECRET` with fixed issuer/audience, and platform-only capabilities. `GET /api/platform/operations` returns cross-tenant aggregate service, AI, feedback, usage and 5xx data with no tenant selector and no PII. `ops_error_events` and `ops_feature_usage` are preserved with their 90-day TTLs and tenant teardown; the `operations` feature key was removed and `/api/ai/metrics` counts as `ai`. The focused PLAT-1 suite passed **14 tests with its two unit suites mode-skipped in db mode**; phase 23 **21/21** (32/32 with the route-inventory guard), runtime matrix **10/10**, route inventory **96 routes / 56 gated / 17 authenticated / 23 public / 0 role-gated**, tenant teardown **8/8**, server `tsc`; mobile Jest **111 suites / 1,273 tests**; full server unit suite **2,125 pass / 69 skipped / 0 failed** (439 suites); docs guards **31/31** and `scripts/check-docs.mjs` **35 active documents**. Committed in `d02a549`; no deploy, OTA, device run or production exposure was performed. There is no operator UI, dedicated admin origin, WebAuthn/TOTP, platform audit log or support grant at PLAT-1; a password-only platform login was a release gate, not the final design.
+
+**Platform Operations console, MFA and audit, PLAT-2/PLAT-3 (2026-11-16, committed and browser-verified; not deployed):** the three approved layers are implemented. A dedicated static console (`cd server && npm run platform-console`, `http://localhost:4100`) uses an HttpOnly `platform_session` cookie plus a readable `platform_csrf` cookie and requires both the exact `PLATFORM_CONSOLE_ORIGIN` and a matching `X-Platform-CSRF` header; Bearer API clients are unchanged. Its CSP is `default-src 'none'`, same-origin script/style, API-origin-only `connect-src`, `frame-ancestors 'none'`, with no inline script, style or handler. Platform login is password + **mandatory** TOTP (WebAuthn as an enrolled alternative); a password alone returns only a challenge. TOTP secrets and WebAuthn public keys are AES-256-GCM encrypted under `PLATFORM_MFA_ENCRYPTION_KEY`, codes are single-use, WebAuthn registration exists only inside an authenticated session, and a WebAuthn login challenge is stored as a hash and consumed atomically with the counter so an assertion cannot be replayed. `platform_audit_events` records login failure, MFA/WebAuthn changes, capability denials, operations/audit reads, renewal and logout, and its model refuses update/replace/delete/save-existing with no TTL; SECURITY and SUPERADMIN alone hold `platform.audit.read`. Route inventory is **105 / 57 gated / 20 authenticated / 28 public / 0 role-gated**. `PLAT2` **9/9**, `PLAT3` **8/8 with one unit suite mode-skipped in db mode**, `OPS7` **14/0 with two unit suites mode-skipped**, phase 23 **32/32** and the route-inventory guard pass; server `tsc` passes. Committed in `d02a549`, followed by the CORS-contract fix and browser-E2E support; no deployment, OTA or public exposure was performed. The first full server run found that the new fixed CORS `allowedHeaders` list changed the established preflight response; removing it restored reflection and `phase07c-http-security.test.mjs`. The final full server suite passed **3,121/3,121, 499 suites, 0 failures, 0 skipped**. `npm run test:webauthn-e2e` then passed against headless Chrome with a CDP virtual authenticator: TOTP enrollment, security-key registration, security-key login, replay refusal (`PLATFORM_WEBAUTHN_INVALID`) and a tampered assertion refused with no session; the disposable administrator and its audit rows were removed. That run also caught and fixed the console's missing `/api/platform` fetch base, now asserted by `PLAT2` (9/9). An external dedicated identity project remains unverified; support grants and tenant-detail reads remain open gates.
+
+**Platform Operations review and CI browser proof, PLAT-4 (2026-11-16; committed locally, not pushed):** the fresh review is `40f2758` and touches only platform files. It removes dead helpers, gates the console CORS origin on a configured platform plane, requires `PLATFORM_CONSOLE_ORIGIN` in production and makes the WebAuthn E2E cleanup fail closed; the AI-118 files remain excluded. `.github/workflows/ci.yml` now has a `webauthn-e2e` job with a disposable MongoDB, headless Chrome and the existing virtual-authenticator script. The pre-exposure checklist is `docs/PLATFORM_PRODUCTION_READINESS.md`; the P0–P2 future list is `docs/PLATFORM_SECURITY_RECOMMENDATIONS.md`. Focused checks pass: PLAT2 **9/9**, PLAT3 **12/12**, phase07c **17/17**, local E2E, `tsc`, ESLint and `git diff --check`. The CI job and full suite were not rerun/observed; no push, deploy or OTA was made. The console remains **not ready to expose** until the readiness checklist's P0 items close.
+
+**Platform Operations recovery and lifecycle, PLAT-5 (2026-11-16; committed locally, not pushed):** one-time recovery codes (10, hashed, single-use, generated only after the current password), a durable account-scoped MFA lock (five failures in 15 minutes locks verification for 15 minutes across IPs), self-service password change with every-session revocation, and SUPERADMIN list/disable/enable/delete/WebAuthn-key-removal routes with self and last-SUPERADMIN guards. Non-loopback origins must be bare HTTPS origins, and a missing `NODE_ENV` can no longer downgrade the session cookie to non-Secure. `PLAT2` **10/10**, `PLAT3` **13/13**, `PLAT4` **13/13** (including a separate WebAuthn-failure lock test), focused platform **36/36**, Phase 23 **21/21**, browser E2E pass, and the full server suite **3,135/3,135 across 501 suites (0 failed, 0 skipped, 0 todo)**; the later test-only WebAuthn-lock addition was verified separately in `PLAT4` **13/13**. Route inventory is **112 routes / 61 gated / 22 authenticated / 29 public / 0 role-gated**; docs guards show **38 active documents** and **16 living references**. No push, deploy, OTA, public exposure, tenant-detail read or support grant was made.
+
 **Feedback conversation preview, AI-117 (2026-11-16, deployed and device-verified; one finding):** the OWNER/ADMIN review
 queue gained **View conversation**. `GET /api/ai/feedback/:id/conversation` returns the complete
 reported answer, six USER/ASSISTANT messages on each side and `omittedBefore`/`omittedAfter`; it
@@ -339,6 +347,129 @@ Known limits, checked before spending one of them:
   bulk; a delivery failure is not a code regression until the provider log says so.
 
 ---
+
+## 2026-11-16 — PLAT-5 administrator recovery, MFA lockout and lifecycle hardening
+
+**Status.** LOCALLY COMMITTED IN THIS SESSION (see `git log`); NOT PUSHED, DEPLOYED OR PUBLICLY
+EXPOSED. No CI run was observed.
+
+**What changed.** Recovery codes are generated only after the signed-in administrator re-enters the
+current password; ten 12-character codes are shown once, stored only as SHA-256 digests, consumed
+atomically and refused on reuse. Password change proves the current password, stores a new bcrypt
+hash, stamps `passwordChangedAt` and revokes every platform session, including the caller's. A new
+SUPERADMIN-only lifecycle surface lists administrators, disables/enables, deletes and removes a
+WebAuthn key; disable/delete/key removal revoke the target's sessions, self-disable/self-delete are
+refused, and the last active SUPERADMIN is protected. Every operation is audited with actor and
+target metadata; no code, password or hash is written to the trail.
+
+**MFA lockout.** Five failed TOTP, WebAuthn or recovery-code factors in 15 minutes lock MFA for 15
+minutes. The counter and lock live on the administrator row and are updated with one atomic pipeline,
+so concurrent failures cannot each pass a read-then-increment check; the lock is shared across IP
+addresses and a successful factor clears it. The misleading `platform.routes.ts` comment now states
+that the per-IP limiter is one layer and the durable account lock is the other.
+
+**HTTPS and cookies.** `PLATFORM_CONSOLE_ORIGIN`, `PLATFORM_API_ORIGIN` and
+`PLATFORM_WEBAUTHN_ORIGIN` must be bare origins; non-loopback values must be HTTPS. A path, query,
+fragment or userinfo fails closed in runtime configuration and production validation. The WebAuthn
+RP ID must be the origin host or a parent domain. Session and CSRF cookies are `Secure` in
+production, on any HTTPS origin and when `NODE_ENV` is missing; only explicit development/test on
+loopback HTTP may omit it.
+
+**Verification.** `npx tsc --noEmit` and targeted ESLint pass. `PLAT2` **10/10**, `PLAT3` **13/13**,
+`PLAT4` **13/13** (TOTP and WebAuthn lock paths), focused platform **36/36**, Phase 23 **21/21**,
+real-browser `npm run test:webauthn-e2e` pass. The full server suite passed **3,135/3,135 across 501
+suites — 0 failed, 0 skipped, 0 todo**, exit 0; the WebAuthn-lock test was added after that run and
+passes in `PLAT4` **13/13**. `node scripts/check-docs.mjs` reports **38 active
+documents, 30 invariant rows and 16 living references**; the route-inventory and documentation
+suites pass at **112 routes / 61 gated / 22 authenticated / 29 public / 0 role-gated**. The first
+full run's only failures were the three new routes missing from the Phase 23 declaration register;
+they are now declared with reasons and the rerun is clean. No push, PR, deploy, OTA, external
+identity project, tenant-detail read or support grant was made.
+
+**Next.** Before any exposure, add the forced first-login recovery-code ceremony and a rehearsed
+break-glass runbook, choose audit retention/least-privilege database access, and prove the real
+HTTPS/origin boundary. Observe the `webauthn-e2e` CI job and add it to branch protection after a
+push is authorized.
+
+---
+
+## 2026-11-16 — PLAT-4 review, CI browser proof and production gates
+
+**Status.** LOCALLY COMMITTED IN `40f2758`; NOT PUSHED, DEPLOYED OR PUBLICLY EXPOSED. No CI run
+was observed for the new job.
+
+**What changed.** The four platform commits were re-reviewed with the CORS fix, the console API-base
+fix and the browser E2E as the focus. `40f2758` removes unused platform helpers, adds the console
+origin to CORS only when the platform secret is configured, requires `PLATFORM_CONSOLE_ORIGIN` when
+that secret is set in production, and makes the E2E cleanup remove actorless replay/tamper audit rows
+and fail if any administrator, session or audit row remains. The CORS reflection regression is now
+pinned by a test using `x-platform-csrf` and `x-platform-console`; `PLAT2` and the real browser
+sign-in confirm the `/api/platform` mount. The AI-118 files are not in any of the five commits and
+remain uncommitted in the working tree.
+
+**CI and gates.** `.github/workflows/ci.yml` gained a fifth job, `webauthn-e2e`, with a disposable
+`mongo:7` service, headless Chrome and a 10-minute bound. The script now accepts a configurable CDP
+port, Linux Chrome paths and a CI-only no-sandbox flag. Two living reference documents were added:
+`docs/PLATFORM_PRODUCTION_READINESS.md` (HTTPS/domains, network isolation, separate credentials,
+cookie/CORS proof, MFA recovery, audit retention/database permissions, support grants, CI evidence
+and sign-off) and `docs/PLATFORM_SECURITY_RECOMMENDATIONS.md` (P0–P2 recommendations only).
+
+**Verification.** `npx tsc --noEmit`, ESLint on every changed file, `git diff --check`, PLAT2 **9/9**,
+PLAT3 **12/12**, phase07c **17/17**, `npm run test:webauthn-e2e` and `node scripts/check-docs.mjs`
+(**37 active documents**, **15 cadence rows**) pass. A `CI=true` E2E run found a harness race that
+could accept the previous `/auth/login` response; the wait now requires a new call, and the CI-flag
+rerun passes. The local E2E's cleanup
+verification reports zero administrators, sessions and audit rows; the CI job itself is unrun. The
+full server suite was not rerun after the review edits; the last run was **3,121/3,121**. No push,
+PR, deploy, OTA, external identity project or support grant was made.
+
+**Next.** Close the P0 items in the readiness checklist before any exposure: recovery/break-glass and
+administrator lifecycle, per-account MFA attempt budgeting, a fail-closed HTTPS/network deployment
+guard, and audit retention plus least-privilege database access. Then observe the `webauthn-e2e` CI
+job on GitHub and rerun the full suite.
+
+---
+
+## 2026-11-16 — PLAT-1 internal Platform Operations, durable monitoring and platform-admin alignment
+
+**Status.** COMMITTED IN `d02a549`; NOT DEPLOYED. No operator UI, device/emulator pass or
+production exposure was performed at PLAT-1; §27IM later added the console, MFA and audit, committed
+and browser-verified.
+
+**What changed.** The customer-facing OPS-7 draft was removed before commit: `GET /api/operations`,
+the `operations.view` capability, the mobile Operations tile/screen, its stack entry, API helper and
+RBAC-mirror entry are gone. In their place is a separate `/api/platform` plane: `platform_admins`
+with no `businessId` and no tenant role, `platform_admin_sessions` with a 15-minute idle timeout and
+8-hour absolute cap, a distinct `PLATFORM_ADMIN_JWT_SECRET` with fixed issuer
+`inventory-ai-platform` and audience `platform-admin`, and platform-only capabilities
+(`platform.health.read`, `platform.metrics.read`, `platform.audit.read`,
+`platform.admin.manage`). `GET /api/platform/operations` returns cross-tenant aggregate service,
+AI, feedback, usage and 5xx data with no tenant selector and no PII. `ops_error_events` and
+`ops_feature_usage` are preserved with their 90-day TTLs and tenant teardown; the `operations`
+feature key was removed and `/api/ai/metrics` counts as `ai`. The bootstrap is
+`npm run platform-admin:create`; the password is read from the environment and never printed.
+
+**Verification.** PLAT-1 suite **14 pass / 2 mode-skipped unit suites** in db mode: unauthenticated
+401; OWNER/ADMIN/MANAGER/STAFF all 401; both-direction token rejection; READ_ONLY 403 on the
+report; missing-secret 503 on both the report and login, with no right/wrong-password oracle;
+same-token demotion/disable; logout revocation; renewal without a second
+session row; exact two-tenant aggregation in a fixed window; ignored `businessId`; no emails or user
+ids in the body; durable writers preserved. Phase 23 **21/21** (32/32 with route inventory); runtime
+matrix **10/10**; route inventory **96 routes / 56 gated / 17 authenticated / 23 public / 0 role-gated**; DEMO-2 tenant
+teardown **8/8** (both new collections are seeded, previewed and removed); server
+`tsc --noEmit` and targeted ESLint pass; mobile `tsc` and targeted ESLint pass; mobile Jest **111
+suites / 1,273 tests**; full server unit suite **2,125 pass / 69 skipped / 0 failed** (439 suites);
+docs guards **31/31**; `scripts/check-docs.mjs` reports 35 indexed active documents.
+
+**Not done at PLAT-1 (superseded for the first three by §27IM).** There was no console UI, dedicated
+admin origin, WebAuthn/TOTP or platform audit log at that point; §27IM later implemented and
+committed them. A support grant, hosted load test, restart drill and real database outage remain
+undone. The interim platform credential was a local password. Committed in `d02a549`; no push, PR,
+deploy or OTA.
+
+**Next.** The console and MFA gates are closed; an external dedicated identity project, support
+grants and tenant-detail reads remain open before any production exposure. Run mobile Jest and the
+docs guards again before a release.
 
 ## 2026-11-16 — AI-117 feedback conversation preview
 

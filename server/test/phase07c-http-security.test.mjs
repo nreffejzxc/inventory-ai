@@ -291,6 +291,24 @@ describe('M3 CORS allow-list (Phase 07C)', () => {
     assert.equal(res.header('access-control-allow-headers'), 'content-type');
   });
 
+  it('reflects the requested headers on an allow-listed preflight (PLAT-2 regression)', async () => {
+    // Platform calls use X-Platform-CSRF. The CORS layer must reflect whatever
+    // the browser requests, not pin one static list that can drift from the
+    // console's headers.
+    const res = await request(baseUrl, {
+      method: 'OPTIONS',
+      path: '/api/platform/auth/me',
+      extraHeaders: {
+        origin: ALLOWED,
+        'access-control-request-method': 'GET',
+        'access-control-request-headers': 'x-platform-csrf, x-platform-console',
+      },
+    });
+    assert.equal(res.status, 204);
+    assert.equal(res.header('access-control-allow-origin'), ALLOWED);
+    assert.equal(res.header('access-control-allow-headers'), 'x-platform-csrf, x-platform-console');
+  });
+
   it('a disallowed preflight is not granted any CORS headers', async () => {
     const res = await request(baseUrl, {
       method: 'OPTIONS',

@@ -84,6 +84,7 @@ import {
 } from './sourceFiles.mjs';
 import { PERMISSIONS, ROLES, ROLE_PERMISSIONS, ROLE_VALUES } from '../src/constants/roles.ts';
 import requireAuth, { requireAuthForRenewal } from '../src/middlewares/authenticate.ts';
+import requirePlatformAdmin from '../src/middlewares/platformAuthenticate.ts';
 
 // ---------------------------------------------------------------------------
 // Paths — every one resolved from this file, never from cwd.
@@ -239,6 +240,34 @@ const PUBLIC_ROUTES = [
     why: 'hosted freshness probe for the external uptime monitor: it must answer without a token, and it publishes only the read-only audit timestamp, age, status and aggregate counts — no tenant, product, location, user, inventory or ledger data',
   },
   { route: 'POST /api/auth/login', why: 'how a token is obtained; rate-limited' },
+  {
+    route: 'POST /api/platform/auth/login',
+    why: 'PLAT-1: how a PLATFORM token is obtained — the caller holds no platform session by definition; it never consults a tenant User, is rate-limited, and every failure answers the same generic 401',
+  },
+  {
+    route: 'POST /api/platform/auth/mfa/enroll/start',
+    why: 'PLAT-2: PRE-SESSION by design — the caller has a password-verified enrollment challenge but no session, because MFA is mandatory and a password alone must never create one. The challenge token is audience-separated and purpose-bound, is rate-limited, and starting enrollment does not authenticate anything',
+  },
+  {
+    route: 'POST /api/platform/auth/mfa/enroll/confirm',
+    why: 'PLAT-2: PRE-SESSION by design — proves the first TOTP code and is the only path that enables MFA; it accepts a purpose-bound enrollment challenge, never a password or email, is rate-limited, and creates the first platform session only after the code is confirmed',
+  },
+  {
+    route: 'POST /api/platform/auth/mfa/verify',
+    why: 'PLAT-2: PRE-SESSION by design — spends a short-lived purpose-bound login challenge plus a single-use TOTP code; no session exists yet by definition, the endpoint is rate-limited, and replay is refused by an atomic counter',
+  },
+  {
+    route: 'POST /api/platform/auth/mfa/webauthn/options',
+    why: 'PLAT-2/3: PRE-SESSION by design — exchanges an existing MFA login challenge for a WebAuthn assertion challenge; it issues no session and accepts no credential by itself, and the returned challenge is bound to the same short-lived token audience/purpose',
+  },
+  {
+    route: 'POST /api/platform/auth/mfa/webauthn/verify',
+    why: 'PLAT-2/3: PRE-SESSION by design — verifies a WebAuthn assertion against a registered platform credential and only then creates the session; the challenge is purpose-bound, user verification is required, and the counter is advanced to refuse replay',
+  },
+  {
+    route: 'POST /api/platform/auth/mfa/recovery',
+    why: 'PLAT-5: PRE-SESSION by design — a recovery code is the second-factor fallback for a caller who holds a short-lived purpose-bound login challenge but no session. The endpoint consumes one hashed, single-use code atomically, is rate-limited and shares the durable account MFA lock, and returns a session only after the code matches',
+  },
   { route: 'POST /api/auth/register', why: 'how a business is created; rate-limited' },
   {
     route: 'POST /api/auth/forgot-password',
@@ -291,6 +320,14 @@ const AUTHENTICATED_ROUTES = [
     why: 'account deletion: deletes only the CALLER’S OWN account — the subject is req.user.id with no id in the request that could aim it elsewhere, re-authentication is required first, and no permission key could express "may delete my own account" without inventing an authorization concept the catalogue does not have',
   },
   { route: 'POST /api/auth/logout', why: 'Phase 26A: ends only the caller’s own session' },
+  {
+    route: 'POST /api/platform/auth/password',
+    why: 'PLAT-5: changes only the CALLER’S OWN platform password — the current password is required, the route is rate-limited, and success revokes every platform session; there is no administrator id in the request that could aim it elsewhere',
+  },
+  {
+    route: 'POST /api/platform/auth/recovery-codes',
+    why: 'PLAT-5: generates recovery codes only for the CALLER’S OWN platform account — the current password is required, the route is rate-limited, and only SHA-256 digests are stored; there is no administrator id in the request that could aim it elsewhere',
+  },
   { route: 'GET /api/auth/sessions', why: 'Phase 26A: lists only the caller’s own sessions' },
   { route: 'DELETE /api/auth/sessions/:id', why: 'Phase 26A: ends only a session the caller owns' },
   {
@@ -304,6 +341,30 @@ const AUTHENTICATED_ROUTES = [
   {
     route: 'POST /api/auth/credentials-changed',
     why: 'N-4: records a credential change on the CALLER’S OWN account and revokes that account’s sessions — the account is req.user.id and the identity must equal the uid already on it, so the request can only ever affect the account that authenticated it; no permission key could express "may record a credential change on my own account" without inventing an authorization concept the catalogue does not have, and a session is not a capability that could be granted',
+  },
+  {
+    route: 'POST /api/platform/auth/renew',
+    why: 'PLAT-1: re-issues a token for the CALLER’S OWN platform session — the admin is req.platformAdmin.id and the session is req.platformAuth.jti, both from the verified platform token; no session row is created and the 8-hour cap is untouched',
+  },
+  {
+    route: 'POST /api/platform/auth/logout',
+    why: 'PLAT-1: ends only the platform session the request authenticated with; the jti comes from the token, never the body',
+  },
+  {
+    route: 'GET /api/platform/auth/me',
+    why: 'PLAT-1: reads only the authenticated platform administrator',
+  },
+  {
+    route: 'GET /api/platform/auth/csrf',
+    why: 'PLAT-2: rotates the CSRF value for the CALLER’S OWN cookie session — GET-only, requires the exact console Origin and SameSite=Strict, returns no data and creates no session; it exists because a console on a different origin cannot read the API host’s readable CSRF cookie, and every other cookie-auth request still requires the double-submit header',
+  },
+  {
+    route: 'POST /api/platform/auth/webauthn/register/options',
+    why: 'PLAT-3: issues a registration challenge for the CALLER’S OWN platform administrator — the admin id is req.platformAdmin.id, and registration is deliberately unavailable before an authenticated session so a stolen password cannot enroll an attacker’s key; no permission key is needed because the subject is the caller’s own credential',
+  },
+  {
+    route: 'POST /api/platform/auth/webauthn/register/verify',
+    why: 'PLAT-3: stores a credential on the CALLER’S OWN platform administrator — the admin id is req.platformAdmin.id and the registration token must name the same admin; it cannot alter another administrator or a tenant account',
   },
   { route: 'GET /api/categories', why: 'Phase 22 deferral: no categories.view key exists' },
   { route: 'GET /api/categories/:id', why: 'Phase 22 deferral: no categories.view key exists' },
@@ -330,7 +391,7 @@ const ROLE_GATED_ROUTES = [];
  * first handler is PUBLIC and must be declared, which is what keeps a new gate from
  * riding in unnoticed.
  */
-const AUTH_MIDDLEWARES = [requireAuth, requireAuthForRenewal];
+const AUTH_MIDDLEWARES = [requireAuth, requireAuthForRenewal, requirePlatformAdmin];
 
 /** Classify one route from its real handler chain and its source declaration. */
 function classifyRoute({ handlers, declaration }) {
@@ -348,6 +409,12 @@ function classifyRoute({ handlers, declaration }) {
   // only way to tell WHICH gate this is.
   if (declaration.includes('requireRole(')) {
     return { kind: CLASS.ROLE_GATED, why: 'role-name gate' };
+  }
+  // PLAT-1: the platform router has its own capability gate. Recognising it
+  // here is what keeps a platform route from being reported as ungated; it is
+  // deliberately NOT `requirePermission`, whose matrix is tenant-only.
+  if (declaration.includes('requirePlatformCapability(')) {
+    return { kind: CLASS.GATED, why: 'platform capability gate' };
   }
   if (declaration.includes('requirePermission(')) {
     return { kind: CLASS.GATED, why: 'permission gate' };
@@ -367,7 +434,11 @@ function classifyRoute({ handlers, declaration }) {
 
 /** The declaration statement for one route, whitespace-normalised. */
 function declarationOf(source, owner, method, routePath) {
-  const text = source.replace(/\s+/g, ' ');
+  // Normalise whitespace AND the newline some declarations put between the call
+  // parenthesis and the path (`router.post(\n  '/auth/login',`). Without the
+  // second step the normalized text reads `router.post( '/auth/login',` and the
+  // lookup misses, which would classify a real platform route as undeclared.
+  const text = source.replace(/\s+/g, ' ').replace(/\( /g, '(');
   const start = text.indexOf(`${owner}.${method.toLowerCase()}('${routePath}',`);
   if (start === -1) return null;
   const end = text.indexOf(';', start);
@@ -768,9 +839,11 @@ unitSuite('Phase 23 — authorization contract completion', () => {
       for (const entry of ROUTES) {
         if (classifyRoute(entry).kind !== CLASS.GATED) continue;
         assert.ok(
-          entry.declaration && entry.declaration.includes('requirePermission('),
-          `${entry.route} has a gate but its declaration names no permission — the route would bypass the ` +
-            `contract guard. Declaration reads: ${entry.declaration}`
+          entry.declaration &&
+            (entry.declaration.includes('requirePermission(') ||
+              entry.declaration.includes('requirePlatformCapability(')),
+          `${entry.route} has a gate but its declaration names no permission or platform capability — ` +
+            `the route would bypass the contract guard. Declaration reads: ${entry.declaration}`
         );
       }
     });

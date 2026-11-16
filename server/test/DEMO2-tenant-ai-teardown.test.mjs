@@ -38,6 +38,8 @@ import User from '../src/models/user.model.ts';
 import AIConversation from '../src/models/aiConversation.model.ts';
 import AIMessage from '../src/models/aiMessage.model.ts';
 import AiTurnMetric from '../src/models/aiTurnMetric.model.ts';
+import OpsErrorEvent from '../src/models/opsErrorEvent.model.ts';
+import OpsFeatureUsage from '../src/models/opsFeatureUsage.model.ts';
 import { formatCollectionCounts } from '../scripts/cleanup/lib.mjs';
 import {
   clearTenantData,
@@ -136,6 +138,33 @@ async function seedEveryCleanupCollection(businessId, userId) {
     invitedBy: userId,
     expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
   });
+  // OPS-8 rows are tenant data too: both collections carry businessId and are
+  // removed by the same teardown. Distinct counts (13, 14) keep the preview's
+  // collection/count pairing falsifiable.
+  const expiresAt = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000);
+  await OpsErrorEvent.insertMany(
+    Array.from({ length: 13 }, (_, i) => ({
+      businessId,
+      status: 500,
+      code: 'INTERNAL_ERROR',
+      method: 'GET',
+      route: `/preview/error/${i}`,
+      occurredAt: new Date(Date.now() - i * 1000),
+      expiresAt,
+    })),
+  );
+  await OpsFeatureUsage.insertMany(
+    Array.from({ length: 14 }, (_, i) => ({
+      businessId,
+      userId,
+      feature: `preview_feature_${i}`,
+      date: '2026-11-16',
+      firstSeenAt: new Date(Date.now() - i * 1000),
+      lastSeenAt: new Date(Date.now() - i * 1000),
+      expiresAt,
+    })),
+  );
+
   await AiTurnMetric.insertMany(
     Array.from({ length: 12 }, (_, i) => ({
       businessId,
@@ -185,6 +214,8 @@ async function seedEveryCleanupCollection(businessId, userId) {
     invitations: 1,
     ai_turn_metrics: 12,
     ai_feedback: 0,
+    ops_error_events: 13,
+    ops_feature_usage: 14,
   };
 }
 

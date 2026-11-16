@@ -18,6 +18,13 @@ import AIConversation from './aiConversation.model.ts';
 import AIMessage from './aiMessage.model.ts';
 import AiTurnMetric from './aiTurnMetric.model.ts';
 import AiFeedback from './aiFeedback.model.ts';
+import OpsErrorEvent from './opsErrorEvent.model.ts';
+import OpsFeatureUsage from './opsFeatureUsage.model.ts';
+import PlatformAdmin from './platformAdmin.model.ts';
+import PlatformAdminSession from './platformAdminSession.model.ts';
+import PlatformAuditLog from './platformAuditLog.model.ts';
+import PlatformDeployment from './platformDeployment.model.ts';
+import PlatformTicket from './platformTicket.model.ts';
 
 export {
   Business,
@@ -40,6 +47,13 @@ export {
   AIMessage,
   AiTurnMetric,
   AiFeedback,
+  OpsErrorEvent,
+  OpsFeatureUsage,
+  PlatformAdmin,
+  PlatformAdminSession,
+  PlatformAuditLog,
+  PlatformDeployment,
+  PlatformTicket,
 };
 
 /** Every registered model, for tooling/tests that iterate the schema set. */
@@ -64,6 +78,13 @@ export const models = [
   AIMessage,
   AiTurnMetric,
   AiFeedback,
+  OpsErrorEvent,
+  OpsFeatureUsage,
+  PlatformAdmin,
+  PlatformAdminSession,
+  PlatformAuditLog,
+  PlatformDeployment,
+  PlatformTicket,
 ];
 
 export default models;

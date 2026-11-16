@@ -6,6 +6,7 @@ import type { NextFunction, Request, Response } from 'express';
 
 import { isDatabaseDownError, sanitizeMongoMessage } from '../config/db.ts';
 import { isDebugNodeEnv } from '../config/env.ts';
+import { recordOperationalError } from '../services/operations.service.ts';
 import { error as logError } from '../utils/logger.ts';
 
 /**
@@ -32,7 +33,7 @@ type ErrorLike = {
  */
 type RequestWithContext = Request & {
   requestId?: string;
-  user?: { id: string };
+  user?: { id: string; businessId?: string };
 };
 
 /**
@@ -85,6 +86,23 @@ function requestContext(req: RequestWithContext) {
   };
 }
 
+/**
+ * Persist the safe operational shape of a 5xx. Fire-and-forget by construction:
+ * the error handler has already decided the response, and a monitoring write
+ * must never delay it or replace its error with another one.
+ */
+function persistServerError(req: RequestWithContext, status: number, code: string | null) {
+  void recordOperationalError({
+    businessId: req.user && req.user.businessId ? req.user.businessId : null,
+    status,
+    code,
+    method: req.method,
+    // `originalUrl` keeps the mounted route name even when Express has restored
+    // `req.url` to `/` while unwinding a router.
+    path: req.originalUrl || req.path || '/',
+  });
+}
+
 const errorHandler = (
   err: ErrorLike,
   req: RequestWithContext,
@@ -121,6 +139,7 @@ const errorHandler = (
       ...requestContext(req),
       message: `[db] ${describeRequest(req) || 'unknown request'} — database unavailable, request could not be served: ${sanitizeMongoMessage(err)}`,
     });
+    persistServerError(req, 503, 'DB_UNAVAILABLE');
     return res.status(503).json({
       error: 'Service temporarily unavailable',
       code: 'DB_UNAVAILABLE',
@@ -137,6 +156,7 @@ const errorHandler = (
       ...requestContext(req),
       message: `[error] ${describeRequest(req) || 'unknown request'} — ${err.message || err}`,
     });
+    persistServerError(req, status, typeof err.code === 'string' ? err.code : null);
   }
 
   const body: {

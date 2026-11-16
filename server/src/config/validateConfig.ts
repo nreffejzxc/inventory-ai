@@ -95,6 +95,138 @@ export function validateProductionConfig(
   // AUTH-02: the default is now 1 hour. JWT_ISSUER / JWT_AUDIENCE need no probe
   // of their own — they are non-secret strings that env.ts defaults, and
   // jsonwebtoken accepts any string for both.
+  // PLAT-1: the platform administrator plane is optional, but when it is
+  // configured its secret must be a real secret and must NOT be the tenant
+  // secret. Reusing JWT_SECRET would make every tenant token a platform token
+  // candidate (and vice versa), collapsing the boundary the separate plane
+  // exists to keep. A short secret is refused for the same reason JWT_SECRET is.
+  const platformJwtSecret = get('PLATFORM_ADMIN_JWT_SECRET');
+  if (platformJwtSecret) {
+    if (platformJwtSecret.length < JWT_SECRET_MIN_LENGTH) {
+      problems.push({
+        variable: 'PLATFORM_ADMIN_JWT_SECRET',
+        message: `PLATFORM_ADMIN_JWT_SECRET must be at least ${JWT_SECRET_MIN_LENGTH} characters when set`,
+      });
+    }
+    if (jwtSecret && platformJwtSecret === jwtSecret) {
+      problems.push({
+        variable: 'PLATFORM_ADMIN_JWT_SECRET',
+        message:
+          'PLATFORM_ADMIN_JWT_SECRET must not equal JWT_SECRET: the platform administrator plane must use its own signing secret',
+      });
+    }
+  }
+
+  // PLAT-2: MFA is mandatory, so a configured platform plane without an
+  // encryption key would accept a password and then be unable to enroll or
+  // verify anyone. Refuse that deployment rather than discover it at login.
+  // The key must be strong and distinct from both signing secrets.
+  const platformMfaKey = get('PLATFORM_MFA_ENCRYPTION_KEY');
+  if (platformJwtSecret && !platformMfaKey) {
+    problems.push({
+      variable: 'PLATFORM_MFA_ENCRYPTION_KEY',
+      message:
+        'PLATFORM_MFA_ENCRYPTION_KEY is required when PLATFORM_ADMIN_JWT_SECRET is configured; platform MFA is mandatory',
+    });
+  }
+  if (platformMfaKey) {
+    if (platformMfaKey.length < JWT_SECRET_MIN_LENGTH) {
+      problems.push({
+        variable: 'PLATFORM_MFA_ENCRYPTION_KEY',
+        message: `PLATFORM_MFA_ENCRYPTION_KEY must be at least ${JWT_SECRET_MIN_LENGTH} characters when set`,
+      });
+    }
+    if (jwtSecret && platformMfaKey === jwtSecret) {
+      problems.push({
+        variable: 'PLATFORM_MFA_ENCRYPTION_KEY',
+        message:
+          'PLATFORM_MFA_ENCRYPTION_KEY must not equal JWT_SECRET: the platform MFA key must be its own secret',
+      });
+    }
+    if (platformJwtSecret && platformMfaKey === platformJwtSecret) {
+      problems.push({
+        variable: 'PLATFORM_MFA_ENCRYPTION_KEY',
+        message:
+          'PLATFORM_MFA_ENCRYPTION_KEY must not equal PLATFORM_ADMIN_JWT_SECRET',
+      });
+    }
+  }
+
+  // The console origin is a browser boundary. Refuse a malformed value and, in
+  // production, refuse plain HTTP unless it is explicitly loopback development.
+  const platformConsoleOrigin = get('PLATFORM_CONSOLE_ORIGIN');
+  if (platformJwtSecret && !platformConsoleOrigin) {
+    problems.push({
+      variable: 'PLATFORM_CONSOLE_ORIGIN',
+      message:
+        'PLATFORM_CONSOLE_ORIGIN is required when PLATFORM_ADMIN_JWT_SECRET is configured; the default is loopback development only',
+    });
+  }
+  if (platformConsoleOrigin) {
+    try {
+      const parsed = new URL(platformConsoleOrigin);
+      const loopback = parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1';
+      if (parsed.protocol !== 'https:' && !(parsed.protocol === 'http:' && loopback)) {
+        problems.push({
+          variable: 'PLATFORM_CONSOLE_ORIGIN',
+          message:
+            'PLATFORM_CONSOLE_ORIGIN must use https (http is accepted only for localhost/127.0.0.1)',
+        });
+      }
+      if (
+        parsed.pathname !== '/' ||
+        parsed.search ||
+        parsed.hash ||
+        parsed.username ||
+        parsed.password
+      ) {
+        problems.push({
+          variable: 'PLATFORM_CONSOLE_ORIGIN',
+          message:
+            'PLATFORM_CONSOLE_ORIGIN must be an origin, without a path, query, fragment or userinfo',
+        });
+      }
+    } catch {
+      problems.push({
+        variable: 'PLATFORM_CONSOLE_ORIGIN',
+        message: 'PLATFORM_CONSOLE_ORIGIN must be a valid http(s) origin',
+      });
+    }
+  }
+
+  const platformWebAuthnOrigin = get('PLATFORM_WEBAUTHN_ORIGIN');
+  if (platformWebAuthnOrigin) {
+    try {
+      const parsed = new URL(platformWebAuthnOrigin);
+      const loopback = parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1';
+      if (parsed.protocol !== 'https:' && !(parsed.protocol === 'http:' && loopback)) {
+        problems.push({
+          variable: 'PLATFORM_WEBAUTHN_ORIGIN',
+          message:
+            'PLATFORM_WEBAUTHN_ORIGIN must use https (http is accepted only for localhost/127.0.0.1)',
+        });
+      }
+      if (
+        parsed.pathname !== '/' ||
+        parsed.search ||
+        parsed.hash ||
+        parsed.username ||
+        parsed.password
+      ) {
+        problems.push({
+          variable: 'PLATFORM_WEBAUTHN_ORIGIN',
+          message:
+            'PLATFORM_WEBAUTHN_ORIGIN must be a bare origin without a path, query, fragment or userinfo',
+        });
+      }
+    } catch {
+      problems.push({
+        variable: 'PLATFORM_WEBAUTHN_ORIGIN',
+        message: 'PLATFORM_WEBAUTHN_ORIGIN must be a valid http(s) origin',
+      });
+    }
+  }
+
   const jwtExpiresIn = get('JWT_EXPIRES_IN');
   if (jwtSecret && jwtExpiresIn) {
     try {

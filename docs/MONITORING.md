@@ -45,6 +45,48 @@ credential and it changes on restart. It is how a stale process on the same port
 error messages, integration configuration and credentials. Findings stay in the logs, behind the
 hosting account.
 
+## 1b. The Platform Operations console
+
+The owner/support console is served by the API at **`/platform`** (the repository also keeps the
+standalone `npm run platform-console` listener for isolated development). It is a static shell only;
+every panel reads `/api/platform/*`, which requires a separate platform administrator session and
+capability. A tenant login, tenant token or business role cannot open it. The shell has a strict CSP
+with `connect-src 'self'`; the session is an HttpOnly, Secure, SameSite=Strict cookie scoped to
+`/api/platform`, and each request carries a double-submit CSRF header. Cookie requests are accepted
+only from the configured console origin, except a same-origin GET, which browsers send without
+`Origin`; that case additionally requires `X-Platform-Console: 1` and `Sec-Fetch-Site: same-origin`.
+
+The console groups its read-only and operational views as follows:
+
+| View | Source | Operator use |
+| --- | --- | --- |
+| Overview | `GET /api/platform/operations?days=7` | Business/account counts, AI volume and success, open tickets, 5xx and provider-reported AI cost |
+| Live status | `GET /api/platform/status` | Health-only process/build view; available to `platform.health.read` |
+| Infrastructure & API | operations + `/status` | Process uptime/RSS/CPU, MongoDB state and `dbStats`, configured integrations and explicit unavailable sources |
+| AI operations | operations | Model, outcome, token, latency and cost breakdowns from `ai_turn_metrics`; no prompt or answer body |
+| Database & storage | operations | Read-only database size/collection/object counts; no Atlas cluster or backup telemetry |
+| Mobile / Jobs | operations | Honest unavailable panels; the app reports no crash/install telemetry and there is no durable job store |
+| Businesses / Inventory | operations | Cross-tenant counts and movement aggregates only; no tenant selector, names, emails or product ids |
+| Support center | `/api/platform/tickets` | Internal ticket create, queue, status workflow, assignment and notes; tickets deliberately contain no tenant or member data |
+| Errors & incidents | operations | Durable 5xx totals, codes, bounded route labels and recent events; no request body or raw message |
+| Security & audit | `/api/platform/audit`, lifecycle routes | Sign-in/MFA/refusal/read events; SECURITY and SUPERADMIN only for the trail |
+| Team management | `/api/platform/admins` | SUPERADMIN lifecycle: list, disable/enable, delete, remove WebAuthn key; no self-disable or last-SUPERADMIN removal |
+| Deployments & releases | `/api/platform/deployments` | Boot-observed commit/environment/Node/start history; failed builds that never boot are not observable |
+| System checks | `/api/platform/status` | Real configuration predicates and the list of sources that are unavailable |
+
+**Alerting.** The console is an investigation surface, not a pager. The external UptimeRobot and
+GitHub probes in §2 remain the automatic alert path. Alert on repeated `/api/health/ready` failure,
+two or more new `5xx` responses, a missing production posture, or a failed platform login/MFA burst
+that the audit trail records. The process-local counters reset on restart; durable `ops_error_events`
+survive a restart and are what the overview's 5xx counts use for the selected window.
+
+**Limits.** The console cannot show host CPU/memory pressure, Atlas cluster metrics, backup status,
+mobile crash/install telemetry or background-job health because those sources are not available to
+this service. Those panels say so. AI cost is provider-reported only and unknown charges are not
+estimated. Deployment history begins when the console is enabled; a failed build before process boot
+is absent by design. See [`PLATFORM_PRODUCTION_READINESS.md`](PLATFORM_PRODUCTION_READINESS.md) for
+the edge, credential and residual-risk gates.
+
 ---
 
 ## 2. What to alert on
@@ -223,6 +265,64 @@ The full field reference is Guide 16 §10. The route's implementation and tests 
 `server/src/services/ai/aiMetrics.service.ts`, `server/src/models/aiTurnMetric.model.ts` and
 `server/test/AI102-ai-metrics.test.mjs`.
 
+### The Platform Operations report
+
+`GET /api/platform/operations?days=7` is the INTERNAL operator report for the Inventory AI owner,
+support team and developers. It is a separate identity plane: a `PlatformAdmin` session with
+`platform.metrics.read`, never a business OWNER/ADMIN token and never a tenant role. `days` is `1`–`30`;
+the report is cross-tenant by construction and has no `businessId` parameter; the response is
+`Cache-Control: no-store`. It returns aggregate counts only — no business name, member name, email,
+user id, feedback note or answer.
+
+Two durable collections feed it:
+
+| Collection | One row means | Deliberately absent | Retention |
+| --- | --- | --- | --- |
+| `ops_error_events` | one 5xx response | message, stack, body, query, header, token, user id | 90 days, TTL |
+| `ops_feature_usage` | one member used one feature on one UTC day | path, method, request id, resource id, IP, account name | 90 days, TTL |
+
+The feature row is written after the response finishes; it never delays a request. Both collections
+are removed with their tenant. A 5xx that happens while MongoDB is unreachable cannot be written to
+MongoDB — the log line is still emitted, and durable rows resume when the database is reachable. The
+feature key `operations` was removed with the tenant screen; `/api/ai/metrics` counts as `ai`.
+
+### The dedicated console and its audit trail
+
+The console is a separate static listener (`cd server && npm run platform-console`), loopback on
+`http://localhost:4100` by default. It holds no database credential and proxies no API call. It uses
+an HttpOnly `platform_session` cookie plus a readable `platform_csrf` cookie; every cookie request
+must come from the exact `PLATFORM_CONSOLE_ORIGIN` and carry a matching `X-Platform-CSRF` header.
+The CSP allows only same-origin scripts/styles and the configured API origin. Production requires
+HTTPS and an explicitly set console/API/WebAuthn origin.
+
+Login is password + mandatory TOTP (or a registered WebAuthn key). A password alone never creates a
+session. The TOTP secret and WebAuthn public keys are encrypted with `PLATFORM_MFA_ENCRYPTION_KEY`;
+a missing key makes platform login answer `503 PLATFORM_MFA_NOT_CONFIGURED` before the password is
+checked. The first login enrolls TOTP; the secret is shown once. A code is single-use.
+
+`platform_audit_events` records who signed in, who was refused, who read the operations report, who
+read the audit trail, MFA/WebAuthn changes, renewal and logout. It has **no TTL**, and its Mongoose
+model refuses update/replace/delete/save-existing operations. Only SECURITY and SUPERADMIN hold
+`platform.audit.read`; SUPPORT and READ_ONLY are refused and the refusal is itself recorded. The
+console shows the audit tab only when the signed-in role holds that capability.
+
+**The model guard is not a database permission.** An operator with raw database access can still
+alter rows. Grant the application a role that cannot drop the collection, and export/retain the
+trail per the owner's retention decision. Back up the database per the existing restore guide.
+
+**Browser WebAuthn proof.** `cd server && npm run test:webauthn-e2e` starts the API and console,
+launches the installed Chrome/Edge headless with a CDP virtual authenticator, creates a disposable
+SUPERADMIN in the test database, and drives the real console through TOTP enrollment, security-key
+registration and security-key sign-in. It then replays the exact successful assertion and submits a
+tampered signature, requiring both to be refused and the tampered attempt to leave no session. It
+refuses to run without a browser and is deliberately **not** part of `npm test`; it needs MongoDB,
+the normal test environment and unused ports 4400/4100/9333 (all configurable). The administrator,
+its sessions and its audit rows are removed afterwards, and the run fails if any remain. The CI
+`webauthn-e2e` job runs the same command with headless Chrome and a disposable MongoDB; the manual
+command remains the fallback when a runner cannot provide a browser. A successful login redirect
+alone would not be evidence: the script waits for the dashboard, inspects the returned assertion,
+and asserts the replay and tamper status codes.
+
 ---
 
 ## 4. Daily and weekly checks
@@ -241,6 +341,26 @@ curl -fsS https://<host>/api/health
 #    Never paste the token into a shell history you do not control.
 curl -fsS -H "Authorization: Bearer $INVENTORY_TOKEN" \
   "https://<host>/api/ai/metrics?days=7"
+
+# 4. The INTERNAL platform report. Password login returns only an MFA
+#    challenge; complete it with the enrolled TOTP code (or use the console).
+#    Keep the credential, challenge and token in a local secret store, never
+#    in shell history. The sequence is:
+#      POST /api/platform/auth/login            -> mfaToken
+#      POST /api/platform/auth/mfa/verify       -> access token
+#      GET  /api/platform/operations?days=7
+#    The console at http://localhost:4100 performs this flow with an HttpOnly
+#    cookie and is the supported operator path.
+curl -fsS -X POST -H 'content-type: application/json' \
+  -d '{"email":"<platform-admin>","password":"<from-secret-store>"}' \
+  "https://<host>/api/platform/auth/login"
+curl -fsS -X POST -H 'content-type: application/json' \
+  -d '{"mfaToken":"<from-login>","code":"<six-digit>"}' \
+  "https://<host>/api/platform/auth/mfa/verify"
+curl -fsS -H "Authorization: Bearer $PLATFORM_TOKEN" \
+  "https://<host>/api/platform/operations?days=7"
+curl -fsS -H "Authorization: Bearer $PLATFORM_TOKEN" \
+  "https://<host>/api/platform/audit?limit=50"
 ```
 
 Weekly, compare the newest `AI configuration` boot line with what the deployment is supposed to
@@ -298,14 +418,27 @@ grep "AI turn" <log> | grep -oE "model=[^ ]+ tier=[^ ]+" | sort | uniq -c
   counters as cluster-wide.
 - **The metrics endpoint is per business and per UTC day.** It is not a billing export, and it does
   not see provider calls that never completed a turn.
+- **The platform report is cross-tenant and aggregate-only.** `ops_error_events` covers 5xx
+  responses, not 4xx refusals; `ops_feature_usage` is presence, not a request count. Neither claims
+  to be a full activity log. A 5xx before authentication has no business id: it is counted in the
+  platform total but not as an affected tenant. There is no tenant-detail read, no feedback inbox
+  and no PII in this report; those need a separately approved support-access design.
+- **A database-down 5xx cannot be stored in that database.** The response and log still occur; the
+  durable event resumes only once MongoDB is reachable. Do not read an empty durable list as proof
+  that no database outage happened.
+- **Feature presence is eventual.** It is written after `finish`; a report requested at the same
+  instant as another request may not yet count that request's feature row.
 - **Cost is provider-reported.** Free-model turns report `$0.000000`; a missing report is `unknown`,
   never zero. The endpoint does not estimate.
 - **Log retention is the host's.** A turn's text record can disappear before the aggregate does; the
   durable row is the reason the aggregate survives.
-- **No hosted pager or dashboard.** UptimeRobot's email contact is the automatic delivery
-  channel: two five-minute checks cover readiness and the `db: connected` keyword. The Windows fallback
-  is disabled, and the GitHub workflow is a manual/fallback path. A dedicated pager or a hosted
-  dashboard is still absent; record the integration here if one is added.
+- **The console is internal and is not a hosted pager.** It is a loopback static listener by
+  default and the platform API is an operator read, not a cluster-wide counter. The console and the
+  platform audit trail are implemented and locally tested; they are **not deployed or publicly
+  exposed**. UptimeRobot's email contact remains the automatic delivery channel: two five-minute
+  checks cover readiness and the `db: connected` keyword. The Windows fallback is disabled, and the
+  GitHub workflow is a manual/fallback path. A dedicated pager or hosted dashboard is still absent;
+  record the integration here if one is added.
 - **`/api/health` is public.** It publishes a commit id, a posture name and counts. It never
   publishes a path, a tenant, a member, a duration or a message.
 
@@ -321,7 +454,17 @@ grep "AI turn" <log> | grep -oE "model=[^ ]+ tier=[^ ]+" | sort | uniq -c
 | AI turn formatters | `server/src/services/ai/aiMonitor.ts` |
 | AI metrics store and aggregate | `server/src/services/ai/aiMetrics.service.ts`, `server/src/models/aiTurnMetric.model.ts` |
 | AI metrics route | `server/src/routes/ai.routes.ts`, `server/src/controllers/ai.controller.ts` |
+| Platform auth, MFA, audit and operations routes | `server/src/routes/platform.routes.ts`, `server/src/controllers/platformAuth.controller.ts`, `platformMfa.controller.ts`, `platformAudit.controller.ts`, `platformOperations.controller.ts` |
+| Dedicated console listener and UI | `server/platform-console/server.ts`, `server/platform-console/public/` |
+| Platform identity, sessions, MFA and capabilities | `server/src/models/platformAdmin.model.ts`, `server/src/models/platformAdminSession.model.ts`, `server/src/constants/platformRoles.ts`, `server/src/config/platformJwt.ts`, `server/src/config/platformSecurity.ts` |
+| Platform audit | `server/src/models/platformAuditLog.model.ts`, `server/src/services/platformAudit.service.ts`, `server/src/constants/platformAudit.ts` |
+| TOTP/WebAuthn/vault | `server/src/services/platformMfa/`, `server/src/services/platformMfa.service.ts`, `server/src/services/platformWebAuthn.service.ts` |
+| Platform report and durable stores | `server/src/services/platformOperations.service.ts`, `server/src/services/operations.service.ts`, `server/src/models/opsErrorEvent.model.ts`, `server/src/models/opsFeatureUsage.model.ts` |
+| Platform bootstrap | `server/scripts/create-platform-admin.mjs` |
+| Operations error hook | `server/src/middlewares/errorHandler.ts` |
+| Operations feature hook | `server/src/middlewares/featureUsage.ts` |
 | Metrics DB tests | `server/test/AI102-ai-metrics.test.mjs` |
+| Platform security and aggregation tests | `server/test/OPS7-platform-operations.test.mjs`, `server/test/PLAT2-platform-console.test.mjs`, `server/test/PLAT3-platform-security.test.mjs` |
 | Counters tests | `server/test/OPS2-operational-counters.test.mjs` |
 | External uptime probe | `scripts/check-production-health.mjs` |
 | External watch workflow | `.github/workflows/production-health-watch-v2.yml` |

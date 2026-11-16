@@ -5,8 +5,11 @@ import env from './config/env.ts';
 import { INSTANCE_ID, INSTANCE_ID_HEADER } from './config/instanceIdentity.ts';
 import { recordResponse } from './config/operationalCounters.ts';
 import { createCors } from './middlewares/cors.ts';
+import { isPlatformAuthConfigured } from './config/platformJwt.ts';
+import { platformConsoleOrigin } from './config/platformSecurity.ts';
 import requestId from './middlewares/requestId.ts';
 import requestLogger from './middlewares/httpLogger.ts';
+import recordFeatureUsage from './middlewares/featureUsage.ts';
 import healthRoutes from './routes/health.routes.ts';
 import { createAuthRouter } from './routes/auth.routes.ts';
 import authActionRoutes from './routes/authAction.routes.ts';
@@ -23,6 +26,8 @@ import purchaseOrderRoutes from './routes/purchase-orders.routes.ts';
 import productRoutes from './routes/products.routes.ts';
 import inventoryRoutes from './routes/inventory.routes.ts';
 import dashboardRoutes from './routes/dashboard.routes.ts';
+import platformRoutes from './routes/platform.routes.ts';
+import platformConsoleRoutes from './routes/platformConsole.routes.ts';
 import aiRoutes from './routes/ai.routes.ts';
 import auditRoutes from './routes/audit.routes.ts';
 import notFound from './middlewares/notFound.ts';
@@ -102,6 +107,12 @@ export function createApp({
     next();
   });
 
+  // OPS-8 — durable feature presence, recorded after a successful response. It is
+  // mounted before the routes so its `finish` listener is attached to every request;
+  // the authenticated `req.user` it reads is filled in by `requireAuth` inside the
+  // route, and a public or refused request records nothing.
+  app.use(recordFeatureUsage);
+
   // M4: only trust a known number of reverse-proxy hops when explicitly
   // configured (TRUST_PROXY, numeric hop count). Default 0 = trust no proxy:
   // forwarded headers are ignored, so spoofed X-Forwarded-For cannot bypass
@@ -125,7 +136,15 @@ export function createApp({
   // M3: explicit browser CORS allow-list (see middlewares/cors.ts). Native
   // mobile sends no Origin and is unaffected; browsers only get a grant for
   // allow-listed origins — never '*'.
-  app.use(createCors(corsOrigins));
+  //
+  // PLAT-2: include the dedicated console origin only when the platform plane
+  // is configured. The default is loopback; adding it to a deployment that has
+  // no platform secret would widen the CORS allow-list for a console that
+  // cannot authenticate. `createCors` grants credentials only to exact origins;
+  // the platform middleware separately requires the console Origin AND CSRF.
+  const platformCorsOrigins = isPlatformAuthConfigured() ? [platformConsoleOrigin()] : [];
+  const resolvedCorsOrigins = [...new Set([...corsOrigins, ...platformCorsOrigins])];
+  app.use(createCors(resolvedCorsOrigins));
 
   // L2: explicit JSON body-size cap. Oversized bodies are rejected with a
   // clean 413 before any route logic runs (see errorHandler bodyError mapping).
@@ -135,6 +154,12 @@ export function createApp({
   app.get('/', (req, res) => {
     res.json({ service: 'inventory-ai-server', status: 'ok' });
   });
+
+  // PLAT-6 — the INTERNAL console shell. It is public HTML because it is the
+  // sign-in page; every data request behind it still requires the dedicated
+  // platform identity and capability. Keeping it on this origin avoids a second
+  // paid service and the cross-origin cookie path entirely.
+  app.use('/platform', platformConsoleRoutes);
 
   // API routes
   app.use('/api/health', healthRoutes);
@@ -194,6 +219,12 @@ export function createApp({
   app.use('/api/products', productRoutes);
   app.use('/api/inventory', inventoryRoutes);
   app.use('/api/dashboard', dashboardRoutes);
+  // PLAT-1 — Platform Operations is a SEPARATE access plane, not a tenant route.
+  // It has its own credential store, signing secret, issuer/audience and session
+  // collection; `requirePlatformAdmin` never reads a tenant `User` or session, and
+  // `requireAuth` refuses every platform token. No customer-facing Operations
+  // route or screen exists: the rejected pre-commit tenant draft was removed.
+  app.use('/api/platform', platformRoutes);
   app.use('/api/ai', aiRoutes);
   app.use('/api/audit', auditRoutes);
 
