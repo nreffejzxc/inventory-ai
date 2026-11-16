@@ -166,11 +166,11 @@
   }
 
   function showOnly(id) {
-    ['login-view', 'mfa-view', 'enroll-view', 'dashboard-view'].forEach(function (viewId) {
+    ['login-view', 'mfa-view', 'enroll-view', 'recovery-setup-view', 'dashboard-view'].forEach(function (viewId) {
       var node = byId(viewId);
       if (viewId === id) show(node); else hide(node);
     });
-    if (id === 'login-view' || id === 'mfa-view' || id === 'enroll-view') hide(byId('topbar-session'));
+    if (id === 'login-view' || id === 'mfa-view' || id === 'enroll-view' || id === 'recovery-setup-view') hide(byId('topbar-session'));
   }
 
   function resetToLogin() {
@@ -188,6 +188,13 @@
     showError('login-error', '');
     showError('mfa-error', '');
     showError('enroll-error', '');
+    showError('recovery-setup-error', '');
+    showError('recovery-setup-continue-error', '');
+    byId('recovery-setup-password').value = '';
+    byId('recovery-setup-saved').checked = false;
+    byId('recovery-setup-form').hidden = false;
+    byId('recovery-setup-result').hidden = true;
+    byId('recovery-setup-codes').textContent = '';
     busy(byId('login-submit'), false);
     busy(byId('mfa-submit'), false);
     busy(byId('enroll-submit'), false);
@@ -240,9 +247,27 @@
     if (!state.admin) {
       throw new Error('The session response did not include a platform principal.');
     }
+    if (Number(state.admin.recoveryCodesRemaining || 0) < 1) {
+      showRecoverySetup();
+      return;
+    }
     hide(byId('topbar-session'));
     showOnly('dashboard-view');
     showDashboard();
+  }
+
+  function showRecoverySetup() {
+    hide(byId('topbar-session'));
+    showOnly('recovery-setup-view');
+    text(byId('recovery-setup-account'), state.admin ? state.admin.email : '');
+    showError('recovery-setup-error', '');
+    showError('recovery-setup-continue-error', '');
+    byId('recovery-setup-password').value = '';
+    byId('recovery-setup-saved').checked = false;
+    byId('recovery-setup-form').hidden = false;
+    byId('recovery-setup-result').hidden = true;
+    byId('recovery-setup-codes').textContent = '';
+    byId('recovery-setup-password').focus();
   }
 
   function showDashboard() {
@@ -1273,6 +1298,55 @@
     }
   }
 
+  async function generateForcedRecoveryCodes(event) {
+    event.preventDefault();
+    showError('recovery-setup-error', '');
+    var password = byId('recovery-setup-password').value;
+    var button = byId('recovery-setup-generate');
+    if (!password) {
+      showError('recovery-setup-error', 'Enter your current password to generate codes.');
+      return;
+    }
+    busy(button, true, 'Generating…');
+    try {
+      var data = await request('/auth/recovery-codes', {
+        method: 'POST',
+        body: { password: password }
+      });
+      state.admin.recoveryCodesRemaining = data.remaining;
+      byId('recovery-setup-password').value = '';
+      text(byId('recovery-setup-codes'), data.codes.join('\n'));
+      byId('recovery-setup-form').hidden = true;
+      byId('recovery-setup-result').hidden = false;
+      byId('recovery-setup-saved').checked = false;
+      text(byId('recovery-setup-copy-status'), '');
+    } catch (error) {
+      showError('recovery-setup-error', errorMessage(error));
+    } finally {
+      busy(button, false);
+    }
+  }
+
+  async function copyForcedRecoveryCodes() {
+    var status = byId('recovery-setup-copy-status');
+    try {
+      await navigator.clipboard.writeText(byId('recovery-setup-codes').textContent || '');
+      text(status, 'Copied to the clipboard. Store the codes offline.');
+    } catch {
+      text(status, 'Select the codes and copy them manually.');
+    }
+  }
+
+  function continueRecoverySetup() {
+    showError('recovery-setup-continue-error', '');
+    if (!byId('recovery-setup-saved').checked) {
+      showError('recovery-setup-continue-error', 'Confirm that you saved the codes before continuing.');
+      return;
+    }
+    showOnly('dashboard-view');
+    showDashboard();
+  }
+
   async function generateRecoveryCodes() {
     showError('recovery-error', '');
     var password = byId('recovery-password').value;
@@ -1410,6 +1484,9 @@
 
   async function login(event) {
     event.preventDefault();
+    // A new password check starts a new sign-in. Any request from the previous
+    // view can no longer clear this state with a late 401.
+    state.sessionEpoch += 1;
     showError('login-error', '');
     var submit = byId('login-submit');
     busy(submit, true, 'Checking…');
@@ -1679,6 +1756,10 @@
     byId('enroll-form').addEventListener('submit', confirmEnrollment);
     byId('enroll-back').addEventListener('click', resetToLogin);
     byId('mfa-back').addEventListener('click', resetToLogin);
+    byId('recovery-setup-form').addEventListener('submit', generateForcedRecoveryCodes);
+    byId('recovery-setup-copy').addEventListener('click', copyForcedRecoveryCodes);
+    byId('recovery-setup-continue').addEventListener('click', continueRecoverySetup);
+    byId('recovery-setup-signout').addEventListener('click', logout);
     byId('copy-secret').addEventListener('click', copySecret);
     byId('webauthn-login-button').addEventListener('click', webAuthnLogin);
     byId('webauthn-register-button').addEventListener('click', registerWebAuthn);

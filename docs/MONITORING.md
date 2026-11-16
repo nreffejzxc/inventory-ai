@@ -296,6 +296,23 @@ must come from the exact `PLATFORM_CONSOLE_ORIGIN` and carry a matching `X-Platf
 The CSP allows only same-origin scripts/styles and the configured API origin. Production requires
 HTTPS and an explicitly set console/API/WebAuthn origin.
 
+**Outer gate and forced recovery.** On the deployed same-origin console, `PLATFORM_ACCESS_KEY` puts
+an HTTP Basic gate in front of `/platform` and `/api/platform`; without it production validation
+refuses to boot. Bearer API clients use `X-Platform-Access-Key`. The key is shared outer-door
+protection, not an administrator identity. After MFA, an administrator with no unused recovery
+codes is restricted by the server to `/auth/me`, `/auth/csrf`, `/auth/recovery-codes` and
+`/auth/logout`; every other route answers `403 PLATFORM_RECOVERY_SETUP_REQUIRED` and the console
+shows the forced ceremony. The recovery codes are shown once and must be saved before continuing.
+
+**Break-glass drill.** `cd server && npm run platform-admin:break-glass` resets one administrator
+after the password, MFA factors and recovery codes are all lost. It requires
+`PLATFORM_BREAK_GLASS_CONFIRM`, `PLATFORM_BREAK_GLASS_DB` matching the resolved database, the target
+email, a password from the environment, and the production phrase
+`PLATFORM_BREAK_GLASS_PROD_CONFIRM=BREAK-GLASS-PLATFORM-ADMIN`. It clears every factor and session
+and writes `ADMIN_BREAK_GLASS_RESET`; the administrator must enroll MFA and generate codes again.
+Run the drill against a disposable administrator in the test database, never the production owner
+row.
+
 Login is password + mandatory TOTP (or a registered WebAuthn key). A password alone never creates a
 session. The TOTP secret and WebAuthn public keys are encrypted with `PLATFORM_MFA_ENCRYPTION_KEY`;
 a missing key makes platform login answer `503 PLATFORM_MFA_NOT_CONFIGURED` before the password is

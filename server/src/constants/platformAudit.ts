@@ -42,6 +42,7 @@ export const PLATFORM_AUDIT_ACTIONS = Object.freeze({
   ADMIN_LISTED: 'platform.admin.listed',
   ADMIN_STATUS_CHANGED: 'platform.admin.status_changed',
   ADMIN_DELETED: 'platform.admin.deleted',
+  ADMIN_BREAK_GLASS_RESET: 'platform.admin.break_glass_reset',
   WEBAUTHN_KEY_REMOVED: 'platform.webauthn.key_removed',
   SUPPORT_TICKET_CREATED: 'platform.support.ticket_created',
   SUPPORT_TICKET_UPDATED: 'platform.support.ticket_updated',

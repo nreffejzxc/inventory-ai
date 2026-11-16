@@ -301,6 +301,11 @@ dbSuite('PLAT-1 platform administrator access control', dbOk, () => {
       });
       assert.equal(confirm.status, 200, JSON.stringify(confirm.json));
       assert.equal(confirm.json.admin.mfaEnabled, true);
+      const codes = await api('POST', '/api/platform/auth/recovery-codes', {
+        token: confirm.json.token,
+        body: { password: PLATFORM_PASSWORD },
+      });
+      assert.equal(codes.status, 200, JSON.stringify(codes.json));
       return confirm.json.token;
     }
 

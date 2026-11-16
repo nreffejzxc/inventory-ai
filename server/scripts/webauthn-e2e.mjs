@@ -382,6 +382,16 @@ async function main() {
             if (url.includes('/api/platform/')) window.__e2eCalls.push(entry);
             const response = await __e2eFetch(input, init);
             entry.status = response.status;
+            if (url.endsWith('/auth/login')) {
+              response.clone().json().then((data) => {
+                window.__e2eLogin = {
+                  status: response.status,
+                  mfaToken: Boolean(data.mfaToken),
+                  mfaRequired: Boolean(data.mfaRequired),
+                  enrollmentRequired: Boolean(data.mfaEnrollmentRequired),
+                };
+              }).catch(() => {});
+            }
             if (
               url.includes('/api/platform/') &&
               (url.includes('/mfa/webauthn/verify') || url.includes('/mfa/webauthn/options')) &&
@@ -444,15 +454,28 @@ async function main() {
         );
       const submitLogin = async () => {
         const before = await loginCallCount();
+        await evaluate('window.__e2eLogin = null');
         await evaluate(`${byId('login-form')}.requestSubmit()`, true);
         await waitForPasswordResponse(before);
+        await waitFor(
+          'the parsed password response',
+          async () => (await evaluate('window.__e2eLogin')) || false,
+          20000,
+        );
       };
 
       await cdp.send('Page.navigate', { url: `${CONSOLE_ORIGIN}/` });
       await waitFor('the console login form', async () => shown('login-view'), 20000);
 
       const errorText = async () => {
-        for (const id of ['login-error', 'mfa-error', 'enroll-error', 'webauthn-error']) {
+        for (const id of [
+          'login-error',
+          'mfa-error',
+          'enroll-error',
+          'webauthn-error',
+          'recovery-setup-error',
+          'recovery-setup-continue-error',
+        ]) {
           const text = (await textOf(id)).trim();
           if (text) throw new Error(`${id}: ${text}`);
         }
@@ -482,7 +505,29 @@ async function main() {
       await setValue('enroll-code', generateTotp(secret, currentTotpCounter()));
       await evaluate(`${byId('enroll-form')}.requestSubmit()`, true);
       await waitFor(
-        'the dashboard after TOTP enrollment',
+        'the required recovery-code ceremony after TOTP enrollment',
+        async () => {
+          await errorText();
+          return shown('recovery-setup-view');
+        },
+        20000,
+      );
+      await setValue('recovery-setup-password', PASSWORD);
+      await evaluate(`${byId('recovery-setup-form')}.requestSubmit()`, true);
+      const recoveryCodes = await waitFor(
+        'the generated recovery codes',
+        async () => {
+          await errorText();
+          const value = (await textOf('recovery-setup-codes')).trim();
+          return value.split(/\s+/).filter(Boolean).length === 10 ? value : false;
+        },
+        20000,
+      );
+      assert(recoveryCodes.length > 0, 'recovery codes were empty');
+      await evaluate(`${byId('recovery-setup-saved')}.click()`, true);
+      await click('recovery-setup-continue');
+      await waitFor(
+        'the dashboard after saving recovery codes',
         async () => {
           await errorText();
           return shown('dashboard-view');
@@ -490,7 +535,7 @@ async function main() {
         20000,
       );
       assert((await textOf('security-mfa')).includes('enrolled'), 'TOTP was not recorded as enrolled');
-      log('TOTP enrollment completed in the browser');
+      log('TOTP enrollment and the recovery-code ceremony completed in the browser');
 
       // 2. Register the virtual authenticator through the console UI.
       await evaluate(`document.querySelector('[data-view="security"]').click()`, true);

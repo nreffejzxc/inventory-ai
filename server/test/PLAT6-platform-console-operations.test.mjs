@@ -21,6 +21,7 @@ import {
   uniqueEmail,
 } from './support.mjs';
 import { createPlatformAdminAccount } from '../src/services/platformAuth.service.ts';
+import { generateRecoveryCodesForAdmin } from '../src/services/platformRecovery.service.ts';
 import { signPlatformAccessToken } from '../src/config/platformJwt.ts';
 import { createPlatformSessionForToken } from '../src/services/platformSession.service.ts';
 import PlatformAuditLog from '../src/models/platformAuditLog.model.ts';
@@ -39,6 +40,7 @@ async function platformToken(role) {
     role,
   });
   createdAdminIds.push(String(admin._id));
+  await generateRecoveryCodesForAdmin({ adminId: String(admin._id), password: PASSWORD });
   const token = signPlatformAccessToken(admin._id, crypto.randomUUID());
   await createPlatformSessionForToken({
     adminId: admin._id,

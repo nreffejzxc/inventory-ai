@@ -74,7 +74,46 @@ export type PlatformPrincipal = {
   capabilities: readonly string[];
   mfaEnabled: boolean;
   webauthnCredentialCount: number;
+  recoveryCodesRemaining: number;
 };
+
+export const PLATFORM_RECOVERY_SETUP_REQUIRED_CODE = 'PLATFORM_RECOVERY_SETUP_REQUIRED';
+
+/**
+ * The only routes a signed-in administrator may use before recovery codes have
+ * been generated. `/auth/recovery-codes` is the ceremony itself; `/auth/me`
+ * lets the console learn why it is restricted; `/auth/logout` lets the operator
+ * leave; `/auth/csrf` supports a reload while the console is on the setup view.
+ *
+ * Everything else — reports, tickets, deployment history, team management, key
+ * registration and renewal — is refused by the server, not merely hidden by the
+ * console. The check is based on the stored row, so an old cookie cannot skip
+ * the ceremony after a deploy.
+ */
+function isRecoverySetupRoute(req: Request): boolean {
+  const pathname = new URL(req.originalUrl, 'http://platform.invalid').pathname;
+  if (req.method === 'POST') {
+    return (
+      pathname === '/api/platform/auth/recovery-codes' ||
+      pathname === '/api/platform/auth/logout'
+    );
+  }
+  if (req.method === 'GET') {
+    return (
+      pathname === '/api/platform/auth/me' ||
+      pathname === '/api/platform/auth/csrf'
+    );
+  }
+  return false;
+}
+
+function unusedRecoveryCodes(admin: {
+  recoveryCodes?: Array<{ usedAt?: Date | null }> | null;
+}): number {
+  return Array.isArray(admin.recoveryCodes)
+    ? admin.recoveryCodes.filter((code) => !code.usedAt).length
+    : 0;
+}
 
 export type PlatformRequest = Request & {
   platformAdmin?: PlatformPrincipal;
@@ -88,16 +127,15 @@ function safeEqual(left: string, right: string): boolean {
   return crypto.timingSafeEqual(a, b);
 }
 
-function hasBearerHeader(req: Request): boolean {
-  const header = req.headers.authorization;
-  return typeof header === 'string' && header.length > 0;
-}
-
 function extractToken(req: Request): { token: string; mode: 'bearer' | 'cookie' } | null {
-  if (hasBearerHeader(req)) {
-    const [scheme, token] = String(req.headers.authorization).split(' ');
-    if (scheme !== 'Bearer' || !token) return null;
-    return { token, mode: 'bearer' };
+  // Basic is the outer access gate, not a platform credential. When it is
+  // present the browser also carries the platform session cookie, so only a
+  // real `Bearer` header selects bearer transport; every other scheme falls
+  // through to the cookie path.
+  const header = req.headers.authorization;
+  if (typeof header === 'string') {
+    const match = /^Bearer\s+(.+)$/i.exec(header.trim());
+    if (match) return { token: (match[1] ?? '').trim(), mode: 'bearer' };
   }
   const cookie = readPlatformCookie(req, PLATFORM_SESSION_COOKIE);
   if (!cookie) return null;
@@ -299,6 +337,21 @@ export async function requirePlatformAdmin(
       throw error;
     }
 
+    const recoveryCodesRemaining = unusedRecoveryCodes(admin);
+    if (recoveryCodesRemaining < 1 && !isRecoverySetupRoute(req)) {
+      const error = new ApiError(
+        403,
+        'Generate and save recovery codes before using the platform console',
+        PLATFORM_RECOVERY_SETUP_REQUIRED_CODE,
+      );
+      await deny(req, error, 'recovery_setup_required', {
+        id: String(admin._id),
+        email: admin.email,
+        role: admin.role,
+      });
+      throw error;
+    }
+
     await touchPlatformSession(session);
 
     req.platformAdmin = {
@@ -312,6 +365,7 @@ export async function requirePlatformAdmin(
       webauthnCredentialCount: Array.isArray(admin.webauthnCredentials)
         ? admin.webauthnCredentials.length
         : 0,
+      recoveryCodesRemaining,
     };
     req.platformAuth = { sessionId: String(session._id), jti, mode: extracted.mode };
     return next();

@@ -105,7 +105,12 @@ async function startAndConfirmEnrollment(admin) {
     },
   });
   assert.equal(confirm.status, 200, JSON.stringify(confirm.json));
-  return { start: start.json, confirm: confirm.json };
+  const codes = await api('POST', '/api/platform/auth/recovery-codes', {
+    token: confirm.json.token,
+    body: { password: PASSWORD },
+  });
+  assert.equal(codes.status, 200, JSON.stringify(codes.json));
+  return { start: start.json, confirm: confirm.json, recoveryCodes: codes.json.codes };
 }
 
 async function loginWithTotp(admin) {
@@ -184,7 +189,7 @@ dbSuite('PLAT-5 platform lifecycle end to end', dbOk, () => {
     assert.ok(emails.includes(target.email));
     assert.ok(emails.includes(support.email));
     const targetView = listed.json.admins.find((admin) => admin.email === target.email);
-    assert.equal(targetView.recoveryCodesRemaining, 0);
+    assert.equal(targetView.recoveryCodesRemaining, 10);
     assert.deepEqual(targetView.webauthnKeys, []);
   });
 

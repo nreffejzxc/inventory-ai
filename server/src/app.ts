@@ -28,6 +28,7 @@ import inventoryRoutes from './routes/inventory.routes.ts';
 import dashboardRoutes from './routes/dashboard.routes.ts';
 import platformRoutes from './routes/platform.routes.ts';
 import platformConsoleRoutes from './routes/platformConsole.routes.ts';
+import platformAccessGate from './middlewares/platformAccessGate.ts';
 import aiRoutes from './routes/ai.routes.ts';
 import auditRoutes from './routes/audit.routes.ts';
 import notFound from './middlewares/notFound.ts';
@@ -155,11 +156,12 @@ export function createApp({
     res.json({ service: 'inventory-ai-server', status: 'ok' });
   });
 
-  // PLAT-6 — the INTERNAL console shell. It is public HTML because it is the
-  // sign-in page; every data request behind it still requires the dedicated
-  // platform identity and capability. Keeping it on this origin avoids a second
-  // paid service and the cross-origin cookie path entirely.
-  app.use('/platform', platformConsoleRoutes);
+  // PLAT-6 — the INTERNAL console shell. Every data request behind it still
+  // requires the dedicated platform identity and capability. Keeping it on this
+  // origin avoids a second paid service and the cross-origin cookie path
+  // entirely. PLAT-7 adds the outer access gate that Render's free plan cannot
+  // provide at the edge.
+  app.use('/platform', platformAccessGate, platformConsoleRoutes);
 
   // API routes
   app.use('/api/health', healthRoutes);
@@ -224,7 +226,7 @@ export function createApp({
   // collection; `requirePlatformAdmin` never reads a tenant `User` or session, and
   // `requireAuth` refuses every platform token. No customer-facing Operations
   // route or screen exists: the rejected pre-commit tenant draft was removed.
-  app.use('/api/platform', platformRoutes);
+  app.use('/api/platform', platformAccessGate, platformRoutes);
   app.use('/api/ai', aiRoutes);
   app.use('/api/audit', auditRoutes);
 

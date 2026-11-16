@@ -1171,6 +1171,25 @@ clears the budget. The lock is stored on `platform_admins`, so rotating IPs or r
 reset it. Recovery codes are generated only after re-entering the current password, are stored as
 SHA-256 digests, are shown once, and are consumed atomically; each code is single-use.
 
+**RECOVERY SETUP IS MANDATORY.** An authenticated platform administrator with no unused recovery
+codes can use only `GET /api/platform/auth/me`, `GET /api/platform/auth/csrf`,
+`POST /api/platform/auth/recovery-codes` and `POST /api/platform/auth/logout`. Every protected route
+answers `403 PLATFORM_RECOVERY_SETUP_REQUIRED` and the refusal is recorded with reason
+`recovery_setup_required`; the console shows a forced recovery-code view instead of the dashboard.
+The check is server-side and reads the stored row, so a cookie issued before a deploy cannot skip the
+ceremony. The console requires the operator to generate the codes, copy or save them, tick the saved
+confirmation and continue; a reload before generation returns to the ceremony.
+
+**BREAK-GLASS RESET.** Total loss of the password, every TOTP/WebAuthn factor and every recovery code
+is recoverable only through the guarded operator command
+`cd server && npm run platform-admin:break-glass`. It requires `PLATFORM_BREAK_GLASS_CONFIRM`,
+an explicitly named database (`PLATFORM_BREAK_GLASS_DB` must equal the resolved `MONGODB_DB_NAME`),
+the target email, a new password read from the environment, and — in production —
+`PLATFORM_BREAK_GLASS_PROD_CONFIRM`. It replaces the password hash, clears TOTP, WebAuthn keys,
+recovery codes, lockout counters and every platform session, writes an
+`ADMIN_BREAK_GLASS_RESET` audit event, and leaves the account requiring a fresh MFA enrollment and a
+new recovery-code set. It does not enable a disabled administrator and is not an HTTP route.
+
 **TWO CREDENTIAL CARRIERS.** API clients use `Authorization: Bearer <platform token>`. The dedicated
 console uses an HttpOnly `platform_session` cookie (Path `/api/platform`, `SameSite=Strict`, `Secure`
 whenever `NODE_ENV=production` or the configured console origin is HTTPS) plus a readable
@@ -1184,7 +1203,17 @@ only when the request also carries `X-Platform-Console: 1` and the browser-contr
 because a browser does not attach the header automatically. A
 cross-origin console that cannot read the API host's CSRF cookie after a reload calls
 `GET /api/platform/auth/csrf`: GET-only, exact Origin, existing session, and it issues only a fresh
-CSRF value. The console is a separate static listener (`server/platform-console/`, `npm run platform-console`) with
+CSRF value.
+
+**OUTER ACCESS GATE.** When `PLATFORM_ACCESS_KEY` is set, `/platform` and `/api/platform` are
+preceded by an HTTP Basic gate. The browser console asks for the shared access credential before the
+platform login is reachable; Bearer API clients send the same key in `X-Platform-Access-Key`, since
+`Authorization` carries their token. A missing or wrong key answers
+`401 PLATFORM_ACCESS_REQUIRED` with `WWW-Authenticate: Basic` and `Cache-Control: no-store`; CORS
+preflights pass through without credentials. The key is a shared outer-door control, not an
+administrator identity: platform password + MFA and capabilities remain the authorization boundary.
+Production validation refuses a configured platform plane without the key, and Render's free plan
+cannot provide an edge IP allowlist; the gate is the free equivalent, not network isolation. The console is a separate static listener (`server/platform-console/`, `npm run platform-console`) with
 no MongoDB connection, a strict CSP (`script-src 'self'`, `connect-src` only the API origin,
 `frame-ancestors 'none'`), no inline script or style, and no browser token storage.
 

@@ -42,8 +42,8 @@ Node.js **24** (pinned by `.nvmrc` and `engines.node`) · Express · TypeScript 
 TypeScript-first, **no build step**: the server runs its `.ts` sources through Node's native type
 stripping (`npm start` is `node src/index.ts`), so an older runtime cannot start it. `tsconfig.json`
 sets `noEmit` and `erasableSyntaxOnly`, so `tsc` is purely a checker and non-strippable syntax is a
-compile error rather than a runtime failure. `server/src` is **220** `.ts` modules (re-counted
-2026-11-17) and exactly one intentionally deferred `.js` module,
+compile error rather than a runtime failure. `server/src` is **222** `.ts` modules (re-counted
+2026-11-16) and exactly one intentionally deferred `.js` module,
 `server/src/services/entitlement.service.js`; `docs/TS-MIGRATION-MANIFEST.md` records the migration
 campaign.
 
@@ -640,6 +640,7 @@ anchor (`§27…`) in that file.
 - **§27IN** — PLAT-4 — review, CI browser proof and production gates (2026-11-16)
 - **§27IO** — PLAT-5 — administrator recovery, MFA lockout and lifecycle hardening (2026-11-16)
 - **§27IP** — PLAT-6 — the Platform Operations console in production (2026-11-16)
+- **§27IQ** — PLAT-7 — forced recovery, the free-plan outer gate and the break-glass drill (2026-11-16)
 
 ---
 

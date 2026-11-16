@@ -113,6 +113,13 @@ async function startAndConfirmEnrollment(admin, { console = false } = {}) {
     headers,
   });
   assert.equal(confirm.status, 200, JSON.stringify(confirm.json));
+  if (confirm.json.token) {
+    const codes = await api('POST', '/api/platform/auth/recovery-codes', {
+      token: confirm.json.token,
+      body: { password: PASSWORD },
+    });
+    assert.equal(codes.status, 200, JSON.stringify(codes.json));
+  }
   return { start: start.json, confirm };
 }
 
@@ -206,6 +213,7 @@ unitSuite('PLAT-2/3 audit vocabulary and cookie flags', () => {
       PLATFORM_ADMIN_JWT_SECRET: 'platform-secret-0123456789abcdef0123456789ab',
       PLATFORM_CONSOLE_ORIGIN: 'https://ops.example.com',
       PLATFORM_WEBAUTHN_ORIGIN: 'https://ops.example.com',
+      PLATFORM_ACCESS_KEY: 'outer-access-key-0123456789abcdef0123456789',
     };
     const missingMfa = validateProductionConfig(base).map((problem) => problem.variable);
     assert.ok(missingMfa.includes('PLATFORM_MFA_ENCRYPTION_KEY'));
@@ -236,6 +244,13 @@ unitSuite('PLAT-2/3 audit vocabulary and cookie flags', () => {
       PLATFORM_WEBAUTHN_ORIGIN: 'https://ops.example.com/not-a-bare-origin',
     }).map((problem) => problem.variable);
     assert.ok(webAuthnPath.includes('PLATFORM_WEBAUTHN_ORIGIN'));
+
+    const missingAccessGate = validateProductionConfig({
+      ...base,
+      PLATFORM_MFA_ENCRYPTION_KEY: 'mfa-secret-0123456789abcdef0123456789abcdef',
+      PLATFORM_ACCESS_KEY: undefined,
+    }).map((problem) => problem.variable);
+    assert.ok(missingAccessGate.includes('PLATFORM_ACCESS_KEY'));
 
     const valid = validateProductionConfig({
       ...base,
