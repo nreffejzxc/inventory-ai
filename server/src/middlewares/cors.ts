@@ -50,13 +50,11 @@ export function createCors(origins: readonly string[] = []) {
     // no grant at all, and the platform cookie is additionally Origin+CSRF gated.
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: [
-      'Content-Type',
-      'Authorization',
-      'X-Platform-CSRF',
-      'X-Platform-Console',
-      'X-Request-ID',
-    ],
+    // No fixed `allowedHeaders`: the cors package reflects the headers the
+    // browser actually requests (including X-Platform-CSRF and
+    // X-Platform-Console) for an allow-listed origin. A fixed list would send
+    // the whole list on every preflight instead of the requested subset and
+    // changed the established response contract.
     exposedHeaders: ['X-Request-ID'],
     maxAge: 600,
     optionsSuccessStatus: 204,
