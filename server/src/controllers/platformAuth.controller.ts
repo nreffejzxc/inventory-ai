@@ -335,6 +335,7 @@ export async function me(req: PlatformRequest, res: Response) {
   return res.status(200).json({
     admin: req.platformAdmin,
     transport: req.platformAuth!.mode,
+    recoverySetupRequired: req.platformAdmin!.recoveryCodesRemaining < 1,
     ...(req.platformAuth!.mode === 'cookie' ? { csrfCookieName: 'platform_csrf' } : {}),
   });
 }

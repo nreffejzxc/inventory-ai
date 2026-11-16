@@ -61,3 +61,7 @@ Desktop.ini
 
 # One-time production platform bootstrap credential. Never commit.
 .platform-admin-bootstrap.txt
+# PLAT-7 outer access key for /platform and /api/platform. Never commit.
+.platform-access-key.txt
+# One-time platform recovery codes generated during the forced ceremony. Never commit.
+.platform-recovery-codes.txt

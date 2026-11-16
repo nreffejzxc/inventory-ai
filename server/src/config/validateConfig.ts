@@ -152,6 +152,34 @@ export function validateProductionConfig(
     }
   }
 
+  // PLAT-7: Render's free plan cannot attach an inbound IP allowlist to a web
+  // service, so the application-level access gate is mandatory once the
+  // platform plane is configured. Refusing to boot without it is what stops a
+  // later deploy from quietly returning the console to public reachability.
+  // The key is a shared outer-door credential, not an administrator identity;
+  // it is deliberately long enough that guessing it is not credible.
+  const platformAccessKey = get('PLATFORM_ACCESS_KEY');
+  if (platformJwtSecret && !platformAccessKey) {
+    problems.push({
+      variable: 'PLATFORM_ACCESS_KEY',
+      message:
+        'PLATFORM_ACCESS_KEY is required when PLATFORM_ADMIN_JWT_SECRET is configured; it gates /platform and /api/platform before login',
+    });
+  }
+  if (platformAccessKey && platformAccessKey.length < 32) {
+    problems.push({
+      variable: 'PLATFORM_ACCESS_KEY',
+      message: 'PLATFORM_ACCESS_KEY must be at least 32 characters',
+    });
+  }
+  const platformAccessUser = get('PLATFORM_ACCESS_USER');
+  if (platformAccessUser && /[\s:]/u.test(platformAccessUser)) {
+    problems.push({
+      variable: 'PLATFORM_ACCESS_USER',
+      message: 'PLATFORM_ACCESS_USER must not contain whitespace or a colon',
+    });
+  }
+
   // The console origin is a browser boundary. Refuse a malformed value and, in
   // production, refuse plain HTTP unless it is explicitly loopback development.
   const platformConsoleOrigin = get('PLATFORM_CONSOLE_ORIGIN');

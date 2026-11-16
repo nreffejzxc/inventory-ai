@@ -29,6 +29,7 @@
     "backup:db": "node scripts/backup-db.mjs",
     "restore:db": "node scripts/restore-db.mjs",
     "platform-admin:create": "node scripts/create-platform-admin.mjs",
+    "platform-admin:break-glass": "node scripts/platform-break-glass.mjs",
     "platform-console": "node platform-console/server.ts",
     "test:webauthn-e2e": "node scripts/webauthn-e2e.mjs",
     "seed": "node scripts/seed.mjs",
