@@ -382,6 +382,16 @@ async function main() {
             if (url.includes('/api/platform/')) window.__e2eCalls.push(entry);
             const response = await __e2eFetch(input, init);
             entry.status = response.status;
+            if (url.endsWith('/auth/login')) {
+              response.clone().json().then((data) => {
+                window.__e2eLogin = {
+                  status: response.status,
+                  mfaToken: Boolean(data.mfaToken),
+                  mfaRequired: Boolean(data.mfaRequired),
+                  enrollmentRequired: Boolean(data.mfaEnrollmentRequired),
+                };
+              }).catch(() => {});
+            }
             if (
               url.includes('/api/platform/') &&
               (url.includes('/mfa/webauthn/verify') || url.includes('/mfa/webauthn/options')) &&
@@ -444,8 +454,14 @@ async function main() {
         );
       const submitLogin = async () => {
         const before = await loginCallCount();
+        await evaluate('window.__e2eLogin = null');
         await evaluate(`${byId('login-form')}.requestSubmit()`, true);
         await waitForPasswordResponse(before);
+        await waitFor(
+          'the parsed password response',
+          async () => (await evaluate('window.__e2eLogin')) || false,
+          20000,
+        );
       };
 
       await cdp.send('Page.navigate', { url: `${CONSOLE_ORIGIN}/` });

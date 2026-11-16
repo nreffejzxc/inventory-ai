@@ -1484,6 +1484,9 @@
 
   async function login(event) {
     event.preventDefault();
+    // A new password check starts a new sign-in. Any request from the previous
+    // view can no longer clear this state with a late 401.
+    state.sessionEpoch += 1;
     showError('login-error', '');
     var submit = byId('login-submit');
     busy(submit, true, 'Checking…');
