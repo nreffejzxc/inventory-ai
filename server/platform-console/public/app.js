@@ -25,7 +25,8 @@
     operationsAt: 0,
     assignees: [],
     selectedTicket: null,
-    loadToken: 0
+    loadToken: 0,
+    sessionEpoch: 0
   };
 
   function byId(id) { return document.getElementById(id); }
@@ -173,6 +174,7 @@
   }
 
   function resetToLogin() {
+    state.sessionEpoch += 1;
     state.csrf = '';
     state.admin = null;
     state.mfaToken = '';
@@ -199,6 +201,7 @@
 
   async function request(path, options) {
     var opts = options || {};
+    var epoch = state.sessionEpoch;
     var headers = { Accept: 'application/json', 'X-Platform-Console': '1' };
     var init = { method: opts.method || 'GET', credentials: 'include', headers: headers };
     if (opts.body !== undefined) {
@@ -216,7 +219,7 @@
       var error = new Error(data.error || ('Request failed (' + response.status + ')'));
       error.code = data.code || '';
       error.status = response.status;
-      if (response.status === 401 && opts.auth !== false && path !== '/auth/me') {
+      if (response.status === 401 && opts.auth !== false && path !== '/auth/me' && epoch === state.sessionEpoch) {
         expiredSession();
       }
       throw error;
@@ -231,6 +234,7 @@
   }
 
   function setSession(data) {
+    state.sessionEpoch += 1;
     state.csrf = data.csrfToken || '';
     state.admin = data.admin || null;
     if (!state.admin) {
@@ -418,11 +422,8 @@
     var accounts = data.platform && data.platform.accounts ? data.platform.accounts : {};
     var ai = data.ai || {};
     var issues = data.issues || {};
-    var feedback = data.feedback || {};
     var usage = data.usage || {};
     var support = data.support || {};
-    var security = data.security || {};
-    var infrastructure = data.infrastructure || {};
     renderCards(byId('overview-cards'), [
       { label: 'Businesses', value: formatNumber(businesses.total), detail: formatNumber(businesses.active) + ' active · ' + formatNumber(businesses.newInWindow) + ' new' },
       { label: 'Active members', value: formatNumber(usage.activeMembers && usage.activeMembers.inWindow), detail: formatNumber(accounts.active) + ' active accounts' },
