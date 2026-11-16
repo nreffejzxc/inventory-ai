@@ -137,7 +137,8 @@ is §27IF and merged as `e5c1c1d`. AI-115 (member ratings and the OWNER/ADMIN re
 both are implementation-tested in the working tree and pending deployment at this record. PLAT-1, the
 INTERNAL Platform Operations plane for the Inventory AI owner/support/developers, is §27IJ; OPS-8,
 the durable 5xx and feature-presence stores it reads, is §27IL; the platform-admin architecture is
-aligned with the implemented interim plane and its remaining gates in §27IK. The tenant-facing
+aligned with the implemented interim plane and its remaining gates in §27IK. PLAT-2/PLAT-3, the
+dedicated console, mandatory TOTP/WebAuthn and append-only platform audit, is §27IM. The tenant-facing
 Operations dashboard was removed before commit. The
 2026-11-15 post-deploy/triage/monitor close-out is §27IA;
 production currently serves `e5c1c1d` and the newest OTA is

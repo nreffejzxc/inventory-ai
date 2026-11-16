@@ -359,7 +359,8 @@ with what is in progress, verified or blocked — is [`docs/DEVELOPMENT_LOG.md`]
   durable 5xx/feature data behind a separate platform-administrator login and capability. It is not
   a tenant feature, not a hosted pager and not a cluster-wide counter. The dedicated console, its
   HttpOnly cookie/CSRF session, mandatory TOTP/WebAuthn and the append-only platform audit trail are
-  implemented and tested in the working tree (§27IM) but **not deployed or publicly exposed**. The OPS-2 counters are process-local and the runbook says so.
+  committed in `d02a549` with the CORS-contract fix and browser WebAuthn E2E (§27IM), but **not
+  deployed or publicly exposed**. The OPS-2 counters are process-local and the runbook says so.
 - **L-17 is closed as not applicable (2026-11-07)**: the active reset is AUTH-06's Brevo six-digit
   code, not Firebase's emailed action link. Firebase's Password Reset template remains hosted with
   no custom action URL; if that link path is reintroduced, L-17 reopens.

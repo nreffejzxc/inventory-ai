@@ -30,6 +30,7 @@
     "restore:db": "node scripts/restore-db.mjs",
     "platform-admin:create": "node scripts/create-platform-admin.mjs",
     "platform-console": "node platform-console/server.ts",
+    "test:webauthn-e2e": "node scripts/webauthn-e2e.mjs",
     "seed": "node scripts/seed.mjs",
     "seed:perf": "node scripts/seed-perf-data.mjs",
     "seed:perf-tenant": "node scripts/seed-perf-tenant.mjs",

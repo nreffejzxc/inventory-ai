@@ -1,9 +1,10 @@
 # Platform Admin — architecture and implementation
 
-**Status:** PLAT-1/PLAT-2/PLAT-3 IMPLEMENTED IN THE WORKING TREE (uncommitted, not deployed, not
-publicly exposed). The separate platform identity realm, session boundary, capability catalogue,
-dedicated console, mandatory TOTP/WebAuthn and append-only platform audit trail exist and are tested.
-Support grants, tenant-detail reads and a hosted dedicated identity project remain future gates.
+**Status:** PLAT-1/PLAT-2/PLAT-3 COMMITTED (platform checkpoint `d02a549`, plus the CORS-contract
+fix and browser E2E recorded in §27IM) AND BROWSER-VERIFIED; NOT DEPLOYED OR PUBLICLY EXPOSED. The
+separate platform identity realm, session boundary, capability catalogue, dedicated console,
+mandatory TOTP/WebAuthn and append-only platform audit trail exist and are tested. Support grants,
+tenant-detail reads and a hosted dedicated identity project remain future gates.
 
 **Date:** 2026-11-16
 

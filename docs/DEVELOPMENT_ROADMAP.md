@@ -10,7 +10,7 @@ of truth for *what actually happened*, and it is why this file is long.
 numbers are cited from `CLAUDE.md` and from source comments), or use the index: `CLAUDE.md` §7 lists
 all **245** records by the title each gives itself.
 
-**Current state:** V1 complete and in production testing. The records that answer *where are we now* are §27IJ (the INTERNAL Platform Operations plane — separate administrator identity, sessions and capabilities; tested in the working tree but not committed or deployed), §27IK (platform-admin architecture, now aligned with the implemented interim plane and its remaining gates), §27IL (the durable 5xx and feature-presence stores that report reads), §27IM (the dedicated console, mandatory TOTP/WebAuthn and append-only platform audit — implemented and tested in the working tree, not deployed), §27II (AI-117 complete feedback conversation preview, deployed `13fb3f8` and device-verified; one out-of-stock wording finding remains open), §27IH (AI-116 bounded follow-up context and answer freshness, deployed and device-verified), §27IG (AI-115 member feedback and the owner/admin review queue, deployed and device-verified), §27IF (AI-114 deterministic complete restock lists, deployed and device-verified), §27ID (the permanent assistant improvement roadmap and implementation audit; docs-only), §27IC (AI-110 contextual assistant entry and restock shortfall, deployed `7315675` and OTA-verified; the partial-restock guards completed in `1c3928b`), §27IB (scheduler proof and hosted freshness), §27IA (post-deploy phone proof, triage and monitor), §27HV (AI-99 10,256-product gate, 24/25 with one output-limit finding), §27HU (AI-99 free-first simple inventory, deployed with the 1.0.2 OTA), §27HT (AI-91/AI-92 exact product identity and per-location stock), §27HS (the AI-50–AI-84 increment register), §27HR (AI-48–AI-84 merged and deployed), §27HQ (grounded answers and scoped stock reads), §27HP (market prices from cited pages), §27HO (recorded specifications and the real seed catalogue), §27HN (inventory-only web research), §27HH (a transfer as one event to the assistant), §27HG (the stock-in link's product), §27HF (the single-location default's timing), §27HE (the stock-in link's location), §27HD (the movement fixes and the production device pass), §27HC (the assistant's local-time answers), §27FM (the V1 re-verification) and §27FJ (the two open advisories).
+**Current state:** V1 complete and in production testing. The records that answer *where are we now* are §27IJ (the INTERNAL Platform Operations plane — separate administrator identity, sessions and capabilities; committed in `d02a549`, not deployed), §27IK (platform-admin architecture, now aligned with the implemented interim plane and its remaining gates), §27IL (the durable 5xx and feature-presence stores that report reads), §27IM (the dedicated console, mandatory TOTP/WebAuthn and append-only platform audit — committed and browser-verified, not deployed), §27II (AI-117 complete feedback conversation preview, deployed `13fb3f8` and device-verified; one out-of-stock wording finding remains open), §27IH (AI-116 bounded follow-up context and answer freshness, deployed and device-verified), §27IG (AI-115 member feedback and the owner/admin review queue, deployed and device-verified), §27IF (AI-114 deterministic complete restock lists, deployed and device-verified), §27ID (the permanent assistant improvement roadmap and implementation audit; docs-only), §27IC (AI-110 contextual assistant entry and restock shortfall, deployed `7315675` and OTA-verified; the partial-restock guards completed in `1c3928b`), §27IB (scheduler proof and hosted freshness), §27IA (post-deploy phone proof, triage and monitor), §27HV (AI-99 10,256-product gate, 24/25 with one output-limit finding), §27HU (AI-99 free-first simple inventory, deployed with the 1.0.2 OTA), §27HT (AI-91/AI-92 exact product identity and per-location stock), §27HS (the AI-50–AI-84 increment register), §27HR (AI-48–AI-84 merged and deployed), §27HQ (grounded answers and scoped stock reads), §27HP (market prices from cited pages), §27HO (recorded specifications and the real seed catalogue), §27HN (inventory-only web research), §27HH (a transfer as one event to the assistant), §27HG (the stock-in link's product), §27HF (the single-location default's timing), §27HE (the stock-in link's location), §27HD (the movement fixes and the production device pass), §27HC (the assistant's local-time answers), §27FM (the V1 re-verification) and §27FJ (the two open advisories).
 
 ---
 
@@ -25873,8 +25873,9 @@ routes / 56 gated / 17 authenticated / 23 public / 0 role-gated**.
 **Not built at PLAT-1 (superseded by §27IM for the first three).** There was no operator console UI,
 no dedicated admin origin, no WebAuthn/TOTP, no platform audit log and no support grant. The interim
 credential was a local password. No deploy, OTA, device run, hosted load test or real database outage
-was exercised. §27IM closed the console, MFA and audit gates in the working tree; support grants and
-an external dedicated identity project remain open, and nothing has been deployed.
+was exercised. The checkpoint is committed as `d02a549`; §27IM closed the console, MFA and audit
+gates, committed and browser-verified. Support grants and an external dedicated identity project
+remain open, and nothing has been deployed.
 
 # 27IK. Platform-admin architecture — implemented interim plane and remaining gates (2026-11-16)
 
@@ -25885,9 +25886,10 @@ from what remains future work (dedicated identity project, mandatory WebAuthn/TO
 console, platform audit, support grants, break-glass).
 
 **Status at the time of this record.** No browser console, admin origin, MFA flow, platform audit
-collection or support-grant model existed. §27IM later implemented the console, mandatory MFA and
-append-only audit in the working tree; the support-grant model remains open. The record must not be
-described as an available customer or production console, and no public deployment has occurred.
+collection or support-grant model existed. §27IM later implemented, committed and browser-verified
+the console, mandatory MFA and append-only audit; the support-grant model remains open. The record
+must not be described as an available customer or production console, and no public deployment has
+occurred.
 
 # 27IL. OPS-8 — durable usage and error monitoring (2026-11-16)
 
@@ -25977,8 +25979,21 @@ TOTP, cookie flags, exact Origin + CSRF enforcement, Bearer exemption, audit wri
 guards, SECURITY/SUPERADMIN reads and WebAuthn challenge boundaries. `OPS7-platform-operations.test.mjs`
 passed **14/0 with two unit suites mode-skipped**, with every existing login now completing MFA.
 
-**Not verified / not claimed.** A completed WebAuthn assertion needs a real browser and
-authenticator; only options and rejection paths are automated. No external dedicated Firebase
-identity project was provisioned. No commit, deploy, OTA or public exposure was performed. Support
-grants and tenant-detail reads remain open gates.
+**Commit and follow-up verification (2026-11-16).** The platform checkpoint was committed as
+`d02a549` (62 files; no AI attribution; not pushed). The first full server run then found one
+regression: the CORS preflight answered with a fixed header list instead of reflecting the requested
+headers (`phase07c-http-security.test.mjs`). Removing the fixed `allowedHeaders` restored the
+established contract; the focused CORS suite passed 16/16 and the full suite passed **3,121/3,121**.
+A browser WebAuthn E2E (`cd server && npm run test:webauthn-e2e`, deliberately not part of `npm
+test`) then found that the console's fetch base omitted the `/api/platform` mount, so login asked
+`/auth/login` and received 404. `platform-console/public/app.js` now appends the mount, and `PLAT2`
+asserts it (9/9). The E2E launched the installed Chrome with a CDP virtual authenticator and drove
+the real console through TOTP enrollment, security-key registration and security-key login; it
+replayed the exact successful assertion (`401 PLATFORM_WEBAUTHN_INVALID`) and submitted a tampered
+assertion (refused, with `/auth/me` returning 401). The disposable administrator, its sessions and
+its audit rows were removed. Final full suite: **3,121 / 3,121, 499 suites, 0 failures, 0 skipped**.
+
+**Not verified / not claimed.** No external dedicated Firebase identity project was provisioned.
+No deploy, OTA or public exposure was performed. Support grants and tenant-detail reads remain open
+gates.
 ---

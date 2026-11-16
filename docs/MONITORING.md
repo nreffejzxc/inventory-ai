@@ -268,6 +268,17 @@ console shows the audit tab only when the signed-in role holds that capability.
 alter rows. Grant the application a role that cannot drop the collection, and export/retain the
 trail per the owner's retention decision. Back up the database per the existing restore guide.
 
+**Browser WebAuthn proof.** `cd server && npm run test:webauthn-e2e` starts the API and console,
+launches the installed Chrome/Edge headless with a CDP virtual authenticator, creates a disposable
+SUPERADMIN in the test database, and drives the real console through TOTP enrollment, security-key
+registration and security-key sign-in. It then replays the exact successful assertion and submits a
+tampered signature, requiring both to be refused and the tampered attempt to leave no session. It
+refuses to run without a browser and is deliberately **not** part of `npm test`; it needs MongoDB,
+the normal test environment and unused ports 4400/4100/9333. The administrator, its sessions and its
+audit rows are removed afterwards. A successful login redirect alone would not be evidence: the
+script waits for the dashboard, inspects the returned assertion, and asserts the replay and tamper
+status codes.
+
 ---
 
 ## 4. Daily and weekly checks
