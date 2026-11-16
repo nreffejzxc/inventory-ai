@@ -433,21 +433,23 @@ Future (not implemented): `SupportGrant`.
 
 ## 13. Rollout gates
 
-**Gate A — local API foundation (done in the working tree).**
+**Gate A — platform API foundation (deployed).**
 Separate realm, capabilities, sessions, cross-tenant aggregate, denial matrix and fail-closed
-configuration are implemented and tested. Not committed or deployed.
+configuration are implemented, tested and deployed at `56e8c27`.
 
 **Gate B — production identity (partially closed).**
 Mandatory TOTP and WebAuthn support are implemented. The external dedicated identity project is not
 provisioned. Recovery codes and a documented disable/rotate procedure are still deployment work.
 
-**Gate C — operator console (closed in the working tree).**
+**Gate C — operator console (deployed).**
 Dedicated origin, HttpOnly/Secure/SameSite session cookie, CSRF token, strict CSP, no third-party
-script, no browser token storage, and a signed-out 401 on every API.
+script, no browser token storage, and a signed-out 401 on every API. Live at `/platform` at
+`56e8c27`; the platform login remains the only edge gate until PR-03.
 
-**Gate D — platform audit (closed in the working tree).**
+**Gate D — platform audit (deployed).**
 Append-only trail for login, denial, report read, audit read, MFA/WebAuthn changes and logout, with
-bounded read access for SECURITY/SUPERADMIN.
+bounded read access for SECURITY/SUPERADMIN. Retention and raw-database least privilege remain open
+under PR-09.
 
 **Gate E — support detail (open).**
 A time-bounded, reason-bound, two-person-approved grant before any tenant-detail or

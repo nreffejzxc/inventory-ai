@@ -1277,9 +1277,10 @@ yet include that request's row. A 5xx that occurs while MongoDB itself is unreac
 written to MongoDB; the log line remains the immediate record, and durable rows resume when the
 database is reachable. This limit is stated rather than hidden.
 
-The platform plane, its dedicated console, mandatory MFA and append-only audit trail are implemented
-in the working tree but **not deployed or publicly exposed**. Support grants and tenant-detail reads
-remain future gates. The aligned design is
+The platform plane, its dedicated console, mandatory MFA and append-only audit trail are **deployed**
+at `https://ai-inventory-l1mi.onrender.com/platform` on commit `56e8c27`; this is an internal
+operator surface behind the separate platform login, not a tenant feature. Support grants and
+tenant-detail reads remain future gates. The aligned design is
 [`superpowers/specs/2026-11-16-platform-admin-architecture.md`](superpowers/specs/2026-11-16-platform-admin-architecture.md).
 
 ---
