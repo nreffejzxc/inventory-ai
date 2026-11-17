@@ -1,9 +1,12 @@
 # Platform Security — alert decision sheet and ownership
 
-**Status:** **DECISION SHEET ONLY. NO NEW SECURITY ALERT, CHANNEL OR ROTA IS LIVE.** The existing
-UptimeRobot health email remains live; this page turns the alert catalogue in
+**Status:** **DECISION SHEET ONLY. NO NEW SECURITY ALERT, CHANNEL OR ROTA IS LIVE.** The primary is
+recorded; the backup is **UNASSIGNED**, so security alerts remain inactive. The existing UptimeRobot
+health email remains live. This page turns the alert catalogue in
 [`PLATFORM_SECURITY_MONITORING_PLAN.md`](PLATFORM_SECURITY_MONITORING_PLAN.md) into a named
 accountability record. It does not create a mailbox, pager, dashboard or notification.
+
+**Contact record:** [`PLATFORM_SECURITY_CONTACTS.md`](PLATFORM_SECURITY_CONTACTS.md).
 
 **Reviewed:** 2026-11-17
 **Scope:** Platform authentication, recovery, WebAuthn, access/audit events, service health, AI cost
@@ -14,12 +17,15 @@ be switched on?”
 ## 1. The honest starting position
 
 Inventory AI currently has **one operator**. The only verified automatic channel is UptimeRobot's
-email for health/readiness. There is no security mailbox, no pager, no backup reviewer and no 24/7
-rota. This sheet does not pretend otherwise.
+email for health/readiness. The owner email is the primary platform-security channel; there is no
+dedicated security mailbox, no pager, no backup reviewer and no 24/7 rota. This sheet does not
+pretend otherwise.
 
 Therefore:
 
-- The **primary** is the account owner for every platform-security alert today.
+- The **primary is recorded** as `nreffejzxc`, the account owner, for every platform-security alert
+  today. The monitored owner email is recorded in
+  [`ACCOUNT_MIGRATION_RUNBOOK.md`](ACCOUNT_MIGRATION_RUNBOOK.md).
 - The **backup is unassigned** for every security alert. That is a stop condition for activation,
   not a role name we can invent.
 - Alert activation is split into “can be tested now” and “may be relied on operationally.” No
@@ -29,30 +35,35 @@ Therefore:
 
 ## 2. Named-owner record
 
-Complete this table before activating any security alert. A GitHub handle is not a sufficient contact;
-record a monitored address/phone and the time zone.
+The authoritative contact record is
+[`PLATFORM_SECURITY_CONTACTS.md`](PLATFORM_SECURITY_CONTACTS.md). A GitHub handle alone is not a
+sufficient contact; the monitored owner email is held in
+[`ACCOUNT_MIGRATION_RUNBOOK.md`](ACCOUNT_MIGRATION_RUNBOOK.md).
 
 | Duty | Primary name | Primary contact | Backup name | Backup contact | Time zone |
 | --- | --- | --- | --- | --- | --- |
-| Platform security (auth, recovery, WebAuthn, admin, audit) | **Account owner — name to record** | Owner-controlled security mailbox (to create) | **UNASSIGNED — activation blocked** | — | Owner's local |
-| Service/API health, deploys, 5xx, AI model health | **Account owner — name to record** | Owner-controlled mailbox + UptimeRobot | **UNASSIGNED** | — | Owner's local |
-| Edge/DNS/Access policy (only if Cloudflare Access is adopted) | **Account owner — name to record** | Owner-controlled mailbox | **UNASSIGNED** | — | Owner's local |
+| Platform security (auth, recovery, WebAuthn, admin, audit) | **`nreffejzxc` — account owner** | Owner email in `ACCOUNT_MIGRATION_RUNBOOK.md` | **UNASSIGNED — activation blocked** | — | Owner's local |
+| Service/API health, deploys, 5xx, AI model health | **`nreffejzxc` — account owner** | Owner email + UptimeRobot | **UNASSIGNED** | — | Owner's local |
+| Edge/DNS/Access policy (only if Cloudflare Access is adopted) | **`nreffejzxc` — account owner** | Owner email | **UNASSIGNED** | — | Owner's local |
 | Support ticket SLA (only when support is staffed) | **UNASSIGNED — support not staffed** | — | — | — | — |
 
 **Decision:** it is acceptable for one person to hold primary for all duties during the internal
 single-owner phase. It is **not** acceptable to claim a backup exists because a role name appears in
-a document. The backup column must contain a person's name and a tested contact path.
+a document. The backup column must contain a person's name and a tested contact path. **The primary
+is recorded; the backup is not, so no security alert is operationally covered.**
 
 ## 3. Channel decision
 
 | Priority | First notification | Durable record | Escalation if unacknowledged |
 | --- | --- | --- | --- |
-| **SEV-1** | UptimeRobot email/mobile push for health; owner security mailbox for platform security | GitHub issue with alert id, time, bounded evidence and owner | Repeat to owner phone if configured; no paid pager today |
-| **SEV-2** | Owner security mailbox; GitHub issue as fallback | GitHub issue | Re-notify after 1 hour during operating hours |
+| **SEV-1** | UptimeRobot email/mobile push for health; monitored owner email for platform security | GitHub issue with alert id, time, bounded evidence and owner | Repeat to owner phone if configured; no paid pager today |
+| **SEV-2** | Monitored owner email; GitHub issue as fallback | GitHub issue | Re-notify after 1 hour during operating hours |
 | **SEV-3** | GitHub issue or daily/weekly digest | GitHub issue/digest | Review at the next weekly triage |
 
-“Owner security mailbox” is a **required new channel**; its address must be recorded in the owner's
-secret store and this table. It is not created by this document, and no address is invented here.
+“Monitored owner email” is the address already recorded in
+[`ACCOUNT_MIGRATION_RUNBOOK.md`](ACCOUNT_MIGRATION_RUNBOOK.md). **No new mailbox or paid channel is
+required.** A separate security alias is optional and may be added later without changing this
+decision.
 
 Do not use the Platform Console itself as the pager: it depends on the same database/process it
 monitors. The console is the investigation surface; UptimeRobot/GitHub/security mailbox are the
@@ -66,17 +77,17 @@ human response.
 
 | Alert group | IDs | Primary | Backup | First channel | Acknowledge target |
 | --- | --- | --- | --- | --- | --- |
-| Password/MFA/recovery | AUTH-01, AUTH-02, AUTH-03, AUTH-04, AUTH-07 | Platform Owner | **UNASSIGNED** | Security mailbox; SEV-1 also UptimeRobot path | 15 min SEV-1 / 1 h SEV-2 |
-| WebAuthn changes/failures | AUTH-05, AUTH-06 | Platform Owner | **UNASSIGNED** | Security mailbox; key removal also GitHub issue | 15 min SEV-1 / 1 h SEV-2 |
-| Outer gate/CSRF/authorization | ACCESS-01, ACCESS-02, ACCESS-03 | Platform Owner | **UNASSIGNED** | Security mailbox + GitHub issue | 1 h |
-| Access edge/direct-origin (if adopted) | ACCESS-04, ACCESS-05 | Edge/DNS owner | **UNASSIGNED** | Security mailbox; SEV-1 immediate | 15 min |
-| Administrator/audit integrity | ADMIN-01, ADMIN-02, ADMIN-03, AUDIT-01, AUDIT-02 | Platform Owner | **UNASSIGNED** | Security mailbox + GitHub issue | 15 min SEV-1 / 1 h SEV-2 |
+| Password/MFA/recovery | AUTH-01, AUTH-02, AUTH-03, AUTH-04, AUTH-07 | Platform Owner (`nreffejzxc`) | **UNASSIGNED** | Owner email; SEV-1 also UptimeRobot path | 15 min SEV-1 / 1 h SEV-2 |
+| WebAuthn changes/failures | AUTH-05, AUTH-06 | Platform Owner (`nreffejzxc`) | **UNASSIGNED** | Owner email; key removal also GitHub issue | 15 min SEV-1 / 1 h SEV-2 |
+| Outer gate/CSRF/authorization | ACCESS-01, ACCESS-02, ACCESS-03 | Platform Owner (`nreffejzxc`) | **UNASSIGNED** | Owner email + GitHub issue | 1 h |
+| Access edge/direct-origin (if adopted) | ACCESS-04, ACCESS-05 | Edge/DNS owner (`nreffejzxc`) | **UNASSIGNED** | Owner email; SEV-1 immediate | 15 min |
+| Administrator/audit integrity | ADMIN-01, ADMIN-02, ADMIN-03, AUDIT-01, AUDIT-02 | Platform Owner (`nreffejzxc`) | **UNASSIGNED** | Owner email + GitHub issue | 15 min SEV-1 / 1 h SEV-2 |
 | Readiness | HEALTH-01 | Service Owner | **UNASSIGNED** | UptimeRobot email (live) | 15 min |
 | 5xx/posture/commit | HEALTH-02, HEALTH-03 | Service Owner | **UNASSIGNED** | UptimeRobot/GitHub issue | 1 h |
 | AI failure/latency/model | HEALTH-04, HEALTH-06 | Service Owner | **UNASSIGNED** | GitHub issue; SEV-2 mailbox if available | 1 h |
-| AI budget/paid fallback | HEALTH-05 | Platform Owner | **UNASSIGNED** | Security mailbox + GitHub issue | 15 min at 100% |
-| Backup/restore verification | DATA-01 | Platform Owner | **UNASSIGNED** | Security mailbox + GitHub issue | 15 min |
-| Support SLA | TICKET-01 | Support Lead | **UNASSIGNED** | Ticket queue + digest | Next business day |
+| AI budget/paid fallback | HEALTH-05 | Platform Owner (`nreffejzxc`) | **UNASSIGNED** | Owner email + GitHub issue | 15 min at 100% |
+| Backup/restore verification | DATA-01 | Platform Owner (`nreffejzxc`) | **UNASSIGNED** | Owner email + GitHub issue | 15 min |
+| Support SLA | TICKET-01 | Support Lead (not staffed) | **UNASSIGNED** | Ticket queue + digest | Next business day |
 
 **Operational consequence:** until each backup and channel is filled, only HEALTH-01 has a verified
 end-to-end recipient. Everything else is a planned alert, not a covered one.
@@ -107,9 +118,9 @@ sense of coverage.
 Each item is signed and dated by the Platform Owner; the backup sign-off is mandatory for security
 alerts.
 
-- [ ] Primary name, contact and time zone recorded in §2.
+- [x] Primary name, contact and time zone recorded in §2 and the contact record.
 - [ ] Backup name, contact and time zone recorded; backup has acknowledged the duty.
-- [ ] Security mailbox exists, is monitored and has its own MFA/recovery path.
+- [x] Monitored owner email is recorded; no new mailbox is required for the free baseline.
 - [ ] UptimeRobot email/mobile path is tested to the primary; health alert recovery is tested.
 - [ ] GitHub issue path is tested; labels/owner are correct.
 - [ ] Every alert has an ID, source, threshold, severity, owner, channel and runbook link.
@@ -168,8 +179,8 @@ second reviewer when one is available; if not, record the single-person risk and
 
 | Decision | Why it blocks activation | Owner | Due |
 | --- | --- | --- | --- |
-| Name the security backup | No security alert has a second responder | Owner | Before security alerts go live |
-| Create/record the security mailbox | No private first channel exists | Owner | Before SEV-2 activation |
+| Name the security backup | No security alert has a second responder; this is the only activation blocker | Owner | Before security alerts go live |
+| Confirm the owner email is monitored | The primary channel exists but must be tested; no new mailbox is required | Owner | Before SEV-2 activation |
 | Enable UptimeRobot mobile push or accept email only | SEV-1 latency is otherwise unknown | Owner | Before go-live |
 | Decide whether a paid pager is justified | No 24/7 coverage exists | Owner | Before external support |
 | Approve alert source instrumentation | Some rules have no source | Owner + Service Owner | Before activation |

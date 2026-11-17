@@ -44,6 +44,21 @@ at the end of every development session, newest entry first.
 **Goal:** finish and harden Inventory AI **V1** through production testing. No Play Store or App
 Store release is being prepared.
 
+**Security contacts, Firebase recovery and multi-criteria ranking, PLAT-10 (2026-11-17, docs-only):**
+added [`PLATFORM_SECURITY_CONTACTS.md`](PLATFORM_SECURITY_CONTACTS.md), recording `nreffejzxc` as
+primary and the backup as **UNASSIGNED**; **security alerts remain inactive** until a named backup
+accepts and a test notification succeeds. Added
+[`PLATFORM_FIREBASE_RECOVERY_DRILL_PLAN.md`](PLATFORM_FIREBASE_RECOVERY_DRILL_PLAN.md), an isolated
+free Firebase Spark/local-API/disposable-database drill with transient-vs-terminal expectations,
+recovery procedures, evidence, stop conditions and 14 acceptance tests. Added
+[`INVENTORY_AI_MULTI_CRITERIA_RANKING.md`](INVENTORY_AI_MULTI_CRITERIA_RANKING.md), an equal-weight
+seven-criterion ranking of IA-19–IA-29 plus IA-30–IA-33. No alert, mailbox, Firebase project,
+credential, database operation, deployment, domain or paid service was created; production remains
+`e218bb0`. Docs checks: **48 active documents / 26 living references**; `git diff --check` clean; the
+five focused docs suites passed **31/31**. No Firebase project, database operation, application suite
+or deployment was performed. The backup contact remains **UNASSIGNED**, so security alerts remain
+inactive.
+
 **Free-first planning package, PLAT-9 (2026-11-17, docs-only):** added the conditional Cloudflare
 Access migration plan with a zero-spend/domain gate and 18 acceptance tests
 ([`PLATFORM_CLOUDFLARE_ACCESS_IMPLEMENTATION_PLAN.md`](PLATFORM_CLOUDFLARE_ACCESS_IMPLEMENTATION_PLAN.md)),
