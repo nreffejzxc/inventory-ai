@@ -75,6 +75,8 @@ Guide 6; no rule, command or safety procedure was removed.
 | [`PLATFORM_TENANT_SECURITY_NOTIFICATIONS_PLAN.md`](PLATFORM_TENANT_SECURITY_NOTIFICATIONS_PLAN.md) | TS-01 planning only: explicit event triggers, server-resolved recipients, privacy rules, dedupe/rate limits, Brevo delivery/failure behaviour and acceptance checks |
 | [`PLATFORM_SECURITY_NOTIFICATION_CHECKLIST_PRINTING.md`](PLATFORM_SECURITY_NOTIFICATION_CHECKLIST_PRINTING.md) | Free-tool procedure for regenerating the printable checklist PDF with automatic one-page and required-field verification |
 | [`PLATFORM_RELIABILITY_DOCS_IMPROVEMENTS.md`](PLATFORM_RELIABILITY_DOCS_IMPROVEMENTS.md) | Next ranked tranche beyond TS-06/IA-45: dependency outage matrix, security review gate, notification outbox, tenant fairness budgets, config drift and command verification; recommendations only |
+| [`PLATFORM_DEPENDENCY_OUTAGE_PLAN.md`](PLATFORM_DEPENDENCY_OUTAGE_PLAN.md) | RD-01 planning only: MongoDB/Firebase/Brevo/AI outage behaviour, user-visible states, stop conditions, recovery and a free local drill with acceptance checks |
+| [`PLATFORM_NEXT_IMPROVEMENTS_BEYOND_RD06.md`](PLATFORM_NEXT_IMPROVEMENTS_BEYOND_RD06.md) | Next ranked tranche beyond RD-06: sensitive-data/log canary, remaining-write idempotency, cross-tenant route matrix, emergency switches, incident tabletop, dependency rollback and header drift; recommendations only |
 | [`PLATFORM_CONSOLE_IMPROVEMENTS.md`](PLATFORM_CONSOLE_IMPROVEMENTS.md) | Prioritized Platform Operations console improvements: forced recovery ceremony, step-up/dual control, support grants, monitoring, audit export and deployment attestation; recommendations only |
 | [`../README.md`](../README.md) | The front door: stack, layout, how to run each half, deployment |
 
@@ -115,6 +117,8 @@ Reference documents are consulted rather than read once, so they are reviewed on
 | [`PLATFORM_TENANT_SECURITY_NOTIFICATIONS_PLAN.md`](PLATFORM_TENANT_SECURITY_NOTIFICATIONS_PLAN.md) | 90 days | 2026-11-17 |
 | [`PLATFORM_SECURITY_NOTIFICATION_CHECKLIST_PRINTING.md`](PLATFORM_SECURITY_NOTIFICATION_CHECKLIST_PRINTING.md) | 90 days | 2026-11-17 |
 | [`PLATFORM_RELIABILITY_DOCS_IMPROVEMENTS.md`](PLATFORM_RELIABILITY_DOCS_IMPROVEMENTS.md) | 90 days | 2026-11-17 |
+| [`PLATFORM_DEPENDENCY_OUTAGE_PLAN.md`](PLATFORM_DEPENDENCY_OUTAGE_PLAN.md) | 90 days | 2026-11-17 |
+| [`PLATFORM_NEXT_IMPROVEMENTS_BEYOND_RD06.md`](PLATFORM_NEXT_IMPROVEMENTS_BEYOND_RD06.md) | 90 days | 2026-11-17 |
 | [`PLATFORM_CONSOLE_IMPROVEMENTS.md`](PLATFORM_CONSOLE_IMPROVEMENTS.md) | 90 days | 2026-11-16 |
 | [`../README.md`](../README.md) | 90 days | 2026-11-09 |
 

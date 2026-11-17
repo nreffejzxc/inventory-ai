@@ -19,6 +19,10 @@ replace the PDF unless the result is exactly one page with the required fields.
 No package is added to the repository. `npx` downloads `marked@18.2.1` on first use. If Chrome is not
 in a standard location, set `CHROME_PATH`. If Poppler is not on `PATH`, set `PDFTOTEXT`.
 
+The Windows path is quoted as one `cmd.exe` command, so a checkout or `TEMP` directory containing
+spaces is supported. That was exercised from a repository path and a temporary directory both
+containing spaces; the result was still exactly one page.
+
 ## Regenerate
 
 From the repository root:

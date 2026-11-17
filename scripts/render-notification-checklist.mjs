@@ -16,7 +16,7 @@
  * Usage: node scripts/render-notification-checklist.mjs
  */
 
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import {
   copyFileSync,
   existsSync,
@@ -90,10 +90,19 @@ function render() {
   try {
     const npxArgs = ['--yes', 'marked@18.2.1', '-i', SOURCE, '-o', bodyPath];
     if (process.platform === 'win32') {
-      const command = `npx --yes marked@18.2.1 -i ${SOURCE} -o ${bodyPath}`;
-      execFileSync(process.env.ComSpec || 'cmd.exe', ['/d', '/c', command], {
-        stdio: 'inherit',
-      });
+      // `npx` is a .cmd shim on Windows, so it needs cmd.exe. Pass one quoted
+      // command string through spawnSync rather than execFileSync's `shell`
+      // option: that quotes paths with spaces correctly and avoids the
+      // DEP0190 warning about unescaped args. Both paths are quoted because a
+      // checkout or TEMP directory may contain spaces.
+      const command = `npx --yes marked@18.2.1 -i "${SOURCE}" -o "${bodyPath}"`;
+      const result = spawnSync(command, { shell: true, stdio: 'inherit' });
+      if (result.error) {
+        fail(`Could not run npx: ${result.error.message}`);
+      }
+      if (result.status !== 0) {
+        fail(`npx marked failed with exit code ${result.status ?? 'unknown'}.`);
+      }
     } else {
       execFileSync(npx, npxArgs, { stdio: 'inherit' });
     }

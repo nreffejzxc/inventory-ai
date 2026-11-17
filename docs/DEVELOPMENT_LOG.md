@@ -44,6 +44,17 @@ at the end of every development session, newest entry first.
 **Goal:** finish and harden Inventory AI **V1** through production testing. No Play Store or App
 Store release is being prepared.
 
+**Checklist restoration, path-safe renderer, RD-01 plan and NX-01–NX-07, PLAT-17 (2026-11-17,
+docs/tooling only):** removed the printing instruction from the security checklist and rebuilt the
+PDF at exactly one page; made the Windows renderer quote repository and `TEMP` paths correctly, then
+proved a full run from a path containing spaces; added the MongoDB/Firebase/Brevo/AI outage matrix
+and D1–D9 local drill plan; and ranked NX-01–NX-07 beyond RD-06 (sensitive-data/log canary 27/30,
+remaining-write idempotency 26, cross-tenant route matrix 25, emergency switches 24, incident
+tabletop 23, dependency rollback 22, header drift 21). No implementation, notification, alert,
+production fault injection or paid service was created. Docs checks: **56 active documents / 34
+living references**; focused docs suites **31/31**. The two-contact evidence remains **NOT RUN /
+PENDING** and alerts remain inactive.
+
 **TS-01 plan, reproducible renderer and next improvement tranche, PLAT-16 (2026-11-17, docs/tooling
 only):** added the planning-only tenant security notification plan (explicit events, server-derived
 recipients, privacy, dedupe/rate limits, Brevo failure behaviour and acceptance checks) and
