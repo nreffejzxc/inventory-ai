@@ -44,6 +44,18 @@ at the end of every development session, newest entry first.
 **Goal:** finish and harden Inventory AI **V1** through production testing. No Play Store or App
 Store release is being prepared.
 
+**Two-contact test procedure and fourth ranking, PLAT-13 (2026-11-17, docs-only):** added the
+ten-step owner-run test procedure to
+[`PLATFORM_SECURITY_NOTIFICATION_EVIDENCE.md`](PLATFORM_SECURITY_NOTIFICATION_EVIDENCE.md): existing
+free channels only, no secrets or tenant data, both contacts must confirm receipt and Cucumber must
+acknowledge the duty, and a failed delivery stops activation. No message was sent. Added IA-42–IA-45
+(business ownership transfer 22/35, large-adjustment approval 21/35, owner activity log 21/35 and
+scheduled inventory digest 21/35) and reconciled the ranking to **27 rows** with joint ranks. No alert,
+notification, Firebase project, drill, database operation, deployment, domain or paid service was
+created; production remains `e218bb0`. Docs checks: **49 active documents / 27 living references**;
+focused docs suites **31/31**; the ranking script verified all 27 rows, score sums and joint ranks.
+The two-contact test remains **PENDING** and security alerts remain inactive.
+
 **Contact wording, joint ranks, notification evidence and third ranking, PLAT-12 (2026-11-17,
 docs-only):** corrected the contact wording to say the backup details were deliberately not copied
 into the repository, commits, issues, or pull requests, and remain in the owner's private record.
