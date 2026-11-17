@@ -271,7 +271,7 @@ Use a per-run random suffix so a stale log from an earlier run cannot produce a 
 | Reset/verification token | `canary-reset-token-<runId>` |
 | Six-digit code | a fixed test-only value such as `604213`, paired with the run id in the surrounding record |
 | Provider key | `sk-or-v1-canary-<runId>` |
-| Mongo URI | `mongodb+srv://canary:<runId>@example.invalid/db` |
+| Mongo URI | `mongodb+srv://<redacted>@example.invalid/db`, assembled at run time with a disposable local database name; no password literal is committed |
 | Tenant content | `canary-tenant-<runId>` in a product name, supplier note or feedback comment |
 
 `example.invalid` is reserved and cannot receive mail. The values are deliberately not realistic
