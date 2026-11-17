@@ -67,7 +67,11 @@ detailed, recommendations-only catalogue is
 [`PLATFORM_SECURITY_MONITORING_PLAN.md`](PLATFORM_SECURITY_MONITORING_PLAN.md). The separate
 console-improvement list is [`PLATFORM_CONSOLE_IMPROVEMENTS.md`](PLATFORM_CONSOLE_IMPROVEMENTS.md);
 the whole-product ranking is
-[`INVENTORY_AI_IMPROVEMENT_ASSESSMENT.md`](INVENTORY_AI_IMPROVEMENT_ASSESSMENT.md).
+[`INVENTORY_AI_IMPROVEMENT_ASSESSMENT.md`](INVENTORY_AI_IMPROVEMENT_ASSESSMENT.md). The
+customer-facing companion review, covering tenant notifications, access recertification, AI isolation,
+posture reporting, tenant MFA and mail-domain anti-spoofing, is
+[`PLATFORM_SECURITY_IMPROVEMENTS_BEYOND_IA45.md`](PLATFORM_SECURITY_IMPROVEMENTS_BEYOND_IA45.md);
+it does not change the SEC priorities above.
 
 ---
 
