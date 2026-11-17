@@ -832,6 +832,16 @@ export async function runAiChat({
   // AI-99 — which tools actually RAN successfully. `toolsUsed` is written before
   // executeTool, so it records an attempt; this records the read the answer may use.
   const toolsSucceeded = new Set<string>();
+  /**
+   * AI-118 — an out-of-stock follow-up reads current stock through
+   * `filterPreviousResults`, but that tool is not one of the fresh list reads named by
+   * `stockReadTools`. Without this flag the guard sees a zero-quantity answer after a
+   * successful filter, calls it an unread stock answer, re-asks twice and replaces the
+   * correct rows with the ungrounded sentence. The flag is set only for a successful
+   * filtered read whose own arguments asked for out of stock, so the low-stock and
+   * location follow-ups keep their existing path.
+   */
+  let filteredOutOfStockRead = false;
   // AI-116 — the last row-shaped read whose rows the answer can build actions from. Its
   // product IDs become the membership set for a follow-up; its timestamp and filters are
   // the footer's provenance. The output itself is never stored here.
@@ -2200,7 +2210,9 @@ export async function runAiChat({
           message,
         );
         const answeredStockWithoutRead =
-          asksForStock && !stockReadTools.some((tool) => toolsUsed.has(tool));
+          asksForStock &&
+          !stockReadTools.some((tool) => toolsUsed.has(tool)) &&
+          !filteredOutOfStockRead;
         if (
           answeredStockWithoutRead &&
           statedFigure &&
@@ -2700,6 +2712,18 @@ export async function runAiChat({
       // AI-99 — executeTool's success envelope is the only proof the read happened.
       if (name && output && typeof output === 'object' && (output as { ok?: unknown }).ok === true) {
         toolsSucceeded.add(name);
+        if (name === 'filterPreviousResults') {
+          const filtered = (output as {
+            result?: { outOfStock?: unknown; available?: unknown };
+          }).result;
+          if (
+            (toolInput as { outOfStock?: unknown } | null)?.outOfStock === true &&
+            filtered?.outOfStock === true &&
+            filtered.available !== false
+          ) {
+            filteredOutOfStockRead = true;
+          }
+        }
         const action = answerActionsForTool(name, toolInput, output);
         if (action) {
           answerActions = mergeAnswerActions(answerActions, action);
