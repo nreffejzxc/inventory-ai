@@ -44,6 +44,23 @@ at the end of every development session, newest entry first.
 **Goal:** finish and harden Inventory AI **V1** through production testing. No Play Store or App
 Store release is being prepared.
 
+**Free-first planning package, PLAT-9 (2026-11-17, docs-only):** added the conditional Cloudflare
+Access migration plan with a zero-spend/domain gate and 18 acceptance tests
+([`PLATFORM_CLOUDFLARE_ACCESS_IMPLEMENTATION_PLAN.md`](PLATFORM_CLOUDFLARE_ACCESS_IMPLEMENTATION_PLAN.md)),
+the alert-owner decision sheet with free channels and explicit "backup unassigned" activation gates
+([`PLATFORM_SECURITY_ALERT_DECISION_SHEET.md`](PLATFORM_SECURITY_ALERT_DECISION_SHEET.md)),
+the disposable-database restore drill with RPO/RTO, index-gap finding, free secret escrow and stop
+conditions ([`PLATFORM_DATABASE_RESTORE_DRILL_PLAN.md`](PLATFORM_DATABASE_RESTORE_DRILL_PLAN.md)),
+and the additive IA-19–IA-29 free-first follow-up shortlist
+([`INVENTORY_AI_FOLLOWUP_ASSESSMENT.md`](INVENTORY_AI_FOLLOWUP_ASSESSMENT.md)), with roadmap record
+§27IT and map/index links. **No code, domain, Cloudflare/Render/Atlas setting, database operation,
+deployment or paid service changed;** production remains `e218bb0`. The package defers Cloudflare
+Access unless a controlled domain already exists, uses only free alert channels and local/separate
+free restore targets, and records that the current backup is data-only (indexes/collection options
+are not captured). Docs checks: **45 active documents / 23 living references**; `git diff --check`
+clean; the five focused docs suites passed **31/31**. No database operation, application suite or
+deployment was performed.
+
 **PLAT-8 merge evidence (2026-11-17, `400cf45`):** PR #322 passed all five required checks —
 `server` (2m44s), `webauthn-e2e` (1m5s), `mobile` (1m15s), `secret-guard` (8s) and
 `attribution-guard` (9s) — and squash-merged as `400cf45`. A first PR (#321) was closed because its

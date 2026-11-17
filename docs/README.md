@@ -60,6 +60,10 @@ Guide 6; no rule, command or safety procedure was removed.
 | [`PLATFORM_ACCESS_LAYER_ASSESSMENT.md`](PLATFORM_ACCESS_LAYER_ASSESSMENT.md) | The access-layer decision brief: current gate, Cloudflare Access and Tailscale comparison, Render IP-rule cost, origin-bypass risk and the recommended pilot; planning only |
 | [`PLATFORM_SECURITY_MONITORING_PLAN.md`](PLATFORM_SECURITY_MONITORING_PLAN.md) | The proposed platform alert catalogue, starting thresholds, channels, owners, response playbooks and coverage gaps; planning only |
 | [`INVENTORY_AI_IMPROVEMENT_ASSESSMENT.md`](INVENTORY_AI_IMPROVEMENT_ASSESSMENT.md) | The whole-product ranked improvement assessment: current strengths, risk register, next-work order and the new gaps beyond the existing roadmaps |
+| [`PLATFORM_CLOUDFLARE_ACCESS_IMPLEMENTATION_PLAN.md`](PLATFORM_CLOUDFLARE_ACCESS_IMPLEMENTATION_PLAN.md) | The conditional Cloudflare Access migration plan: domain, origin JWT, WebAuthn migration, cutover, rollback and acceptance tests; free-tier/domain gate only, planning only |
+| [`PLATFORM_SECURITY_ALERT_DECISION_SHEET.md`](PLATFORM_SECURITY_ALERT_DECISION_SHEET.md) | Alert ownership, primary/backup gaps, free notification channels, instrumentation prerequisites and activation gates; planning only |
+| [`PLATFORM_DATABASE_RESTORE_DRILL_PLAN.md`](PLATFORM_DATABASE_RESTORE_DRILL_PLAN.md) | The disposable-database restore drill: RPO/RTO, safety stops, index gap, evidence and free-only secret escrow; planning only |
+| [`INVENTORY_AI_FOLLOWUP_ASSESSMENT.md`](INVENTORY_AI_FOLLOWUP_ASSESSMENT.md) | Free-first additive opportunities beyond IA-01–IA-18, with duplicate exclusions and a ranked shortlist |
 | [`PLATFORM_PRODUCTION_READINESS.md`](PLATFORM_PRODUCTION_READINESS.md) | The pre-exposure checklist for the Platform Operations console: HTTPS and domains, network isolation, credentials, cookies/CORS, MFA recovery, audit retention and database permissions, support grants, CI proof and sign-off |
 | [`PLATFORM_SECURITY_RECOMMENDATIONS.md`](PLATFORM_SECURITY_RECOMMENDATIONS.md) | Prioritized future platform security improvements, with what, why, benefit and P0–P2 ordering; recommendations only |
 | [`PLATFORM_CONSOLE_IMPROVEMENTS.md`](PLATFORM_CONSOLE_IMPROVEMENTS.md) | Prioritized Platform Operations console improvements: forced recovery ceremony, step-up/dual control, support grants, monitoring, audit export and deployment attestation; recommendations only |
@@ -87,6 +91,10 @@ Reference documents are consulted rather than read once, so they are reviewed on
 | [`PLATFORM_ACCESS_LAYER_ASSESSMENT.md`](PLATFORM_ACCESS_LAYER_ASSESSMENT.md) | 90 days | 2026-11-17 |
 | [`PLATFORM_SECURITY_MONITORING_PLAN.md`](PLATFORM_SECURITY_MONITORING_PLAN.md) | 90 days | 2026-11-17 |
 | [`INVENTORY_AI_IMPROVEMENT_ASSESSMENT.md`](INVENTORY_AI_IMPROVEMENT_ASSESSMENT.md) | 90 days | 2026-11-17 |
+| [`PLATFORM_CLOUDFLARE_ACCESS_IMPLEMENTATION_PLAN.md`](PLATFORM_CLOUDFLARE_ACCESS_IMPLEMENTATION_PLAN.md) | 90 days | 2026-11-17 |
+| [`PLATFORM_SECURITY_ALERT_DECISION_SHEET.md`](PLATFORM_SECURITY_ALERT_DECISION_SHEET.md) | 90 days | 2026-11-17 |
+| [`PLATFORM_DATABASE_RESTORE_DRILL_PLAN.md`](PLATFORM_DATABASE_RESTORE_DRILL_PLAN.md) | 90 days | 2026-11-17 |
+| [`INVENTORY_AI_FOLLOWUP_ASSESSMENT.md`](INVENTORY_AI_FOLLOWUP_ASSESSMENT.md) | 90 days | 2026-11-17 |
 | [`PLATFORM_PRODUCTION_READINESS.md`](PLATFORM_PRODUCTION_READINESS.md) | 90 days | 2026-11-16 |
 | [`PLATFORM_SECURITY_RECOMMENDATIONS.md`](PLATFORM_SECURITY_RECOMMENDATIONS.md) | 90 days | 2026-11-16 |
 | [`PLATFORM_CONSOLE_IMPROVEMENTS.md`](PLATFORM_CONSOLE_IMPROVEMENTS.md) | 90 days | 2026-11-16 |
