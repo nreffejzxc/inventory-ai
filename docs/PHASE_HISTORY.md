@@ -165,7 +165,10 @@ implementation, notification, alert, DNS change, deployment or paid service was 
 TS-01 notification plan, reproducible checklist renderer and RD-01–RD-06 review, is §27JA; no
 implementation, notification, alert, production change or paid service was made. PLAT-17, the
 checklist restoration, path-safe renderer, RD-01 drill plan and NX-01–NX-07 review, is §27JB; no
-implementation, notification, alert, production fault injection or paid service was made. The tenant-facing Operations dashboard was removed before commit. The
+implementation, notification, alert, production fault injection or paid service was made. PLAT-18, the
+RD-01 code fact-check, NX-01 sensitive-data protection design and NY-01–NY-06 review, is §27JC; no
+implementation, notification, alert, production fault injection, database operation or paid service
+was made. The tenant-facing Operations dashboard was removed before commit. The
 2026-11-15 post-deploy/triage/monitor close-out is §27IA;
 production currently serves `e218bb0` and the newest OTA is
 `9d759ee5-82c5-4fbe-afe0-3a0ea2c44f6c`. The AI-105 retry fix and the

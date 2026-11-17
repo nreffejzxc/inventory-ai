@@ -44,6 +44,25 @@ at the end of every development session, newest entry first.
 **Goal:** finish and harden Inventory AI **V1** through production testing. No Play Store or App
 Store release is being prepared.
 
+**RD-01 fact-check, NX-01 design and NY-01–NY-06, PLAT-18 (2026-11-17, docs-only):** checked the
+dependency outage matrix against the current source and focused tests. Four corrections: invitation
+delivery failure is **502 `INVITATION_MAIL_FAILED`** with the row withdrawn (disabled transport is
+**503 `INVITATION_MAIL_NOT_CONFIGURED`**); Firebase terminal rejection is **401** only on the public
+exchange/registration path and **400** on authenticated renewal, link, credentials-change, deletion
+and verification; `MAIL_UNAVAILABLE` is internal and each flow remaps or hides it; and
+`bufferTimeoutMS = 1500` is the buffering bound, not a universal deadline. The matrix now records
+provider-timeout vs turn-deadline and the authenticated-vs-public dependency order. Created the
+NX-01 design with S1–S4 classification, approved log appearances, nine code findings (the deliberate
+Firebase uid logging decision, platform-audit query/metadata, tenant-audit `Mixed` metadata, raw
+`err.message` paths, AI body-prefix heuristic, missing no-store outside `/api/auth`, no cross-sink
+canary, undocumented approved PII, support-ticket free text), C1–C14 canary and acceptance checks. Created six new
+free-first recommendations beyond NX-07: NY-01 provider data-handling attestation (26/30), NY-02
+release-artifact secret/PII scan (24), NY-03 runbook ownership/freshness (24), NY-04 TTL
+effectiveness (22), NY-05 audit tamper-evidence (20) and NY-06 external-link freshness (18). No
+implementation, notification, alert, production fault injection, database operation, deployment or
+paid service was created. Docs checks: **58 active documents / 36 living references**; focused docs
+suites **31/31**. The two-contact evidence remains **NOT RUN / PENDING** and alerts remain inactive.
+
 **Checklist restoration, path-safe renderer, RD-01 plan and NX-01–NX-07, PLAT-17 (2026-11-17,
 docs/tooling only):** removed the printing instruction from the security checklist and rebuilt the
 PDF at exactly one page; made the Windows renderer quote repository and `TEMP` paths correctly, then

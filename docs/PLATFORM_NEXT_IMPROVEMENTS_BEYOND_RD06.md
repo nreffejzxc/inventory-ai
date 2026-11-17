@@ -73,6 +73,9 @@ access path and the log/error-redaction rule. Add a local canary suite that runs
 failures and asserts that a planted token, email and uid do not appear in captured logs or HTTP
 bodies.
 
+**Design:** [`PLATFORM_SENSITIVE_DATA_PROTECTION_DESIGN.md`](PLATFORM_SENSITIVE_DATA_PROTECTION_DESIGN.md) —
+the full field map, approved appearances, concrete code findings, the C1–C14 canary and acceptance checks.
+
 **Why it matters.** The project has strong individual controls: the mail layer discards provider
 text, the AI layer uses safe error types, the mobile PII log is patched, and the docs warn about
 redaction. What is missing is one map that proves the controls agree across every path, plus a test
