@@ -26281,5 +26281,7 @@ No tenant data was read and no secret/recovery code was printed.
 30 register rows, **19 living reference documents** within cadence and 5 quota evidence records;
 `git diff --check` passed. The five focused docs suites passed **31/31** (documentation links, fact
 drift, invariant register, route inventory and section integrity). No application suite was run
-because this change is documentation only; the pull-request checks are recorded in
-[`DEVELOPMENT_LOG.md`](DEVELOPMENT_LOG.md) for this docs-only change.
+because this change is documentation only. PR #322 passed all five required checks (`server` 2m44s,
+`webauthn-e2e` 1m5s, `mobile` 1m15s, `secret-guard` 8s, `attribution-guard` 9s) and squash-merged
+as `400cf45`; a read-only `/api/health` check afterwards still reported `e218bb0`, so no deployment
+occurred. The merge evidence is also in [`DEVELOPMENT_LOG.md`](DEVELOPMENT_LOG.md).
