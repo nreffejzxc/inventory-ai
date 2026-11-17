@@ -72,6 +72,9 @@ Guide 6; no rule, command or safety procedure was removed.
 | [`PLATFORM_PRODUCTION_READINESS.md`](PLATFORM_PRODUCTION_READINESS.md) | The pre-exposure checklist for the Platform Operations console: HTTPS and domains, network isolation, credentials, cookies/CORS, MFA recovery, audit retention and database permissions, support grants, CI proof and sign-off |
 | [`PLATFORM_SECURITY_RECOMMENDATIONS.md`](PLATFORM_SECURITY_RECOMMENDATIONS.md) | Prioritized future platform security improvements, with what, why, benefit and P0–P2 ordering; recommendations only |
 | [`PLATFORM_SECURITY_IMPROVEMENTS_BEYOND_IA45.md`](PLATFORM_SECURITY_IMPROVEMENTS_BEYOND_IA45.md) | Tenant-facing security review beyond IA-45: six ranked recommendations covering security notifications, access recertification, AI isolation canary, posture scorecard, tenant MFA and mail-domain anti-spoofing; recommendations only |
+| [`PLATFORM_TENANT_SECURITY_NOTIFICATIONS_PLAN.md`](PLATFORM_TENANT_SECURITY_NOTIFICATIONS_PLAN.md) | TS-01 planning only: explicit event triggers, server-resolved recipients, privacy rules, dedupe/rate limits, Brevo delivery/failure behaviour and acceptance checks |
+| [`PLATFORM_SECURITY_NOTIFICATION_CHECKLIST_PRINTING.md`](PLATFORM_SECURITY_NOTIFICATION_CHECKLIST_PRINTING.md) | Free-tool procedure for regenerating the printable checklist PDF with automatic one-page and required-field verification |
+| [`PLATFORM_RELIABILITY_DOCS_IMPROVEMENTS.md`](PLATFORM_RELIABILITY_DOCS_IMPROVEMENTS.md) | Next ranked tranche beyond TS-06/IA-45: dependency outage matrix, security review gate, notification outbox, tenant fairness budgets, config drift and command verification; recommendations only |
 | [`PLATFORM_CONSOLE_IMPROVEMENTS.md`](PLATFORM_CONSOLE_IMPROVEMENTS.md) | Prioritized Platform Operations console improvements: forced recovery ceremony, step-up/dual control, support grants, monitoring, audit export and deployment attestation; recommendations only |
 | [`../README.md`](../README.md) | The front door: stack, layout, how to run each half, deployment |
 
@@ -109,6 +112,9 @@ Reference documents are consulted rather than read once, so they are reviewed on
 | [`PLATFORM_PRODUCTION_READINESS.md`](PLATFORM_PRODUCTION_READINESS.md) | 90 days | 2026-11-16 |
 | [`PLATFORM_SECURITY_RECOMMENDATIONS.md`](PLATFORM_SECURITY_RECOMMENDATIONS.md) | 90 days | 2026-11-16 |
 | [`PLATFORM_SECURITY_IMPROVEMENTS_BEYOND_IA45.md`](PLATFORM_SECURITY_IMPROVEMENTS_BEYOND_IA45.md) | 90 days | 2026-11-17 |
+| [`PLATFORM_TENANT_SECURITY_NOTIFICATIONS_PLAN.md`](PLATFORM_TENANT_SECURITY_NOTIFICATIONS_PLAN.md) | 90 days | 2026-11-17 |
+| [`PLATFORM_SECURITY_NOTIFICATION_CHECKLIST_PRINTING.md`](PLATFORM_SECURITY_NOTIFICATION_CHECKLIST_PRINTING.md) | 90 days | 2026-11-17 |
+| [`PLATFORM_RELIABILITY_DOCS_IMPROVEMENTS.md`](PLATFORM_RELIABILITY_DOCS_IMPROVEMENTS.md) | 90 days | 2026-11-17 |
 | [`PLATFORM_CONSOLE_IMPROVEMENTS.md`](PLATFORM_CONSOLE_IMPROVEMENTS.md) | 90 days | 2026-11-16 |
 | [`../README.md`](../README.md) | 90 days | 2026-11-09 |
 
