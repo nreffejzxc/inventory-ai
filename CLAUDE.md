@@ -281,8 +281,9 @@ The project is built in phases: one phase, one purpose, one verification record.
 | Platform Operations / PLAT-5 | Recovery codes, durable account-scoped MFA lockout, password change, administrator lifecycle and fail-closed origin/cookie hardening — §27IO |
 | Platform Operations / PLAT-6 | **LIVE internal console at `/platform` on `56e8c27`:** support tickets, deployment history, infrastructure/AI/database/mobile/jobs views, health-only status, production smoke and browser MFA sign-in — §27IP |
 | Platform Operations / PLAT-7 | **PLAT-7 deployed at `e218bb0`:** forced recovery-code ceremony, free-plan outer access gate, guarded break-glass reset, production gate/recovery proof and required `webauthn-e2e` branch check — §27IQ, §27IR |
+| Platform Operations / PLAT-8 | **Docs-only planning assessment (2026-11-17):** Cloudflare Access/Tailscale/Render access options, a platform security alert catalogue with owners and thresholds, and an 18-item whole-product ranking — §27IS; no implementation or production change |
 
-Most letter-numbered increments are roadmap records; AI-87/AI-88 are log-only and AI-91/AI-92 are in §27HT. AI-99 is in §27HU, its 10k gate is in §27HV, AI-103/OPS-3 is in §27HW, AI-84/AI-105/OPS-4 is in §27HX, and AI-106 with the reset-UX OTA is in §27HY, and the close-out is in §27HZ. The post-deploy proof, triage and scheduled monitor are in §27IA; the scheduler proof and hosted freshness are in §27IB; the contextual assistant entry and restock shortfall are in §27IC; the permanent assistant improvement roadmap and audit are in §27ID; the answer actions, complete-list navigation and deterministic stock ranking are in §27IE; the deterministic complete restock list is in §27IF; member feedback is in §27IG and follow-up context/provenance is in §27IH; the complete feedback conversation preview is in §27II; the internal Platform Operations plane is §27IJ, its architecture and remaining gates are §27IK, and the durable monitoring stores are §27IL; the dedicated console, mandatory MFA and append-only platform audit are §27IM; the fresh review, CI browser proof and production gates are §27IN; recovery codes, MFA lockout, password change and administrator lifecycle are §27IO; the deployed PLAT-6 console, support and deployment surface is §27IP; the PLAT-7 deployment, production proof and required WebAuthn check are §27IR; the index below is complete.
+Most letter-numbered increments are roadmap records; AI-87/AI-88 are log-only and AI-91/AI-92 are in §27HT. AI-99 is in §27HU, its 10k gate is in §27HV, AI-103/OPS-3 is in §27HW, AI-84/AI-105/OPS-4 is in §27HX, and AI-106 with the reset-UX OTA is in §27HY, and the close-out is in §27HZ. The post-deploy proof, triage and scheduled monitor are in §27IA; the scheduler proof and hosted freshness are in §27IB; the contextual assistant entry and restock shortfall are in §27IC; the permanent assistant improvement roadmap and audit are in §27ID; the answer actions, complete-list navigation and deterministic stock ranking are in §27IE; the deterministic complete restock list is in §27IF; member feedback is in §27IG and follow-up context/provenance is in §27IH; the complete feedback conversation preview is in §27II; the internal Platform Operations plane is §27IJ, its architecture and remaining gates are §27IK, and the durable monitoring stores are §27IL; the dedicated console, mandatory MFA and append-only platform audit are §27IM; the fresh review, CI browser proof and production gates are §27IN; recovery codes, MFA lockout, password change and administrator lifecycle are §27IO; the deployed PLAT-6 console, support and deployment surface is §27IP; the PLAT-7 deployment, production proof and required WebAuthn check are §27IR; the PLAT-8 access-layer, security-monitoring and whole-product planning assessment is §27IS; the index below is complete.
 
 ## Operational traps worth knowing
 
@@ -370,8 +371,11 @@ with what is in progress, verified or blocked — is [`docs/DEVELOPMENT_LOG.md`]
   recovery ceremony (§27IQ, §27IR); the `webauthn-e2e` job is a required `main` check. The
   pre-exposure checklist, the P0–P2 security recommendations and the console-improvement roadmap are
   `docs/PLATFORM_PRODUCTION_READINESS.md`, `docs/PLATFORM_SECURITY_RECOMMENDATIONS.md` and
-  `docs/PLATFORM_CONSOLE_IMPROVEMENTS.md`. The OPS-2 counters are process-local and the runbook
-  says so.
+  `docs/PLATFORM_CONSOLE_IMPROVEMENTS.md`. The access-layer decision brief is
+  `docs/PLATFORM_ACCESS_LAYER_ASSESSMENT.md`, the proposed alert ownership/threshold plan is
+  `docs/PLATFORM_SECURITY_MONITORING_PLAN.md`, and the whole-product ranking is
+  `docs/INVENTORY_AI_IMPROVEMENT_ASSESSMENT.md`; all three are planning only. The OPS-2 counters are
+  process-local and the runbook says so.
 - **L-17 is closed as not applicable (2026-11-07)**: the active reset is AUTH-06's Brevo six-digit
   code, not Firebase's emailed action link. Firebase's Password Reset template remains hosted with
   no custom action URL; if that link path is reintroduced, L-17 reopens.
@@ -644,6 +648,7 @@ anchor (`§27…`) in that file.
 - **§27IP** — PLAT-6 — the Platform Operations console in production (2026-11-16)
 - **§27IQ** — PLAT-7 — forced recovery, the free-plan outer gate and the break-glass drill (2026-11-16)
 - **§27IR** — PLAT-8 — PLAT-7 deployed, the production gate and recovery proof, and the required WebAuthn check (2026-11-17)
+- **§27IS** — PLAT-8 — planning assessment: access layer, security monitoring and whole-product priorities (2026-11-17)
 
 ---
 

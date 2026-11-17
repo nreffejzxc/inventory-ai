@@ -145,7 +145,9 @@ hardening with fail-closed origin and cookie checks, is §27IO. PLAT-6, the depl
 with support tickets, deployment history and production smoke, is §27IP at `56e8c27`. PLAT-7, the
 forced recovery-code ceremony, free-plan outer access gate and break-glass drill deployed at
 `e218bb0`, is §27IQ; its production gate/recovery proof and the required `webauthn-e2e` check are
-§27IR. The tenant-facing Operations dashboard was removed before commit. The
+§27IR. The PLAT-8 planning-only assessment of the access layer, security alerting and whole-product
+priorities is §27IS; it changed documentation only and did not alter production. The tenant-facing
+Operations dashboard was removed before commit. The
 2026-11-15 post-deploy/triage/monitor close-out is §27IA;
 production currently serves `e218bb0` and the newest OTA is
 `9d759ee5-82c5-4fbe-afe0-3a0ea2c44f6c`. The AI-105 retry fix and the

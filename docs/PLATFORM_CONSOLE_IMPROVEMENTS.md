@@ -9,7 +9,10 @@ The console is now live internally at `/platform` on `e218bb0`. CI-01 (forced re
 break-glass) is implemented in PLAT-7 and deployed (§27IQ, §27IR); CI-07's application-level gate is
 implemented but the edge/network-isolation half remains open. `webauthn-e2e` is now a required
 `main` check. This page is a ranked, recommendations-only roadmap: it
-does not authorize implementation, deploy or expose any new surface.
+does not authorize implementation, deploy or expose any new surface. The whole-product ranking and
+new-gap assessment is
+[`INVENTORY_AI_IMPROVEMENT_ASSESSMENT.md`](INVENTORY_AI_IMPROVEMENT_ASSESSMENT.md); it consumes this
+console-specific list and does not replace or silently promote any item here.
 
 **Reviewed:** 2026-11-17
 **Basis:** the Platform Operations records (§27IJ–§27IP), the browser E2E, the production-readiness
@@ -118,6 +121,9 @@ only after the grant boundary exists; adding it first would repeat the tenant-Op
 
 ### CI-05 — Platform security monitoring and alerting
 
+**Detail:** the proposed alert catalogue, thresholds, channels, owners and coverage gaps are in
+[`PLATFORM_SECURITY_MONITORING_PLAN.md`](PLATFORM_SECURITY_MONITORING_PLAN.md). Planning only.
+
 **Description.** Emit alertable counters for MFA lockout, repeated recovery failures, new console
 origins, destructive lifecycle actions and audit write errors; add a SECURITY view with bounded
 recent events and a tested incident procedure.
@@ -141,6 +147,9 @@ retention accident; makes the retention decision auditable.
 investigation would need; a model-level guard is not a substitute for storage permissions.
 
 ### CI-07 — Deployment-boundary attestation
+
+**Detail:** the access-layer options and the Cloudflare Access origin-bypass requirement are assessed
+in [`PLATFORM_ACCESS_LAYER_ASSESSMENT.md`](PLATFORM_ACCESS_LAYER_ASSESSMENT.md). Planning only.
 
 **Description.** Add a pre-announcement proof that checks the real HTTPS origin, HSTS/redirect,
 `Set-Cookie` flags, CORS preflight from the console origin, a signed-in read, a recovery-code

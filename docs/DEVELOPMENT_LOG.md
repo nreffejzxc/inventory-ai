@@ -44,6 +44,24 @@ at the end of every development session, newest entry first.
 **Goal:** finish and harden Inventory AI **V1** through production testing. No Play Store or App
 Store release is being prepared.
 
+**Planning assessment only, PLAT-8 (2026-11-17, docs-only):** wrote the access-layer decision brief
+([`PLATFORM_ACCESS_LAYER_ASSESSMENT.md`](PLATFORM_ACCESS_LAYER_ASSESSMENT.md)), the platform security
+alert catalogue/ownership plan ([`PLATFORM_SECURITY_MONITORING_PLAN.md`](PLATFORM_SECURITY_MONITORING_PLAN.md))
+and the 18-item whole-product ranking ([`INVENTORY_AI_IMPROVEMENT_ASSESSMENT.md`](INVENTORY_AI_IMPROVEMENT_ASSESSMENT.md)),
+with a roadmap record §27IS and links from `docs/README.md`, `CLAUDE.md`, the console/security
+roadmaps and `MONITORING.md`. **No code, configuration, deployment or production state changed;**
+production remains `e218bb0`. The access research finds Cloudflare Access is the best low-cost
+candidate but needs a custom domain and origin JWT validation, Tailscale Personal is non-commercial,
+and Render web-service IP rules need Scale ($499/month plus compute). The monitoring plan names
+thresholds and role owners but no channel is live; the outer gate remains unaudited, while CSRF
+refusals are already audited as `platform.access.denied` with a bounded reason. The
+whole-product ranking puts access, alerting, audit durability, restore/secret escrow, AI cost/model
+health and step-up/dual control first. Docs checks: `node scripts/check-docs.mjs` **41 active
+documents / 19 living references**, `git diff --check` clean, and the five focused docs suites
+passed **31/31** (links, fact drift, invariant register, route inventory, section integrity). No
+application suite was run because this is documentation only. No implementation is authorized by
+this entry.
+
 **Platform Operations recovery and outer gate live, PLAT-7 (2026-11-17, `e218bb0`):** PR #317
 squash-merged as `e218bb0` after the route-inventory parser was made middleware-aware and a
 stale-sign-in race in the WebAuthn E2E was removed. CI run `43961123024` passed all five jobs:

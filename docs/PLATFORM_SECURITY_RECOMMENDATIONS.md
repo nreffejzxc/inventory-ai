@@ -5,7 +5,7 @@ review step that produced it. Each item states what to improve, why it is necess
 benefit and its priority. The readiness gate that consumes these priorities is
 [`PLATFORM_PRODUCTION_READINESS.md`](PLATFORM_PRODUCTION_READINESS.md).
 
-**Reviewed:** 2026-11-16
+**Reviewed:** 2026-11-17
 **Basis:** the PLAT-1/PLAT-2/PLAT-3 commits (`d02a549`, `ff80b12`, `af6e3dd`, `75d7c35`), the fresh
 review (`40f2758`), the browser E2E, and the project's earlier authentication, rate-limit, audit and
 release-engineering records. No code or deployment is part of this list.
@@ -56,13 +56,18 @@ is trying to prevent:
 | SEC-11 | CI/browser proof hardening and reproducibility | **P2** |
 | SEC-12 | Periodic access review, offboarding and rotation drills | **P2** |
 
-**Implementation status (2026-11-16, PLAT-5):** SEC-02 and SEC-03 are implemented and tested;
-SEC-01 is partially implemented (one-time recovery codes and password change exist, while a forced
-first-login generation step and a rehearsed break-glass runbook remain); SEC-04 is partially
-implemented (non-loopback origins and cookie flags fail closed, while HTTPS termination and network
-isolation remain deployment controls); SEC-05 and SEC-06 remain open. The remaining items are future
-work, not claims. The separate console-improvement list is
-[`PLATFORM_CONSOLE_IMPROVEMENTS.md`](PLATFORM_CONSOLE_IMPROVEMENTS.md).
+**Implementation status (2026-11-17, after PLAT-7):** SEC-01, SEC-02 and SEC-03 are implemented and
+verified in production or the guarded CLI drill (forced recovery ceremony, one-time hashed codes,
+break-glass reset, administrator lifecycle, durable account-scoped MFA lockout). SEC-04 is partially
+implemented: non-loopback origins and cookie flags fail closed, while HTTPS termination and network
+isolation remain deployment controls. SEC-05, SEC-06, SEC-07, SEC-08, SEC-09, SEC-10 and SEC-12
+remain open; SEC-11 is partially implemented because the browser E2E is a required check but its
+reproducibility hardening is not done. SEC-09 still has no alert delivery or owned recipient; the
+detailed, recommendations-only catalogue is
+[`PLATFORM_SECURITY_MONITORING_PLAN.md`](PLATFORM_SECURITY_MONITORING_PLAN.md). The separate
+console-improvement list is [`PLATFORM_CONSOLE_IMPROVEMENTS.md`](PLATFORM_CONSOLE_IMPROVEMENTS.md);
+the whole-product ranking is
+[`INVENTORY_AI_IMPROVEMENT_ASSESSMENT.md`](INVENTORY_AI_IMPROVEMENT_ASSESSMENT.md).
 
 ---
 
@@ -214,6 +219,10 @@ cross-tenant actions deliberately harder.
 **Priority.** **P1.** Pair with SEC-06 and SEC-10.
 
 ### SEC-09 — Security-event monitoring and alerting
+
+**Detail:** [`PLATFORM_SECURITY_MONITORING_PLAN.md`](PLATFORM_SECURITY_MONITORING_PLAN.md) supplies
+the proposed alert catalogue, thresholds, channels, role owners, response playbooks and known source
+gaps. It is planning only; no alert or channel is implemented.
 
 **What to improve.** Alert on repeated platform login failures, MFA failures, capability denials,
 foreign-Origin refusals, audit reads, new WebAuthn registrations and administrator status changes.

@@ -78,7 +78,10 @@ The console groups its read-only and operational views as follows:
 **Alerting.** The console is an investigation surface, not a pager. The external UptimeRobot and
 GitHub probes in §2 remain the automatic alert path. Alert on repeated `/api/health/ready` failure,
 two or more new `5xx` responses, a missing production posture, or a failed platform login/MFA burst
-that the audit trail records. The process-local counters reset on restart; durable `ops_error_events`
+that the audit trail records. The proposed platform-specific alert catalogue, thresholds, role
+owners and response playbooks are in
+[`PLATFORM_SECURITY_MONITORING_PLAN.md`](PLATFORM_SECURITY_MONITORING_PLAN.md); they are planning
+only and are not an active pipeline. The process-local counters reset on restart; durable `ops_error_events`
 survive a restart and are what the overview's 5xx counts use for the selected window.
 
 **Limits.** The console cannot show host CPU/memory pressure, Atlas cluster metrics, backup status,
@@ -86,7 +89,9 @@ mobile crash/install telemetry or background-job health because those sources ar
 this service. Those panels say so. AI cost is provider-reported only and unknown charges are not
 estimated. Deployment history begins when the console is enabled; a failed build before process boot
 is absent by design. See [`PLATFORM_PRODUCTION_READINESS.md`](PLATFORM_PRODUCTION_READINESS.md) for
-the edge, credential and residual-risk gates.
+the edge, credential and residual-risk gates, and
+[`PLATFORM_ACCESS_LAYER_ASSESSMENT.md`](PLATFORM_ACCESS_LAYER_ASSESSMENT.md) for the access-layer
+evaluation.
 
 ---
 
