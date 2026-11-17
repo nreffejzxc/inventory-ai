@@ -475,5 +475,7 @@ purchase, subscription, trial, plan upgrade or paid API is authorized.
   its code fact-check.
 - [`PLATFORM_PRODUCTION_READINESS.md`](PLATFORM_PRODUCTION_READINESS.md) — SEC-05/PR-09 audit
   retention and database least privilege.
+- [`PLATFORM_NEXT_IMPROVEMENTS_BEYOND_NY07.md`](PLATFORM_NEXT_IMPROVEMENTS_BEYOND_NY07.md) — the
+  follow-on NZ-01–NZ-07 tranche.
 - [`MONITORING.md`](MONITORING.md) — the durable stores and their retention.
 - [`SECURITY.md`](../SECURITY.md) — how to report a vulnerability.

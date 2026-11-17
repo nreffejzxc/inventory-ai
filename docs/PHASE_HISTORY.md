@@ -168,7 +168,9 @@ checklist restoration, path-safe renderer, RD-01 drill plan and NX-01–NX-07 re
 implementation, notification, alert, production fault injection or paid service was made. PLAT-18, the
 RD-01 code fact-check, NX-01 sensitive-data protection design and NY-01–NY-06 review, is §27JC; no
 implementation, notification, alert, production fault injection, database operation or paid service
-was made. The tenant-facing Operations dashboard was removed before commit. The
+was made. PLAT-19, the NZ-01–NZ-07 roadmap beyond NY-07, is §27JD; no implementation, notification,
+alert, rollback drill, database operation, deployment or paid service was made. The tenant-facing
+Operations dashboard was removed before commit. The
 2026-11-15 post-deploy/triage/monitor close-out is §27IA;
 production currently serves `e218bb0` and the newest OTA is
 `9d759ee5-82c5-4fbe-afe0-3a0ea2c44f6c`. The AI-105 retry fix and the
