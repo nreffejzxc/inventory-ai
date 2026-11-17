@@ -31,7 +31,8 @@ evidence.”
 - The Cloudflare, alert-ownership and restore plans delivered in the previous planning package.
 
 This page does **not** re-open those decisions. It adds four candidates that are not represented by
-an existing ID, then scores the combined additive set so the owner can compare unlike work.
+an existing ID (IA-30–IA-33), scores the combined additive set, then adds four more candidates from
+the second review (IA-34–IA-37) on the same scale.
 
 | New ID | Candidate | Why it is not already covered |
 | --- | --- | --- |
@@ -65,6 +66,24 @@ Deliberately excluded as duplicates: access (`IA-01`), alert ownership (`IA-02`)
 | 14 | **IA-26** | Accessibility/localization QA | 1 | 2 | 2 | 5 | 1 | 2 | 4 | **17** | Inventory work is one-handed and often non-English; a recurring free QA pass protects the existing design/language investment. |
 | 15 | **IA-29** | Data-residency/compliance decision | 4 | 2 | 1 | 1 | 1 | 3 | 3 | **15** | A written provider/region decision prevents accidental architecture and answers a future customer question cheaply. |
 
+### 2.1 New candidates from the second review (IA-34–IA-37)
+
+These are additional to IA-19–IA-33 and were not part of the earlier ranking. They are scored on the
+same seven criteria and equal-weight scale.
+
+| New rank | ID | Candidate | Sec | Rel | Perf | UX | AI | Ops | Biz | Total | Placement if inserted |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 | **IA-34** | API contract-drift gate | 2 | 4 | 3 | 4 | 1 | 4 | 3 | **21** | Joint 4th–8th (21/35) |
+| 2 | **IA-37** | Query-plan/index regression watch | 2 | 4 | 5 | 3 | 1 | 4 | 2 | **21** | Joint 4th–8th (21/35) |
+| 3 | **IA-35** | Recovery/rotation freshness attestation | 5 | 4 | 1 | 1 | 1 | 5 | 3 | **20** | Joint 9th–12th (20/35) |
+| 4 | **IA-36** | Incident communication templates | 2 | 4 | 1 | 3 | 1 | 4 | 5 | **20** | Joint 9th–12th (20/35) |
+
+**Why these are not duplicates.** IA-34 is not the §2.6 route inventory: it compares the server's
+actual response/error contract with the mobile client's expectations. IA-35 is not the initial
+contact registration: it checks that recovery codes, key age and both contact paths stay current. IA-36
+is not ticket SLA/incident routing: it prepares the customer-facing message. IA-37 is not IA-31's API
+p95 budget: it checks database plan/index regressions directly.
+
 ### Rank groups
 
 - **Protect recovery and first use (top 6):** IA-23, IA-20, IA-25, IA-19, IA-21, IA-31. These are
@@ -72,9 +91,88 @@ Deliberately excluded as duplicates: access (`IA-01`), alert ownership (`IA-02`)
   IA-19 ahead of a pure UX item.
 - **Establish privacy and data trust (next):** IA-22, IA-32, IA-30.
 - **Operate within free limits (weekly):** IA-24, IA-33, IA-27.
+- **New 21-point band:** IA-34 (API contract) and IA-37 (query plans) join IA-19, IA-21 and IA-31;
+  the tie-break favours security/business, not novelty.
+- **New 20-point band:** IA-35 (recovery freshness) and IA-36 (incident messaging) join IA-22 and
+  IA-32; IA-35 outranks IA-22 on security, and IA-36 outranks IA-32 on business value.
 - **Later, when customers or evidence exist:** IA-28, IA-26, IA-29.
 
 ## 3. What each new idea would do
+
+### IA-34 — API contract-drift gate
+
+**Opportunity.** Keep a small, versioned snapshot of the mobile client's required request/response
+fields and error codes, and compare it with the server contract in CI. Fail or flag when a field,
+status, code or auth/tenant shape changes without a deliberate client update.
+
+**Why it matters.** The app and server are separate release surfaces. A server rename can look like a
+network error on an installed phone that cannot be updated immediately. Auth, business and role fields
+are especially costly because a mismatch can look like a sign-in or permission failure.
+
+**Benefit.** Catches a breaking contract before release, shortens incident diagnosis and protects older
+installed builds. **Risk:** a snapshot can become a second source of truth; derive it from tests or
+types and review changes rather than hand-maintaining prose.
+
+**Acceptance.** A deliberate field/status change fails or flags the check with the exact contract
+location; an additive compatible field passes; the check needs no paid service.
+
+**Free approach.** Existing tests and CI; a checked-in contract fixture; no new vendor.
+
+### IA-35 — Recovery/rotation freshness attestation
+
+**Opportunity.** A monthly, dated checklist that confirms recovery codes still exist in the offline
+store, the backup contact still receives a test, the Firebase Admin key age/ID is known, and the
+runbook links resolve. Open a GitHub issue on a miss; do not store the codes in the repository.
+
+**Why it matters.** Security controls decay silently: a code is used, a contact changes, a key ages, a
+runbook link rots. The owner is the only operator, so an untested recovery path is a single point of
+failure even when the documents are accurate.
+
+**Benefit.** Turns “we have a runbook” into evidence that it still works; catches contact/key drift
+before an incident. **Risk:** the checklist itself must not collect secrets or personal contact details.
+
+**Acceptance.** A dated attestation exists; a deliberately broken test link/contact produces a visible
+issue; no code, key or private contact value is written to the repo.
+
+**Free approach.** Existing GitHub issues, calendar reminder and local checklist; no paid service.
+
+### IA-36 — Incident communication templates
+
+**Opportunity.** Prewrite short, honest messages for an authentication outage, a verified data issue,
+planned maintenance and recovery, with placeholders only for time/scope. Keep them in the repository
+without customer data.
+
+**Why it matters.** During an incident, improvised wording can overpromise, leak detail or blame the
+wrong component. A template keeps the message consistent with the actual failure class and the
+no-fallback rule. It also gives the named backup a ready starting point.
+
+**Benefit.** Faster, calmer communication and less reputational risk; no paid status-page service
+required for the first customers. **Risk:** stale templates; review after each incident.
+
+**Acceptance.** Templates cover sign-in unavailable, data concern, maintenance and recovery; each says
+what is known, what is not, and when the next update will come; no template contains a secret or tenant
+data.
+
+**Free approach.** Repository documents and GitHub issues; no paid helpdesk or status page.
+
+### IA-37 — Query-plan/index regression watch
+
+**Opportunity.** Run `explain` on a fixed set of the most important inventory/query paths against a
+representative local fixture, record the winning plan and flag a new collection scan or a lost index.
+Keep it separate from the API p95 budget (IA-31).
+
+**Why it matters.** The existing index-integrity guard proves declarations and builds; it does not prove
+the optimizer still chooses the intended plan after a query or data-shape change. A plan regression can
+make a healthy endpoint become slow at the worst time.
+
+**Benefit.** Early warning before customer-visible latency; makes index decisions evidence-based.
+**Risk:** plans vary by data distribution and MongoDB version; pin the fixture/version and treat a
+change as a prompt to investigate, not an automatic production rollback.
+
+**Acceptance.** A known indexed query reports the intended index; a deliberately dropped index/plan
+change is detected; the check stores no tenant data and is reproducible locally.
+
+**Free approach.** Existing MongoDB/local fixtures and scripts; no paid APM.
 
 ### IA-30 — Support knowledge base and in-app help
 
@@ -154,7 +252,9 @@ improvement planning.** This ranking does not displace that sequence. Once the f
 5. **IA-31** — set the performance baseline while the system is small.
 6. **IA-22 / IA-32** — set the AI privacy rule and inventory invariants.
 7. **IA-30 / IA-24 / IA-33 / IA-27** — operate the free baseline.
-8. **IA-28 / IA-26 / IA-29** — revisit when customers, team or contracts exist.
+8. **IA-34 / IA-37** — add the contract and query-plan checks while the system is small.
+9. **IA-35 / IA-36** — make recovery freshness and incident messaging routine.
+10. **IA-28 / IA-26 / IA-29** — revisit when customers, team or contracts exist.
 
 The order is close enough that the owner may swap adjacent items when a concrete failure or customer
 need provides better evidence. It is a planning recommendation, not an authorization.

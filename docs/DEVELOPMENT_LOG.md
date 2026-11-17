@@ -44,6 +44,21 @@ at the end of every development session, newest entry first.
 **Goal:** finish and harden Inventory AI **V1** through production testing. No Play Store or App
 Store release is being prepared.
 
+**Backup contact, Firebase-plan review and second ranking, PLAT-11 (2026-11-17, docs-only):**
+recorded **Cucumber** as backup security contact/reviewer in
+[`PLATFORM_SECURITY_CONTACTS.md`](PLATFORM_SECURITY_CONTACTS.md). The actual email/phone remain only
+in the owner's private record; they are not in the repo, commit, issue or chat. **Security alerts
+remain inactive** pending Cucumber's acknowledgement and a test notification to both contacts.
+Corrected the Firebase plan's project-deletion window (30-day owner restore, then permanent), key-
+revocation cache timing, emulator statement and network-failure simulation (no host-wide
+firewall/DNS/proxy changes). Added IA-34–IA-37 to
+[`INVENTORY_AI_MULTI_CRITERIA_RANKING.md`](INVENTORY_AI_MULTI_CRITERIA_RANKING.md): API contract
+drift, recovery/rotation freshness, incident communication templates and query-plan/index watch. No
+alert, Firebase project, drill, database operation, deployment, domain or paid service was created;
+production remains `e218bb0`. Docs checks: **48 active documents / 26 living references**; `git diff
+--check` clean; focused docs suites **31/31**. Security alerts remain inactive pending the two-contact
+test.
+
 **Security contacts, Firebase recovery and multi-criteria ranking, PLAT-10 (2026-11-17, docs-only):**
 added [`PLATFORM_SECURITY_CONTACTS.md`](PLATFORM_SECURITY_CONTACTS.md), recording `nreffejzxc` as
 primary and the backup as **UNASSIGNED**; **security alerts remain inactive** until a named backup
