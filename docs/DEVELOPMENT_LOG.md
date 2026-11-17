@@ -44,6 +44,22 @@ at the end of every development session, newest entry first.
 **Goal:** finish and harden Inventory AI **V1** through production testing. No Play Store or App
 Store release is being prepared.
 
+**AI-118 inspection and NZ-01–NZ-07 roadmap, PLAT-19 (2026-11-17, docs-only):** inspected the two
+pre-existing AI-118 working-tree files without changing them. The diff adds a
+`filteredOutOfStockRead` flag in `ai.service.ts` so a successful `filterPreviousResults` read that
+explicitly asked for out-of-stock rows satisfies the grounded-stock guard, and adds Q1b to
+`phase06-ai-behavior.test.mjs`; the focused suite passed **12/12**, `tsc` exited 0, ESLint on both
+files exited 0, and `git diff --check` was clean. No AI-118 file was reset, stashed, committed or
+modified. The recommended clean-tree path remains a dedicated AI-118 branch/PR with explicit
+approval; local `main` therefore still carries those two modifications. Added
+[`PLATFORM_NEXT_IMPROVEMENTS_BEYOND_NY07.md`](PLATFORM_NEXT_IMPROVEMENTS_BEYOND_NY07.md) with
+NZ-01–NZ-07: CodeQL (25/30), dependency review (23), deploy rollback drill (22), workflow audit (22),
+Android manifest privacy (21), privacy-policy drift (19) and App Check (18). No implementation,
+notification, alert, rollback drill, database operation, deployment or paid service was performed.
+Docs checks: **59 active documents / 37 living references**; focused docs suites **31/31**;
+`git diff --check` clean. The two-contact evidence remains **NOT RUN / PENDING** and alerts remain
+inactive.
+
 **RD-01 fact-check, NX-01 design and NY-01–NY-06, PLAT-18 (2026-11-17, docs-only):** checked the
 dependency outage matrix against the current source and focused tests. Four corrections: invitation
 delivery failure is **502 `INVITATION_MAIL_FAILED`** with the row withdrawn (disabled transport is
