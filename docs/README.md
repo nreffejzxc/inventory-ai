@@ -63,6 +63,7 @@ Guide 6; no rule, command or safety procedure was removed.
 | [`PLATFORM_CLOUDFLARE_ACCESS_IMPLEMENTATION_PLAN.md`](PLATFORM_CLOUDFLARE_ACCESS_IMPLEMENTATION_PLAN.md) | The conditional Cloudflare Access migration plan: domain, origin JWT, WebAuthn migration, cutover, rollback and acceptance tests; free-tier/domain gate only, planning only |
 | [`PLATFORM_SECURITY_CONTACTS.md`](PLATFORM_SECURITY_CONTACTS.md) | The primary/backup security contact record: the owner as primary, Cucumber as named backup with private contact details, the pending test gate and review cadence; planning only |
 | [`PLATFORM_SECURITY_NOTIFICATION_EVIDENCE.md`](PLATFORM_SECURITY_NOTIFICATION_EVIDENCE.md) | The owner-run two-contact test procedure and pending evidence record: existing free channels, channel types, timestamps, tester, both delivery confirmations and acknowledgement, with no private contact details or secrets |
+| [`PLATFORM_SECURITY_NOTIFICATION_TEST_CHECKLIST.md`](PLATFORM_SECURITY_NOTIFICATION_TEST_CHECKLIST.md) | The one-page printable owner checklist for the two-contact test: both receipt timestamps, Cucumber’s written acknowledgement, evidence redaction and the final activation gate |
 | [`PLATFORM_SECURITY_ALERT_DECISION_SHEET.md`](PLATFORM_SECURITY_ALERT_DECISION_SHEET.md) | Alert ownership, primary/backup record, free notification channels, instrumentation prerequisites and activation gates; planning only |
 | [`PLATFORM_FIREBASE_RECOVERY_DRILL_PLAN.md`](PLATFORM_FIREBASE_RECOVERY_DRILL_PLAN.md) | Isolated free Firebase outage/recovery drill: transient-vs-terminal behaviour, recovery paths, evidence, stop conditions and acceptance tests; planning only |
 | [`PLATFORM_DATABASE_RESTORE_DRILL_PLAN.md`](PLATFORM_DATABASE_RESTORE_DRILL_PLAN.md) | The disposable-database restore drill: RPO/RTO, safety stops, index gap, evidence and free-only secret escrow; planning only |
@@ -98,6 +99,7 @@ Reference documents are consulted rather than read once, so they are reviewed on
 | [`PLATFORM_CLOUDFLARE_ACCESS_IMPLEMENTATION_PLAN.md`](PLATFORM_CLOUDFLARE_ACCESS_IMPLEMENTATION_PLAN.md) | 90 days | 2026-11-17 |
 | [`PLATFORM_SECURITY_CONTACTS.md`](PLATFORM_SECURITY_CONTACTS.md) | 90 days | 2026-11-17 |
 | [`PLATFORM_SECURITY_NOTIFICATION_EVIDENCE.md`](PLATFORM_SECURITY_NOTIFICATION_EVIDENCE.md) | 90 days | 2026-11-17 |
+| [`PLATFORM_SECURITY_NOTIFICATION_TEST_CHECKLIST.md`](PLATFORM_SECURITY_NOTIFICATION_TEST_CHECKLIST.md) | 90 days | 2026-11-17 |
 | [`PLATFORM_SECURITY_ALERT_DECISION_SHEET.md`](PLATFORM_SECURITY_ALERT_DECISION_SHEET.md) | 90 days | 2026-11-17 |
 | [`PLATFORM_FIREBASE_RECOVERY_DRILL_PLAN.md`](PLATFORM_FIREBASE_RECOVERY_DRILL_PLAN.md) | 90 days | 2026-11-17 |
 | [`PLATFORM_DATABASE_RESTORE_DRILL_PLAN.md`](PLATFORM_DATABASE_RESTORE_DRILL_PLAN.md) | 90 days | 2026-11-17 |
