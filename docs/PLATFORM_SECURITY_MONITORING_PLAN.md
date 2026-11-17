@@ -4,6 +4,11 @@
 and response procedure for the Platform Operations console. It does not add an alert, change a
 production setting or implement a notification channel.
 
+**Free-first constraint (2026-11-17):** use the existing UptimeRobot email, owner-controlled email
+and GitHub issues. Do **not** start a paid pager, paid chat plan or paid log-retention tier while
+Inventory AI has no paying users. The named-owner decisions and free activation gates are in
+[`PLATFORM_SECURITY_ALERT_DECISION_SHEET.md`](PLATFORM_SECURITY_ALERT_DECISION_SHEET.md).
+
 **Reviewed:** 2026-11-17
 **Scope:** `/platform`, `/api/platform`, the platform audit trail, the API health/error signals and the
 AI operational signals that affect the console. Tenant application monitoring remains in
@@ -13,7 +18,7 @@ AI operational signals that affect the console. Tenant application monitoring re
 
 | Signal | Where it lives | What it can answer | What it cannot do today |
 | --- | --- | --- | --- |
-| Platform audit events | `platform_audit_events`, append-only at the model layer | Who signed in, MFA/WebAuthn result, recovery use, capability denial, administrator changes, audit/support reads, route/IP/request id | It is a pull-only trail; nobody is notified. The outer gate and some CSRF refusals are not audited. |
+| Platform audit events | `platform_audit_events`, append-only at the model layer | Who signed in, MFA/WebAuthn result, recovery use, capability denial, administrator changes, audit/support reads, route/IP/request id | It is a pull-only trail; nobody is notified. Outer-gate 401s are not audited; CSRF refusals are already audited as `platform.access.denied` with a bounded reason. |
 | API health | `/api/health`, `/api/health/ready`, `/api/health/integrity` | Process, database, production posture, commit, integrity heartbeat | The health probe is liveness/readiness, not security detection. |
 | UptimeRobot | Two five-minute monitors plus the integrity monitor | Readiness and database-posture alert to the owner's email; test delivery was verified | It does not read platform security events or AI spend. |
 | Durable 5xx events | `ops_error_events` | Counts, status, bounded route and recent error events | No alert rule or owned recipient is attached to the collection. |
@@ -36,7 +41,8 @@ the right person, deduplicate the signal or prove that someone responded.
 
 The project is currently a single-owner operation. These targets are **best-effort operating hours**,
 not a claim of 24/7 coverage. Before a wider operator group or customer support use, the owner must
-name a primary and backup and decide whether a paid pager is justified.
+name a primary and backup. A paid pager is **deferred** until there is revenue; free channels are the
+current boundary.
 
 ### 2.2 Roles and ownership
 
@@ -58,10 +64,10 @@ call.
 | --- | --- | --- |
 | UptimeRobot email | Existing health/readiness alerts; test delivery was observed | **Live** for health only |
 | UptimeRobot mobile push | Optional faster SEV-1 delivery if enabled on the owner's device | To be confirmed |
-| Owner security mailbox | Security event delivery and durable human inbox | **To be created/recorded**; no address is invented here |
-| GitHub issue | Durable, linkable incident record and fallback when email is missed | Existing pattern for health; extend to security |
-| Free chat channel (Slack/Telegram) | Optional low-cost team visibility | Not configured; evaluate only when there is a team |
-| Paid pager (PagerDuty/Opsgenie) | True 24/7 escalation | Not purchased; a future owner decision |
+| Owner security mailbox | Security event delivery and durable human inbox; an existing owner email/alias is sufficient | **To be created/recorded**; no address is invented here and no paid mailbox is required |
+| GitHub issue | Durable, linkable incident record and fallback when email is missed | Existing pattern for health; extend to security; free |
+| Free chat channel (Slack/Telegram) | Optional team visibility if a free workspace already exists | Not required; do not buy a plan |
+| Paid pager (PagerDuty/Opsgenie) | True 24/7 escalation | **Deferred** until revenue and a named rota exist; not approved |
 
 No alert body may contain a password, token, TOTP code, recovery code, WebAuthn response, Mongo URI,
 full request body or tenant data. IP addresses and user-agent are security evidence but are personal
@@ -196,7 +202,7 @@ deduplicated by the stated key.
 | 1. Catalogue and ownership | Approve this document, name the backup reviewer, create the security mailbox, record the alert destinations | Owner decision |
 | 2. Instrumentation | Add bounded audit/counter events for outer-gate denials, CSRF/origin refusals and audit-write failures; expose the counts without credentials or tenant data | Code and tests |
 | 3. Evaluator | A scheduled/streaming evaluator reads audit/error/AI aggregates, applies dedupe/cooldown, writes an alert record and sends to the approved channel | Durable storage and retry policy |
-| 4. Channel integration | UptimeRobot email/push, security mailbox, GitHub issue; optional free chat channel | Owner decision |
+| 4. Channel integration | Existing UptimeRobot email/push, owner email alias, GitHub issue; no paid pager or chat plan | Owner decision |
 | 5. Test and tune | Synthetic events for every rule, a tabletop for SEV-1, two-week noise review | Alert history |
 | 6. Operationalize | Link to the incident runbook, add an alert-on/alert-off change record, review quarterly | Named owners |
 
@@ -225,7 +231,7 @@ deduplicated by the stated key.
 - Cloudflare Access's free plan retains standard logs for up to 24 hours; an incident review needs
   export or a paid retention decision.
 - There is no owned pager or 24/7 rota today. Email/GitHub issue delivery is the honest starting
-  point; a paid pager is a future owner decision.
+  point; a paid pager is deferred until revenue and a named rota exist.
 
 ## 8. Sources
 
@@ -233,6 +239,7 @@ deduplicated by the stated key.
 - Existing platform security recommendations: [`PLATFORM_SECURITY_RECOMMENDATIONS.md`](PLATFORM_SECURITY_RECOMMENDATIONS.md) (SEC-09).
 - Existing console roadmap: [`PLATFORM_CONSOLE_IMPROVEMENTS.md`](PLATFORM_CONSOLE_IMPROVEMENTS.md) (CI-05, CI-11–CI-15).
 - Production readiness gates: [`PLATFORM_PRODUCTION_READINESS.md`](PLATFORM_PRODUCTION_READINESS.md).
+- Free ownership/channel decisions: [`PLATFORM_SECURITY_ALERT_DECISION_SHEET.md`](PLATFORM_SECURITY_ALERT_DECISION_SHEET.md).
 - Platform audit model and actions: `server/src/models/platformAuditLog.model.ts`,
   `server/src/constants/platformAudit.ts`.
 - Cloudflare Access log retention: <https://www.cloudflare.com/plans/zero-trust-services/>.

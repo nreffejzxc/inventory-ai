@@ -8,9 +8,9 @@ of truth for *what actually happened*, and it is why this file is long.
 
 **How to read it.** Do not read it top to bottom. Either find a record by number (§27FJ, §27DM — the
 numbers are cited from `CLAUDE.md` and from source comments), or use the index: `CLAUDE.md` §7 lists
-all **251** records by the title each gives itself.
+all **252** records by the title each gives itself.
 
-**Current state:** V1 complete and in production testing. The records that answer *where are we now* are §27IS (PLAT-8 planning-only assessment of the access layer, platform security alerting and whole-product priorities; documentation only), §27IR (PLAT-7 deployed at `e218bb0`, the production gate and recovery proof, and the required WebAuthn check), §27IQ (forced recovery setup, the free-plan outer access gate and the break-glass drill), §27IP (the Platform Operations console was first deployed at `56e8c27`, with browser sign-in, TOTP, assets/CSP and API smoke observed), §27IJ (the INTERNAL Platform Operations plane — separate administrator identity, sessions and capabilities; committed in `d02a549`, now deployed through §27IP), §27IK (platform-admin architecture, now aligned with the implemented interim plane and its remaining gates), §27IL (the durable 5xx and feature-presence stores that report reads), §27IM (the dedicated console, mandatory TOTP/WebAuthn and append-only platform audit — committed and browser-verified; now deployed through §27IP), §27IN (fresh security review, CI browser WebAuthn, production-readiness checklist and prioritized recommendations), §27IO (recovery codes, durable account-scoped MFA lockout, password change, administrator lifecycle and fail-closed origin/cookie hardening), §27II (AI-117 complete feedback conversation preview, deployed `13fb3f8` and device-verified; one out-of-stock wording finding remains open), §27IH (AI-116 bounded follow-up context and answer freshness, deployed and device-verified), §27IG (AI-115 member feedback and the owner/admin review queue, deployed and device-verified), §27IF (AI-114 deterministic complete restock lists, deployed and device-verified), §27ID (the permanent assistant improvement roadmap and implementation audit; docs-only), §27IC (AI-110 contextual assistant entry and restock shortfall, deployed `7315675` and OTA-verified; the partial-restock guards completed in `1c3928b`), §27IB (scheduler proof and hosted freshness), §27IA (post-deploy phone proof, triage and monitor), §27HV (AI-99 10,256-product gate, 24/25 with one output-limit finding), §27HU (AI-99 free-first simple inventory, deployed with the 1.0.2 OTA), §27HT (AI-91/AI-92 exact product identity and per-location stock), §27HS (the AI-50–AI-84 increment register), §27HR (AI-48–AI-84 merged and deployed), §27HQ (grounded answers and scoped stock reads), §27HP (market prices from cited pages), §27HO (recorded specifications and the real seed catalogue), §27HN (inventory-only web research), §27HH (a transfer as one event to the assistant), §27HG (the stock-in link's product), §27HF (the single-location default's timing), §27HE (the stock-in link's location), §27HD (the movement fixes and the production device pass), §27HC (the assistant's local-time answers), §27FM (the V1 re-verification) and §27FJ (the two open advisories).
+**Current state:** V1 complete and in production testing. The records that answer *where are we now* are §27IT (PLAT-9 free-first planning: conditional Cloudflare migration, alert ownership, disposable restore drill and additive follow-up; documentation only), §27IS (PLAT-8 planning-only assessment of the access layer, platform security alerting and whole-product priorities; documentation only), §27IR (PLAT-7 deployed at `e218bb0`, the production gate and recovery proof, and the required WebAuthn check), §27IQ (forced recovery setup, the free-plan outer access gate and the break-glass drill), §27IP (the Platform Operations console was first deployed at `56e8c27`, with browser sign-in, TOTP, assets/CSP and API smoke observed), §27IJ (the INTERNAL Platform Operations plane — separate administrator identity, sessions and capabilities; committed in `d02a549`, now deployed through §27IP), §27IK (platform-admin architecture, now aligned with the implemented interim plane and its remaining gates), §27IL (the durable 5xx and feature-presence stores that report reads), §27IM (the dedicated console, mandatory TOTP/WebAuthn and append-only platform audit — committed and browser-verified; now deployed through §27IP), §27IN (fresh security review, CI browser WebAuthn, production-readiness checklist and prioritized recommendations), §27IO (recovery codes, durable account-scoped MFA lockout, password change, administrator lifecycle and fail-closed origin/cookie hardening), §27II (AI-117 complete feedback conversation preview, deployed `13fb3f8` and device-verified; one out-of-stock wording finding remains open), §27IH (AI-116 bounded follow-up context and answer freshness, deployed and device-verified), §27IG (AI-115 member feedback and the owner/admin review queue, deployed and device-verified), §27IF (AI-114 deterministic complete restock lists, deployed and device-verified), §27ID (the permanent assistant improvement roadmap and implementation audit; docs-only), §27IC (AI-110 contextual assistant entry and restock shortfall, deployed `7315675` and OTA-verified; the partial-restock guards completed in `1c3928b`), §27IB (scheduler proof and hosted freshness), §27IA (post-deploy phone proof, triage and monitor), §27HV (AI-99 10,256-product gate, 24/25 with one output-limit finding), §27HU (AI-99 free-first simple inventory, deployed with the 1.0.2 OTA), §27HT (AI-91/AI-92 exact product identity and per-location stock), §27HS (the AI-50–AI-84 increment register), §27HR (AI-48–AI-84 merged and deployed), §27HQ (grounded answers and scoped stock reads), §27HP (market prices from cited pages), §27HO (recorded specifications and the real seed catalogue), §27HN (inventory-only web research), §27HH (a transfer as one event to the assistant), §27HG (the stock-in link's product), §27HF (the single-location default's timing), §27HE (the stock-in link's location), §27HD (the movement fixes and the production device pass), §27HC (the assistant's local-time answers), §27FM (the V1 re-verification) and §27FJ (the two open advisories).
 
 ---
 
@@ -26285,3 +26285,51 @@ because this change is documentation only. PR #322 passed all five required chec
 `webauthn-e2e` 1m5s, `mobile` 1m15s, `secret-guard` 8s, `attribution-guard` 9s) and squash-merged
 as `400cf45`; a read-only `/api/health` check afterwards still reported `e218bb0`, so no deployment
 occurred. The merge evidence is also in [`DEVELOPMENT_LOG.md`](DEVELOPMENT_LOG.md).
+
+---
+
+# 27IT. PLAT-9 — free-first implementation, accountability, restore-drill and follow-up plans (2026-11-17)
+
+**Planning only.** This record covers the four approved planning deliverables and no runtime work. No
+domain was purchased, no Cloudflare/Render/Atlas setting was changed, no database operation was run,
+no deployment was made and no paid service was started. Production remains `e218bb0`.
+
+**Funding decision.** Inventory AI has no paying customers, and the owner's current budget is already
+committed. The planning baseline is therefore **$0 incremental recurring spend**: existing Render free
+service, Atlas M0, free UptimeRobot/GitHub/email channels, existing Brevo/Firebase/OpenRouter
+accounts and the owner's existing tools. Paid Render Scale, Tailscale Standard, a domain purchase,
+Cloudflare paid retention, a pager and paid backup/observability tiers are deferred until revenue or a
+contractual requirement justifies them.
+
+**Deliverables.**
+
+- [`PLATFORM_CLOUDFLARE_ACCESS_IMPLEMENTATION_PLAN.md`](PLATFORM_CLOUDFLARE_ACCESS_IMPLEMENTATION_PLAN.md)
+  — conditional migration plan with a zero-spend gate, custom-domain prerequisite, origin JWT
+  contract, WebAuthn re-enrollment, cutover order, rollback and 18 acceptance tests. It explicitly
+  says to defer the migration if no controlled domain already exists and not to buy one now.
+- [`PLATFORM_SECURITY_ALERT_DECISION_SHEET.md`](PLATFORM_SECURITY_ALERT_DECISION_SHEET.md) — named
+  primary/backup record, current single-owner/unassigned-backup reality, free first channels,
+  instrumentation prerequisites, activation checklist and response/review cadence. No channel is live
+  and no alert is implemented.
+- [`PLATFORM_DATABASE_RESTORE_DRILL_PLAN.md`](PLATFORM_DATABASE_RESTORE_DRILL_PLAN.md) — disposable
+  database only, free/local target, provisional RPO ≤24h and RTO ≤4h database / ≤8h full platform,
+  hash/count/index verification, free secret escrow, evidence template and explicit stop conditions.
+  It records that the backup is data-only and lacks index/collection-option metadata.
+- [`INVENTORY_AI_FOLLOWUP_ASSESSMENT.md`](INVENTORY_AI_FOLLOWUP_ASSESSMENT.md) — additive IA-19–IA-29
+  opportunities with duplicate exclusions, free-first implementation notes and a ranked shortlist.
+
+**Documentation map.** `docs/README.md` indexes all four documents and their review cadence;
+`CLAUDE.md` adds the PLAT-9 row and §27IT index entry; `PHASE_HISTORY.md` records the planning-only
+increment; the access, monitoring and whole-product assessments now point to the detailed plans and
+state the free-first constraint.
+
+**Explicitly not done.** No domain/DNS, Cloudflare Access app/policy, Render custom hostname, JWT
+verifier, alert evaluator, mailbox/pager, database backup/restore, secret escrow creation or code
+change. No tenant data was read and no secret/recovery code was printed.
+
+**Verification.** `node scripts/check-docs.mjs` passed with **45 active documents**, 30 invariant rows,
+30 register rows, **23 living reference documents** within cadence and 5 quota evidence records;
+`git diff --check` passed. The five focused docs suites passed **31/31** (documentation links, fact
+drift, invariant register, route inventory and section integrity). No database operation, application
+suite or deployment was performed; the final pull-request checks are recorded in
+[`DEVELOPMENT_LOG.md`](DEVELOPMENT_LOG.md) after they run.

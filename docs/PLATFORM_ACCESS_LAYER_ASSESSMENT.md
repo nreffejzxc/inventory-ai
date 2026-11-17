@@ -1,13 +1,39 @@
 # Platform access layer — assessment and decision brief
 
 **Status:** **PLANNING AND RESEARCH ONLY.** This document does not authorize a production configuration
-change, a code change, a deployment or a new paid service. The live console remains on the current
-application-level gate.
+change, a code change, a deployment, a domain purchase or a new paid service. The live console
+remains on the current application-level gate.
 
 **Reviewed:** 2026-11-17
 **Scope:** The live `/platform` console and `/api/platform` plane on the Render web service.
 **Question:** Is there a free or low-cost access layer that materially reduces public reachability
 beyond the existing `PLATFORM_ACCESS_KEY` gate, and which option should be piloted first?
+
+## 0. Free-first decision
+
+**Incremental budget: $0.** Inventory AI has no paying users, and the owner's current budget is fully
+committed. No domain may be purchased, no Render plan may be upgraded and no paid pager, log tier or
+identity service may be started for this work.
+
+This changes the recommendation from “implement Cloudflare Access” to:
+
+- **Keep the current free gate and platform MFA.** They are already deployed and cost nothing.
+- **Cloudflare Access remains the preferred design only if a controlled domain already exists.** Its
+  free plan covers up to 50 users, but the domain is a prerequisite; if no domain is already owned,
+  the migration is **deferred**, not funded.
+- **Do not use a free subdomain you do not fully control for administrator security.** A free
+  subdomain whose DNS/NS control is incomplete cannot be treated as a Cloudflare zone or a reliable
+  prod origin.
+- **Tailscale Personal is not eligible** for commercial use, and the paid Standard/private-service
+  design is deferred.
+- **Render IP rules are not eligible** because web-service rules require Scale/Enterprise.
+- **Free baseline work continues:** keep the gate, recovery codes, TOTP/WebAuthn and console
+  monitoring; use the free alert channels in
+  [`PLATFORM_SECURITY_ALERT_DECISION_SHEET.md`](PLATFORM_SECURITY_ALERT_DECISION_SHEET.md).
+
+The detailed migration remains in
+[`PLATFORM_CLOUDFLARE_ACCESS_IMPLEMENTATION_PLAN.md`](PLATFORM_CLOUDFLARE_ACCESS_IMPLEMENTATION_PLAN.md),
+marked conditional on an existing domain and a separately approved code change.
 
 ## 1. Current state
 
@@ -48,7 +74,7 @@ change; confirm at purchase time.
 | Option | List cost | Identity model | Fit with the current Render service | Origin-bypass protection | Assessment |
 | --- | --- | --- | --- | --- | --- |
 | Keep the existing `PLATFORM_ACCESS_KEY` gate | $0 | Shared secret | Already deployed | None beyond the application gate | Keep as defense in depth; not the missing access layer |
-| **Cloudflare Access** | **$0 for up to 50 users**; $7/user/month beyond that; domain cost if none exists | SSO/OTP identity, per-application policies, service tokens | Good after adding a custom domain; the Render origin can remain a public service | **Needs origin JWT validation**; hostname-only Access is bypassable through the default Render URL | **Preferred pilot** |
+| **Cloudflare Access** | **$0 for up to 50 users**; $7/user/month beyond that; **domain must already exist** — no purchase under the current budget | SSO/OTP identity, per-application policies, service tokens | Good after adding a custom domain; the Render origin can remain a public service | **Needs origin JWT validation**; hostname-only Access is bypassable through the default Render URL | **Preferred design only if a controlled domain already exists; otherwise deferred** |
 | Tailscale | Personal free for **non-commercial use**, up to 6 users; Standard **$8/user/month** for business | Device/tailnet identity and ACLs | Poor for the current single public web service | Strong only if the platform is moved to a private Render service | Future option, not the first choice |
 | Render inbound IP rules | Scale workspace **$499/month + compute**; Enterprise custom | Network allowlist, not user identity | Directly supported only on Scale/Enterprise | Strong when the allowlist is correct | Not low-cost; only if Scale is already justified |
 | Cloudflare Tunnel alone | $0 for standard tunnels | None by itself | Does not remove the Render public URL | Only protects an origin with no public route; not the current shape | Adjunct, not a complete answer |
@@ -130,7 +156,7 @@ the security-monitoring plan: Access alone is not a durable audit store.
 | --- | --- | --- |
 | Cloudflare Access, up to 50 users | **$0** | Free plan; 24-hour log retention |
 | Access beyond 50 users | $7/user/month (billing terms vary by page) | Not expected for this operator group |
-| Domain | Roughly the registrar's annual fee | Only if the project has no controlled domain; confirm before purchase |
+| Domain | **$0 only if already owned** | Not purchased under the current budget; if no controlled domain exists, the Access migration is deferred |
 | Render custom domain | $0 on the current service | Render supports custom domains; TLS is managed |
 | Implementation effort | Medium | DNS/domain, Access policy, origin JWT validation, WebAuthn/origin migration, tests |
 
@@ -195,13 +221,17 @@ reasons; do not upgrade solely for this console at the current stage.
 
 ## 7. Recommendation
 
-**Preferred design: Cloudflare Access in front of a dedicated platform hostname, with origin JWT
-validation at the application, while retaining the existing Basic gate and platform MFA.**
+**Conditional preferred design: Cloudflare Access in front of a dedicated platform hostname, with
+origin JWT validation at the application, while retaining the existing Basic gate and platform MFA.**
 
-This is the best fit because it provides named identity and service credentials at the edge for $0 at
-the current operator count, and it does not require splitting the Render service. It is **not a
-zero-change fix**: without origin JWT validation the Render URL remains a bypass. The decision to
-implement should therefore be a separate, approved slice with its own tests and rollback.
+This is the best technical fit because it provides named identity and service credentials at the edge
+for $0 at the current operator count, and it does not require splitting the Render service. It is
+**not a zero-change or zero-prerequisite fix**: without origin JWT validation the Render URL remains
+a bypass, and without an already-owned controlled domain there is no eligible hostname.
+
+**Current decision: keep the free gate and defer the migration until a controlled domain already
+exists and the code/verification work is separately approved.** Do not buy a domain for this project
+while the budget is committed. The migration plan is ready for that later decision.
 
 **Do not choose Tailscale's free plan for commercial use.** If the owner later wants strict
 network-level isolation, evaluate Tailscale Standard plus a private Render service as a separate

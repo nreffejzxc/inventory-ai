@@ -4,6 +4,12 @@
 implementation, a production change, a deployment or a new paid service. It ranks the next work; it
 does not start it.
 
+**Free-first constraint (2026-11-17):** Inventory AI has no paying users and no budget for new
+recurring services. Free/existing tiers are the default; any paid item is deferred until revenue or a
+contractual requirement. See
+[`INVENTORY_AI_FOLLOWUP_ASSESSMENT.md`](INVENTORY_AI_FOLLOWUP_ASSESSMENT.md) for the additive,
+free-first shortlist.
+
 **Reviewed:** 2026-11-17
 **Basis:** the complete project conversation and decision history, the live Platform Operations
 console at `e218bb0`, the current security/monitoring/release records, the AI assistant roadmap, and
@@ -94,8 +100,8 @@ Recommendations were ranked with five questions:
    release readiness matter when those groups exist.
 4. **What is the effort and dependency?** A small change with a large architectural prerequisite is
    ranked below a smaller control that closes the same risk.
-5. **Is the cost justified now?** Free/existing infrastructure first; paid Render Scale, a pager or a
-   dedicated identity provider need an explicit owner decision.
+5. **Is the cost justified now?** Free/existing infrastructure first. Before revenue, paid Render
+   Scale, a pager, a domain purchase or a dedicated identity provider are **deferred**, not assumed.
 
 Labels: **Security impact** H/M/L; **Business value** H/M/L; **Effort** S/M/L; **Cost** $0 / low /
 medium. The ranking is a recommendation order, not a commitment.
@@ -104,7 +110,7 @@ medium. The ranking is a recommendation order, not a commitment.
 
 | Rank | ID | Improvement | Area | Security | Business | Effort | Cost | Existing map | Why this rank |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 1 | **IA-01** | Identity-aware access layer with origin-token enforcement | Access / security | H | H | M | $0 + domain | CI-07, PR-03 | The console is still public and the shared key is not per-person. Cloudflare Access is the best low-cost candidate, but must validate its token at the origin or the Render URL bypasses it. |
+| 1 | **IA-01** | Identity-aware access layer with origin-token enforcement | Access / security | H | H | M | $0 only if a domain already exists; otherwise deferred | CI-07, PR-03 | The console is still public and the shared key is not per-person. Cloudflare Access is the best free-tier design, but it requires a controlled domain and origin validation; no domain is purchased under the current budget. |
 | 2 | **IA-02** | Security alerting, ownership and delivery | Detection | H | H | M | $0 | SEC-09, CI-05 | Audit events exist but nobody is notified. Without this, an attack, recovery-code use or administrator change is invisible until someone opens the console. |
 | 3 | **IA-03** | Audit retention, export and database least privilege | Evidence | H | M | M | Low/medium | SEC-05, CI-06, PR-09 | The model refuses mutations, but raw database access can rewrite or drop the trail. The recovery/break-glass events are exactly what an investigation needs. |
 | 4 | **IA-04** | Restore drill, RPO/RTO and platform secret escrow | Continuity | H | H | M | Existing DB + storage decision | CI-15 | A backup that has not been restored is a hope. A full restore on the real tier has never been observed, and platform keys have no escrow path. |
