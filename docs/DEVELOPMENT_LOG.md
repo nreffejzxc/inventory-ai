@@ -44,15 +44,29 @@ at the end of every development session, newest entry first.
 **Goal:** finish and harden Inventory AI **V1** through production testing. No Play Store or App
 Store release is being prepared.
 
+**One-page PDF verification and tenant security review, PLAT-15 (2026-11-17, docs-only):**
+rendered the checklist through Chrome at Letter size and verified with `pdftotext` that the PDF is
+**exactly one page**, contains every required field and has **0 replacement characters**; the rendered
+PDF is checked in beside the Markdown. Added
+[`PLATFORM_SECURITY_IMPROVEMENTS_BEYOND_IA45.md`](PLATFORM_SECURITY_IMPROVEMENTS_BEYOND_IA45.md),
+which ranks six tenant-facing improvements beyond IA-45: TS-01 security notifications (27/30), TS-02
+access recertification (25/30), TS-03 AI isolation canary (23/30), TS-04 posture scorecard (23/30),
+TS-05 tenant MFA (22/30, free-path gate) and TS-06 mail anti-spoofing (19/30, domain gate). No
+notification, alert, implementation, DNS change, deployment or paid service was created. Docs checks:
+**51 active documents / 29 living references**; focused docs suites **31/31**. The PDF remains a
+one-page verification artifact, not proof that a notification was sent; alerts remain inactive.
+
 **Printable two-contact test checklist, PLAT-14 (2026-11-17, docs-only):** added
 [`PLATFORM_SECURITY_NOTIFICATION_TEST_CHECKLIST.md`](PLATFORM_SECURITY_NOTIFICATION_TEST_CHECKLIST.md),
 a one-page owner form for the test ID, UTC send/received timestamps for both contacts, confirmation
 methods, Cucumber's written acknowledgement, evidence redaction and the final activation gate. Every
 field is blank; the checklist includes a STOP rule for a failed delivery. The evidence record links
-to it, and `docs/README.md` indexes it with a 90-day cadence. No notification, acknowledgement,
-timestamp, alert activation, production change or paid service was created. Docs checks: **50 active
-documents / 28 living references**; focused docs suites **31/31**. The checklist remains blank and
-pending; security alerts remain inactive.
+to it, and `docs/README.md` indexes it with a 90-day cadence. Rendered it to
+`PLATFORM_SECURITY_NOTIFICATION_TEST_CHECKLIST.pdf` with Chrome at Letter size: `pdftotext` reports
+**exactly 1 page**, all required fields are present and **0 replacement characters** remain. No
+notification, acknowledgement, timestamp, alert activation, production change or paid service was
+created. Docs checks: **50 active documents / 28 living references**; focused docs suites **31/31**.
+The checklist remains blank and pending; security alerts remain inactive.
 
 **Two-contact test procedure and fourth ranking, PLAT-13 (2026-11-17, docs-only):** added the
 ten-step owner-run test procedure to

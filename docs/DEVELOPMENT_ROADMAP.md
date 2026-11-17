@@ -8,9 +8,9 @@ of truth for *what actually happened*, and it is why this file is long.
 
 **How to read it.** Do not read it top to bottom. Either find a record by number (§27FJ, §27DM — the
 numbers are cited from `CLAUDE.md` and from source comments), or use the index: `CLAUDE.md` §7 lists
-all **257** records by the title each gives itself.
+all **258** records by the title each gives itself.
 
-**Current state:** V1 complete and in production testing. The records that answer *where are we now* are §27IY (PLAT-14 printable two-contact test checklist; documentation only), §27IX (PLAT-13 two-contact test procedure and IA-42–IA-45 additions; documentation only), §27IW (PLAT-12 contact-wording correction, joint-rank reconciliation, pending notification evidence and IA-38–IA-41 additions; documentation only), §27IV (PLAT-11 backup-contact registration, Firebase-plan safety review and IA-34–IA-37 additions; documentation only), §27IU (PLAT-10 security-contact record, Firebase recovery drill and multi-criteria ranking; documentation only), §27IT (PLAT-9 free-first planning: conditional Cloudflare migration, alert ownership, disposable restore drill and additive follow-up; documentation only), §27IS (PLAT-8 planning-only assessment of the access layer, platform security alerting and whole-product priorities; documentation only), §27IR (PLAT-7 deployed at `e218bb0`, the production gate and recovery proof, and the required WebAuthn check), §27IQ (forced recovery setup, the free-plan outer access gate and the break-glass drill), §27IP (the Platform Operations console was first deployed at `56e8c27`, with browser sign-in, TOTP, assets/CSP and API smoke observed), §27IJ (the INTERNAL Platform Operations plane — separate administrator identity, sessions and capabilities; committed in `d02a549`, now deployed through §27IP), §27IK (platform-admin architecture, now aligned with the implemented interim plane and its remaining gates), §27IL (the durable 5xx and feature-presence stores that report reads), §27IM (the dedicated console, mandatory TOTP/WebAuthn and append-only platform audit — committed and browser-verified; now deployed through §27IP), §27IN (fresh security review, CI browser WebAuthn, production-readiness checklist and prioritized recommendations), §27IO (recovery codes, durable account-scoped MFA lockout, password change, administrator lifecycle and fail-closed origin/cookie hardening), §27II (AI-117 complete feedback conversation preview, deployed `13fb3f8` and device-verified; one out-of-stock wording finding remains open), §27IH (AI-116 bounded follow-up context and answer freshness, deployed and device-verified), §27IG (AI-115 member feedback and the owner/admin review queue, deployed and device-verified), §27IF (AI-114 deterministic complete restock lists, deployed and device-verified), §27ID (the permanent assistant improvement roadmap and implementation audit; docs-only), §27IC (AI-110 contextual assistant entry and restock shortfall, deployed `7315675` and OTA-verified; the partial-restock guards completed in `1c3928b`), §27IB (scheduler proof and hosted freshness), §27IA (post-deploy phone proof, triage and monitor), §27HV (AI-99 10,256-product gate, 24/25 with one output-limit finding), §27HU (AI-99 free-first simple inventory, deployed with the 1.0.2 OTA), §27HT (AI-91/AI-92 exact product identity and per-location stock), §27HS (the AI-50–AI-84 increment register), §27HR (AI-48–AI-84 merged and deployed), §27HQ (grounded answers and scoped stock reads), §27HP (market prices from cited pages), §27HO (recorded specifications and the real seed catalogue), §27HN (inventory-only web research), §27HH (a transfer as one event to the assistant), §27HG (the stock-in link's product), §27HF (the single-location default's timing), §27HE (the stock-in link's location), §27HD (the movement fixes and the production device pass), §27HC (the assistant's local-time answers), §27FM (the V1 re-verification) and §27FJ (the two open advisories).
+**Current state:** V1 complete and in production testing. The records that answer *where are we now* are §27IZ (PLAT-15 verified one-page checklist PDF and tenant security review; documentation only), §27IY (PLAT-14 printable two-contact test checklist; documentation only), §27IX (PLAT-13 two-contact test procedure and IA-42–IA-45 additions; documentation only), §27IW (PLAT-12 contact-wording correction, joint-rank reconciliation, pending notification evidence and IA-38–IA-41 additions; documentation only), §27IV (PLAT-11 backup-contact registration, Firebase-plan safety review and IA-34–IA-37 additions; documentation only), §27IU (PLAT-10 security-contact record, Firebase recovery drill and multi-criteria ranking; documentation only), §27IT (PLAT-9 free-first planning: conditional Cloudflare migration, alert ownership, disposable restore drill and additive follow-up; documentation only), §27IS (PLAT-8 planning-only assessment of the access layer, platform security alerting and whole-product priorities; documentation only), §27IR (PLAT-7 deployed at `e218bb0`, the production gate and recovery proof, and the required WebAuthn check), §27IQ (forced recovery setup, the free-plan outer access gate and the break-glass drill), §27IP (the Platform Operations console was first deployed at `56e8c27`, with browser sign-in, TOTP, assets/CSP and API smoke observed), §27IJ (the INTERNAL Platform Operations plane — separate administrator identity, sessions and capabilities; committed in `d02a549`, now deployed through §27IP), §27IK (platform-admin architecture, now aligned with the implemented interim plane and its remaining gates), §27IL (the durable 5xx and feature-presence stores that report reads), §27IM (the dedicated console, mandatory TOTP/WebAuthn and append-only platform audit — committed and browser-verified; now deployed through §27IP), §27IN (fresh security review, CI browser WebAuthn, production-readiness checklist and prioritized recommendations), §27IO (recovery codes, durable account-scoped MFA lockout, password change, administrator lifecycle and fail-closed origin/cookie hardening), §27II (AI-117 complete feedback conversation preview, deployed `13fb3f8` and device-verified; one out-of-stock wording finding remains open), §27IH (AI-116 bounded follow-up context and answer freshness, deployed and device-verified), §27IG (AI-115 member feedback and the owner/admin review queue, deployed and device-verified), §27IF (AI-114 deterministic complete restock lists, deployed and device-verified), §27ID (the permanent assistant improvement roadmap and implementation audit; docs-only), §27IC (AI-110 contextual assistant entry and restock shortfall, deployed `7315675` and OTA-verified; the partial-restock guards completed in `1c3928b`), §27IB (scheduler proof and hosted freshness), §27IA (post-deploy phone proof, triage and monitor), §27HV (AI-99 10,256-product gate, 24/25 with one output-limit finding), §27HU (AI-99 free-first simple inventory, deployed with the 1.0.2 OTA), §27HT (AI-91/AI-92 exact product identity and per-location stock), §27HS (the AI-50–AI-84 increment register), §27HR (AI-48–AI-84 merged and deployed), §27HQ (grounded answers and scoped stock reads), §27HP (market prices from cited pages), §27HO (recorded specifications and the real seed catalogue), §27HN (inventory-only web research), §27HH (a transfer as one event to the assistant), §27HG (the stock-in link's product), §27HF (the single-location default's timing), §27HE (the stock-in link's location), §27HD (the movement fixes and the production device pass), §27HC (the assistant's local-time answers), §27FM (the V1 re-verification) and §27FJ (the two open advisories).
 
 ---
 
@@ -26543,7 +26543,8 @@ project, drill, database operation, deployment, domain or paid service was creat
 is a compact, one-page printable form for the owner. It records the test ID, UTC date, tester, channel
 type, separate primary and backup send/received timestamps, confirmation method, Cucumber's written
 acknowledgement, the evidence-redaction check and the final activation gate. It deliberately leaves
-every field blank and includes a prominent **STOP** rule if either delivery fails.
+every field blank and includes a prominent **STOP** rule if either delivery fails. A rendered
+Letter-size PDF is checked in beside it.
 
 **Links.** The evidence record points to the checklist; `docs/README.md` indexes it and gives it a
 90-day review cadence. `CLAUDE.md`, `PHASE_HISTORY.md` and `DEVELOPMENT_LOG.md` record the increment.
@@ -26552,7 +26553,54 @@ every field blank and includes a prominent **STOP** rule if either delivery fail
 credential rotation, drill, database operation, code change, deployment, domain or paid subscription.
 No contact detail, secret or recovery code was read or printed.
 
-**Verification.** `node scripts/check-docs.mjs` reports **50 active documents**, 30 invariant rows,
-30 register rows, **28 living reference documents** within cadence and 5 quota evidence records. The
-five focused docs suites pass **31/31**; the ranking remains the previously verified 27-row set. No
-test notification or production check was performed for this documentation-only checklist.
+**Verification.** The checklist was rendered to
+`PLATFORM_SECURITY_NOTIFICATION_TEST_CHECKLIST.pdf` through Chrome's print engine at Letter size;
+`pdftotext` reports **exactly 1 page**, and the extracted text contains the Test ID, both contact
+rows, Cucumber, the written acknowledgement, the redaction check, the owner signature and the STOP
+rule with **0 replacement characters**. `node scripts/check-docs.mjs` reports **50 active
+documents**, 30 invariant rows, 30 register rows, **28 living reference documents** within cadence
+and 5 quota evidence records. The five focused docs suites pass **31/31**; the ranking remains the
+previously verified 27-row set. No test notification or production check was performed for this
+documentation-only checklist.
+
+---
+
+# 27IZ. PLAT-15 - one-page PDF verification and tenant security review (2026-11-17)
+
+**Documentation only.** No notification was sent and no security alert was activated. No Firebase
+project, drill, database operation, deployment, domain, DNS change or paid service was created.
+
+**PDF verification.** `PLATFORM_SECURITY_NOTIFICATION_TEST_CHECKLIST.md` was rendered through
+Chrome's print engine at Letter size to `PLATFORM_SECURITY_NOTIFICATION_TEST_CHECKLIST.pdf`.
+`pdftotext` reports **exactly 1 page**; the extracted text contains the Test ID, primary and Cucumber
+rows, written acknowledgement, redaction check, owner signature and STOP rule, with **0 replacement
+characters**. The checklist was tightened to ASCII separators so the PDF text extracts cleanly. The
+rendered PDF is checked in beside the Markdown source.
+
+**Tenant security review.**
+[`PLATFORM_SECURITY_IMPROVEMENTS_BEYOND_IA45.md`](PLATFORM_SECURITY_IMPROVEMENTS_BEYOND_IA45.md)
+adds six recommendations not covered by IA-01-IA-45 or SEC-01-SEC-12, scored 1-5 on impact,
+likelihood, blast radius, free feasibility, business value and time to value (maximum 30):
+
+| Rank | ID | Recommendation | Score |
+| --- | --- | --- | ---: |
+| 1 | TS-01 | Tenant security notifications | 27/30 |
+| 2 | TS-02 | Tenant access recertification | 25/30 |
+| 3 | TS-03 | AI tenant-isolation canary | 23/30 |
+| 4 | TS-04 | Owner security posture scorecard | 23/30 |
+| 5 | TS-05 | Tenant MFA / step-up for OWNER and ADMIN | 22/30 |
+| 6 | TS-06 | Mail-domain anti-spoofing posture | 19/30 |
+
+TS-01 and TS-02 are the first free, customer-facing priorities. TS-03 and TS-04 are standing guards
+against silent isolation and control decay. TS-05 is explicitly gated on a verified no-cost Firebase
+MFA path; TS-06 is gated on an owner-controlled domain. No implementation is authorized.
+
+**Documentation map.** `docs/README.md` indexes the new review with a 90-day cadence; the existing
+platform security recommendations link to it without changing SEC-01-SEC-12 priorities. `CLAUDE.md`,
+`PHASE_HISTORY.md` and `DEVELOPMENT_LOG.md` record the increment.
+
+**Verification.** The PDF is exactly 1 page with all required fields present and no replacement
+characters. `node scripts/check-docs.mjs` reports **51 active documents**, 30 invariant rows, 30
+register rows, **29 living reference documents** within cadence and 5 quota evidence records. The
+five focused docs suites pass **31/31**. No test notification, alert activation, code change or
+production check was performed for this documentation-only increment.

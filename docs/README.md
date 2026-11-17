@@ -63,7 +63,7 @@ Guide 6; no rule, command or safety procedure was removed.
 | [`PLATFORM_CLOUDFLARE_ACCESS_IMPLEMENTATION_PLAN.md`](PLATFORM_CLOUDFLARE_ACCESS_IMPLEMENTATION_PLAN.md) | The conditional Cloudflare Access migration plan: domain, origin JWT, WebAuthn migration, cutover, rollback and acceptance tests; free-tier/domain gate only, planning only |
 | [`PLATFORM_SECURITY_CONTACTS.md`](PLATFORM_SECURITY_CONTACTS.md) | The primary/backup security contact record: the owner as primary, Cucumber as named backup with private contact details, the pending test gate and review cadence; planning only |
 | [`PLATFORM_SECURITY_NOTIFICATION_EVIDENCE.md`](PLATFORM_SECURITY_NOTIFICATION_EVIDENCE.md) | The owner-run two-contact test procedure and pending evidence record: existing free channels, channel types, timestamps, tester, both delivery confirmations and acknowledgement, with no private contact details or secrets |
-| [`PLATFORM_SECURITY_NOTIFICATION_TEST_CHECKLIST.md`](PLATFORM_SECURITY_NOTIFICATION_TEST_CHECKLIST.md) | The one-page printable owner checklist for the two-contact test: both receipt timestamps, Cucumber’s written acknowledgement, evidence redaction and the final activation gate |
+| [`PLATFORM_SECURITY_NOTIFICATION_TEST_CHECKLIST.md`](PLATFORM_SECURITY_NOTIFICATION_TEST_CHECKLIST.md) | The one-page printable owner checklist for the two-contact test: both receipt timestamps, Cucumber’s written acknowledgement, evidence redaction and the final activation gate, with a verified one-page PDF |
 | [`PLATFORM_SECURITY_ALERT_DECISION_SHEET.md`](PLATFORM_SECURITY_ALERT_DECISION_SHEET.md) | Alert ownership, primary/backup record, free notification channels, instrumentation prerequisites and activation gates; planning only |
 | [`PLATFORM_FIREBASE_RECOVERY_DRILL_PLAN.md`](PLATFORM_FIREBASE_RECOVERY_DRILL_PLAN.md) | Isolated free Firebase outage/recovery drill: transient-vs-terminal behaviour, recovery paths, evidence, stop conditions and acceptance tests; planning only |
 | [`PLATFORM_DATABASE_RESTORE_DRILL_PLAN.md`](PLATFORM_DATABASE_RESTORE_DRILL_PLAN.md) | The disposable-database restore drill: RPO/RTO, safety stops, index gap, evidence and free-only secret escrow; planning only |
@@ -71,6 +71,7 @@ Guide 6; no rule, command or safety procedure was removed.
 | [`INVENTORY_AI_MULTI_CRITERIA_RANKING.md`](INVENTORY_AI_MULTI_CRITERIA_RANKING.md) | One 27-row, seven-criteria ranking of IA-19–IA-45 with joint ranks, equal-weight scores, rationale and a post-approval sequence; planning only |
 | [`PLATFORM_PRODUCTION_READINESS.md`](PLATFORM_PRODUCTION_READINESS.md) | The pre-exposure checklist for the Platform Operations console: HTTPS and domains, network isolation, credentials, cookies/CORS, MFA recovery, audit retention and database permissions, support grants, CI proof and sign-off |
 | [`PLATFORM_SECURITY_RECOMMENDATIONS.md`](PLATFORM_SECURITY_RECOMMENDATIONS.md) | Prioritized future platform security improvements, with what, why, benefit and P0–P2 ordering; recommendations only |
+| [`PLATFORM_SECURITY_IMPROVEMENTS_BEYOND_IA45.md`](PLATFORM_SECURITY_IMPROVEMENTS_BEYOND_IA45.md) | Tenant-facing security review beyond IA-45: six ranked recommendations covering security notifications, access recertification, AI isolation canary, posture scorecard, tenant MFA and mail-domain anti-spoofing; recommendations only |
 | [`PLATFORM_CONSOLE_IMPROVEMENTS.md`](PLATFORM_CONSOLE_IMPROVEMENTS.md) | Prioritized Platform Operations console improvements: forced recovery ceremony, step-up/dual control, support grants, monitoring, audit export and deployment attestation; recommendations only |
 | [`../README.md`](../README.md) | The front door: stack, layout, how to run each half, deployment |
 
@@ -107,6 +108,7 @@ Reference documents are consulted rather than read once, so they are reviewed on
 | [`INVENTORY_AI_MULTI_CRITERIA_RANKING.md`](INVENTORY_AI_MULTI_CRITERIA_RANKING.md) | 90 days | 2026-11-17 |
 | [`PLATFORM_PRODUCTION_READINESS.md`](PLATFORM_PRODUCTION_READINESS.md) | 90 days | 2026-11-16 |
 | [`PLATFORM_SECURITY_RECOMMENDATIONS.md`](PLATFORM_SECURITY_RECOMMENDATIONS.md) | 90 days | 2026-11-16 |
+| [`PLATFORM_SECURITY_IMPROVEMENTS_BEYOND_IA45.md`](PLATFORM_SECURITY_IMPROVEMENTS_BEYOND_IA45.md) | 90 days | 2026-11-17 |
 | [`PLATFORM_CONSOLE_IMPROVEMENTS.md`](PLATFORM_CONSOLE_IMPROVEMENTS.md) | 90 days | 2026-11-16 |
 | [`../README.md`](../README.md) | 90 days | 2026-11-09 |
 
