@@ -62,11 +62,12 @@ Guide 6; no rule, command or safety procedure was removed.
 | [`INVENTORY_AI_IMPROVEMENT_ASSESSMENT.md`](INVENTORY_AI_IMPROVEMENT_ASSESSMENT.md) | The whole-product ranked improvement assessment: current strengths, risk register, next-work order and the new gaps beyond the existing roadmaps |
 | [`PLATFORM_CLOUDFLARE_ACCESS_IMPLEMENTATION_PLAN.md`](PLATFORM_CLOUDFLARE_ACCESS_IMPLEMENTATION_PLAN.md) | The conditional Cloudflare Access migration plan: domain, origin JWT, WebAuthn migration, cutover, rollback and acceptance tests; free-tier/domain gate only, planning only |
 | [`PLATFORM_SECURITY_CONTACTS.md`](PLATFORM_SECURITY_CONTACTS.md) | The primary/backup security contact record: the owner as primary, Cucumber as named backup with private contact details, the pending test gate and review cadence; planning only |
+| [`PLATFORM_SECURITY_NOTIFICATION_EVIDENCE.md`](PLATFORM_SECURITY_NOTIFICATION_EVIDENCE.md) | The pending two-contact test-notification evidence record: channel types, timestamps, tester, delivery confirmations and acknowledgement, with no private contact details |
 | [`PLATFORM_SECURITY_ALERT_DECISION_SHEET.md`](PLATFORM_SECURITY_ALERT_DECISION_SHEET.md) | Alert ownership, primary/backup record, free notification channels, instrumentation prerequisites and activation gates; planning only |
 | [`PLATFORM_FIREBASE_RECOVERY_DRILL_PLAN.md`](PLATFORM_FIREBASE_RECOVERY_DRILL_PLAN.md) | Isolated free Firebase outage/recovery drill: transient-vs-terminal behaviour, recovery paths, evidence, stop conditions and acceptance tests; planning only |
 | [`PLATFORM_DATABASE_RESTORE_DRILL_PLAN.md`](PLATFORM_DATABASE_RESTORE_DRILL_PLAN.md) | The disposable-database restore drill: RPO/RTO, safety stops, index gap, evidence and free-only secret escrow; planning only |
 | [`INVENTORY_AI_FOLLOWUP_ASSESSMENT.md`](INVENTORY_AI_FOLLOWUP_ASSESSMENT.md) | Free-first additive opportunities beyond IA-01–IA-18, with duplicate exclusions and a ranked shortlist |
-| [`INVENTORY_AI_MULTI_CRITERIA_RANKING.md`](INVENTORY_AI_MULTI_CRITERIA_RANKING.md) | Seven-criteria ranking of the additive opportunities plus IA-30–IA-33, with equal-weight scores, rationale and a post-approval sequence; planning only |
+| [`INVENTORY_AI_MULTI_CRITERIA_RANKING.md`](INVENTORY_AI_MULTI_CRITERIA_RANKING.md) | One 23-row, seven-criteria ranking of IA-19–IA-41 with joint ranks, equal-weight scores, rationale and a post-approval sequence; planning only |
 | [`PLATFORM_PRODUCTION_READINESS.md`](PLATFORM_PRODUCTION_READINESS.md) | The pre-exposure checklist for the Platform Operations console: HTTPS and domains, network isolation, credentials, cookies/CORS, MFA recovery, audit retention and database permissions, support grants, CI proof and sign-off |
 | [`PLATFORM_SECURITY_RECOMMENDATIONS.md`](PLATFORM_SECURITY_RECOMMENDATIONS.md) | Prioritized future platform security improvements, with what, why, benefit and P0–P2 ordering; recommendations only |
 | [`PLATFORM_CONSOLE_IMPROVEMENTS.md`](PLATFORM_CONSOLE_IMPROVEMENTS.md) | Prioritized Platform Operations console improvements: forced recovery ceremony, step-up/dual control, support grants, monitoring, audit export and deployment attestation; recommendations only |
@@ -96,6 +97,7 @@ Reference documents are consulted rather than read once, so they are reviewed on
 | [`INVENTORY_AI_IMPROVEMENT_ASSESSMENT.md`](INVENTORY_AI_IMPROVEMENT_ASSESSMENT.md) | 90 days | 2026-11-17 |
 | [`PLATFORM_CLOUDFLARE_ACCESS_IMPLEMENTATION_PLAN.md`](PLATFORM_CLOUDFLARE_ACCESS_IMPLEMENTATION_PLAN.md) | 90 days | 2026-11-17 |
 | [`PLATFORM_SECURITY_CONTACTS.md`](PLATFORM_SECURITY_CONTACTS.md) | 90 days | 2026-11-17 |
+| [`PLATFORM_SECURITY_NOTIFICATION_EVIDENCE.md`](PLATFORM_SECURITY_NOTIFICATION_EVIDENCE.md) | 90 days | 2026-11-17 |
 | [`PLATFORM_SECURITY_ALERT_DECISION_SHEET.md`](PLATFORM_SECURITY_ALERT_DECISION_SHEET.md) | 90 days | 2026-11-17 |
 | [`PLATFORM_FIREBASE_RECOVERY_DRILL_PLAN.md`](PLATFORM_FIREBASE_RECOVERY_DRILL_PLAN.md) | 90 days | 2026-11-17 |
 | [`PLATFORM_DATABASE_RESTORE_DRILL_PLAN.md`](PLATFORM_DATABASE_RESTORE_DRILL_PLAN.md) | 90 days | 2026-11-17 |

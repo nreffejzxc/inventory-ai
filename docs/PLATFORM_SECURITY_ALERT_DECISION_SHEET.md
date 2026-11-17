@@ -27,8 +27,9 @@ Therefore:
 - The **primary is recorded** as `nreffejzxc`, the account owner, for every platform-security alert
   today. The monitored owner email is recorded in
   [`ACCOUNT_MIGRATION_RUNBOOK.md`](ACCOUNT_MIGRATION_RUNBOOK.md).
-- **Cucumber is the named backup security contact/reviewer.** The actual email and phone number are
-  held only in the owner's private record and are deliberately absent from this repository.
+- **Cucumber is the named backup security contact/reviewer.** The contact details were deliberately
+  not copied into the repository, commits, issues, or pull requests. The actual details remain in the
+  owner's private record.
 - Alert activation is split into “can be tested now” and “may be relied on operationally.” No
   security alert may be treated as operationally covered until the backup acknowledges, a test
   notification reaches both contacts, and the checklist is signed.
@@ -117,7 +118,8 @@ sense of coverage.
 ## 6. Activation checklist
 
 Each item is signed and dated by the Platform Owner; the backup sign-off is mandatory for security
-alerts.
+alerts. Two-contact delivery evidence is recorded in
+[`PLATFORM_SECURITY_NOTIFICATION_EVIDENCE.md`](PLATFORM_SECURITY_NOTIFICATION_EVIDENCE.md).
 
 - [x] Primary name, contact and time zone recorded in §2 and the contact record.
 - [x] Backup name and role recorded; contact details held privately in the owner's record.

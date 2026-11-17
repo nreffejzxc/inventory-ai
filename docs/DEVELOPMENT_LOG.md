@@ -44,6 +44,19 @@ at the end of every development session, newest entry first.
 **Goal:** finish and harden Inventory AI **V1** through production testing. No Play Store or App
 Store release is being prepared.
 
+**Contact wording, joint ranks, notification evidence and third ranking, PLAT-12 (2026-11-17,
+docs-only):** corrected the contact wording to say the backup details were deliberately not copied
+into the repository, commits, issues, or pull requests, and remain in the owner's private record.
+Reconciled the improvement ranking into one **23-row table with joint ranks**; IA-31 now shares rank 4
+(21/35), not a separate sixth place. Added
+[`PLATFORM_SECURITY_NOTIFICATION_EVIDENCE.md`](PLATFORM_SECURITY_NOTIFICATION_EVIDENCE.md) with every
+delivery field **PENDING** — no test has been sent and no alert is active. Added IA-38–IA-41: minimum
+supported app version, tenant data export, provider readiness probe and redacted support diagnostics.
+No alert, notification, Firebase project, drill, database operation, deployment, domain or paid
+service was created; production remains `e218bb0`. Docs checks: **49 active documents / 27 living
+references**; focused docs suites **31/31**; the separate ranking script verified all 23 rows, joint
+ranks and score sums. The two-contact test remains **PENDING** and security alerts remain inactive.
+
 **Backup contact, Firebase-plan review and second ranking, PLAT-11 (2026-11-17, docs-only):**
 recorded **Cucumber** as backup security contact/reviewer in
 [`PLATFORM_SECURITY_CONTACTS.md`](PLATFORM_SECURITY_CONTACTS.md). The actual email/phone remain only
