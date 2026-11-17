@@ -126,6 +126,49 @@ dbSuite('Phase 06 — AI chat behavior', dbOk, () => {
     assert.deepEqual(res.json.assistantMessage.toolsUsed, ['getLowStockProducts']);
   });
 
+  it('Q1b an out-of-stock follow-up is grounded by the filtered stock read', async () => {
+    // The failure this pins (OPPO, 2026-11-16): the filter returned the correct zero-quantity
+    // rows, but the turn treated `filterPreviousResults` as if it had read no stock because
+    // the stock-read allowlist only named the fresh list tools. It then re-asked and replaced
+    // the answer with the ungrounded sentence while the correct action rows stayed on screen.
+    let turn = 0;
+    setFakeScenario(() => {
+      turn += 1;
+      if (turn === 1) {
+        return fakeCalls([{ id: 'low-1', name: 'getLowStockProducts', input: { limit: 50 } }]);
+      }
+      return fakeText('2 products are low on stock.');
+    });
+    const base = await chat(biz.token, { message: 'Which products are low on stock?' });
+    assert.equal(base.status, 201);
+    const conversationId = base.json.conversation.id;
+    assert.ok(base.json.assistantMessage.answerContext?.productCount >= 2);
+
+    turn = 0;
+    const seen = [];
+    setFakeScenario((ctx) => {
+      turn += 1;
+      if (turn === 1) {
+        return fakeCalls([
+          { id: 'filter-1', name: 'filterPreviousResults', input: { outOfStock: true, limit: 50 } },
+        ]);
+      }
+      const result = lastToolResult(ctx).result;
+      seen.push({ outOfStock: result.outOfStock, count: result.count });
+      return fakeText(`1 of 1 previous product has 0 units on hand (out of stock): OUT`);
+    });
+
+    const follow = await chat(biz.token, {
+      message: 'Which of those are out of stock?',
+      conversationId,
+    });
+    assert.equal(follow.status, 201);
+    assert.equal(follow.json.degraded, undefined);
+    assert.doesNotMatch(follow.json.assistantMessage.content, /could not read/i);
+    assert.deepEqual(follow.json.assistantMessage.toolsUsed, ['filterPreviousResults']);
+    assert.deepEqual(seen, [{ outOfStock: true, count: 1 }]);
+  });
+
   it('Q2 "is anything out of stock?" returns the real out-of-stock set', async () => {
     let turn = 0;
     setFakeScenario((ctx) => {
