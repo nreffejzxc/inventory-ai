@@ -19,8 +19,8 @@ anyone or change production.
 | Support SLA owner | **UNASSIGNED** | — | Support is not staffed |
 
 The primary is a named account identity. The backup is a **real person named by the owner**, not a
-role-only placeholder. The actual email address and phone number are intentionally absent from this
-repository and from chat; they live in the owner's private record.
+role-only placeholder. The contact details were **deliberately not copied into the repository,
+commits, issues, or pull requests**. The actual contact details remain in the private owner record.
 
 **What is still unproven:** Cucumber has not yet acknowledged the duty in this record, and no test
 notification has been shown to reach both contacts. The owner states the contact is actively
@@ -33,7 +33,8 @@ Security alerts must remain **inactive** until all of the following are true:
 - [x] The backup column names a real person.
 - [x] The backup's monitored contact path exists and is held in the owner's private record.
 - [ ] The backup has acknowledged the duty in writing.
-- [ ] A test notification reaches the primary **and** the backup.
+- [ ] A test notification reaches the primary **and** the backup; evidence is recorded in
+      [`PLATFORM_SECURITY_NOTIFICATION_EVIDENCE.md`](PLATFORM_SECURITY_NOTIFICATION_EVIDENCE.md).
 - [ ] The backup can access the alert history and the incident runbook.
 - [ ] The owner has signed the activation checklist in
       [`PLATFORM_SECURITY_ALERT_DECISION_SHEET.md`](PLATFORM_SECURITY_ALERT_DECISION_SHEET.md).
@@ -64,8 +65,8 @@ not to use the owner's password, recovery codes or private key.
 
 ## 4. Contact hygiene
 
-- **Do not add the backup's email address or phone number to this document, an issue, a PR or chat.**
-  The private owner record is the only location.
+- **Do not add the backup's email address or phone number to this document, an issue or a PR.** The
+  private owner record is the only location for the actual contact details.
 - Do not publish a personal phone number, recovery code, password or private key here.
 - Use a monitored owner email and GitHub notifications. A free email alias is sufficient; no paid
   mailbox is needed.

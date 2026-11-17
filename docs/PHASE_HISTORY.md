@@ -154,7 +154,9 @@ plan and seven-criteria IA-19–IA-33 ranking, is §27IU; the backup remains una
 alert was activated, and it changed documentation only. PLAT-11, the named backup contact
 registration (Cucumber; contact details private; test notification pending), the Firebase-plan safety
 review and the IA-34–IA-37 additions, is §27IV; no drill, alert, production change or paid service
-was performed. The tenant-facing Operations dashboard was removed before commit. The
+was performed. PLAT-12, the contact-wording correction, joint-rank reconciliation, pending two-contact
+notification evidence and IA-38–IA-41 additions, is §27IW; no alert, notification, drill, production
+change or paid service was performed. The tenant-facing Operations dashboard was removed before commit. The
 2026-11-15 post-deploy/triage/monitor close-out is §27IA;
 production currently serves `e218bb0` and the newest OTA is
 `9d759ee5-82c5-4fbe-afe0-3a0ea2c44f6c`. The AI-105 retry fix and the
