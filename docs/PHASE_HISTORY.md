@@ -158,7 +158,8 @@ was performed. PLAT-12, the contact-wording correction, joint-rank reconciliatio
 notification evidence and IA-38–IA-41 additions, is §27IW; no alert, notification, drill, production
 change or paid service was performed. PLAT-13, the owner-run two-contact test procedure and
 IA-42–IA-45 additions, is §27IX; no test message was sent, no alert was activated, and no production
-change or paid service was performed. The tenant-facing Operations dashboard was removed before commit. The
+change or paid service was performed. PLAT-14, the printable two-contact notification test checklist,
+is §27IY; it is blank and pending, and no notification, alert or production change was made. The tenant-facing Operations dashboard was removed before commit. The
 2026-11-15 post-deploy/triage/monitor close-out is §27IA;
 production currently serves `e218bb0` and the newest OTA is
 `9d759ee5-82c5-4fbe-afe0-3a0ea2c44f6c`. The AI-105 retry fix and the

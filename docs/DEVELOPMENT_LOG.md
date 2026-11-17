@@ -44,6 +44,16 @@ at the end of every development session, newest entry first.
 **Goal:** finish and harden Inventory AI **V1** through production testing. No Play Store or App
 Store release is being prepared.
 
+**Printable two-contact test checklist, PLAT-14 (2026-11-17, docs-only):** added
+[`PLATFORM_SECURITY_NOTIFICATION_TEST_CHECKLIST.md`](PLATFORM_SECURITY_NOTIFICATION_TEST_CHECKLIST.md),
+a one-page owner form for the test ID, UTC send/received timestamps for both contacts, confirmation
+methods, Cucumber's written acknowledgement, evidence redaction and the final activation gate. Every
+field is blank; the checklist includes a STOP rule for a failed delivery. The evidence record links
+to it, and `docs/README.md` indexes it with a 90-day cadence. No notification, acknowledgement,
+timestamp, alert activation, production change or paid service was created. Docs checks: **50 active
+documents / 28 living references**; focused docs suites **31/31**. The checklist remains blank and
+pending; security alerts remain inactive.
+
 **Two-contact test procedure and fourth ranking, PLAT-13 (2026-11-17, docs-only):** added the
 ten-step owner-run test procedure to
 [`PLATFORM_SECURITY_NOTIFICATION_EVIDENCE.md`](PLATFORM_SECURITY_NOTIFICATION_EVIDENCE.md): existing

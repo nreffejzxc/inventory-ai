@@ -7,6 +7,10 @@ security contacts before any security alert is activated.
 This is an evidence record, not an alert channel. It contains **no email address, phone number,
 password, recovery code or token**. The actual contact details remain in the owner's private record.
 
+**Printable checklist:** [`PLATFORM_SECURITY_NOTIFICATION_TEST_CHECKLIST.md`](PLATFORM_SECURITY_NOTIFICATION_TEST_CHECKLIST.md)
+— a one-page owner-run checklist for the same test. The checklist is a form; it does not send or
+activate anything.
+
 ## 1. Procedure
 
 **Who sends:** the account owner. The backup may receive and acknowledge, but does not send the test
