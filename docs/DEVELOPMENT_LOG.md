@@ -40,9 +40,32 @@ at the end of every development session, newest entry first.
 
 ## Current position
 
-**Updated:** 2026-11-16
+**Updated:** 2026-11-17
 **Goal:** finish and harden Inventory AI **V1** through production testing. No Play Store or App
 Store release is being prepared.
+
+**Platform Operations recovery and outer gate live, PLAT-7 (2026-11-17, `e218bb0`):** PR #317
+squash-merged as `e218bb0` after the route-inventory parser was made middleware-aware and a
+stale-sign-in race in the WebAuthn E2E was removed. CI run `43961123024` passed all five jobs:
+`server` (2 m 56 s; **3,146 tests / 505 suites, 3,146 passed, 0 failed, 0 skipped**),
+`webauthn-e2e` (50 s), `mobile`, `attribution-guard` and `secret-guard`. Render auto-deployed
+`e218bb0`; `/api/health` reports production, `db: connected`, that commit. Production proof:
+anonymous `/platform/` and `/api/platform/status` 401 `PLATFORM_ACCESS_REQUIRED` with a Basic
+challenge and `no-store`; Basic shell 200 with strict CSP; wrong key 401; correct key without a
+session 401 `PLATFORM_AUTH_REQUIRED`. Password + TOTP and a real browser rendered the dashboard
+(16 sections) and signed out with no console errors. The administrator began at 0 recovery codes,
+generated 10 with the recovery-code endpoint, saved them to the ignored offline file, and a later
+production recovery-code login returned 200 with 9 remaining; logout 200 and the old cookie 401.
+The guarded break-glass CLI reset a disposable test administrator locally (old password refused,
+new password accepted, all factors cleared, zero sessions). `main` branch protection now requires
+`secret-guard`, `attribution-guard`, `server`, `mobile` and `webauthn-e2e`, with strict and
+enforce-admins; a temporary PR (#319) with a deliberately failing `webauthn-e2e` and passing other
+checks reported `mergeStateStatus: BLOCKED` and GitHub refused the merge. PR #319 was closed without
+merging and its branch deleted. The ranked long-term roadmap remains recommendations-only in
+`docs/PLATFORM_CONSOLE_IMPROVEMENTS.md`; no roadmap item was implemented. Residual gates: Render
+free has no edge IP allowlist (PR-03 remains partial), audit retention/least privilege (PR-09) and
+named security sign-off (PR-15) remain open. The two pre-existing AI-118 working-tree files were not
+staged.
 
 **Platform Operations console live, PLAT-6 (2026-11-16, `56e8c27`):** the INTERNAL console is deployed at
 `https://ai-inventory-l1mi.onrender.com/platform` on the existing Render API service, with no new
@@ -156,9 +179,10 @@ restocking” previously produced a model-composed answer that hit the output li
 reasoning fragments. AI-114 now renders a complete restock/low-stock list deterministically; the
 limitation remains only for sets that do not fit the answer ceiling. The complete record is §27IF.
 
-**Current production server (2026-11-16):** `56e8c27` — PR #315, the Platform Operations console
-release, auto-deployed and confirmed by `/api/health` with `status: ok`, `db: connected`,
-`environment: production`, commit `56e8c27`, 0 `5xx`. Before it, production served
+**Current production server (2026-11-17):** `e218bb0` — PR #317, the Platform Operations recovery
+and outer-gate release, auto-deployed and confirmed by `/api/health` with `status: ok`,
+`db: connected`, `environment: production`, commit `e218bb0`, 0 `5xx`. Before it, production served
+`56e8c27` (PR #315, the console release); before that, production served
 `e5c1c1d` (PR #307, the deterministic complete restock-list release),
 `91d635d` (PR #305, the auxiliary-list correction), `af366c1` (PR #304, the answer
 actions release), `1c3928b` (PR #300, the final partial-restock completeness guard), `af13bf6`

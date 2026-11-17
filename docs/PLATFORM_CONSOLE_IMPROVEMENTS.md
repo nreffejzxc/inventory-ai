@@ -5,12 +5,13 @@ implemented recovery, lockout and lifecycle controls are recorded in
 [`PLATFORM_SECURITY_RECOMMENDATIONS.md`](PLATFORM_SECURITY_RECOMMENDATIONS.md) and
 [`SYSTEM_SPECIFICATION.md`](SYSTEM_SPECIFICATION.md); this page is the next layer of improvements.
 The public/wider-operator gate remains [`PLATFORM_PRODUCTION_READINESS.md`](PLATFORM_PRODUCTION_READINESS.md).
-The console is now live internally at `/platform` on `56e8c27`. CI-01 (forced recovery ceremony and
-break-glass) is implemented in PLAT-7 (§27IQ); CI-07's application-level gate is implemented but the
-edge/network-isolation half remains open. This page is a ranked, recommendations-only roadmap: it
+The console is now live internally at `/platform` on `e218bb0`. CI-01 (forced recovery ceremony and
+break-glass) is implemented in PLAT-7 and deployed (§27IQ, §27IR); CI-07's application-level gate is
+implemented but the edge/network-isolation half remains open. `webauthn-e2e` is now a required
+`main` check. This page is a ranked, recommendations-only roadmap: it
 does not authorize implementation, deploy or expose any new surface.
 
-**Reviewed:** 2026-11-16
+**Reviewed:** 2026-11-17
 **Basis:** the Platform Operations records (§27IJ–§27IP), the browser E2E, the production-readiness
 review, and the earlier authentication, audit, release-engineering and AI-support records.
 

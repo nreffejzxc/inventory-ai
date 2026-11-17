@@ -48,7 +48,7 @@ hosting account.
 ## 1b. The Platform Operations console
 
 The owner/support console is served by the API at **`/platform`**; production is
-`https://ai-inventory-l1mi.onrender.com/platform` on commit `56e8c27` (the repository also keeps the
+`https://ai-inventory-l1mi.onrender.com/platform` on commit `e218bb0` (the repository also keeps the
 standalone `npm run platform-console` listener for isolated development). It is a static shell only;
 every panel reads `/api/platform/*`, which requires a separate platform administrator session and
 capability. A tenant login, tenant token or business role cannot open it. The shell has a strict CSP
@@ -452,8 +452,8 @@ grep "AI turn" <log> | grep -oE "model=[^ ]+ tier=[^ ]+" | sort | uniq -c
   durable row is the reason the aggregate survives.
 - **The console is internal and is not a hosted pager.** It is deployed on the API service at
   `/platform` and the platform API is an operator read, not a cluster-wide counter. The console and
-  the platform audit trail are live at `56e8c27` behind the separate platform login; the platform
-  login is the only edge gate until PR-03 network isolation is added. UptimeRobot's email contact
+  the platform audit trail are live at `e218bb0` behind the application outer gate and the separate
+  platform login; PR-03 network isolation remains open. UptimeRobot's email contact
   remains the automatic delivery channel: two five-minute
   checks cover readiness and the `db: connected` keyword. The Windows fallback is disabled, and the
   GitHub workflow is a manual/fallback path. A dedicated pager or hosted dashboard is still absent;

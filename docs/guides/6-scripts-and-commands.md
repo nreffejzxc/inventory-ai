@@ -461,8 +461,10 @@ The browser job adds about one to two minutes on a public repository and is boun
 `timeout-minutes`. A browser failure is reported as the `webauthn-e2e` job, not hidden in the full
 server run. The E2E still needs Chrome/Edge, MongoDB and the configurable API/console/CDP ports
 (defaults 4400/4100/9333). If a future runner cannot provide Chrome, run the same command locally and
-record the output; do not replace it with a unit test. The job was added on 2026-11-16 and passed on
-PR #315 (run `43946639285`, 48 s); it is not yet one of the four branch-protection contexts.
+record the output; do not replace it with a unit test. The job was added on 2026-11-16, passed on
+PR #315 (run `43946639285`, 48 s) and is now one of the five required `main` branch-protection
+contexts. A temporary PR with a deliberately failing job was blocked and its merge refused, proving
+the required check is enforced (§27IR).
 
 Separately, the **TypeScript 7 watch** runs every Monday at **06:17 UTC** and on manual dispatch. It
 runs the read-only `check-upgrade-watches` gate against both workspaces and opens **one** issue only
