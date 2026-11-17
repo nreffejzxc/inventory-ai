@@ -8,9 +8,9 @@ of truth for *what actually happened*, and it is why this file is long.
 
 **How to read it.** Do not read it top to bottom. Either find a record by number (§27FJ, §27DM — the
 numbers are cited from `CLAUDE.md` and from source comments), or use the index: `CLAUDE.md` §7 lists
-all **260** records by the title each gives itself.
+all **261** records by the title each gives itself.
 
-**Current state:** V1 complete and in production testing. The records that answer *where are we now* are §27JB (PLAT-17 checklist restoration, path-safe renderer, RD-01 local drill plan and NX-01–NX-07 tranche; documentation/tooling only), §27JA (PLAT-16 TS-01 plan, reproducible checklist renderer and next improvement tranche; documentation/tooling only), §27IZ (PLAT-15 verified one-page checklist PDF and tenant security review; documentation only), §27IY (PLAT-14 printable two-contact test checklist; documentation only), §27IX (PLAT-13 two-contact test procedure and IA-42–IA-45 additions; documentation only), §27IW (PLAT-12 contact-wording correction, joint-rank reconciliation, pending notification evidence and IA-38–IA-41 additions; documentation only), §27IV (PLAT-11 backup-contact registration, Firebase-plan safety review and IA-34–IA-37 additions; documentation only), §27IU (PLAT-10 security-contact record, Firebase recovery drill and multi-criteria ranking; documentation only), §27IT (PLAT-9 free-first planning: conditional Cloudflare migration, alert ownership, disposable restore drill and additive follow-up; documentation only), §27IS (PLAT-8 planning-only assessment of the access layer, platform security alerting and whole-product priorities; documentation only), §27IR (PLAT-7 deployed at `e218bb0`, the production gate and recovery proof, and the required WebAuthn check), §27IQ (forced recovery setup, the free-plan outer access gate and the break-glass drill), §27IP (the Platform Operations console was first deployed at `56e8c27`, with browser sign-in, TOTP, assets/CSP and API smoke observed), §27IJ (the INTERNAL Platform Operations plane — separate administrator identity, sessions and capabilities; committed in `d02a549`, now deployed through §27IP), §27IK (platform-admin architecture, now aligned with the implemented interim plane and its remaining gates), §27IL (the durable 5xx and feature-presence stores that report reads), §27IM (the dedicated console, mandatory TOTP/WebAuthn and append-only platform audit — committed and browser-verified; now deployed through §27IP), §27IN (fresh security review, CI browser WebAuthn, production-readiness checklist and prioritized recommendations), §27IO (recovery codes, durable account-scoped MFA lockout, password change, administrator lifecycle and fail-closed origin/cookie hardening), §27II (AI-117 complete feedback conversation preview, deployed `13fb3f8` and device-verified; one out-of-stock wording finding remains open), §27IH (AI-116 bounded follow-up context and answer freshness, deployed and device-verified), §27IG (AI-115 member feedback and the owner/admin review queue, deployed and device-verified), §27IF (AI-114 deterministic complete restock lists, deployed and device-verified), §27ID (the permanent assistant improvement roadmap and implementation audit; docs-only), §27IC (AI-110 contextual assistant entry and restock shortfall, deployed `7315675` and OTA-verified; the partial-restock guards completed in `1c3928b`), §27IB (scheduler proof and hosted freshness), §27IA (post-deploy phone proof, triage and monitor), §27HV (AI-99 10,256-product gate, 24/25 with one output-limit finding), §27HU (AI-99 free-first simple inventory, deployed with the 1.0.2 OTA), §27HT (AI-91/AI-92 exact product identity and per-location stock), §27HS (the AI-50–AI-84 increment register), §27HR (AI-48–AI-84 merged and deployed), §27HQ (grounded answers and scoped stock reads), §27HP (market prices from cited pages), §27HO (recorded specifications and the real seed catalogue), §27HN (inventory-only web research), §27HH (a transfer as one event to the assistant), §27HG (the stock-in link's product), §27HF (the single-location default's timing), §27HE (the stock-in link's location), §27HD (the movement fixes and the production device pass), §27HC (the assistant's local-time answers), §27FM (the V1 re-verification) and §27FJ (the two open advisories).
+**Current state:** V1 complete and in production testing. The records that answer *where are we now* are §27JC (PLAT-18 RD-01 code fact-check, NX-01 sensitive-data protection design and NY-01–NY-06 tranche; documentation only), §27JB (PLAT-17 checklist restoration, path-safe renderer, RD-01 local drill plan and NX-01–NX-07 tranche; documentation/tooling only), §27JA (PLAT-16 TS-01 plan, reproducible checklist renderer and next improvement tranche; documentation/tooling only), §27IZ (PLAT-15 verified one-page checklist PDF and tenant security review; documentation only), §27IY (PLAT-14 printable two-contact test checklist; documentation only), §27IX (PLAT-13 two-contact test procedure and IA-42–IA-45 additions; documentation only), §27IW (PLAT-12 contact-wording correction, joint-rank reconciliation, pending notification evidence and IA-38–IA-41 additions; documentation only), §27IV (PLAT-11 backup-contact registration, Firebase-plan safety review and IA-34–IA-37 additions; documentation only), §27IU (PLAT-10 security-contact record, Firebase recovery drill and multi-criteria ranking; documentation only), §27IT (PLAT-9 free-first planning: conditional Cloudflare migration, alert ownership, disposable restore drill and additive follow-up; documentation only), §27IS (PLAT-8 planning-only assessment of the access layer, platform security alerting and whole-product priorities; documentation only), §27IR (PLAT-7 deployed at `e218bb0`, the production gate and recovery proof, and the required WebAuthn check), §27IQ (forced recovery setup, the free-plan outer access gate and the break-glass drill), §27IP (the Platform Operations console was first deployed at `56e8c27`, with browser sign-in, TOTP, assets/CSP and API smoke observed), §27IJ (the INTERNAL Platform Operations plane — separate administrator identity, sessions and capabilities; committed in `d02a549`, now deployed through §27IP), §27IK (platform-admin architecture, now aligned with the implemented interim plane and its remaining gates), §27IL (the durable 5xx and feature-presence stores that report reads), §27IM (the dedicated console, mandatory TOTP/WebAuthn and append-only platform audit — committed and browser-verified; now deployed through §27IP), §27IN (fresh security review, CI browser WebAuthn, production-readiness checklist and prioritized recommendations), §27IO (recovery codes, durable account-scoped MFA lockout, password change, administrator lifecycle and fail-closed origin/cookie hardening), §27II (AI-117 complete feedback conversation preview, deployed `13fb3f8` and device-verified; one out-of-stock wording finding remains open), §27IH (AI-116 bounded follow-up context and answer freshness, deployed and device-verified), §27IG (AI-115 member feedback and the owner/admin review queue, deployed and device-verified), §27IF (AI-114 deterministic complete restock lists, deployed and device-verified), §27ID (the permanent assistant improvement roadmap and implementation audit; docs-only), §27IC (AI-110 contextual assistant entry and restock shortfall, deployed `7315675` and OTA-verified; the partial-restock guards completed in `1c3928b`), §27IB (scheduler proof and hosted freshness), §27IA (post-deploy phone proof, triage and monitor), §27HV (AI-99 10,256-product gate, 24/25 with one output-limit finding), §27HU (AI-99 free-first simple inventory, deployed with the 1.0.2 OTA), §27HT (AI-91/AI-92 exact product identity and per-location stock), §27HS (the AI-50–AI-84 increment register), §27HR (AI-48–AI-84 merged and deployed), §27HQ (grounded answers and scoped stock reads), §27HP (market prices from cited pages), §27HO (recorded specifications and the real seed catalogue), §27HN (inventory-only web research), §27HH (a transfer as one event to the assistant), §27HG (the stock-in link's product), §27HF (the single-location default's timing), §27HE (the stock-in link's location), §27HD (the movement fixes and the production device pass), §27HC (the assistant's local-time answers), §27FM (the V1 re-verification) and §27FJ (the two open advisories).
 
 ---
 
@@ -26693,3 +26693,85 @@ reporting **exactly 1 page**; the checked-in PDF is **99,872 bytes** and its tex
 `Regenerate:` line. `node scripts/check-docs.mjs` reports **56 active documents**, 30 invariant rows,
 30 register rows, **34 living reference documents** within cadence and 5 quota evidence records. The
 five focused docs suites pass **31/31**.
+
+# 27JC. PLAT-18 - RD-01 fact-check, NX-01 sensitive-data design and NY-01-NY-06 (2026-11-17)
+
+**Documentation only.** No application code, notification, alert activation, production fault
+injection, database operation, deployment, DNS change, domain or paid service was created or
+performed.
+
+**RD-01 fact-check.** The outage matrix was checked against the current server source and focused
+tests at `c43c5c2`, not only against earlier prose. Four documentation defects were corrected:
+
+| Claim checked | Correction | Source of truth |
+| --- | --- | --- |
+| Invitation delivery failure is a generic `503 MAIL_UNAVAILABLE` | It is **502 `INVITATION_MAIL_FAILED`**, and the invitation row is deleted; a disabled transport is **503 `INVITATION_MAIL_NOT_CONFIGURED`** | `server/src/services/invitations.service.ts`; `server/test/INVITATIONS.test.mjs` |
+| Firebase terminal rejection is “401 at exchange, 400 at the verification screen” | Public exchange/registration is **401**; authenticated renewal, identity link, credentials-changed, account deletion and verification request/confirm are **400**, deliberately, so a rejected credential does not end a valid local session | `firebaseAuth.controller.ts`; `auth.controller.ts`; `phaseAUTH01-firebase-verification.test.mjs`; `phaseAUTH04C-email-verification-http.test.mjs`; `ACCOUNT-DELETION.test.mjs` |
+| Mail failures have one user-visible `MAIL_UNAVAILABLE` code | `MAIL_UNAVAILABLE` is internal. Verification and invitation remap it; the reset flows hide delivery failure behind their anti-enumeration response. The per-flow `*_NOT_CONFIGURED` and `*_MAIL_FAILED` codes are now listed | mail service and the three flow services/controllers |
+| A DB-down request is answered after “the 1.5 s bound” | `bufferTimeoutMS = 1500` is the **buffering** bound, not a universal request deadline; tests pin the `DB_UNAVAILABLE` mapping and `/ready` 503, not exact wall-clock latency | `server/src/config/db.ts`; `phase07d-db-reliability.test.mjs` |
+
+Two clarifications were also recorded: a provider-attempt timeout is normally **502
+`AI_UNAVAILABLE`** while only the turn's wall-clock deadline is **504 `AI_TIMEOUT`**; and MongoDB is
+first for authenticated requests, while the public Firebase exchange verifies Firebase before writing
+the local session. The matrix now has a §10 fact-check table with those sources. No fault was
+injected, no mail or provider call was made and no production change was touched.
+
+**NX-01 design.** [`PLATFORM_SENSITIVE_DATA_PROTECTION_DESIGN.md`](PLATFORM_SENSITIVE_DATA_PROTECTION_DESIGN.md)
+adds the missing whole-product sensitive-data design: S1-S4 classification, the approved-appearance
+rule, persistence and sink maps, the redaction boundary, a C1-C14 redaction canary and acceptance
+checks. The code review found nine concrete gaps rather than generic advice:
+
+- **G1:** Firebase uid (and link-conflict `businessId`) is written into structured error logs in
+  `firebaseAuth.service.ts` and `firebaseLink.service.ts`. The code deliberately includes it as an
+  operator identifier, so this is a policy conflict with the S2 default, not an accidental
+  credential leak; the design requires an explicit approved-appearance decision.
+- **G2:** platform audit `route` uses `originalUrl` (query included), and `metadata` is size-bounded
+  arbitrary JSON.
+- **G3:** tenant audit `metadata` is `Mixed`, caller-controlled and returned to OWNER/ADMIN as-is.
+- **G4:** several paths log raw `err.message`, including the global 5xx branch, inventory and
+  purchase-order rollbacks, session audit failures, platform audit failures and AI tool failures.
+- **G5:** the AI upstream diagnostic body prefix is protected by a name-based regex, not a complete
+  detector.
+- **G6:** only `/api/auth` has a mount-level `no-store`; other authenticated API responses rely on
+  individual handlers.
+- **G7:** there is no field registry or cross-sink canary.
+- **G8:** tenant user ids in request logs and platform actor email/IP/user-agent are intentional, but
+  were not documented as approved appearances.
+- **G9:** platform support-ticket free text can contain customer data or a credential.
+
+The design does not change code. It names the future implementation sequence, the allowed and
+prohibited sinks, the negative control, the residual risks and the acceptance checks.
+
+**NY tranche.** [`PLATFORM_NEXT_IMPROVEMENTS_BEYOND_NX07.md`](PLATFORM_NEXT_IMPROVEMENTS_BEYOND_NX07.md)
+adds six new recommendations beyond NX-07, with a duplicate-exclusion table covering IA, TS, SEC, RD
+and NX:
+
+| Rank | ID | Recommendation | Score |
+| --- | --- | --- | ---: |
+| 1 | NY-01 | AI provider data-handling attestation | 26/30 |
+| 2 | NY-02 | Release-artifact secret and PII scan | 24/30 |
+| 3 | NY-03 | Operational runbook ownership and freshness register | 24/30 |
+| 4 | NY-04 | Retention/TTL effectiveness monitor | 22/30 |
+| 5 | NY-05 | Platform audit tamper-evidence chain | 20/30 |
+| 6 | NY-06 | External reference and provider-link freshness check | 18/30 |
+
+Every item is free-first and reuses existing resources. NY-01 answers the provider-side privacy
+question that IA-22 (internal retention) and NX-01 (logs/errors) do not; NY-02 scans the artifact
+rather than the dependency graph; NY-03 adds ownership and evidence status to runbooks; NY-04 proves
+the TTL indexes actually delete; NY-05 detects a raw-database rewrite of the audit trail; NY-06
+checks the external links a runbook follows. No implementation is authorized.
+
+**Documentation map.** `docs/README.md` indexes both new documents with a 90-day cadence;
+`PLATFORM_DEPENDENCY_OUTAGE_PLAN.md` now carries the §10 code fact-check. `CLAUDE.md`,
+`PHASE_HISTORY.md` and `DEVELOPMENT_LOG.md` record the increment. The roadmap index moves to **261**
+records.
+
+**Explicitly not done.** No application code change, notification, alert activation, production
+fault injection, database read or write, deployment, DNS change, domain or paid subscription was
+performed. The two-contact notification evidence remains **NOT RUN / PENDING**, and security alerts
+remain inactive.
+
+**Verification.** `node scripts/check-docs.mjs` reports **58 active documents**, 30 invariant rows,
+30 register rows, **36 living reference documents** within cadence and 5 quota evidence records. The
+five focused docs suites pass **31/31**; `git diff --check` is clean. The checklist PDF was not
+regenerated and remains **99,872 bytes / exactly 1 page**.
