@@ -94,6 +94,9 @@ a role change and password change do the same; a second tenant's event never app
 address, phone number or product data is in the message; disabling a non-critical category does not
 disable password/role alerts.
 
+**Implementation plan:** [`PLATFORM_TENANT_SECURITY_NOTIFICATIONS_PLAN.md`](PLATFORM_TENANT_SECURITY_NOTIFICATIONS_PLAN.md)
+- planning only, including event triggers, recipient rules, privacy, rate limits and acceptance checks.
+
 **Free/existing resources.** Existing Brevo mail, audit/session records and tenant membership data.
 No new vendor.
 
@@ -247,3 +250,5 @@ is included. The existing IA and SEC items remain the authority for their subjec
   prerequisite two-contact test.
 - [`PLATFORM_SECURITY_MONITORING_PLAN.md`](PLATFORM_SECURITY_MONITORING_PLAN.md) - platform alerts.
 - [`MONITORING.md`](MONITORING.md) - current health watch and incident procedure.
+- [`PLATFORM_RELIABILITY_DOCS_IMPROVEMENTS.md`](PLATFORM_RELIABILITY_DOCS_IMPROVEMENTS.md) - the next
+  ranked security/reliability/documentation tranche beyond TS-06.

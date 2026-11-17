@@ -44,6 +44,18 @@ at the end of every development session, newest entry first.
 **Goal:** finish and harden Inventory AI **V1** through production testing. No Play Store or App
 Store release is being prepared.
 
+**TS-01 plan, reproducible renderer and next improvement tranche, PLAT-16 (2026-11-17, docs/tooling
+only):** added the planning-only tenant security notification plan (explicit events, server-derived
+recipients, privacy, dedupe/rate limits, Brevo failure behaviour and acceptance checks) and
+`scripts/render-notification-checklist.mjs`, which uses pinned Markdown, Chrome and `pdftotext` and
+refuses to replace the PDF unless it is exactly one page with all required fields. The renderer passed
+and regenerated the PDF. Added RD-01–RD-06 beyond TS-06/IA-45: dependency outage matrix (26/30),
+security review gate (25), notification outbox (24), tenant fairness budgets (22), config drift (22)
+and command verification (21). No implementation, notification, alert, production change or paid
+service was created. Docs checks: **54 active documents / 32 living references**; focused docs suites
+**31/31**; the renderer exited 0 and wrote the PDF after verifying **exactly 1 page**. The two-contact
+evidence remains **NOT RUN / PENDING** and alerts remain inactive.
+
 **One-page PDF verification and tenant security review, PLAT-15 (2026-11-17, docs-only):**
 rendered the checklist through Chrome at Letter size and verified with `pdftotext` that the PDF is
 **exactly one page**, contains every required field and has **0 replacement characters**; the rendered

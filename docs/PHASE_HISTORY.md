@@ -161,7 +161,9 @@ IA-42–IA-45 additions, is §27IX; no test message was sent, no alert was activ
 change or paid service was performed. PLAT-14, the printable two-contact notification test checklist,
 is §27IY; it is blank and pending, and no notification, alert or production change was made. PLAT-15,
 the verified one-page checklist PDF and the TS-01–TS-06 tenant security review, is §27IZ; no
-implementation, notification, alert, DNS change, deployment or paid service was made. The tenant-facing Operations dashboard was removed before commit. The
+implementation, notification, alert, DNS change, deployment or paid service was made. PLAT-16, the
+TS-01 notification plan, reproducible checklist renderer and RD-01–RD-06 review, is §27JA; no
+implementation, notification, alert, production change or paid service was made. The tenant-facing Operations dashboard was removed before commit. The
 2026-11-15 post-deploy/triage/monitor close-out is §27IA;
 production currently serves `e218bb0` and the newest OTA is
 `9d759ee5-82c5-4fbe-afe0-3a0ea2c44f6c`. The AI-105 retry fix and the
