@@ -4,7 +4,6 @@
 **Status:** **NOT RUN - security alerts remain inactive.** This checklist does not send anything.
 
 **Printable PDF:** [`PLATFORM_SECURITY_NOTIFICATION_TEST_CHECKLIST.pdf`](PLATFORM_SECURITY_NOTIFICATION_TEST_CHECKLIST.pdf)
-**Regenerate:** `node scripts/render-notification-checklist.mjs` - see [the printing procedure](PLATFORM_SECURITY_NOTIFICATION_CHECKLIST_PRINTING.md).
 
 **Test ID:** ______________________  **Test date (UTC):** ______________________  **Tester:** ______________________
 

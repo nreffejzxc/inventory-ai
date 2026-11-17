@@ -62,6 +62,9 @@ an authorization.
 users see, which actions remain safe, which fail closed, what the operator does, and how recovery is
 detected. Run a local fault-injection drill against disposable stubs before changing production.
 
+**Plan:** [`PLATFORM_DEPENDENCY_OUTAGE_PLAN.md`](PLATFORM_DEPENDENCY_OUTAGE_PLAN.md) - matrix,
+cross-dependency ordering, user-visible codes, local drill D1-D9 and acceptance checks.
+
 **Why it matters.** `/api/health` proves the process and database; it does not prove a login, mail or
 assistant turn will behave honestly when one dependency is down. IA-40 would detect a dead provider;
 this defines what the product does in the meantime. The project has real examples of a green process
@@ -208,3 +211,5 @@ that, and after the TS-01 plan is approved separately:
 - [`INVENTORY_AI_MULTI_CRITERIA_RANKING.md`](INVENTORY_AI_MULTI_CRITERIA_RANKING.md) - IA-01-IA-45.
 - [`PLATFORM_SECURITY_RECOMMENDATIONS.md`](PLATFORM_SECURITY_RECOMMENDATIONS.md) - SEC-01-SEC-12.
 - [`PLATFORM_PRODUCTION_READINESS.md`](PLATFORM_PRODUCTION_READINESS.md) - existing readiness gates.
+- [`PLATFORM_NEXT_IMPROVEMENTS_BEYOND_RD06.md`](PLATFORM_NEXT_IMPROVEMENTS_BEYOND_RD06.md) - the next
+  ranked tranche (NX-01-NX-07) beyond this document.

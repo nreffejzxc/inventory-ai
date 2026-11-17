@@ -8,9 +8,9 @@ of truth for *what actually happened*, and it is why this file is long.
 
 **How to read it.** Do not read it top to bottom. Either find a record by number (§27FJ, §27DM — the
 numbers are cited from `CLAUDE.md` and from source comments), or use the index: `CLAUDE.md` §7 lists
-all **259** records by the title each gives itself.
+all **260** records by the title each gives itself.
 
-**Current state:** V1 complete and in production testing. The records that answer *where are we now* are §27JA (PLAT-16 TS-01 plan, reproducible checklist renderer and next improvement tranche; documentation/tooling only), §27IZ (PLAT-15 verified one-page checklist PDF and tenant security review; documentation only), §27IY (PLAT-14 printable two-contact test checklist; documentation only), §27IX (PLAT-13 two-contact test procedure and IA-42–IA-45 additions; documentation only), §27IW (PLAT-12 contact-wording correction, joint-rank reconciliation, pending notification evidence and IA-38–IA-41 additions; documentation only), §27IV (PLAT-11 backup-contact registration, Firebase-plan safety review and IA-34–IA-37 additions; documentation only), §27IU (PLAT-10 security-contact record, Firebase recovery drill and multi-criteria ranking; documentation only), §27IT (PLAT-9 free-first planning: conditional Cloudflare migration, alert ownership, disposable restore drill and additive follow-up; documentation only), §27IS (PLAT-8 planning-only assessment of the access layer, platform security alerting and whole-product priorities; documentation only), §27IR (PLAT-7 deployed at `e218bb0`, the production gate and recovery proof, and the required WebAuthn check), §27IQ (forced recovery setup, the free-plan outer access gate and the break-glass drill), §27IP (the Platform Operations console was first deployed at `56e8c27`, with browser sign-in, TOTP, assets/CSP and API smoke observed), §27IJ (the INTERNAL Platform Operations plane — separate administrator identity, sessions and capabilities; committed in `d02a549`, now deployed through §27IP), §27IK (platform-admin architecture, now aligned with the implemented interim plane and its remaining gates), §27IL (the durable 5xx and feature-presence stores that report reads), §27IM (the dedicated console, mandatory TOTP/WebAuthn and append-only platform audit — committed and browser-verified; now deployed through §27IP), §27IN (fresh security review, CI browser WebAuthn, production-readiness checklist and prioritized recommendations), §27IO (recovery codes, durable account-scoped MFA lockout, password change, administrator lifecycle and fail-closed origin/cookie hardening), §27II (AI-117 complete feedback conversation preview, deployed `13fb3f8` and device-verified; one out-of-stock wording finding remains open), §27IH (AI-116 bounded follow-up context and answer freshness, deployed and device-verified), §27IG (AI-115 member feedback and the owner/admin review queue, deployed and device-verified), §27IF (AI-114 deterministic complete restock lists, deployed and device-verified), §27ID (the permanent assistant improvement roadmap and implementation audit; docs-only), §27IC (AI-110 contextual assistant entry and restock shortfall, deployed `7315675` and OTA-verified; the partial-restock guards completed in `1c3928b`), §27IB (scheduler proof and hosted freshness), §27IA (post-deploy phone proof, triage and monitor), §27HV (AI-99 10,256-product gate, 24/25 with one output-limit finding), §27HU (AI-99 free-first simple inventory, deployed with the 1.0.2 OTA), §27HT (AI-91/AI-92 exact product identity and per-location stock), §27HS (the AI-50–AI-84 increment register), §27HR (AI-48–AI-84 merged and deployed), §27HQ (grounded answers and scoped stock reads), §27HP (market prices from cited pages), §27HO (recorded specifications and the real seed catalogue), §27HN (inventory-only web research), §27HH (a transfer as one event to the assistant), §27HG (the stock-in link's product), §27HF (the single-location default's timing), §27HE (the stock-in link's location), §27HD (the movement fixes and the production device pass), §27HC (the assistant's local-time answers), §27FM (the V1 re-verification) and §27FJ (the two open advisories).
+**Current state:** V1 complete and in production testing. The records that answer *where are we now* are §27JB (PLAT-17 checklist restoration, path-safe renderer, RD-01 local drill plan and NX-01–NX-07 tranche; documentation/tooling only), §27JA (PLAT-16 TS-01 plan, reproducible checklist renderer and next improvement tranche; documentation/tooling only), §27IZ (PLAT-15 verified one-page checklist PDF and tenant security review; documentation only), §27IY (PLAT-14 printable two-contact test checklist; documentation only), §27IX (PLAT-13 two-contact test procedure and IA-42–IA-45 additions; documentation only), §27IW (PLAT-12 contact-wording correction, joint-rank reconciliation, pending notification evidence and IA-38–IA-41 additions; documentation only), §27IV (PLAT-11 backup-contact registration, Firebase-plan safety review and IA-34–IA-37 additions; documentation only), §27IU (PLAT-10 security-contact record, Firebase recovery drill and multi-criteria ranking; documentation only), §27IT (PLAT-9 free-first planning: conditional Cloudflare migration, alert ownership, disposable restore drill and additive follow-up; documentation only), §27IS (PLAT-8 planning-only assessment of the access layer, platform security alerting and whole-product priorities; documentation only), §27IR (PLAT-7 deployed at `e218bb0`, the production gate and recovery proof, and the required WebAuthn check), §27IQ (forced recovery setup, the free-plan outer access gate and the break-glass drill), §27IP (the Platform Operations console was first deployed at `56e8c27`, with browser sign-in, TOTP, assets/CSP and API smoke observed), §27IJ (the INTERNAL Platform Operations plane — separate administrator identity, sessions and capabilities; committed in `d02a549`, now deployed through §27IP), §27IK (platform-admin architecture, now aligned with the implemented interim plane and its remaining gates), §27IL (the durable 5xx and feature-presence stores that report reads), §27IM (the dedicated console, mandatory TOTP/WebAuthn and append-only platform audit — committed and browser-verified; now deployed through §27IP), §27IN (fresh security review, CI browser WebAuthn, production-readiness checklist and prioritized recommendations), §27IO (recovery codes, durable account-scoped MFA lockout, password change, administrator lifecycle and fail-closed origin/cookie hardening), §27II (AI-117 complete feedback conversation preview, deployed `13fb3f8` and device-verified; one out-of-stock wording finding remains open), §27IH (AI-116 bounded follow-up context and answer freshness, deployed and device-verified), §27IG (AI-115 member feedback and the owner/admin review queue, deployed and device-verified), §27IF (AI-114 deterministic complete restock lists, deployed and device-verified), §27ID (the permanent assistant improvement roadmap and implementation audit; docs-only), §27IC (AI-110 contextual assistant entry and restock shortfall, deployed `7315675` and OTA-verified; the partial-restock guards completed in `1c3928b`), §27IB (scheduler proof and hosted freshness), §27IA (post-deploy phone proof, triage and monitor), §27HV (AI-99 10,256-product gate, 24/25 with one output-limit finding), §27HU (AI-99 free-first simple inventory, deployed with the 1.0.2 OTA), §27HT (AI-91/AI-92 exact product identity and per-location stock), §27HS (the AI-50–AI-84 increment register), §27HR (AI-48–AI-84 merged and deployed), §27HQ (grounded answers and scoped stock reads), §27HP (market prices from cited pages), §27HO (recorded specifications and the real seed catalogue), §27HN (inventory-only web research), §27HH (a transfer as one event to the assistant), §27HG (the stock-in link's product), §27HF (the single-location default's timing), §27HE (the stock-in link's location), §27HD (the movement fixes and the production device pass), §27HC (the assistant's local-time answers), §27FM (the V1 re-verification) and §27FJ (the two open advisories).
 
 ---
 
@@ -26646,3 +26646,50 @@ contains the required fields with no replacement characters. `node scripts/check
 **54 active documents**, 30 invariant rows, 30 register rows, **32 living reference documents**
 within cadence and 5 quota evidence records. The five focused docs suites pass **31/31**. No test
 notification or production check was performed for this documentation/tooling increment.
+
+---
+
+# 27JB. PLAT-17 - Checklist restoration, path-safe renderer, RD-01 plan and NX-01-NX-07 (2026-11-17)
+
+**Documentation and local tooling only.** No notification was sent, no security alert was activated,
+no production fault injection was performed, and no application, DNS, database or paid-service
+change was made.
+
+**Checklist restoration.** The `Regenerate:` line was removed from
+[`PLATFORM_SECURITY_NOTIFICATION_TEST_CHECKLIST.md`](PLATFORM_SECURITY_NOTIFICATION_TEST_CHECKLIST.md).
+The checklist is back to its intended content; printing instructions live only in
+[`PLATFORM_SECURITY_NOTIFICATION_CHECKLIST_PRINTING.md`](PLATFORM_SECURITY_NOTIFICATION_CHECKLIST_PRINTING.md).
+The generated PDF was rebuilt and verified as exactly one page, with no printing instruction in its text.
+
+**Path-safe renderer.** `scripts/render-notification-checklist.mjs` now passes the Windows `npx`
+invocation as one quoted command string through `spawnSync(..., { shell: true })`, which quotes the
+checkout and temporary paths correctly and removes the previous `DEP0190` warning. A full run from a
+repository path **and** a `TEMP` directory both containing spaces regenerated a one-page PDF. The
+existing one-page, required-field and replacement-character checks are unchanged, and the script still
+never edits the checklist.
+
+**RD-01 plan.** [`PLATFORM_DEPENDENCY_OUTAGE_PLAN.md`](PLATFORM_DEPENDENCY_OUTAGE_PLAN.md) covers
+MongoDB Atlas, Firebase Admin/Auth, Brevo and the AI provider: user-visible states, stop conditions,
+recovery, cross-dependency ordering, the stable error-code contract and local drill scenarios D1-D9.
+It uses existing fake seams and a disposable local database; no production fault injection or live
+provider call is authorized.
+
+**Next tranche.** [`PLATFORM_NEXT_IMPROVEMENTS_BEYOND_RD06.md`](PLATFORM_NEXT_IMPROVEMENTS_BEYOND_RD06.md)
+ranks seven new recommendations beyond RD-06: NX-01 sensitive-data/log-redaction canary (27/30),
+NX-02 remaining-write idempotency (26), NX-03 cross-tenant non-AI route matrix (25), NX-04
+feature-flag/emergency-switch registry (24), NX-05 incident tabletop/postmortem (23), NX-06
+dependency rollback rehearsal (22) and NX-07 security-header/cookie drift (21). Recommendations only.
+
+**Documentation map.** `docs/README.md` indexes both new documents with a 90-day cadence; the RD
+tranche links to the drill plan and the NX tranche; the printing procedure records the spaces test.
+`CLAUDE.md`, `PHASE_HISTORY.md` and `DEVELOPMENT_LOG.md` record the increment.
+
+**Explicitly not done.** No notification, alert activation, implementation, production fault
+injection, DNS change, database operation, deployment, domain or paid subscription. The two-contact
+evidence record remains **NOT RUN / PENDING**.
+
+**Verification.** The renderer exited 0 in both the normal checkout and the spaced-path copy, each
+reporting **exactly 1 page**; the checked-in PDF is **99,872 bytes** and its text contains no
+`Regenerate:` line. `node scripts/check-docs.mjs` reports **56 active documents**, 30 invariant rows,
+30 register rows, **34 living reference documents** within cadence and 5 quota evidence records. The
+five focused docs suites pass **31/31**.
