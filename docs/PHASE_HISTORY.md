@@ -151,7 +151,10 @@ Cloudflare migration plan, alert-owner decision sheet, disposable restore drill 
 follow-up assessment, is §27IT; it changed documentation only and did not touch the database or
 production. PLAT-10, the primary/backup security contact record, isolated Firebase recovery drill
 plan and seven-criteria IA-19–IA-33 ranking, is §27IU; the backup remains unassigned and no security
-alert was activated, and it changed documentation only. The tenant-facing Operations dashboard was removed before commit. The
+alert was activated, and it changed documentation only. PLAT-11, the named backup contact
+registration (Cucumber; contact details private; test notification pending), the Firebase-plan safety
+review and the IA-34–IA-37 additions, is §27IV; no drill, alert, production change or paid service
+was performed. The tenant-facing Operations dashboard was removed before commit. The
 2026-11-15 post-deploy/triage/monitor close-out is §27IA;
 production currently serves `e218bb0` and the newest OTA is
 `9d759ee5-82c5-4fbe-afe0-3a0ea2c44f6c`. The AI-105 retry fix and the

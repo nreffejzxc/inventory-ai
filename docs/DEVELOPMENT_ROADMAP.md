@@ -8,9 +8,9 @@ of truth for *what actually happened*, and it is why this file is long.
 
 **How to read it.** Do not read it top to bottom. Either find a record by number (§27FJ, §27DM — the
 numbers are cited from `CLAUDE.md` and from source comments), or use the index: `CLAUDE.md` §7 lists
-all **253** records by the title each gives itself.
+all **254** records by the title each gives itself.
 
-**Current state:** V1 complete and in production testing. The records that answer *where are we now* are §27IU (PLAT-10 security-contact record, Firebase recovery drill and multi-criteria ranking; documentation only), §27IT (PLAT-9 free-first planning: conditional Cloudflare migration, alert ownership, disposable restore drill and additive follow-up; documentation only), §27IS (PLAT-8 planning-only assessment of the access layer, platform security alerting and whole-product priorities; documentation only), §27IR (PLAT-7 deployed at `e218bb0`, the production gate and recovery proof, and the required WebAuthn check), §27IQ (forced recovery setup, the free-plan outer access gate and the break-glass drill), §27IP (the Platform Operations console was first deployed at `56e8c27`, with browser sign-in, TOTP, assets/CSP and API smoke observed), §27IJ (the INTERNAL Platform Operations plane — separate administrator identity, sessions and capabilities; committed in `d02a549`, now deployed through §27IP), §27IK (platform-admin architecture, now aligned with the implemented interim plane and its remaining gates), §27IL (the durable 5xx and feature-presence stores that report reads), §27IM (the dedicated console, mandatory TOTP/WebAuthn and append-only platform audit — committed and browser-verified; now deployed through §27IP), §27IN (fresh security review, CI browser WebAuthn, production-readiness checklist and prioritized recommendations), §27IO (recovery codes, durable account-scoped MFA lockout, password change, administrator lifecycle and fail-closed origin/cookie hardening), §27II (AI-117 complete feedback conversation preview, deployed `13fb3f8` and device-verified; one out-of-stock wording finding remains open), §27IH (AI-116 bounded follow-up context and answer freshness, deployed and device-verified), §27IG (AI-115 member feedback and the owner/admin review queue, deployed and device-verified), §27IF (AI-114 deterministic complete restock lists, deployed and device-verified), §27ID (the permanent assistant improvement roadmap and implementation audit; docs-only), §27IC (AI-110 contextual assistant entry and restock shortfall, deployed `7315675` and OTA-verified; the partial-restock guards completed in `1c3928b`), §27IB (scheduler proof and hosted freshness), §27IA (post-deploy phone proof, triage and monitor), §27HV (AI-99 10,256-product gate, 24/25 with one output-limit finding), §27HU (AI-99 free-first simple inventory, deployed with the 1.0.2 OTA), §27HT (AI-91/AI-92 exact product identity and per-location stock), §27HS (the AI-50–AI-84 increment register), §27HR (AI-48–AI-84 merged and deployed), §27HQ (grounded answers and scoped stock reads), §27HP (market prices from cited pages), §27HO (recorded specifications and the real seed catalogue), §27HN (inventory-only web research), §27HH (a transfer as one event to the assistant), §27HG (the stock-in link's product), §27HF (the single-location default's timing), §27HE (the stock-in link's location), §27HD (the movement fixes and the production device pass), §27HC (the assistant's local-time answers), §27FM (the V1 re-verification) and §27FJ (the two open advisories).
+**Current state:** V1 complete and in production testing. The records that answer *where are we now* are §27IV (PLAT-11 backup-contact registration, Firebase-plan safety review and IA-34–IA-37 additions; documentation only), §27IU (PLAT-10 security-contact record, Firebase recovery drill and multi-criteria ranking; documentation only), §27IT (PLAT-9 free-first planning: conditional Cloudflare migration, alert ownership, disposable restore drill and additive follow-up; documentation only), §27IS (PLAT-8 planning-only assessment of the access layer, platform security alerting and whole-product priorities; documentation only), §27IR (PLAT-7 deployed at `e218bb0`, the production gate and recovery proof, and the required WebAuthn check), §27IQ (forced recovery setup, the free-plan outer access gate and the break-glass drill), §27IP (the Platform Operations console was first deployed at `56e8c27`, with browser sign-in, TOTP, assets/CSP and API smoke observed), §27IJ (the INTERNAL Platform Operations plane — separate administrator identity, sessions and capabilities; committed in `d02a549`, now deployed through §27IP), §27IK (platform-admin architecture, now aligned with the implemented interim plane and its remaining gates), §27IL (the durable 5xx and feature-presence stores that report reads), §27IM (the dedicated console, mandatory TOTP/WebAuthn and append-only platform audit — committed and browser-verified; now deployed through §27IP), §27IN (fresh security review, CI browser WebAuthn, production-readiness checklist and prioritized recommendations), §27IO (recovery codes, durable account-scoped MFA lockout, password change, administrator lifecycle and fail-closed origin/cookie hardening), §27II (AI-117 complete feedback conversation preview, deployed `13fb3f8` and device-verified; one out-of-stock wording finding remains open), §27IH (AI-116 bounded follow-up context and answer freshness, deployed and device-verified), §27IG (AI-115 member feedback and the owner/admin review queue, deployed and device-verified), §27IF (AI-114 deterministic complete restock lists, deployed and device-verified), §27ID (the permanent assistant improvement roadmap and implementation audit; docs-only), §27IC (AI-110 contextual assistant entry and restock shortfall, deployed `7315675` and OTA-verified; the partial-restock guards completed in `1c3928b`), §27IB (scheduler proof and hosted freshness), §27IA (post-deploy phone proof, triage and monitor), §27HV (AI-99 10,256-product gate, 24/25 with one output-limit finding), §27HU (AI-99 free-first simple inventory, deployed with the 1.0.2 OTA), §27HT (AI-91/AI-92 exact product identity and per-location stock), §27HS (the AI-50–AI-84 increment register), §27HR (AI-48–AI-84 merged and deployed), §27HQ (grounded answers and scoped stock reads), §27HP (market prices from cited pages), §27HO (recorded specifications and the real seed catalogue), §27HN (inventory-only web research), §27HH (a transfer as one event to the assistant), §27HG (the stock-in link's product), §27HF (the single-location default's timing), §27HE (the stock-in link's location), §27HD (the movement fixes and the production device pass), §27HC (the assistant's local-time answers), §27FM (the V1 re-verification) and §27FJ (the two open advisories).
 
 ---
 
@@ -26385,5 +26385,53 @@ No tenant data or secret/recovery code was read or printed.
 `git diff --check` passed. The five focused docs suites passed **31/31** (documentation links, fact
 drift, invariant register, route inventory and section integrity). No Firebase project, credential,
 database operation, application suite or deployment was performed, because this change is planning
+documentation only. The final pull-request checks are recorded in
+[`DEVELOPMENT_LOG.md`](DEVELOPMENT_LOG.md) after they run.
+
+---
+
+# 27IV. PLAT-11 — backup contact registration, Firebase-plan safety review and second improvement set (2026-11-17)
+
+**Planning and documentation only.** The owner registered **Cucumber** as the backup security contact /
+reviewer. The contact document records the name and role only; the actual email address and phone
+number remain in the owner's private record and are deliberately not written to this repository, a
+commit, an issue or chat. **Security alerts remain inactive** because Cucumber has not acknowledged in
+this record and no test notification has been shown to reach both contacts.
+
+**Firebase plan safety review.** Corrected four assumptions in
+[`PLATFORM_FIREBASE_RECOVERY_DRILL_PLAN.md`](PLATFORM_FIREBASE_RECOVERY_DRILL_PLAN.md):
+
+- A deleted Google Cloud/Firebase project has a **30-day owner-restore window**, not immediate
+  permanence; after that it is permanently deleted. Billing is not automatically reinstated, some
+  resources may be deleted sooner, and a restore is not a backup.
+- A deleted service-account key can appear to work briefly because the Admin SDK may hold a cached
+  OAuth access token. The drill must restart the local process and retest; delayed success is not proof
+  the deleted key is accepted.
+- The Admin SDK supports `FIREBASE_AUTH_EMULATOR_HOST`, but this server has no emulator path and would
+  need a separately approved test-only configuration change. The separate free Spark project remains
+  the $0 drill path.
+- Host-wide firewall/DNS/proxy changes are **not** an acceptable network-failure simulation. Use the
+  existing verifier seam for deterministic transient behavior, or a dedicated process-scoped isolated
+  environment; otherwise record transport failure as unproven. No host-wide change is authorized.
+
+**Second improvement set.** Added IA-34–IA-37 to
+[`INVENTORY_AI_MULTI_CRITERIA_RANKING.md`](INVENTORY_AI_MULTI_CRITERIA_RANKING.md): API contract-drift
+gate, recovery/rotation freshness attestation, incident communication templates and query-plan/index
+regression watch. They are scored on the same seven criteria; IA-34 and IA-37 score 21/35, IA-35 and
+IA-36 score 20/35. No implementation is authorized.
+
+**Documentation map.** `docs/README.md` updates the contact/decision-sheet descriptions; `CLAUDE.md`
+adds the PLAT-11 row and §27IV index entry; `PHASE_HISTORY.md` records the planning-only increment;
+`DEVELOPMENT_LOG.md` records the current position.
+
+**Explicitly not done.** No security alert, mailbox, Firebase project, credential, drill, database
+operation, backup/restore, code change, deployment, domain or paid subscription. No tenant data,
+email/phone value, secret or recovery code was read or printed.
+
+**Verification.** `node scripts/check-docs.mjs` passed with **48 active documents**, 30 invariant rows,
+30 register rows, **26 living reference documents** within cadence and 5 quota evidence records;
+`git diff --check` passed. The five focused docs suites passed **31/31** (documentation links, fact
+drift, invariant register, route inventory and section integrity). No security alert, Firebase
+project, drill, database operation, application suite or deployment was performed; this is planning
 documentation only. The final pull-request checks are recorded in
 [`DEVELOPMENT_LOG.md`](DEVELOPMENT_LOG.md) after they run.

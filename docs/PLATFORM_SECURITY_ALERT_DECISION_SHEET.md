@@ -1,8 +1,9 @@
 # Platform Security — alert decision sheet and ownership
 
-**Status:** **DECISION SHEET ONLY. NO NEW SECURITY ALERT, CHANNEL OR ROTA IS LIVE.** The primary is
-recorded; the backup is **UNASSIGNED**, so security alerts remain inactive. The existing UptimeRobot
-health email remains live. This page turns the alert catalogue in
+**Status:** **DECISION SHEET ONLY. NO NEW SECURITY ALERT, CHANNEL OR ROTA IS LIVE.** The primary and
+backup are named; the backup's contact details are private and no test notification has passed, so
+security alerts remain inactive. The existing UptimeRobot health email remains live. This page turns
+the alert catalogue in
 [`PLATFORM_SECURITY_MONITORING_PLAN.md`](PLATFORM_SECURITY_MONITORING_PLAN.md) into a named
 accountability record. It does not create a mailbox, pager, dashboard or notification.
 
@@ -16,9 +17,9 @@ be switched on?”
 
 ## 1. The honest starting position
 
-Inventory AI currently has **one operator**. The only verified automatic channel is UptimeRobot's
-email for health/readiness. The owner email is the primary platform-security channel; there is no
-dedicated security mailbox, no pager, no backup reviewer and no 24/7 rota. This sheet does not
+Inventory AI currently has **one operator plus a named backup**. The only verified automatic channel
+is UptimeRobot's email for health/readiness. The owner email is the primary platform-security
+channel; there is no dedicated security mailbox, no pager and no 24/7 rota. This sheet does not
 pretend otherwise.
 
 Therefore:
@@ -26,11 +27,11 @@ Therefore:
 - The **primary is recorded** as `nreffejzxc`, the account owner, for every platform-security alert
   today. The monitored owner email is recorded in
   [`ACCOUNT_MIGRATION_RUNBOOK.md`](ACCOUNT_MIGRATION_RUNBOOK.md).
-- The **backup is unassigned** for every security alert. That is a stop condition for activation,
-  not a role name we can invent.
+- **Cucumber is the named backup security contact/reviewer.** The actual email and phone number are
+  held only in the owner's private record and are deliberately absent from this repository.
 - Alert activation is split into “can be tested now” and “may be relied on operationally.” No
-  security alert may be treated as operationally covered until a named backup and contact method are
-  recorded below.
+  security alert may be treated as operationally covered until the backup acknowledges, a test
+  notification reaches both contacts, and the checklist is signed.
 - Health/readiness email is already live; it is not the same as platform-security alerting.
 
 ## 2. Named-owner record
@@ -42,15 +43,14 @@ sufficient contact; the monitored owner email is held in
 
 | Duty | Primary name | Primary contact | Backup name | Backup contact | Time zone |
 | --- | --- | --- | --- | --- | --- |
-| Platform security (auth, recovery, WebAuthn, admin, audit) | **`nreffejzxc` — account owner** | Owner email in `ACCOUNT_MIGRATION_RUNBOOK.md` | **UNASSIGNED — activation blocked** | — | Owner's local |
-| Service/API health, deploys, 5xx, AI model health | **`nreffejzxc` — account owner** | Owner email + UptimeRobot | **UNASSIGNED** | — | Owner's local |
-| Edge/DNS/Access policy (only if Cloudflare Access is adopted) | **`nreffejzxc` — account owner** | Owner email | **UNASSIGNED** | — | Owner's local |
+| Platform security (auth, recovery, WebAuthn, admin, audit) | **`nreffejzxc` — account owner** | Owner email in `ACCOUNT_MIGRATION_RUNBOOK.md` | **Cucumber** | Private owner record | Owner's local (backup TBD) |
+| Service/API health, deploys, 5xx, AI model health | **`nreffejzxc` — account owner** | Owner email + UptimeRobot | **Cucumber** | Private owner record | Owner's local (backup TBD) |
+| Edge/DNS/Access policy (only if Cloudflare Access is adopted) | **`nreffejzxc` — account owner** | Owner email | **Cucumber** | Private owner record | Owner's local (backup TBD) |
 | Support ticket SLA (only when support is staffed) | **UNASSIGNED — support not staffed** | — | — | — | — |
 
-**Decision:** it is acceptable for one person to hold primary for all duties during the internal
-single-owner phase. It is **not** acceptable to claim a backup exists because a role name appears in
-a document. The backup column must contain a person's name and a tested contact path. **The primary
-is recorded; the backup is not, so no security alert is operationally covered.**
+**Decision:** the backup is a real person named by the owner, not a role-only placeholder. The
+contact details remain private by design. **The primary and backup are named, but the backup has not
+acknowledged and no test notification has passed, so no security alert is operationally covered.**
 
 ## 3. Channel decision
 
@@ -77,20 +77,21 @@ human response.
 
 | Alert group | IDs | Primary | Backup | First channel | Acknowledge target |
 | --- | --- | --- | --- | --- | --- |
-| Password/MFA/recovery | AUTH-01, AUTH-02, AUTH-03, AUTH-04, AUTH-07 | Platform Owner (`nreffejzxc`) | **UNASSIGNED** | Owner email; SEV-1 also UptimeRobot path | 15 min SEV-1 / 1 h SEV-2 |
-| WebAuthn changes/failures | AUTH-05, AUTH-06 | Platform Owner (`nreffejzxc`) | **UNASSIGNED** | Owner email; key removal also GitHub issue | 15 min SEV-1 / 1 h SEV-2 |
-| Outer gate/CSRF/authorization | ACCESS-01, ACCESS-02, ACCESS-03 | Platform Owner (`nreffejzxc`) | **UNASSIGNED** | Owner email + GitHub issue | 1 h |
-| Access edge/direct-origin (if adopted) | ACCESS-04, ACCESS-05 | Edge/DNS owner (`nreffejzxc`) | **UNASSIGNED** | Owner email; SEV-1 immediate | 15 min |
-| Administrator/audit integrity | ADMIN-01, ADMIN-02, ADMIN-03, AUDIT-01, AUDIT-02 | Platform Owner (`nreffejzxc`) | **UNASSIGNED** | Owner email + GitHub issue | 15 min SEV-1 / 1 h SEV-2 |
-| Readiness | HEALTH-01 | Service Owner | **UNASSIGNED** | UptimeRobot email (live) | 15 min |
-| 5xx/posture/commit | HEALTH-02, HEALTH-03 | Service Owner | **UNASSIGNED** | UptimeRobot/GitHub issue | 1 h |
-| AI failure/latency/model | HEALTH-04, HEALTH-06 | Service Owner | **UNASSIGNED** | GitHub issue; SEV-2 mailbox if available | 1 h |
-| AI budget/paid fallback | HEALTH-05 | Platform Owner (`nreffejzxc`) | **UNASSIGNED** | Owner email + GitHub issue | 15 min at 100% |
-| Backup/restore verification | DATA-01 | Platform Owner (`nreffejzxc`) | **UNASSIGNED** | Owner email + GitHub issue | 15 min |
+| Password/MFA/recovery | AUTH-01, AUTH-02, AUTH-03, AUTH-04, AUTH-07 | Platform Owner (`nreffejzxc`) | **Cucumber — pending test** | Owner email; SEV-1 also UptimeRobot path | 15 min SEV-1 / 1 h SEV-2 |
+| WebAuthn changes/failures | AUTH-05, AUTH-06 | Platform Owner (`nreffejzxc`) | **Cucumber — pending test** | Owner email; key removal also GitHub issue | 15 min SEV-1 / 1 h SEV-2 |
+| Outer gate/CSRF/authorization | ACCESS-01, ACCESS-02, ACCESS-03 | Platform Owner (`nreffejzxc`) | **Cucumber — pending test** | Owner email + GitHub issue | 1 h |
+| Access edge/direct-origin (if adopted) | ACCESS-04, ACCESS-05 | Edge/DNS owner (`nreffejzxc`) | **Cucumber — pending test** | Owner email; SEV-1 immediate | 15 min |
+| Administrator/audit integrity | ADMIN-01, ADMIN-02, ADMIN-03, AUDIT-01, AUDIT-02 | Platform Owner (`nreffejzxc`) | **Cucumber — pending test** | Owner email + GitHub issue | 15 min SEV-1 / 1 h SEV-2 |
+| Readiness | HEALTH-01 | Service Owner | **Cucumber — pending test** | UptimeRobot email (live) | 15 min |
+| 5xx/posture/commit | HEALTH-02, HEALTH-03 | Service Owner | **Cucumber — pending test** | UptimeRobot/GitHub issue | 1 h |
+| AI failure/latency/model | HEALTH-04, HEALTH-06 | Service Owner | **Cucumber — pending test** | GitHub issue; SEV-2 mailbox if available | 1 h |
+| AI budget/paid fallback | HEALTH-05 | Platform Owner (`nreffejzxc`) | **Cucumber — pending test** | Owner email + GitHub issue | 15 min at 100% |
+| Backup/restore verification | DATA-01 | Platform Owner (`nreffejzxc`) | **Cucumber — pending test** | Owner email + GitHub issue | 15 min |
 | Support SLA | TICKET-01 | Support Lead (not staffed) | **UNASSIGNED** | Ticket queue + digest | Next business day |
 
-**Operational consequence:** until each backup and channel is filled, only HEALTH-01 has a verified
-end-to-end recipient. Everything else is a planned alert, not a covered one.
+**Operational consequence:** the backup is named but not yet verified. Only HEALTH-01 has a verified
+end-to-end recipient today. Everything else is a planned alert, not a covered one, until the backup
+acknowledges and the test notification reaches both contacts.
 
 ## 5. Required instrumentation before activation
 
@@ -119,7 +120,9 @@ Each item is signed and dated by the Platform Owner; the backup sign-off is mand
 alerts.
 
 - [x] Primary name, contact and time zone recorded in §2 and the contact record.
-- [ ] Backup name, contact and time zone recorded; backup has acknowledged the duty.
+- [x] Backup name and role recorded; contact details held privately in the owner's record.
+- [ ] Backup has acknowledged the duty in writing.
+- [ ] A test notification reached both primary and backup; delivery time/channel recorded.
 - [x] Monitored owner email is recorded; no new mailbox is required for the free baseline.
 - [ ] UptimeRobot email/mobile path is tested to the primary; health alert recovery is tested.
 - [ ] GitHub issue path is tested; labels/owner are correct.
@@ -133,8 +136,9 @@ alerts.
 - [ ] Alert disable/rollback is documented so noise can be stopped without deleting evidence.
 - [ ] Quarterly review date is scheduled.
 
-**If the backup or security mailbox is missing, the security alert set remains in “test only”
-mode.** Health email may continue, but it must not be described as full platform-security coverage.
+**If the backup acknowledgement or the two-recipient test is missing, the security alert set remains
+in “test only” mode.** Health email may continue, but it must not be described as full
+platform-security coverage.
 
 ## 7. Response and review process
 
@@ -154,7 +158,7 @@ mode.** Health email may continue, but it must not be described as full platform
 
 - Run one tabletop for a SEV-1 (recovery-code use or audit-write failure).
 - Verify one channel end to end, including backup notification.
-- Review access to the security mailbox and GitHub issues.
+- Review access to the owner email and GitHub issues.
 
 ### Quarterly
 
@@ -167,7 +171,7 @@ mode.** Health email may continue, but it must not be described as full platform
 | Role | Responsibility |
 | --- | --- |
 | **Incident lead** | Owns the timeline, decisions and communication; default Platform Owner |
-| **Security reviewer** | Confirms containment and evidence preservation; **must be named** |
+| **Security reviewer** | Confirms containment and evidence preservation; named backup **Cucumber**, pending acknowledgement and test |
 | **Service operator** | Executes health/rollback/AI cost controls |
 | **Recorder** | Keeps the timeline and links request ids/evidence (can be the incident lead) |
 
@@ -179,7 +183,7 @@ second reviewer when one is available; if not, record the single-person risk and
 
 | Decision | Why it blocks activation | Owner | Due |
 | --- | --- | --- | --- |
-| Name the security backup | No security alert has a second responder; this is the only activation blocker | Owner | Before security alerts go live |
+| Complete backup acknowledgement and test notification | The backup is named, but no alert is covered until both contacts receive a test and the backup accepts | Owner + Cucumber | Before security alerts go live |
 | Confirm the owner email is monitored | The primary channel exists but must be tested; no new mailbox is required | Owner | Before SEV-2 activation |
 | Enable UptimeRobot mobile push or accept email only | SEV-1 latency is otherwise unknown | Owner | Before go-live |
 | Decide whether a paid pager is justified | No 24/7 coverage exists | Owner | Before external support |
