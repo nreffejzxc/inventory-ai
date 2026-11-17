@@ -1,3 +1,5 @@
+console.error("deliberate branch-protection verification failure");
+process.exit(1);
 #!/usr/bin/env node
 /**
  * PLAT-4 — browser WebAuthn end-to-end check for the platform console.
