@@ -44,6 +44,15 @@ at the end of every development session, newest entry first.
 **Goal:** finish and harden Inventory AI **V1** through production testing. No Play Store or App
 Store release is being prepared.
 
+**PLAT-8 merge evidence (2026-11-17, `400cf45`):** PR #322 passed all five required checks —
+`server` (2m44s), `webauthn-e2e` (1m5s), `mobile` (1m15s), `secret-guard` (8s) and
+`attribution-guard` (9s) — and squash-merged as `400cf45`. A first PR (#321) was closed because its
+commit included a forbidden AI footer; it was replaced with the same documentation tree on a clean
+owner-only commit, without a force-push or history rewrite. A read-only `/api/health` check after
+the merge still reported `status: ok`, `db: connected`, `environment: production` and commit
+`e218bb0`; the `[skip render]` docs merge did not deploy or change production. The two pre-existing
+AI-118 files remain unstaged.
+
 **Planning assessment only, PLAT-8 (2026-11-17, docs-only):** wrote the access-layer decision brief
 ([`PLATFORM_ACCESS_LAYER_ASSESSMENT.md`](PLATFORM_ACCESS_LAYER_ASSESSMENT.md)), the platform security
 alert catalogue/ownership plan ([`PLATFORM_SECURITY_MONITORING_PLAN.md`](PLATFORM_SECURITY_MONITORING_PLAN.md))
