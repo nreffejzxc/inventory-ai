@@ -1307,9 +1307,11 @@ written to MongoDB; the log line remains the immediate record, and durable rows 
 database is reachable. This limit is stated rather than hidden.
 
 The platform plane, its dedicated console, mandatory MFA and append-only audit trail are **deployed**
-at `https://ai-inventory-l1mi.onrender.com/platform` on commit `56e8c27`; this is an internal
-operator surface behind the separate platform login, not a tenant feature. Support grants and
-tenant-detail reads remain future gates. The aligned design is
+at `https://ai-inventory-l1mi.onrender.com/platform` on commit `e218bb0`; this is an internal
+operator surface behind the application outer gate and the separate platform login, not a tenant
+feature. Recovery-code setup is forced before the console unlocks, and a guarded break-glass CLI
+exists for total administrator lockout. Support grants and tenant-detail reads remain future gates.
+The aligned design is
 [`superpowers/specs/2026-11-16-platform-admin-architecture.md`](superpowers/specs/2026-11-16-platform-admin-architecture.md).
 
 ---
