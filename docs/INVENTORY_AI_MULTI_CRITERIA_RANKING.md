@@ -31,8 +31,8 @@ evidence.”
 - The Cloudflare, alert-ownership and restore plans delivered in the previous planning package.
 
 This page does **not** re-open those decisions. It adds four candidates that are not represented by
-an existing ID (IA-30–IA-33), then scores four more from the second review (IA-34–IA-37) and four
-from the third review (IA-38–IA-41) on the same scale.
+an existing ID (IA-30–IA-33), then scores four more from the second review (IA-34–IA-37), four from
+the third review (IA-38–IA-41) and four from the fourth review (IA-42–IA-45) on the same scale.
 
 | New ID | Candidate | Why it is not already covered |
 | --- | --- | --- |
@@ -53,33 +53,37 @@ Deliberately excluded as duplicates: access (`IA-01`), alert ownership (`IA-02`)
 | 1 | **IA-23** | Mobile offline/read-only resilience | 2 | 5 | 4 | 5 | 1 | 2 | 4 | **23** | Stock work happens in poor-signal areas; an honest last-known read prevents blank screens and silent failed writes. |
 | 2 (joint) | **IA-20** | Firebase outage/recovery drill | 4 | 5 | 1 | 3 | 1 | 4 | 4 | **22** | Firebase can block every new sign-in while the API looks healthy; a tested recovery path is required before customers rely on it. |
 | 2 (joint) | **IA-25** | First-customer onboarding/trial checklist | 2 | 3 | 3 | 5 | 1 | 3 | 5 | **22** | A store install is not a successful onboarding; a repeatable first-run path reduces early churn and support load. |
-| 4 (joint) | **IA-19** | Backup index/collection-option manifest | 5 | 5 | 2 | 1 | 1 | 4 | 3 | **21** | A document-only restore can look complete while unique/partial indexes and validators are missing; this is a recovery-integrity fix. |
-| 4 (joint) | **IA-21** | Auth-email deliverability and bounce watch | 3 | 5 | 1 | 4 | 1 | 3 | 4 | **21** | Verification and reset codes are useless if Brevo silently degrades; a free daily count catches onboarding failure early. |
-| 4 (joint) | **IA-34** | API contract-drift gate | 2 | 4 | 3 | 4 | 1 | 4 | 3 | **21** | Server/mobile field, status or auth/tenant-shape drift can break an installed build that cannot update immediately. |
-| 4 (joint) | **IA-37** | Query-plan/index regression watch | 2 | 4 | 5 | 3 | 1 | 4 | 2 | **21** | A lost index or collection scan can turn a healthy endpoint into customer-visible latency. |
-| 4 (joint) | **IA-31** | Performance budgets and regression watch | 1 | 4 | 5 | 4 | 1 | 3 | 3 | **21** | Without a p95/startup budget, performance regressions reach users as “the app is slow” with no early signal. |
-| 9 (joint) | **IA-35** | Recovery/rotation freshness attestation | 5 | 4 | 1 | 1 | 1 | 5 | 3 | **20** | Recovery codes, key age and contact paths decay silently; a dated check proves the runbook still works. |
-| 9 (joint) | **IA-22** | AI conversation retention/redaction | 4 | 3 | 1 | 2 | 4 | 3 | 3 | **20** | Prompts and answers can contain prices, suppliers or personal text; a documented retention/redaction rule is a privacy boundary. |
-| 9 (joint) | **IA-39** | Tenant data export/portability | 3 | 3 | 2 | 4 | 1 | 3 | 4 | **20** | A business needs a trustworthy way to take its inventory data with it; this supports trust, offboarding and future contracts. |
-| 9 (joint) | **IA-36** | Incident communication templates | 2 | 4 | 1 | 3 | 1 | 4 | 5 | **20** | An outage or data concern needs an honest, prewritten message rather than improvised wording under pressure. |
-| 9 (joint) | **IA-32** | Preventive data-quality guards | 2 | 4 | 2 | 4 | 1 | 3 | 4 | **20** | Duplicate SKUs/barcodes and invalid quantities corrupt the inventory story before any report can be trusted. |
-| 14 (joint) | **IA-38** | Minimum supported app version gate | 3 | 4 | 2 | 4 | 1 | 2 | 3 | **19** | An old installed build can keep a known auth or data bug alive; a minimum-version gate gives a clear, supportable boundary. |
-| 14 (joint) | **IA-41** | Redacted support diagnostics bundle | 3 | 3 | 1 | 3 | 1 | 5 | 3 | **19** | Support needs request ids and safe state without asking for tenant data or credentials. |
-| 14 (joint) | **IA-30** | Support knowledge base / in-app help | 1 | 3 | 1 | 4 | 1 | 5 | 4 | **19** | The owner is the only support path; free self-service answers reduce repeat interruptions and make onboarding more independent. |
-| 17 (joint) | **IA-40** | AI/provider readiness probe | 2 | 5 | 1 | 2 | 2 | 4 | 2 | **18** | A green API health check does not prove Firebase, Brevo or the AI provider can serve a request; a bounded readiness probe catches that gap. |
-| 17 (joint) | **IA-24** | Free-tier quota/cost watch | 2 | 4 | 1 | 2 | 1 | 5 | 3 | **18** | A free-tier ceiling can look like an outage and an overage can create an unexpected bill; a weekly check is free. |
-| 19 (joint) | **IA-27** | SBOM and dependency provenance | 5 | 3 | 1 | 1 | 1 | 4 | 2 | **17** | A generated SBOM makes the next dependency incident or release audit faster without a paid service. |
-| 19 (joint) | **IA-33** | Feature-flag / kill-switch registry | 3 | 4 | 1 | 1 | 1 | 4 | 3 | **17** | A bounded, audited switch can contain a failing AI/import/notification feature without an emergency deploy. |
-| 19 (joint) | **IA-28** | Privacy-safe tenant adoption signals | 2 | 2 | 2 | 2 | 1 | 4 | 4 | **17** | Aggregate activation counts show whether onboarding works without exposing tenant detail. |
-| 19 (joint) | **IA-26** | Accessibility/localization QA | 1 | 2 | 2 | 5 | 1 | 2 | 4 | **17** | Inventory work is one-handed and often non-English; a recurring free QA pass protects the existing design/language investment. |
-| 23 | **IA-29** | Data-residency/compliance decision | 4 | 2 | 1 | 1 | 1 | 3 | 3 | **15** | A written provider/region decision prevents accidental architecture and answers a future customer question cheaply. |
+| 2 (joint) | **IA-42** | Customer business ownership transfer | 4 | 4 | 1 | 3 | 1 | 4 | 5 | **22** | A business must survive its owner leaving, selling or becoming unavailable without sharing a password or trapping the account. |
+| 5 (joint) | **IA-19** | Backup index/collection-option manifest | 5 | 5 | 2 | 1 | 1 | 4 | 3 | **21** | A document-only restore can look complete while unique/partial indexes and validators are missing; this is a recovery-integrity fix. |
+| 5 (joint) | **IA-43** | Large-adjustment approval threshold | 4 | 3 | 2 | 4 | 1 | 3 | 4 | **21** | A single mistyped or malicious stock adjustment can distort financial and AI answers; a second approval contains the largest ones. |
+| 5 (joint) | **IA-44** | Owner-facing tenant activity log | 4 | 2 | 2 | 4 | 1 | 3 | 5 | **21** | Owners need to see who changed roles, invitations and stock without asking the operator to read platform internals. |
+| 5 (joint) | **IA-21** | Auth-email deliverability and bounce watch | 3 | 5 | 1 | 4 | 1 | 3 | 4 | **21** | Verification and reset codes are useless if Brevo silently degrades; a free daily count catches onboarding failure early. |
+| 5 (joint) | **IA-34** | API contract-drift gate | 2 | 4 | 3 | 4 | 1 | 4 | 3 | **21** | Server/mobile field, status or auth/tenant-shape drift can break an installed build that cannot update immediately. |
+| 5 (joint) | **IA-37** | Query-plan/index regression watch | 2 | 4 | 5 | 3 | 1 | 4 | 2 | **21** | A lost index or collection scan can turn a healthy endpoint into customer-visible latency. |
+| 5 (joint) | **IA-31** | Performance budgets and regression watch | 1 | 4 | 5 | 4 | 1 | 3 | 3 | **21** | Without a p95/startup budget, performance regressions reach users as “the app is slow” with no early signal. |
+| 5 (joint) | **IA-45** | Scheduled inventory digest | 1 | 2 | 3 | 5 | 2 | 3 | 5 | **21** | A periodic low-stock, dead-stock and adjustment summary turns the product from a place to look into a habit that retains customers. |
+| 13 (joint) | **IA-35** | Recovery/rotation freshness attestation | 5 | 4 | 1 | 1 | 1 | 5 | 3 | **20** | Recovery codes, key age and contact paths decay silently; a dated check proves the runbook still works. |
+| 13 (joint) | **IA-22** | AI conversation retention/redaction | 4 | 3 | 1 | 2 | 4 | 3 | 3 | **20** | Prompts and answers can contain prices, suppliers or personal text; a documented retention/redaction rule is a privacy boundary. |
+| 13 (joint) | **IA-39** | Tenant data export/portability | 3 | 3 | 2 | 4 | 1 | 3 | 4 | **20** | A business needs a trustworthy way to take its inventory data with it; this supports trust, offboarding and future contracts. |
+| 13 (joint) | **IA-36** | Incident communication templates | 2 | 4 | 1 | 3 | 1 | 4 | 5 | **20** | An outage or data concern needs an honest, prewritten message rather than improvised wording under pressure. |
+| 13 (joint) | **IA-32** | Preventive data-quality guards | 2 | 4 | 2 | 4 | 1 | 3 | 4 | **20** | Duplicate SKUs/barcodes and invalid quantities corrupt the inventory story before any report can be trusted. |
+| 18 (joint) | **IA-38** | Minimum supported app version gate | 3 | 4 | 2 | 4 | 1 | 2 | 3 | **19** | An old installed build can keep a known auth or data bug alive; a minimum-version gate gives a clear, supportable boundary. |
+| 18 (joint) | **IA-41** | Redacted support diagnostics bundle | 3 | 3 | 1 | 3 | 1 | 5 | 3 | **19** | Support needs request ids and safe state without asking for tenant data or credentials. |
+| 18 (joint) | **IA-30** | Support knowledge base / in-app help | 1 | 3 | 1 | 4 | 1 | 5 | 4 | **19** | The owner is the only support path; free self-service answers reduce repeat interruptions and make onboarding more independent. |
+| 21 (joint) | **IA-40** | AI/provider readiness probe | 2 | 5 | 1 | 2 | 2 | 4 | 2 | **18** | A green API health check does not prove Firebase, Brevo or the AI provider can serve a request; a bounded readiness probe catches that gap. |
+| 21 (joint) | **IA-24** | Free-tier quota/cost watch | 2 | 4 | 1 | 2 | 1 | 5 | 3 | **18** | A free-tier ceiling can look like an outage and an overage can create an unexpected bill; a weekly check is free. |
+| 23 (joint) | **IA-27** | SBOM and dependency provenance | 5 | 3 | 1 | 1 | 1 | 4 | 2 | **17** | A generated SBOM makes the next dependency incident or release audit faster without a paid service. |
+| 23 (joint) | **IA-33** | Feature-flag / kill-switch registry | 3 | 4 | 1 | 1 | 1 | 4 | 3 | **17** | A bounded, audited switch can contain a failing AI/import/notification feature without an emergency deploy. |
+| 23 (joint) | **IA-28** | Privacy-safe tenant adoption signals | 2 | 2 | 2 | 2 | 1 | 4 | 4 | **17** | Aggregate activation counts show whether onboarding works without exposing tenant detail. |
+| 23 (joint) | **IA-26** | Accessibility/localization QA | 1 | 2 | 2 | 5 | 1 | 2 | 4 | **17** | Inventory work is one-handed and often non-English; a recurring free QA pass protects the existing design/language investment. |
+| 27 | **IA-29** | Data-residency/compliance decision | 4 | 2 | 1 | 1 | 1 | 3 | 3 | **15** | A written provider/region decision prevents accidental architecture and answers a future customer question cheaply. |
 
 ### 2.1 Joint ranks and the new candidates
 
-IA-34–IA-41 are included **once** in the full table above; there is no second placement table. Their
+IA-34–IA-45 are included **once** in the full table above; there is no second placement table. Their
 joint ranks are shown in the Rank column. The tie-break order is security, then reliability, then
-business value, and the next free rank after a tie group is used (for example, after rank 4 the next
-rank is 9, and after rank 14 the next is 17).
+business value, and the next free rank after a tie group is used (for example, after rank 5 the next
+rank is 13, and after rank 18 the next is 21).
 
 **Why the later candidates are not duplicates.** IA-34 is not the §2.6 route inventory: it compares the
 server's actual response/error contract with the mobile client's expectations. IA-35 is not the initial
@@ -90,21 +94,30 @@ sets the minimum client version the server will continue to support. IA-39 is no
 trusted export path. IA-40 is not the existing AI/model switch: it probes provider readiness before a
 user needs it. IA-41 is not the platform console: it is a bounded support bundle with no tenant data.
 
+**Fourth-review candidates are also distinct.** IA-42 transfers a customer's **business OWNER role** to
+another verified member; it is not the provider-account migration in
+[`ACCOUNT_MIGRATION_RUNBOOK.md`](ACCOUNT_MIGRATION_RUNBOOK.md), which changes who controls Firebase,
+Atlas or Render. IA-43 is a **tenant inventory** approval threshold, not IA-06's platform-admin
+destructive-action approval. IA-44 is a **tenant-scoped activity view**, not IA-03's platform audit
+export. IA-45 is a recurring, opt-in **inventory summary**, not IA-39's full data export.
+
 ### Rank groups
 
 - **Rank 1:** IA-23 (offline resilience, 23/35).
-- **Rank 2 (joint):** IA-20 (Firebase recovery) and IA-25 (first-customer onboarding), both 22/35.
-- **Rank 4 (joint):** IA-19 (backup fidelity), IA-21 (auth-email watch), IA-34 (API contract), IA-37
-  (query plans) and IA-31 (performance budgets), all 21/35. The tie-break order is security, then
-  reliability, then business value; IA-31 is **not** a separate sixth place.
-- **Rank 9 (joint):** IA-35 (recovery freshness), IA-22 (AI retention), IA-39 (data export), IA-36
+- **Rank 2 (joint):** IA-20 (Firebase recovery), IA-25 (first-customer onboarding) and IA-42 (business
+  ownership transfer), all 22/35.
+- **Rank 5 (joint):** IA-19 (backup fidelity), IA-43 (large-adjustment approval), IA-44 (tenant activity
+  log), IA-21 (auth-email watch), IA-34 (API contract), IA-37 (query plans), IA-31 (performance
+  budgets) and IA-45 (inventory digest), all 21/35. The tie-break order is security, then reliability,
+  then business value; IA-31 is **not** a separate sixth place.
+- **Rank 13 (joint):** IA-35 (recovery freshness), IA-22 (AI retention), IA-39 (data export), IA-36
   (incident messaging) and IA-32 (data quality), all 20/35.
-- **Rank 14 (joint):** IA-38 (minimum app version), IA-41 (support diagnostics) and IA-30 (support
+- **Rank 18 (joint):** IA-38 (minimum app version), IA-41 (support diagnostics) and IA-30 (support
   knowledge base), all 19/35.
-- **Rank 17 (joint):** IA-40 (provider readiness) and IA-24 (free-tier watch), both 18/35.
-- **Rank 19 (joint):** IA-27 (SBOM), IA-33 (feature flags), IA-28 (adoption signals) and IA-26
+- **Rank 21 (joint):** IA-40 (provider readiness) and IA-24 (free-tier watch), both 18/35.
+- **Rank 23 (joint):** IA-27 (SBOM), IA-33 (feature flags), IA-28 (adoption signals) and IA-26
   (accessibility/localization), all 17/35.
-- **Rank 23:** IA-29 (data-residency decision, 15/35).
+- **Rank 27:** IA-29 (data-residency decision, 15/35).
 
 ## 3. What each new idea would do
 
@@ -258,6 +271,95 @@ email, phone and product name are absent; the bundle is downloadable only by the
 
 **Free approach.** Existing logs/request ids and a local text export; no paid support platform.
 
+### IA-42 — Customer business ownership transfer
+
+**Opportunity.** Let an OWNER begin a transfer to another verified member of the same business, with a
+fresh authentication step, recipient acceptance, a short cancellation window and an audit record. The
+current owner must confirm the transfer; the recipient must accept it; neither party shares a password
+or recovery code.
+
+**Why it matters.** A business owner can leave, sell the business or become unavailable. Today the
+practical escalation path risks shared credentials or operator intervention, both of which undermine
+tenant isolation. Ownership transfer is a customer-continuity control, not the provider-account
+handover described in `ACCOUNT_MIGRATION_RUNBOOK.md`.
+
+**Benefit.** Business continuity, a defensible succession path and less pressure to share credentials.
+**Risk:** a stolen session could attempt a takeover; require re-authentication, recipient acceptance,
+notification to the old owner and a delay/cancel window, and audit every step. Never let support
+impersonate either party.
+
+**Acceptance.** An OWNER can transfer only to an existing verified member; the recipient accepts; the
+old owner loses OWNER and the new owner gains it atomically; both are notified; the audit trail names
+the actor and outcome; an unverified recipient or stale session is refused. No credential, recovery
+code or platform capability is transferred.
+
+**Free approach.** Existing Firebase identity, membership roles, notifications and audit storage; no
+new vendor.
+
+### IA-43 — Large-adjustment approval threshold
+
+**Opportunity.** An optional tenant policy that requires a second authorized member to approve a stock
+adjustment above an owner-set quantity/value threshold, or a destructive archive. The requester
+cannot approve their own request; the pending request carries a reason and expires; every decision is
+audited. Below-threshold work remains single-step, and a one-person business can leave the policy off.
+
+**Why it matters.** Inventory is financial data. A mistyped zero, a repeated scan or a malicious
+adjustment can distort stock value and every AI answer built on it. IA-32 prevents invalid records;
+IA-43 adds a human control for large but individually valid changes. It is not IA-06, which protects
+platform administrators, not tenant inventory.
+
+**Benefit.** Lower error and fraud risk, a credible control for teams, and an audit trail for disputes.
+**Risk:** approval friction and a blocked workflow when the approver is unavailable; cap the pending
+window, allow an owner-designated fallback and keep the policy opt-in.
+
+**Acceptance.** An adjustment over the threshold stays PENDING and does not change stock; a second
+authorized member can approve or reject it; self-approval is refused; below-threshold adjustments are
+unchanged; expiry leaves stock untouched; all outcomes are audited.
+
+**Free approach.** Existing ledger, roles and audit records; no approval SaaS.
+
+### IA-44 — Owner-facing tenant activity log
+
+**Opportunity.** A bounded, paginated activity view for an OWNER or authorized manager showing
+membership and role changes, invitations, export requests, settings changes and large stock movements
+— scoped to that business only. It should show actor, action, time and outcome, never tokens, secrets
+or another tenant.
+
+**Why it matters.** Owners currently have to ask the single operator what happened. That does not scale
+and exposes the operator to unnecessary tenant detail. A tenant-scoped view gives the business its own
+auditability while preserving the platform boundary. It is separate from IA-03's platform audit export.
+
+**Benefit.** Faster self-service investigation, stronger trust with staff and customers, and fewer
+support interruptions. **Risk:** the view can become a surveillance or data-retention problem; limit
+fields, retention and roles, and never include credentials or private contact details.
+
+**Acceptance.** An OWNER sees only their own business; a STAFF account sees only what its role permits;
+a role change, invitation and adjustment appear with actor/time/outcome; a second tenant's events and
+all secrets are absent; pagination is bounded.
+
+**Free approach.** Existing audit/ledger records and tenant-scoped queries; no logging vendor.
+
+### IA-45 — Scheduled inventory digest
+
+**Opportunity.** An opt-in weekly (or owner-selected) summary of low stock, slow-moving stock, recent
+large adjustments and stock value, delivered through the existing email path or shown in-app. Use
+existing data and templates; do not invoke the paid AI path or create a new analytics service.
+
+**Why it matters.** Inventory work is periodic, but the app only answers when someone opens it. A
+short, predictable digest makes the product part of the weekly routine and surfaces a problem before a
+stockout. It also gives a future paying customer a tangible reason to keep the subscription.
+
+**Benefit.** Higher retention and engagement, earlier stockout detection and less manual reporting.
+**Risk:** email deliverability (IA-21), stale or noisy summaries, and sending tenant data to the wrong
+recipient; make it opt-in, owner-scoped, unsubscribeable and free of AI spend.
+
+**Acceptance.** An owner enables a schedule and receives only their own aggregate data; an empty
+business gets a clear empty state; disabling stops delivery; a delivery failure is recorded without
+leaking data; no paid provider or AI call is required.
+
+**Free approach.** Existing email delivery, database aggregates and a scheduled/on-demand job on the
+existing service; no new subscription.
+
 ### IA-30 — Support knowledge base and in-app help
 
 **Opportunity.** A small set of free, versioned answers for the failures that generate support: sign-in
@@ -330,16 +432,21 @@ The owner has approved the sequence: **security alert accountability → Firebas
 improvement planning.** This ranking does not displace that sequence. Once the first two are recorded:
 
 1. **IA-19** — finish restore fidelity before trusting a restore.
-2. **IA-23** — make the phone honest when the network is gone.
-3. **IA-25** — run a real first-customer onboarding before inviting one.
-4. **IA-21** — watch auth-email delivery.
-5. **IA-31** — set the performance baseline while the system is small.
-6. **IA-22 / IA-32** — set the AI privacy rule and inventory invariants.
-7. **IA-30 / IA-24 / IA-33 / IA-27** — operate the free baseline.
-8. **IA-34 / IA-37** — add the contract and query-plan checks while the system is small.
-9. **IA-38 / IA-39 / IA-41** — set the supported-client boundary, export path and support bundle.
-10. **IA-35 / IA-36 / IA-40** — make recovery freshness, incident messaging and provider readiness routine.
-11. **IA-28 / IA-26 / IA-29** — revisit when customers, team or contracts exist.
+2. **IA-42** — make business ownership transfer explicit before a team grows.
+3. **IA-23** — make the phone honest when the network is gone.
+4. **IA-25** — run a real first-customer onboarding before inviting one.
+5. **IA-21** — watch auth-email delivery.
+6. **IA-31** — set the performance baseline while the system is small.
+7. **IA-22 / IA-32 / IA-43** — set the AI privacy rule, inventory invariants and large-adjustment
+   approval.
+8. **IA-44 / IA-30 / IA-24 / IA-33 / IA-27** — give owners their own activity view and operate the free
+   baseline.
+9. **IA-34 / IA-37** — add the contract and query-plan checks while the system is small.
+10. **IA-38 / IA-39 / IA-41** — set the supported-client boundary, export path and support bundle.
+11. **IA-35 / IA-36 / IA-40** — make recovery freshness, incident messaging and provider readiness
+    routine.
+12. **IA-45 / IA-28 / IA-26 / IA-29** — add the digest and revisit adoption, accessibility and residency
+    when customers, team or contracts exist.
 
 The order is close enough that the owner may swap adjacent items when a concrete failure or customer
 need provides better evidence. It is a planning recommendation, not an authorization.
