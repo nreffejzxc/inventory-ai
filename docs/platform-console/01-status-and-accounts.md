@@ -1,8 +1,7 @@
 # Platform Operations console — current status and account guide
 
-**Assessed:** 2026-11-18, against production commit
-`50165538ba7b0bdd949ca65fcfbe5fded0669138`, the console-delivery commit `282c8d6` and
-PR #336.
+**Assessed:** 2026-11-18, against production commit `e7ce455` and the console-delivery
+commit `282c8d6`; PR #336 is merged.
 **Production:** `https://ai-inventory-l1mi.onrender.com/platform`
 **Scope:** the INTERNAL Platform Operations console and API, platform-administrator
 authentication, current production data, AI monitoring, and account creation for every
@@ -11,7 +10,9 @@ supported platform and tenant role.
 rules, access/recovery runbook and owner/CEO security checklist, see
 [02 — Accounts and credentials](02-accounts-and-credentials.md).
 **No deployment or write was made for this assessment.** Production data was read with
-index creation disabled; no tenant, platform or audit row was changed.
+index creation disabled; no tenant, platform or audit row was changed. The delivery was
+merged and deployed afterwards as `e7ce455`; the data below was not re-read after that
+deploy.
 
 ## 1. Bottom line
 
@@ -23,13 +24,14 @@ index creation disabled; no tenant, platform or audit row was changed.
 - The core read paths are implemented and covered by the platform tests. The production
   aggregates are **internally consistent** (the AI totals, movement totals, feedback
   reasons and audit-action totals reconcile; see §3).
-- **One counter-scope difference needs explaining.** `/api/health` reports **58
-  process-lifetime 5xx responses** (`serverErrors`), while the console's durable
-  `ops_error_events` store reports **0 events** in the 7-day window. The 58 are not 58
-  missing incidents: the old process counter includes intentional
-  `/api/health/integrity` 503s while the laptop heartbeat is stale, and that health route
+- **One counter-scope difference needs explaining.** At assessment, `/api/health`
+  reported **58 process-lifetime 5xx responses** (`serverErrors`), while the console's durable
+  `ops_error_events` store reported **0 events** in the 7-day window. The 58 were not 58
+  missing incidents: the old process counter included intentional
+  `/api/health/integrity` 503s while the laptop heartbeat was stale, and that health route
   returns directly rather than through the error handler that writes durable rows. The
-  fix is in open PR #336, not deployed.
+  deployed `e7ce455` restarts the process and reports **0 `serverErrors`**; the durable
+  store remains the record for application errors.
 - Platform authentication is implemented and tested: password → mandatory TOTP
   enrollment; later logins use TOTP, an enrolled WebAuthn key or a recovery code →
   HttpOnly session cookie + CSRF. The sole production SUPERADMIN currently has TOTP,
@@ -40,7 +42,7 @@ index creation disabled; no tenant, platform or audit row was changed.
 - **Not re-observed in this pass:** an authenticated browser session and its rendered
   dashboard. That needs the platform password plus TOTP/recovery code or WebAuthn, which
   were not used here. The last recorded production browser proof was at `e218bb0`
-  (PLAT-7); the current build is `5016553`. This is a verification limitation, not a
+  (PLAT-7); the current build is `e7ce455`. This is a verification limitation, not a
   known console defect.
 
 ## 2. Feature status
@@ -77,8 +79,9 @@ the honest subset is implemented and the missing sources are stated in the conso
 `inventoryai_prod_db`. Index creation/auto-create was disabled. No write was made. The
 public health checks were read at **06:36:50–06:36:51 UTC**.
 
-**Production build:** `5016553` (started 2026-11-17 18:04:10 UTC, Node v24.22.3).
-Previous boot observations: `e218bb0` and `56e8c27`.
+**Production build:** `e7ce455` (deployed 2026-11-18 09:16 UTC). The production data
+below was measured on `5016553` before that deploy and was not re-read after the restart;
+previous boot observations were `e218bb0` and `56e8c27`.
 
 | Signal | Measured value |
 | --- | --- |
@@ -97,7 +100,7 @@ Previous boot observations: `e218bb0` and `56e8c27`.
 | Support tickets | **1** total / **1** unresolved (NEW, HIGH) |
 | Platform audit events (7 days) | **201** — 1 failed admin login, 29 denied capability checks, 4 MFA failures |
 | Platform administrators | **1** SUPERADMIN, ACTIVE, TOTP enrolled, **0** WebAuthn keys, **7** unused recovery codes, 0 active sessions |
-| Current deployment | `5016553`; history also contains `e218bb0` and `56e8c27` |
+| Current deployment | `e7ce455`; history also contains `5016553`, `e218bb0` and `56e8c27` |
 
 **Consistency checks that passed**
 
@@ -128,11 +131,11 @@ passes through the error handler that creates durable `ops_error_events` rows. T
 store also cannot record a readiness `503` while MongoDB is unreachable, which is why
 `/api/health/ready` is the availability signal for that case.
 
-PR #336 changes the process counter so the monitoring-only integrity `503` is still
-counted in `responses` and `byStatusClass`, but not in `serverErrors` or
-`lastServerErrorAt`. After it is deployed, the process restart clears the 58, and future
-integrity `503`s do not inflate the failure count. The durable store remains the record
-for application errors that reach the error handler; it is not a backfill for the process
+The deployed `e7ce455` change keeps the monitoring-only integrity `503` counted in
+`responses` and `byStatusClass`, but not in `serverErrors` or `lastServerErrorAt`. The
+deploy restart cleared the 58; future integrity `503`s do not inflate the failure count.
+The durable store remains the record for application errors that reach the error handler;
+it is not a backfill for the process
 counter. Until then, treat “5xx since boot” as a process-lifetime counter and the durable
 “5xx errors” card as the incident record for error-handler failures.
 
@@ -436,7 +439,7 @@ chooses their own credential. Store recovery codes offline in the owner's secret
 
 | Priority | Item | Current state |
 | --- | --- | --- |
-| **P1** | Deploy PR #336 and restart production | PR #336 is CLEAN at `282c8d6`; merge triggers the Render server deploy. After deploy, the process counter resets and stops counting the monitoring-only integrity 503; the durable store remains the real 5xx record |
+| **P1** | Verify the post-deploy console | `e7ce455` is deployed; health/readiness and the gate/preflight checks pass. An authenticated browser proof after the deploy is still pending |
 | **P1** | Register a WebAuthn security key for the sole SUPERADMIN | 0 keys today; TOTP and recovery codes still work |
 | **P1** | Rotate the stale recovery-code file | 7 unused codes in the database, but the local file does not match them; use the current password + TOTP/recovery code |
 | **P1** | Add an actual network/identity access layer | The URL is internet-reachable; the Basic key is not network isolation |
@@ -446,7 +449,7 @@ chooses their own credential. Store recovery codes offline in the owner's secret
 | **P2** | AI spend budget, model-health alerts and a paid-fallback kill switch | The console reports history; it does not alert or stop spend |
 | **P2** | Host/Atlas/backup, mobile and job telemetry | Explicitly unavailable; do not read the absent panels as “healthy” |
 | **P2** | Administrator creation/role-change UI | Creation and role changes are CLI/database work today |
-| **P2** | Authenticated browser re-proof on the current commit | The last recorded proof is `e218bb0`; this pass did not sign in |
+| **P2** | Authenticated browser re-proof on the current commit | The last recorded proof is `e218bb0`; the current build is `e7ce455` and this pass did not sign in |
 
 ## 8. Evidence and limits
 
@@ -457,9 +460,12 @@ chooses their own credential. Store recovery codes offline in the owner's secret
 - **Production:** the read-only snapshot in §3 and the public health/auth responses in
   §3 were observed on 2026-11-18. No authenticated browser session, no platform account
   creation and no tenant write were performed for this assessment.
-- **Current PR:** #336 is CLEAN at `282c8d6`; all five required checks pass (`server`
-  3,161/3,161, `webauthn-e2e`, `mobile`, `secret-guard`, `attribution-guard`). This
-  document does not itself deploy it.
+- **Deployment:** PR #336 squash-merged as `e7ce455`. All five required checks passed on
+  the preceding head (`server` 3,161/3,161, `webauthn-e2e`, `mobile`, `secret-guard`,
+  `attribution-guard`). Production `/api/health` reports `e7ce455`, `status: ok`,
+  `db: connected` and **0** `serverErrors`; `/api/health/ready` is **200**; `/platform/`
+  and `/api/platform/status` remain **401**; the destructive-route preflight is **204**
+  with credentials and `x-platform-step-up` allowed.
 
 The console is usable as an aggregate read-only operations surface today. It is not yet a
 complete support workspace, not a pager, not a tenant-detail tool and not a substitute for

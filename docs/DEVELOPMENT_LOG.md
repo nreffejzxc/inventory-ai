@@ -44,11 +44,14 @@ at the end of every development session, newest entry first.
 **Goal:** finish and harden Inventory AI **V1** through production testing. No Play Store or App
 Store release is being prepared.
 
-**Console delivery committed, PLAT-20–27 (2026-11-18):** all outstanding console work is
-committed as `282c8d6` and pushed to PR #336. CI is CLEAN with all five required checks:
-`server` **3,161/3,161** across 508 suites, `webauthn-e2e`, `mobile`, `secret-guard` and
-`attribution-guard`. The full runner now includes PLAT-9. No deployment or merge was made
-before this record.
+**Console delivery merged and deployed, PLAT-20–27 (2026-11-18):** PR #336
+squash-merged as `e7ce455` after CI passed all five required checks (`server`
+**3,161/3,161** across 508 suites, `webauthn-e2e`, `mobile`, `secret-guard`,
+`attribution-guard`). Render deployed `e7ce455`; `/api/health` reports it with
+`status: ok`, `db: connected` and **0** `serverErrors`, readiness is 200, `/platform/` and
+`/api/platform/status` remain 401, and the destructive-route preflight is 204 with
+credentials and `x-platform-step-up`. No authenticated browser proof was made after the
+deploy.
 
 **Audited CLI creation and bounded outer-gate state, PLAT-26/PLAT-25 (2026-11-18,
 code and tests only):** the operator CLI now requires an operator identity and writes
@@ -635,6 +638,31 @@ Known limits, checked before spending one of them:
   space that a backup or an index change would explain.
 - **Brevo** — used for verification codes, reset codes and invitations. Do not send test mail in
   bulk; a delivery failure is not a code regression until the provider log says so.
+
+---
+
+## 2026-11-18 — console delivery merged and deployed
+
+**Status.** PR #336 squash-merged as `e7ce455`; Render deployed that commit. No address
+activation, production account creation or credential change was made.
+
+**Deployment verification.** `GET /api/health` reports `status: ok`, `db: connected`,
+`environment: production`, commit `e7ce455`, and **0** `serverErrors` after the restart.
+`GET /api/health/ready` is 200 with `db: connected`. Anonymous `/platform/` and
+`/api/platform/status` return 401 with `no-store`. The same-origin preflight for
+`PATCH /api/platform/admins/:id/status` returns 204 with
+`access-control-allow-credentials: true`, `PATCH` allowed, and
+`x-platform-step-up` in the allowed-header list. The production snapshot in the console
+status guide was measured on the previous build and was not re-read after the deploy.
+
+**Not verified.** No authenticated platform browser session was opened after the deploy,
+so the rendered dashboard, step-up dialog and destructive lifecycle action are not
+post-deploy browser-proven. The pre-deploy CI browser WebAuthn job and the focused
+platform suites remain the evidence for those paths.
+
+**Next.** The ranked console follow-up remains NS-04 platform session inventory and
+targeted revocation; dual control, WebAuthn key registration, recovery-code rotation and
+network isolation remain open. Address activation is still out of scope.
 
 ---
 

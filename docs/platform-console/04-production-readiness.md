@@ -2,14 +2,15 @@
 
 **Status:** **LIVE, INTERNAL RELEASE — GATES REMAIN OPEN.** The console is served at
 `https://ai-inventory-l1mi.onrender.com/platform` under the separate platform administrator login.
-PLAT-7 is deployed at `e218bb0` with the forced recovery-code ceremony, the application-level outer
-access gate and the break-glass reset. The production service supplies `PLATFORM_ACCESS_KEY`;
+The complete console delivery is deployed at `e7ce455`; PLAT-7's forced recovery-code ceremony,
+the application-level outer access gate and the break-glass reset remain in place. The production
+service supplies `PLATFORM_ACCESS_KEY`;
 the administrator generated 10 recovery codes from zero and 9 remain after the production recovery
 drill. The forced browser ceremony itself is exercised locally by the PLAT7 browser E2E. Network isolation (PR-03), audit retention/database least privilege (PR-09) and
 named security review (PR-15) remain open or residual. The owner requested production availability;
 the residual exposure is recorded here rather than treated as closed.
 
-**Reviewed:** 2026-11-17
+**Reviewed:** 2026-11-18
 **Scope:** the INTERNAL `/api/platform` plane and `server/platform-console/`, including the
 same-origin `/platform` shell and the PLAT-6 operations surface. This does not authorize a tenant
 feature or tenant-detail reads. The production deployment is the API service's own origin; the
@@ -70,7 +71,7 @@ open.
   `PLATFORM_ACCESS_KEY` is the available free application-level gate, required by production
   validation, in front of `/platform` and `/api/platform` (Basic for the browser,
   `X-Platform-Access-Key` beside a Bearer token for API clients).
-- PLAT-7 is deployed at `e218bb0`. Anonymous `/platform/` and `/api/platform/status` return 401
+- PLAT-7's controls were proven at `e218bb0` and remain deployed within `e7ce455`. Anonymous `/platform/` and `/api/platform/status` return 401
   `PLATFORM_ACCESS_REQUIRED` with a Basic challenge and `no-store`; Basic returns the shell as 200
   HTML with the strict CSP; a wrong key returns the same 401, and the correct key without a platform
   session returns 401 `PLATFORM_AUTH_REQUIRED`. A real browser completed password + TOTP, rendered
@@ -243,5 +244,5 @@ The browser test uses headless Chrome/Edge and fixed configurable ports (API 440
 CDP 9333). If CI cannot launch a browser, run `cd server && npm run test:webauthn-e2e` on a machine
 with Chrome and record the output; do not substitute a unit test for the browser proof.
 
-The checklist is a gate, not a deployment authorization. The console is deployed at `e218bb0` under
+The checklist is a gate, not a deployment authorization. The console is deployed at `e7ce455` under
 the owner's production-availability decision; the open gates above remain open.

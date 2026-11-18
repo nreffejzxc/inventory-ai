@@ -188,14 +188,14 @@ tests only, with no deployment or production configuration change. PLAT-26, the 
 operator CLI creation with one `platform.admin.created` event, is §27JK; code and tests
 only, with address activation left for a separate step. PLAT-27, the SEC-08 five-minute
 step-up proof enforced on destructive administrator lifecycle routes, is §27JL; code,
-tests and console documentation, later committed to PR #336 as `282c8d6` with all five
-required checks green. No deployment, address activation or production account change
-was made with that commit.
+tests and console documentation, committed to PR #336 as `282c8d6` with all five required
+checks green and merged/deployed as `e7ce455`. No address activation or production
+account change was made.
 
 The tenant-facing
 Operations dashboard was removed before commit. The
 2026-11-15 post-deploy/triage/monitor close-out is §27IA;
-production currently serves `e218bb0` and the newest OTA is
+production currently serves `e7ce455` and the newest OTA is
 `9d759ee5-82c5-4fbe-afe0-3a0ea2c44f6c`. The AI-105 retry fix and the
 live label are recorded in `DEVELOPMENT_LOG.md` and
 [`evidence/ai105-production-2026-11-11`](evidence/ai105-production-2026-11-11/README.md). Release engineering remains in
