@@ -201,7 +201,11 @@ unitSuite('PLAT-2 MFA vault', () => {
   it('rejects a tampered envelope instead of returning bytes', () => {
     const envelope = encryptPlatformSecret('JBSWY3DPEHPK3PXP');
     const parts = envelope.split('.');
-    const tampered = [parts[0], parts[1], parts[2], parts[3].slice(0, -2) + 'AA'].join('.');
+    // Flip the final pair to a value it cannot already hold. The old fixed 'AA' suffix
+    // could leave the envelope byte-identical when the tag happened to end in 'AA'.
+    const replacement = parts[3].endsWith('AA') ? 'BB' : 'AA';
+    const tampered = [parts[0], parts[1], parts[2], parts[3].slice(0, -2) + replacement].join('.');
+    assert.notEqual(tampered, envelope, 'the tamper must change the envelope');
     assert.throws(() => decryptPlatformSecret(tampered), /Stored platform secret is invalid/);
     assert.throws(() => decryptPlatformSecret('not-an-envelope'), /Stored platform secret is invalid/);
   });
