@@ -13,7 +13,9 @@
 // script is the only component allowed to write, it has no repair path, and it
 // writes only the collection named above.
 
-import 'dotenv/config';
+// Loaded from this script's own location, not process.cwd(): the scheduled
+// wrapper runs from the repository root, where there is no `.env`.
+import './lib/load-server-env.mjs';
 import mongoose from 'mongoose';
 import { readFile } from 'node:fs/promises';
 

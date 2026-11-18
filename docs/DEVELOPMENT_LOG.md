@@ -40,9 +40,18 @@ at the end of every development session, newest entry first.
 
 ## Current position
 
-**Updated:** 2026-11-17
+**Updated:** 2026-11-18
 **Goal:** finish and harden Inventory AI **V1** through production testing. No Play Store or App
 Store release is being prepared.
+
+**Atomic SUPERADMIN guard and monitoring restoration, PLAT-20 (2026-11-18, code and documentation):**
+the lifecycle service now leases only a disable or delete; enabling is lock-free. The PLAT-8 fixture
+proves ten concurrent disables commit one, a delete/disable race leaves one active, an enable succeeds
+under a live lease and a stale lease is taken over. `serverErrors` excludes only the monitoring-only
+`/api/health/integrity` 503; readiness 503s remain counted. The heartbeat writer now resolves
+`server/.env` from its own path and the PowerShell wrapper no longer treats native stderr as fatal;
+the registered task returned 0 and the endpoint answered 200. Full server suite **3,150/3,150**; no
+deployment. Recovery-code rotation and WebAuthn registration remain owner actions.
 
 **AI-118 inspection and NZ-01–NZ-07 roadmap, PLAT-19 (2026-11-17, docs-only):** inspected the two
 pre-existing AI-118 working-tree files without changing them. The diff adds a
@@ -565,6 +574,37 @@ Known limits, checked before spending one of them:
   space that a backup or an index change would explain.
 - **Brevo** — used for verification codes, reset codes and invitations. Do not send test mail in
   bulk; a delivery failure is not a code regression until the provider log says so.
+
+---
+
+## 2026-11-18 — PLAT-20 atomic SUPERADMIN guard, monitoring accounting and heartbeat restoration
+
+**Status.** Implemented in the working tree and verified locally; no deployment, recovery-code
+rotation or WebAuthn registration was performed. The PR is the review gate.
+
+**What changed.** The administrator lifecycle takes the `platform_admin_guards` lease only for a
+disable or delete; enabling no longer queues behind it. The lease is one conditional
+`findOneAndUpdate` with a 30 s expiry, a 5 s wait and a retryable 409; a crashed holder's lease is
+taken over, and release is token-checked and idempotent. PLAT-8 exercises ten concurrent disables, a
+delete/disable race, an enable under a live lease and stale-lease takeover in a disposable database;
+the old service fails the first round with two committed disables. The OPS-2 recorder excludes only
+the monitoring-only `/api/health/integrity` 503 from `serverErrors`/`lastServerErrorAt`; it is still a
+response and a 5xx, and `/api/health/ready` 503s remain server errors. The finish listener passes the
+normalised `req.originalUrl` path because `req.path` can be router-relative there. The heartbeat
+writer now loads `server/.env` from its own module location with `quiet: true`; the PowerShell wrapper
+scopes its error preference around native calls so dotenv's stderr banner is logged, not fatal.
+
+**Verification.** The first full run exposed one expected documentation failure only: `CLAUDE.md`
+still stated 222 `server/src` modules after the guard model added the 223rd. After correcting that
+count and adding this record, the full suite passes **3,150/3,150** across **506** suites; `tsc`
+exits 0, PLAT-8 passes, PLAT-4/PLAT-7 pass **14/14** with two mode skips, OPS-2 passes **13/13**, and
+the focused docs suites pass **32/32**. The registered integrity task returned `0`, the heartbeat is
+`checkedAt=2026-11-18T05:49:03.828Z`, and `/api/health/integrity` answered **200 / fresh**. No
+deployment was made.
+
+**Still open.** Recovery-code rotation needs the current password plus a live TOTP or current recovery
+code; WebAuthn registration needs the physical key and PIN. The local recovery-code file is stale
+until rotation.
 
 ---
 

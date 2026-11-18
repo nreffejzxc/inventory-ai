@@ -53,6 +53,25 @@ export type OperationalCountersSnapshot = {
  */
 const MAX_TRACKED_ERROR_STATUSES = 8;
 
+/**
+ * 5xx answers that are a MONITORING STATE rather than a failed request.
+ *
+ * `/api/health/integrity` answers 503 while the independent laptop audit is
+ * stale — deliberately, so an uptime monitor can alert without parsing a body.
+ * That is the monitoring plane reporting a condition; it is not this API failing
+ * a caller's request. Counting it in `serverErrors` made the process counter climb
+ * every five minutes while the durable 5xx store stayed empty, which is exactly
+ * the discrepancy the OPS-2/OPS-8 review found. It is still counted as a response
+ * and as a 5xx in `byStatusClass` (that census is literal), but it no longer
+ * increments the failure metric or moves `lastServerErrorAt`.
+ *
+ * `/api/health/ready` is deliberately NOT in this set: a readiness 503 is a real
+ * availability failure. It must keep counting, and it cannot be written durably
+ * while the database is unreachable — the health endpoint is the signal for that
+ * case.
+ */
+const MONITORING_ONLY_5XX_PATHS = new Set(['/api/health/integrity']);
+
 type State = {
   startedAt: number;
   responses: number;
@@ -90,13 +109,17 @@ export function statusClass(status: number): StatusClass {
  * Record one finished response. Called from the `finish` listener in `app.ts`, so it runs AFTER the
  * response is sent — the counter can never delay or alter a response, and a route that throws still
  * counts because `finish` fires for the error handler's response too.
+ *
+ * `path` is used only to distinguish a monitoring-state 503 from a real server failure; it is never
+ * stored. A 500 on the same route still counts, because only the intentional 503 is a state signal.
  */
-export function recordResponse(status: number): void {
+export function recordResponse(status: number, path = ''): void {
   const klass = statusClass(status);
   state.responses += 1;
   state.byStatusClass[klass] += 1;
 
   if (klass !== '5xx') return;
+  if (status === 503 && MONITORING_ONLY_5XX_PATHS.has(path)) return;
   state.serverErrors += 1;
   state.lastServerErrorAt = new Date().toISOString();
 

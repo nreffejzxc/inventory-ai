@@ -8,9 +8,9 @@ of truth for *what actually happened*, and it is why this file is long.
 
 **How to read it.** Do not read it top to bottom. Either find a record by number (§27FJ, §27DM — the
 numbers are cited from `CLAUDE.md` and from source comments), or use the index: `CLAUDE.md` §7 lists
-all **262** records by the title each gives itself.
+all **263** records by the title each gives itself.
 
-**Current state:** V1 complete and in production testing. The records that answer *where are we now* are §27JD (PLAT-19 NZ-01–NZ-07 roadmap beyond NY-07; documentation only), §27JC (PLAT-18 RD-01 code fact-check, NX-01 sensitive-data protection design and NY-01–NY-06 tranche; documentation only), §27JB (PLAT-17 checklist restoration, path-safe renderer, RD-01 local drill plan and NX-01–NX-07 tranche; documentation/tooling only), §27JA (PLAT-16 TS-01 plan, reproducible checklist renderer and next improvement tranche; documentation/tooling only), §27IZ (PLAT-15 verified one-page checklist PDF and tenant security review; documentation only), §27IY (PLAT-14 printable two-contact test checklist; documentation only), §27IX (PLAT-13 two-contact test procedure and IA-42–IA-45 additions; documentation only), §27IW (PLAT-12 contact-wording correction, joint-rank reconciliation, pending notification evidence and IA-38–IA-41 additions; documentation only), §27IV (PLAT-11 backup-contact registration, Firebase-plan safety review and IA-34–IA-37 additions; documentation only), §27IU (PLAT-10 security-contact record, Firebase recovery drill and multi-criteria ranking; documentation only), §27IT (PLAT-9 free-first planning: conditional Cloudflare migration, alert ownership, disposable restore drill and additive follow-up; documentation only), §27IS (PLAT-8 planning-only assessment of the access layer, platform security alerting and whole-product priorities; documentation only), §27IR (PLAT-7 deployed at `e218bb0`, the production gate and recovery proof, and the required WebAuthn check), §27IQ (forced recovery setup, the free-plan outer access gate and the break-glass drill), §27IP (the Platform Operations console was first deployed at `56e8c27`, with browser sign-in, TOTP, assets/CSP and API smoke observed), §27IJ (the INTERNAL Platform Operations plane — separate administrator identity, sessions and capabilities; committed in `d02a549`, now deployed through §27IP), §27IK (platform-admin architecture, now aligned with the implemented interim plane and its remaining gates), §27IL (the durable 5xx and feature-presence stores that report reads), §27IM (the dedicated console, mandatory TOTP/WebAuthn and append-only platform audit — committed and browser-verified; now deployed through §27IP), §27IN (fresh security review, CI browser WebAuthn, production-readiness checklist and prioritized recommendations), §27IO (recovery codes, durable account-scoped MFA lockout, password change, administrator lifecycle and fail-closed origin/cookie hardening), §27II (AI-117 complete feedback conversation preview, deployed `13fb3f8` and device-verified; one out-of-stock wording finding remains open), §27IH (AI-116 bounded follow-up context and answer freshness, deployed and device-verified), §27IG (AI-115 member feedback and the owner/admin review queue, deployed and device-verified), §27IF (AI-114 deterministic complete restock lists, deployed and device-verified), §27ID (the permanent assistant improvement roadmap and implementation audit; docs-only), §27IC (AI-110 contextual assistant entry and restock shortfall, deployed `7315675` and OTA-verified; the partial-restock guards completed in `1c3928b`), §27IB (scheduler proof and hosted freshness), §27IA (post-deploy phone proof, triage and monitor), §27HV (AI-99 10,256-product gate, 24/25 with one output-limit finding), §27HU (AI-99 free-first simple inventory, deployed with the 1.0.2 OTA), §27HT (AI-91/AI-92 exact product identity and per-location stock), §27HS (the AI-50–AI-84 increment register), §27HR (AI-48–AI-84 merged and deployed), §27HQ (grounded answers and scoped stock reads), §27HP (market prices from cited pages), §27HO (recorded specifications and the real seed catalogue), §27HN (inventory-only web research), §27HH (a transfer as one event to the assistant), §27HG (the stock-in link's product), §27HF (the single-location default's timing), §27HE (the stock-in link's location), §27HD (the movement fixes and the production device pass), §27HC (the assistant's local-time answers), §27FM (the V1 re-verification) and §27FJ (the two open advisories).
+**Current state:** V1 complete and in production testing. The records that answer *where are we now* are §27JE (PLAT-20 atomic last-SUPERADMIN guard, monitor-only 5xx accounting and heartbeat restoration; code and documentation), §27JD (PLAT-19 NZ-01–NZ-07 roadmap beyond NY-07; documentation only), §27JC (PLAT-18 RD-01 code fact-check, NX-01 sensitive-data protection design and NY-01–NY-06 tranche; documentation only), §27JB (PLAT-17 checklist restoration, path-safe renderer, RD-01 local drill plan and NX-01–NX-07 tranche; documentation/tooling only), §27JA (PLAT-16 TS-01 plan, reproducible checklist renderer and next improvement tranche; documentation/tooling only), §27IZ (PLAT-15 verified one-page checklist PDF and tenant security review; documentation only), §27IY (PLAT-14 printable two-contact test checklist; documentation only), §27IX (PLAT-13 two-contact test procedure and IA-42–IA-45 additions; documentation only), §27IW (PLAT-12 contact-wording correction, joint-rank reconciliation, pending notification evidence and IA-38–IA-41 additions; documentation only), §27IV (PLAT-11 backup-contact registration, Firebase-plan safety review and IA-34–IA-37 additions; documentation only), §27IU (PLAT-10 security-contact record, Firebase recovery drill and multi-criteria ranking; documentation only), §27IT (PLAT-9 free-first planning: conditional Cloudflare migration, alert ownership, disposable restore drill and additive follow-up; documentation only), §27IS (PLAT-8 planning-only assessment of the access layer, platform security alerting and whole-product priorities; documentation only), §27IR (PLAT-7 deployed at `e218bb0`, the production gate and recovery proof, and the required WebAuthn check), §27IQ (forced recovery setup, the free-plan outer access gate and the break-glass drill), §27IP (the Platform Operations console was first deployed at `56e8c27`, with browser sign-in, TOTP, assets/CSP and API smoke observed), §27IJ (the INTERNAL Platform Operations plane — separate administrator identity, sessions and capabilities; committed in `d02a549`, now deployed through §27IP), §27IK (platform-admin architecture, now aligned with the implemented interim plane and its remaining gates), §27IL (the durable 5xx and feature-presence stores that report reads), §27IM (the dedicated console, mandatory TOTP/WebAuthn and append-only platform audit — committed and browser-verified; now deployed through §27IP), §27IN (fresh security review, CI browser WebAuthn, production-readiness checklist and prioritized recommendations), §27IO (recovery codes, durable account-scoped MFA lockout, password change, administrator lifecycle and fail-closed origin/cookie hardening), §27II (AI-117 complete feedback conversation preview, deployed `13fb3f8` and device-verified; one out-of-stock wording finding remains open), §27IH (AI-116 bounded follow-up context and answer freshness, deployed and device-verified), §27IG (AI-115 member feedback and the owner/admin review queue, deployed and device-verified), §27IF (AI-114 deterministic complete restock lists, deployed and device-verified), §27ID (the permanent assistant improvement roadmap and implementation audit; docs-only), §27IC (AI-110 contextual assistant entry and restock shortfall, deployed `7315675` and OTA-verified; the partial-restock guards completed in `1c3928b`), §27IB (scheduler proof and hosted freshness), §27IA (post-deploy phone proof, triage and monitor), §27HV (AI-99 10,256-product gate, 24/25 with one output-limit finding), §27HU (AI-99 free-first simple inventory, deployed with the 1.0.2 OTA), §27HT (AI-91/AI-92 exact product identity and per-location stock), §27HS (the AI-50–AI-84 increment register), §27HR (AI-48–AI-84 merged and deployed), §27HQ (grounded answers and scoped stock reads), §27HP (market prices from cited pages), §27HO (recorded specifications and the real seed catalogue), §27HN (inventory-only web research), §27HH (a transfer as one event to the assistant), §27HG (the stock-in link's product), §27HF (the single-location default's timing), §27HE (the stock-in link's location), §27HD (the movement fixes and the production device pass), §27HC (the assistant's local-time answers), §27FM (the V1 re-verification) and §27FJ (the two open advisories).
 
 ---
 
@@ -26821,3 +26821,60 @@ notification evidence remains **NOT RUN / PENDING**, and security alerts remain 
 five focused docs suites pass **31/31**; `git diff --check` is clean. No application suite was
 required for this documentation-only increment; the pre-existing AI-118 focused suite is recorded
 separately in the log and its working-tree files remain uncommitted.
+
+---
+
+# 27JE. PLAT-20 - atomic SUPERADMIN guard, monitor-only 5xx accounting and heartbeat restoration (2026-11-18)
+
+**Scope.** Three defects found by the 2026-11-18 review: a last-active-SUPERADMIN count-then-write
+race, a process-local `serverErrors` count that treated the stale integrity heartbeat as an API
+failure, and a daily laptop audit whose heartbeat writer had stopped. The guard was simplified where
+the active count cannot fall; the full server suite was run; the monitoring accounting and the
+heartbeat writer were fixed. No deployment, database reset, recovery-code rotation or WebAuthn
+registration was performed.
+
+**Last-SUPERADMIN guard.** The lifecycle service reads the active SUPERADMIN set and then writes, so
+two concurrent disables could both observe two active administrators and both commit. MongoDB
+transactions do not close that gap by themselves — both writes touch different documents, so write
+skew remains. The guard is one singleton `platform_admin_guards` document taken by a conditional
+`findOneAndUpdate` (a missing token or an expired `lockExpiresAt`), held for the mutation, and
+released by token. Only a mutation that can reduce the active count takes it: `status: DISABLED` and
+delete. Enabling (`status: ACTIVE`) is lock-free, because it cannot make the last administrator
+disappear. A second caller waits up to 5 s and then answers **409
+`PLATFORM_ADMIN_MUTATION_IN_PROGRESS`**; a crashed holder's lease expires after 30 s and is taken
+over. The `finally` path releases only a lease this call actually holds.
+
+The PLAT-8 fixture now proves the boundary rather than the happy path: ten concurrent disables commit
+exactly one; a delete and a disable racing leave one active; an enable succeeds while a live lease is
+held; an expired lease is taken over. The same fixture against the old service failed round 1 with
+`expected exactly one disable to commit, got 2`.
+
+**Monitoring-only 5xx.** `GET /api/health/integrity` returns `503` when the heartbeat is missing or
+older than 26 hours. That is the monitoring state, not a failure of the API, but the OPS-2 finish
+listener counted it in `serverErrors`. `recordResponse(status, path)` now ignores `503` only for
+`/api/health/integrity`; the response still increments `responses` and `byStatusClass['5xx']`.
+`/api/health/ready` is not excluded: its `503` is a real database-availability failure. The durable
+`ops_error_events` store cannot be the answer for the readiness case — the error handler writes it
+through the database that is down — so the health endpoint remains the signal there, and the
+monitoring-only integrity state does not belong in the error counter at all. `app.ts` now passes the
+normalised `req.originalUrl` path to the recorder, because `req.path` can be router-relative at the
+`finish` event.
+
+**Heartbeat restoration.** The Task Scheduler job did run on 2026-11-17 and 2026-11-18 and the audit
+completed, but the writer exited `2` with `MONGODB_URI is not set`: the wrapper started it from the
+repository root, where `dotenv/config` could not find `server/.env`. `server/scripts/lib/load-server-env.mjs`
+now resolves `server/.env` from its own module location and loads it with `quiet: true`. The PowerShell
+wrapper calls Node through `Invoke-Node`, which scopes `$ErrorActionPreference = 'Continue'` around the
+native call so a dotenv banner on stderr is logged rather than treated as a terminating error. The
+registered task returned `0`; the heartbeat is `checkedAt=2026-11-18T05:49:03.828Z`; and
+`/api/health/integrity` answered **200 / fresh**.
+
+**Verification.** `npm run typecheck` exits 0. The full server suite passes **3,150/3,150** (506
+suites). PLAT-8 passes; PLAT-4 and PLAT-7 pass **14/14** with two mode skips; OPS-2 passes **13/13**;
+the Task Scheduler run returns `0`; `GET /api/health/integrity` returns `200`. The focused docs suites
+pass **32/32** and `node scripts/check-docs.mjs` reports **59 active documents / 37 living references**.
+`git diff --check` is clean.
+
+**Not done.** Nothing was deployed, merged or pushed to production. Recovery-code rotation and WebAuthn
+key registration remain owner actions with the current password/TOTP and the physical key; the local
+recovery-code file is stale until that ceremony is completed.

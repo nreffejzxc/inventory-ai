@@ -21,6 +21,7 @@ import AiFeedback from './aiFeedback.model.ts';
 import OpsErrorEvent from './opsErrorEvent.model.ts';
 import OpsFeatureUsage from './opsFeatureUsage.model.ts';
 import PlatformAdmin from './platformAdmin.model.ts';
+import PlatformAdminGuard from './platformAdminGuard.model.ts';
 import PlatformAdminSession from './platformAdminSession.model.ts';
 import PlatformAuditLog from './platformAuditLog.model.ts';
 import PlatformDeployment from './platformDeployment.model.ts';
@@ -50,6 +51,7 @@ export {
   OpsErrorEvent,
   OpsFeatureUsage,
   PlatformAdmin,
+  PlatformAdminGuard,
   PlatformAdminSession,
   PlatformAuditLog,
   PlatformDeployment,
@@ -81,6 +83,7 @@ export const models = [
   OpsErrorEvent,
   OpsFeatureUsage,
   PlatformAdmin,
+  PlatformAdminGuard,
   PlatformAdminSession,
   PlatformAuditLog,
   PlatformDeployment,

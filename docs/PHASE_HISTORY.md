@@ -169,7 +169,11 @@ implementation, notification, alert, production fault injection or paid service 
 RD-01 code fact-check, NX-01 sensitive-data protection design and NY-01–NY-06 review, is §27JC; no
 implementation, notification, alert, production fault injection, database operation or paid service
 was made. PLAT-19, the NZ-01–NZ-07 roadmap beyond NY-07, is §27JD; no implementation, notification,
-alert, rollback drill, database operation, deployment or paid service was made. The tenant-facing
+alert, rollback drill, database operation, deployment or paid service was made. PLAT-20, the atomic last-SUPERADMIN guard, monitor-only 5xx accounting and
+integrity-heartbeat restoration, is §27JE; no deployment, recovery-code rotation or WebAuthn
+registration was performed.
+
+The tenant-facing
 Operations dashboard was removed before commit. The
 2026-11-15 post-deploy/triage/monitor close-out is §27IA;
 production currently serves `e218bb0` and the newest OTA is
