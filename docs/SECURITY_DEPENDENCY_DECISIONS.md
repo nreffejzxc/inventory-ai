@@ -1,6 +1,6 @@
 # Security Dependency Decisions
 
-**Status:** living decision record · **Advisories re-measured 2026-11-18** on `fix/dependency-advisories`; both manifests now override `glob` to **14.0.2** (D-15), so #14/#16 close when it reaches `main`. The one residual after that merge is **#25 `picomatch` high** (D-16); no patched release exists. The low `deepmerge` advisory is no longer in the 2026-11-18 audit or open-alert set; D-4 remains historical. Production currently serves **`74e4b87`**; verify the current serving commit at `/api/health` rather than treating a dated anchor as live.
+**Status:** living decision record · **Advisories re-measured 2026-11-18** at `main` after PR #339; both manifests override `glob` to **14.0.2** (D-15), and #14/#16 closed on 2026-11-18. The one residual is **#25 `picomatch` high** (D-16); no patched release exists. The low `deepmerge` advisory is no longer in the 2026-11-18 audit or open-alert set; D-4 remains historical. Production serves **`ecbdb87`**; verify the current serving commit at `/api/health` rather than treating a dated anchor as live.
 
 An advisory that is not being fixed is **named, evidenced and dispositioned**, never left implied.
 This file covers dependency advisories only; application security decisions are in
@@ -21,14 +21,13 @@ from application runtime code · is the vulnerable API actually called.
 | `mobile/` | **74 entries, 1 advisory — 74 high, 0 moderate, 0 low** | `picomatch` |
 
 The server tree was clean on 2026-10-30; the 2026-11-01 measurement was not. The minimatch advisory
-was fixed on 2026-11-07 by the reviewed override in D-13, and `glob` is fixed on this branch by the
+was fixed on 2026-11-07 by the reviewed override in D-13, and `glob` is fixed at `main` by the
 D-15 override. The remaining `picomatch` advisory reaches the server through ESLint's
 `typescript-eslint → tinyglobby → fdir` dev chain, and mobile through Expo CLI/Metro, Jest and
 ESLint. `npm audit` counts **dependents, not distinct defects**: all 9 server and 74 mobile entries
 are the single `picomatch` advisory seen through its consumers. `glob` is absent from both audits
-after the override. Dependabot still lists #14/#16 because this branch is not the default branch;
-they close when the PR merges. #25 is mobile-only; the server's `picomatch` chain is dev-only and no
-server Dependabot alert is open.
+after the override. Dependabot closed #14/#16 after PR #339 merged; #25 remains mobile-only. The
+server's `picomatch` chain is dev-only and no server Dependabot alert is open.
 
 On 2026-10-30 the earlier mobile `node-forge` advisory was fixed in the lockfile by a bump from
 `1.4.0` to `1.4.2`, inside its consumer's `^1.4.0` range. On 2026-11-11 the four newer node-forge
@@ -46,10 +45,10 @@ On 2026-11-02 the **zod** high advisory was cleared by the Expo 58.0.22 patch: `
 `npm audit` counts **dependents, not distinct defects**. The server's 9 entries and mobile's 74
 entries are the same single `picomatch` advisory seen through its consumers; there is no `glob` or
 `deepmerge` entry after the D-15 override. The 2026-11-11 Dependabot read grouped eight alerts;
-#20–#24 closed after their lockfiles reached `main`, #13 is no longer open, and #14/#16 close when
-this branch merges. #25 is the remaining mobile `picomatch` alert.
+#20–#24 closed after their lockfiles reached `main`, #13 is no longer open, and #14/#16 closed on
+2026-11-18. #25 is the remaining mobile `picomatch` alert.
 
-The counts above describe this branch. Both lockfiles resolve one `glob@14.0.2` and one
+The counts above describe `main` after the merge. Both lockfiles resolve one `glob@14.0.2` and one
 `minimatch@11.0.5`; D-13 and D-15 record the accepted overrides and their evidence.
 
 ---
@@ -62,7 +61,7 @@ The counts above describe this branch. Both lockfiles resolve one `glob@14.0.2` 
 | **GHSA-j8rw-jp99-435v**, **GHSA-6cv4-p8m7-4r25**, **GHSA-w4xr-hqv8-ch44**, **GHSA-6889-vf6x-f3g5** — `node-forge` TLS/HTTP denial-of-service and Ed25519 verification advisories | medium ×3, low ×1 | `1.4.3` (was `1.4.2`) | `@expo/code-signing-certificates@0.0.7` and `@expo/cli@58.1.18`; both declare `node-forge ^1.4.0` | **FIXED IN LOCKFILE 2026-11-11** — Dependabot #20–#23; no `package.json` change |
 | **GHSA-474x-hrwr-fgx4** — `fast-xml-parser` quadratic CPU consumption scanning unterminated stop-node tags | low | `5.12.0` (was `5.11.1`) | `@google-cloud/storage@8.3.0`, which declares `fast-xml-parser ^5.3.4` | **FIXED IN LOCKFILE 2026-11-11** — Dependabot #24; no `package.json` change |
 | **GHSA-gcqx-w48m-w2h4** — `deepmerge` `mergeObject()` allows prototype poisoning of the returned object (CWE-1321) | low, 5.3 | `4.3.1` | `expo@58.0.22 → @expo/config@58.0.10`, and `jest@30.5.2 → jest-config@30.5.2`; both declare `deepmerge: ^4.2.2` | **none published** — `4.3.1` is both the newest release and inside `>= 4.2.0 <= 4.3.1` |
-| **GHSA-3g3m-2fjr-6pw4** — `glob` abort-signal cancellation bypass allows post-timeout filesystem traversal | medium | `14.0.2` (both; was `10.5.0` server, `13.0.6` mobile) | `expo-updates@58.0.20`, `@expo/cli`, `@expo/config`, `@expo/metro-config`, Jest reporters; server `google-gax@5.0.8 → rimraf@5.0.10` | **FIXED 2026-11-18** — D-15 override; #14/#16 close after merge |
+| **GHSA-3g3m-2fjr-6pw4** — `glob` abort-signal cancellation bypass allows post-timeout filesystem traversal | medium | `14.0.2` (both; was `10.5.0` server, `13.0.6` mobile) | `expo-updates@58.0.20`, `@expo/cli`, `@expo/config`, `@expo/metro-config`, Jest reporters; server `google-gax@5.0.8 → rimraf@5.0.10` | **FIXED 2026-11-18** — D-15 override; #14/#16 closed |
 | **GHSA-fc5q-39xc-vjpf** — `picomatch` ReDoS through single-branch repeated extglobs (CVE-2026-112366) | high, 8.7 | `4.0.7` (both) | Expo CLI asset export, Metro/Jest matching and ESLint's `tinyglobby → fdir` path; no application import | **none published** — 4.0.7 is newest; upstream PR #237 is merged but unreleased; D-16 accepted residual |
 | **GHSA-g3hv-75wg-m249** — `minimatch` denial of service via globparts amplification | medium | `11.0.5` (both; was `10.2.6`, `9.0.9`, `3.1.5`) | `eslint`, `@eslint/config-array`, `@typescript-eslint/typescript-estree`, `eslint-plugin-import` and `eslint-plugin-react`; every `glob` row above; Jest's `test-exclude` | **FIXED 2026-11-07** — D-13 override to `11.0.5`; alerts #18/#19 closed |
 
@@ -110,7 +109,7 @@ The counts above describe this branch. Both lockfiles resolve one `glob@14.0.2` 
 | **D-12** | **The minimatch override is UNDER REVIEW, not accepted.** Draft PRs #173 (mobile) and #174 (server) add `overrides.minimatch: "^11.0.1"`; both trees resolve `11.0.5`, and local typecheck/lint plus all four CI checks pass. The override crosses D-6/D-10 and is not merged. Merging requires an explicit owner decision and a dated amendment to D-10 (or a separate acceptance); until then the counts and alert state above are unchanged. | **CLOSED — SUPERSEDED BY D-13 (2026-11-07)** |
 | **D-13** | **The minimatch override is ACCEPTED AND MERGED as a narrow exception to D-10.** PR #173 (mobile) and #174 (server) add `overrides.minimatch: "^11.0.1"`; both lockfiles resolve one `11.0.5`. #173 merged as `0eca990`; #174 merged as `8fe6403` after all four checks passed in runs `42355968583` and `42356272906`. Render served `8fe6403` with `status: ok`, `db: connected` and 0 server errors when that override merged; production had advanced to `e15136a` by the 2026-11-11 close-out. Alerts #18/#19 are closed. `glob` was later superseded by D-15; `deepmerge` remains D-4 history. | **FIXED 2026-11-07** |
 | **D-14** | **`fast-xml-parser` is FIXED IN THE LOCKFILE** by a bump to `5.12.0` (Dependabot #24). The consumer already declares `^5.3.4`; `server/package.json` was not changed. The package is a transitive dependency of `@google-cloud/storage`, not an application import. The server’s full checks pass on the new tree. Alert #24 closed after the lockfile reached the default branch. | **FIXED IN LOCKFILE 2026-11-11** |
-| **D-15** | **The `glob` override is ACCEPTED AND APPLIED as a narrow exception superseding D-10.** Both `server/package.json` and `mobile/package.json` declare `overrides.glob: "14.0.2"`; both lockfiles resolve exactly one `14.0.2`, and the old 10.5.0/13.0.6 copies are gone. This is the patched floor for GHSA-3g3m-2fjr-6pw4. The server path is library-internal `rimraf` cleanup; mobile is Expo/Jest build tooling; no application import exists. The CommonJS `glob`/`globSync`/`sync` exports, a direct glob, `rimraf` with `{ glob: true }`, and `expo config` all pass. Exact pinning prevents an unreviewed 14.x from being adopted. Merge and CI evidence are pending on this branch. | **ACCEPTED AND APPLIED 2026-11-18 — PR PENDING** |
+| **D-15** | **The `glob` override is ACCEPTED AND APPLIED as a narrow exception superseding D-10.** Both `server/package.json` and `mobile/package.json` declare `overrides.glob: "14.0.2"`; both lockfiles resolve exactly one `14.0.2`, and the old 10.5.0/13.0.6 copies are gone. This is the patched floor for GHSA-3g3m-2fjr-6pw4. The server path is library-internal `rimraf` cleanup; mobile is Expo/Jest build tooling; no application import exists. The CommonJS `glob`/`globSync`/`sync` exports, a direct glob, `rimraf` with `{ glob: true }`, and `expo config` all pass. Exact pinning prevents an unreviewed 14.x from being adopted. PR #339 squash-merged as `ecbdb87` after CI run `44281607437` passed all five required checks; Render deployed it with health `ok`, readiness 200 and 0 server errors. | **MERGED AND DEPLOYED 2026-11-18** |
 | **D-16** | **The mobile `picomatch` #25 is ACCEPTED AS RESIDUAL RISK; no override is applied.** GHSA-fc5q-39xc-vjpf / CVE-2026-112366 affects `<= 4.0.7`; 4.0.7 is the newest npm release and upstream PR #237 is merged but has no published release. The package is confined to Expo CLI asset export, Metro/Jest matching and ESLint's `tinyglobby → fdir` path; no application module imports it, and the vulnerable API requires an attacker-supplied glob pattern, which this project does not accept. Forcing an unreleased commit or an untrusted fork was rejected. Revisit when a release above 4.0.7 is published and admitted by an installed consumer, or if `picomatch` becomes runtime-reachable. | **ACCEPTED 2026-11-18** |
 
 The reasoning for the remaining advisories is the same: the vulnerable API is never invoked by
@@ -201,6 +200,7 @@ pre-merge 2026-11-07 measurement; rows 23–24 are merge evidence; rows 25–27 
 | 33 | `node --input-type=module` direct `glob`/`globSync`/`sync`; `rimraf(path,{glob:true})` async and sync; `npx expo config --type public --json` (2026-11-18) | `glob` 14.0.2 returned the expected files; async and sync rimraf deleted the expected temporary files; Expo config printed the 1.0.2 public config and exited **0** |
 | 34 | `cd server && npm run typecheck && npx eslint . --ignore-pattern '.scratch/**' && npm run test:unit && npm ci --dry-run` (2026-11-18) | typecheck **0**, source lint **0**, **2,221 tests / 453 suites: 2,146 pass, 75 skipped, 0 fail**, dry-run **0** |
 | 35 | `cd mobile && npm run typecheck && npm test -- --ci --runInBand && npm ci --dry-run` (2026-11-18) | typecheck **0**, **111 suites / 1,273 tests**, dry-run **0**; `npm run lint` reports six pre-existing `react-hooks/set-state-in-effect` findings, not in changed files and not part of mobile CI |
-| 36 | `npm view picomatch dist-tags`; `npm view picomatch@next version`; `git ls-remote --tags https://github.com/micromatch/picomatch.git`; `gh api repos/nreffejzxc/inventory-ai/dependabot/alerts?state=open` (2026-11-18) | latest `4.0.7`; no `next`; newest tag `4.0.7`; open alerts are #14/#16 `glob` and #25 mobile `picomatch` — no server `picomatch` alert |
+| 36 | `npm view picomatch dist-tags`; `npm view picomatch@next version`; `git ls-remote --tags https://github.com/micromatch/picomatch.git`; `gh api repos/nreffejzxc/inventory-ai/dependabot/alerts?state=open` (2026-11-18, pre-merge) | latest `4.0.7`; no `next`; newest tag `4.0.7`; open alerts were #14/#16 `glob` and #25 mobile `picomatch` — no server `picomatch` alert |
+| 37 | `gh pr checks 339`; `gh pr merge 339 --squash`; `curl /api/health`, `/api/health/ready`, `/platform/`, `/api/platform/status`; `gh api .../dependabot/alerts?state=open` (2026-11-18, post-merge) | all five checks pass on run `44281607437`; merged as `ecbdb87`; health `status: ok`, `db: connected`, 0 server errors; readiness 200; platform routes 401; preflight 204; #14/#16 closed, #25 remains |
 
 No credential, token or secret value appears in this record.

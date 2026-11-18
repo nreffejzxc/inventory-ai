@@ -202,5 +202,5 @@ live label are recorded in `DEVELOPMENT_LOG.md` and
 §27FN (EAS retention and the plan gate on OTA signing), §27EZ (the production parity gate that
 stopped a store upload) and §27FK (the runtime boundary that made a stale process impossible to
 mistake for a server fault). DEP-01, the patched `glob@14.0.2` override in both manifests and the
-accepted `picomatch` 4.0.7 residual review, is §27JM; dependency code only, with no
-deployment or production change.
+accepted `picomatch` 4.0.7 residual review, is §27JM; merged as `ecbdb87` and
+deployed, with #25 remaining open.
