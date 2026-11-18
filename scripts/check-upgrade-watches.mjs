@@ -38,6 +38,10 @@
  *   6. `deepmerge` (advisory) — GHSA-gcqx-w48m-w2h4 has **no patched release**: 4.3.1 is both the
  *                             newest and inside `>= 4.2.0 <= 4.3.1`, so this stays `DEFERRED` until
  *                             one is published and `@expo/config`'s `^4.3.1` range admits it (§27GX).
+ *   7. `picomatch` (advisory) — GHSA-fc5q-39xc-vjpf has **no patched release**; 4.0.7 is the newest
+ *                             and inside `<= 4.0.7`. `READY` means a release above 4.0.7 exists AND
+ *                             the installed `@expo/cli` consumer admits it; the detail names whichever
+ *                             half is still missing. The watch is read-only and is not a required CI gate.
  *
  * HOW TO RUN. `node scripts/check-upgrade-watches.mjs` (add `--json` for machine output, `--self-test`
  * to run the controls alone). It needs the network and is deliberately NOT part of the required CI gate:
@@ -519,6 +523,7 @@ async function readPublishedExpoCliGate() {
 const ZOD_ADVISORY = 'GHSA-mrhx-c7xc-m3w5';
 const NODE_FORGE_ADVISORY = 'GHSA-86w9-cpqp-85rv';
 const DEEPMERGE_ADVISORY = 'GHSA-gcqx-w48m-w2h4';
+const PICOMATCH_ADVISORY = 'GHSA-fc5q-39xc-vjpf';
 
 /**
  * Read the advisory and the registry, then judge against the range the INSTALLED consumer declares.
@@ -721,6 +726,29 @@ const WATCHES = [
         '@expo/config',
         ['mobile/node_modules/deepmerge/package.json']
       );
+    },
+  },
+  {
+    name: 'picomatch (advisory)',
+    gate: `${PICOMATCH_ADVISORY} — a release above 4.0.7 AND admitted by the installed @expo/cli consumer; 4.0.7 is the newest published release`,
+    async read() {
+      const result = await readAdvisoryGate(
+        'picomatch',
+        PICOMATCH_ADVISORY,
+        [
+          'mobile/node_modules/expo/node_modules/@expo/cli/package.json',
+          'mobile/node_modules/@expo/cli/package.json',
+        ],
+        '@expo/cli',
+        ['mobile/node_modules/picomatch/package.json']
+      );
+      return {
+        ...result,
+        // The advisory gate's generic wording says a plain bump closes the alert. It does for the
+        // Expo CLI path this watch measures; the 2.x consumers need their own parent updates, so the
+        // watch says what it actually proved rather than claiming every copy moves.
+        unblocks: 'a first patched picomatch that the installed Expo CLI consumer admits; other 2.x consumers may still need a parent update or override',
+      };
     },
   },
 ];
@@ -1054,6 +1082,45 @@ const ADVISORY_CONTROLS = [
         consumerRange: null,
       }),
     expect: 'UNREADABLE',
+  },
+  {
+    name: 'the live picomatch shape — 4.0.7 is newest and still vulnerable (must not fire)',
+    run: () =>
+      decideAdvisoryUpgrade({
+        newestPublished: '4.0.7',
+        firstPatchedVersion: null,
+        vulnerableRange: '<= 4.0.7',
+        consumerName: '@expo/cli@58.1.18',
+        consumerRange: '^4.0.4',
+        installedVersion: '4.0.7',
+      }),
+    expect: 'DEFERRED',
+  },
+  {
+    name: 'picomatch publishes above 4.0.7 and @expo/cli admits it (must fire)',
+    run: () =>
+      decideAdvisoryUpgrade({
+        newestPublished: '4.0.8',
+        firstPatchedVersion: null,
+        vulnerableRange: '<= 4.0.7',
+        consumerName: '@expo/cli@58.1.18',
+        consumerRange: '^4.0.4',
+        installedVersion: '4.0.7',
+      }),
+    expect: 'READY',
+  },
+  {
+    name: 'picomatch publishes above 4.0.7 but the consumer only admits 2.x (must not fire)',
+    run: () =>
+      decideAdvisoryUpgrade({
+        newestPublished: '4.0.8',
+        firstPatchedVersion: null,
+        vulnerableRange: '<= 4.0.7',
+        consumerName: 'anymatch@3.1.3',
+        consumerRange: '^2.0.4',
+        installedVersion: '4.0.7',
+      }),
+    expect: 'DEFERRED',
   },
 ];
 

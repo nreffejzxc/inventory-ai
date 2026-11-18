@@ -50,7 +50,9 @@ CommonJS globbing, `rimraf` async/sync glob deletion and the Expo config smoke p
 squash-merged as `ecbdb87` and Render deployed it; #14/#16 closed. `picomatch` #25 remains at
 the latest 4.0.7 with no published fix; it is confined to Expo/Metro/Jest/ESLint build and test
 tooling, no application module imports it and no user-supplied glob reaches it. It is accepted
-as residual risk under D-16.
+as residual risk under D-16. A read-only `picomatch (advisory)` row now lives in
+`scripts/check-upgrade-watches.mjs`; it reports `DEFERRED` at 4.0.7 and will turn `READY`
+only when a release above 4.0.7 exists and the installed `@expo/cli` range admits it.
 
 **Console delivery merged and deployed, PLAT-20–27 (2026-11-18):** PR #336
 squash-merged as `e7ce455` after CI passed all five required checks (`server`
