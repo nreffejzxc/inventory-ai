@@ -7,12 +7,12 @@ production setting or implement a notification channel.
 **Free-first constraint (2026-11-17):** use the existing UptimeRobot email, owner-controlled email
 and GitHub issues. Do **not** start a paid pager, paid chat plan or paid log-retention tier while
 Inventory AI has no paying users. The named-owner decisions and free activation gates are in
-[`PLATFORM_SECURITY_ALERT_DECISION_SHEET.md`](PLATFORM_SECURITY_ALERT_DECISION_SHEET.md).
+[`PLATFORM_SECURITY_ALERT_DECISION_SHEET.md`](../PLATFORM_SECURITY_ALERT_DECISION_SHEET.md).
 
 **Reviewed:** 2026-11-17
 **Scope:** `/platform`, `/api/platform`, the platform audit trail, the API health/error signals and the
 AI operational signals that affect the console. Tenant application monitoring remains in
-[`MONITORING.md`](MONITORING.md).
+[`MONITORING.md`](../MONITORING.md).
 
 ## 1. What exists today
 
@@ -90,6 +90,7 @@ deduplicated by the stated key.
 | AUTH-05 | WebAuthn key registered or removed | Any registration/removal; **SEV-1** for removal of the last key or a break-glass reset | `platform.webauthn.registered`, `platform.webauthn.key_removed`, `platform.admin.break_glass_reset` | SEV-2 / SEV-1 | Platform Owner |
 | AUTH-06 | WebAuthn login failure burst | 5 failures in 15 min for one account or 10 from one IP | `platform.webauthn.login_failed` | SEV-2 | Platform Owner |
 | AUTH-07 | Administrator password changed | Any change outside an announced maintenance window | `platform.account.password_changed` | SEV-2 | Platform Owner + Security Reviewer |
+| AUTH-08 | Step-up proof refused or used | Any `platform.auth.step_up_required` or three `.step_up_failed` in 15 min; correlate a `.step_up_used` with the lifecycle event that follows | `platform.auth.step_up_succeeded`, `.step_up_failed`, `.step_up_required`, `.step_up_used`; no password, TOTP code or proof token is recorded | SEV-2; SEV-1 if paired with a session anomaly or unexpected administrator change | Platform Owner + Security Reviewer |
 
 ### 3.2 Access and authorization
 
@@ -98,7 +99,7 @@ deduplicated by the stated key.
 | ACCESS-01 | Outer access-gate denials | 20 responses in 5 min from one IP, or 100 in 15 min globally | **Gap:** `platformAccessGate` currently returns 401 without an audit row or durable counter. Add a bounded counter/event before relying on this alert. | SEV-2 | Platform Owner |
 | ACCESS-02 | Capability or route denial | 5 `platform.access.denied` in 15 min, or any denial on an audit/administrator route | `platform.access.denied`; high-capability route names are already bounded | SEV-2 | Platform Owner |
 | ACCESS-03 | Foreign-Origin or CSRF refusal | **Any** `platform.access.denied` whose bounded reason is `platform_csrf_origin` or `platform_csrf_invalid` on a cookie request | Already audited by `platformAuthenticate` with a bounded reason; the remaining work is alert delivery and count visibility, not the event itself | SEV-2 | Platform Owner + Service Owner |
-| ACCESS-04 | Direct-origin bypass attempt (after Access is adopted) | Any request to `onrender.com` for a platform path without a valid Access token, or an Access denial spike | Requires the access-layer origin check and edge logs; see [`PLATFORM_ACCESS_LAYER_ASSESSMENT.md`](PLATFORM_ACCESS_LAYER_ASSESSMENT.md) | SEV-1 | Edge/DNS owner + Platform Owner |
+| ACCESS-04 | Direct-origin bypass attempt (after Access is adopted) | Any request to `onrender.com` for a platform path without a valid Access token, or an Access denial spike | Requires the access-layer origin check and edge logs; see [05 — Access layer](05-access-layer.md) | SEV-1 | Edge/DNS owner + Platform Owner |
 | ACCESS-05 | New or changed access policy | Any Access policy/identity-provider change | Cloudflare audit/configuration log; no local source today | SEV-1 | Edge/DNS owner |
 
 ### 3.3 Administrator and audit integrity
@@ -235,11 +236,11 @@ deduplicated by the stated key.
 
 ## 8. Sources
 
-- Existing health/alert procedure: [`MONITORING.md`](MONITORING.md).
-- Existing platform security recommendations: [`PLATFORM_SECURITY_RECOMMENDATIONS.md`](PLATFORM_SECURITY_RECOMMENDATIONS.md) (SEC-09).
-- Existing console roadmap: [`PLATFORM_CONSOLE_IMPROVEMENTS.md`](PLATFORM_CONSOLE_IMPROVEMENTS.md) (CI-05, CI-11–CI-15).
-- Production readiness gates: [`PLATFORM_PRODUCTION_READINESS.md`](PLATFORM_PRODUCTION_READINESS.md).
-- Free ownership/channel decisions: [`PLATFORM_SECURITY_ALERT_DECISION_SHEET.md`](PLATFORM_SECURITY_ALERT_DECISION_SHEET.md).
+- Existing health/alert procedure: [`MONITORING.md`](../MONITORING.md).
+- Existing platform security recommendations: [07 — Security recommendations](07-security-recommendations.md) (SEC-09).
+- Existing console roadmap: [03 — Console improvements](./03-console-improvements.md) (CI-05, CI-11–CI-15).
+- Production readiness gates: [04 — Production readiness](04-production-readiness.md).
+- Free ownership/channel decisions: [`PLATFORM_SECURITY_ALERT_DECISION_SHEET.md`](../PLATFORM_SECURITY_ALERT_DECISION_SHEET.md).
 - Platform audit model and actions: `server/src/models/platformAuditLog.model.ts`,
   `server/src/constants/platformAudit.ts`.
 - Cloudflare Access log retention: <https://www.cloudflare.com/plans/zero-trust-services/>.

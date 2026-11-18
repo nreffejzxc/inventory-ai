@@ -1132,14 +1132,15 @@ POST /api/platform/auth/webauthn/register/options  (authenticated; registration 
 POST /api/platform/auth/webauthn/register/verify   (authenticated; stores a credential)
 POST /api/platform/auth/password              (authenticated; current password -> all sessions revoked)
 POST /api/platform/auth/recovery-codes        (authenticated; current password -> one-time codes)
+POST /api/platform/auth/step-up               (authenticated; password + TOTP -> session-bound proof)
 POST /api/platform/auth/renew                 (fresh token for the same session)
 POST /api/platform/auth/logout
 GET  /api/platform/auth/csrf                 (cookie session; rotate the CSRF value)
 GET  /api/platform/auth/me
 GET  /api/platform/admins                     platform.admin.manage
-PATCH /api/platform/admins/:id/status         platform.admin.manage
-DELETE /api/platform/admins/:id               platform.admin.manage
-DELETE /api/platform/admins/:id/webauthn/:credentialId  platform.admin.manage
+PATCH /api/platform/admins/:id/status         platform.admin.manage + step-up proof
+DELETE /api/platform/admins/:id               platform.admin.manage + step-up proof
+DELETE /api/platform/admins/:id/webauthn/:credentialId  platform.admin.manage + step-up proof
 GET  /platform                                (same-origin console shell; no API data)
 GET  /api/platform/status                     platform.health.read
 GET  /api/platform/operations?days=7           platform.metrics.read
@@ -1230,6 +1231,21 @@ Only SECURITY and SUPERADMIN hold `platform.audit.read`. Every event is bounded 
 password, token, TOTP code, recovery code, WebAuthn response, tenant id or tenant data. Lifecycle
 operations (password change, recovery-code generation/use, disable/enable, delete and key removal)
 are audited with the actor and target, never with the secret.
+
+**DESTRUCTIVE LIFECYCLE ACTIONS REQUIRE A STEP-UP PROOF.** `POST /api/platform/auth/step-up`
+re-checks the caller's current password and a TOTP code and returns a five-minute JWT proof bound
+to the administrator id, the authenticated session `jti` and the `platform.admin.lifecycle` scope.
+The proof has a separate audience, is not accepted as an access token, and is stateless: the same
+session can replay it within its five-minute window. `PATCH /api/platform/admins/:id/status`,
+`DELETE /api/platform/admins/:id` and `DELETE /api/platform/admins/:id/webauthn/:credentialId`
+require it as `X-Platform-Step-Up` after authentication and `platform.admin.manage` and before the
+controller. The API's CORS allow-list includes `X-Platform-Step-Up`, so a cross-origin console
+preflight can send the proof. A TOTP step already spent by the login that opened the session is
+refused as `409 PLATFORM_MFA_CODE_ALREADY_USED` rather than `PLATFORM_MFA_INVALID`; the person is
+told to wait for the next code, and the reuse is not counted as a failed factor. A missing,
+expired, malformed, cross-session, cross-admin or wrong-scope proof answers
+`403 PLATFORM_STEP_UP_REQUIRED` and no lifecycle service runs. Issuance, failure, required refusal
+and use are audited without a password, TOTP code or proof token.
 
 **ADMINISTRATOR LIFECYCLE.** `platform.admin.manage` (SUPERADMIN only) can list administrators,
 disable or re-enable one, delete one, and remove an enrolled WebAuthn key. Disabling and deletion
@@ -2453,8 +2469,11 @@ Additional invariants, all enforced server-side and tenant-isolated:
   OWNER-only act and is refused rather than merely hidden.
 - A `businessId` supplied by the client is ignored; the tenant is taken from the authenticated user.
 
-Disabling a user takes effect immediately: it revokes login and every existing session, because the
-user row is reloaded from the database on each request (§30, *Role Mutation Takes Effect Immediately*).
+Disabling a user blocks the next request: `authenticate` reloads the user row and requires
+`status === 'ACTIVE'` (§30, *Role Mutation Takes Effect Immediately*). It does **not** delete the
+existing session rows. If the account is re-enabled before those sessions expire, an unexpired
+token can work again. An admin has no route to revoke a member’s tenant sessions; the member can use
+“sign out everywhere,” and a password change/reset revokes all sessions.
 
 ### Invitation-Based Onboarding (implemented 2026-10-25)
 
@@ -2633,8 +2652,9 @@ escalates one.
 
 The runtime consequence is specified and tested: changing a user's role takes effect on the
 **already-issued token**, with no new login. Promotion grants the new capability and demotion revokes
-the old one immediately, in both directions, including across tiers. This mirrors the long-standing
-account-status rule, where disabling a user revokes an existing JWT instantly.
+the old one immediately, in both directions, including across tiers. Account status is different:
+disabling blocks the next request but does not revoke the JWT or delete its session row, so
+re-enabling before expiry can make the old token work again.
 
 ## Tenant Isolation Mechanism
 

@@ -138,7 +138,7 @@ both are implementation-tested in the working tree and pending deployment at thi
 INTERNAL Platform Operations plane for the Inventory AI owner/support/developers, is §27IJ; OPS-8,
 the durable 5xx and feature-presence stores it reads, is §27IL; the platform-admin architecture is
 aligned with the implemented interim plane and its remaining gates in §27IK. PLAT-2/PLAT-3, the
-dedicated console, mandatory TOTP/WebAuthn and append-only platform audit, is §27IM; PLAT-4, the
+dedicated console, mandatory TOTP enrollment with optional WebAuthn, and append-only platform audit, is §27IM; PLAT-4, the
 fresh review, CI browser proof, production-readiness checklist and prioritized recommendations, is
 §27IN. PLAT-5, the recovery-code, durable MFA-lockout, password-change and administrator-lifecycle
 hardening with fail-closed origin and cookie checks, is §27IO. PLAT-6, the deployed operations console
@@ -172,6 +172,24 @@ was made. PLAT-19, the NZ-01–NZ-07 roadmap beyond NY-07, is §27JD; no impleme
 alert, rollback drill, database operation, deployment or paid service was made. PLAT-20, the atomic last-SUPERADMIN guard, monitor-only 5xx accounting and
 integrity-heartbeat restoration, is §27JE; no deployment, recovery-code rotation or WebAuthn
 registration was performed.
+
+PLAT-21, the console status assessment and platform/tenant account guide, is §27JF; no
+deployment, account creation, production write or recovery rotation was performed.
+PLAT-22, the additive security roadmap beyond PLAT-21, is §27JG; it records seven new
+recommendations and verifies PR #336's five required checks, with no implementation or
+merge. PLAT-23, the owner/CEO account, credential and access guide, is §27JH; it adds the
+role/section matrices, complete credential inventory, storage and rotation rules,
+authentication/recovery runbooks and owner checklist, with no deployment, account
+creation or credential change. PLAT-24, the dedicated `docs/platform-console/` set with
+an index and the tenant-disable, TOTP/WebAuthn and 5xx-scope corrections, is §27JI;
+documentation only, with no code, deployment or account change. PLAT-25, the outer
+gate failure budget with 429 responses and a sampled denial audit, is §27JJ; code and
+tests only, with no deployment or production configuration change. PLAT-26, the audited
+operator CLI creation with one `platform.admin.created` event, is §27JK; code and tests
+only, with address activation left for a separate step. PLAT-27, the SEC-08 five-minute
+step-up proof enforced on destructive administrator lifecycle routes, is §27JL; code,
+tests and console documentation only, with no deployment, address activation or PR #336
+change.
 
 The tenant-facing
 Operations dashboard was removed before commit. The

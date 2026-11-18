@@ -89,7 +89,7 @@ GitHub probes in §2 remain the automatic alert path. Alert on repeated `/api/he
 two or more new `5xx` responses, a missing production posture, or a failed platform login/MFA burst
 that the audit trail records. The proposed platform-specific alert catalogue, thresholds, role
 owners and response playbooks are in
-[`PLATFORM_SECURITY_MONITORING_PLAN.md`](PLATFORM_SECURITY_MONITORING_PLAN.md); they are planning
+[06 — Security monitoring](./platform-console/06-security-monitoring.md); they are planning
 only and are not an active pipeline. The process-local counters reset on restart; durable `ops_error_events`
 survive a restart and are what the overview's 5xx counts use for the selected window.
 
@@ -97,9 +97,9 @@ survive a restart and are what the overview's 5xx counts use for the selected wi
 mobile crash/install telemetry or background-job health because those sources are not available to
 this service. Those panels say so. AI cost is provider-reported only and unknown charges are not
 estimated. Deployment history begins when the console is enabled; a failed build before process boot
-is absent by design. See [`PLATFORM_PRODUCTION_READINESS.md`](PLATFORM_PRODUCTION_READINESS.md) for
+is absent by design. See [04 — Production readiness](./platform-console/04-production-readiness.md) for
 the edge, credential and residual-risk gates, and
-[`PLATFORM_ACCESS_LAYER_ASSESSMENT.md`](PLATFORM_ACCESS_LAYER_ASSESSMENT.md) for the access-layer
+[05 — Access layer](./platform-console/05-access-layer.md) for the access-layer
 evaluation.
 
 ---

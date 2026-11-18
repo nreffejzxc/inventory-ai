@@ -12,8 +12,9 @@
  *
  * WHAT IT CHECKS.
  *
- *  * Every Markdown page directly under `docs/` and every guide under
- *    `docs/guides/` is linked from `docs/README.md` (the map itself excepted).
+ *  * Every Markdown page directly under `docs/`, every guide under
+ *    `docs/guides/` and every page under `docs/platform-console/` is linked from
+ *    `docs/README.md` (the map itself excepted).
  *  * Every Markdown target linked from the map exists.
  *  * Only `docs/AUTH_SECURITY_MASTER_CHECKLIST.md` declares invariant rows
  *    (`| I-N | ...`); references in prose remain valid.
@@ -83,11 +84,12 @@ function markdownIn(dir) {
     .map((entry) => path.join(dir, entry.name));
 }
 
-/** All active Markdown files under `docs/` root and `docs/guides/`. */
+/** All active Markdown files under `docs/` root, `docs/guides/` and the console set. */
 function activeDocFiles() {
   return [
     ...markdownIn(DOCS_ROOT),
     ...markdownIn(path.join(DOCS_ROOT, 'guides')),
+    ...markdownIn(path.join(DOCS_ROOT, 'platform-console')),
   ].filter((file) => relative(file) !== 'docs/README.md');
 }
 

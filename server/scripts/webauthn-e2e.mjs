@@ -159,6 +159,8 @@ async function createAdmin() {
     env: {
       ...env,
       PLATFORM_ADMIN_CONFIRM: 'create-platform-admin',
+      PLATFORM_ADMIN_OPERATOR: 'webauthn-e2e@test.invalid',
+      PLATFORM_ADMIN_GRANT_ID: 'webauthn-e2e',
       PLATFORM_ADMIN_EMAIL: EMAIL,
       PLATFORM_ADMIN_NAME: 'WebAuthn E2E',
       PLATFORM_ADMIN_ROLE: 'SUPERADMIN',
@@ -194,7 +196,12 @@ async function cleanupAdmin() {
       // every platform audit row this run created, including those.
       { createdAt: { $gte: startedAt }, route: { $regex: '^/api/platform/' } },
     ];
-    if (admin) auditFilters.push({ actorAdminId: admin._id });
+    if (admin) {
+      auditFilters.push({ actorAdminId: admin._id });
+      // The CLI creation event is written before the E2E admin authenticates, so
+      // its actor is the disposable operator, not the target. Clear it by target.
+      auditFilters.push({ 'metadata.targetAdminId': String(admin._id) });
+    }
     await mongoose.connection.collection('platform_audit_events').deleteMany({ $or: auditFilters });
     if (admin) {
       await PlatformAdminSession.deleteMany({ adminId: admin._id });

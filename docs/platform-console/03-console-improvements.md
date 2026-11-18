@@ -2,16 +2,16 @@
 
 **Status:** **RECOMMENDATIONS ONLY.** Nothing in this document authorizes implementation. The
 implemented recovery, lockout and lifecycle controls are recorded in
-[`PLATFORM_SECURITY_RECOMMENDATIONS.md`](PLATFORM_SECURITY_RECOMMENDATIONS.md) and
-[`SYSTEM_SPECIFICATION.md`](SYSTEM_SPECIFICATION.md); this page is the next layer of improvements.
-The public/wider-operator gate remains [`PLATFORM_PRODUCTION_READINESS.md`](PLATFORM_PRODUCTION_READINESS.md).
+[07 — Security recommendations](07-security-recommendations.md) and
+[`SYSTEM_SPECIFICATION.md`](../SYSTEM_SPECIFICATION.md); this page is the next layer of improvements.
+The public/wider-operator gate remains [04 — Production readiness](04-production-readiness.md).
 The console is now live internally at `/platform` on `e218bb0`. CI-01 (forced recovery ceremony and
 break-glass) is implemented in PLAT-7 and deployed (§27IQ, §27IR); CI-07's application-level gate is
 implemented but the edge/network-isolation half remains open. `webauthn-e2e` is now a required
 `main` check. This page is a ranked, recommendations-only roadmap: it
 does not authorize implementation, deploy or expose any new surface. The whole-product ranking and
 new-gap assessment is
-[`INVENTORY_AI_IMPROVEMENT_ASSESSMENT.md`](INVENTORY_AI_IMPROVEMENT_ASSESSMENT.md); it consumes this
+[`INVENTORY_AI_IMPROVEMENT_ASSESSMENT.md`](../INVENTORY_AI_IMPROVEMENT_ASSESSMENT.md); it consumes this
 console-specific list and does not replace or silently promote any item here.
 
 **Reviewed:** 2026-11-17
@@ -54,7 +54,7 @@ mostly improve day-to-day convenience.
 | 2 | Security / access | CI-07 edge attestation and an actual network access layer (the free-plan application gate is implemented; the edge half is not) | The live URL is still internet-reachable. A shared outer key helps, but it is not VPN/IP/identity-aware isolation | **P0 — partial** |
 | 3 | Security / incident detection | CI-05 platform security monitoring, alerting and a dedicated incident view | A control whose failures are invisible is not a control. Recovery and lifecycle actions now exist; nobody is alerted when they go wrong | **P1** |
 | 4 | Security / audit | CI-06 audit export, retention decision and an external immutable sink | The trail is append-only in the model but not protected from raw database access; the recovery and break-glass events are exactly what an investigation needs | **P1** |
-| 5 | Security / admin permissions | CI-02 step-up authentication and dual control for destructive actions | A stolen live session can currently disable, delete or remove keys. Fresh-factor and second-approver gates make the highest-impact actions two-person | **P1** |
+| 5 | Security / admin permissions | CI-02 step-up authentication and dual control for destructive actions | A stolen live session can no longer disable, delete or remove keys without a fresh factor; a second approver is still missing | **P1** |
 | 6 | Security / support boundary | CI-04 time-bound support grants and the tenant-detail gate | Support cannot safely answer “what happened to this tenant?” without a reason-bound, expiring read. Never add a standing tenant selector | **P1** |
 | 7 | AI monitoring / cost | CI-11 AI cost budget, model-health and spend alerts | AI spend is provider-reported and can fail open; a model outage or a runaway paid fallback is currently visible only after someone reads the report | **P1** |
 | 8 | Server reliability | CI-12 performance SLOs, saturation alerts and a degraded-mode drill | The console is a monitoring surface, not a pager. Slow Mongo/DB pools, event-loop saturation and a single-process limiter need measured thresholds and a rehearsed failure response | **P1** |
@@ -89,6 +89,12 @@ repeatedly learned that a capability nobody exercised is not a control (§27D, �
 **Description.** For disable/delete/key removal and recovery-code rotation, require a fresh TOTP or
 WebAuthn assertion and, for the most destructive actions, approval by a second SUPERADMIN.
 
+**Current status (2026-11-18).** The step-up half is implemented for disable/enable/delete/key
+removal: `POST /api/platform/auth/step-up` re-checks the current password and TOTP, issues a
+five-minute, session-bound proof and the three lifecycle routes enforce it server-side. TOTP is
+the only accepted step-up factor for now; WebAuthn/recovery-code step-up remains open. A second
+SUPERADMIN approver is still open. Recovery-code rotation remains password-only.
+
 **Security and operational benefits.** A stolen cookie or bearer token becomes insufficient for
 irreversible actions; every high-impact action acquires two independent human decisions.
 
@@ -122,7 +128,7 @@ only after the grant boundary exists; adding it first would repeat the tenant-Op
 ### CI-05 — Platform security monitoring and alerting
 
 **Detail:** the proposed alert catalogue, thresholds, channels, owners and coverage gaps are in
-[`PLATFORM_SECURITY_MONITORING_PLAN.md`](PLATFORM_SECURITY_MONITORING_PLAN.md). Planning only.
+[06 — Security monitoring](06-security-monitoring.md). Planning only.
 
 **Description.** Emit alertable counters for MFA lockout, repeated recovery failures, new console
 origins, destructive lifecycle actions and audit write errors; add a SECURITY view with bounded
@@ -149,7 +155,7 @@ investigation would need; a model-level guard is not a substitute for storage pe
 ### CI-07 — Deployment-boundary attestation
 
 **Detail:** the access-layer options and the Cloudflare Access origin-bypass requirement are assessed
-in [`PLATFORM_ACCESS_LAYER_ASSESSMENT.md`](PLATFORM_ACCESS_LAYER_ASSESSMENT.md). Planning only.
+in [05 — Access layer](05-access-layer.md). Planning only.
 
 **Description.** Add a pre-announcement proof that checks the real HTTPS origin, HSTS/redirect,
 `Set-Cookie` flags, CORS preflight from the console origin, a signed-in read, a recovery-code

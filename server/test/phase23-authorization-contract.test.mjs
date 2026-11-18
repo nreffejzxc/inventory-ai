@@ -328,6 +328,10 @@ const AUTHENTICATED_ROUTES = [
     route: 'POST /api/platform/auth/recovery-codes',
     why: 'PLAT-5: generates recovery codes only for the CALLER’S OWN platform account — the current password is required, the route is rate-limited, and only SHA-256 digests are stored; there is no administrator id in the request that could aim it elsewhere',
   },
+  {
+    route: 'POST /api/platform/auth/step-up',
+    why: 'PLAT-27 (SEC-08): issues a short-lived proof only for the CALLER’S OWN platform session — the current password and a TOTP code are required, the jti comes from the verified token, and the proof names that session and the platform.admin.lifecycle scope; it creates no session and cannot manage an administrator by itself',
+  },
   { route: 'GET /api/auth/sessions', why: 'Phase 26A: lists only the caller’s own sessions' },
   { route: 'DELETE /api/auth/sessions/:id', why: 'Phase 26A: ends only a session the caller owns' },
   {

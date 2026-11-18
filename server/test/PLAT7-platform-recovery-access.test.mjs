@@ -34,9 +34,12 @@ import {
 import { PLATFORM_ROLES } from '../src/constants/platformRoles.ts';
 import { createPlatformAdminAccount } from '../src/services/platformAuth.service.ts';
 import { breakGlassPlatformAdmin } from '../src/services/platformBreakGlass.service.ts';
-import {
+import platformAccessGate, {
   parsePlatformBasicAuth,
+  platformAccessGateStateForTests,
+  resetPlatformAccessGateLimiter,
   PLATFORM_ACCESS_HEADER,
+  PLATFORM_ACCESS_RATE_LIMITED_CODE,
   PLATFORM_ACCESS_REQUIRED_CODE,
 } from '../src/middlewares/platformAccessGate.ts';
 import { PLATFORM_RECOVERY_SETUP_REQUIRED_CODE } from '../src/middlewares/platformAuthenticate.ts';
@@ -170,12 +173,210 @@ dbSuite('PLAT-7 recovery ceremony and break-glass reset', dbOk, () => {
 
       const preflight = await fetch(`${baseUrl}/api/platform/auth/login`, { method: 'OPTIONS' });
       assert.notEqual(preflight.status, 401, 'a CORS preflight carries no credentials');
+
+      // NS-05 — wrong keys are bounded, the correct key still works, and one
+      // sampled audit row records the source without any key material.
+      const previousGateWindow = process.env.PLATFORM_ACCESS_GATE_WINDOW_MS;
+      const previousGateMax = process.env.PLATFORM_ACCESS_GATE_MAX_FAILURES;
+      const previousGateGlobalMax = process.env.PLATFORM_ACCESS_GATE_GLOBAL_MAX_FAILURES;
+      process.env.PLATFORM_ACCESS_GATE_WINDOW_MS = '60000';
+      process.env.PLATFORM_ACCESS_GATE_MAX_FAILURES = '3';
+      process.env.PLATFORM_ACCESS_GATE_GLOBAL_MAX_FAILURES = '1000';
+      resetPlatformAccessGateLimiter();
+      const gateProbe = `/api/platform/auth/me?ns05=${Date.now()}`;
+      try {
+        const wrongBasic = `Basic ${Buffer.from(`${ACCESS_USER}:wrong-key`).toString('base64')}`;
+        for (let attempt = 1; attempt <= 3; attempt += 1) {
+          const wrong = await fetch(`${baseUrl}${gateProbe}`, {
+            headers: { Authorization: wrongBasic },
+          });
+          assert.equal(wrong.status, 401, `attempt ${attempt} should be a bounded 401`);
+          assert.equal((await wrong.json()).code, PLATFORM_ACCESS_REQUIRED_CODE);
+        }
+
+        const limited = await fetch(`${baseUrl}${gateProbe}`, {
+          headers: { Authorization: wrongBasic },
+        });
+        assert.equal(limited.status, 429);
+        assert.equal((await limited.json()).code, PLATFORM_ACCESS_RATE_LIMITED_CODE);
+        assert.ok(Number(limited.headers.get('retry-after')) > 0);
+
+        // The budget is for failures only: a correct key passes the gate and
+        // reaches the platform authentication middleware (its own 401).
+        const stillWorks = await fetch(`${baseUrl}/api/platform/auth/me`, { headers: basic });
+        assert.equal(stillWorks.status, 401);
+        assert.equal((await stillWorks.json()).code, 'PLATFORM_AUTH_REQUIRED');
+
+        const auditRows = await PlatformAuditLog.find({
+          action: PLATFORM_AUDIT_ACTIONS.ACCESS_GATE_DENIED,
+          route: gateProbe,
+        }).lean();
+        assert.equal(auditRows.length, 1, 'one sampled gate event for the burst');
+        const serialized = JSON.stringify(auditRows[0]);
+        assert.equal(serialized.includes(ACCESS_KEY), false);
+        assert.equal(serialized.includes('wrong-key'), false);
+        assert.equal(auditRows[0].metadata.gate, 'basic');
+      } finally {
+        if (previousGateWindow === undefined) delete process.env.PLATFORM_ACCESS_GATE_WINDOW_MS;
+        else process.env.PLATFORM_ACCESS_GATE_WINDOW_MS = previousGateWindow;
+        if (previousGateMax === undefined) delete process.env.PLATFORM_ACCESS_GATE_MAX_FAILURES;
+        else process.env.PLATFORM_ACCESS_GATE_MAX_FAILURES = previousGateMax;
+        if (previousGateGlobalMax === undefined) {
+          delete process.env.PLATFORM_ACCESS_GATE_GLOBAL_MAX_FAILURES;
+        } else {
+          process.env.PLATFORM_ACCESS_GATE_GLOBAL_MAX_FAILURES = previousGateGlobalMax;
+        }
+        resetPlatformAccessGateLimiter();
+      }
     } finally {
       if (previousKey === undefined) delete process.env.PLATFORM_ACCESS_KEY;
       else process.env.PLATFORM_ACCESS_KEY = previousKey;
       if (previousUser === undefined) delete process.env.PLATFORM_ACCESS_USER;
       else process.env.PLATFORM_ACCESS_USER = previousUser;
     }
+  });
+
+  it('caps the global failure budget without growing state or audit rows', async () => {
+    const previousKey = process.env.PLATFORM_ACCESS_KEY;
+    const previousUser = process.env.PLATFORM_ACCESS_USER;
+    const previousWindow = process.env.PLATFORM_ACCESS_GATE_WINDOW_MS;
+    const previousMax = process.env.PLATFORM_ACCESS_GATE_MAX_FAILURES;
+    const previousGlobalMax = process.env.PLATFORM_ACCESS_GATE_GLOBAL_MAX_FAILURES;
+    process.env.PLATFORM_ACCESS_KEY = ACCESS_KEY;
+    process.env.PLATFORM_ACCESS_USER = ACCESS_USER;
+    process.env.PLATFORM_ACCESS_GATE_WINDOW_MS = '60000';
+    process.env.PLATFORM_ACCESS_GATE_MAX_FAILURES = '100';
+    process.env.PLATFORM_ACCESS_GATE_GLOBAL_MAX_FAILURES = '2';
+    resetPlatformAccessGateLimiter();
+    const probe = `/api/platform/auth/me?global=${Date.now()}`;
+    const wrongBasic = `Basic ${Buffer.from(`${ACCESS_USER}:wrong-key`).toString('base64')}`;
+    try {
+      for (let attempt = 1; attempt <= 2; attempt += 1) {
+        const response = await fetch(`${baseUrl}${probe}`, {
+          headers: { Authorization: wrongBasic },
+        });
+        assert.equal(response.status, 401, `attempt ${attempt} should be a bounded 401`);
+      }
+
+      for (let attempt = 1; attempt <= 8; attempt += 1) {
+        const response = await fetch(`${baseUrl}${probe}`, {
+          headers: { Authorization: wrongBasic },
+        });
+        assert.equal(response.status, 429, `attempt ${attempt + 2} should be globally capped`);
+      }
+
+      // A different address must not get a bucket or an audit row after the
+      // shared budget is exhausted. Invoke the real middleware with a fake req
+      // because the test server sees one loopback address.
+      let cappedStatus = 0;
+      let cappedBody = null;
+      let nextCalled = false;
+      await platformAccessGate(
+        {
+          method: 'GET',
+          headers: { authorization: wrongBasic },
+          ip: '203.0.113.77',
+          originalUrl: `${probe}&new-address`,
+          socket: {},
+        },
+        {
+          setHeader() {},
+          status(code) {
+            cappedStatus = code;
+            return this;
+          },
+          json(body) {
+            cappedBody = body;
+            return this;
+          },
+        },
+        () => {
+          nextCalled = true;
+        },
+      );
+      assert.equal(cappedStatus, 429);
+      assert.equal(cappedBody.code, PLATFORM_ACCESS_RATE_LIMITED_CODE);
+      assert.equal(nextCalled, false);
+
+      assert.deepEqual(platformAccessGateStateForTests(), {
+        trackedAddresses: 1,
+        globalFailures: 2,
+      });
+
+      const auditRows = await PlatformAuditLog.find({
+        action: PLATFORM_AUDIT_ACTIONS.ACCESS_GATE_DENIED,
+        route: probe,
+      }).lean();
+      assert.equal(auditRows.length, 1, 'the global cap stops further audit rows');
+
+      const stillWorks = await fetch(`${baseUrl}/api/platform/auth/me`, {
+        headers: {
+          Authorization: `Basic ${Buffer.from(`${ACCESS_USER}:${ACCESS_KEY}`).toString('base64')}`,
+        },
+      });
+      assert.equal(stillWorks.status, 401);
+      assert.equal((await stillWorks.json()).code, 'PLATFORM_AUTH_REQUIRED');
+    } finally {
+      if (previousKey === undefined) delete process.env.PLATFORM_ACCESS_KEY;
+      else process.env.PLATFORM_ACCESS_KEY = previousKey;
+      if (previousUser === undefined) delete process.env.PLATFORM_ACCESS_USER;
+      else process.env.PLATFORM_ACCESS_USER = previousUser;
+      if (previousWindow === undefined) delete process.env.PLATFORM_ACCESS_GATE_WINDOW_MS;
+      else process.env.PLATFORM_ACCESS_GATE_WINDOW_MS = previousWindow;
+      if (previousMax === undefined) delete process.env.PLATFORM_ACCESS_GATE_MAX_FAILURES;
+      else process.env.PLATFORM_ACCESS_GATE_MAX_FAILURES = previousMax;
+      if (previousGlobalMax === undefined) {
+        delete process.env.PLATFORM_ACCESS_GATE_GLOBAL_MAX_FAILURES;
+      } else {
+        process.env.PLATFORM_ACCESS_GATE_GLOBAL_MAX_FAILURES = previousGlobalMax;
+      }
+      resetPlatformAccessGateLimiter();
+    }
+  });
+
+  it('records exactly one platform.admin.created event with operator, source and target', async () => {
+    const email = uniqueEmail('plat7-created');
+    const audit = { operator: 'operator@example.com', source: 'cli', grantId: 'grant-plat7' };
+    const admin = await createPlatformAdminAccount({
+      email,
+      name: 'PLAT7 Created',
+      password: PASSWORD,
+      role: PLATFORM_ROLES.SUPERADMIN,
+      audit,
+    });
+    track(admin);
+
+    const rows = await PlatformAuditLog.find({
+      action: PLATFORM_AUDIT_ACTIONS.ADMIN_CREATED,
+      'metadata.targetAdminId': String(admin._id),
+    }).lean();
+    assert.equal(rows.length, 1);
+    assert.equal(rows[0].actorEmail, audit.operator);
+    assert.equal(rows[0].metadata.targetEmail, email);
+    assert.equal(rows[0].metadata.targetRole, PLATFORM_ROLES.SUPERADMIN);
+    assert.equal(rows[0].metadata.source, 'cli');
+    assert.equal(rows[0].metadata.grantId, 'grant-plat7');
+    assert.equal(JSON.stringify(rows[0]).includes(PASSWORD), false);
+
+    await assert.rejects(
+      () =>
+        createPlatformAdminAccount({
+          email,
+          name: 'Duplicate',
+          password: PASSWORD,
+          role: PLATFORM_ROLES.SUPERADMIN,
+          audit,
+        }),
+      (err) => {
+        assert.equal(err.code, 'PLATFORM_ADMIN_EXISTS');
+        return true;
+      },
+    );
+    const afterDuplicate = await PlatformAuditLog.countDocuments({
+      action: PLATFORM_AUDIT_ACTIONS.ADMIN_CREATED,
+      'metadata.targetAdminId': String(admin._id),
+    });
+    assert.equal(afterDuplicate, 1, 'a failed creation writes no success event');
   });
 
   it('refuses protected work until recovery codes exist, then unlocks and accepts a code', async () => {

@@ -4,7 +4,7 @@
 backup are named; the backup's contact details are private and no test notification has passed, so
 security alerts remain inactive. The existing UptimeRobot health email remains live. This page turns
 the alert catalogue in
-[`PLATFORM_SECURITY_MONITORING_PLAN.md`](PLATFORM_SECURITY_MONITORING_PLAN.md) into a named
+[06 — Security monitoring](./platform-console/06-security-monitoring.md) into a named
 accountability record. It does not create a mailbox, pager, dashboard or notification.
 
 **Contact record:** [`PLATFORM_SECURITY_CONTACTS.md`](PLATFORM_SECURITY_CONTACTS.md).
@@ -73,7 +73,7 @@ delivery surfaces.
 ## 4. Alert-to-owner matrix
 
 Alert IDs and thresholds remain authoritative in
-[`PLATFORM_SECURITY_MONITORING_PLAN.md`](PLATFORM_SECURITY_MONITORING_PLAN.md). This table assigns the
+[06 — Security monitoring](./platform-console/06-security-monitoring.md). This table assigns the
 human response.
 
 | Alert group | IDs | Primary | Backup | First channel | Acknowledge target |
@@ -202,7 +202,7 @@ second reviewer when one is available; if not, record the single-person risk and
 
 ## 10. Sources
 
-- Alert catalogue and thresholds: [`PLATFORM_SECURITY_MONITORING_PLAN.md`](PLATFORM_SECURITY_MONITORING_PLAN.md).
+- Alert catalogue and thresholds: [06 — Security monitoring](./platform-console/06-security-monitoring.md).
 - Current monitoring/runbook: [`MONITORING.md`](MONITORING.md).
 - Access edge/log-retention context: [`PLATFORM_CLOUDFLARE_ACCESS_IMPLEMENTATION_PLAN.md`](PLATFORM_CLOUDFLARE_ACCESS_IMPLEMENTATION_PLAN.md).
-- Production readiness: [`PLATFORM_PRODUCTION_READINESS.md`](PLATFORM_PRODUCTION_READINESS.md).
+- Production readiness: [04 — Production readiness](./platform-console/04-production-readiness.md).

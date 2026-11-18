@@ -395,7 +395,7 @@ Each step is a separate authorization. This document authorizes none of them.
   fact-checked error contract.
 - [`INVENTORY_AI_FOLLOWUP_ASSESSMENT.md`](INVENTORY_AI_FOLLOWUP_ASSESSMENT.md) — IA-22, IA-41 and
   the related privacy items.
-- [`PLATFORM_PRODUCTION_READINESS.md`](PLATFORM_PRODUCTION_READINESS.md) — PR-09 audit retention and
+- [04 — Production readiness](./platform-console/04-production-readiness.md) — PR-09 audit retention and
   database least privilege.
 - [`MONITORING.md`](MONITORING.md) — the durable stores, their absent fields and retention.
 - [`../SECURITY.md`](../SECURITY.md) — the existing security controls and reporting path.
