@@ -13,7 +13,7 @@
 //   * TRANSIENT ≠ TERMINAL. A failure to COMPLETE verification must never be
 //     reported as a rejected credential. The classifier is asserted directly
 //     against the code vocabulary derived from the installed firebase-admin
-//     14.5.0, including the overloaded `auth/argument-error` (which is also what a
+//     14.5.1, including the overloaded `auth/argument-error` (which is also what a
 //     JWKS fetch failure looks like) and unknown/future codes.
 //
 //   * THE THREE ERRORS STAY DISJOINT. `FIREBASE_TOKEN_INVALID` (terminal),
@@ -25,7 +25,7 @@
 //     project; a structurally malformed value is rejected terminally by us, before
 //     the SDK is even initialized.
 //
-// Version coupling: the classification is derived from firebase-admin 14.5.0, and
+// Version coupling: the classification is derived from firebase-admin 14.5.1, and
 // a guard fails if the installed version differs — a bump requires re-deriving the
 // code lists rather than assuming they still hold.
 //
@@ -81,7 +81,7 @@ const ME = '/api/auth/me';
 const ID_TOKEN = 'eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJhdXRoLTAxIn0.c2lnbmF0dXJl'; // secret-guard:allow (deliberate fixture)
 
 /** The version the classifier was derived from; a bump must re-derive it. */
-const VERIFIED_FIREBASE_ADMIN_VERSION = '14.5.0';
+const VERIFIED_FIREBASE_ADMIN_VERSION = '14.5.1';
 
 // ===========================================================================
 // Unit — the classifier
@@ -110,7 +110,7 @@ unitSuite('AUTH-01 — Firebase failure classification (no database)', () => {
   });
 
   it('★ treats auth/argument-error as TRANSIENT, not terminal', () => {
-    // ★ THE POINT OF THE PHASE'S CLASSIFICATION. firebase-admin 14.5.0 emits
+    // ★ THE POINT OF THE PHASE'S CLASSIFICATION. firebase-admin 14.5.1 emits
     //   `auth/argument-error` for a JWKS/public-key fetch failure (KEY_FETCH_ERROR)
     //   as well as for a genuinely malformed token, so it cannot be trusted as a
     //   terminal signal. A malformed token is caught terminally by the structural

@@ -114,7 +114,7 @@ export type FirebaseFailureClass = 'terminal' | 'unavailable' | 'not-configured'
 /**
  * The ONLY SDK codes that mean "this credential is genuinely not acceptable".
  *
- * Derived from the installed `firebase-admin` 14.5.0 sources
+ * Derived from the installed `firebase-admin` 14.5.1 sources
  * (`lib/auth/base-auth.js`, `lib/auth/token-verifier.js`), NOT from generic
  * documentation. The list is intentionally SHORT: everything else falls through to
  * `unavailable`, because treating an unclassifiable failure as terminal is the
@@ -144,7 +144,7 @@ export const NOT_CONFIGURED_FIREBASE_AUTH_CODES = ['auth/invalid-credential'] as
  * introduces is handled correctly without an edit here.
  *
  * ★ `auth/argument-error` IS IN THIS LIST ON PURPOSE AND MUST NOT BE MOVED TO
- *   `TERMINAL_FIREBASE_AUTH_CODES`. In firebase-admin 14.5.0 that code is
+ *   `TERMINAL_FIREBASE_AUTH_CODES`. In firebase-admin 14.5.1 that code is
  *   OVERLOADED: `token-verifier.js`'s `mapJwtErrorToAuthError` falls through to
  *   `INVALID_ARGUMENT` for `JwtErrorCode.KEY_FETCH_ERROR` — a public-key (JWKS)
  *   fetch failure, i.e. a transient Google outage — so a malformed token and a
@@ -171,7 +171,7 @@ export const TRANSIENT_FIREBASE_AUTH_CODES = [
  * `not-configured` code is matched explicitly; EVERYTHING ELSE — including a
  * missing, non-string or unknown/future code — is `unavailable`.
  *
- * Verified against the installed `firebase-admin` 14.5.0. If that version
+ * Verified against the installed `firebase-admin` 14.5.1. If that version
  * changes, this mapping must be re-derived rather than assumed.
  */
 export function classifyFirebaseErrorCode(code: unknown): FirebaseFailureClass {
