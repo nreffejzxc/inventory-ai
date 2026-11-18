@@ -27200,3 +27200,10 @@ Render served `ecbdb87` with `/api/health` `status: ok`, `db: connected` and **0
 and the destructive preflight is 204 with credentials and `x-platform-step-up`.
 Dependabot #14/#16 closed; **#25 `picomatch` remains open** because no patched release
 exists.
+
+**Follow-up watch (2026-11-18).** `scripts/check-upgrade-watches.mjs` now includes a
+read-only `picomatch (advisory)` row. Its current answer is `DEFERRED`: 4.0.7 is the
+newest release and the advisory still covers it. It turns `READY` only when a release
+above 4.0.7 exists **and** the installed `@expo/cli` range (`^4.0.4`) admits it; the
+detail names whichever half is missing. The script exits 0 for a report and is not a
+required CI gate, so an upstream outage or a new release cannot block a build.
