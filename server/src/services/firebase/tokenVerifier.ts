@@ -34,7 +34,7 @@
  * attempt can end in (a) a genuinely bad credential (`FirebaseTokenError`),
  * (b) a temporary inability to verify (`FirebaseUnavailableError`), or (c) the
  * server's own Firebase configuration being unusable (`FirebaseNotConfigured`).
- * The classes are derived from the installed `firebase-admin` 14.5.0 sources; see
+ * The classes are derived from the installed `firebase-admin` 14.5.1 sources; see
  * `firebaseErrors.ts` for the code lists and why `auth/argument-error` is NOT
  * terminal (it is also emitted for a JWKS fetch failure).
  *
@@ -193,7 +193,7 @@ function toVerifiedIdentity(decoded: unknown): VerifiedFirebaseIdentity {
  *
  * This is a STRUCTURAL guard only, never a validation: it can say a value cannot
  * be a JWT, never that it is a valid one. Firebase remains the authority for
- * actual validation. It exists because `firebase-admin` 14.5.0 answers a malformed
+ * actual validation. It exists because `firebase-admin` 14.5.1 answers a malformed
  * value with the same overloaded `auth/argument-error` it also uses for a JWKS
  * fetch failure, so a token we can reject structurally must be rejected HERE, as
  * terminal, rather than reaching that ambiguity.
