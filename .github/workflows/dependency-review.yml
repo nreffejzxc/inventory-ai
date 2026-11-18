@@ -1,0 +1,62 @@
+name: dependency-review
+
+# NZ-02 — the pre-merge supply-chain gate.
+#
+# WHY. Dependabot alerts are post-merge: they describe a vulnerable package that is already on
+# `main`. This workflow compares a pull request's manifests and lockfiles with its base and fails
+# when the pull request INTRODUCES a dependency version covered by a known high or critical
+# advisory. It is the pre-merge half of Dependabot, not a replacement for it: it never edits a
+# dependency, opens an update or merges anything.
+#
+# SCOPE. Every dependency scope is checked (`runtime`, `development`, `unknown`) and only high or
+# critical advisories fail. A newly introduced dev/build-tool vulnerability is still a
+# supply-chain regression, and because the rule is severity-based it needs no per-package
+# allowlist. License checks are deliberately OFF: NZ-02 says a licence policy is added only after
+# the noise level has been measured, and this repository has not measured it.
+#
+# PINNING. The action is pinned to the full commit SHA that the floating `v5.0.1` tag resolved to
+# on 2026-11-18, exactly like the two actions in `ci.yml`. `.github/dependabot.yml`'s
+# `github-actions` entry keeps the pin current within the line; moving to a new major stays a
+# deliberate change (issue #32).
+#
+# PERMISSIONS. `contents: read` is all the action needs. It posts no PR comment (the default is
+# `never`), so this gate does not hold `pull-requests: write`; enabling
+# `comment-summary-in-pr` later would require adding exactly that permission.
+#
+# REQUIRED ON `main` after a clean run and a scratch-PR failure proof (2026-11-18). A required
+# check that has never reported is the classic way to block every merge with a context that
+# never appears; that is why the gate went live before it was added to branch protection.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dependency-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  dependency-review:
+    name: dependency-review
+    runs-on: ubuntu-latest
+    # The action normally finishes in seconds. The bound covers the snapshot retry window below
+    # plus a slow API, and turns a hung run into a named failure instead of a stuck check.
+    timeout-minutes: 10
+    steps:
+      - name: Fail on newly introduced high or critical vulnerabilities
+        uses: actions/dependency-review-action@bbc44d14a204704ccc493733616cd1e93a0321ec # v5.0.1
+        with:
+          # Fail on high and critical only; low and moderate are reported, not blocking.
+          fail-on-severity: high
+          # Check runtime, development and unknown scopes. Omitting this defaults to runtime only.
+          fail-on-scopes: runtime, development, unknown
+          # Licence policy is a separate decision; do not fail this gate on licences.
+          license-check: false
+          # Name the first patched version in the failure summary, so the repair is actionable.
+          show-patched-versions: true
+          # A lockfile-only change can reach the dependency graph moments after the check starts.
+          # Waiting briefly for that snapshot prevents a false "no changes" pass.
+          retry-on-snapshot-warnings: true
