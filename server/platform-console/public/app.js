@@ -26,7 +26,12 @@
     assignees: [],
     selectedTicket: null,
     loadToken: 0,
-    sessionEpoch: 0
+    sessionEpoch: 0,
+    stepUpToken: '',
+    stepUpExpiresAt: 0,
+    stepUpPromise: null,
+    stepUpResolve: null,
+    stepUpReject: null
   };
 
   function byId(id) { return document.getElementById(id); }
@@ -177,6 +182,7 @@
     state.sessionEpoch += 1;
     state.csrf = '';
     state.admin = null;
+    clearStepUp(true);
     state.mfaToken = '';
     state.methods = [];
     state.enrollmentToken = '';
@@ -218,6 +224,8 @@
     if (opts.auth !== false) {
       var csrf = csrfToken();
       if (csrf) headers['X-Platform-CSRF'] = csrf;
+      var stepUp = activeStepUpToken();
+      if (stepUp) headers['X-Platform-Step-Up'] = stepUp;
     }
     var response = await fetch(API + path, init);
     var data;
@@ -226,7 +234,10 @@
       var error = new Error(data.error || ('Request failed (' + response.status + ')'));
       error.code = data.code || '';
       error.status = response.status;
-      if (response.status === 401 && opts.auth !== false && path !== '/auth/me' && epoch === state.sessionEpoch) {
+      var stepUpCredentialFailure =
+        path === '/auth/step-up' &&
+        (data.code === 'PLATFORM_CURRENT_PASSWORD_INVALID' || data.code === 'PLATFORM_MFA_INVALID');
+      if (response.status === 401 && opts.auth !== false && path !== '/auth/me' && !stepUpCredentialFailure && epoch === state.sessionEpoch) {
         expiredSession();
       }
       throw error;
@@ -242,6 +253,7 @@
 
   function setSession(data) {
     state.sessionEpoch += 1;
+    forgetStepUp();
     state.csrf = data.csrfToken || '';
     state.admin = data.admin || null;
     if (!state.admin) {
@@ -1260,7 +1272,7 @@
 
   async function changeAdminStatus(id, email, status) {
     try {
-      await request('/admins/' + encodeURIComponent(id) + '/status', {
+      await requestWithStepUp('/admins/' + encodeURIComponent(id) + '/status', {
         method: 'PATCH',
         body: { status: status }
       });
@@ -1274,7 +1286,7 @@
   async function deleteAdmin(id, email) {
     if (!window.confirm('Delete ' + email + '? Their sessions are revoked immediately. This cannot be undone.')) return;
     try {
-      await request('/admins/' + encodeURIComponent(id), { method: 'DELETE' });
+      await requestWithStepUp('/admins/' + encodeURIComponent(id), { method: 'DELETE' });
       text(byId('admin-status'), email + ' was deleted.');
       await loadAdmins();
     } catch (error) {
@@ -1285,7 +1297,7 @@
   async function removeAdminKey(id, email, credentialId) {
     if (!window.confirm('Remove this security key from ' + email + '? Their platform sessions will be revoked.')) return;
     try {
-      await request('/admins/' + encodeURIComponent(id) + '/webauthn/' + encodeURIComponent(credentialId), { method: 'DELETE' });
+      await requestWithStepUp('/admins/' + encodeURIComponent(id) + '/webauthn/' + encodeURIComponent(credentialId), { method: 'DELETE' });
       if (id === state.admin.id) {
         resetToLogin();
         showError('login-error', 'Security key removed. Sign in again with another key or TOTP.');
@@ -1439,6 +1451,95 @@
         return { id: base64urlToBuffer(item.id), type: item.type, transports: item.transports };
       })
     };
+  }
+
+  function activeStepUpToken() {
+    if (!state.stepUpToken) return '';
+    if (!state.stepUpExpiresAt || Date.now() >= state.stepUpExpiresAt) {
+      forgetStepUp();
+      return '';
+    }
+    return state.stepUpToken;
+  }
+
+  function forgetStepUp() {
+    state.stepUpToken = '';
+    state.stepUpExpiresAt = 0;
+  }
+
+  function clearStepUp(cancel) {
+    var dialog = byId('step-up-dialog');
+    forgetStepUp();
+    if (dialog && dialog.open) dialog.close();
+    var reject = state.stepUpReject;
+    state.stepUpPromise = null;
+    state.stepUpResolve = null;
+    state.stepUpReject = null;
+    if (cancel && reject) reject(new Error('Step-up cancelled.'));
+  }
+
+  function promptStepUp() {
+    if (activeStepUpToken()) return Promise.resolve();
+    if (state.stepUpPromise) return state.stepUpPromise;
+    var dialog = byId('step-up-dialog');
+    state.stepUpPromise = new Promise(function (resolve, reject) {
+      state.stepUpResolve = resolve;
+      state.stepUpReject = reject;
+    });
+    showError('step-up-error', '');
+    byId('step-up-password').value = '';
+    byId('step-up-code').value = '';
+    if (dialog && dialog.showModal) dialog.showModal();
+    byId('step-up-password').focus();
+    return state.stepUpPromise;
+  }
+
+  async function submitStepUp(event) {
+    event.preventDefault();
+    showError('step-up-error', '');
+    var submit = byId('step-up-submit');
+    busy(submit, true, 'Verifying…');
+    try {
+      var data = await request('/auth/step-up', {
+        method: 'POST',
+        body: {
+          password: byId('step-up-password').value,
+          code: byId('step-up-code').value.trim()
+        }
+      });
+      state.stepUpToken = data.stepUpToken;
+      state.stepUpExpiresAt = data.tokenExpiresAt
+        ? new Date(data.tokenExpiresAt).getTime()
+        : Date.now() + Number(data.expiresIn || 0) * 1000;
+      byId('step-up-password').value = '';
+      byId('step-up-code').value = '';
+      var dialog = byId('step-up-dialog');
+      if (dialog && dialog.open) dialog.close();
+      var resolve = state.stepUpResolve;
+      state.stepUpPromise = null;
+      state.stepUpResolve = null;
+      state.stepUpReject = null;
+      if (resolve) resolve();
+    } catch (error) {
+      showError('step-up-error', errorMessage(error));
+    } finally {
+      busy(submit, false);
+    }
+  }
+
+  function cancelStepUp() {
+    clearStepUp(true);
+  }
+
+  async function requestWithStepUp(path, options) {
+    try {
+      return await request(path, options);
+    } catch (error) {
+      if (!error || error.code !== 'PLATFORM_STEP_UP_REQUIRED') throw error;
+      forgetStepUp();
+      await promptStepUp();
+      return request(path, options);
+    }
   }
 
   function requestOptions(options) {
@@ -1767,6 +1868,12 @@
     byId('recovery-generate-button').addEventListener('click', generateRecoveryCodes);
     byId('password-change-button').addEventListener('click', changePassword);
     byId('admin-refresh').addEventListener('click', loadAdmins);
+    byId('step-up-form').addEventListener('submit', submitStepUp);
+    byId('step-up-cancel').addEventListener('click', cancelStepUp);
+    byId('step-up-dialog').addEventListener('cancel', function (event) {
+      event.preventDefault();
+      cancelStepUp();
+    });
     byId('logout-button').addEventListener('click', logout);
     byId('refresh-button').addEventListener('click', refreshCurrent);
     byId('audit-refresh').addEventListener('click', loadAudit);

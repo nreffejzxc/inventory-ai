@@ -192,5 +192,15 @@ unitSuite('integrity heartbeat — writer and arguments', () => {
     assert.match(source, /INTEGRITY_HEARTBEAT_COLLECTION/);
     assert.doesNotMatch(source, /inventory\.model|inventoryTransaction\.model|purchaseOrder\.model/);
     assert.equal((source.match(/\.updateOne\(/g) || []).length, 1);
+
+    // CWD-INDEPENDENT ENV. The scheduled wrapper runs from the repository root;
+    // `dotenv/config` looked for `.env` there, found none, and the writer exited 2
+    // with "MONGODB_URI is not set" while the audit itself succeeded. The explicit
+    // loader resolves `server/.env` from its own file location.
+    assert.match(source, /import '\.\/lib\/load-server-env\.mjs'/);
+    assert.doesNotMatch(source, /dotenv\/config/);
+    const loader = readFileSync(path.join(serverRoot, 'scripts', 'lib', 'load-server-env.mjs'), 'utf8');
+    assert.match(loader, /import\.meta\.url/, 'the env path comes from the module, not process.cwd()');
+    assert.match(loader, /quiet:\s*true/, 'dotenv must not write a banner to stderr');
   });
 });

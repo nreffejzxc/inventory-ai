@@ -2,17 +2,20 @@
 
 **Status:** **LIVE, INTERNAL RELEASE — GATES REMAIN OPEN.** The console is served at
 `https://ai-inventory-l1mi.onrender.com/platform` under the separate platform administrator login.
-PLAT-7 adds the forced recovery-code ceremony, the application-level outer access gate and the
-break-glass reset; the production deployment must set `PLATFORM_ACCESS_KEY` before the new code
-boots. Network isolation (PR-03), audit retention/database least privilege (PR-09) and named
-security review (PR-15) remain open or residual. The owner requested production availability; the
-residual exposure is recorded here rather than treated as closed.
+The complete console delivery is deployed at `e7ce455`; PLAT-7's forced recovery-code ceremony,
+the application-level outer access gate and the break-glass reset remain in place. The production
+service supplies `PLATFORM_ACCESS_KEY`;
+the administrator generated 10 recovery codes from zero and 9 remain after the production recovery
+drill. The forced browser ceremony itself is exercised locally by the PLAT7 browser E2E. Network isolation (PR-03), audit retention/database least privilege (PR-09) and
+named security review (PR-15) remain open or residual. The owner requested production availability;
+the residual exposure is recorded here rather than treated as closed.
 
-**Reviewed:** 2026-11-16
+**Reviewed:** 2026-11-18
 **Scope:** the INTERNAL `/api/platform` plane and `server/platform-console/`, including the
 same-origin `/platform` shell and the PLAT-6 operations surface. This does not authorize a tenant
 feature or tenant-detail reads. The production deployment is the API service's own origin; the
-platform login remains the only edge gate and PR-03 is still open.
+outer access gate and platform login are the current controls, and PR-03 network isolation is still
+open.
 
 **Legend**
 
@@ -68,12 +71,15 @@ platform login remains the only edge gate and PR-03 is still open.
   `PLATFORM_ACCESS_KEY` is the available free application-level gate, required by production
   validation, in front of `/platform` and `/api/platform` (Basic for the browser,
   `X-Platform-Access-Key` beside a Bearer token for API clients).
-- PLAT-6 is deployed at `56e8c27`. `GET /platform/` returns 200 HTML with the strict CSP and
-  `Cache-Control: no-store`; `/platform/config.js`, `/platform/app.js` and `/platform/styles.css`
-  return 200. A real browser completed password + TOTP, rendered the dashboard and signed out with
-  no console errors. The API smoke observed the production cookie flags, status/operations/
-  deployments/tickets/audit reads, a foreign-Origin refusal (403 `PLATFORM_CSRF_ORIGIN`) and a 401
-  after logout.
+- PLAT-7's controls were proven at `e218bb0` and remain deployed within `e7ce455`. Anonymous `/platform/` and `/api/platform/status` return 401
+  `PLATFORM_ACCESS_REQUIRED` with a Basic challenge and `no-store`; Basic returns the shell as 200
+  HTML with the strict CSP; a wrong key returns the same 401, and the correct key without a platform
+  session returns 401 `PLATFORM_AUTH_REQUIRED`. A real browser completed password + TOTP, rendered
+  the dashboard's 16 sections and signed out with no console errors. The API smoke observed the
+  production cookie flags, status/operations/deployments/tickets/audit reads, a foreign-Origin
+  refusal (403   `PLATFORM_CSRF_ORIGIN`) and a 401 after logout. The administrator generated 10 recovery codes
+  from zero; a separate recovery-code login returned 200 with 9 remaining, then logout 200 and old
+  cookie 401.
 
 ## 2. Go/no-go checklist
 
@@ -83,16 +89,17 @@ platform login remains the only edge gate and PR-03 is still open.
 | PR-02 | `PLATFORM_CONSOLE_ORIGIN`, `PLATFORM_API_ORIGIN`, `PLATFORM_WEBAUTHN_ORIGIN` and `PLATFORM_WEBAUTHN_RP_ID` are exact, explicit production values. | **READY** | The four exact production values are set on the Render service; the production preflight reflected the exact console origin, and the browser same-origin login/MFA flow succeeded. The WebAuthn login origin was not exercised against a hardware key on production. |
 | PR-03 | The console is not publicly reachable without an additional access layer (VPN, identity-aware proxy, IP allowlist or equivalent). | **PARTIAL** | Render's free plan cannot attach inbound IP rules (a Scale/Enterprise feature). PLAT-7 adds a mandatory application-level Basic gate (`PLATFORM_ACCESS_KEY`) in front of `/platform` and `/api/platform`, but the URL is still internet-reachable and the gate is shared-secret protection, not network isolation. A paid edge/IP layer or an identity-aware proxy remains the stronger future control. |
 | PR-04 | Platform credentials are stored in the deployment's secret store, are distinct from every tenant secret, and have a documented rotation and recovery procedure. | **OPEN** | `PLATFORM_ADMIN_JWT_SECRET` and `PLATFORM_MFA_ENCRYPTION_KEY` are separate; rotation currently means updating the environment and restarting. There is no console-driven rotation. |
-| PR-05 | The session cookie is `HttpOnly`, `Secure`, `SameSite=Strict` and Path `/api/platform`; the CSRF cookie is readable but not a credential by itself; CORS grants credentials only to exact origins. | **READY** | `PLAT3` cookie/CORS checks pass, and the production `Set-Cookie` headers were observed with those exact flags. The preflight returns the exact console origin, credentials enabled, and the requested `X-Platform-CSRF`/`X-Platform-Console` headers. |
+| PR-05 | The session cookie is `HttpOnly`, `Secure`, `SameSite=Strict` and Path `/api/platform`; the CSRF cookie is readable but not a credential by itself; CORS grants credentials only to exact origins. | **READY** | `PLAT3` cookie/CORS checks pass, and the production `Set-Cookie` headers were observed with those exact flags. The preflight returns the exact console origin, credentials enabled, and the allowed
+`X-Platform-CSRF`/`X-Platform-Console`/`X-Platform-Step-Up` headers. |
 | PR-06 | Both TOTP and WebAuthn are exercised in a real browser, and recovery codes, a second security key and a break-glass procedure exist. | **READY** | PLAT-7 makes the first-login recovery-code ceremony mandatory and server-enforced. `PLAT7` proves the forced denial, generation, recovery-code login and replay refusal; the guarded break-glass service/CLI was exercised against a disposable test administrator (old password false, new password true, every factor cleared, zero sessions). The browser E2E completes TOTP, the later sign-in and WebAuthn; enrolling a second hardware key remains an operator step, not an automated proof. |
 | PR-07 | Named administrators, least-privilege roles, password change, disable/delete, WebAuthn-key removal and offboarding are available and audited. | **READY** in code | PLAT-5 adds a password-change route, SUPERADMIN list/disable/enable/delete, and WebAuthn-key removal, all audited and covered by PLAT4. Creation remains CLI-only by design; role changes remain a deployment/CLI operation. |
 | PR-08 | Login, MFA and challenge endpoints have account-scoped and IP-scoped attempt budgets; a failed MFA challenge has a bounded number of attempts. | **READY** in code | `/auth/login` has the account and IP login limiters. Every TOTP, WebAuthn and recovery-code failure now spends a durable account-scoped budget; five failures in 15 minutes lock MFA for 15 minutes, independent of the caller's IP. PLAT4 proves that the fifth TOTP failure, and separately the fifth WebAuthn failure, lock the account and the next attempt is refused with `429 PLATFORM_MFA_RATE_LIMITED`. |
 | PR-09 | Audit retention is an owner decision; the audit trail is exported or backed up, and the application's database role cannot drop or rewrite it. | **OPEN** | The Mongoose model refuses mutations, but raw database access can alter rows. There is no TTL and no automatic export. Grant a least-privilege database role and record the retention period. |
 | PR-10 | The console exposes only the approved aggregate data and no tenant-detail or member-identifying read. | **READY** for the current surface | The operations report is cross-tenant aggregate with no tenant selector or PII. Do not add member names, emails or tenant detail without the support-grant gate. |
 | PR-11 | A time-bounded, reason-bound, approved support grant exists before any tenant-detail read. | **BLOCKED** | Gate E in the platform architecture is not implemented. This is a prerequisite for support use, not for the current aggregate report. |
-| PR-12 | The browser WebAuthn proof runs in CI, and the full server suite, CORS checks, docs guards and type/lint checks pass on the event being exposed. | **PARTIAL** | Run `43946639285` passed the observed `webauthn-e2e` job in 48 s and the `server` job in 3 m 5 s on the merged PR. `webauthn-e2e` is still not one of the four branch-protection contexts (`secret-guard`, `attribution-guard`, `server`, `mobile`); the follow-up branch-protection task must add it and verify the returned contexts before this row is READY. |
+| PR-12 | The browser WebAuthn proof runs in CI, and the full server suite, CORS checks, docs guards and type/lint checks pass on the event being exposed. | **READY** | CI run `43961123024` passed all five jobs on PR #317: `server` in 2 m 56 s (**3,146 tests / 505 suites, 0 failed, 0 skipped**), `webauthn-e2e` in 50 s, `mobile`, `attribution-guard` and `secret-guard`. `main` now requires all five contexts, with strict and enforce-admins. A temporary negative PR (#319) with a deliberately failing `webauthn-e2e` and passing `server`/`mobile`/guards returned `mergeStateStatus: BLOCKED`, and the merge attempt was refused; it was closed without merging. |
 | PR-13 | Health checks, platform login/MFA/denial alerts, an incident runbook and a tested rollback exist. | **OPEN** | The API has the standard health endpoints and the audit trail records denials. There is no platform-specific pager or dashboard, and no tested console rollback. |
-| PR-14 | A deployment sequence proves the actual production origin, cookie flags, CORS preflight, sign-in, audit read and sign-out before announcing availability. | **READY** | The production sequence was observed at `56e8c27`: exact-origin preflight, password challenge, TOTP completion in Chrome, `Set-Cookie` flags, authenticated status/operations/deployments/tickets/audit, foreign-Origin refusal, sign-out, and a 401 on the old cookie. A second named reviewer and edge isolation remain under PR-03/PR-15. |
+| PR-14 | A deployment sequence proves the actual production origin, cookie flags, CORS preflight, sign-in, audit read and sign-out before announcing availability. | **READY** | The sequence was observed at `e218bb0`: outer-gate 401/challenge, Basic shell 200, password challenge, TOTP completion in Chrome, `Set-Cookie` flags, authenticated status/operations/deployments/tickets/audit, recovery-code generation (0 → 10), recovery-code login, foreign-Origin refusal, sign-out and a 401 on the old cookie. A second named reviewer and edge isolation remain under PR-03/PR-15. |
 | PR-15 | The owner and a security reviewer sign off with names, date and accepted residual risks. | **OPEN** | Record the sign-off in §5. |
 
 ## 3. Blocking findings
@@ -204,11 +211,13 @@ TOTP code or recovery code.
 8. Bearer API clients supply `X-Platform-Access-Key`; a request with neither Basic nor that header
    returns `401 PLATFORM_ACCESS_REQUIRED` before platform authentication is reached.
 
-**Observed 2026-11-16 at `56e8c27`:** health 200 (`production`, `db: connected`); `/platform/` 200
-with the strict CSP and `no-store`; all three assets 200; preflight 204 with the exact origin and
-headers; password + TOTP login 200; status/operations/deployments/tickets/audit 200; foreign Origin 403;
+**Observed 2026-11-17 at `e218bb0`:** health 200 (`production`, `db: connected`); anonymous
+`/platform/` and `/api/platform/status` 401 `PLATFORM_ACCESS_REQUIRED` with a Basic challenge and
+`no-store`; Basic shell 200 with the strict CSP; wrong key 401; correct key without a session 401
+`PLATFORM_AUTH_REQUIRED`; password + TOTP login 200; status/operations/deployments/tickets/audit
+200; recovery-code generation 10; recovery-code login 200 with 9 remaining; foreign Origin 403;
 logout 200; old cookie 401. A separate real-browser run completed the same login in Chrome, showed
-the dashboard, and signed out with no console errors. No tenant row was read or written.
+the dashboard's 16 sections, and signed out with no console errors. No tenant row was read or written.
 
 ## 5. Sign-off
 
@@ -227,13 +236,13 @@ the dashboard, and signed out with no console errors. No tenant row was read or 
 | `PLAT3-platform-security.test.mjs` | **12/12** |
 | `phase07c-http-security.test.mjs` | **17/17** |
 | `npm run test:webauthn-e2e` | pass locally, including fail-closed cleanup; CI run `43946639285` passed in 48 s |
-| Full server suite | **3,143 passed / 0 failed / 0 skipped / 503 suites**, exit 0 (663 s) |
-| CI jobs | run `43946639285`: `server`, `mobile`, `webauthn-e2e`, `attribution-guard` and `secret-guard` all pass |
-| Production smoke | `56e8c27`; browser password + TOTP + dashboard + sign-out; API status/operations/deployments/tickets, cookie flags, foreign-Origin 403, logout 200, old cookie 401 |
+| Full server suite | CI run `43961123024`: **3,146 tests / 505 suites, 3,146 passed, 0 failed, 0 skipped, 0 todo** (118 s) |
+| CI jobs | run `43961123024`: `server`, `mobile`, `webauthn-e2e`, `attribution-guard` and `secret-guard` all pass |
+| Production smoke | `e218bb0`; outer-gate 401/challenge, Basic shell 200, wrong key 401, valid key without session 401; browser password + TOTP + 16-section dashboard + sign-out; recovery-code generation 10; recovery-code login with 9 remaining; status/operations/deployments/tickets, cookie flags, foreign-Origin 403, logout 200, old cookie 401 |
 
 The browser test uses headless Chrome/Edge and fixed configurable ports (API 4400, console 4100,
 CDP 9333). If CI cannot launch a browser, run `cd server && npm run test:webauthn-e2e` on a machine
 with Chrome and record the output; do not substitute a unit test for the browser proof.
 
-The checklist is a gate, not a deployment authorization. The console is deployed at `56e8c27` under
+The checklist is a gate, not a deployment authorization. The console is deployed at `e7ce455` under
 the owner's production-availability decision; the open gates above remain open.

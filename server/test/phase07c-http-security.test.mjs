@@ -239,6 +239,11 @@ unitSuite('L2 JSON body limit (Phase 07C)', () => {
 // ---------------------------------------------------------------------------
 describe('M3 CORS allow-list (Phase 07C)', () => {
   const ALLOWED = 'https://admin.example.test';
+  const allowedHeaders = (res) =>
+    String(res.header('access-control-allow-headers') || '')
+      .split(',')
+      .map((header) => header.trim())
+      .filter(Boolean);
   let baseUrl;
   let stop;
   before(async () => {
@@ -288,25 +293,31 @@ describe('M3 CORS allow-list (Phase 07C)', () => {
     assert.equal(res.status, 204);
     assert.equal(res.header('access-control-allow-origin'), ALLOWED);
     assert.match(res.header('access-control-allow-methods'), /POST/);
-    assert.equal(res.header('access-control-allow-headers'), 'content-type');
+    assert.ok(allowedHeaders(res).includes('content-type'));
   });
 
-  it('reflects the requested headers on an allow-listed preflight (PLAT-2 regression)', async () => {
-    // Platform calls use X-Platform-CSRF. The CORS layer must reflect whatever
-    // the browser requests, not pin one static list that can drift from the
-    // console's headers.
+  it('allows the platform console and step-up headers on an allow-listed preflight', async () => {
+    // The console now sends X-Platform-Step-Up on destructive lifecycle calls.
+    // The preflight must name it, or the browser blocks the request before the
+    // server can enforce the proof.
     const res = await request(baseUrl, {
       method: 'OPTIONS',
-      path: '/api/platform/auth/me',
+      path: '/api/platform/admins/507f1f77bcf86cd799439011/status',
       extraHeaders: {
         origin: ALLOWED,
-        'access-control-request-method': 'GET',
-        'access-control-request-headers': 'x-platform-csrf, x-platform-console',
+        'access-control-request-method': 'PATCH',
+        'access-control-request-headers':
+          'x-platform-csrf, x-platform-console, x-platform-step-up',
       },
     });
     assert.equal(res.status, 204);
     assert.equal(res.header('access-control-allow-origin'), ALLOWED);
-    assert.equal(res.header('access-control-allow-headers'), 'x-platform-csrf, x-platform-console');
+    assert.equal(res.header('access-control-allow-credentials'), 'true');
+    assert.match(res.header('access-control-allow-methods'), /PATCH/);
+    const headers = allowedHeaders(res);
+    assert.ok(headers.includes('x-platform-csrf'));
+    assert.ok(headers.includes('x-platform-console'));
+    assert.ok(headers.includes('x-platform-step-up'));
   });
 
   it('a disallowed preflight is not granted any CORS headers', async () => {

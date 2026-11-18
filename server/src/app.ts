@@ -103,8 +103,15 @@ export function createApp({
   // a response or change one — and it is the reason the counter sees 5xx answers at all,
   // which is the signal an outside watcher polls `/api/health` for. See
   // config/operationalCounters.ts for what is deliberately NOT published.
-  app.use((_req, res, next) => {
-    res.on('finish', () => recordResponse(res.statusCode));
+  app.use((req, res, next) => {
+    // The path lets the counter separate an intentional monitoring-state 503
+    // (`/api/health/integrity`) from a real server failure. It is read for that
+    // comparison only and is never stored or published. `originalUrl` is the
+    // stable full path; `req.path` can be restored to a router-relative value by
+    // the time `finish` fires.
+    res.on('finish', () =>
+      recordResponse(res.statusCode, req.originalUrl.split('?')[0]),
+    );
     next();
   });
 

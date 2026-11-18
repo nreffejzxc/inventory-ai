@@ -174,12 +174,18 @@ set.
 
 ## 2.6 Route inventory
 
-Phase 23 classifies **122 routes**: **69 permission-gated**, **22 authenticated**, **31 public**, **0 role-gated**. The `PUBLIC` and `AUTHENTICATED` buckets are explicit lists that each carry a
+Phase 23 classifies **123 routes**: **69 permission-gated**, **23 authenticated**, **31 public**, **0 role-gated**. The `PUBLIC` and `AUTHENTICATED` buckets are explicit lists that each carry a
 written reason; a route in no bucket fails the guard, and a declared exemption that has stopped being
 true also fails. The guard deliberately asserts **no route count** — a route is *declared* or it is not,
 and the number is derived from the declarations — so the figure above is pinned separately, by
 `server/test/phase-docs-route-inventory.test.mjs`, which reads this section and the router sources and
 fails if the two disagree.
+
+> **PLAT-27 (2026-11-18) added one authenticated route, `POST /api/platform/auth/step-up`** —
+> 69 + 23 + 31 = **123**. It re-proves the current password and TOTP for the CALLER'S OWN platform
+> session and returns a five-minute proof bound to that session; it creates no session and does not
+> change the gated tier. The three destructive administrator routes remain permission-gated and now
+> also require that proof.
 
 > **Updated by Phase 32F (2026-09-20).** Phase 32A recorded this as "60 routes: 47 gated, 7
 > authenticated, 6 public". Phase 26A added three authenticated routes, Phase 26B-3 added two public

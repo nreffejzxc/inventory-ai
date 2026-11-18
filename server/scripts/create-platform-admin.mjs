@@ -1,11 +1,16 @@
 // Create ONE Platform Operations administrator.
 //
 //   PLATFORM_ADMIN_CONFIRM=create-platform-admin \
+//   PLATFORM_ADMIN_OPERATOR=owner@example.com \
 //   PLATFORM_ADMIN_EMAIL=ops@example.com \
 //   PLATFORM_ADMIN_NAME='Ops Lead' \
 //   PLATFORM_ADMIN_ROLE=SUPERADMIN \
 //   PLATFORM_ADMIN_PASSWORD='<at least 16 characters>' \
 //     npm run platform-admin:create
+//
+// PLATFORM_ADMIN_OPERATOR is the human identity recorded on the one
+// platform.admin.created audit event. PLATFORM_ADMIN_GRANT_ID is optional and
+// records the short-lived grant when the creation was approved through one.
 //
 // Production additionally requires PLATFORM_ADMIN_PROD_CONFIRM=CREATE-PLATFORM-ADMIN.
 //
@@ -53,8 +58,15 @@ if (env.nodeEnv === 'production') {
 
 const email = process.env.PLATFORM_ADMIN_EMAIL || '';
 const password = process.env.PLATFORM_ADMIN_PASSWORD || '';
+const operator = (process.env.PLATFORM_ADMIN_OPERATOR || '').trim();
+const grantId = (process.env.PLATFORM_ADMIN_GRANT_ID || '').trim() || null;
 const role = (process.env.PLATFORM_ADMIN_ROLE || PLATFORM_ROLES.SUPERADMIN).trim();
 const name = (process.env.PLATFORM_ADMIN_NAME || email.split('@')[0] || '').trim();
+
+if (!operator) {
+  fail('Set PLATFORM_ADMIN_OPERATOR to the human identity creating this administrator.');
+  process.exit(1);
+}
 
 if (!PLATFORM_ROLE_VALUES.includes(role)) {
   fail(`PLATFORM_ADMIN_ROLE must be one of: ${PLATFORM_ROLE_VALUES.join(', ')}`);
@@ -69,11 +81,18 @@ try {
     process.exit(1);
   }
 
-  const admin = await createPlatformAdminAccount({ email, name, password, role });
+  const admin = await createPlatformAdminAccount({
+    email,
+    name,
+    password,
+    role,
+    audit: { operator, source: 'cli', grantId },
+  });
   const dto = toPublicPlatformAdmin(admin);
   console.log(
     `[platform-admin] created ${dto.email} (${dto.role}) with id ${dto.id}. ` +
-      'The password was not stored in plaintext and was not printed.',
+      'The password was not stored in plaintext and was not printed. ' +
+      'One platform.admin.created audit event was recorded.',
   );
 } catch (err) {
   // The service's ApiError messages are safe (no password, no hash, no URI).

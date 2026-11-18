@@ -22,28 +22,51 @@ function Write-SchedulerLog {
     Add-Content -LiteralPath $logPath -Value $line
 }
 
+# Native tools report failure through $LASTEXITCODE, and their stderr is diagnostic
+# text to log. Under `$ErrorActionPreference = 'Stop'`, `2>&1` turns the first
+# stderr line into a terminating NativeCommandError — which is how dotenv's
+# informational banner once made a successful heartbeat run look fatal. Keep the
+# strict preference for PowerShell cmdlets and relax it only around a node call.
+function Invoke-Node {
+    param([string]$NodePath, [string[]]$Arguments)
+    $previous = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    try {
+        $output = & $NodePath @Arguments 2>&1
+        $code = $LASTEXITCODE
+    }
+    finally {
+        $ErrorActionPreference = $previous
+    }
+    return [pscustomobject]@{ Output = @($output); ExitCode = $code }
+}
+
 try {
     Set-Location -LiteralPath $repoRoot
     $node = (Get-Command node -ErrorAction SilentlyContinue | Select-Object -First 1).Source
     if (-not $node) { throw 'node was not found; install Node.js or fix PATH for the task' }
 
     Write-SchedulerLog 'starting read-only inventory integrity monitor'
-    $output = & $node server/scripts/monitor-inventory-integrity.mjs `
-        --with-production `
-        --notify `
-        --history-dir="$historyDir" 2>&1
-    $exitCode = $LASTEXITCODE
-    foreach ($line in @($output)) { Write-SchedulerLog "$line" }
+    $monitor = Invoke-Node -NodePath $node -Arguments @(
+        'server/scripts/monitor-inventory-integrity.mjs',
+        '--with-production',
+        '--notify',
+        "--history-dir=$historyDir"
+    )
+    $exitCode = $monitor.ExitCode
+    foreach ($line in $monitor.Output) { Write-SchedulerLog "$line" }
 
     # Publish the hosted freshness signal after every attempt. A NOT CHECKED
     # result is intentional: it makes the endpoint 503 now instead of leaving a
     # previous fresh heartbeat in place. The writer touches one operational
     # document; it never writes inventory, ledger, purchase-order or baseline data.
-    $heartbeatOutput = & $node server/scripts/write-integrity-heartbeat.mjs `
-        --with-production `
-        --history-dir="$historyDir" 2>&1
-    $heartbeatExit = $LASTEXITCODE
-    foreach ($line in @($heartbeatOutput)) { Write-SchedulerLog "$line" }
+    $heartbeat = Invoke-Node -NodePath $node -Arguments @(
+        'server/scripts/write-integrity-heartbeat.mjs',
+        '--with-production',
+        "--history-dir=$historyDir"
+    )
+    $heartbeatExit = $heartbeat.ExitCode
+    foreach ($line in $heartbeat.Output) { Write-SchedulerLog "$line" }
     if ($heartbeatExit -ne 0) {
         Write-SchedulerLog "ERROR: heartbeat writer exited $heartbeatExit; the hosted freshness endpoint will go stale"
         if ($exitCode -eq 0) { $exitCode = 2 }

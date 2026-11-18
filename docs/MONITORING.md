@@ -45,10 +45,19 @@ credential and it changes on restart. It is how a stale process on the same port
 error messages, integration configuration and credentials. Findings stay in the logs, behind the
 hosting account.
 
+**Monitoring-only 5xx.** `GET /api/health/integrity` answers `503` when the laptop heartbeat is
+missing or stale. That is a monitoring state, not an API failure: the response is still counted in
+`responses` and `byStatusClass['5xx']`, but it is excluded from `serverErrors` and
+`lastServerErrorAt`, so a stopped laptop audit cannot look like a server incident in the OPS-2 pulse.
+`/api/health/ready` is deliberately **not** excluded — a readiness `503` means the API cannot reach
+MongoDB, which is a real availability failure. Durable `ops_error_events` is written by the error
+handler, so a database-down readiness `503` cannot be stored while the database is unreachable; the
+health endpoint is the signal for that case.
+
 ## 1b. The Platform Operations console
 
 The owner/support console is served by the API at **`/platform`**; production is
-`https://ai-inventory-l1mi.onrender.com/platform` on commit `56e8c27` (the repository also keeps the
+`https://ai-inventory-l1mi.onrender.com/platform` on commit `e7ce455` (the repository also keeps the
 standalone `npm run platform-console` listener for isolated development). It is a static shell only;
 every panel reads `/api/platform/*`, which requires a separate platform administrator session and
 capability. A tenant login, tenant token or business role cannot open it. The shell has a strict CSP
@@ -78,15 +87,20 @@ The console groups its read-only and operational views as follows:
 **Alerting.** The console is an investigation surface, not a pager. The external UptimeRobot and
 GitHub probes in §2 remain the automatic alert path. Alert on repeated `/api/health/ready` failure,
 two or more new `5xx` responses, a missing production posture, or a failed platform login/MFA burst
-that the audit trail records. The process-local counters reset on restart; durable `ops_error_events`
+that the audit trail records. The proposed platform-specific alert catalogue, thresholds, role
+owners and response playbooks are in
+[06 — Security monitoring](./platform-console/06-security-monitoring.md); they are planning
+only and are not an active pipeline. The process-local counters reset on restart; durable `ops_error_events`
 survive a restart and are what the overview's 5xx counts use for the selected window.
 
 **Limits.** The console cannot show host CPU/memory pressure, Atlas cluster metrics, backup status,
 mobile crash/install telemetry or background-job health because those sources are not available to
 this service. Those panels say so. AI cost is provider-reported only and unknown charges are not
 estimated. Deployment history begins when the console is enabled; a failed build before process boot
-is absent by design. See [`PLATFORM_PRODUCTION_READINESS.md`](PLATFORM_PRODUCTION_READINESS.md) for
-the edge, credential and residual-risk gates.
+is absent by design. See [04 — Production readiness](./platform-console/04-production-readiness.md) for
+the edge, credential and residual-risk gates, and
+[05 — Access layer](./platform-console/05-access-layer.md) for the access-layer
+evaluation.
 
 ---
 
@@ -105,7 +119,7 @@ dispatch and the GitHub issue path remain a fallback. The Windows task is disabl
 | Signal | Rule | Why it matters |
 | --- | --- | --- |
 | Readiness | `/api/health/ready` returns `503` twice, 20 s apart | The API cannot reach MongoDB; requests will fail even though the process is alive |
-| Server errors | `counters.serverErrors` increases by 2 or more within 5 minutes | Two consecutive 5xx answers are a failure, not a blip |
+| Server errors | `counters.serverErrors` increases by 2 or more within 5 minutes | Two consecutive 5xx answers are a failure, not a blip; the monitoring-only integrity `503` is excluded |
 | Posture | `environment` is not `production` on the production host | A deployment booted into the wrong posture and is probably using the wrong database |
 | Build | `commit` is not the commit that was merged | A stale build or a failed deploy is serving traffic |
 | AI failures | `failedTurns / turns > 0.10` over 15 minutes, with at least 5 turns | The assistant is failing more often than it answers |
@@ -179,6 +193,11 @@ modifying anything.
   heartbeat at most **26 hours** old, and **503** for missing, stale, malformed or `NOT CHECKED`.
   UptimeRobot `Inventory AI integrity freshness` (id 804681164) checks it every five minutes. This
   is the only write; it touches no inventory, ledger, PO, product, location, user or baseline row.
+- **Writer environment (2026-11-18):** the writer resolves `server/.env` from its own module path
+  rather than the wrapper's working directory and loads it quietly; the wrapper scopes PowerShell's
+  error preference around native calls, so dotenv's stderr banner cannot abort the run. The registered
+  task returned `0` on 2026-11-18, wrote `checkedAt=2026-11-18T05:49:03.828Z`, and
+  `/api/health/integrity` answered `200 / fresh`.
 - **Alert:** one GitHub issue titled `[inventory-integrity] New findings detected`; it is updated only
   when the new set changes and closed after recovery. A NOT CHECKED run also alerts. The hosted
   freshness endpoint is the independent alert for a monitor that stops running at all.
@@ -452,8 +471,8 @@ grep "AI turn" <log> | grep -oE "model=[^ ]+ tier=[^ ]+" | sort | uniq -c
   durable row is the reason the aggregate survives.
 - **The console is internal and is not a hosted pager.** It is deployed on the API service at
   `/platform` and the platform API is an operator read, not a cluster-wide counter. The console and
-  the platform audit trail are live at `56e8c27` behind the separate platform login; the platform
-  login is the only edge gate until PR-03 network isolation is added. UptimeRobot's email contact
+  the platform audit trail are live at `e7ce455` behind the application outer gate and the separate
+  platform login; PR-03 network isolation remains open. UptimeRobot's email contact
   remains the automatic delivery channel: two five-minute
   checks cover readiness and the `db: connected` keyword. The Windows fallback is disabled, and the
   GitHub workflow is a manual/fallback path. A dedicated pager or hosted dashboard is still absent;

@@ -4,6 +4,8 @@ import PlatformAdmin from '../models/platformAdmin.model.ts';
 import ApiError from '../utils/ApiError.ts';
 import { normalizeEmail } from '../utils/validate.ts';
 import { revokeAllPlatformSessionsForAdmin } from './platformSession.service.ts';
+import { recordPlatformAudit } from './platformAudit.service.ts';
+import { PLATFORM_AUDIT_ACTIONS, PLATFORM_AUDIT_OUTCOMES } from '../constants/platformAudit.ts';
 import {
   isPlatformRole,
   platformCapabilitiesFor,
@@ -110,11 +112,21 @@ export function toPublicPlatformAdmin(
   };
 }
 
+export type PlatformAdminCreationAudit = {
+  /** The operator identity recorded on the creation event. Required when auditing. */
+  operator: string;
+  /** `cli` for the bootstrap command; kept explicit so tests cannot imply a source. */
+  source?: string;
+  /** Optional short-lived grant reference, when one was used. */
+  grantId?: string | null;
+};
+
 type CreatePlatformAdminInput = {
   email: unknown;
   name: unknown;
   password: unknown;
   role?: unknown;
+  audit?: PlatformAdminCreationAudit | null;
 };
 
 /**
@@ -126,6 +138,7 @@ export async function createPlatformAdminAccount({
   name,
   password,
   role = PLATFORM_ROLES.SUPERADMIN,
+  audit = null,
 }: CreatePlatformAdminInput) {
   const normalizedEmail = typeof email === 'string' ? normalizeEmail(email) : '';
   if (!/^\S+@\S+\.\S+$/.test(normalizedEmail)) {
@@ -144,10 +157,14 @@ export async function createPlatformAdminAccount({
   if (!isPlatformRole(role)) {
     throw new ApiError(400, 'Unknown platform role', 'VALIDATION_ERROR');
   }
+  if (audit && (typeof audit.operator !== 'string' || !audit.operator.trim())) {
+    throw new ApiError(400, 'An operator identity is required', 'VALIDATION_ERROR');
+  }
 
   const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
+  let admin: InstanceType<typeof PlatformAdmin>;
   try {
-    return await PlatformAdmin.create({
+    admin = await PlatformAdmin.create({
       email: normalizedEmail,
       name: name.trim(),
       passwordHash,
@@ -164,6 +181,23 @@ export async function createPlatformAdminAccount({
     }
     throw err;
   }
+
+  if (audit) {
+    await recordPlatformAudit({
+      action: PLATFORM_AUDIT_ACTIONS.ADMIN_CREATED,
+      outcome: PLATFORM_AUDIT_OUTCOMES.SUCCESS,
+      actor: { email: audit.operator },
+      metadata: {
+        targetAdminId: String(admin._id),
+        targetEmail: admin.email,
+        targetRole: admin.role,
+        source: audit.source || 'service',
+        grantId: audit.grantId || null,
+      },
+    });
+  }
+
+  return admin;
 }
 
 type LoginInput = {

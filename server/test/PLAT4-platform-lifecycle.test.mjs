@@ -113,6 +113,24 @@ async function startAndConfirmEnrollment(admin) {
   return { start: start.json, confirm: confirm.json, recoveryCodes: codes.json.codes };
 }
 
+async function stepUpProof(admin, token) {
+  const row = await PlatformAdmin.findOne({ email: admin.email })
+    .select('+totpSecretEncrypted lastTotpCounter')
+    .lean();
+  const counter = Math.max(
+    currentTotpCounter(),
+    Number(row.lastTotpCounter || 0) + 1,
+  );
+  const code = generateTotp(decryptPlatformSecret(row.totpSecretEncrypted), counter);
+  const proof = await api('POST', '/api/platform/auth/step-up', {
+    token,
+    body: { password: PASSWORD, code },
+  });
+  assert.equal(proof.status, 200, JSON.stringify(proof.json));
+  assert.ok(proof.json.stepUpToken, 'step-up must return a proof token');
+  return proof.json.stepUpToken;
+}
+
 async function loginWithTotp(admin) {
   const challenge = await passwordLogin(admin.email);
   assert.equal(challenge.status, 200, JSON.stringify(challenge.json));
@@ -163,6 +181,7 @@ unitSuite('PLAT-5 constants', () => {
 dbSuite('PLAT-5 platform lifecycle end to end', dbOk, () => {
   let owner;
   let ownerToken;
+  let ownerStepUp;
   let target;
   let targetToken;
   let support;
@@ -176,6 +195,7 @@ dbSuite('PLAT-5 platform lifecycle end to end', dbOk, () => {
     ownerToken = (await startAndConfirmEnrollment(owner)).confirm.token;
     targetToken = (await startAndConfirmEnrollment(target)).confirm.token;
     supportToken = (await startAndConfirmEnrollment(support)).confirm.token;
+    ownerStepUp = await stepUpProof(owner, ownerToken);
   });
 
   it('allows only platform.admin.manage to list administrators', async () => {
@@ -352,6 +372,7 @@ dbSuite('PLAT-5 platform lifecycle end to end', dbOk, () => {
   it('disables and enables an administrator, revoking their sessions', async () => {
     const disabled = await api('PATCH', `${adminPath(target._id)}/status`, {
       token: ownerToken,
+      headers: { 'x-platform-step-up': ownerStepUp },
       body: { status: 'DISABLED' },
     });
     assert.equal(disabled.status, 200, JSON.stringify(disabled.json));
@@ -364,6 +385,7 @@ dbSuite('PLAT-5 platform lifecycle end to end', dbOk, () => {
 
     const enabled = await api('PATCH', `${adminPath(target._id)}/status`, {
       token: ownerToken,
+      headers: { 'x-platform-step-up': ownerStepUp },
       body: { status: 'ACTIVE' },
     });
     assert.equal(enabled.status, 200, JSON.stringify(enabled.json));
@@ -375,12 +397,16 @@ dbSuite('PLAT-5 platform lifecycle end to end', dbOk, () => {
   it('refuses self-disable and self-delete', async () => {
     const disable = await api('PATCH', `${adminPath(owner._id)}/status`, {
       token: ownerToken,
+      headers: { 'x-platform-step-up': ownerStepUp },
       body: { status: 'DISABLED' },
     });
     assert.equal(disable.status, 409);
     assert.equal(disable.json.code, 'PLATFORM_ADMIN_SELF_PROTECTED');
 
-    const remove = await api('DELETE', adminPath(owner._id), { token: ownerToken });
+    const remove = await api('DELETE', adminPath(owner._id), {
+      token: ownerToken,
+      headers: { 'x-platform-step-up': ownerStepUp },
+    });
     assert.equal(remove.status, 409);
     assert.equal(remove.json.code, 'PLATFORM_ADMIN_SELF_PROTECTED');
   });
@@ -406,7 +432,7 @@ dbSuite('PLAT-5 platform lifecycle end to end', dbOk, () => {
     const removed = await api(
       'DELETE',
       `${adminPath(target._id)}/webauthn/${encodeURIComponent(credentialId)}`,
-      { token: ownerToken },
+      { token: ownerToken, headers: { 'x-platform-step-up': ownerStepUp } },
     );
     assert.equal(removed.status, 200, JSON.stringify(removed.json));
     assert.equal(removed.json.removed, true);
@@ -424,7 +450,10 @@ dbSuite('PLAT-5 platform lifecycle end to end', dbOk, () => {
   });
 
   it('deletes an administrator and leaves no token able to resolve them', async () => {
-    const removed = await api('DELETE', adminPath(target._id), { token: ownerToken });
+    const removed = await api('DELETE', adminPath(target._id), {
+      token: ownerToken,
+      headers: { 'x-platform-step-up': ownerStepUp },
+    });
     assert.equal(removed.status, 200, JSON.stringify(removed.json));
     assert.equal(removed.json.deleted.email, target.email);
 
@@ -465,6 +494,8 @@ dbSuite('PLAT-5 platform lifecycle end to end', dbOk, () => {
     }).lean();
     const actions = new Set(events.map((event) => event.action));
     for (const action of [
+      PLATFORM_AUDIT_ACTIONS.STEP_UP_SUCCEEDED,
+      PLATFORM_AUDIT_ACTIONS.STEP_UP_USED,
       PLATFORM_AUDIT_ACTIONS.RECOVERY_CODES_GENERATED,
       PLATFORM_AUDIT_ACTIONS.RECOVERY_CODE_SUCCEEDED,
       PLATFORM_AUDIT_ACTIONS.ADMIN_LISTED,

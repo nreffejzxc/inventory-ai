@@ -181,6 +181,8 @@ unitSuite('PLAT-2 TOTP primitives', () => {
     assert.equal(first.counter, 1);
     const replay = verifyTotp(RFC_SECRET, code, { nowMs: 59_000, lastUsedCounter: 1 });
     assert.equal(replay.valid, false);
+    assert.equal(replay.alreadyUsed, true);
+    assert.equal(replay.counter, 1);
   });
 });
 

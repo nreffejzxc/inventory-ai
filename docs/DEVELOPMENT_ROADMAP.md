@@ -8,9 +8,9 @@ of truth for *what actually happened*, and it is why this file is long.
 
 **How to read it.** Do not read it top to bottom. Either find a record by number (§27FJ, §27DM — the
 numbers are cited from `CLAUDE.md` and from source comments), or use the index: `CLAUDE.md` §7 lists
-all **249** records by the title each gives itself.
+all **270** records by the title each gives itself.
 
-**Current state:** V1 complete and in production testing. The records that answer *where are we now* are §27IQ (forced recovery setup, the free-plan outer access gate and the break-glass drill), §27IP (the Platform Operations console is deployed at `56e8c27`, with browser sign-in, TOTP, assets/CSP and API smoke observed), §27IJ (the INTERNAL Platform Operations plane — separate administrator identity, sessions and capabilities; committed in `d02a549`, now deployed through §27IP), §27IK (platform-admin architecture, now aligned with the implemented interim plane and its remaining gates), §27IL (the durable 5xx and feature-presence stores that report reads), §27IM (the dedicated console, mandatory TOTP/WebAuthn and append-only platform audit — committed and browser-verified; now deployed through §27IP), §27IN (fresh security review, CI browser WebAuthn, production-readiness checklist and prioritized recommendations), §27IO (recovery codes, durable account-scoped MFA lockout, password change, administrator lifecycle and fail-closed origin/cookie hardening), §27II (AI-117 complete feedback conversation preview, deployed `13fb3f8` and device-verified; one out-of-stock wording finding remains open), §27IH (AI-116 bounded follow-up context and answer freshness, deployed and device-verified), §27IG (AI-115 member feedback and the owner/admin review queue, deployed and device-verified), §27IF (AI-114 deterministic complete restock lists, deployed and device-verified), §27ID (the permanent assistant improvement roadmap and implementation audit; docs-only), §27IC (AI-110 contextual assistant entry and restock shortfall, deployed `7315675` and OTA-verified; the partial-restock guards completed in `1c3928b`), §27IB (scheduler proof and hosted freshness), §27IA (post-deploy phone proof, triage and monitor), §27HV (AI-99 10,256-product gate, 24/25 with one output-limit finding), §27HU (AI-99 free-first simple inventory, deployed with the 1.0.2 OTA), §27HT (AI-91/AI-92 exact product identity and per-location stock), §27HS (the AI-50–AI-84 increment register), §27HR (AI-48–AI-84 merged and deployed), §27HQ (grounded answers and scoped stock reads), §27HP (market prices from cited pages), §27HO (recorded specifications and the real seed catalogue), §27HN (inventory-only web research), §27HH (a transfer as one event to the assistant), §27HG (the stock-in link's product), §27HF (the single-location default's timing), §27HE (the stock-in link's location), §27HD (the movement fixes and the production device pass), §27HC (the assistant's local-time answers), §27FM (the V1 re-verification) and §27FJ (the two open advisories).
+**Current state:** V1 complete and in production testing. The records that answer *where are we now* are §27JL (PLAT-27 SEC-08 step-up proof for destructive administrator actions; merged and deployed as `e7ce455`; code, tests and console documentation), §27JK (PLAT-26 audited operator CLI creation; code and tests), §27JJ (PLAT-25 outer access-gate failure bounding and sampled audit; code and tests), §27JI (PLAT-24 dedicated console documentation and accuracy corrections; documentation only), §27JH (PLAT-23 owner/CEO account, credential and access guide; documentation only), §27JG (PLAT-22 additive security roadmap beyond PLAT-21; recommendations only), §27JF (PLAT-21 console status assessment and role/account guide; documentation and read-only production reads), §27JE (PLAT-20 atomic last-SUPERADMIN guard, monitor-only 5xx accounting and heartbeat restoration; code and documentation), §27JD (PLAT-19 NZ-01–NZ-07 roadmap beyond NY-07; documentation only), §27JC (PLAT-18 RD-01 code fact-check, NX-01 sensitive-data protection design and NY-01–NY-06 tranche; documentation only), §27JB (PLAT-17 checklist restoration, path-safe renderer, RD-01 local drill plan and NX-01–NX-07 tranche; documentation/tooling only), §27JA (PLAT-16 TS-01 plan, reproducible checklist renderer and next improvement tranche; documentation/tooling only), §27IZ (PLAT-15 verified one-page checklist PDF and tenant security review; documentation only), §27IY (PLAT-14 printable two-contact test checklist; documentation only), §27IX (PLAT-13 two-contact test procedure and IA-42–IA-45 additions; documentation only), §27IW (PLAT-12 contact-wording correction, joint-rank reconciliation, pending notification evidence and IA-38–IA-41 additions; documentation only), §27IV (PLAT-11 backup-contact registration, Firebase-plan safety review and IA-34–IA-37 additions; documentation only), §27IU (PLAT-10 security-contact record, Firebase recovery drill and multi-criteria ranking; documentation only), §27IT (PLAT-9 free-first planning: conditional Cloudflare migration, alert ownership, disposable restore drill and additive follow-up; documentation only), §27IS (PLAT-8 planning-only assessment of the access layer, platform security alerting and whole-product priorities; documentation only), §27IR (PLAT-7 deployed at `e218bb0`, the production gate and recovery proof, and the required WebAuthn check), §27IQ (forced recovery setup, the free-plan outer access gate and the break-glass drill), §27IP (the Platform Operations console was first deployed at `56e8c27`, with browser sign-in, TOTP, assets/CSP and API smoke observed), §27IJ (the INTERNAL Platform Operations plane — separate administrator identity, sessions and capabilities; committed in `d02a549`, now deployed through §27IP), §27IK (platform-admin architecture, now aligned with the implemented interim plane and its remaining gates), §27IL (the durable 5xx and feature-presence stores that report reads), §27IM (the dedicated console, mandatory TOTP/WebAuthn and append-only platform audit — committed and browser-verified; now deployed through §27IP), §27IN (fresh security review, CI browser WebAuthn, production-readiness checklist and prioritized recommendations), §27IO (recovery codes, durable account-scoped MFA lockout, password change, administrator lifecycle and fail-closed origin/cookie hardening), §27II (AI-117 complete feedback conversation preview, deployed `13fb3f8` and device-verified; one out-of-stock wording finding remains open), §27IH (AI-116 bounded follow-up context and answer freshness, deployed and device-verified), §27IG (AI-115 member feedback and the owner/admin review queue, deployed and device-verified), §27IF (AI-114 deterministic complete restock lists, deployed and device-verified), §27ID (the permanent assistant improvement roadmap and implementation audit; docs-only), §27IC (AI-110 contextual assistant entry and restock shortfall, deployed `7315675` and OTA-verified; the partial-restock guards completed in `1c3928b`), §27IB (scheduler proof and hosted freshness), §27IA (post-deploy phone proof, triage and monitor), §27HV (AI-99 10,256-product gate, 24/25 with one output-limit finding), §27HU (AI-99 free-first simple inventory, deployed with the 1.0.2 OTA), §27HT (AI-91/AI-92 exact product identity and per-location stock), §27HS (the AI-50–AI-84 increment register), §27HR (AI-48–AI-84 merged and deployed), §27HQ (grounded answers and scoped stock reads), §27HP (market prices from cited pages), §27HO (recorded specifications and the real seed catalogue), §27HN (inventory-only web research), §27HH (a transfer as one event to the assistant), §27HG (the stock-in link's product), §27HF (the single-location default's timing), §27HE (the stock-in link's location), §27HD (the movement fixes and the production device pass), §27HC (the assistant's local-time answers), §27FM (the V1 re-verification) and §27FJ (the two open advisories).
 
 ---
 
@@ -26032,9 +26032,9 @@ The job is bounded by `timeout-minutes: 10` and adds roughly one to two minutes 
 repository. Its first GitHub run has not been observed because the branch was not pushed.
 
 **Production gate and recommendations.** Two living reference documents were added:
-`docs/PLATFORM_PRODUCTION_READINESS.md` is the pre-exposure checklist (HTTPS/domains, network
+`docs/platform-console/04-production-readiness.md` is the pre-exposure checklist (HTTPS/domains, network
 isolation, separate credentials, cookie/CORS proof, MFA recovery, audit retention and database
-permissions, support grants, CI evidence and sign-off); `docs/PLATFORM_SECURITY_RECOMMENDATIONS.md`
+permissions, support grants, CI evidence and sign-off); `docs/platform-console/07-security-recommendations.md`
 is the P0–P2 list with what/why/benefit for each item. Recommendations were not implemented in this
 step. The first blockers are recovery/break-glass and administrator lifecycle, per-account MFA
 attempt budgeting, a fail-closed HTTPS/network deployment guard, and audit retention/least-privilege
@@ -26187,3 +26187,956 @@ production proof are recorded in the follow-up deployment record.
 PR-09 audit retention/database least privilege and PR-15 named sign-off remain open. The gate key
 must be set on the production service before this code deploys, and any key rotation is an operator
 action.
+
+---
+
+# 27IR. PLAT-8 — PLAT-7 deployed, the production gate and recovery proof, and the required WebAuthn check (2026-11-17)
+
+**Deployment.** PR #317 contained `bf0d135` (recovery enforcement, outer gate and break-glass),
+`d692a50` (the route-inventory parser learned that a mount may carry middleware before its router)
+and `949c8eb` (a fresh sign-in advances the session epoch so a late 401 cannot clear the MFA
+challenge). It squash-merged as `e218bb0`; Render auto-deployed that commit. `/api/health` reports
+`status: ok`, `db: connected`, `environment: production` and commit `e218bb0`. The production service
+now supplies `PLATFORM_ACCESS_KEY` and `PLATFORM_ACCESS_USER=platform`; neither value is in the
+repository or this record.
+
+**CI.** The first run (`43959157404`) passed four jobs and failed `server` in the Phase 23 route
+collector, which had assumed every `/api/...` mount named a router directly. The second run
+(`43959954435`) passed `server` and failed `webauthn-e2e` on a stale sign-in state race after a
+replayed assertion. The final run (`43961123024`) passed all five jobs: `server` in 2 m 56 s,
+`webauthn-e2e` in 50 s, `mobile`, `attribution-guard` and `secret-guard`. The server job executed
+**3,146 tests across 505 suites — 3,146 passed / 0 failed / 0 skipped / 0 todo** in 118 s.
+
+**Production gate and recovery.** Anonymous `/platform/` and `/api/platform/status` return
+`401 PLATFORM_ACCESS_REQUIRED` with a Basic challenge and `no-store`; a wrong key returns the same,
+while the correct key without a platform session returns `401 PLATFORM_AUTH_REQUIRED`. Basic returns
+the shell as 200 HTML with the strict CSP and `app.js` as 200 JavaScript. Password + TOTP completed
+in both the API smoke and Chrome; the administrator began at **0** recovery codes, generated **10**
+with the endpoint, and the browser rendered the dashboard's 16 sections and signed out with no
+console errors. The forced ceremony view is browser-proven locally by the PLAT7 E2E. A
+separate production recovery-code login returned 200, `/auth/me` returned 200 with **9** codes
+remaining, logout returned 200 and the old cookie returned 401. The guarded break-glass CLI was
+exercised against a disposable test administrator: exit 0, old password refused, new password
+accepted, every factor cleared and zero sessions left.
+
+**Branch protection.** `main` now requires `secret-guard`, `attribution-guard`, `server`, `mobile`
+and `webauthn-e2e`, with `strict: true` and `enforce_admins: true`. The setting was verified by
+read-back and by a temporary negative PR (#319) whose `webauthn-e2e` job failed while `server`,
+`mobile`, `attribution-guard` and `secret-guard` passed: GitHub reported `mergeStateStatus: BLOCKED`
+and the merge attempt exited 1 with “the base branch policy prohibits the merge.” The PR was closed
+without merging and its branch was deleted; no temporary code reached `main`.
+
+**Still open.** Render free has no edge IP allowlist, so PR-03 remains partially closed: the shared
+outer key is application-level protection, not network isolation. PR-09 (audit retention/database
+least privilege) and PR-15 (named security sign-off) remain open, and a second hardware security key
+is an operator step. The ranked long-term roadmap is
+[03 — Console improvements](./platform-console/03-console-improvements.md); it is recommendations only
+and was not implemented in this record. The two pre-existing AI-118 working-tree files remain
+uncommitted and were not part of PR #317.
+
+---
+
+# 27IS. PLAT-8 — planning assessment: access layer, security monitoring and whole-product priorities (2026-11-17)
+
+**Planning only.** This record covers a documentation-only assessment. No application code, server
+configuration, Render/Cloudflare/DNS setting, deployment, secret or production data was changed. The
+production service remains on `e218bb0`; `main` remains the documentation baseline after the merge of
+this record.
+
+**Deliverables.**
+
+- [05 — Access layer](./platform-console/05-access-layer.md) compares the current
+  application gate, Cloudflare Access, Tailscale, Render inbound IP rules and a tunnel-only approach.
+  It records the free/paid limits, the Render compatibility constraints, the direct-origin bypass and
+  the recommended pilot. **Cloudflare Access is preferred for evaluation** because it provides named
+  identity and service-token policies at $0 for up to 50 users, but it requires a controlled domain,
+  a custom Render hostname and origin validation of `Cf-Access-Jwt-Assertion`; without that validation
+  the public `onrender.com` URL bypasses the edge. Tailscale Personal is **non-commercial only**, and a
+  tailnet-only design requires a private Render service plus a subnet router, so it is not a fit for
+  the current single public web service. Render web-service IP rules require Scale ($499/month plus
+  compute), so they are not a low-cost option.
+- [06 — Security monitoring](./platform-console/06-security-monitoring.md) proposes alert IDs,
+  starting thresholds, severity, channels, accountable roles, deduplication rules and response
+  playbooks for authentication/recovery, WebAuthn, outer-gate/CSRF/authorization denials,
+  administrator lifecycle, audit integrity, health/5xx, AI cost/model health, backup verification and
+  support SLA breaches. It explicitly records current gaps: outer-gate 401s are not audited (CSRF
+  refusals are, as `platform.access.denied` with a bounded reason), audit-write failure is a stderr log
+  rather than a durable counter, administrator creation lacks an audit action, and there is no pager or
+  24/7 rota.
+- [`INVENTORY_AI_IMPROVEMENT_ASSESSMENT.md`](INVENTORY_AI_IMPROVEMENT_ASSESSMENT.md) reviews the
+  product, console, security, AI monitoring/cost, reliability, support/developer operations and gaps
+  beyond the existing CI/SEC/AI roadmaps. It ranks 18 recommendations; the top of the order is the
+  access boundary, security alerting/ownership, audit retention/least privilege, a restore drill and
+  secret escrow, AI budget/model-health control, step-up/dual control, support grants and server SLOs.
+
+**Documentation map.** `docs/README.md` now indexes all three documents and their review cadence;
+`CLAUDE.md` adds the PLAT-8 phase row and §27IS index entry; the existing security, console and
+monitoring documents link the new detail without changing their recommendations-only status.
+
+**Explicitly not done.** No Cloudflare account, domain, Access policy, Tailscale tailnet, Render
+plan/IP rule, alert channel, budget, kill switch, audit export, code path or test was implemented.
+No tenant data was read and no secret/recovery code was printed.
+
+**Verification.** `node scripts/check-docs.mjs` passed with **41 active documents**, 30 invariant rows,
+30 register rows, **19 living reference documents** within cadence and 5 quota evidence records;
+`git diff --check` passed. The five focused docs suites passed **31/31** (documentation links, fact
+drift, invariant register, route inventory and section integrity). No application suite was run
+because this change is documentation only. PR #322 passed all five required checks (`server` 2m44s,
+`webauthn-e2e` 1m5s, `mobile` 1m15s, `secret-guard` 8s, `attribution-guard` 9s) and squash-merged
+as `400cf45`; a read-only `/api/health` check afterwards still reported `e218bb0`, so no deployment
+occurred. The merge evidence is also in [`DEVELOPMENT_LOG.md`](DEVELOPMENT_LOG.md).
+
+---
+
+# 27IT. PLAT-9 — free-first implementation, accountability, restore-drill and follow-up plans (2026-11-17)
+
+**Planning only.** This record covers the four approved planning deliverables and no runtime work. No
+domain was purchased, no Cloudflare/Render/Atlas setting was changed, no database operation was run,
+no deployment was made and no paid service was started. Production remains `e218bb0`.
+
+**Funding decision.** Inventory AI has no paying customers, and the owner's current budget is already
+committed. The planning baseline is therefore **$0 incremental recurring spend**: existing Render free
+service, Atlas M0, free UptimeRobot/GitHub/email channels, existing Brevo/Firebase/OpenRouter
+accounts and the owner's existing tools. Paid Render Scale, Tailscale Standard, a domain purchase,
+Cloudflare paid retention, a pager and paid backup/observability tiers are deferred until revenue or a
+contractual requirement justifies them.
+
+**Deliverables.**
+
+- [`PLATFORM_CLOUDFLARE_ACCESS_IMPLEMENTATION_PLAN.md`](PLATFORM_CLOUDFLARE_ACCESS_IMPLEMENTATION_PLAN.md)
+  — conditional migration plan with a zero-spend gate, custom-domain prerequisite, origin JWT
+  contract, WebAuthn re-enrollment, cutover order, rollback and 18 acceptance tests. It explicitly
+  says to defer the migration if no controlled domain already exists and not to buy one now.
+- [`PLATFORM_SECURITY_ALERT_DECISION_SHEET.md`](PLATFORM_SECURITY_ALERT_DECISION_SHEET.md) — named
+  primary/backup record, current single-owner/unassigned-backup reality, free first channels,
+  instrumentation prerequisites, activation checklist and response/review cadence. No channel is live
+  and no alert is implemented.
+- [`PLATFORM_DATABASE_RESTORE_DRILL_PLAN.md`](PLATFORM_DATABASE_RESTORE_DRILL_PLAN.md) — disposable
+  database only, free/local target, provisional RPO ≤24h and RTO ≤4h database / ≤8h full platform,
+  hash/count/index verification, free secret escrow, evidence template and explicit stop conditions.
+  It records that the backup is data-only and lacks index/collection-option metadata.
+- [`INVENTORY_AI_FOLLOWUP_ASSESSMENT.md`](INVENTORY_AI_FOLLOWUP_ASSESSMENT.md) — additive IA-19–IA-29
+  opportunities with duplicate exclusions, free-first implementation notes and a ranked shortlist.
+
+**Documentation map.** `docs/README.md` indexes all four documents and their review cadence;
+`CLAUDE.md` adds the PLAT-9 row and §27IT index entry; `PHASE_HISTORY.md` records the planning-only
+increment; the access, monitoring and whole-product assessments now point to the detailed plans and
+state the free-first constraint.
+
+**Explicitly not done.** No domain/DNS, Cloudflare Access app/policy, Render custom hostname, JWT
+verifier, alert evaluator, mailbox/pager, database backup/restore, secret escrow creation or code
+change. No tenant data was read and no secret/recovery code was printed.
+
+**Verification.** `node scripts/check-docs.mjs` passed with **45 active documents**, 30 invariant rows,
+30 register rows, **23 living reference documents** within cadence and 5 quota evidence records;
+`git diff --check` passed. The five focused docs suites passed **31/31** (documentation links, fact
+drift, invariant register, route inventory and section integrity). No database operation, application
+suite or deployment was performed; the final pull-request checks are recorded in
+[`DEVELOPMENT_LOG.md`](DEVELOPMENT_LOG.md) after they run.
+
+---
+
+# 27IU. PLAT-10 — security contacts, Firebase recovery drill and multi-criteria ranking (2026-11-17)
+
+**Planning only.** No security alert, mailbox, Firebase project, database, domain, deployment or
+runtime setting was changed. No paid service was started. Production remains `e218bb0`.
+
+**Funding decision.** The **$0 incremental recurring spend** baseline is unchanged. Existing owner
+email, UptimeRobot/GitHub and free provider tiers are the only channels; a separate Firebase **Spark**
+project and local/disposable database are the only drill resources; no paid plan is proposed.
+
+**Deliverables.**
+
+- [`PLATFORM_SECURITY_CONTACTS.md`](PLATFORM_SECURITY_CONTACTS.md) — records `nreffejzxc` as the
+  primary security contact and leaves the backup **UNASSIGNED**. The activation gate requires a named
+  backup, a tested contact path and written acknowledgement; until then security alerts are inactive.
+  The primary email is the one already recorded in
+  [`ACCOUNT_MIGRATION_RUNBOOK.md`](ACCOUNT_MIGRATION_RUNBOOK.md); no new mailbox is required.
+- [`PLATFORM_FIREBASE_RECOVERY_DRILL_PLAN.md`](PLATFORM_FIREBASE_RECOVERY_DRILL_PLAN.md) — isolated
+  free Firebase drill using a separate Spark project, local API and disposable test database. It covers
+  transient vs terminal failure classes, credential/key/project/owner recovery, evidence collection,
+  stop conditions, rollback/cleanup and 14 acceptance tests. No production Firebase or Render access
+  is authorized.
+- [`INVENTORY_AI_MULTI_CRITERIA_RANKING.md`](INVENTORY_AI_MULTI_CRITERIA_RANKING.md) — seven-criterion,
+  equal-weight ranking (security, reliability, performance, UX, AI capabilities, operational
+  efficiency, business value) of IA-19–IA-29 plus new IA-30–IA-33: support knowledge base, performance
+  budgets, preventive data-quality guards and a feature-flag/kill-switch registry. The ranking is
+  additive to IA-01–IA-18 and does not authorize implementation.
+
+**Security contact decision.** The owner is verified as primary from existing repository/provider
+records. No second person is documented, so a backup was not invented; alerts remain inactive. The
+only activation blocker is a real backup name and tested contact, not a subscription.
+
+**Firebase boundary.** `FIREBASE_UNAVAILABLE` is a transient 503 and must preserve a valid session;
+`FIREBASE_TOKEN_INVALID` is terminal for the presented credential; `FIREBASE_NOT_CONFIGURED` is an
+operator/configuration fault. `/api/health` does not test Firebase. The legacy password path must
+never become an outage fallback.
+
+**Documentation map.** `docs/README.md` indexes the three documents and their cadence; `CLAUDE.md`
+adds the PLAT-10 row and §27IU index entry; `PHASE_HISTORY.md` records the planning-only increment;
+`DEVELOPMENT_LOG.md` records the current position.
+
+**Explicitly not done.** No alert activation, mailbox creation, Firebase project creation, credential
+rotation, database operation, backup/restore, code change, deployment, domain or paid subscription.
+No tenant data or secret/recovery code was read or printed.
+
+**Verification.** `node scripts/check-docs.mjs` passed with **48 active documents**, 30 invariant rows,
+30 register rows, **26 living reference documents** within cadence and 5 quota evidence records;
+`git diff --check` passed. The five focused docs suites passed **31/31** (documentation links, fact
+drift, invariant register, route inventory and section integrity). No Firebase project, credential,
+database operation, application suite or deployment was performed, because this change is planning
+documentation only. The final pull-request checks are recorded in
+[`DEVELOPMENT_LOG.md`](DEVELOPMENT_LOG.md) after they run.
+
+---
+
+# 27IV. PLAT-11 — backup contact registration, Firebase-plan safety review and second improvement set (2026-11-17)
+
+**Planning and documentation only.** The owner registered **Cucumber** as the backup security contact /
+reviewer. The contact document records the name and role only; the actual email address and phone
+number remain in the owner's private record and are deliberately not written to this repository, a
+commit, an issue or chat. **Security alerts remain inactive** because Cucumber has not acknowledged in
+this record and no test notification has been shown to reach both contacts.
+
+**Firebase plan safety review.** Corrected four assumptions in
+[`PLATFORM_FIREBASE_RECOVERY_DRILL_PLAN.md`](PLATFORM_FIREBASE_RECOVERY_DRILL_PLAN.md):
+
+- A deleted Google Cloud/Firebase project has a **30-day owner-restore window**, not immediate
+  permanence; after that it is permanently deleted. Billing is not automatically reinstated, some
+  resources may be deleted sooner, and a restore is not a backup.
+- A deleted service-account key can appear to work briefly because the Admin SDK may hold a cached
+  OAuth access token. The drill must restart the local process and retest; delayed success is not proof
+  the deleted key is accepted.
+- The Admin SDK supports `FIREBASE_AUTH_EMULATOR_HOST`, but this server has no emulator path and would
+  need a separately approved test-only configuration change. The separate free Spark project remains
+  the $0 drill path.
+- Host-wide firewall/DNS/proxy changes are **not** an acceptable network-failure simulation. Use the
+  existing verifier seam for deterministic transient behavior, or a dedicated process-scoped isolated
+  environment; otherwise record transport failure as unproven. No host-wide change is authorized.
+
+**Second improvement set.** Added IA-34–IA-37 to
+[`INVENTORY_AI_MULTI_CRITERIA_RANKING.md`](INVENTORY_AI_MULTI_CRITERIA_RANKING.md): API contract-drift
+gate, recovery/rotation freshness attestation, incident communication templates and query-plan/index
+regression watch. They are scored on the same seven criteria; IA-34 and IA-37 score 21/35, IA-35 and
+IA-36 score 20/35. No implementation is authorized.
+
+**Documentation map.** `docs/README.md` updates the contact/decision-sheet descriptions; `CLAUDE.md`
+adds the PLAT-11 row and §27IV index entry; `PHASE_HISTORY.md` records the planning-only increment;
+`DEVELOPMENT_LOG.md` records the current position.
+
+**Explicitly not done.** No security alert, mailbox, Firebase project, credential, drill, database
+operation, backup/restore, code change, deployment, domain or paid subscription. No tenant data,
+email/phone value, secret or recovery code was read or printed.
+
+**Verification.** `node scripts/check-docs.mjs` passed with **48 active documents**, 30 invariant rows,
+30 register rows, **26 living reference documents** within cadence and 5 quota evidence records;
+`git diff --check` passed. The five focused docs suites passed **31/31** (documentation links, fact
+drift, invariant register, route inventory and section integrity). No security alert, Firebase
+project, drill, database operation, application suite or deployment was performed; this is planning
+documentation only. The final pull-request checks are recorded in
+[`DEVELOPMENT_LOG.md`](DEVELOPMENT_LOG.md) after they run.
+
+---
+
+# 27IW. PLAT-12 — contact wording, joint-rank reconciliation, notification evidence and third improvement set (2026-11-17)
+
+**Documentation only.** No security alert, notification, Firebase project, drill, database operation,
+deployment, domain or paid service was created. Security alerts remain inactive.
+
+**Contact wording corrected.** The repository now says the backup contact details were **deliberately
+not copied into the repository, commits, issues, or pull requests**, and that the actual details remain
+in the owner's private record. It no longer claims the details were absent from chat. Only the name
+(`Cucumber`) and role are in the contact document; no email address or phone number is present.
+
+**Notification evidence added.**
+[`PLATFORM_SECURITY_NOTIFICATION_EVIDENCE.md`](PLATFORM_SECURITY_NOTIFICATION_EVIDENCE.md) records the
+required channel type, delivery date/time, tester, primary confirmation, backup confirmation,
+acknowledgement and privacy check. Every delivery field is **PENDING**; the test has not been run, no
+delivery is claimed, and no alert may be activated from this record.
+
+**Ranking reconciled.**
+[`INVENTORY_AI_MULTI_CRITERIA_RANKING.md`](INVENTORY_AI_MULTI_CRITERIA_RANKING.md) now has one
+23-row table with joint ranks. IA-31 and the other 21/35 entries share **rank 4**, not a separate
+sixth place. A script verified all 23 score sums and every joint-rank label; the next free rank after a
+tie group is used (1, 2, 4, 9, 14, 17, 19, 23).
+
+**Third improvement set.** Added IA-38 minimum supported app version gate, IA-39 tenant data
+export/portability, IA-40 AI/provider readiness probe and IA-41 redacted support diagnostics bundle.
+They are scored on the same seven criteria: IA-38 19/35, IA-39 20/35, IA-40 18/35 and IA-41 19/35.
+No implementation is authorized.
+
+**Documentation map.** `docs/README.md` indexes the evidence record and cadence; `CLAUDE.md` adds the
+PLAT-12 row and §27IW index entry; `PHASE_HISTORY.md` records the planning-only increment;
+`DEVELOPMENT_LOG.md` records the current position.
+
+**Explicitly not done.** No two-contact test notification, alert activation, mailbox creation, Firebase
+project, credential rotation, drill, database operation, code change, deployment, domain or paid
+subscription. No contact detail, secret or recovery code was read or printed.
+
+**Verification.** `node scripts/check-docs.mjs` passed with **49 active documents**, 30 invariant rows,
+30 register rows, **27 living reference documents** within cadence and 5 quota evidence records;
+`git diff --check` passed. The five focused docs suites passed **31/31**. A separate script verified the
+23 ranking rows: every seven-criterion sum matches its stated total, every joint-rank label matches its
+score group, and the groups are 23, 22 (2), 21 (5), 20 (5), 19 (3), 18 (2), 17 (4), 15. No alert,
+notification, Firebase project, drill, database operation, application suite or deployment was
+performed. The final pull-request checks are recorded in
+[`DEVELOPMENT_LOG.md`](DEVELOPMENT_LOG.md) after they run.
+
+---
+
+# 27IX. PLAT-13 — two-contact test procedure and fourth improvement set (2026-11-17)
+
+**Documentation only.** No notification was sent, no security alert was activated, and no Firebase
+project, drill, database operation, deployment, domain or paid service was created.
+
+**Procedure added.** [`PLATFORM_SECURITY_NOTIFICATION_EVIDENCE.md`](PLATFORM_SECURITY_NOTIFICATION_EVIDENCE.md)
+now starts with a ten-step owner-run procedure: use the private owner record; send a minimal test
+message to both contacts through existing owner-controlled channels; record channel type only; treat
+sent as different from delivered; collect both confirmations and Cucumber's written acknowledgement;
+capture redacted evidence; stop and retry if either delivery fails. The message template contains no
+password, key, token, recovery code, customer data or login-required link. Phone contact is allowed
+only when already included in the owner's plan at no incremental cost. No message was sent.
+
+**Fourth improvement set.** The ranking now contains 27 rows (IA-19–IA-45) with joint ranks:
+
+- **IA-42 — Customer business ownership transfer (22/35, rank 2):** a verified-member transfer with
+  re-authentication, recipient acceptance, cancellation window and audit; not provider-account
+  migration. It prevents credential sharing and preserves business continuity.
+- **IA-43 — Large-adjustment approval threshold (21/35, rank 5):** an opt-in tenant policy requiring a
+  second authorized approver for large stock adjustments; distinct from platform-admin IA-06.
+- **IA-44 — Owner-facing tenant activity log (21/35, rank 5):** a tenant-scoped view of role,
+  invitation, export, settings and large-stock changes; distinct from platform audit export IA-03.
+- **IA-45 — Scheduled inventory digest (21/35, rank 5):** an opt-in recurring low-stock/dead-stock/
+  adjustment summary using existing data and email; distinct from full export IA-39.
+
+**Rank groups after the additions.** Rank 1 IA-23 (23); rank 2 joint IA-20, IA-25 and IA-42 (22);
+rank 5 joint IA-19, IA-43, IA-44, IA-21, IA-34, IA-37, IA-31 and IA-45 (21); rank 13 joint IA-35,
+IA-22, IA-39, IA-36 and IA-32 (20); rank 18 joint IA-38, IA-41 and IA-30 (19); rank 21 joint IA-40 and
+IA-24 (18); rank 23 joint IA-27, IA-33, IA-28 and IA-26 (17); rank 27 IA-29 (15). No implementation is
+authorized.
+
+**Documentation map.** `docs/README.md` describes the 27-row ranking; `CLAUDE.md` adds the PLAT-13 row
+and §27IX index entry; `PHASE_HISTORY.md` records the planning-only increment;
+`DEVELOPMENT_LOG.md` records the current position.
+
+**Explicitly not done.** No test message, alert activation, mailbox, Firebase project, credential
+rotation, drill, database operation, code change, deployment, domain or paid subscription. No contact
+detail, secret or recovery code was read or printed.
+
+**Verification.** `node scripts/check-docs.mjs` passed with **49 active documents**, 30 invariant rows,
+30 register rows, **27 living reference documents** within cadence and 5 quota evidence records;
+`git diff --check` passed. The five focused docs suites passed **31/31**. The separate ranking script
+verified **27 rows**: every seven-criterion sum matches its total, every joint-rank label matches its
+score group, and the groups are 23, 22 (3), 21 (8), 20 (5), 19 (3), 18 (2), 17 (4), 15. No test
+message, alert, Firebase project, drill, database operation, application suite or deployment was
+performed. The final pull-request checks are recorded in
+[`DEVELOPMENT_LOG.md`](DEVELOPMENT_LOG.md) after they run.
+
+---
+
+# 27IY. PLAT-14 — printable two-contact notification test checklist (2026-11-17)
+
+**Documentation only.** No notification was sent and no security alert was activated. No Firebase
+project, drill, database operation, deployment, domain or paid service was created.
+
+**Checklist added.** [`PLATFORM_SECURITY_NOTIFICATION_TEST_CHECKLIST.md`](PLATFORM_SECURITY_NOTIFICATION_TEST_CHECKLIST.md)
+is a compact, one-page printable form for the owner. It records the test ID, UTC date, tester, channel
+type, separate primary and backup send/received timestamps, confirmation method, Cucumber's written
+acknowledgement, the evidence-redaction check and the final activation gate. It deliberately leaves
+every field blank and includes a prominent **STOP** rule if either delivery fails. A rendered
+Letter-size PDF is checked in beside it.
+
+**Links.** The evidence record points to the checklist; `docs/README.md` indexes it and gives it a
+90-day review cadence. `CLAUDE.md`, `PHASE_HISTORY.md` and `DEVELOPMENT_LOG.md` record the increment.
+
+**Explicitly not done.** No test message, acknowledgement, timestamp, alert activation, mailbox,
+credential rotation, drill, database operation, code change, deployment, domain or paid subscription.
+No contact detail, secret or recovery code was read or printed.
+
+**Verification.** The checklist was rendered to
+`PLATFORM_SECURITY_NOTIFICATION_TEST_CHECKLIST.pdf` through Chrome's print engine at Letter size;
+`pdftotext` reports **exactly 1 page**, and the extracted text contains the Test ID, both contact
+rows, Cucumber, the written acknowledgement, the redaction check, the owner signature and the STOP
+rule with **0 replacement characters**. `node scripts/check-docs.mjs` reports **50 active
+documents**, 30 invariant rows, 30 register rows, **28 living reference documents** within cadence
+and 5 quota evidence records. The five focused docs suites pass **31/31**; the ranking remains the
+previously verified 27-row set. No test notification or production check was performed for this
+documentation-only checklist.
+
+---
+
+# 27IZ. PLAT-15 - one-page PDF verification and tenant security review (2026-11-17)
+
+**Documentation only.** No notification was sent and no security alert was activated. No Firebase
+project, drill, database operation, deployment, domain, DNS change or paid service was created.
+
+**PDF verification.** `PLATFORM_SECURITY_NOTIFICATION_TEST_CHECKLIST.md` was rendered through
+Chrome's print engine at Letter size to `PLATFORM_SECURITY_NOTIFICATION_TEST_CHECKLIST.pdf`.
+`pdftotext` reports **exactly 1 page**; the extracted text contains the Test ID, primary and Cucumber
+rows, written acknowledgement, redaction check, owner signature and STOP rule, with **0 replacement
+characters**. The checklist was tightened to ASCII separators so the PDF text extracts cleanly. The
+rendered PDF is checked in beside the Markdown source.
+
+**Tenant security review.**
+[`PLATFORM_SECURITY_IMPROVEMENTS_BEYOND_IA45.md`](PLATFORM_SECURITY_IMPROVEMENTS_BEYOND_IA45.md)
+adds six recommendations not covered by IA-01-IA-45 or SEC-01-SEC-12, scored 1-5 on impact,
+likelihood, blast radius, free feasibility, business value and time to value (maximum 30):
+
+| Rank | ID | Recommendation | Score |
+| --- | --- | --- | ---: |
+| 1 | TS-01 | Tenant security notifications | 27/30 |
+| 2 | TS-02 | Tenant access recertification | 25/30 |
+| 3 | TS-03 | AI tenant-isolation canary | 23/30 |
+| 4 | TS-04 | Owner security posture scorecard | 23/30 |
+| 5 | TS-05 | Tenant MFA / step-up for OWNER and ADMIN | 22/30 |
+| 6 | TS-06 | Mail-domain anti-spoofing posture | 19/30 |
+
+TS-01 and TS-02 are the first free, customer-facing priorities. TS-03 and TS-04 are standing guards
+against silent isolation and control decay. TS-05 is explicitly gated on a verified no-cost Firebase
+MFA path; TS-06 is gated on an owner-controlled domain. No implementation is authorized.
+
+**Documentation map.** `docs/README.md` indexes the new review with a 90-day cadence; the existing
+platform security recommendations link to it without changing SEC-01-SEC-12 priorities. `CLAUDE.md`,
+`PHASE_HISTORY.md` and `DEVELOPMENT_LOG.md` record the increment.
+
+**Verification.** The PDF is exactly 1 page with all required fields present and no replacement
+characters. `node scripts/check-docs.mjs` reports **51 active documents**, 30 invariant rows, 30
+register rows, **29 living reference documents** within cadence and 5 quota evidence records. The
+five focused docs suites pass **31/31**. No test notification, alert activation, code change or
+production check was performed for this documentation-only increment.
+
+---
+
+# 27JA. PLAT-16 - TS-01 plan, reproducible PDF renderer and next improvement tranche (2026-11-17)
+
+**Documentation and local tooling only.** No notification was sent, no security alert was activated,
+and no production, DNS, database or paid-service change was made.
+
+**TS-01 plan.** [`PLATFORM_TENANT_SECURITY_NOTIFICATIONS_PLAN.md`](PLATFORM_TENANT_SECURITY_NOTIFICATIONS_PLAN.md)
+documents the event matrix, server-derived recipient rules, privacy exclusions, dedupe/rate limits,
+Brevo delivery and failure behaviour, and acceptance checks. Two constraints are explicit: audit
+writes are not a trigger bus, and the existing client-supplied `deviceLabel` is not a trustworthy
+new-device identifier. No implementation is authorized.
+
+**Reproducible renderer.** `scripts/render-notification-checklist.mjs` reads the Markdown checklist,
+renders it with pinned `marked@18.2.1` and Chrome at Letter size, extracts the PDF with `pdftotext`,
+and **fails unless it is exactly one page with every required field and no replacement characters**.
+It only replaces the checked-in PDF after those checks pass and never edits the checklist. The
+free-tool procedure is in
+[`PLATFORM_SECURITY_NOTIFICATION_CHECKLIST_PRINTING.md`](PLATFORM_SECURITY_NOTIFICATION_CHECKLIST_PRINTING.md).
+The renderer was run successfully and regenerated the one-page PDF.
+
+**Next tranche.** [`PLATFORM_RELIABILITY_DOCS_IMPROVEMENTS.md`](PLATFORM_RELIABILITY_DOCS_IMPROVEMENTS.md)
+adds six recommendations beyond TS-06/IA-45, scored 1-5 on impact, likelihood, blast radius, free
+feasibility, business value and time to value (maximum 30): RD-01 dependency outage behaviour matrix
+(26), RD-03 security review gate (25), RD-02 notification outbox (24), RD-04 tenant fairness budgets
+(22), RD-05 runtime configuration drift (22) and RD-06 documentation command verification (21).
+They are recommendations only.
+
+**Documentation map.** `docs/README.md` indexes all three new documents with a 90-day cadence; the
+TS review links to the implementation plan; the checklist links to its regeneration procedure.
+`CLAUDE.md`, `PHASE_HISTORY.md` and `DEVELOPMENT_LOG.md` record the increment.
+
+**Explicitly not done.** No notification, alert activation, implementation, code change to the
+application, DNS change, database operation, deployment, domain or paid subscription. The two-contact
+evidence record remains **NOT RUN / PENDING**.
+
+**Verification.** The renderer passed with **exactly 1 page** and wrote the checked-in PDF; the PDF
+contains the required fields with no replacement characters. `node scripts/check-docs.mjs` reports
+**54 active documents**, 30 invariant rows, 30 register rows, **32 living reference documents**
+within cadence and 5 quota evidence records. The five focused docs suites pass **31/31**. No test
+notification or production check was performed for this documentation/tooling increment.
+
+---
+
+# 27JB. PLAT-17 - Checklist restoration, path-safe renderer, RD-01 plan and NX-01-NX-07 (2026-11-17)
+
+**Documentation and local tooling only.** No notification was sent, no security alert was activated,
+no production fault injection was performed, and no application, DNS, database or paid-service
+change was made.
+
+**Checklist restoration.** The `Regenerate:` line was removed from
+[`PLATFORM_SECURITY_NOTIFICATION_TEST_CHECKLIST.md`](PLATFORM_SECURITY_NOTIFICATION_TEST_CHECKLIST.md).
+The checklist is back to its intended content; printing instructions live only in
+[`PLATFORM_SECURITY_NOTIFICATION_CHECKLIST_PRINTING.md`](PLATFORM_SECURITY_NOTIFICATION_CHECKLIST_PRINTING.md).
+The generated PDF was rebuilt and verified as exactly one page, with no printing instruction in its text.
+
+**Path-safe renderer.** `scripts/render-notification-checklist.mjs` now passes the Windows `npx`
+invocation as one quoted command string through `spawnSync(..., { shell: true })`, which quotes the
+checkout and temporary paths correctly and removes the previous `DEP0190` warning. A full run from a
+repository path **and** a `TEMP` directory both containing spaces regenerated a one-page PDF. The
+existing one-page, required-field and replacement-character checks are unchanged, and the script still
+never edits the checklist.
+
+**RD-01 plan.** [`PLATFORM_DEPENDENCY_OUTAGE_PLAN.md`](PLATFORM_DEPENDENCY_OUTAGE_PLAN.md) covers
+MongoDB Atlas, Firebase Admin/Auth, Brevo and the AI provider: user-visible states, stop conditions,
+recovery, cross-dependency ordering, the stable error-code contract and local drill scenarios D1-D9.
+It uses existing fake seams and a disposable local database; no production fault injection or live
+provider call is authorized.
+
+**Next tranche.** [`PLATFORM_NEXT_IMPROVEMENTS_BEYOND_RD06.md`](PLATFORM_NEXT_IMPROVEMENTS_BEYOND_RD06.md)
+ranks seven new recommendations beyond RD-06: NX-01 sensitive-data/log-redaction canary (27/30),
+NX-02 remaining-write idempotency (26), NX-03 cross-tenant non-AI route matrix (25), NX-04
+feature-flag/emergency-switch registry (24), NX-05 incident tabletop/postmortem (23), NX-06
+dependency rollback rehearsal (22) and NX-07 security-header/cookie drift (21). Recommendations only.
+
+**Documentation map.** `docs/README.md` indexes both new documents with a 90-day cadence; the RD
+tranche links to the drill plan and the NX tranche; the printing procedure records the spaces test.
+`CLAUDE.md`, `PHASE_HISTORY.md` and `DEVELOPMENT_LOG.md` record the increment.
+
+**Explicitly not done.** No notification, alert activation, implementation, production fault
+injection, DNS change, database operation, deployment, domain or paid subscription. The two-contact
+evidence record remains **NOT RUN / PENDING**.
+
+**Verification.** The renderer exited 0 in both the normal checkout and the spaced-path copy, each
+reporting **exactly 1 page**; the checked-in PDF is **99,872 bytes** and its text contains no
+`Regenerate:` line. `node scripts/check-docs.mjs` reports **56 active documents**, 30 invariant rows,
+30 register rows, **34 living reference documents** within cadence and 5 quota evidence records. The
+five focused docs suites pass **31/31**.
+
+# 27JC. PLAT-18 - RD-01 fact-check, NX-01 sensitive-data design and NY-01-NY-06 (2026-11-17)
+
+**Documentation only.** No application code, notification, alert activation, production fault
+injection, database operation, deployment, DNS change, domain or paid service was created or
+performed.
+
+**RD-01 fact-check.** The outage matrix was checked against the current server source and focused
+tests at `c43c5c2`, not only against earlier prose. Four documentation defects were corrected:
+
+| Claim checked | Correction | Source of truth |
+| --- | --- | --- |
+| Invitation delivery failure is a generic `503 MAIL_UNAVAILABLE` | It is **502 `INVITATION_MAIL_FAILED`**, and the invitation row is deleted; a disabled transport is **503 `INVITATION_MAIL_NOT_CONFIGURED`** | `server/src/services/invitations.service.ts`; `server/test/INVITATIONS.test.mjs` |
+| Firebase terminal rejection is “401 at exchange, 400 at the verification screen” | Public exchange/registration is **401**; authenticated renewal, identity link, credentials-changed, account deletion and verification request/confirm are **400**, deliberately, so a rejected credential does not end a valid local session | `firebaseAuth.controller.ts`; `auth.controller.ts`; `phaseAUTH01-firebase-verification.test.mjs`; `phaseAUTH04C-email-verification-http.test.mjs`; `ACCOUNT-DELETION.test.mjs` |
+| Mail failures have one user-visible `MAIL_UNAVAILABLE` code | `MAIL_UNAVAILABLE` is internal. Verification and invitation remap it; the reset flows hide delivery failure behind their anti-enumeration response. The per-flow `*_NOT_CONFIGURED` and `*_MAIL_FAILED` codes are now listed | mail service and the three flow services/controllers |
+| A DB-down request is answered after “the 1.5 s bound” | `bufferTimeoutMS = 1500` is the **buffering** bound, not a universal request deadline; tests pin the `DB_UNAVAILABLE` mapping and `/ready` 503, not exact wall-clock latency | `server/src/config/db.ts`; `phase07d-db-reliability.test.mjs` |
+
+Two clarifications were also recorded: a provider-attempt timeout is normally **502
+`AI_UNAVAILABLE`** while only the turn's wall-clock deadline is **504 `AI_TIMEOUT`**; and MongoDB is
+first for authenticated requests, while the public Firebase exchange verifies Firebase before writing
+the local session. The matrix now has a §10 fact-check table with those sources. No fault was
+injected, no mail or provider call was made and no production change was touched.
+
+**NX-01 design.** [`PLATFORM_SENSITIVE_DATA_PROTECTION_DESIGN.md`](PLATFORM_SENSITIVE_DATA_PROTECTION_DESIGN.md)
+adds the missing whole-product sensitive-data design: S1-S4 classification, the approved-appearance
+rule, persistence and sink maps, the redaction boundary, a C1-C14 redaction canary and acceptance
+checks. The code review found nine concrete gaps rather than generic advice:
+
+- **G1:** Firebase uid (and link-conflict `businessId`) is written into structured error logs in
+  `firebaseAuth.service.ts` and `firebaseLink.service.ts`. The code deliberately includes it as an
+  operator identifier, so this is a policy conflict with the S2 default, not an accidental
+  credential leak; the design requires an explicit approved-appearance decision.
+- **G2:** platform audit `route` uses `originalUrl` (query included), and `metadata` is size-bounded
+  arbitrary JSON.
+- **G3:** tenant audit `metadata` is `Mixed`, caller-controlled and returned to OWNER/ADMIN as-is.
+- **G4:** several paths log raw `err.message`, including the global 5xx branch, inventory and
+  purchase-order rollbacks, session audit failures, platform audit failures and AI tool failures.
+- **G5:** the AI upstream diagnostic body prefix is protected by a name-based regex, not a complete
+  detector.
+- **G6:** only `/api/auth` has a mount-level `no-store`; other authenticated API responses rely on
+  individual handlers.
+- **G7:** there is no field registry or cross-sink canary.
+- **G8:** tenant user ids in request logs and platform actor email/IP/user-agent are intentional, but
+  were not documented as approved appearances.
+- **G9:** platform support-ticket free text can contain customer data or a credential.
+
+The design does not change code. It names the future implementation sequence, the allowed and
+prohibited sinks, the negative control, the residual risks and the acceptance checks.
+
+**NY tranche.** [`PLATFORM_NEXT_IMPROVEMENTS_BEYOND_NX07.md`](PLATFORM_NEXT_IMPROVEMENTS_BEYOND_NX07.md)
+adds six new recommendations beyond NX-07, with a duplicate-exclusion table covering IA, TS, SEC, RD
+and NX:
+
+| Rank | ID | Recommendation | Score |
+| --- | --- | --- | ---: |
+| 1 | NY-01 | AI provider data-handling attestation | 26/30 |
+| 2 | NY-02 | Release-artifact secret and PII scan | 24/30 |
+| 3 | NY-03 | Operational runbook ownership and freshness register | 24/30 |
+| 4 | NY-04 | Retention/TTL effectiveness monitor | 22/30 |
+| 5 | NY-05 | Platform audit tamper-evidence chain | 20/30 |
+| 6 | NY-06 | External reference and provider-link freshness check | 18/30 |
+
+Every item is free-first and reuses existing resources. NY-01 answers the provider-side privacy
+question that IA-22 (internal retention) and NX-01 (logs/errors) do not; NY-02 scans the artifact
+rather than the dependency graph; NY-03 adds ownership and evidence status to runbooks; NY-04 proves
+the TTL indexes actually delete; NY-05 detects a raw-database rewrite of the audit trail; NY-06
+checks the external links a runbook follows. No implementation is authorized.
+
+**Documentation map.** `docs/README.md` indexes both new documents with a 90-day cadence;
+`PLATFORM_DEPENDENCY_OUTAGE_PLAN.md` now carries the §10 code fact-check. `CLAUDE.md`,
+`PHASE_HISTORY.md` and `DEVELOPMENT_LOG.md` record the increment. The roadmap index moves to **261**
+records.
+
+**Explicitly not done.** No application code change, notification, alert activation, production
+fault injection, database read or write, deployment, DNS change, domain or paid subscription was
+performed. The two-contact notification evidence remains **NOT RUN / PENDING**, and security alerts
+remain inactive.
+
+**Verification.** `node scripts/check-docs.mjs` reports **58 active documents**, 30 invariant rows,
+30 register rows, **36 living reference documents** within cadence and 5 quota evidence records. The
+five focused docs suites pass **31/31**; `git diff --check` is clean. The checklist PDF was not
+regenerated and remains **99,872 bytes / exactly 1 page**.
+
+---
+
+# 27JD. PLAT-19 - NZ-01-NZ-07 roadmap beyond NY-07 (2026-11-17)
+
+**Documentation only.** No application code, workflow, notification, alert activation, production
+fault injection, rollback drill, database operation, deployment, DNS change, domain or paid service
+was created or performed.
+
+**New tranche.** [`PLATFORM_NEXT_IMPROVEMENTS_BEYOND_NY07.md`](PLATFORM_NEXT_IMPROVEMENTS_BEYOND_NY07.md)
+ranks seven recommendations beyond NY-07 with the same six-criterion, 30-point method used by the
+NX and NY tranches:
+
+| Rank | ID | Recommendation | Score |
+| --- | --- | --- | ---: |
+| 1 | NZ-01 | CodeQL code scanning | 25/30 |
+| 2 | NZ-02 | Dependency-review pull-request gate | 23/30 |
+| 3 | NZ-03 | Production deploy rollback drill | 22/30 |
+| 4 | NZ-04 | GitHub Actions workflow security audit | 22/30 |
+| 5 | NZ-05 | Android manifest privacy guard | 21/30 |
+| 6 | NZ-06 | Privacy-policy drift guard | 19/30 |
+| 7 | NZ-07 | Firebase App Check | 18/30 |
+
+**Current observations.** No CodeQL/code-scanning configuration is enabled; no dependency-review
+workflow exists; no `zizmor`/`actionlint` job exists; `check-aab.mjs` checks packaging, permissions
+and bundle strings but not `allowBackup`, backup-rule contents, cleartext or exported components;
+the inspected AAB uses `allowBackup="true"` with SecureStore backup/data-extraction rules; no App
+Check integration exists; the existing privacy/terms tests assert rendering, CSP and links but not
+drift against provider/retention configuration; and `MONITORING.md` mentions rollback without a
+rehearsal. NY-07 remains the owner of action pinning/lockfiles; NZ-04 is workflow-logic review only.
+
+**Free-first.** Every item has a $0 path: CodeQL and dependency review on the public repository,
+Render Free rollback plus a disposable/local rehearsal, MIT `zizmor` with `actionlint`, an extension
+to the existing AAB checker, shared policy facts plus tests, and App Check within Play Integrity /
+reCAPTCHA free quotas. Optional paid costs are recorded in the document; no purchase is authorized.
+
+**Explicitly not done.** No CodeQL, dependency-review, workflow-audit, manifest, policy-test or App
+Check implementation. No notification, alert, rollback rehearsal, production fault injection,
+database operation, deployment, OTA, Play upload, DNS/domain change or paid service. The two-contact
+notification evidence remains **NOT RUN / PENDING**, and security alerts remain inactive.
+
+**Verification.** `node scripts/check-docs.mjs` reports **59 active documents**, 30 invariant rows,
+30 register rows, **37 living reference documents** within cadence and 5 quota evidence records. The
+five focused docs suites pass **31/31**; `git diff --check` is clean. No application suite was
+required for this documentation-only increment; the pre-existing AI-118 focused suite is recorded
+separately in the log and its working-tree files remain uncommitted.
+
+---
+
+# 27JE. PLAT-20 - atomic SUPERADMIN guard, monitor-only 5xx accounting and heartbeat restoration (2026-11-18)
+
+**Scope.** Three defects found by the 2026-11-18 review: a last-active-SUPERADMIN count-then-write
+race, a process-local `serverErrors` count that treated the stale integrity heartbeat as an API
+failure, and a daily laptop audit whose heartbeat writer had stopped. The guard was simplified where
+the active count cannot fall; the full server suite was run; the monitoring accounting and the
+heartbeat writer were fixed. No deployment, database reset, recovery-code rotation or WebAuthn
+registration was performed.
+
+**Last-SUPERADMIN guard.** The lifecycle service reads the active SUPERADMIN set and then writes, so
+two concurrent disables could both observe two active administrators and both commit. MongoDB
+transactions do not close that gap by themselves — both writes touch different documents, so write
+skew remains. The guard is one singleton `platform_admin_guards` document taken by a conditional
+`findOneAndUpdate` (a missing token or an expired `lockExpiresAt`), held for the mutation, and
+released by token. Only a mutation that can reduce the active count takes it: `status: DISABLED` and
+delete. Enabling (`status: ACTIVE`) is lock-free, because it cannot make the last administrator
+disappear. A second caller waits up to 5 s and then answers **409
+`PLATFORM_ADMIN_MUTATION_IN_PROGRESS`**; a crashed holder's lease expires after 30 s and is taken
+over. The `finally` path releases only a lease this call actually holds.
+
+The PLAT-8 fixture now proves the boundary rather than the happy path: ten concurrent disables commit
+exactly one; a delete and a disable racing leave one active; an enable succeeds while a live lease is
+held; an expired lease is taken over. The same fixture against the old service failed round 1 with
+`expected exactly one disable to commit, got 2`.
+
+**Monitoring-only 5xx.** `GET /api/health/integrity` returns `503` when the heartbeat is missing or
+older than 26 hours. That is the monitoring state, not a failure of the API, but the OPS-2 finish
+listener counted it in `serverErrors`. `recordResponse(status, path)` now ignores `503` only for
+`/api/health/integrity`; the response still increments `responses` and `byStatusClass['5xx']`.
+`/api/health/ready` is not excluded: its `503` is a real database-availability failure. The durable
+`ops_error_events` store cannot be the answer for the readiness case — the error handler writes it
+through the database that is down — so the health endpoint remains the signal there, and the
+monitoring-only integrity state does not belong in the error counter at all. `app.ts` now passes the
+normalised `req.originalUrl` path to the recorder, because `req.path` can be router-relative at the
+`finish` event.
+
+**Heartbeat restoration.** The Task Scheduler job did run on 2026-11-17 and 2026-11-18 and the audit
+completed, but the writer exited `2` with `MONGODB_URI is not set`: the wrapper started it from the
+repository root, where `dotenv/config` could not find `server/.env`. `server/scripts/lib/load-server-env.mjs`
+now resolves `server/.env` from its own module location and loads it with `quiet: true`. The PowerShell
+wrapper calls Node through `Invoke-Node`, which scopes `$ErrorActionPreference = 'Continue'` around the
+native call so a dotenv banner on stderr is logged rather than treated as a terminating error. The
+registered task returned `0`; the heartbeat is `checkedAt=2026-11-18T05:49:03.828Z`; and
+`/api/health/integrity` answered **200 / fresh**.
+
+**Verification.** `npm run typecheck` exits 0. The full server suite passes **3,150/3,150** (506
+suites). PLAT-8 passes; PLAT-4 and PLAT-7 pass **14/14** with two mode skips; OPS-2 passes **13/13**;
+the Task Scheduler run returns `0`; `GET /api/health/integrity` returns `200`. The focused docs suites
+pass **32/32** and `node scripts/check-docs.mjs` reports **59 active documents / 37 living references**.
+`git diff --check` is clean.
+
+**Not done.** Nothing was deployed, merged or pushed to production. Recovery-code rotation and WebAuthn
+key registration remain owner actions with the current password/TOTP and the physical key; the local
+recovery-code file is stale until that ceremony is completed.
+
+---
+
+# 27JF. PLAT-21 - console status assessment and role/account guide (2026-11-18)
+
+**Documentation and read-only assessment only.** No application code, deployment, tenant
+write, platform account creation, recovery-code rotation or WebAuthn registration was
+performed. PR #336 remains open and undeployed.
+
+**What was assessed.** The live `/platform` boundary and health endpoints; the current
+implementation of the platform identity, MFA, capabilities, operations, monitoring,
+support, deployments and audit services; the production aggregates behind
+`GET /api/platform/operations`; and every supported account path for platform and tenant
+roles. The result is
+[01 — Status and accounts](./platform-console/01-status-and-accounts.md).
+
+**Production snapshot.** Read-only against `inventoryai_prod_db` at 2026-11-18
+06:37:22 UTC, with index creation disabled. The build was `5016553` (Node v24.22.3).
+Six businesses (all active), 11 accounts (9 active), one tenant/member active in the
+7-day feature window, 10,119 active products, 20,184 inventory rows, 75 stock movements,
+4 feedback rows and one unresolved support ticket. AI: 86 turns, 78 ok / 4 degraded /
+4 failed, 36 free / 50 paid, 4 failover turns, p95 22,719 ms, provider-reported cost
+$0.053025 with 82 reported and 4 unknown. The sole platform administrator is an ACTIVE
+SUPERADMIN with TOTP, 0 WebAuthn keys, 7 unused recovery codes and 0 active sessions.
+
+**Accuracy findings.** The AI totals reconcile (86 = 78 + 4 + 4; 36 + 50 = 86; models
+49 + 36 + 1 = 86; daily rows sum to 86; outcomes sum to 86); movement counts sum to 75;
+feedback reasons match the 3 down ratings; the 20 audit action counts sum to 201. The **5xx counter-scope difference** is not a missing-incident gap: `/api/health`
+reported 58 process-lifetime 5xx responses (last at 05:47:53 UTC) while the durable
+`ops_error_events` window held 0. The old process counter includes the intentional
+`/api/health/integrity` 503 when the laptop heartbeat is stale; that route writes its
+response directly and never reaches the durable error handler. Production is still on
+`5016553`; the fix is in open PR #336. After that deploy and restart, the process counter
+clears and stops counting the monitoring-only integrity `503`, while the durable store
+remains the record for error-handler failures. Readiness 503s cannot be durably written
+while MongoDB is down.
+
+**Authentication and account guide.** The guide documents the outer Basic gate;
+platform password → mandatory TOTP enrollment, optional WebAuthn → HttpOnly cookie + CSRF; durable MFA
+lockout; forced recovery-code setup; the READ_ONLY / SUPPORT / SECURITY / SUPERADMIN
+capability matrix; CLI-only platform account creation; first-login verification; and
+lifecycle limits. It also documents tenant OWNER registration, ADMIN/MANAGER/STAFF
+direct creation and 7-day invitations, the backend role restrictions, required
+credentials, and role-specific verification checks. No credential, TOTP secret or
+recovery code is recorded.
+
+**Known limits recorded.** No WebAuthn key on the sole SUPERADMIN; the local recovery-code
+file is stale; the outer gate is a shared secret, not network isolation; the local bcrypt
+platform realm and missing step-up/dual control remain; audit has no immutable sink or
+retention decision; the console is pull-only and has no platform pager; host/Atlas/backup,
+mobile and job telemetry are unavailable; AI provider health and current configured model
+are not shown; deployment history is boot-observed only. An authenticated browser session
+was not re-observed in this pass, and the guide says so.
+
+**Verification.** `node scripts/check-docs.mjs` reports **60 active documents / 38 living
+references**; the five focused docs suites pass **32/32**; `git diff --check` is clean. No
+application code changed; the PLAT-20 full suite remains **3,150/3,150** across 506 suites.
+No deployment, account creation or production write was performed.
+
+---
+
+# 27JG. PLAT-22 - additive security roadmap beyond PLAT-21 (2026-11-18)
+
+**Recommendations only.** No code, configuration, notification, drill, database operation,
+deployment or paid service is authorized. This record adds seven controls that are not
+already owned by SEC-01–12, CI-01–15, TS-01–06, NX-01–07, NY-01–07 or NZ-01–07. The
+full reasoning is
+[08 — Security roadmap](./platform-console/08-security-roadmap.md).
+
+**PR #336 CI status.** The PR head `6f61e11` is **CLEAN** and mergeable. All five required
+checks pass: `server`, `mobile`, `secret-guard`, `attribution-guard` and `webauthn-e2e`.
+The first `webauthn-e2e` attempt failed in the third password step with
+`VALIDATION_ERROR`; the same script passed locally, and a rerun of the failed job passed
+in 1m49s. No code was changed to obtain the pass. No merge, push or deployment was
+performed.
+
+**Ranked additions.** NS-01 password-breach screening (26/30, P1); NS-03 versioned
+rotation for platform signing and MFA-encryption keys (24/30, P1); NS-02 audited,
+address-verified operator CLI (24/30, P1); NS-04 platform session inventory and targeted
+revocation (22/30, P2); NS-07 AI web-egress boundary and prompt-injection canary (21/30,
+P2); NS-05 outer-gate anti-automation and audit (21/30, P2); NS-06 self-service platform
+factor rotation (20/30, P2). Each item names the code gap, why it matters, the free path,
+acceptance checks and dependencies. The recommended sequence starts with NS-02, NS-05 and
+NS-01 as low-regret quick wins, then NS-03 before the next rotation drill.
+
+**Explicitly excluded.** Recovery/break-glass, lifecycle, MFA attempt budgets, audit
+export/least privilege, support grants, step-up/dual control, the dedicated identity
+provider, security alerting, browser-E2E durability, tenant notifications/MFA, the
+cross-tenant AI canary, sensitive-data redaction, the non-AI cross-tenant matrix, CodeQL,
+dependency review, deploy rollback, workflow audit, Android privacy, policy drift, App
+Check, network isolation and key-rotation procedure ownership remain owned by their
+existing records.
+
+**Verification.** `node scripts/check-docs.mjs` reports **61 active documents / 39 living
+references**; the five focused docs suites pass **32/32**; `git diff --check` is clean. PR
+#336's five required checks pass. No application code changed and the PLAT-20 full suite
+remains **3,150/3,150** across 506 suites.
+
+---
+
+# 27JH. PLAT-23 - owner/CEO account, credential and access guide (2026-11-18)
+
+**Documentation only.** No application code, deployment, account creation, tenant write,
+recovery-code rotation, WebAuthn registration or production credential change was made.
+PR #336 remains open and undeployed.
+
+**What was added.**
+[02 — Accounts and credentials](./platform-console/02-accounts-and-credentials.md)
+is the practical companion to the PLAT-21 status/account assessment. It covers the four
+platform roles and their exact console-section access; tenant roles and their enforced
+permissions; platform CLI creation, disable/enable/delete, key removal and the absence of
+a role-change route; tenant registration, invitations, direct creation, disable-only
+member management, self-deletion and the missing ownership-transfer path; every platform,
+tenant and server credential with its purpose, safe storage, regeneration and revocation;
+TOTP, recovery codes, WebAuthn, email codes, reset tokens and the mechanisms that do not
+exist; normal platform access, failure diagnosis and the guarded break-glass reset; and an
+owner/CEO checklist, cadence, incident response and explicit precautions.
+
+**Current production gaps recorded.** One ACTIVE SUPERADMIN with TOTP, **0 WebAuthn keys**
+and **7 unused recovery codes**; the local recovery-code file is stale. The guide's first
+actions are to register two hardware keys, rotate the recovery codes, confirm the outer
+access key, add a second trusted SUPERADMIN or test break-glass, and protect the Render,
+Atlas, Firebase, Brevo, OpenRouter and repository owner accounts. It also records that the
+outer gate is a shared secret rather than network isolation, that platform audit has no
+immutable sink or pager, that `PLATFORM_MFA_ENCRYPTION_KEY` rotation is destructive in the
+current build, and that there is no PIN, biometric app lock, SMS OTP, tenant MFA, tenant
+recovery code, self-service platform password reset, admin delete-member route or tenant
+ownership transfer.
+
+**Verification.** `node scripts/check-docs.mjs` reports **63 active documents / 41 living
+references**; the focused docs suites pass **31/31** across six suites; `git diff --check`
+is clean. No application code changed; no deployment, account creation or production
+write was made.
+
+---
+
+# 27JI. PLAT-24 - dedicated console documentation and accuracy corrections (2026-11-18)
+
+**Documentation only.** No application code, deployment, account creation, credential
+change or PR #336 commit was made. PR #336 remains open and undeployed.
+
+**What changed.** The eight console documents moved from the root `docs/` directory to
+[`docs/platform-console/`](./platform-console/README.md), with stable numbered names and a
+new index that defines scope, reading order, boundaries and maintenance rules. The root
+[`docs/README.md`](./README.md) map now gives the console its own subsection, and
+`scripts/check-docs.mjs` treats the folder as active documentation. Cross-links, the
+roadmap references, the development log and `CLAUDE.md` were rebased to the new paths.
+
+**Accuracy corrections.** Tenant disable blocks the member at the next request but does
+not delete existing session rows; re-enabling before expiry can revive an old token, and
+an admin has no member-session revocation route. Platform MFA is now described as
+mandatory TOTP enrollment with optional WebAuthn, not “mandatory TOTP/WebAuthn.” The
+58-vs-0 5xx difference is recorded as a process-counter/durable-store scope difference,
+not 58 missing incidents: the old counter includes the intentional integrity 503, which
+bypasses the durable error handler, and readiness 503s cannot be written while MongoDB is
+down.
+
+**Verification.** `node scripts/check-docs.mjs` reports **63 active documents / 41 living
+references**; the focused docs suites pass **31/31** across six suites; `git diff --check`
+is clean. No application code changed; no deployment, account creation or production
+write was made.
+
+---
+
+# 27JJ. PLAT-25 - outer access gate failure bounding and sampled audit (2026-11-18)
+
+**Code and tests only.** No deployment, merge, production configuration change or PR #336
+commit was made. PR #336 remains open and undeployed.
+
+**What changed.** `platformAccessGate` now counts failed key checks per source address and
+per process in a bounded window. After the budget it answers
+`429 PLATFORM_ACCESS_RATE_LIMITED` with `Retry-After`; a valid key is checked first and is
+never blocked by the failure budget. The first failure from an address in each window
+writes one sampled `platform.access.gate_denied` audit event with the source, route and
+time, never the supplied key. The budgets are configurable with
+`PLATFORM_ACCESS_GATE_WINDOW_MS`, `PLATFORM_ACCESS_GATE_MAX_FAILURES` and
+`PLATFORM_ACCESS_GATE_GLOBAL_MAX_FAILURES`; the limiter is deliberately process-local
+(CI-09 tracks the shared store).
+
+**Verification.** The PLAT-7 suite proves three bounded 401s, the fourth request as 429
+with `Retry-After`, a correct key still reaching platform authentication during the
+window, exactly one sampled audit row, and no key material in that row. `tsc --noEmit`
+passes; `git diff --check` is clean. No deployment or production change was made.
+
+---
+
+# 27JK. PLAT-26 - audited operator CLI creation (2026-11-18)
+
+**Code and tests only; address activation is not implemented.** No deployment, merge,
+production account creation or PR #336 commit was made. PR #336 remains open and
+undeployed.
+
+**What changed.** The operator CLI now requires `PLATFORM_ADMIN_OPERATOR`; the optional
+`PLATFORM_ADMIN_GRANT_ID` records the grant when one was used. `createPlatformAdminAccount`
+accepts an explicit audit context and writes exactly one `platform.admin.created` event
+on success, with actor identity, source (`cli`), target email, target role and grant id.
+A duplicate or failed creation writes no success event. The WebAuthn E2E supplies its own
+disposable operator identity. The console guides and `.env.example` document the new
+input. Address verification and `PENDING` activation remain the next NS-02 step.
+
+**Verification.** PLAT-7 **6/6** in full mode proves the single creation event, its
+operator/source/target/grant fields, the absence of password material, and no second
+event on a duplicate creation. `tsc --noEmit`, ESLint and `git diff --check` pass.
+`check-docs` reports **64 active documents / 42 living references**; focused docs suites
+pass **31/31**. The new ranking is [09 — Remaining security priorities](./platform-console/09-remaining-security-priorities.md).
+No deployment or production account was created.
+
+---
+
+# 27JL. PLAT-27 - SEC-08 step-up proof for destructive administrator actions (2026-11-18)
+
+**Code, tests and console documentation.** The initial record was written before the
+console-delivery commit; the delivery addendum below supersedes its PR status.
+
+**Delivery addendum (2026-11-18).** The complete PLAT-20–27 console work was committed as
+`282c8d6` and pushed to PR #336. CI run `44271986057` passed all five required checks:
+`server` **3,161/3,161** across 508 suites, `webauthn-e2e`, `mobile`, `secret-guard` and
+`attribution-guard`. No deployment, merge, address activation or production account
+change was made before this addendum.
+
+**What changed.** `POST /api/platform/auth/step-up` re-checks the current password and a
+TOTP code, advances the existing `lastTotpCounter` replay guard atomically, and returns a
+five-minute JWT proof bound to the administrator id, the authenticated session `jti` and
+the `platform.admin.lifecycle` scope. The proof uses its own audience, so it is refused as
+an access token. It is stateless: the same session can replay it within the five-minute
+window, and the documentation states that rather than pretending it is one-shot.
+
+**Server enforcement.** `PATCH /admins/:id/status`, `DELETE /admins/:id` and
+`DELETE /admins/:id/webauthn/:credentialId` now run `requirePlatformStepUp()` after
+authentication and the `platform.admin.manage` capability check and before the
+controller. A missing, expired, malformed, cross-session, cross-admin or wrong-scope
+proof returns `403 PLATFORM_STEP_UP_REQUIRED`; no lifecycle service or state change runs.
+Enable is covered too because it shares the status route.
+
+**Audit.** `platform.auth.step_up_succeeded`, `.step_up_failed`, `.step_up_required` and
+`.step_up_used` join the closed catalogue. Issuance failures, refusals and successful use
+are recorded; passwords, TOTP codes and proof tokens are never recorded.
+
+**Console and transport.** The Team management actions call a wrapper that retries once
+after a password + TOTP prompt. The prompt explains the five-minute, session-bound proof.
+The API CORS allow-list names `X-Platform-Step-Up`, with a preflight regression test, so the
+dedicated console can send it. If the TOTP step just spent at login is entered again, the
+step-up endpoint returns `409 PLATFORM_MFA_CODE_ALREADY_USED` and asks for the next code;
+the valid current code is not called invalid, and the reuse does not count as a failed
+factor. The server check is authoritative; the UI is a convenience, not the control.
+
+**Verification.** PLAT-4 **13/13**, PLAT-9 **9/9**, PLAT-2 **10/10** and Phase 07C HTTP
+security **17/17** pass in full mode; the new suite covers missing, wrong-password,
+wrong-code, used-login-code, malformed, wrong-scope, expired, cross-session, cross-admin
+and proof-as-access-token refusals plus valid use and audit. The
+Phase 23 and route-inventory guards pass **32/32**, with §2.6 at **123 = 69
+permission-gated + 23 authenticated + 31 public + 0 role-gated**. `tsc --noEmit`, ESLint,
+`git diff --check`, `check-docs` (**64 active / 42 living**) and the focused docs suites
+pass. No deployment or production change was made before the merge addendum below.
+
+**Merge and deploy addendum (2026-11-18).** PR #336 squash-merged as `e7ce455`. Render
+deployed the console delivery. Post-deploy evidence: `/api/health` reports commit
+`e7ce455`, `status: ok`, `db: connected` and **0** `serverErrors`; `/api/health/ready` is
+200; `/platform/` and `/api/platform/status` remain 401; the destructive-route preflight
+is 204 with credentials and `x-platform-step-up` allowed. No authenticated browser
+session was opened after the deploy, so the rendered step-up dialog and lifecycle action
+remain pre-deploy browser-verified rather than post-deploy browser-proven.

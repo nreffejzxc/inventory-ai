@@ -29,6 +29,8 @@ import ApiError from '../utils/ApiError.ts';
 export const PLATFORM_JWT_ISSUER = 'inventory-ai-platform';
 export const PLATFORM_JWT_AUDIENCE = 'platform-admin';
 export const PLATFORM_MFA_AUDIENCE = 'platform-admin-mfa';
+export const PLATFORM_STEP_UP_AUDIENCE = 'platform-admin-step-up';
+export const PLATFORM_STEP_UP_PURPOSE = 'platform-step-up';
 export const PLATFORM_JWT_ALGORITHM = 'HS256';
 
 export const PLATFORM_MFA_PURPOSES = Object.freeze({
@@ -58,6 +60,11 @@ export type PlatformTokenClaims = {
 export type PlatformMfaClaims = PlatformTokenClaims & {
   purpose?: string;
   challenge?: string;
+};
+
+export type PlatformStepUpClaims = PlatformTokenClaims & {
+  purpose?: string;
+  scope?: string;
 };
 
 function configuredSecret(): string {
@@ -166,6 +173,71 @@ export function verifyPlatformMfaToken(
   return claims;
 }
 
+/**
+ * Sign a short-lived proof that the signed-in administrator just re-proved
+ * their password and TOTP. The proof names the session (`jti`) and an explicit
+ * action scope, so it cannot be moved to another session or reused for a
+ * different class of action. This is NOT an access token: its audience is
+ * separate, and `requirePlatformAdmin` refuses it.
+ */
+export function signPlatformStepUpToken(
+  adminId: string,
+  jti: string,
+  scope: string,
+  expiresInSeconds: number,
+): string {
+  if (!jti || typeof jti !== 'string') {
+    throw new ApiError(
+      500,
+      'A session id is required to sign a platform step-up proof',
+      'PLATFORM_SESSION_ID_REQUIRED',
+    );
+  }
+  if (!scope || typeof scope !== 'string') {
+    throw new ApiError(500, 'A scope is required for a platform step-up proof', 'PLATFORM_STEP_UP_INVALID');
+  }
+  return jwt.sign(
+    {
+      sub: String(adminId),
+      jti,
+      purpose: PLATFORM_STEP_UP_PURPOSE,
+      scope,
+    },
+    platformSecret(),
+    {
+      algorithm: PLATFORM_JWT_ALGORITHM,
+      expiresIn: expiresInSeconds,
+      issuer: PLATFORM_JWT_ISSUER,
+      audience: PLATFORM_STEP_UP_AUDIENCE,
+    },
+  );
+}
+
+/**
+ * Verify a step-up proof against the exact administrator, session and action
+ * scope that requested it. Every mismatch is one generic refusal; the caller
+ * turns it into a 403 without exposing which binding failed.
+ */
+export function verifyPlatformStepUpToken(
+  token: string,
+  expected: { adminId: string; jti: string; scope: string },
+): PlatformStepUpClaims {
+  const claims = jwt.verify(token, platformSecret(), {
+    algorithms: [PLATFORM_JWT_ALGORITHM],
+    issuer: PLATFORM_JWT_ISSUER,
+    audience: PLATFORM_STEP_UP_AUDIENCE,
+  }) as PlatformStepUpClaims;
+  if (
+    claims.purpose !== PLATFORM_STEP_UP_PURPOSE ||
+    claims.sub !== String(expected.adminId) ||
+    claims.jti !== expected.jti ||
+    claims.scope !== expected.scope
+  ) {
+    throw new ApiError(401, 'Invalid platform step-up proof', 'PLATFORM_STEP_UP_INVALID');
+  }
+  return claims;
+}
+
 /** Absolute expiry of a just-signed token, for the login/renew response. */
 export function platformTokenExpiresAt(token: string): string | null {
   const payload = jwt.decode(token) as PlatformTokenClaims | null;
@@ -177,6 +249,8 @@ export default {
   PLATFORM_JWT_ISSUER,
   PLATFORM_JWT_AUDIENCE,
   PLATFORM_MFA_AUDIENCE,
+  PLATFORM_STEP_UP_AUDIENCE,
+  PLATFORM_STEP_UP_PURPOSE,
   PLATFORM_JWT_EXPIRES_IN,
   PLATFORM_MFA_PURPOSES,
   isPlatformAuthConfigured,
@@ -184,6 +258,8 @@ export default {
   verifyPlatformAccessToken,
   signPlatformMfaToken,
   verifyPlatformMfaToken,
+  signPlatformStepUpToken,
+  verifyPlatformStepUpToken,
   decodePlatformAccessToken,
   platformTokenExpiresAt,
 };

@@ -17,6 +17,8 @@ export type TotpVerification = {
   valid: boolean;
   counter: number;
   matchedStep: number;
+  /** The code is the one that already advanced the replay counter. */
+  alreadyUsed?: boolean;
 };
 
 function sanitizeBase32(secret: string): string {
@@ -117,14 +119,8 @@ export function verifyTotp(
   for (let offset = -window; offset <= window; offset += 1) {
     candidates.push(nowCounter + offset);
   }
+  let usedCounter = -1;
   for (const counter of candidates) {
-    if (
-      typeof options.lastUsedCounter === 'number' &&
-      Number.isFinite(options.lastUsedCounter) &&
-      counter <= options.lastUsedCounter
-    ) {
-      continue;
-    }
     const expected = generateTotp(secret, counter, digits);
     const supplied = Buffer.from(normalized);
     const comparison = Buffer.from(expected);
@@ -132,8 +128,27 @@ export function verifyTotp(
       supplied.length === comparison.length &&
       crypto.timingSafeEqual(supplied, comparison)
     ) {
+      if (
+        typeof options.lastUsedCounter === 'number' &&
+        Number.isFinite(options.lastUsedCounter) &&
+        counter <= options.lastUsedCounter
+      ) {
+        // Distinguish a real replay from a wrong code. A caller can then tell
+        // the person to wait for the next step instead of claiming a valid
+        // current code is invalid.
+        usedCounter = counter;
+        continue;
+      }
       return { valid: true, counter, matchedStep: counter - nowCounter };
     }
+  }
+  if (usedCounter >= 0) {
+    return {
+      valid: false,
+      counter: usedCounter,
+      matchedStep: usedCounter - nowCounter,
+      alreadyUsed: true,
+    };
   }
   return { valid: false, counter: -1, matchedStep: 0 };
 }

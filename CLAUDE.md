@@ -42,8 +42,8 @@ Node.js **24** (pinned by `.nvmrc` and `engines.node`) · Express · TypeScript 
 TypeScript-first, **no build step**: the server runs its `.ts` sources through Node's native type
 stripping (`npm start` is `node src/index.ts`), so an older runtime cannot start it. `tsconfig.json`
 sets `noEmit` and `erasableSyntaxOnly`, so `tsc` is purely a checker and non-strippable syntax is a
-compile error rather than a runtime failure. `server/src` is **222** `.ts` modules (re-counted
-2026-11-16) and exactly one intentionally deferred `.js` module,
+compile error rather than a runtime failure. `server/src` is **226** `.ts` modules (re-counted
+2026-11-18) and exactly one intentionally deferred `.js` module,
 `server/src/services/entitlement.service.js`; `docs/TS-MIGRATION-MANIFEST.md` records the migration
 campaign.
 
@@ -276,12 +276,33 @@ The project is built in phases: one phase, one purpose, one verification record.
 | Reliability / OPS-5 | Post-deploy phone proof, the 2,517-finding read-only triage, and the scheduled baseline/history monitor — §27IA |
 | Reliability / OPS-6 | One-off Task Scheduler proof, the externally resolved SteelSeries finding, and hosted freshness behind UptimeRobot — §27IB |
 | Platform Operations / PLAT-1 | INTERNAL owner/support/developer monitoring plane — separate administrator identity, sessions and capabilities; no tenant Operations surface — §27IJ, §27IK; durable 5xx/feature stores — §27IL |
-| Platform Operations / PLAT-2–PLAT-3 | Dedicated console with HttpOnly cookie, CSRF and strict CSP; mandatory TOTP/WebAuthn; append-only platform audit read by SECURITY/SUPERADMIN; 105-route inventory — §27IM |
+| Platform Operations / PLAT-2–PLAT-3 | Dedicated console with HttpOnly cookie, CSRF and strict CSP; mandatory TOTP enrollment with optional WebAuthn; append-only platform audit read by SECURITY/SUPERADMIN; 105-route inventory — §27IM |
 | Platform Operations / PLAT-4 | Fresh security review, CI browser WebAuthn job, production-readiness checklist and prioritized future security recommendations — §27IN |
 | Platform Operations / PLAT-5 | Recovery codes, durable account-scoped MFA lockout, password change, administrator lifecycle and fail-closed origin/cookie hardening — §27IO |
 | Platform Operations / PLAT-6 | **LIVE internal console at `/platform` on `56e8c27`:** support tickets, deployment history, infrastructure/AI/database/mobile/jobs views, health-only status, production smoke and browser MFA sign-in — §27IP |
+| Platform Operations / PLAT-7 | **PLAT-7 deployed at `e218bb0`:** forced recovery-code ceremony, free-plan outer access gate, guarded break-glass reset, production gate/recovery proof and required `webauthn-e2e` branch check — §27IQ, §27IR |
+| Platform Operations / PLAT-8 | **Docs-only planning assessment (2026-11-17):** Cloudflare Access/Tailscale/Render access options, a platform security alert catalogue with owners and thresholds, and an 18-item whole-product ranking — §27IS; no implementation or production change |
+| Planning / PLAT-9 | **Free-first decision package (2026-11-17):** conditional Cloudflare migration plan, alert-owner decision sheet, disposable restore drill and additive follow-up opportunities — §27IT; no implementation, database operation, deployment or paid service |
+| Planning / PLAT-10 | **Security contacts, Firebase recovery drill and multi-criteria ranking (2026-11-17):** verified owner as primary, backup **UNASSIGNED** at that point with alerts inactive; isolated free Firebase recovery plan; seven-criteria IA-19–IA-33 ranking — §27IU; no implementation, database operation, deployment or paid service |
+| Planning / PLAT-11 | **Backup contact, Firebase-plan review and second ranking (2026-11-17):** Cucumber named backup (private contact details, test pending, alerts inactive); 30-day project-restore/key-cache/network-safety corrections; IA-34–IA-37 added — §27IV; no drill, implementation, database operation, deployment or paid service |
+| Planning / PLAT-12 | **Contact wording, joint ranks, notification evidence and third ranking (2026-11-17):** private contact details only in owner record; one 23-row joint-rank table; evidence record pending both deliveries; IA-38–IA-41 added — §27IW; no alert, drill, implementation, database operation, deployment or paid service |
+| Planning / PLAT-13 | **Two-contact test procedure and fourth ranking (2026-11-17):** owner-run, free-channel, no-secret test procedure with both acknowledgements; IA-42–IA-45 added; one 27-row joint-rank table — §27IX; no notification sent, alert activated, implementation, database operation, deployment or paid service |
+| Planning / PLAT-14 | **Printable two-contact test checklist (2026-11-17):** one-page owner form for both receipt timestamps, Cucumber's written acknowledgement, evidence redaction and the final activation gate — §27IY; blank and pending, no notification sent or alert activated |
+| Planning / PLAT-15 | **Verified print layout and tenant security review (2026-11-17):** Chrome-rendered Letter PDF exactly one page; six new tenant-facing recommendations TS-01–TS-06 ranked, with free/cost/domain gates — §27IZ; no implementation, notification, alert, DNS/deployment or paid service |
+| Planning / PLAT-16 | **TS-01 plan, reproducible checklist renderer and next improvement tranche (2026-11-17):** event/recipient/privacy/rate/acceptance plan; free Chrome renderer with mandatory one-page verification; RD-01–RD-06 ranked beyond TS-06 — §27JA; no implementation, notification, alert, production change or paid service |
+| Planning / PLAT-17 | **Checklist restoration, path-safe renderer, RD-01 drill plan and NX-01–NX-07 (2026-11-17):** printing line removed from the checklist; Windows quoted paths with spaces proven; dependency outage matrix and local drill; next ranked tranche — §27JB; no implementation, notification, alert, production fault injection or paid service |
+| Planning / PLAT-18 | **RD-01 fact-check, NX-01 sensitive-data design and NY-01–NY-06 (2026-11-17):** four code-proven corrections to the outage matrix; sensitive-field map, G1–G9 findings, redaction boundary and C1–C14 canary; six new ranked recommendations beyond NX-07 — §27JC; no implementation, notification, alert, production fault injection, database operation or paid service |
+| Planning / PLAT-19 | **NZ-01–NZ-07 roadmap beyond NY-07 (2026-11-17):** CodeQL, dependency review, production deploy rollback drill, workflow security audit, Android manifest privacy, privacy-policy drift and App Check, with free-first controls and optional paid costs — §27JD; no implementation, notification, alert, drill, database operation, deployment or paid service |
+| Platform Operations / PLAT-20 | **Atomic last-SUPERADMIN guard, monitor-only 5xx accounting and heartbeat restoration (2026-11-18):** lease-serialised disable/delete with lock-free enable; stale-lease and concurrent-race proof; `/api/health/integrity` 503 excluded from `serverErrors`; cwd-independent heartbeat writer and PowerShell native-stderr fix — §27JE; no deployment, recovery-code rotation or WebAuthn registration |
+| Platform Operations / PLAT-21 | **Console status assessment and account guide (2026-11-18):** measured production snapshot, feature-by-feature status, AI monitoring accuracy, platform/tenant authentication, and account creation/verification for every platform and tenant role — §27JF; documentation and read-only production reads only, no deployment or account creation |
+| Platform Operations / PLAT-22 | **Additive security roadmap beyond PLAT-21 (2026-11-18):** seven new ranked controls — password-breach screening, audited operator CLI, versioned platform key rotation, session inventory/revocation, outer-gate anti-automation, factor rotation and AI web-egress canary — §27JG; recommendations only, no implementation; PR #336 CI verified 5/5 green |
+| Platform Operations / PLAT-23 | **Owner/CEO account, credential and access guide (2026-11-18):** complete role/section matrices, account lifecycle, credential inventory with storage and rotation rules, authentication and recovery, and owner security checklist — §27JH; documentation only, no deployment, account creation or credential change |
+| Platform Operations / PLAT-24 | **Dedicated console documentation and accuracy corrections (2026-11-18):** numbered `docs/platform-console/` set with index and review cadence; tenant-disable/session, TOTP-vs-WebAuthn and 5xx-scope corrections — §27JI; documentation only; merged and deployed as `e7ce455` |
+| Platform Operations / PLAT-25 | **Outer access-gate failure bounding and sampled audit (2026-11-18):** per-address and global failure windows, 429 with `Retry-After`, valid-key bypass of the budget, and one sampled `platform.access.gate_denied` event without key material — §27JJ; code and tests; merged and deployed as `e7ce455` |
+| Platform Operations / PLAT-26 | **Audited operator CLI creation (2026-11-18):** CLI requires an operator identity and writes exactly one `platform.admin.created` event with source, target and optional grant; duplicate/failed creation writes no success event — §27JK; code and tests; merged and deployed as `e7ce455`; address activation remains unimplemented |
+| Platform Operations / PLAT-27 | **SEC-08 step-up proof for destructive administrator actions (2026-11-18):** password + TOTP issues a five-minute proof bound to the session and lifecycle scope; disable/enable/delete/key-removal enforce it server-side; four audit actions; console prompt — §27JL; code, tests and console docs; PR #336 CI 5/5; merged and deployed as `e7ce455`; address activation remains open |
 
-Most letter-numbered increments are roadmap records; AI-87/AI-88 are log-only and AI-91/AI-92 are in §27HT. AI-99 is in §27HU, its 10k gate is in §27HV, AI-103/OPS-3 is in §27HW, AI-84/AI-105/OPS-4 is in §27HX, and AI-106 with the reset-UX OTA is in §27HY, and the close-out is in §27HZ. The post-deploy proof, triage and scheduled monitor are in §27IA; the scheduler proof and hosted freshness are in §27IB; the contextual assistant entry and restock shortfall are in §27IC; the permanent assistant improvement roadmap and audit are in §27ID; the answer actions, complete-list navigation and deterministic stock ranking are in §27IE; the deterministic complete restock list is in §27IF; member feedback is in §27IG and follow-up context/provenance is in §27IH; the complete feedback conversation preview is in §27II; the internal Platform Operations plane is §27IJ, its architecture and remaining gates are §27IK, and the durable monitoring stores are §27IL; the dedicated console, mandatory MFA and append-only platform audit are §27IM; the fresh review, CI browser proof and production gates are §27IN; recovery codes, MFA lockout, password change and administrator lifecycle are §27IO; the deployed PLAT-6 console, support and deployment surface is §27IP; the index below is complete.
+Most letter-numbered increments are roadmap records; AI-87/AI-88 are log-only and AI-91/AI-92 are in §27HT. AI-99 is in §27HU, its 10k gate is in §27HV, AI-103/OPS-3 is in §27HW, AI-84/AI-105/OPS-4 is in §27HX, and AI-106 with the reset-UX OTA is in §27HY, and the close-out is in §27HZ. The post-deploy proof, triage and scheduled monitor are in §27IA; the scheduler proof and hosted freshness are in §27IB; the contextual assistant entry and restock shortfall are in §27IC; the permanent assistant improvement roadmap and audit are in §27ID; the answer actions, complete-list navigation and deterministic stock ranking are in §27IE; the deterministic complete restock list is in §27IF; member feedback is in §27IG and follow-up context/provenance is in §27IH; the complete feedback conversation preview is in §27II; the internal Platform Operations plane is §27IJ, its architecture and remaining gates are §27IK, and the durable monitoring stores are §27IL; the dedicated console, mandatory MFA and append-only platform audit are §27IM; the fresh review, CI browser proof and production gates are §27IN; recovery codes, MFA lockout, password change and administrator lifecycle are §27IO; the deployed PLAT-6 console, support and deployment surface is §27IP; the PLAT-7 deployment, production proof and required WebAuthn check are §27IR; the PLAT-8 access-layer, security-monitoring and whole-product planning assessment is §27IS; the PLAT-9 free-first Cloudflare, alert-owner, restore-drill and follow-up package is §27IT; the PLAT-10 security-contact record, Firebase recovery drill and multi-criteria ranking is §27IU; the PLAT-11 backup-contact registration, Firebase-plan safety review and IA-34–IA-37 additions are §27IV; the PLAT-12 contact-wording correction, joint-rank reconciliation, notification-evidence record and IA-38–IA-41 additions are §27IW; the PLAT-13 two-contact test procedure and IA-42–IA-45 additions are §27IX; the PLAT-14 printable two-contact test checklist is §27IY; the PLAT-15 one-page PDF verification and tenant security review are §27IZ; the PLAT-16 TS-01 plan, reproducible checklist renderer and RD-01–RD-06 review are §27JA; the PLAT-17 checklist restoration, path-safe renderer, RD-01 drill plan and NX-01–NX-07 review are §27JB; the PLAT-18 RD-01 fact-check, NX-01 design and NY-01–NY-06 tranche are §27JC; the PLAT-19 NZ-01–NZ-07 roadmap beyond NY-07 is §27JD; the PLAT-20 atomic last-SUPERADMIN guard, monitor-only 5xx accounting and heartbeat restoration is §27JE; the PLAT-21 console status assessment and role/account guide is §27JF; the PLAT-22 additive security roadmap is §27JG; the PLAT-23 owner/CEO account, credential and access guide is §27JH; the PLAT-24 dedicated console documentation and accuracy corrections are §27JI; the PLAT-25 outer access-gate failure bounding and sampled audit is §27JJ; the PLAT-26 audited operator CLI creation is §27JK; the PLAT-27 SEC-08 step-up proof is §27JL; the index below is complete.
 
 ## Operational traps worth knowing
 
@@ -361,15 +382,23 @@ with what is in progress, verified or blocked — is [`docs/DEVELOPMENT_LOG.md`]
   The INTERNAL Platform Operations API (§27IJ) reads cross-tenant aggregate AI, feedback, usage and
   durable 5xx/feature data behind a separate platform-administrator login and capability. It is not
   a tenant feature, not a hosted pager and not a cluster-wide counter. The dedicated console, its
-  HttpOnly cookie/CSRF session, mandatory TOTP/WebAuthn and the append-only platform audit trail are
+  HttpOnly cookie/CSRF session, mandatory TOTP enrollment and optional WebAuthn, and the append-only platform audit trail are
   committed in `d02a549` with the CORS-contract fix and browser WebAuthn E2E (§27IM), the fresh
   review plus CI browser job are §27IN, and PLAT-5 adds recovery codes, a durable account-scoped MFA
   lockout, password change and administrator lifecycle operations with fail-closed origin/cookie
-  checks (§27IO), but **not deployed or publicly exposed**. The pre-exposure checklist, the P0–P2
-  security recommendations and the console-improvement roadmap are
-  `docs/PLATFORM_PRODUCTION_READINESS.md`, `docs/PLATFORM_SECURITY_RECOMMENDATIONS.md` and
-  `docs/PLATFORM_CONSOLE_IMPROVEMENTS.md`. The OPS-2 counters are process-local and the runbook
-  says so.
+  checks (§27IO). PLAT-7 is deployed at `e218bb0` behind the application outer gate and forced
+  recovery ceremony (§27IQ, §27IR); the `webauthn-e2e` job is a required `main` check. The
+  pre-exposure checklist, the P0–P2 security recommendations and the console-improvement roadmap are
+  `docs/platform-console/04-production-readiness.md`, `docs/platform-console/07-security-recommendations.md` and
+  `docs/platform-console/03-console-improvements.md`. The access-layer decision brief is
+  `docs/platform-console/05-access-layer.md`, the proposed alert ownership/threshold plan is
+  `docs/platform-console/06-security-monitoring.md`, and the whole-product ranking is
+  `docs/INVENTORY_AI_IMPROVEMENT_ASSESSMENT.md`; all three are planning only. The free-first
+  follow-up package is `docs/PLATFORM_CLOUDFLARE_ACCESS_IMPLEMENTATION_PLAN.md`,
+  `docs/PLATFORM_SECURITY_ALERT_DECISION_SHEET.md`,
+  `docs/PLATFORM_DATABASE_RESTORE_DRILL_PLAN.md` and
+  `docs/INVENTORY_AI_FOLLOWUP_ASSESSMENT.md`; no domain, database operation, deployment or paid
+  service is approved. The OPS-2 counters are process-local and the runbook says so.
 - **L-17 is closed as not applicable (2026-11-07)**: the active reset is AUTH-06's Brevo six-digit
   code, not Firebase's emailed action link. Firebase's Password Reset template remains hosted with
   no custom action URL; if that link path is reintroduced, L-17 reopens.
@@ -641,6 +670,27 @@ anchor (`§27…`) in that file.
 - **§27IO** — PLAT-5 — administrator recovery, MFA lockout and lifecycle hardening (2026-11-16)
 - **§27IP** — PLAT-6 — the Platform Operations console in production (2026-11-16)
 - **§27IQ** — PLAT-7 — forced recovery, the free-plan outer gate and the break-glass drill (2026-11-16)
+- **§27IR** — PLAT-8 — PLAT-7 deployed, the production gate and recovery proof, and the required WebAuthn check (2026-11-17)
+- **§27IS** — PLAT-8 — planning assessment: access layer, security monitoring and whole-product priorities (2026-11-17)
+- **§27IT** — PLAT-9 — free-first implementation, accountability, restore-drill and follow-up plans (2026-11-17)
+- **§27IU** — PLAT-10 — primary/backup security contacts, Firebase recovery drill and multi-criteria ranking (2026-11-17)
+- **§27IV** — PLAT-11 — backup contact, Firebase-plan safety review and second improvement set (2026-11-17)
+- **§27IW** — PLAT-12 — contact wording, joint ranks, notification evidence and third improvement set (2026-11-17)
+- **§27IX** — PLAT-13 — two-contact test procedure and fourth improvement set (2026-11-17)
+- **§27IY** — PLAT-14 — printable two-contact notification test checklist (2026-11-17)
+- **§27IZ** — PLAT-15 — one-page PDF verification and tenant security review (2026-11-17)
+- **§27JA** — PLAT-16 — TS-01 plan, reproducible PDF renderer and next improvement tranche (2026-11-17)
+- **§27JB** — PLAT-17 — checklist restoration, path-safe renderer, RD-01 drill plan and NX-01–NX-07 (2026-11-17)
+- **§27JC** — PLAT-18 — RD-01 fact-check, NX-01 sensitive-data protection design and NY-01–NY-06 (2026-11-17)
+- **§27JD** — PLAT-19 — NZ-01–NZ-07 roadmap beyond NY-07 (2026-11-17)
+- **§27JE** — PLAT-20 — atomic SUPERADMIN guard, monitoring accounting and heartbeat restoration (2026-11-18)
+- **§27JF** — PLAT-21 — console status assessment and role/account creation guide (2026-11-18)
+- **§27JG** — PLAT-22 — additive security roadmap beyond PLAT-21 (2026-11-18)
+- **§27JH** — PLAT-23 — owner/CEO account, credential and access guide (2026-11-18)
+- **§27JI** — PLAT-24 — dedicated console documentation and accuracy corrections (2026-11-18)
+- **§27JJ** — PLAT-25 — outer access-gate failure bounding and sampled audit (2026-11-18)
+- **§27JK** — PLAT-26 — audited operator CLI creation (2026-11-18)
+- **§27JL** — PLAT-27 — SEC-08 step-up proof for destructive administrator actions (2026-11-18)
 
 ---
 
