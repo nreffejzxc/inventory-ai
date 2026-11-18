@@ -3,7 +3,7 @@
 **Status:** **RECOMMENDATIONS ONLY.** Nothing in this document authorizes an implementation in the
 review step that produced it. Each item states what to improve, why it is necessary, the security
 benefit and its priority. The readiness gate that consumes these priorities is
-[`PLATFORM_PRODUCTION_READINESS.md`](PLATFORM_PRODUCTION_READINESS.md).
+[04 — Production readiness](04-production-readiness.md).
 
 **Reviewed:** 2026-11-17
 **Basis:** the PLAT-1/PLAT-2/PLAT-3 commits (`d02a549`, `ff80b12`, `af6e3dd`, `75d7c35`), the fresh
@@ -56,21 +56,23 @@ is trying to prevent:
 | SEC-11 | CI/browser proof hardening and reproducibility | **P2** |
 | SEC-12 | Periodic access review, offboarding and rotation drills | **P2** |
 
-**Implementation status (2026-11-17, after PLAT-7):** SEC-01, SEC-02 and SEC-03 are implemented and
+**Implementation status (2026-11-18):** SEC-01, SEC-02 and SEC-03 are implemented and
 verified in production or the guarded CLI drill (forced recovery ceremony, one-time hashed codes,
-break-glass reset, administrator lifecycle, durable account-scoped MFA lockout). SEC-04 is partially
+break-glass reset, administrator lifecycle, durable account-scoped MFA lockout). The SEC-02
+creation path now also writes one audited `platform.admin.created` event through the CLI; address
+activation remains under NS-02. SEC-04 is partially
 implemented: non-loopback origins and cookie flags fail closed, while HTTPS termination and network
 isolation remain deployment controls. SEC-05, SEC-06, SEC-07, SEC-08, SEC-09, SEC-10 and SEC-12
 remain open; SEC-11 is partially implemented because the browser E2E is a required check but its
 reproducibility hardening is not done. SEC-09 still has no alert delivery or owned recipient; the
 detailed, recommendations-only catalogue is
-[`PLATFORM_SECURITY_MONITORING_PLAN.md`](PLATFORM_SECURITY_MONITORING_PLAN.md). The separate
-console-improvement list is [`PLATFORM_CONSOLE_IMPROVEMENTS.md`](PLATFORM_CONSOLE_IMPROVEMENTS.md);
+[06 — Security monitoring](06-security-monitoring.md). The separate
+console-improvement list is [03 — Console improvements](./03-console-improvements.md);
 the whole-product ranking is
-[`INVENTORY_AI_IMPROVEMENT_ASSESSMENT.md`](INVENTORY_AI_IMPROVEMENT_ASSESSMENT.md). The
+[`INVENTORY_AI_IMPROVEMENT_ASSESSMENT.md`](../INVENTORY_AI_IMPROVEMENT_ASSESSMENT.md). The
 customer-facing companion review, covering tenant notifications, access recertification, AI isolation,
 posture reporting, tenant MFA and mail-domain anti-spoofing, is
-[`PLATFORM_SECURITY_IMPROVEMENTS_BEYOND_IA45.md`](PLATFORM_SECURITY_IMPROVEMENTS_BEYOND_IA45.md);
+[`PLATFORM_SECURITY_IMPROVEMENTS_BEYOND_IA45.md`](../PLATFORM_SECURITY_IMPROVEMENTS_BEYOND_IA45.md);
 it does not change the SEC priorities above.
 
 ---
@@ -212,6 +214,13 @@ stronger phishing-resistant factor policy without changing the platform capabili
 management, audit export, support-grant issuance, future tenant-detail access) and require a second
 approver for the highest-risk actions. Keep the normal console session for read-only aggregate work.
 
+**Current status (2026-11-18).** The step-up half is implemented for disable/enable/delete and
+WebAuthn-key removal. `POST /api/platform/auth/step-up` verifies the current password and TOTP,
+returns a five-minute proof bound to the caller's session, and the three lifecycle routes enforce
+that proof server-side with `403 PLATFORM_STEP_UP_REQUIRED`. The proof is stateless and can be
+replayed within its window by the same session; it is not an access token. Dual control, audit
+export and support-grant step-up remain open.
+
 **Why it is necessary.** A platform session has an eight-hour absolute cap and a fifteen-minute idle
 timeout, but once open it can read the audit trail and operations report. As sensitive actions grow,
 session possession alone should not authorize them. The project's support-grant design already calls
@@ -224,7 +233,7 @@ cross-tenant actions deliberately harder.
 
 ### SEC-09 — Security-event monitoring and alerting
 
-**Detail:** [`PLATFORM_SECURITY_MONITORING_PLAN.md`](PLATFORM_SECURITY_MONITORING_PLAN.md) supplies
+**Detail:** [06 — Security monitoring](06-security-monitoring.md) supplies
 the proposed alert catalogue, thresholds, channels, role owners, response playbooks and known source
 gaps. It is planning only; no alert or channel is implemented.
 

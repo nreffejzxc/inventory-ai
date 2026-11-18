@@ -178,7 +178,7 @@ recovery codes/backup enrollment. This is deliberately ranked below the free ite
 Firebase MFA path may require Identity Platform/billing and a mobile enrollment flow; **do not build it
 until a no-cost path is confirmed**.
 
-**Why it matters.** Platform administrators have mandatory TOTP/WebAuthn; tenant OWNER/ADMIN accounts
+**Why it matters.** Platform administrators have mandatory TOTP enrollment and optional WebAuthn; tenant OWNER/ADMIN accounts
 do not. Those accounts can change roles, export data and approve large adjustments. A stolen password
 or Google session is therefore a direct business-data risk. The auth checklist marks MFA as future
 scope.
@@ -244,11 +244,11 @@ is included. The existing IA and SEC items remain the authority for their subjec
 ## 7. Related records
 
 - [`INVENTORY_AI_MULTI_CRITERIA_RANKING.md`](INVENTORY_AI_MULTI_CRITERIA_RANKING.md) - IA-01-IA-45.
-- [`PLATFORM_SECURITY_RECOMMENDATIONS.md`](PLATFORM_SECURITY_RECOMMENDATIONS.md) - SEC-01-SEC-12.
+- [07 — Security recommendations](./platform-console/07-security-recommendations.md) - SEC-01-SEC-12.
 - [`AUTH_SECURITY_MASTER_CHECKLIST.md`](AUTH_SECURITY_MASTER_CHECKLIST.md) - deferred MFA/notifications.
 - [`PLATFORM_SECURITY_NOTIFICATION_EVIDENCE.md`](PLATFORM_SECURITY_NOTIFICATION_EVIDENCE.md) - the
   prerequisite two-contact test.
-- [`PLATFORM_SECURITY_MONITORING_PLAN.md`](PLATFORM_SECURITY_MONITORING_PLAN.md) - platform alerts.
+- [06 — Security monitoring](./platform-console/06-security-monitoring.md) - platform alerts.
 - [`MONITORING.md`](MONITORING.md) - current health watch and incident procedure.
 - [`PLATFORM_RELIABILITY_DOCS_IMPROVEMENTS.md`](PLATFORM_RELIABILITY_DOCS_IMPROVEMENTS.md) - the next
   ranked security/reliability/documentation tranche beyond TS-06.

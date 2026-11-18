@@ -8,9 +8,9 @@ of truth for *what actually happened*, and it is why this file is long.
 
 **How to read it.** Do not read it top to bottom. Either find a record by number (§27FJ, §27DM — the
 numbers are cited from `CLAUDE.md` and from source comments), or use the index: `CLAUDE.md` §7 lists
-all **262** records by the title each gives itself.
+all **270** records by the title each gives itself.
 
-**Current state:** V1 complete and in production testing. The records that answer *where are we now* are §27JD (PLAT-19 NZ-01–NZ-07 roadmap beyond NY-07; documentation only), §27JC (PLAT-18 RD-01 code fact-check, NX-01 sensitive-data protection design and NY-01–NY-06 tranche; documentation only), §27JB (PLAT-17 checklist restoration, path-safe renderer, RD-01 local drill plan and NX-01–NX-07 tranche; documentation/tooling only), §27JA (PLAT-16 TS-01 plan, reproducible checklist renderer and next improvement tranche; documentation/tooling only), §27IZ (PLAT-15 verified one-page checklist PDF and tenant security review; documentation only), §27IY (PLAT-14 printable two-contact test checklist; documentation only), §27IX (PLAT-13 two-contact test procedure and IA-42–IA-45 additions; documentation only), §27IW (PLAT-12 contact-wording correction, joint-rank reconciliation, pending notification evidence and IA-38–IA-41 additions; documentation only), §27IV (PLAT-11 backup-contact registration, Firebase-plan safety review and IA-34–IA-37 additions; documentation only), §27IU (PLAT-10 security-contact record, Firebase recovery drill and multi-criteria ranking; documentation only), §27IT (PLAT-9 free-first planning: conditional Cloudflare migration, alert ownership, disposable restore drill and additive follow-up; documentation only), §27IS (PLAT-8 planning-only assessment of the access layer, platform security alerting and whole-product priorities; documentation only), §27IR (PLAT-7 deployed at `e218bb0`, the production gate and recovery proof, and the required WebAuthn check), §27IQ (forced recovery setup, the free-plan outer access gate and the break-glass drill), §27IP (the Platform Operations console was first deployed at `56e8c27`, with browser sign-in, TOTP, assets/CSP and API smoke observed), §27IJ (the INTERNAL Platform Operations plane — separate administrator identity, sessions and capabilities; committed in `d02a549`, now deployed through §27IP), §27IK (platform-admin architecture, now aligned with the implemented interim plane and its remaining gates), §27IL (the durable 5xx and feature-presence stores that report reads), §27IM (the dedicated console, mandatory TOTP/WebAuthn and append-only platform audit — committed and browser-verified; now deployed through §27IP), §27IN (fresh security review, CI browser WebAuthn, production-readiness checklist and prioritized recommendations), §27IO (recovery codes, durable account-scoped MFA lockout, password change, administrator lifecycle and fail-closed origin/cookie hardening), §27II (AI-117 complete feedback conversation preview, deployed `13fb3f8` and device-verified; one out-of-stock wording finding remains open), §27IH (AI-116 bounded follow-up context and answer freshness, deployed and device-verified), §27IG (AI-115 member feedback and the owner/admin review queue, deployed and device-verified), §27IF (AI-114 deterministic complete restock lists, deployed and device-verified), §27ID (the permanent assistant improvement roadmap and implementation audit; docs-only), §27IC (AI-110 contextual assistant entry and restock shortfall, deployed `7315675` and OTA-verified; the partial-restock guards completed in `1c3928b`), §27IB (scheduler proof and hosted freshness), §27IA (post-deploy phone proof, triage and monitor), §27HV (AI-99 10,256-product gate, 24/25 with one output-limit finding), §27HU (AI-99 free-first simple inventory, deployed with the 1.0.2 OTA), §27HT (AI-91/AI-92 exact product identity and per-location stock), §27HS (the AI-50–AI-84 increment register), §27HR (AI-48–AI-84 merged and deployed), §27HQ (grounded answers and scoped stock reads), §27HP (market prices from cited pages), §27HO (recorded specifications and the real seed catalogue), §27HN (inventory-only web research), §27HH (a transfer as one event to the assistant), §27HG (the stock-in link's product), §27HF (the single-location default's timing), §27HE (the stock-in link's location), §27HD (the movement fixes and the production device pass), §27HC (the assistant's local-time answers), §27FM (the V1 re-verification) and §27FJ (the two open advisories).
+**Current state:** V1 complete and in production testing. The records that answer *where are we now* are §27JL (PLAT-27 SEC-08 step-up proof for destructive administrator actions; code, tests and console documentation), §27JK (PLAT-26 audited operator CLI creation; code and tests), §27JJ (PLAT-25 outer access-gate failure bounding and sampled audit; code and tests), §27JI (PLAT-24 dedicated console documentation and accuracy corrections; documentation only), §27JH (PLAT-23 owner/CEO account, credential and access guide; documentation only), §27JG (PLAT-22 additive security roadmap beyond PLAT-21; recommendations only), §27JF (PLAT-21 console status assessment and role/account guide; documentation and read-only production reads), §27JE (PLAT-20 atomic last-SUPERADMIN guard, monitor-only 5xx accounting and heartbeat restoration; code and documentation), §27JD (PLAT-19 NZ-01–NZ-07 roadmap beyond NY-07; documentation only), §27JC (PLAT-18 RD-01 code fact-check, NX-01 sensitive-data protection design and NY-01–NY-06 tranche; documentation only), §27JB (PLAT-17 checklist restoration, path-safe renderer, RD-01 local drill plan and NX-01–NX-07 tranche; documentation/tooling only), §27JA (PLAT-16 TS-01 plan, reproducible checklist renderer and next improvement tranche; documentation/tooling only), §27IZ (PLAT-15 verified one-page checklist PDF and tenant security review; documentation only), §27IY (PLAT-14 printable two-contact test checklist; documentation only), §27IX (PLAT-13 two-contact test procedure and IA-42–IA-45 additions; documentation only), §27IW (PLAT-12 contact-wording correction, joint-rank reconciliation, pending notification evidence and IA-38–IA-41 additions; documentation only), §27IV (PLAT-11 backup-contact registration, Firebase-plan safety review and IA-34–IA-37 additions; documentation only), §27IU (PLAT-10 security-contact record, Firebase recovery drill and multi-criteria ranking; documentation only), §27IT (PLAT-9 free-first planning: conditional Cloudflare migration, alert ownership, disposable restore drill and additive follow-up; documentation only), §27IS (PLAT-8 planning-only assessment of the access layer, platform security alerting and whole-product priorities; documentation only), §27IR (PLAT-7 deployed at `e218bb0`, the production gate and recovery proof, and the required WebAuthn check), §27IQ (forced recovery setup, the free-plan outer access gate and the break-glass drill), §27IP (the Platform Operations console was first deployed at `56e8c27`, with browser sign-in, TOTP, assets/CSP and API smoke observed), §27IJ (the INTERNAL Platform Operations plane — separate administrator identity, sessions and capabilities; committed in `d02a549`, now deployed through §27IP), §27IK (platform-admin architecture, now aligned with the implemented interim plane and its remaining gates), §27IL (the durable 5xx and feature-presence stores that report reads), §27IM (the dedicated console, mandatory TOTP/WebAuthn and append-only platform audit — committed and browser-verified; now deployed through §27IP), §27IN (fresh security review, CI browser WebAuthn, production-readiness checklist and prioritized recommendations), §27IO (recovery codes, durable account-scoped MFA lockout, password change, administrator lifecycle and fail-closed origin/cookie hardening), §27II (AI-117 complete feedback conversation preview, deployed `13fb3f8` and device-verified; one out-of-stock wording finding remains open), §27IH (AI-116 bounded follow-up context and answer freshness, deployed and device-verified), §27IG (AI-115 member feedback and the owner/admin review queue, deployed and device-verified), §27IF (AI-114 deterministic complete restock lists, deployed and device-verified), §27ID (the permanent assistant improvement roadmap and implementation audit; docs-only), §27IC (AI-110 contextual assistant entry and restock shortfall, deployed `7315675` and OTA-verified; the partial-restock guards completed in `1c3928b`), §27IB (scheduler proof and hosted freshness), §27IA (post-deploy phone proof, triage and monitor), §27HV (AI-99 10,256-product gate, 24/25 with one output-limit finding), §27HU (AI-99 free-first simple inventory, deployed with the 1.0.2 OTA), §27HT (AI-91/AI-92 exact product identity and per-location stock), §27HS (the AI-50–AI-84 increment register), §27HR (AI-48–AI-84 merged and deployed), §27HQ (grounded answers and scoped stock reads), §27HP (market prices from cited pages), §27HO (recorded specifications and the real seed catalogue), §27HN (inventory-only web research), §27HH (a transfer as one event to the assistant), §27HG (the stock-in link's product), §27HF (the single-location default's timing), §27HE (the stock-in link's location), §27HD (the movement fixes and the production device pass), §27HC (the assistant's local-time answers), §27FM (the V1 re-verification) and §27FJ (the two open advisories).
 
 ---
 
@@ -26032,9 +26032,9 @@ The job is bounded by `timeout-minutes: 10` and adds roughly one to two minutes 
 repository. Its first GitHub run has not been observed because the branch was not pushed.
 
 **Production gate and recommendations.** Two living reference documents were added:
-`docs/PLATFORM_PRODUCTION_READINESS.md` is the pre-exposure checklist (HTTPS/domains, network
+`docs/platform-console/04-production-readiness.md` is the pre-exposure checklist (HTTPS/domains, network
 isolation, separate credentials, cookie/CORS proof, MFA recovery, audit retention and database
-permissions, support grants, CI evidence and sign-off); `docs/PLATFORM_SECURITY_RECOMMENDATIONS.md`
+permissions, support grants, CI evidence and sign-off); `docs/platform-console/07-security-recommendations.md`
 is the P0–P2 list with what/why/benefit for each item. Recommendations were not implemented in this
 step. The first blockers are recovery/break-glass and administrator lifecycle, per-account MFA
 attempt budgeting, a fail-closed HTTPS/network deployment guard, and audit retention/least-privilege
@@ -26230,7 +26230,7 @@ without merging and its branch was deleted; no temporary code reached `main`.
 outer key is application-level protection, not network isolation. PR-09 (audit retention/database
 least privilege) and PR-15 (named security sign-off) remain open, and a second hardware security key
 is an operator step. The ranked long-term roadmap is
-[`PLATFORM_CONSOLE_IMPROVEMENTS.md`](PLATFORM_CONSOLE_IMPROVEMENTS.md); it is recommendations only
+[03 — Console improvements](./platform-console/03-console-improvements.md); it is recommendations only
 and was not implemented in this record. The two pre-existing AI-118 working-tree files remain
 uncommitted and were not part of PR #317.
 
@@ -26245,7 +26245,7 @@ this record.
 
 **Deliverables.**
 
-- [`PLATFORM_ACCESS_LAYER_ASSESSMENT.md`](PLATFORM_ACCESS_LAYER_ASSESSMENT.md) compares the current
+- [05 — Access layer](./platform-console/05-access-layer.md) compares the current
   application gate, Cloudflare Access, Tailscale, Render inbound IP rules and a tunnel-only approach.
   It records the free/paid limits, the Render compatibility constraints, the direct-origin bypass and
   the recommended pilot. **Cloudflare Access is preferred for evaluation** because it provides named
@@ -26255,7 +26255,7 @@ this record.
   tailnet-only design requires a private Render service plus a subnet router, so it is not a fit for
   the current single public web service. Render web-service IP rules require Scale ($499/month plus
   compute), so they are not a low-cost option.
-- [`PLATFORM_SECURITY_MONITORING_PLAN.md`](PLATFORM_SECURITY_MONITORING_PLAN.md) proposes alert IDs,
+- [06 — Security monitoring](./platform-console/06-security-monitoring.md) proposes alert IDs,
   starting thresholds, severity, channels, accountable roles, deduplication rules and response
   playbooks for authentication/recovery, WebAuthn, outer-gate/CSRF/authorization denials,
   administrator lifecycle, audit integrity, health/5xx, AI cost/model health, backup verification and
@@ -26821,3 +26821,314 @@ notification evidence remains **NOT RUN / PENDING**, and security alerts remain 
 five focused docs suites pass **31/31**; `git diff --check` is clean. No application suite was
 required for this documentation-only increment; the pre-existing AI-118 focused suite is recorded
 separately in the log and its working-tree files remain uncommitted.
+
+---
+
+# 27JE. PLAT-20 - atomic SUPERADMIN guard, monitor-only 5xx accounting and heartbeat restoration (2026-11-18)
+
+**Scope.** Three defects found by the 2026-11-18 review: a last-active-SUPERADMIN count-then-write
+race, a process-local `serverErrors` count that treated the stale integrity heartbeat as an API
+failure, and a daily laptop audit whose heartbeat writer had stopped. The guard was simplified where
+the active count cannot fall; the full server suite was run; the monitoring accounting and the
+heartbeat writer were fixed. No deployment, database reset, recovery-code rotation or WebAuthn
+registration was performed.
+
+**Last-SUPERADMIN guard.** The lifecycle service reads the active SUPERADMIN set and then writes, so
+two concurrent disables could both observe two active administrators and both commit. MongoDB
+transactions do not close that gap by themselves — both writes touch different documents, so write
+skew remains. The guard is one singleton `platform_admin_guards` document taken by a conditional
+`findOneAndUpdate` (a missing token or an expired `lockExpiresAt`), held for the mutation, and
+released by token. Only a mutation that can reduce the active count takes it: `status: DISABLED` and
+delete. Enabling (`status: ACTIVE`) is lock-free, because it cannot make the last administrator
+disappear. A second caller waits up to 5 s and then answers **409
+`PLATFORM_ADMIN_MUTATION_IN_PROGRESS`**; a crashed holder's lease expires after 30 s and is taken
+over. The `finally` path releases only a lease this call actually holds.
+
+The PLAT-8 fixture now proves the boundary rather than the happy path: ten concurrent disables commit
+exactly one; a delete and a disable racing leave one active; an enable succeeds while a live lease is
+held; an expired lease is taken over. The same fixture against the old service failed round 1 with
+`expected exactly one disable to commit, got 2`.
+
+**Monitoring-only 5xx.** `GET /api/health/integrity` returns `503` when the heartbeat is missing or
+older than 26 hours. That is the monitoring state, not a failure of the API, but the OPS-2 finish
+listener counted it in `serverErrors`. `recordResponse(status, path)` now ignores `503` only for
+`/api/health/integrity`; the response still increments `responses` and `byStatusClass['5xx']`.
+`/api/health/ready` is not excluded: its `503` is a real database-availability failure. The durable
+`ops_error_events` store cannot be the answer for the readiness case — the error handler writes it
+through the database that is down — so the health endpoint remains the signal there, and the
+monitoring-only integrity state does not belong in the error counter at all. `app.ts` now passes the
+normalised `req.originalUrl` path to the recorder, because `req.path` can be router-relative at the
+`finish` event.
+
+**Heartbeat restoration.** The Task Scheduler job did run on 2026-11-17 and 2026-11-18 and the audit
+completed, but the writer exited `2` with `MONGODB_URI is not set`: the wrapper started it from the
+repository root, where `dotenv/config` could not find `server/.env`. `server/scripts/lib/load-server-env.mjs`
+now resolves `server/.env` from its own module location and loads it with `quiet: true`. The PowerShell
+wrapper calls Node through `Invoke-Node`, which scopes `$ErrorActionPreference = 'Continue'` around the
+native call so a dotenv banner on stderr is logged rather than treated as a terminating error. The
+registered task returned `0`; the heartbeat is `checkedAt=2026-11-18T05:49:03.828Z`; and
+`/api/health/integrity` answered **200 / fresh**.
+
+**Verification.** `npm run typecheck` exits 0. The full server suite passes **3,150/3,150** (506
+suites). PLAT-8 passes; PLAT-4 and PLAT-7 pass **14/14** with two mode skips; OPS-2 passes **13/13**;
+the Task Scheduler run returns `0`; `GET /api/health/integrity` returns `200`. The focused docs suites
+pass **32/32** and `node scripts/check-docs.mjs` reports **59 active documents / 37 living references**.
+`git diff --check` is clean.
+
+**Not done.** Nothing was deployed, merged or pushed to production. Recovery-code rotation and WebAuthn
+key registration remain owner actions with the current password/TOTP and the physical key; the local
+recovery-code file is stale until that ceremony is completed.
+
+---
+
+# 27JF. PLAT-21 - console status assessment and role/account guide (2026-11-18)
+
+**Documentation and read-only assessment only.** No application code, deployment, tenant
+write, platform account creation, recovery-code rotation or WebAuthn registration was
+performed. PR #336 remains open and undeployed.
+
+**What was assessed.** The live `/platform` boundary and health endpoints; the current
+implementation of the platform identity, MFA, capabilities, operations, monitoring,
+support, deployments and audit services; the production aggregates behind
+`GET /api/platform/operations`; and every supported account path for platform and tenant
+roles. The result is
+[01 — Status and accounts](./platform-console/01-status-and-accounts.md).
+
+**Production snapshot.** Read-only against `inventoryai_prod_db` at 2026-11-18
+06:37:22 UTC, with index creation disabled. The build was `5016553` (Node v24.22.3).
+Six businesses (all active), 11 accounts (9 active), one tenant/member active in the
+7-day feature window, 10,119 active products, 20,184 inventory rows, 75 stock movements,
+4 feedback rows and one unresolved support ticket. AI: 86 turns, 78 ok / 4 degraded /
+4 failed, 36 free / 50 paid, 4 failover turns, p95 22,719 ms, provider-reported cost
+$0.053025 with 82 reported and 4 unknown. The sole platform administrator is an ACTIVE
+SUPERADMIN with TOTP, 0 WebAuthn keys, 7 unused recovery codes and 0 active sessions.
+
+**Accuracy findings.** The AI totals reconcile (86 = 78 + 4 + 4; 36 + 50 = 86; models
+49 + 36 + 1 = 86; daily rows sum to 86; outcomes sum to 86); movement counts sum to 75;
+feedback reasons match the 3 down ratings; the 20 audit action counts sum to 201. The **5xx counter-scope difference** is not a missing-incident gap: `/api/health`
+reported 58 process-lifetime 5xx responses (last at 05:47:53 UTC) while the durable
+`ops_error_events` window held 0. The old process counter includes the intentional
+`/api/health/integrity` 503 when the laptop heartbeat is stale; that route writes its
+response directly and never reaches the durable error handler. Production is still on
+`5016553`; the fix is in open PR #336. After that deploy and restart, the process counter
+clears and stops counting the monitoring-only integrity `503`, while the durable store
+remains the record for error-handler failures. Readiness 503s cannot be durably written
+while MongoDB is down.
+
+**Authentication and account guide.** The guide documents the outer Basic gate;
+platform password → mandatory TOTP enrollment, optional WebAuthn → HttpOnly cookie + CSRF; durable MFA
+lockout; forced recovery-code setup; the READ_ONLY / SUPPORT / SECURITY / SUPERADMIN
+capability matrix; CLI-only platform account creation; first-login verification; and
+lifecycle limits. It also documents tenant OWNER registration, ADMIN/MANAGER/STAFF
+direct creation and 7-day invitations, the backend role restrictions, required
+credentials, and role-specific verification checks. No credential, TOTP secret or
+recovery code is recorded.
+
+**Known limits recorded.** No WebAuthn key on the sole SUPERADMIN; the local recovery-code
+file is stale; the outer gate is a shared secret, not network isolation; the local bcrypt
+platform realm and missing step-up/dual control remain; audit has no immutable sink or
+retention decision; the console is pull-only and has no platform pager; host/Atlas/backup,
+mobile and job telemetry are unavailable; AI provider health and current configured model
+are not shown; deployment history is boot-observed only. An authenticated browser session
+was not re-observed in this pass, and the guide says so.
+
+**Verification.** `node scripts/check-docs.mjs` reports **60 active documents / 38 living
+references**; the five focused docs suites pass **32/32**; `git diff --check` is clean. No
+application code changed; the PLAT-20 full suite remains **3,150/3,150** across 506 suites.
+No deployment, account creation or production write was performed.
+
+---
+
+# 27JG. PLAT-22 - additive security roadmap beyond PLAT-21 (2026-11-18)
+
+**Recommendations only.** No code, configuration, notification, drill, database operation,
+deployment or paid service is authorized. This record adds seven controls that are not
+already owned by SEC-01–12, CI-01–15, TS-01–06, NX-01–07, NY-01–07 or NZ-01–07. The
+full reasoning is
+[08 — Security roadmap](./platform-console/08-security-roadmap.md).
+
+**PR #336 CI status.** The PR head `6f61e11` is **CLEAN** and mergeable. All five required
+checks pass: `server`, `mobile`, `secret-guard`, `attribution-guard` and `webauthn-e2e`.
+The first `webauthn-e2e` attempt failed in the third password step with
+`VALIDATION_ERROR`; the same script passed locally, and a rerun of the failed job passed
+in 1m49s. No code was changed to obtain the pass. No merge, push or deployment was
+performed.
+
+**Ranked additions.** NS-01 password-breach screening (26/30, P1); NS-03 versioned
+rotation for platform signing and MFA-encryption keys (24/30, P1); NS-02 audited,
+address-verified operator CLI (24/30, P1); NS-04 platform session inventory and targeted
+revocation (22/30, P2); NS-07 AI web-egress boundary and prompt-injection canary (21/30,
+P2); NS-05 outer-gate anti-automation and audit (21/30, P2); NS-06 self-service platform
+factor rotation (20/30, P2). Each item names the code gap, why it matters, the free path,
+acceptance checks and dependencies. The recommended sequence starts with NS-02, NS-05 and
+NS-01 as low-regret quick wins, then NS-03 before the next rotation drill.
+
+**Explicitly excluded.** Recovery/break-glass, lifecycle, MFA attempt budgets, audit
+export/least privilege, support grants, step-up/dual control, the dedicated identity
+provider, security alerting, browser-E2E durability, tenant notifications/MFA, the
+cross-tenant AI canary, sensitive-data redaction, the non-AI cross-tenant matrix, CodeQL,
+dependency review, deploy rollback, workflow audit, Android privacy, policy drift, App
+Check, network isolation and key-rotation procedure ownership remain owned by their
+existing records.
+
+**Verification.** `node scripts/check-docs.mjs` reports **61 active documents / 39 living
+references**; the five focused docs suites pass **32/32**; `git diff --check` is clean. PR
+#336's five required checks pass. No application code changed and the PLAT-20 full suite
+remains **3,150/3,150** across 506 suites.
+
+---
+
+# 27JH. PLAT-23 - owner/CEO account, credential and access guide (2026-11-18)
+
+**Documentation only.** No application code, deployment, account creation, tenant write,
+recovery-code rotation, WebAuthn registration or production credential change was made.
+PR #336 remains open and undeployed.
+
+**What was added.**
+[02 — Accounts and credentials](./platform-console/02-accounts-and-credentials.md)
+is the practical companion to the PLAT-21 status/account assessment. It covers the four
+platform roles and their exact console-section access; tenant roles and their enforced
+permissions; platform CLI creation, disable/enable/delete, key removal and the absence of
+a role-change route; tenant registration, invitations, direct creation, disable-only
+member management, self-deletion and the missing ownership-transfer path; every platform,
+tenant and server credential with its purpose, safe storage, regeneration and revocation;
+TOTP, recovery codes, WebAuthn, email codes, reset tokens and the mechanisms that do not
+exist; normal platform access, failure diagnosis and the guarded break-glass reset; and an
+owner/CEO checklist, cadence, incident response and explicit precautions.
+
+**Current production gaps recorded.** One ACTIVE SUPERADMIN with TOTP, **0 WebAuthn keys**
+and **7 unused recovery codes**; the local recovery-code file is stale. The guide's first
+actions are to register two hardware keys, rotate the recovery codes, confirm the outer
+access key, add a second trusted SUPERADMIN or test break-glass, and protect the Render,
+Atlas, Firebase, Brevo, OpenRouter and repository owner accounts. It also records that the
+outer gate is a shared secret rather than network isolation, that platform audit has no
+immutable sink or pager, that `PLATFORM_MFA_ENCRYPTION_KEY` rotation is destructive in the
+current build, and that there is no PIN, biometric app lock, SMS OTP, tenant MFA, tenant
+recovery code, self-service platform password reset, admin delete-member route or tenant
+ownership transfer.
+
+**Verification.** `node scripts/check-docs.mjs` reports **63 active documents / 41 living
+references**; the focused docs suites pass **31/31** across six suites; `git diff --check`
+is clean. No application code changed; no deployment, account creation or production
+write was made.
+
+---
+
+# 27JI. PLAT-24 - dedicated console documentation and accuracy corrections (2026-11-18)
+
+**Documentation only.** No application code, deployment, account creation, credential
+change or PR #336 commit was made. PR #336 remains open and undeployed.
+
+**What changed.** The eight console documents moved from the root `docs/` directory to
+[`docs/platform-console/`](./platform-console/README.md), with stable numbered names and a
+new index that defines scope, reading order, boundaries and maintenance rules. The root
+[`docs/README.md`](./README.md) map now gives the console its own subsection, and
+`scripts/check-docs.mjs` treats the folder as active documentation. Cross-links, the
+roadmap references, the development log and `CLAUDE.md` were rebased to the new paths.
+
+**Accuracy corrections.** Tenant disable blocks the member at the next request but does
+not delete existing session rows; re-enabling before expiry can revive an old token, and
+an admin has no member-session revocation route. Platform MFA is now described as
+mandatory TOTP enrollment with optional WebAuthn, not “mandatory TOTP/WebAuthn.” The
+58-vs-0 5xx difference is recorded as a process-counter/durable-store scope difference,
+not 58 missing incidents: the old counter includes the intentional integrity 503, which
+bypasses the durable error handler, and readiness 503s cannot be written while MongoDB is
+down.
+
+**Verification.** `node scripts/check-docs.mjs` reports **63 active documents / 41 living
+references**; the focused docs suites pass **31/31** across six suites; `git diff --check`
+is clean. No application code changed; no deployment, account creation or production
+write was made.
+
+---
+
+# 27JJ. PLAT-25 - outer access gate failure bounding and sampled audit (2026-11-18)
+
+**Code and tests only.** No deployment, merge, production configuration change or PR #336
+commit was made. PR #336 remains open and undeployed.
+
+**What changed.** `platformAccessGate` now counts failed key checks per source address and
+per process in a bounded window. After the budget it answers
+`429 PLATFORM_ACCESS_RATE_LIMITED` with `Retry-After`; a valid key is checked first and is
+never blocked by the failure budget. The first failure from an address in each window
+writes one sampled `platform.access.gate_denied` audit event with the source, route and
+time, never the supplied key. The budgets are configurable with
+`PLATFORM_ACCESS_GATE_WINDOW_MS`, `PLATFORM_ACCESS_GATE_MAX_FAILURES` and
+`PLATFORM_ACCESS_GATE_GLOBAL_MAX_FAILURES`; the limiter is deliberately process-local
+(CI-09 tracks the shared store).
+
+**Verification.** The PLAT-7 suite proves three bounded 401s, the fourth request as 429
+with `Retry-After`, a correct key still reaching platform authentication during the
+window, exactly one sampled audit row, and no key material in that row. `tsc --noEmit`
+passes; `git diff --check` is clean. No deployment or production change was made.
+
+---
+
+# 27JK. PLAT-26 - audited operator CLI creation (2026-11-18)
+
+**Code and tests only; address activation is not implemented.** No deployment, merge,
+production account creation or PR #336 commit was made. PR #336 remains open and
+undeployed.
+
+**What changed.** The operator CLI now requires `PLATFORM_ADMIN_OPERATOR`; the optional
+`PLATFORM_ADMIN_GRANT_ID` records the grant when one was used. `createPlatformAdminAccount`
+accepts an explicit audit context and writes exactly one `platform.admin.created` event
+on success, with actor identity, source (`cli`), target email, target role and grant id.
+A duplicate or failed creation writes no success event. The WebAuthn E2E supplies its own
+disposable operator identity. The console guides and `.env.example` document the new
+input. Address verification and `PENDING` activation remain the next NS-02 step.
+
+**Verification.** PLAT-7 **6/6** in full mode proves the single creation event, its
+operator/source/target/grant fields, the absence of password material, and no second
+event on a duplicate creation. `tsc --noEmit`, ESLint and `git diff --check` pass.
+`check-docs` reports **64 active documents / 42 living references**; focused docs suites
+pass **31/31**. The new ranking is [09 — Remaining security priorities](./platform-console/09-remaining-security-priorities.md).
+No deployment or production account was created.
+
+---
+
+# 27JL. PLAT-27 - SEC-08 step-up proof for destructive administrator actions (2026-11-18)
+
+**Code, tests and console documentation.** The initial record was written before the
+console-delivery commit; the delivery addendum below supersedes its PR status.
+
+**Delivery addendum (2026-11-18).** The complete PLAT-20–27 console work was committed as
+`282c8d6` and pushed to PR #336. CI run `44271986057` passed all five required checks:
+`server` **3,161/3,161** across 508 suites, `webauthn-e2e`, `mobile`, `secret-guard` and
+`attribution-guard`. No deployment, merge, address activation or production account
+change was made before this addendum.
+
+**What changed.** `POST /api/platform/auth/step-up` re-checks the current password and a
+TOTP code, advances the existing `lastTotpCounter` replay guard atomically, and returns a
+five-minute JWT proof bound to the administrator id, the authenticated session `jti` and
+the `platform.admin.lifecycle` scope. The proof uses its own audience, so it is refused as
+an access token. It is stateless: the same session can replay it within the five-minute
+window, and the documentation states that rather than pretending it is one-shot.
+
+**Server enforcement.** `PATCH /admins/:id/status`, `DELETE /admins/:id` and
+`DELETE /admins/:id/webauthn/:credentialId` now run `requirePlatformStepUp()` after
+authentication and the `platform.admin.manage` capability check and before the
+controller. A missing, expired, malformed, cross-session, cross-admin or wrong-scope
+proof returns `403 PLATFORM_STEP_UP_REQUIRED`; no lifecycle service or state change runs.
+Enable is covered too because it shares the status route.
+
+**Audit.** `platform.auth.step_up_succeeded`, `.step_up_failed`, `.step_up_required` and
+`.step_up_used` join the closed catalogue. Issuance failures, refusals and successful use
+are recorded; passwords, TOTP codes and proof tokens are never recorded.
+
+**Console and transport.** The Team management actions call a wrapper that retries once
+after a password + TOTP prompt. The prompt explains the five-minute, session-bound proof.
+The API CORS allow-list names `X-Platform-Step-Up`, with a preflight regression test, so the
+dedicated console can send it. If the TOTP step just spent at login is entered again, the
+step-up endpoint returns `409 PLATFORM_MFA_CODE_ALREADY_USED` and asks for the next code;
+the valid current code is not called invalid, and the reuse does not count as a failed
+factor. The server check is authoritative; the UI is a convenience, not the control.
+
+**Verification.** PLAT-4 **13/13**, PLAT-9 **9/9**, PLAT-2 **10/10** and Phase 07C HTTP
+security **17/17** pass in full mode; the new suite covers missing, wrong-password,
+wrong-code, used-login-code, malformed, wrong-scope, expired, cross-session, cross-admin
+and proof-as-access-token refusals plus valid use and audit. The
+Phase 23 and route-inventory guards pass **32/32**, with §2.6 at **123 = 69
+permission-gated + 23 authenticated + 31 public + 0 role-gated**. `tsc --noEmit`, ESLint,
+`git diff --check`, `check-docs` (**64 active / 42 living**) and the focused docs suites
+pass. No deployment or production change was made.

@@ -4,6 +4,8 @@ import requirePlatformAdmin from '../middlewares/platformAuthenticate.ts';
 import { requirePlatformCapability } from '../middlewares/platformAuthorize.ts';
 import platformAuthController from '../controllers/platformAuth.controller.ts';
 import platformMfaController from '../controllers/platformMfa.controller.ts';
+import platformStepUpController from '../controllers/platformStepUp.controller.ts';
+import { requirePlatformStepUp } from '../middlewares/platformStepUp.ts';
 import platformAuditController from '../controllers/platformAudit.controller.ts';
 import platformOperationsController from '../controllers/platformOperations.controller.ts';
 import platformSupportController from '../controllers/platformSupport.controller.ts';
@@ -44,10 +46,12 @@ import {
  *   POST /auth/webauthn/register/verify  authenticated, stores credential
  *   POST /auth/password        authenticated, current password -> all sessions revoked
  *   POST /auth/recovery-codes  authenticated, current password -> one-time codes
+ *   POST /auth/step-up         authenticated, password + TOTP -> session-bound proof
  *   GET  /admins       requires `platform.admin.manage`.
- *   PATCH /admins/:id/status  requires `platform.admin.manage`.
- *   DELETE /admins/:id         requires `platform.admin.manage`.
- *   DELETE /admins/:id/webauthn/:credentialId requires `platform.admin.manage`.
+ *   PATCH /admins/:id/status  requires `platform.admin.manage` and a fresh step-up proof.
+ *   DELETE /admins/:id         requires `platform.admin.manage` and a fresh step-up proof.
+ *   DELETE /admins/:id/webauthn/:credentialId requires `platform.admin.manage` and a
+ *                              fresh step-up proof.
  *   GET  /operations   requires `platform.metrics.read`.
  *   GET  /audit        requires `platform.audit.read` (SECURITY/SUPERADMIN).
  *
@@ -130,6 +134,12 @@ router.post(
   createLoginIpLimiter({ loginIpMax: 10 }),
   platformAuthController.recoveryCodes,
 );
+router.post(
+  '/auth/step-up',
+  requirePlatformAdmin,
+  createLoginIpLimiter({ loginIpMax: 10 }),
+  platformStepUpController.stepUp,
+);
 router.get('/auth/csrf', requirePlatformAdmin, platformAuthController.csrf);
 router.get('/auth/me', requirePlatformAdmin, platformAuthController.me);
 
@@ -156,18 +166,21 @@ router.patch(
   '/admins/:id/status',
   requirePlatformAdmin,
   requirePlatformCapability(PLATFORM_CAPABILITIES.ADMIN_MANAGE),
+  requirePlatformStepUp(),
   platformAdminController.status,
 );
 router.delete(
   '/admins/:id',
   requirePlatformAdmin,
   requirePlatformCapability(PLATFORM_CAPABILITIES.ADMIN_MANAGE),
+  requirePlatformStepUp(),
   platformAdminController.remove,
 );
 router.delete(
   '/admins/:id/webauthn/:credentialId',
   requirePlatformAdmin,
   requirePlatformCapability(PLATFORM_CAPABILITIES.ADMIN_MANAGE),
+  requirePlatformStepUp(),
   platformAdminController.removeKey,
 );
 

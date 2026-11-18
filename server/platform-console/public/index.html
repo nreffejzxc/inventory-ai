@@ -550,6 +550,21 @@
       </section>
     </main>
   </div>
+  <dialog id="step-up-dialog" class="step-up-dialog" aria-labelledby="step-up-title">
+    <form id="step-up-form">
+      <h2 id="step-up-title">Confirm this platform action</h2>
+      <p class="muted">This changes platform administrator access. Re-enter your password and a current authentication code. The proof lasts five minutes and is bound to this session.</p>
+      <label for="step-up-password">Current password</label>
+      <input id="step-up-password" type="password" autocomplete="current-password" required>
+      <label for="step-up-code">Authentication code</label>
+      <input id="step-up-code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" required>
+      <p id="step-up-error" class="error" role="alert" hidden></p>
+      <div class="step-up-actions">
+        <button id="step-up-cancel" class="button ghost" type="button">Cancel</button>
+        <button id="step-up-submit" class="button primary" type="submit">Verify and continue</button>
+      </div>
+    </form>
+  </dialog>
   <script src="/config.js"></script>
   <script src="/app.js" defer></script>
 </body>

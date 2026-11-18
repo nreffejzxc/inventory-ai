@@ -186,7 +186,7 @@ identity product. If a proposed path requires a paid tier, it is out of scope.
 ## 12. Related records
 
 - [`PLATFORM_SECURITY_IMPROVEMENTS_BEYOND_IA45.md`](PLATFORM_SECURITY_IMPROVEMENTS_BEYOND_IA45.md) - TS-01 row.
-- [`PLATFORM_SECURITY_MONITORING_PLAN.md`](PLATFORM_SECURITY_MONITORING_PLAN.md) - platform-plane alerts.
+- [06 — Security monitoring](./platform-console/06-security-monitoring.md) - platform-plane alerts.
 - [`PLATFORM_SECURITY_NOTIFICATION_EVIDENCE.md`](PLATFORM_SECURITY_NOTIFICATION_EVIDENCE.md) - the
   separate two-contact platform test; this plan does not satisfy that gate.
 - [`AUTH_SECURITY_MASTER_CHECKLIST.md`](AUTH_SECURITY_MASTER_CHECKLIST.md) - deferred MFA/notifications.

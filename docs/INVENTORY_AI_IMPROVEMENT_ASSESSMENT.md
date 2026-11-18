@@ -57,7 +57,7 @@ and recovery gaps before widening the operator group or onboarding real customer
 ### 2.2 Platform Operations
 
 - The internal console is live at `/platform` on `e218bb0`: forced recovery-code ceremony, guarded
-  break-glass, application-level Basic/key gate, mandatory TOTP/WebAuthn, HttpOnly session, CSRF,
+  break-glass, application-level Basic/key gate, mandatory TOTP enrollment and optional WebAuthn, HttpOnly session, CSRF,
   strict CSP, append-only audit model, support tickets, deployment history and aggregate operational
   views.
 - `main` requires `secret-guard`, `attribution-guard`, `server`, `mobile` and `webauthn-e2e`, with
@@ -182,10 +182,10 @@ authoritative item detail.
 1. **Concrete Cloudflare Access decision and origin-token validation.** CI-07 says “deployment-boundary
    attestation”; this assessment names the candidate, its free-tier limit, the custom-domain
    prerequisite and the direct-origin bypass that makes app validation mandatory. See
-   [`PLATFORM_ACCESS_LAYER_ASSESSMENT.md`](PLATFORM_ACCESS_LAYER_ASSESSMENT.md).
+   [05 — Access layer](./platform-console/05-access-layer.md).
 2. **An owned alert catalogue and delivery model.** SEC-09/CI-05 name monitoring, but this assessment
    supplies alert thresholds, channels, role ownership, coverage gaps and acceptance criteria. See
-   [`PLATFORM_SECURITY_MONITORING_PLAN.md`](PLATFORM_SECURITY_MONITORING_PLAN.md).
+   [06 — Security monitoring](./platform-console/06-security-monitoring.md).
 3. **Mobile crash/install telemetry and support diagnostics.** The console explicitly says this source
    is unavailable. A free-tier crash/install integration and a support-safe diagnostic bundle are
    missing from the current roadmaps.
@@ -254,11 +254,11 @@ G1/G2; they do not implement them.
 
 ## 11. Source map
 
-- Platform access: [`PLATFORM_ACCESS_LAYER_ASSESSMENT.md`](PLATFORM_ACCESS_LAYER_ASSESSMENT.md).
-- Monitoring and alert ownership: [`PLATFORM_SECURITY_MONITORING_PLAN.md`](PLATFORM_SECURITY_MONITORING_PLAN.md).
-- Console improvements: [`PLATFORM_CONSOLE_IMPROVEMENTS.md`](PLATFORM_CONSOLE_IMPROVEMENTS.md).
-- Platform security recommendations: [`PLATFORM_SECURITY_RECOMMENDATIONS.md`](PLATFORM_SECURITY_RECOMMENDATIONS.md).
-- Production readiness gates: [`PLATFORM_PRODUCTION_READINESS.md`](PLATFORM_PRODUCTION_READINESS.md).
+- Platform access: [05 — Access layer](./platform-console/05-access-layer.md).
+- Monitoring and alert ownership: [06 — Security monitoring](./platform-console/06-security-monitoring.md).
+- Console improvements: [03 — Console improvements](./platform-console/03-console-improvements.md).
+- Platform security recommendations: [07 — Security recommendations](./platform-console/07-security-recommendations.md).
+- Production readiness gates: [04 — Production readiness](./platform-console/04-production-readiness.md).
 - Operator monitoring: [`MONITORING.md`](MONITORING.md).
 - AI roadmap: [`AI_ASSISTANT_IMPROVEMENT_ROADMAP.md`](AI_ASSISTANT_IMPROVEMENT_ROADMAP.md).
 - Auth/security invariants: [`AUTH_SECURITY_MASTER_CHECKLIST.md`](AUTH_SECURITY_MASTER_CHECKLIST.md).

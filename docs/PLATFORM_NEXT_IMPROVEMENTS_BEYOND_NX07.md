@@ -473,7 +473,7 @@ purchase, subscription, trial, plan upgrade or paid API is authorized.
 - [`PLATFORM_RELIABILITY_DOCS_IMPROVEMENTS.md`](PLATFORM_RELIABILITY_DOCS_IMPROVEMENTS.md) — RD-01–RD-06.
 - [`PLATFORM_DEPENDENCY_OUTAGE_PLAN.md`](PLATFORM_DEPENDENCY_OUTAGE_PLAN.md) — the RD-01 matrix and
   its code fact-check.
-- [`PLATFORM_PRODUCTION_READINESS.md`](PLATFORM_PRODUCTION_READINESS.md) — SEC-05/PR-09 audit
+- [04 — Production readiness](./platform-console/04-production-readiness.md) — SEC-05/PR-09 audit
   retention and database least privilege.
 - [`PLATFORM_NEXT_IMPROVEMENTS_BEYOND_NY07.md`](PLATFORM_NEXT_IMPROVEMENTS_BEYOND_NY07.md) — the
   follow-on NZ-01–NZ-07 tranche.

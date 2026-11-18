@@ -57,8 +57,6 @@ Guide 6; no rule, command or safety procedure was removed.
 | [`DEVELOPING_ON_A_PHYSICAL_DEVICE.md`](DEVELOPING_ON_A_PHYSICAL_DEVICE.md) | The deep phone reference: verified commands, log reading, failure → fix |
 | [`INVENTORY_INTEGRITY.md`](INVENTORY_INTEGRITY.md) | The read-only orphan STOCK_IN / unreceipted-PO audit, its scheduled baseline/history monitor, its exit codes and what to do with a finding |
 | [`MONITORING.md`](MONITORING.md) | The operator's health endpoints, response pulse, AI turn records, alert rules and incident procedure |
-| [`PLATFORM_ACCESS_LAYER_ASSESSMENT.md`](PLATFORM_ACCESS_LAYER_ASSESSMENT.md) | The access-layer decision brief: current gate, Cloudflare Access and Tailscale comparison, Render IP-rule cost, origin-bypass risk and the recommended pilot; planning only |
-| [`PLATFORM_SECURITY_MONITORING_PLAN.md`](PLATFORM_SECURITY_MONITORING_PLAN.md) | The proposed platform alert catalogue, starting thresholds, channels, owners, response playbooks and coverage gaps; planning only |
 | [`INVENTORY_AI_IMPROVEMENT_ASSESSMENT.md`](INVENTORY_AI_IMPROVEMENT_ASSESSMENT.md) | The whole-product ranked improvement assessment: current strengths, risk register, next-work order and the new gaps beyond the existing roadmaps |
 | [`PLATFORM_CLOUDFLARE_ACCESS_IMPLEMENTATION_PLAN.md`](PLATFORM_CLOUDFLARE_ACCESS_IMPLEMENTATION_PLAN.md) | The conditional Cloudflare Access migration plan: domain, origin JWT, WebAuthn migration, cutover, rollback and acceptance tests; free-tier/domain gate only, planning only |
 | [`PLATFORM_SECURITY_CONTACTS.md`](PLATFORM_SECURITY_CONTACTS.md) | The primary/backup security contact record: the owner as primary, Cucumber as named backup with private contact details, the pending test gate and review cadence; planning only |
@@ -69,8 +67,6 @@ Guide 6; no rule, command or safety procedure was removed.
 | [`PLATFORM_DATABASE_RESTORE_DRILL_PLAN.md`](PLATFORM_DATABASE_RESTORE_DRILL_PLAN.md) | The disposable-database restore drill: RPO/RTO, safety stops, index gap, evidence and free-only secret escrow; planning only |
 | [`INVENTORY_AI_FOLLOWUP_ASSESSMENT.md`](INVENTORY_AI_FOLLOWUP_ASSESSMENT.md) | Free-first additive opportunities beyond IA-01–IA-18, with duplicate exclusions and a ranked shortlist |
 | [`INVENTORY_AI_MULTI_CRITERIA_RANKING.md`](INVENTORY_AI_MULTI_CRITERIA_RANKING.md) | One 27-row, seven-criteria ranking of IA-19–IA-45 with joint ranks, equal-weight scores, rationale and a post-approval sequence; planning only |
-| [`PLATFORM_PRODUCTION_READINESS.md`](PLATFORM_PRODUCTION_READINESS.md) | The pre-exposure checklist for the Platform Operations console: HTTPS and domains, network isolation, credentials, cookies/CORS, MFA recovery, audit retention and database permissions, support grants, CI proof and sign-off |
-| [`PLATFORM_SECURITY_RECOMMENDATIONS.md`](PLATFORM_SECURITY_RECOMMENDATIONS.md) | Prioritized future platform security improvements, with what, why, benefit and P0–P2 ordering; recommendations only |
 | [`PLATFORM_SECURITY_IMPROVEMENTS_BEYOND_IA45.md`](PLATFORM_SECURITY_IMPROVEMENTS_BEYOND_IA45.md) | Tenant-facing security review beyond IA-45: six ranked recommendations covering security notifications, access recertification, AI isolation canary, posture scorecard, tenant MFA and mail-domain anti-spoofing; recommendations only |
 | [`PLATFORM_TENANT_SECURITY_NOTIFICATIONS_PLAN.md`](PLATFORM_TENANT_SECURITY_NOTIFICATIONS_PLAN.md) | TS-01 planning only: explicit event triggers, server-resolved recipients, privacy rules, dedupe/rate limits, Brevo delivery/failure behaviour and acceptance checks |
 | [`PLATFORM_SECURITY_NOTIFICATION_CHECKLIST_PRINTING.md`](PLATFORM_SECURITY_NOTIFICATION_CHECKLIST_PRINTING.md) | Free-tool procedure for regenerating the printable checklist PDF with automatic one-page and required-field verification |
@@ -80,8 +76,25 @@ Guide 6; no rule, command or safety procedure was removed.
 | [`PLATFORM_SENSITIVE_DATA_PROTECTION_DESIGN.md`](PLATFORM_SENSITIVE_DATA_PROTECTION_DESIGN.md) | NX-01 design only: sensitive-field map, approved log appearances, the G1–G9 code findings, redaction boundary, C1–C14 canary and acceptance checks |
 | [`PLATFORM_NEXT_IMPROVEMENTS_BEYOND_NX07.md`](PLATFORM_NEXT_IMPROVEMENTS_BEYOND_NX07.md) | Next ranked tranche beyond NX-07: AI provider data-handling attestation, release-artifact secret/PII scan, runbook freshness, TTL effectiveness, audit tamper-evidence and external-link freshness; recommendations only |
 | [`PLATFORM_NEXT_IMPROVEMENTS_BEYOND_NY07.md`](PLATFORM_NEXT_IMPROVEMENTS_BEYOND_NY07.md) | Next ranked tranche beyond NY-07: CodeQL, dependency review, deploy rollback, workflow audit, Android manifest privacy, privacy-policy drift and App Check; recommendations only |
-| [`PLATFORM_CONSOLE_IMPROVEMENTS.md`](PLATFORM_CONSOLE_IMPROVEMENTS.md) | Prioritized Platform Operations console improvements: forced recovery ceremony, step-up/dual control, support grants, monitoring, audit export and deployment attestation; recommendations only |
 | [`../README.md`](../README.md) | The front door: stack, layout, how to run each half, deployment |
+
+### Platform Operations console
+
+The console has its own document set in [`platform-console/`](platform-console/README.md).
+Start with its index; these are the direct pages.
+
+| Document | Answers |
+| --- | --- |
+| [`platform-console/README.md`](platform-console/README.md) | The console documentation index, reading order, boundaries and maintenance rules |
+| [`01 — Status and accounts`](platform-console/01-status-and-accounts.md) | Current feature status, measured production data, AI monitoring, 5xx semantics and account creation |
+| [`02 — Accounts and credentials`](platform-console/02-accounts-and-credentials.md) | Platform and tenant roles, account lifecycle, every credential, storage, rotation, login and recovery |
+| [`03 — Console improvements`](platform-console/03-console-improvements.md) | Ranked console improvements and the next security/operational work; recommendations only |
+| [`04 — Production readiness`](platform-console/04-production-readiness.md) | The pre-exposure gates: HTTPS, network isolation, credentials, cookies/CORS, MFA, audit and sign-off |
+| [`05 — Access layer`](platform-console/05-access-layer.md) | The access-layer comparison, origin-bypass risk and the free-first pilot decision; planning only |
+| [`06 — Security monitoring`](platform-console/06-security-monitoring.md) | Proposed alert thresholds, channels, owners, incident procedure and coverage gaps; planning only |
+| [`07 — Security recommendations`](platform-console/07-security-recommendations.md) | The original prioritized platform security list, with rationale and P0–P2 ordering; recommendations only |
+| [`08 — Security roadmap`](platform-console/08-security-roadmap.md) | The additive NS-01–NS-07 roadmap after PLAT-21; NS-05 implemented, NS-02 audit portion implemented, the rest recommendations only |
+| [`09 — Remaining security priorities`](platform-console/09-remaining-security-priorities.md) | A recommendations-only ranking of the remaining console security work, including verified-operator grants, audit evidence and CLI hardening |
 
 ### Review cadence
 
@@ -102,8 +115,16 @@ Reference documents are consulted rather than read once, so they are reviewed on
 | [`DEVELOPING_ON_A_PHYSICAL_DEVICE.md`](DEVELOPING_ON_A_PHYSICAL_DEVICE.md) | 90 days | 2026-11-07 |
 | [`INVENTORY_INTEGRITY.md`](INVENTORY_INTEGRITY.md) | 90 days | 2026-11-15 |
 | [`MONITORING.md`](MONITORING.md) | 90 days | 2026-11-17 |
-| [`PLATFORM_ACCESS_LAYER_ASSESSMENT.md`](PLATFORM_ACCESS_LAYER_ASSESSMENT.md) | 90 days | 2026-11-17 |
-| [`PLATFORM_SECURITY_MONITORING_PLAN.md`](PLATFORM_SECURITY_MONITORING_PLAN.md) | 90 days | 2026-11-17 |
+| [`platform-console/README.md`](platform-console/README.md) | 90 days | 2026-11-18 |
+| [`01 — Status and accounts`](platform-console/01-status-and-accounts.md) | 90 days | 2026-11-18 |
+| [`02 — Accounts and credentials`](platform-console/02-accounts-and-credentials.md) | 90 days | 2026-11-18 |
+| [`03 — Console improvements`](platform-console/03-console-improvements.md) | 90 days | 2026-11-17 |
+| [`04 — Production readiness`](platform-console/04-production-readiness.md) | 90 days | 2026-11-18 |
+| [`05 — Access layer`](platform-console/05-access-layer.md) | 90 days | 2026-11-17 |
+| [`06 — Security monitoring`](platform-console/06-security-monitoring.md) | 90 days | 2026-11-17 |
+| [`07 — Security recommendations`](platform-console/07-security-recommendations.md) | 90 days | 2026-11-17 |
+| [`08 — Security roadmap`](platform-console/08-security-roadmap.md) | 90 days | 2026-11-18 |
+| [`09 — Remaining security priorities`](platform-console/09-remaining-security-priorities.md) | 90 days | 2026-11-18 |
 | [`INVENTORY_AI_IMPROVEMENT_ASSESSMENT.md`](INVENTORY_AI_IMPROVEMENT_ASSESSMENT.md) | 90 days | 2026-11-17 |
 | [`PLATFORM_CLOUDFLARE_ACCESS_IMPLEMENTATION_PLAN.md`](PLATFORM_CLOUDFLARE_ACCESS_IMPLEMENTATION_PLAN.md) | 90 days | 2026-11-17 |
 | [`PLATFORM_SECURITY_CONTACTS.md`](PLATFORM_SECURITY_CONTACTS.md) | 90 days | 2026-11-17 |
@@ -114,8 +135,6 @@ Reference documents are consulted rather than read once, so they are reviewed on
 | [`PLATFORM_DATABASE_RESTORE_DRILL_PLAN.md`](PLATFORM_DATABASE_RESTORE_DRILL_PLAN.md) | 90 days | 2026-11-17 |
 | [`INVENTORY_AI_FOLLOWUP_ASSESSMENT.md`](INVENTORY_AI_FOLLOWUP_ASSESSMENT.md) | 90 days | 2026-11-17 |
 | [`INVENTORY_AI_MULTI_CRITERIA_RANKING.md`](INVENTORY_AI_MULTI_CRITERIA_RANKING.md) | 90 days | 2026-11-17 |
-| [`PLATFORM_PRODUCTION_READINESS.md`](PLATFORM_PRODUCTION_READINESS.md) | 90 days | 2026-11-16 |
-| [`PLATFORM_SECURITY_RECOMMENDATIONS.md`](PLATFORM_SECURITY_RECOMMENDATIONS.md) | 90 days | 2026-11-16 |
 | [`PLATFORM_SECURITY_IMPROVEMENTS_BEYOND_IA45.md`](PLATFORM_SECURITY_IMPROVEMENTS_BEYOND_IA45.md) | 90 days | 2026-11-17 |
 | [`PLATFORM_TENANT_SECURITY_NOTIFICATIONS_PLAN.md`](PLATFORM_TENANT_SECURITY_NOTIFICATIONS_PLAN.md) | 90 days | 2026-11-17 |
 | [`PLATFORM_SECURITY_NOTIFICATION_CHECKLIST_PRINTING.md`](PLATFORM_SECURITY_NOTIFICATION_CHECKLIST_PRINTING.md) | 90 days | 2026-11-17 |
@@ -125,7 +144,6 @@ Reference documents are consulted rather than read once, so they are reviewed on
 | [`PLATFORM_SENSITIVE_DATA_PROTECTION_DESIGN.md`](PLATFORM_SENSITIVE_DATA_PROTECTION_DESIGN.md) | 90 days | 2026-11-17 |
 | [`PLATFORM_NEXT_IMPROVEMENTS_BEYOND_NX07.md`](PLATFORM_NEXT_IMPROVEMENTS_BEYOND_NX07.md) | 90 days | 2026-11-17 |
 | [`PLATFORM_NEXT_IMPROVEMENTS_BEYOND_NY07.md`](PLATFORM_NEXT_IMPROVEMENTS_BEYOND_NY07.md) | 90 days | 2026-11-17 |
-| [`PLATFORM_CONSOLE_IMPROVEMENTS.md`](PLATFORM_CONSOLE_IMPROVEMENTS.md) | 90 days | 2026-11-16 |
 | [`../README.md`](../README.md) | 90 days | 2026-11-09 |
 
 The 2026-11-07 date starts each clock at adoption: it records when the cadence began, not that every
@@ -145,7 +163,7 @@ date they were written. **Read them for an audit, not for orientation.**
 | [`TS-MIGRATION-MANIFEST.md`](TS-MIGRATION-MANIFEST.md) | The completed TypeScript migration and the one module left in JavaScript |
 | [`AI_LANGUAGE_REVIEW_14_2026-11-06.md`](AI_LANGUAGE_REVIEW_14_2026-11-06.md) | The dated native-speaker review sheet for 14 assistant answers; scores stay blank until a reviewer fills them |
 | [`superpowers/`](superpowers/) | Dated plans and design specs written before work began |
-| [`superpowers/specs/2026-11-16-platform-admin-architecture.md`](superpowers/specs/2026-11-16-platform-admin-architecture.md) | Platform Operations architecture: the implemented separate platform-admin identity/session/capability plane, dedicated console, mandatory TOTP/WebAuthn, append-only audit trail, and the remaining support-grant and external-identity gates |
+| [`superpowers/specs/2026-11-16-platform-admin-architecture.md`](superpowers/specs/2026-11-16-platform-admin-architecture.md) | Platform Operations architecture: the implemented separate platform-admin identity/session/capability plane, dedicated console, mandatory TOTP enrollment with optional WebAuthn, append-only audit trail, and the remaining support-grant and external-identity gates |
 | [`evidence/`](evidence/device-runs/README.md) | Device runs, scale measurements and captured output |
 | [`freebuff/`](freebuff/README.md) | An older agent-activity log. Forensic only — not architecture, history or specification, and its status statements are frozen at their dates |
 

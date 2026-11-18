@@ -90,6 +90,28 @@ unitSuite('OPS-2 — counter rules and their own controls', () => {
     assert.equal(operationalCounters().serverErrors, 1, 'a later 4xx does not inflate the error count');
   });
 
+  it('does not call a monitoring-only 503 a server error', () => {
+    resetOperationalCounters();
+
+    // The integrity endpoint's 503 is a state signal for an uptime monitor, not
+    // a failed request. It is still a response, and still a literal 5xx.
+    recordResponse(503, '/api/health/integrity');
+    const monitoring = operationalCounters();
+    assert.equal(monitoring.responses, 1);
+    assert.equal(monitoring.byStatusClass['5xx'], 1);
+    assert.equal(monitoring.serverErrors, 0);
+    assert.equal(monitoring.lastServerErrorAt, null);
+
+    // Readiness is a real availability failure and must keep counting.
+    recordResponse(503, '/api/health/ready');
+    assert.equal(operationalCounters().serverErrors, 1);
+
+    // A genuine 500 on the same monitoring route is still a server failure.
+    recordResponse(500, '/api/health/integrity');
+    assert.equal(operationalCounters().serverErrors, 2);
+    assert.deepEqual(serverErrorsByStatus(), { 503: 1, 500: 1 });
+  });
+
   it('hands out a copy — a caller cannot mutate the process to make itself look healthy', () => {
     resetOperationalCounters();
     recordResponse(500);
@@ -164,7 +186,9 @@ unitSuite('OPS-2 — counter rules and their own controls', () => {
   });
 
   it('is registered in the app BEFORE the routes, so there is no path around it', () => {
-    const counterAt = APP_SOURCE.indexOf("res.on('finish', () => recordResponse(res.statusCode))");
+    const counterAt = APP_SOURCE.indexOf(
+      "recordResponse(res.statusCode, req.originalUrl.split('?')[0])",
+    );
     const firstRoute = APP_SOURCE.indexOf("app.use('/api/health'");
     assert.ok(counterAt > -1, 'app.ts wires the response counter');
     assert.ok(firstRoute > -1, 'app.ts still mounts the health router');
@@ -216,6 +240,38 @@ dbSuite('OPS-2 — the counters over the real app', dbOk, () => {
     const after = (await api('GET', '/api/health')).json.counters;
     assert.equal(after.byStatusClass['4xx'], before.byStatusClass['4xx'] + 1, 'the 404 landed in 4xx');
     assert.equal(after.serverErrors, before.serverErrors, 'a 404 is not a server error');
+  });
+
+  it('counts a stale integrity 503 as a response, not as a server error', async () => {
+    const heartbeat = mongoose.connection.db.collection('integrity_monitor_heartbeats');
+    const before = (await api('GET', '/api/health')).json.counters;
+    try {
+      await heartbeat.updateOne(
+        { _id: 'production' },
+        {
+          $set: {
+            checkedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
+            status: 'UNCHANGED',
+            updatedAt: new Date(),
+          },
+        },
+        { upsert: true },
+      );
+
+      const stale = await api('GET', '/api/health/integrity');
+      assert.equal(stale.status, 503, 'a stale heartbeat is still a 503 for the uptime monitor');
+
+      const after = (await api('GET', '/api/health')).json.counters;
+      assert.equal(after.serverErrors, before.serverErrors, 'the monitoring state is not a failure');
+      assert.equal(after.lastServerErrorAt, before.lastServerErrorAt);
+      assert.equal(
+        after.byStatusClass['5xx'],
+        before.byStatusClass['5xx'] + 1,
+        'the response census still counts the literal 5xx',
+      );
+    } finally {
+      await heartbeat.deleteOne({ _id: 'production' });
+    }
   });
 
   it('counts a REAL 503 — the sequence that was invisible before this increment', async () => {

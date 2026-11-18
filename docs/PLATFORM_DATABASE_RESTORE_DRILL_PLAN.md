@@ -304,6 +304,6 @@ service. Paid backup/DR can be revisited when revenue exists.
   `server/scripts/backup/lib.mjs`.
 - Restore guard tests: `server/test/OPS1-backup-restore.test.mjs`.
 - Current acceptance status: [`AUTH_SECURITY_MASTER_CHECKLIST.md`](AUTH_SECURITY_MASTER_CHECKLIST.md)
-  and [`PLATFORM_PRODUCTION_READINESS.md`](PLATFORM_PRODUCTION_READINESS.md).
+  and [04 — Production readiness](./platform-console/04-production-readiness.md).
 - Atlas free-tier backup limitation: the comments and tests in the files above; verify the current
   Atlas tier in the console before the drill.

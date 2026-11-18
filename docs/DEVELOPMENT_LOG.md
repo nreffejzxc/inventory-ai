@@ -40,9 +40,79 @@ at the end of every development session, newest entry first.
 
 ## Current position
 
-**Updated:** 2026-11-17
+**Updated:** 2026-11-18
 **Goal:** finish and harden Inventory AI **V1** through production testing. No Play Store or App
 Store release is being prepared.
+
+**Console delivery committed, PLAT-20–27 (2026-11-18):** all outstanding console work is
+committed as `282c8d6` and pushed to PR #336. CI is CLEAN with all five required checks:
+`server` **3,161/3,161** across 508 suites, `webauthn-e2e`, `mobile`, `secret-guard` and
+`attribution-guard`. The full runner now includes PLAT-9. No deployment or merge was made
+before this record.
+
+**Audited CLI creation and bounded outer-gate state, PLAT-26/PLAT-25 (2026-11-18,
+code and tests only):** the operator CLI now requires an operator identity and writes
+exactly one `platform.admin.created` audit event with source, target and optional grant;
+a duplicate/failed creation writes no success event. The outer gate also stops creating
+per-source buckets and audit rows once its global failure cap is reached, and clears its
+map when the window resets. Address verification/activation is not implemented. No
+deployment, merge or credential change.
+**Outer-gate failure bounding, PLAT-25 (2026-11-18, code and tests only):** the shared
+outer access gate now returns 429 after repeated wrong keys, keeps a valid key working,
+and writes one sampled `platform.access.gate_denied` audit event per source per window
+without key material. No deployment, merge or production configuration change.
+**Dedicated console documentation, PLAT-24 (2026-11-18, documentation only):** the eight
+console documents moved to `docs/platform-console/` with numbered names and an index; the
+root docs map and checker now treat the folder as one active set. Corrected tenant-disable
+session behavior, TOTP-versus-WebAuthn wording and the 58-vs-0 5xx explanation. No code,
+deployment, account or credential change. Docs: **63 active documents / 41 living
+references**.
+**Owner/CEO account, credential and access guide, PLAT-23 (2026-11-18, documentation only):**
+added `PLATFORM_ACCOUNT_CREDENTIAL_AND_ACCESS_GUIDE.md` as the practical companion to the
+PLAT-21 assessment. It covers the four platform roles and exact console-section access;
+tenant role permissions; platform CLI creation, disable/enable/delete and the absence of a
+role-change route; tenant registration, invitation, direct creation, disable-only member
+management and self-deletion; every platform, tenant and server credential with purpose,
+storage, regeneration and revocation; TOTP, recovery codes, WebAuthn, email codes, reset
+tokens and mechanisms that do not exist; normal access, failure diagnosis and break-glass;
+and an owner checklist, cadence and incident response. Current production gaps: one
+SUPERADMIN, TOTP, 0 WebAuthn keys, 7 unused recovery codes and a stale local recovery file.
+No deployment, account creation, credential rotation or production write was made. Docs:
+**62 active documents / 40 living references**.
+
+**Additive security roadmap and PR #336 CI, PLAT-22 (2026-11-18, recommendations only):**
+PR #336 at `6f61e11` is CLEAN: `server`, `mobile`, `secret-guard`, `attribution-guard` and
+`webauthn-e2e` all pass. The first `webauthn-e2e` attempt failed in the third password
+step with `VALIDATION_ERROR`; the same script passed locally and on a rerun of the failed
+job. No code changed and no merge occurred. Added
+`PLATFORM_SECURITY_IMPROVEMENTS_BEYOND_PLAT21.md` with seven additive controls not owned
+by the existing SEC/CI/TS/NX/NY/NZ records: NS-01 password-breach screening, NS-03
+versioned platform key rotation, NS-02 audited/address-verified operator CLI, NS-04
+platform session inventory, NS-07 AI web-egress boundary, NS-05 outer-gate
+anti-automation and NS-06 platform factor rotation. Recommended first: NS-02, NS-05 and
+NS-01, then NS-03. Docs: **61 active documents / 39 living references**.
+
+**Console status assessment and role/account guide, PLAT-21 (2026-11-18, documentation and
+read-only production reads):** added
+`PLATFORM_CONSOLE_STATUS_AND_ACCOUNT_GUIDE.md` with the current feature status, a measured
+production snapshot, AI monitoring accuracy, platform/tenant authentication and
+account-creation steps for every role. Read-only production at 06:37 UTC found 6 active
+businesses, 11 accounts (9 active), 86 AI turns in 7 days (78 ok / 4 degraded / 4 failed;
+36 free / 50 paid; 4 failovers; p95 22.7 s), 0 durable 5xx events, and 1 ACTIVE SUPERADMIN
+with TOTP, 0 WebAuthn keys and 7 unused recovery codes. `/api/health` still reported 58
+process server errors while the durable store held 0 — the pre-deploy #336 gap, not a new
+regression. No deployment, account creation, tenant write or recovery rotation was
+performed. Docs checks: **60 active documents / 38 living references**; focused docs suites
+**32/32**.
+
+**Atomic SUPERADMIN guard and monitoring restoration, PLAT-20 (2026-11-18, code and documentation):**
+the lifecycle service now leases only a disable or delete; enabling is lock-free. The PLAT-8 fixture
+proves ten concurrent disables commit one, a delete/disable race leaves one active, an enable succeeds
+under a live lease and a stale lease is taken over. `serverErrors` excludes only the monitoring-only
+`/api/health/integrity` 503; readiness 503s remain counted. The heartbeat writer now resolves
+`server/.env` from its own path and the PowerShell wrapper no longer treats native stderr as fatal;
+the registered task returned 0 and the endpoint answered 200. Full server suite **3,150/3,150**; no
+deployment. Recovery-code rotation and WebAuthn registration remain owner actions.
 
 **AI-118 inspection and NZ-01–NZ-07 roadmap, PLAT-19 (2026-11-17, docs-only):** inspected the two
 pre-existing AI-118 working-tree files without changing them. The diff adds a
@@ -208,8 +278,8 @@ the merge still reported `status: ok`, `db: connected`, `environment: production
 AI-118 files remain unstaged.
 
 **Planning assessment only, PLAT-8 (2026-11-17, docs-only):** wrote the access-layer decision brief
-([`PLATFORM_ACCESS_LAYER_ASSESSMENT.md`](PLATFORM_ACCESS_LAYER_ASSESSMENT.md)), the platform security
-alert catalogue/ownership plan ([`PLATFORM_SECURITY_MONITORING_PLAN.md`](PLATFORM_SECURITY_MONITORING_PLAN.md))
+([05 — Access layer](./platform-console/05-access-layer.md)), the platform security
+alert catalogue/ownership plan ([06 — Security monitoring](./platform-console/06-security-monitoring.md))
 and the 18-item whole-product ranking ([`INVENTORY_AI_IMPROVEMENT_ASSESSMENT.md`](INVENTORY_AI_IMPROVEMENT_ASSESSMENT.md)),
 with a roadmap record §27IS and links from `docs/README.md`, `CLAUDE.md`, the console/security
 roadmaps and `MONITORING.md`. **No code, configuration, deployment or production state changed;**
@@ -243,7 +313,7 @@ new password accepted, all factors cleared, zero sessions). `main` branch protec
 enforce-admins; a temporary PR (#319) with a deliberately failing `webauthn-e2e` and passing other
 checks reported `mergeStateStatus: BLOCKED` and GitHub refused the merge. PR #319 was closed without
 merging and its branch deleted. The ranked long-term roadmap remains recommendations-only in
-`docs/PLATFORM_CONSOLE_IMPROVEMENTS.md`; no roadmap item was implemented. Residual gates: Render
+`docs/platform-console/03-console-improvements.md`; no roadmap item was implemented. Residual gates: Render
 free has no edge IP allowlist (PR-03 remains partial), audit retention/least privilege (PR-09) and
 named security sign-off (PR-15) remain open. The two pre-existing AI-118 working-tree files were not
 staged.
@@ -266,7 +336,7 @@ administrator enrolled in TOTP; the bootstrap credential file is ignored and was
 
 **Platform Operations console, MFA and audit, PLAT-2/PLAT-3 (2026-11-16, committed and browser-verified; not deployed):** the three approved layers are implemented. A dedicated static console (`cd server && npm run platform-console`, `http://localhost:4100`) uses an HttpOnly `platform_session` cookie plus a readable `platform_csrf` cookie and requires both the exact `PLATFORM_CONSOLE_ORIGIN` and a matching `X-Platform-CSRF` header; Bearer API clients are unchanged. Its CSP is `default-src 'none'`, same-origin script/style, API-origin-only `connect-src`, `frame-ancestors 'none'`, with no inline script, style or handler. Platform login is password + **mandatory** TOTP (WebAuthn as an enrolled alternative); a password alone returns only a challenge. TOTP secrets and WebAuthn public keys are AES-256-GCM encrypted under `PLATFORM_MFA_ENCRYPTION_KEY`, codes are single-use, WebAuthn registration exists only inside an authenticated session, and a WebAuthn login challenge is stored as a hash and consumed atomically with the counter so an assertion cannot be replayed. `platform_audit_events` records login failure, MFA/WebAuthn changes, capability denials, operations/audit reads, renewal and logout, and its model refuses update/replace/delete/save-existing with no TTL; SECURITY and SUPERADMIN alone hold `platform.audit.read`. Route inventory is **105 / 57 gated / 20 authenticated / 28 public / 0 role-gated**. `PLAT2` **9/9**, `PLAT3` **8/8 with one unit suite mode-skipped in db mode**, `OPS7` **14/0 with two unit suites mode-skipped**, phase 23 **32/32** and the route-inventory guard pass; server `tsc` passes. Committed in `d02a549`, followed by the CORS-contract fix and browser-E2E support; no deployment, OTA or public exposure was performed. The first full server run found that the new fixed CORS `allowedHeaders` list changed the established preflight response; removing it restored reflection and `phase07c-http-security.test.mjs`. The final full server suite passed **3,121/3,121, 499 suites, 0 failures, 0 skipped**. `npm run test:webauthn-e2e` then passed against headless Chrome with a CDP virtual authenticator: TOTP enrollment, security-key registration, security-key login, replay refusal (`PLATFORM_WEBAUTHN_INVALID`) and a tampered assertion refused with no session; the disposable administrator and its audit rows were removed. That run also caught and fixed the console's missing `/api/platform` fetch base, now asserted by `PLAT2` (9/9). An external dedicated identity project remains unverified; support grants and tenant-detail reads remain open gates.
 
-**Platform Operations review and CI browser proof, PLAT-4 (2026-11-16; committed locally, not pushed):** the fresh review is `40f2758` and touches only platform files. It removes dead helpers, gates the console CORS origin on a configured platform plane, requires `PLATFORM_CONSOLE_ORIGIN` in production and makes the WebAuthn E2E cleanup fail closed; the AI-118 files remain excluded. `.github/workflows/ci.yml` now has a `webauthn-e2e` job with a disposable MongoDB, headless Chrome and the existing virtual-authenticator script. The pre-exposure checklist is `docs/PLATFORM_PRODUCTION_READINESS.md`; the P0–P2 future list is `docs/PLATFORM_SECURITY_RECOMMENDATIONS.md`. Focused checks pass: PLAT2 **9/9**, PLAT3 **12/12**, phase07c **17/17**, local E2E, `tsc`, ESLint and `git diff --check`. The CI job and full suite were not rerun/observed; no push, deploy or OTA was made. The console remains **not ready to expose** until the readiness checklist's P0 items close.
+**Platform Operations review and CI browser proof, PLAT-4 (2026-11-16; committed locally, not pushed):** the fresh review is `40f2758` and touches only platform files. It removes dead helpers, gates the console CORS origin on a configured platform plane, requires `PLATFORM_CONSOLE_ORIGIN` in production and makes the WebAuthn E2E cleanup fail closed; the AI-118 files remain excluded. `.github/workflows/ci.yml` now has a `webauthn-e2e` job with a disposable MongoDB, headless Chrome and the existing virtual-authenticator script. The pre-exposure checklist is `docs/platform-console/04-production-readiness.md`; the P0–P2 future list is `docs/platform-console/07-security-recommendations.md`. Focused checks pass: PLAT2 **9/9**, PLAT3 **12/12**, phase07c **17/17**, local E2E, `tsc`, ESLint and `git diff --check`. The CI job and full suite were not rerun/observed; no push, deploy or OTA was made. The console remains **not ready to expose** until the readiness checklist's P0 items close.
 
 **Platform Operations recovery and lifecycle, PLAT-5 (2026-11-16; committed locally, not pushed):** one-time recovery codes (10, hashed, single-use, generated only after the current password), a durable account-scoped MFA lock (five failures in 15 minutes locks verification for 15 minutes across IPs), self-service password change with every-session revocation, and SUPERADMIN list/disable/enable/delete/WebAuthn-key-removal routes with self and last-SUPERADMIN guards. Non-loopback origins must be bare HTTPS origins, and a missing `NODE_ENV` can no longer downgrade the session cookie to non-Secure. `PLAT2` **10/10**, `PLAT3` **13/13**, `PLAT4` **13/13** (including a separate WebAuthn-failure lock test), focused platform **36/36**, Phase 23 **21/21**, browser E2E pass, and the full server suite **3,135/3,135 across 501 suites (0 failed, 0 skipped, 0 todo)**; the later test-only WebAuthn-lock addition was verified separately in `PLAT4` **13/13**. Route inventory is **112 routes / 61 gated / 22 authenticated / 29 public / 0 role-gated**; docs guards show **38 active documents** and **16 living references**. No push, deploy, OTA, public exposure, tenant-detail read or support grant was made.
 
@@ -568,6 +638,272 @@ Known limits, checked before spending one of them:
 
 ---
 
+## 2026-11-18 — console delivery committed and CI verified
+
+**Status.** Code, tests and documentation are committed as `282c8d6` and pushed to PR #336;
+the PR is CLEAN. No deployment or merge was made before this entry.
+
+**What changed.** The uncommitted PLAT-20–27 body of work is now one console-delivery
+commit: the PLAT-20 SUPERADMIN/monitoring foundation, the PLAT-24 numbered console
+documentation set, the PLAT-25 outer-gate failure budget, the PLAT-26 audited operator
+CLI, and the PLAT-27 step-up proof with CORS and reused-code handling. The commit also
+classifies `PLAT9-platform-stepup.test.mjs` in `server/scripts/run-tests.mjs`; the runner
+had correctly refused the full suite while the file was unclassified.
+
+**Verification.** CI run `44271986057` passed all five required checks on `282c8d6`:
+`server` **3,161/3,161** (508 suites), `webauthn-e2e`, `mobile`, `secret-guard` and
+`attribution-guard`. Locally, the platform-focused suites pass **90/90**, `tsc --noEmit`
+passes, the changed files pass ESLint, the four docs guards pass **20/20**, and
+`check-docs` reports **64 active documents / 42 living references**. A local full-suite
+attempt hit a Windows child-process resource failure in the PLAT-8 race fixture; the
+same full suite passed in CI, which is the authoritative run.
+
+**Next.** Merge and verify the Render deployment, then re-observe the production
+`/platform` and health surfaces. No address activation or production account change is
+part of this delivery.
+
+---
+
+## 2026-11-18 — PLAT-23 owner/CEO account, credential and access guide
+
+**Status.** Documentation only; no code, deployment, account creation, credential
+rotation, WebAuthn registration or production write. PR #336 remains open and undeployed.
+
+**What changed.** Added `docs/platform-console/02-accounts-and-credentials.md` as a living
+reference and linked it from the PLAT-21 status/account guide. The guide covers:
+
+- the four platform roles, their purpose and the exact console sections each can open;
+- tenant `OWNER`/`ADMIN`/`MANAGER`/`STAFF` permissions and the rules that keep `OWNER`
+  unassignable and immutable;
+- platform CLI-only creation, first-login TOTP/recovery setup, disable/enable/delete,
+  WebAuthn-key removal and the absence of a role-change route;
+- tenant verified registration, 7-day email-bound invitations, direct password creation,
+  role/status updates, disable-only member management and self-deletion;
+- every platform, tenant and server credential: password, TOTP secret, 10 recovery codes,
+  WebAuthn key, session/CSRF/challenge tokens, outer access key, email/reset codes,
+  invitation token, JWTs, database URI, Firebase key, Brevo/OpenRouter keys and the shared
+  code pepper, with storage and rotation effects;
+- platform login and MFA, tenant login/verification, lockout, break-glass and lost-access
+  diagnosis;
+- owner/CEO priorities, cadence, account-protection rules, incident response, tenant
+  responsibilities and explicit non-existent mechanisms.
+
+**Current production state recorded.** One ACTIVE SUPERADMIN with TOTP, **0 WebAuthn
+keys**, **7 unused recovery codes** and 0 active sessions. The local recovery-code file is
+stale. The guide's immediate actions are two hardware keys, recovery-code rotation, outer
+key confirmation, a second trusted SUPERADMIN or tested break-glass, and provider-account
+MFA. It also records the shared-gate/network-isolation gap, no immutable audit sink or
+pager, destructive MFA-key rotation, and the missing PIN, biometric lock, SMS OTP, tenant
+MFA, tenant recovery codes, self-service platform reset, platform role change, admin
+delete-member route, tenant ownership transfer, TOTP rotation UI and platform session
+inventory.
+
+**Verification.** `node scripts/check-docs.mjs` reports **62 active documents / 40 living
+references**; the focused docs suites pass **31/31** across six suites; `git diff --check`
+is clean. No application code changed; no deployment, account creation or credential
+change was made.
+
+---
+
+## 2026-11-18 — PLAT-22 additive security roadmap and PR #336 CI
+
+**Status.** Recommendations only; no code, configuration, notification, drill, database
+operation, deployment, merge or paid service. PR #336 remains open.
+
+**CI.** PR #336 at `6f61e11` is CLEAN and mergeable. All five required checks pass:
+`server`, `mobile`, `secret-guard`, `attribution-guard` and `webauthn-e2e`. The first
+`webauthn-e2e` attempt failed in the third password step with `VALIDATION_ERROR`; the same
+script passed locally, and the failed job passed on rerun in 1m49s. No code was changed to
+obtain the pass.
+
+**Roadmap.** Added `docs/platform-console/08-security-roadmap.md` with seven new
+ranked controls: NS-01 password-breach screening (26/30), NS-03 versioned rotation for
+platform JWT and MFA-encryption keys (24/30), NS-02 audited and address-verified operator
+CLI (24/30), NS-04 platform session inventory and one-device revocation (22/30), NS-07 AI
+web-egress boundary and canary (21/30), NS-05 outer-gate anti-automation and audit
+(21/30), and NS-06 self-service factor rotation (20/30). Each entry names the code gap,
+why it matters, the free path, acceptance checks and dependencies. The recommended first
+three are NS-02, NS-05 and NS-01; NS-03 should precede the next rotation drill.
+
+**Exclusions.** Existing SEC/CI/TS/NX/NY/NZ items are not re-listed as new: recovery,
+lifecycle, MFA budgets, audit export/least privilege, support grants, step-up/dual
+control, identity provider, alerting, E2E durability, tenant notifications/MFA, AI
+cross-tenant canary, redaction, CodeQL, dependency review, rollback, workflow audit,
+Android privacy, policy drift, App Check and network isolation remain owned elsewhere.
+
+**Verification.** `check-docs` reports **61 active documents / 39 living references**;
+focused docs suites pass **32/32**; `git diff --check` is clean. No application code
+changed; PLAT-20's full suite remains **3,150/3,150** across 506 suites.
+
+---
+
+## 2026-11-18 — PLAT-27 SEC-08 step-up proof for destructive administrator actions
+
+**Status.** Code, tests and console documentation only; no deployment, merge, address
+activation or PR #336 commit. PR #336 remains open and undeployed.
+
+**What changed.** Destructive platform lifecycle routes no longer accept a session
+capability alone. `POST /api/platform/auth/step-up` re-checks the current password and a
+TOTP code, advances the login replay counter atomically, and issues a five-minute proof
+bound to the administrator id, the session `jti` and the `platform.admin.lifecycle`
+scope. `PATCH /admins/:id/status`, `DELETE /admins/:id` and
+`DELETE /admins/:id/webauthn/:credentialId` enforce the proof after the capability gate
+and before the controller, returning `403 PLATFORM_STEP_UP_REQUIRED` when it is missing,
+expired, malformed, cross-session or cross-admin. The proof has a separate JWT audience
+and is refused as an access token. It is stateless and replayable within its five-minute
+window by the same session; the documentation says so.
+
+**Audit and console.** Four closed-catalogue actions record issuance success/failure,
+required refusals and successful use, without passwords, TOTP codes or proof tokens. The
+Team management panel prompts for the two factors when the API asks and retries once;
+the server remains authoritative. The API CORS allow-list now names `X-Platform-Step-Up`,
+and a code whose step was just spent at login returns `409
+PLATFORM_MFA_CODE_ALREADY_USED` (wait for the next code) rather than `PLATFORM_MFA_INVALID`;
+the used-code path does not count a failed factor.
+
+**Verification.** PLAT-4 **13/13**, PLAT-9 **9/9**, PLAT-2 **10/10** and Phase 07C HTTP
+security **17/17**; route/document guards **32/32** with §2.6 at **123 = 69 + 23 + 31**. `tsc --noEmit`, ESLint,
+`git diff --check`, `check-docs` (**64 active / 42 living**) and the focused docs suites
+pass. No deployment, production change or address activation was made.
+
+---
+
+## 2026-11-18 — PLAT-26 audited operator CLI creation and bounded outer-gate state
+
+**Status.** Code and tests only; no deployment, merge, production account creation or
+PR #336 commit. Address verification and `PENDING` activation are deliberately not
+implemented. PR #336 remains open and undeployed.
+
+**What changed.** `createPlatformAdminAccount` accepts an explicit audit context and
+writes exactly one `platform.admin.created` event on success with the operator identity
+(actor email), source (`cli`), target email, target role and optional grant id. The
+operator CLI now requires `PLATFORM_ADMIN_OPERATOR` and accepts
+`PLATFORM_ADMIN_GRANT_ID`; the WebAuthn E2E supplies a disposable operator. A duplicate
+or failed creation writes no success event, and no password, hash, TOTP secret or recovery
+code is recorded.
+
+**Limiter follow-up.** The PLAT-25 outer gate now has one shared window for both the
+per-source and global budgets. At/above the global cap it returns 429 without creating a
+new source bucket or writing another audit row; the map is cleared when the window
+resets, so state is bounded by the cap. The valid-key bypass remains first. PLAT-7 now
+proves the global cap, bounded state, exactly one audit row and continued valid-key
+access.
+
+**Verification.** PLAT-7 **6/6** in full mode; `tsc --noEmit`, ESLint and
+`git diff --check` pass. `check-docs` reports **64 active documents / 42 living
+references**; focused docs suites pass **31/31**. The recommendations-only ranking is
+[`platform-console/09-remaining-security-priorities.md`](platform-console/09-remaining-security-priorities.md).
+No deployment or production account was created.
+
+---
+
+## 2026-11-18 — PLAT-25 outer access-gate failure bounding and sampled audit
+
+**Status.** Code and tests only; no deployment, merge, production configuration or
+PR #336 commit. PR #336 remains open and undeployed.
+
+**What changed.** `platformAccessGate` now counts failed key checks per source address
+and per process in a bounded window. After the budget it answers
+`429 PLATFORM_ACCESS_RATE_LIMITED` with `Retry-After`; a valid key is checked first and
+is never blocked by the failure budget. The first failure from an address in each
+window writes one sampled `platform.access.gate_denied` audit event with the source,
+route and time, never the supplied key. Budgets: `PLATFORM_ACCESS_GATE_WINDOW_MS`
+(15 min), `PLATFORM_ACCESS_GATE_MAX_FAILURES` (20 per address) and
+`PLATFORM_ACCESS_GATE_GLOBAL_MAX_FAILURES` (200 per process). Process-local by design;
+CI-09 tracks the shared store.
+
+**Verification.** PLAT-7 proves three bounded 401s, the fourth request as 429 with
+`Retry-After`, a correct key still reaching platform authentication during the window,
+exactly one sampled audit row, and no key material in that row. `tsc --noEmit` passes;
+`git diff --check` is clean. No deployment or production change was made.
+
+---
+## 2026-11-18 — PLAT-24 dedicated console documentation and accuracy corrections
+
+**Status.** Documentation only; no application code, deployment, account creation,
+credential change or PR #336 commit. PR #336 remains open and undeployed.
+
+**What changed.** The eight console documents now live in `docs/platform-console/` with
+stable numbered names and a dedicated `README.md` index (scope, reading order, boundaries
+and maintenance rules). `docs/README.md` gives the console its own section and review
+rows; `scripts/check-docs.mjs` treats the folder as active documentation. Cross-links,
+`CLAUDE.md`, the roadmap and this log were rebased to the new paths.
+
+**Accuracy corrections.** Tenant disable is recorded as blocking the next request without
+deleting session rows; re-enabling can revive an unexpired token, and there is no admin
+member-session revocation route. Platform MFA is described as mandatory TOTP enrollment
+with optional WebAuthn. The 58-vs-0 5xx difference is recorded as a process-counter
+versus durable-store scope difference, not 58 missing incidents.
+
+**Verification.** `node scripts/check-docs.mjs` reports **63 active documents / 41 living
+references**; focused docs suites pass **31/31** across six suites; `git diff --check` is
+clean. No application code changed; no deployment, account creation or production write
+was made.
+
+---
+## 2026-11-18 — PLAT-21 console status assessment and account guide
+
+**Status.** Documentation and read-only production assessment; no deployment, account
+creation, tenant write or recovery rotation. PR #336 remains open and undeployed.
+
+**What changed.** Added `docs/platform-console/01-status-and-accounts.md`, indexed as a
+living reference. It records the console's feature-by-feature status, the measured
+production aggregates, the AI metric definitions and current values, the platform login
+and MFA flow, the READ_ONLY / SUPPORT / SECURITY / SUPERADMIN capability matrix, and the
+account-creation and verification steps for platform administrators and the four tenant
+roles. It also records the known limits: no WebAuthn key on the sole SUPERADMIN, the stale
+local recovery-code file, the shared outer gate rather than network isolation, CLI-only
+platform provisioning, no step-up/dual control, no immutable audit sink, no platform
+pager, unavailable host/Atlas/mobile/job telemetry, and no live AI model/provider health.
+
+**Verification.** Production read-only at 2026-11-18 06:37 UTC against
+`inventoryai_prod_db` (build `5016553`): 6 active businesses, 11 accounts (9 active), 86
+AI turns in the 7-day window (78 ok, 4 degraded, 4 failed; 36 free, 50 paid; 4 failovers;
+p95 22,719 ms; $0.053025 provider-reported with 4 unknown), 0 durable 5xx, and 1 ACTIVE
+SUPERADMIN with TOTP, 0 WebAuthn keys, 7 unused recovery codes and 0 sessions. AI totals,
+model rows, daily rows, outcomes, movement counts, feedback reasons and audit action counts
+all reconcile. `/api/health` reported 58 process server errors (last 05:47:53 UTC) while
+the durable store held 0: the known pre-deploy #336 gap. `check-docs` reports **60 active
+documents / 38 living references**; focused docs suites pass **32/32**; `git diff --check`
+is clean. No application code changed.
+
+**Still open.** Deploy #336 when authorized; register a WebAuthn key; rotate the stale
+recovery codes; close the access-layer, step-up, audit-retention and alerting gaps in §7 of
+the guide. An authenticated browser session was not re-observed in this pass.
+
+---
+
+## 2026-11-18 — PLAT-20 atomic SUPERADMIN guard, monitoring accounting and heartbeat restoration
+
+**Status.** Implemented in the working tree and verified locally; no deployment, recovery-code
+rotation or WebAuthn registration was performed. The PR is the review gate.
+
+**What changed.** The administrator lifecycle takes the `platform_admin_guards` lease only for a
+disable or delete; enabling no longer queues behind it. The lease is one conditional
+`findOneAndUpdate` with a 30 s expiry, a 5 s wait and a retryable 409; a crashed holder's lease is
+taken over, and release is token-checked and idempotent. PLAT-8 exercises ten concurrent disables, a
+delete/disable race, an enable under a live lease and stale-lease takeover in a disposable database;
+the old service fails the first round with two committed disables. The OPS-2 recorder excludes only
+the monitoring-only `/api/health/integrity` 503 from `serverErrors`/`lastServerErrorAt`; it is still a
+response and a 5xx, and `/api/health/ready` 503s remain server errors. The finish listener passes the
+normalised `req.originalUrl` path because `req.path` can be router-relative there. The heartbeat
+writer now loads `server/.env` from its own module location with `quiet: true`; the PowerShell wrapper
+scopes its error preference around native calls so dotenv's stderr banner is logged, not fatal.
+
+**Verification.** The first full run exposed one expected documentation failure only: `CLAUDE.md`
+still stated 222 `server/src` modules after the guard model added the 223rd. After correcting that
+count and adding this record, the full suite passes **3,150/3,150** across **506** suites; `tsc`
+exits 0, PLAT-8 passes, PLAT-4/PLAT-7 pass **14/14** with two mode skips, OPS-2 passes **13/13**, and
+the focused docs suites pass **32/32**. The registered integrity task returned `0`, the heartbeat is
+`checkedAt=2026-11-18T05:49:03.828Z`, and `/api/health/integrity` answered **200 / fresh**. No
+deployment was made.
+
+**Still open.** Recovery-code rotation needs the current password plus a live TOTP or current recovery
+code; WebAuthn registration needs the physical key and PIN. The local recovery-code file is stale
+until rotation.
+
+---
+
 ## 2026-11-16 — PLAT-5 administrator recovery, MFA lockout and lifecycle hardening
 
 **Status.** LOCALLY COMMITTED IN THIS SESSION (see `git log`); NOT PUSHED, DEPLOYED OR PUBLICLY
@@ -630,9 +966,9 @@ remain uncommitted in the working tree.
 **CI and gates.** `.github/workflows/ci.yml` gained a fifth job, `webauthn-e2e`, with a disposable
 `mongo:7` service, headless Chrome and a 10-minute bound. The script now accepts a configurable CDP
 port, Linux Chrome paths and a CI-only no-sandbox flag. Two living reference documents were added:
-`docs/PLATFORM_PRODUCTION_READINESS.md` (HTTPS/domains, network isolation, separate credentials,
+`docs/platform-console/04-production-readiness.md` (HTTPS/domains, network isolation, separate credentials,
 cookie/CORS proof, MFA recovery, audit retention/database permissions, support grants, CI evidence
-and sign-off) and `docs/PLATFORM_SECURITY_RECOMMENDATIONS.md` (P0–P2 recommendations only).
+and sign-off) and `docs/platform-console/07-security-recommendations.md` (P0–P2 recommendations only).
 
 **Verification.** `npx tsc --noEmit`, ESLint on every changed file, `git diff --check`, PLAT2 **9/9**,
 PLAT3 **12/12**, phase07c **17/17**, `npm run test:webauthn-e2e` and `node scripts/check-docs.mjs`

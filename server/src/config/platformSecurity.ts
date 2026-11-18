@@ -14,6 +14,7 @@ import ApiError from '../utils/ApiError.ts';
 export const PLATFORM_SESSION_COOKIE = 'platform_session';
 export const PLATFORM_CSRF_COOKIE = 'platform_csrf';
 export const PLATFORM_CSRF_HEADER = 'x-platform-csrf';
+export const PLATFORM_STEP_UP_HEADER = 'x-platform-step-up';
 export const PLATFORM_CONSOLE_HEADER = 'x-platform-console';
 export const PLATFORM_SESSION_COOKIE_PATH = '/api/platform';
 export const PLATFORM_CSRF_COOKIE_PATH = '/';
@@ -22,6 +23,10 @@ export const PLATFORM_CSRF_COOKIE_PATH = '/';
 export const PLATFORM_MFA_ENROLLMENT_TTL_SECONDS = 10 * 60;
 export const PLATFORM_MFA_LOGIN_TTL_SECONDS = 5 * 60;
 export const PLATFORM_WEBAUTHN_TTL_SECONDS = 5 * 60;
+
+/** A step-up proof is deliberately shorter than a normal access token. */
+export const PLATFORM_STEP_UP_TTL_SECONDS = 5 * 60;
+export const PLATFORM_STEP_UP_SCOPE_ADMIN_LIFECYCLE = 'platform.admin.lifecycle';
 
 export const PLATFORM_MFA_ISSUER = 'Inventory AI Platform';
 export const PLATFORM_WEBAUTHN_RP_NAME = 'Inventory AI Platform';
@@ -212,12 +217,15 @@ export default {
   PLATFORM_SESSION_COOKIE,
   PLATFORM_CSRF_COOKIE,
   PLATFORM_CSRF_HEADER,
+  PLATFORM_STEP_UP_HEADER,
   PLATFORM_CONSOLE_HEADER,
   PLATFORM_SESSION_COOKIE_PATH,
   PLATFORM_CSRF_COOKIE_PATH,
   PLATFORM_MFA_ENROLLMENT_TTL_SECONDS,
   PLATFORM_MFA_LOGIN_TTL_SECONDS,
   PLATFORM_WEBAUTHN_TTL_SECONDS,
+  PLATFORM_STEP_UP_TTL_SECONDS,
+  PLATFORM_STEP_UP_SCOPE_ADMIN_LIFECYCLE,
   PLATFORM_MFA_ISSUER,
   platformConsoleOrigin,
   isPlatformConsoleOrigin,

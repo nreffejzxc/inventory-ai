@@ -11,7 +11,7 @@ gate and platform login.
 JWT validation are available. Without origin validation, the public `onrender.com` URL bypasses the
 edge and the migration would add complexity without adding a boundary.
 
-**Parent assessment:** [`PLATFORM_ACCESS_LAYER_ASSESSMENT.md`](PLATFORM_ACCESS_LAYER_ASSESSMENT.md).
+**Parent assessment:** [05 — Access layer](./platform-console/05-access-layer.md).
 
 ## 0. Budget gate — no new spend
 
@@ -344,5 +344,5 @@ Record in a future implementation record:
 - JWT validation:
   <https://developers.cloudflare.com/cloudflare-one/access-controls/applications/http-apps/authorization-cookie/validating-json/>.
 - Render custom domains and TLS: <https://render.com/docs/custom-domains>.
-- Existing provider/security records: [`PLATFORM_ACCESS_LAYER_ASSESSMENT.md`](PLATFORM_ACCESS_LAYER_ASSESSMENT.md),
-  [`PLATFORM_PRODUCTION_READINESS.md`](PLATFORM_PRODUCTION_READINESS.md).
+- Existing provider/security records: [05 — Access layer](./platform-console/05-access-layer.md),
+  [04 — Production readiness](./platform-console/04-production-readiness.md).

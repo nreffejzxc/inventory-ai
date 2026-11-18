@@ -209,7 +209,7 @@ that, and after the TS-01 plan is approved separately:
 - [`PLATFORM_SECURITY_IMPROVEMENTS_BEYOND_IA45.md`](PLATFORM_SECURITY_IMPROVEMENTS_BEYOND_IA45.md) - TS-01-TS-06.
 - [`PLATFORM_TENANT_SECURITY_NOTIFICATIONS_PLAN.md`](PLATFORM_TENANT_SECURITY_NOTIFICATIONS_PLAN.md) - TS-01 plan.
 - [`INVENTORY_AI_MULTI_CRITERIA_RANKING.md`](INVENTORY_AI_MULTI_CRITERIA_RANKING.md) - IA-01-IA-45.
-- [`PLATFORM_SECURITY_RECOMMENDATIONS.md`](PLATFORM_SECURITY_RECOMMENDATIONS.md) - SEC-01-SEC-12.
-- [`PLATFORM_PRODUCTION_READINESS.md`](PLATFORM_PRODUCTION_READINESS.md) - existing readiness gates.
+- [07 — Security recommendations](./platform-console/07-security-recommendations.md) - SEC-01-SEC-12.
+- [04 — Production readiness](./platform-console/04-production-readiness.md) - existing readiness gates.
 - [`PLATFORM_NEXT_IMPROVEMENTS_BEYOND_RD06.md`](PLATFORM_NEXT_IMPROVEMENTS_BEYOND_RD06.md) - the next
   ranked tranche (NX-01-NX-07) beyond this document.

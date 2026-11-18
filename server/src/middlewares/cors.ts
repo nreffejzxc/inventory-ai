@@ -23,6 +23,24 @@
 
 import cors from 'cors';
 
+/**
+ * Request headers the browser clients may send. This is intentionally an
+ * explicit list: the platform console needs its CSRF, console and step-up
+ * proof headers on the same origin, and a missing custom header makes the
+ * browser refuse the real request before the server can answer it. Native
+ * clients send no Origin and are unaffected by CORS either way.
+ */
+const ALLOWED_REQUEST_HEADERS = [
+  'accept',
+  'authorization',
+  'content-type',
+  'x-platform-access-key',
+  'x-platform-console',
+  'x-platform-csrf',
+  'x-platform-step-up',
+  'x-request-id',
+];
+
 /** Case-sensitive exact compare, ignoring a single trailing slash. */
 function normalizeOrigin(origin: string) {
   return String(origin).trim().replace(/\/+$/, '');
@@ -50,11 +68,11 @@ export function createCors(origins: readonly string[] = []) {
     // no grant at all, and the platform cookie is additionally Origin+CSRF gated.
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    // No fixed `allowedHeaders`: the cors package reflects the headers the
-    // browser actually requests (including X-Platform-CSRF and
-    // X-Platform-Console) for an allow-listed origin. A fixed list would send
-    // the whole list on every preflight instead of the requested subset and
-    // changed the established response contract.
+    // Keep the custom platform headers explicit. X-Platform-Step-Up is the
+    // proof required by destructive lifecycle routes; without it in this list
+    // the console's preflight succeeds but the browser blocks the actual
+    // request, which is indistinguishable from a missing proof server-side.
+    allowedHeaders: ALLOWED_REQUEST_HEADERS,
     exposedHeaders: ['X-Request-ID'],
     maxAge: 600,
     optionsSuccessStatus: 204,

@@ -29,10 +29,10 @@ This changes the recommendation from “implement Cloudflare Access” to:
 - **Render IP rules are not eligible** because web-service rules require Scale/Enterprise.
 - **Free baseline work continues:** keep the gate, recovery codes, TOTP/WebAuthn and console
   monitoring; use the free alert channels in
-  [`PLATFORM_SECURITY_ALERT_DECISION_SHEET.md`](PLATFORM_SECURITY_ALERT_DECISION_SHEET.md).
+  [`PLATFORM_SECURITY_ALERT_DECISION_SHEET.md`](../PLATFORM_SECURITY_ALERT_DECISION_SHEET.md).
 
 The detailed migration remains in
-[`PLATFORM_CLOUDFLARE_ACCESS_IMPLEMENTATION_PLAN.md`](PLATFORM_CLOUDFLARE_ACCESS_IMPLEMENTATION_PLAN.md),
+[`PLATFORM_CLOUDFLARE_ACCESS_IMPLEMENTATION_PLAN.md`](../PLATFORM_CLOUDFLARE_ACCESS_IMPLEMENTATION_PLAN.md),
 marked conditional on an existing domain and a separately approved code change.
 
 ## 1. Current state
@@ -41,7 +41,7 @@ marked conditional on an existing domain and a separately approved code change.
 | --- | --- | --- |
 | Render URL | The API and console are served at `https://ai-inventory-l1mi.onrender.com` on a Hobby/free web service. | It is reachable from the public internet. Render Hobby cannot attach inbound IP rules to a web service. |
 | Outer gate | `platformAccessGate` requires HTTP Basic for the browser and `X-Platform-Access-Key` for Bearer API clients. | It is one shared secret, not a per-person identity; it is not a network boundary. |
-| Platform login | Password + mandatory TOTP/WebAuthn, HttpOnly session cookie, CSRF and exact-origin checks. | It is the application authentication boundary, not an edge access layer. |
+| Platform login | Password + mandatory TOTP enrollment at setup; later sign-in with TOTP or an enrolled WebAuthn key, HttpOnly session cookie, CSRF and exact-origin checks. | It is the application authentication boundary, not an edge access layer. |
 | Recovery | Forced recovery-code ceremony and a guarded break-glass CLI are live. | Recovery does not reduce anonymous reachability. |
 | Monitoring | Health checks, an audit trail and a read-only console view exist. | No edge access log or platform-security alert pipeline exists yet. |
 
