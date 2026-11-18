@@ -44,6 +44,13 @@ at the end of every development session, newest entry first.
 **Goal:** finish and harden Inventory AI **V1** through production testing. No Play Store or App
 Store release is being prepared.
 
+**Dependency advisories, DEP-01 (2026-11-18, branch):** `server/` and `mobile/` now override
+`glob` to **14.0.2**, the patched floor for GHSA-3g3m-2fjr-6pw4; both lockfiles resolve one copy.
+CommonJS globbing, `rimraf` async/sync glob deletion and the Expo config smoke pass. `picomatch`
+#25 remains at the latest 4.0.7 with no published fix; it is confined to Expo/Metro/Jest/ESLint
+build and test tooling, no application module imports it and no user-supplied glob reaches it. It
+is accepted as residual risk under D-16. PR pending; no deployment.
+
 **Console delivery merged and deployed, PLAT-20–27 (2026-11-18):** PR #336
 squash-merged as `e7ce455` after CI passed all five required checks (`server`
 **3,161/3,161** across 508 suites, `webauthn-e2e`, `mobile`, `secret-guard`,
@@ -639,6 +646,33 @@ Known limits, checked before spending one of them:
   space that a backup or an index change would explain.
 - **Brevo** — used for verification codes, reset codes and invitations. Do not send test mail in
   bulk; a delivery failure is not a code regression until the provider log says so.
+
+---
+
+## 2026-11-18 — dependency advisories: glob 14.0.2 and picomatch residual
+
+**Status.** Branch `fix/dependency-advisories`; not merged or deployed. This is DEP-01,
+recorded as §27JM and decisions D-15/D-16 in `docs/SECURITY_DEPENDENCY_DECISIONS.md`.
+
+**What changed.** Both manifests add `overrides.glob: "14.0.2"`; both lockfiles resolve
+exactly one `glob@14.0.2` and no older copy remains. The server path is
+`firebase-admin → @google-cloud/firestore → google-gax → rimraf`; mobile is Expo
+CLI/config/Metro, `expo-updates` and Jest. No application source imports `glob`.
+
+**Verification.** `glob`/`globSync`/`sync` direct smoke tests, async and sync `rimraf` with
+`{ glob: true }`, and `npx expo config --type public --json` all pass. Server `tsc`,
+source ESLint (excluding local `.scratch` artifacts), `npm run test:unit` and `npm ci
+--dry-run` pass: **2,221 tests / 453 suites, 2,146 pass, 75 skipped, 0 fail**. Mobile
+`tsc`, `npm test -- --ci --runInBand` and `npm ci --dry-run` pass: **111 suites / 1,273
+tests**. Mobile lint still reports six pre-existing `react-hooks/set-state-in-effect`
+findings; mobile CI does not run lint and no changed file is involved.
+
+**Picomatch.** GHSA-fc5q-39xc-vjpf / CVE-2026-112366 affects `picomatch <= 4.0.7`;
+4.0.7 is the latest npm release and upstream PR #237 is merged but unreleased. No
+override to an unreleased commit or fork was made. Dependabot #25 remains open; #14/#16
+will close when this branch merges.
+
+**Not verified.** No deployment, production smoke or authenticated browser run.
 
 ---
 
