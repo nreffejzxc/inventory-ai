@@ -47,11 +47,12 @@ Store release is being prepared.
 **Console delivery merged and deployed, PLAT-20–27 (2026-11-18):** PR #336
 squash-merged as `e7ce455` after CI passed all five required checks (`server`
 **3,161/3,161** across 508 suites, `webauthn-e2e`, `mobile`, `secret-guard`,
-`attribution-guard`). Render deployed `e7ce455`; `/api/health` reports it with
-`status: ok`, `db: connected` and **0** `serverErrors`, readiness is 200, `/platform/` and
+`attribution-guard`). Render deployed `e7ce455`; dependency PR #318 then squash-merged
+as `74e4b87` and deployed. `/api/health` reports `74e4b87` with `status: ok`,
+`db: connected` and **0** `serverErrors`, readiness is 200, `/platform/` and
 `/api/platform/status` remain 401, and the destructive-route preflight is 204 with
 credentials and `x-platform-step-up`. No authenticated browser proof was made after the
-deploy.
+deploys.
 
 **Audited CLI creation and bounded outer-gate state, PLAT-26/PLAT-25 (2026-11-18,
 code and tests only):** the operator CLI now requires an operator identity and writes
@@ -638,6 +639,29 @@ Known limits, checked before spending one of them:
   space that a backup or an index change would explain.
 - **Brevo** — used for verification codes, reset codes and invitations. Do not send test mail in
   bulk; a delivery failure is not a code regression until the provider log says so.
+
+---
+
+## 2026-11-18 — server dependency bump and Firebase classifier guard deployed
+
+**Status.** PR #318 squash-merged as `74e4b87`; Render deployed it. This closes the last
+open pull request on the repository at the time.
+
+**What changed.** The grouped server minor/patch bump updates `dotenv` to 18.0.10,
+`express-rate-limit` to 8.7.4, `firebase-admin` to 14.5.1, `mongoose` to 9.12.1, `eslint`
+to 10.15.0 and `typescript-eslint` to 8.72.2. The AUTH-01 version guard correctly failed
+on the `firebase-admin` bump; its terminal, transient and not-configured code sets were
+re-derived from the installed 14.5.1 sources and are unchanged. The guard and derivation
+notes now name 14.5.1.
+
+**Verification.** CI run `44276607356` passed all five required checks on `ec43838`:
+`server`, `webauthn-e2e`, `mobile`, `secret-guard` and `attribution-guard`. AUTH-01
+passes **23/23**, `tsc --noEmit` passes and ESLint passes on the three changed files. The
+post-deploy health check reports `74e4b87`, `status: ok`, `db: connected` and **0**
+`serverErrors`; readiness is 200; `/platform/` and `/api/platform/status` are 401; the
+destructive-route preflight is 204 with credentials and `x-platform-step-up`.
+
+**Not verified.** No authenticated platform browser session was opened after this deploy.
 
 ---
 

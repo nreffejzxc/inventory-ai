@@ -2,7 +2,7 @@
 
 **Status:** **LIVE, INTERNAL RELEASE — GATES REMAIN OPEN.** The console is served at
 `https://ai-inventory-l1mi.onrender.com/platform` under the separate platform administrator login.
-The complete console delivery is deployed at `e7ce455`; PLAT-7's forced recovery-code ceremony,
+The console delivery was deployed at `e7ce455`; the current production build `74e4b87` adds the server dependency bump. PLAT-7's forced recovery-code ceremony,
 the application-level outer access gate and the break-glass reset remain in place. The production
 service supplies `PLATFORM_ACCESS_KEY`;
 the administrator generated 10 recovery codes from zero and 9 remain after the production recovery
@@ -244,5 +244,5 @@ The browser test uses headless Chrome/Edge and fixed configurable ports (API 440
 CDP 9333). If CI cannot launch a browser, run `cd server && npm run test:webauthn-e2e` on a machine
 with Chrome and record the output; do not substitute a unit test for the browser proof.
 
-The checklist is a gate, not a deployment authorization. The console is deployed at `e7ce455` under
+The checklist is a gate, not a deployment authorization. The console is deployed at `74e4b87` under
 the owner's production-availability decision; the open gates above remain open.
