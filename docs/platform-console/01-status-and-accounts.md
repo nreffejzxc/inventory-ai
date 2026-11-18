@@ -1,8 +1,8 @@
 # Platform Operations console — current status and account guide
 
 **Assessed:** 2026-11-18, against production commit
-`50165538ba7b0bdd949ca65fcfbe5fded0669138`, the current implementation, and the open
-PR #336 (`6f61e11`).
+`50165538ba7b0bdd949ca65fcfbe5fded0669138`, the console-delivery commit `282c8d6` and
+PR #336.
 **Production:** `https://ai-inventory-l1mi.onrender.com/platform`
 **Scope:** the INTERNAL Platform Operations console and API, platform-administrator
 authentication, current production data, AI monitoring, and account creation for every
@@ -436,11 +436,11 @@ chooses their own credential. Store recovery codes offline in the owner's secret
 
 | Priority | Item | Current state |
 | --- | --- | --- |
-| **P1** | Deploy PR #336 and restart production | Not deployed. After deploy, the process counter resets and stops counting the monitoring-only integrity 503; the durable store remains the real 5xx record |
+| **P1** | Deploy PR #336 and restart production | PR #336 is CLEAN at `282c8d6`; merge triggers the Render server deploy. After deploy, the process counter resets and stops counting the monitoring-only integrity 503; the durable store remains the real 5xx record |
 | **P1** | Register a WebAuthn security key for the sole SUPERADMIN | 0 keys today; TOTP and recovery codes still work |
 | **P1** | Rotate the stale recovery-code file | 7 unused codes in the database, but the local file does not match them; use the current password + TOTP/recovery code |
 | **P1** | Add an actual network/identity access layer | The URL is internet-reachable; the Basic key is not network isolation |
-| **P1** | Step-up/dual control for disable/delete/key removal | A live SUPERADMIN session is currently sufficient |
+| **P1** | Dual control for disable/delete/key removal | Step-up proof is implemented; a second SUPERADMIN approver is still open |
 | **P1** | Audit retention, export and an immutable sink | Model append-only only; raw database access is not constrained by this repo |
 | **P1** | Platform alerting/pager | The console is pull-only; external health probes do not cover login/MFA bursts |
 | **P2** | AI spend budget, model-health alerts and a paid-fallback kill switch | The console reports history; it does not alert or stop spend |
@@ -452,13 +452,14 @@ chooses their own credential. Store recovery codes offline in the owner's secret
 
 - **Code:** the console routes, static shell, platform auth/MFA, capabilities, operations
   and monitoring services in `server/src` and `server/platform-console/public`.
-- **Tests:** the full server suite passed **3,150/3,150** (506 suites) on the PLAT-20
-  branch; the platform suites (PLAT-3/4/6/7, OPS-7) are part of that run.
+- **Tests:** CI run `44271986057` passed the full server suite **3,161/3,161** (508
+  suites) on `282c8d6`; the platform suites (PLAT-2/3/4/7/8/9, OPS-7) are part of that run.
 - **Production:** the read-only snapshot in §3 and the public health/auth responses in
   §3 were observed on 2026-11-18. No authenticated browser session, no platform account
   creation and no tenant write were performed for this assessment.
-- **Current PR:** #336 is open and mergeable; its checks were still pending at the time of
-  the snapshot. This document does not deploy it.
+- **Current PR:** #336 is CLEAN at `282c8d6`; all five required checks pass (`server`
+  3,161/3,161, `webauthn-e2e`, `mobile`, `secret-guard`, `attribution-guard`). This
+  document does not itself deploy it.
 
 The console is usable as an aggregate read-only operations surface today. It is not yet a
 complete support workspace, not a pager, not a tenant-detail tool and not a substitute for

@@ -188,8 +188,9 @@ tests only, with no deployment or production configuration change. PLAT-26, the 
 operator CLI creation with one `platform.admin.created` event, is §27JK; code and tests
 only, with address activation left for a separate step. PLAT-27, the SEC-08 five-minute
 step-up proof enforced on destructive administrator lifecycle routes, is §27JL; code,
-tests and console documentation only, with no deployment, address activation or PR #336
-change.
+tests and console documentation, later committed to PR #336 as `282c8d6` with all five
+required checks green. No deployment, address activation or production account change
+was made with that commit.
 
 The tenant-facing
 Operations dashboard was removed before commit. The

@@ -44,6 +44,12 @@ at the end of every development session, newest entry first.
 **Goal:** finish and harden Inventory AI **V1** through production testing. No Play Store or App
 Store release is being prepared.
 
+**Console delivery committed, PLAT-20–27 (2026-11-18):** all outstanding console work is
+committed as `282c8d6` and pushed to PR #336. CI is CLEAN with all five required checks:
+`server` **3,161/3,161** across 508 suites, `webauthn-e2e`, `mobile`, `secret-guard` and
+`attribution-guard`. The full runner now includes PLAT-9. No deployment or merge was made
+before this record.
+
 **Audited CLI creation and bounded outer-gate state, PLAT-26/PLAT-25 (2026-11-18,
 code and tests only):** the operator CLI now requires an operator identity and writes
 exactly one `platform.admin.created` audit event with source, target and optional grant;
@@ -629,6 +635,32 @@ Known limits, checked before spending one of them:
   space that a backup or an index change would explain.
 - **Brevo** — used for verification codes, reset codes and invitations. Do not send test mail in
   bulk; a delivery failure is not a code regression until the provider log says so.
+
+---
+
+## 2026-11-18 — console delivery committed and CI verified
+
+**Status.** Code, tests and documentation are committed as `282c8d6` and pushed to PR #336;
+the PR is CLEAN. No deployment or merge was made before this entry.
+
+**What changed.** The uncommitted PLAT-20–27 body of work is now one console-delivery
+commit: the PLAT-20 SUPERADMIN/monitoring foundation, the PLAT-24 numbered console
+documentation set, the PLAT-25 outer-gate failure budget, the PLAT-26 audited operator
+CLI, and the PLAT-27 step-up proof with CORS and reused-code handling. The commit also
+classifies `PLAT9-platform-stepup.test.mjs` in `server/scripts/run-tests.mjs`; the runner
+had correctly refused the full suite while the file was unclassified.
+
+**Verification.** CI run `44271986057` passed all five required checks on `282c8d6`:
+`server` **3,161/3,161** (508 suites), `webauthn-e2e`, `mobile`, `secret-guard` and
+`attribution-guard`. Locally, the platform-focused suites pass **90/90**, `tsc --noEmit`
+passes, the changed files pass ESLint, the four docs guards pass **20/20**, and
+`check-docs` reports **64 active documents / 42 living references**. A local full-suite
+attempt hit a Windows child-process resource failure in the PLAT-8 race fixture; the
+same full suite passed in CI, which is the authoritative run.
+
+**Next.** Merge and verify the Render deployment, then re-observe the production
+`/platform` and health surfaces. No address activation or production account change is
+part of this delivery.
 
 ---
 

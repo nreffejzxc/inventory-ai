@@ -27089,8 +27089,14 @@ No deployment or production account was created.
 
 # 27JL. PLAT-27 - SEC-08 step-up proof for destructive administrator actions (2026-11-18)
 
-**Code, tests and console documentation only.** No deployment, merge, address activation
-or PR #336 commit was made. PR #336 remains open and undeployed.
+**Code, tests and console documentation.** The initial record was written before the
+console-delivery commit; the delivery addendum below supersedes its PR status.
+
+**Delivery addendum (2026-11-18).** The complete PLAT-20–27 console work was committed as
+`282c8d6` and pushed to PR #336. CI run `44271986057` passed all five required checks:
+`server` **3,161/3,161** across 508 suites, `webauthn-e2e`, `mobile`, `secret-guard` and
+`attribution-guard`. No deployment, merge, address activation or production account
+change was made before this addendum.
 
 **What changed.** `POST /api/platform/auth/step-up` re-checks the current password and a
 TOTP code, advances the existing `lastTotpCounter` replay guard atomically, and returns a
