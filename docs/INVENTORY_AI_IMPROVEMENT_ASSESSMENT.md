@@ -60,7 +60,7 @@ and recovery gaps before widening the operator group or onboarding real customer
   break-glass, application-level Basic/key gate, mandatory TOTP enrollment and optional WebAuthn, HttpOnly session, CSRF,
   strict CSP, append-only audit model, support tickets, deployment history and aggregate operational
   views.
-- `main` requires `secret-guard`, `attribution-guard`, `server`, `mobile` and `webauthn-e2e`, with
+- `main` requires `secret-guard`, `attribution-guard`, `server`, `mobile`, `webauthn-e2e` and `dependency-review`, with
   strict and enforce-admins.
 - The console is **aggregate-only**. Tenant-detail reads and support grants remain blocked by design.
 - The audit trail has action/outcome/actor/capability/reason/route/request id/IP/user agent/metadata,

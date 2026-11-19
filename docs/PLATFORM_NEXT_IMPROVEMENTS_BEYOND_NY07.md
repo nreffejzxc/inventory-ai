@@ -118,6 +118,11 @@ committer/month** at current list pricing. A commercial SAST product is not need
 
 ### Rank 2 — NZ-02 Dependency-review pull-request gate
 
+**Implemented 2026-11-19 — §27JN.** The workflow uses `fail-on-severity: high` across the runtime,
+development and unknown scopes and pins the action to the full `v5.0.1` SHA. It passed a clean run,
+failed a scratch `lodash@4.17.20` pull request, and was then made a required `main` check. The
+licence policy and the workflow lockfile remain open acceptance items.
+
 **What.** Add a `pull_request` workflow using `actions/dependency-review-action` to compare manifest and
 lockfile changes against the dependency graph and fail when a new vulnerable version is introduced:
 

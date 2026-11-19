@@ -17,7 +17,7 @@ are kept as history in [`DEVELOPMENT_ROADMAP.md`](DEVELOPMENT_ROADMAP.md) §27AE
 | --- | --- |
 | Visibility | **Public** — owner decision, 2026-10-30 |
 | Who can read it | Anyone, including anonymous visitors and search engines |
-| Branch protection | **Verified** — required checks `server`, `secret-guard`, `attribution-guard`, `mobile`; strict up-to-date enforcement; administrators enforced; pull request required with **0** approvals; force pushes and deletions blocked; conversation resolution required |
+| Branch protection | **Verified** — required checks `server`, `secret-guard`, `attribution-guard`, `mobile`, `webauthn-e2e`, `dependency-review`; strict up-to-date enforcement; administrators enforced; pull request required with **0** approvals; force pushes and deletions blocked; conversation resolution required |
 | Secret scanning | **Enabled**; push protection **enabled**. Non-provider patterns and validity checks are disabled. |
 | Private vulnerability reporting | **Enabled** |
 | Human access | `nreffejzxc` (owner, admin) — no collaborators and no pending invitations |
@@ -128,7 +128,7 @@ does not expose it. **It was rotated on 2026-11-07:** the new key was verified w
 
 | Lever | Strength |
 | --- | --- |
-| **Branch protection on `main`** — four required checks, strict up-to-date, admins enforced, pull request required, force pushes and deletions blocked | **High**; the merge gate |
+| **Branch protection on `main`** — six required checks, strict up-to-date, admins enforced, pull request required, force pushes and deletions blocked | **High**; the merge gate |
 | **Server-side secrets only** — AI keys, Mongo credentials, mail keys and Firebase admin credentials never reach a client | **High**; enforced by architecture |
 | **Server-side tenant isolation and RBAC** — a stolen client cannot read another business's data | **High** |
 | **GitHub secret scanning and push protection** | **High** for the shapes they recognise |
@@ -181,7 +181,7 @@ does not expose it. **It was rotated on 2026-11-07:** the new key was verified w
    stores; keep recovery codes offline. This protects more than everything else here.
 2. **Keep the installed GitHub Apps list empty** and review any future integration's repository
    access (§1); Railway was removed on 2026-10-31 and the project uses Render.
-3. **Keep the four required checks and admin enforcement on `main`.** Do not relax a check to make a
+3. **Keep the six required checks and admin enforcement on `main`.** Do not relax a check to make a
    pull request merge; fix the check or the change.
 4. **Keep three backups that are not the same account**: the working clone, an encrypted offline
    `git bundle`, and a second private remote. A bundle *is* the source code — encrypt it.

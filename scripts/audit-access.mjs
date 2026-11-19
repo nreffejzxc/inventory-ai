@@ -14,7 +14,7 @@
  *
  * WHAT IT ASSERTS (exit 1 on any violation)
  *   * the repository is public
- *   * the default branch is protected by the four required checks, strict up-to-date
+ *   * the default branch is protected by the six required checks, strict up-to-date
  *     enforcement, admin enforcement, a pull request, and blocked force pushes/deletions
  *   * secret scanning and push protection are enabled
  *   * private vulnerability reporting is enabled
@@ -268,7 +268,7 @@ if (sharing.status === 200 && sharing.data) {
 
 console.log('\nBranch protection and scanning (measured, not assumed)');
 
-const EXPECTED_CHECKS = ['server', 'secret-guard', 'attribution-guard', 'mobile'].sort();
+const EXPECTED_CHECKS = ['server', 'secret-guard', 'attribution-guard', 'mobile', 'webauthn-e2e', 'dependency-review'].sort();
 const protection = gh([`repos/${repo}/branches/${meta.data.default_branch}/protection`]);
 
 if (protection.status === 200 && protection.data) {

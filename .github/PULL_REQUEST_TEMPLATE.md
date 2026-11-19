@@ -21,8 +21,7 @@
 ## Repository
 
 - [ ] The branch is based on current `main` and contains no unrelated uncommitted files.
-- [ ] The four required checks (`server`, `mobile`, `secret-guard`, `attribution-guard`) are green.
-- [ ] The advisory `webauthn-e2e` browser job is green, or its browser limitation is recorded.
+- [ ] The six required checks (`server`, `mobile`, `secret-guard`, `attribution-guard`, `webauthn-e2e`, `dependency-review`) are green, or a browser limitation is recorded.
 - [ ] I will close on a clean, synchronized `main` after merge (`node scripts/check-repo-state.mjs`).
 
 ## Deployment
