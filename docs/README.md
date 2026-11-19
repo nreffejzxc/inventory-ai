@@ -81,6 +81,7 @@ Guide 6; no rule, command or safety procedure was removed.
 | [`PLATFORM_SENSITIVE_DATA_PROTECTION_DESIGN.md`](PLATFORM_SENSITIVE_DATA_PROTECTION_DESIGN.md) | NX-01 design only: sensitive-field map, approved log appearances, the G1–G9 code findings, redaction boundary, C1–C14 canary and acceptance checks |
 | [`PLATFORM_NEXT_IMPROVEMENTS_BEYOND_NX07.md`](PLATFORM_NEXT_IMPROVEMENTS_BEYOND_NX07.md) | Next ranked tranche beyond NX-07: AI provider data-handling attestation, release-artifact secret/PII scan, runbook freshness, TTL effectiveness, audit tamper-evidence and external-link freshness; recommendations only |
 | [`PLATFORM_NEXT_IMPROVEMENTS_BEYOND_NY07.md`](PLATFORM_NEXT_IMPROVEMENTS_BEYOND_NY07.md) | Next ranked tranche beyond NY-07: CodeQL, dependency review, deploy rollback, workflow audit, Android manifest privacy, privacy-policy drift and App Check; recommendations only |
+| [`PLATFORM_NEXT_IMPROVEMENTS_BEYOND_DEV09.md`](PLATFORM_NEXT_IMPROVEMENTS_BEYOND_DEV09.md) | Future improvements beyond DEV-09: new ranked capabilities (bulk import, tenant query guard, stocktake, PO transmission, query deadline, digest pin, request reference) plus the still-open carry-forward items; recommendations only |
 | [`../README.md`](../README.md) | The front door: stack, layout, how to run each half, deployment |
 
 ### Platform Operations console
@@ -151,6 +152,7 @@ Reference documents are consulted rather than read once, so they are reviewed on
 | [`PLATFORM_SENSITIVE_DATA_PROTECTION_DESIGN.md`](PLATFORM_SENSITIVE_DATA_PROTECTION_DESIGN.md) | 90 days | 2026-11-17 |
 | [`PLATFORM_NEXT_IMPROVEMENTS_BEYOND_NX07.md`](PLATFORM_NEXT_IMPROVEMENTS_BEYOND_NX07.md) | 90 days | 2026-11-17 |
 | [`PLATFORM_NEXT_IMPROVEMENTS_BEYOND_NY07.md`](PLATFORM_NEXT_IMPROVEMENTS_BEYOND_NY07.md) | 90 days | 2026-11-17 |
+| [`PLATFORM_NEXT_IMPROVEMENTS_BEYOND_DEV09.md`](PLATFORM_NEXT_IMPROVEMENTS_BEYOND_DEV09.md) | 90 days | 2026-11-19 |
 | [`../README.md`](../README.md) | 90 days | 2026-11-09 |
 
 The 2026-11-07 date starts each clock at adoption: it records when the cadence began, not that every
@@ -219,7 +221,8 @@ declared outside the one register. It runs in the required `server` CI job befor
 installed, so a documentation-only change is checked without a database or a server install. It also
 fails when a living reference document is past the review cadence in §2. The same job runs
 `node scripts/check-workflow-invariants.mjs`, which checks action SHA pins, job timeouts, Mongo image
-parity with `compose.yaml` and `.nvmrc`/`engines.node` parity.
+parity with `compose.yaml` and `.nvmrc`/`engines.node` parity. `node scripts/test-workflow-invariants.mjs`
+proves the guard fails on each protected invariant using temporary fixture repositories.
 
 At the close of every session:
 

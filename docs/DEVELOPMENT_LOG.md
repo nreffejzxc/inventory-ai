@@ -44,6 +44,12 @@ at the end of every development session, newest entry first.
 **Goal:** finish and harden Inventory AI **V1** through production testing. No Play Store or App
 Store release is being prepared.
 
+**Workflow fixture proof, security-update grouping and future roadmap, DEV-10 (2026-11-19):** the
+workflow invariant guard now has a committed five-fixture end-to-end test in the required `server`
+job; Dependabot groups security updates separately for server, mobile and Actions; and a new ranked
+roadmap records seven uncovered improvements plus the open carry-forward items. CI is green at
+`3587e71` and production reports `status: ok` with 0 `5xx`; no production change. See §27JZ.
+
 **Console user guide, PLAT-29 (2026-11-19):** added
 [`platform-console/00-user-guide.md`](platform-console/00-user-guide.md) as the beginner-facing
 entry point for access, MFA/recovery, Superadmin/support/developer accounts, the 16 daily-operation
@@ -720,6 +726,32 @@ Known limits, checked before spending one of them:
   space that a backup or an index change would explain.
 - **Brevo** — used for verification codes, reset codes and invitations. Do not send test mail in
   bulk; a delivery failure is not a code regression until the provider log says so.
+
+---
+
+## 2026-11-19 — workflow fixture proof, security-update grouping and future roadmap
+
+**Developer tooling, DEV-10 / §27JZ.** Added `scripts/test-workflow-invariants.mjs`, a
+dependency-free end-to-end test that builds five temporary repositories and proves the guard passes a
+clean tree and fails on an unpinned action, a missing timeout, a Mongo image mismatch and a Node major
+mismatch. The guard gained a documented `--root` option (default unchanged), and one CI step in the
+required `server` job runs the fixture test before `npm ci`.
+
+**Dependabot.** Added `server-security`, `mobile-security` and `actions-security` groups with
+`applies-to: security-updates`; routine minor/patch groups still apply only to version updates.
+Docker Compose has no security-update path. PyYAML parsed the file and the structural readback showed
+one group of each kind per supported ecosystem; 0 Dependabot alerts were open at review. The group
+name in the PR title and branch is the identifier because a per-group label is not supported.
+
+**Roadmap.** Added `docs/PLATFORM_NEXT_IMPROVEMENTS_BEYOND_DEV09.md`: the 200-run CI review, seven
+new ranked items (FW-01 bulk import, FW-02 tenant query guard, FW-03 stocktake, FW-04 PO
+transmission, FW-05 query deadline, FW-06 digest pin, FW-07 request reference) and seven carry-forward
+items. Recommendations only; nothing implemented.
+
+**Verification.** Guard exit 0 with 9 controls, 4 workflows, 15 action refs, 9 jobs, 2 Mongo refs,
+Node 24; fixture test `PASS — 5 fixture repositories`; PyYAML parse and structural readback; the
+documentation guard; `git diff --check`. No production setting, deployment, database, account or
+permission changed.
 
 ---
 

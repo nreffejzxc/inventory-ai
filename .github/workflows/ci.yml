@@ -115,6 +115,13 @@ jobs:
         working-directory: .
         run: node scripts/check-workflow-invariants.mjs
 
+      # End-to-end proof on temporary fixture repositories: a clean tree passes,
+      # and each protected invariant fails with its named finding. Dependency-free
+      # and before npm install, like the guard it exercises.
+      - name: Self-test the workflow invariant guard on fixture repositories
+        working-directory: .
+        run: node scripts/test-workflow-invariants.mjs
+
       # Dependency-free and run before npm install: the stub uses only Node built-ins.
       - name: Self-test the local quota stub
         working-directory: .

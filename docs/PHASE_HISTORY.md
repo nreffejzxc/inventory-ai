@@ -222,3 +222,7 @@ keeps the seven-check PR gate and enforces SHA-pinned Actions; it is §27JU. DEV
 production-health workflow and keeps native Mongo service containers; DEV-08 is a ranked workflow
 improvement roadmap; they are §27JV and §27JW. DEV-09 adds the workflow invariant guard, removes
 persisted checkout credentials and rewrites the security policy concisely; it is §27JX.
+DEV-10 proves the workflow guard end to end with five temporary fixture repositories, groups
+Dependabot security updates separately from routine updates for server, mobile and Actions, and
+records a new ranked future roadmap; it is §27JZ. CI and configuration only, with no production
+change.
