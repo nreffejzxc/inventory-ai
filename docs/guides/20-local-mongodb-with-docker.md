@@ -3,9 +3,10 @@
 Optional. Use this to run database tests or the browser E2E without the cloud database.
 Normal development and production use MongoDB Atlas; nothing in the app requires Docker.
 
-CI starts the same `mongo:7` image as a service container, and the `compose-mongo` job
-boots this exact file on every pull request as a required check, so the laptop and CI use
-the same database version and the file cannot drift unnoticed.
+CI starts the same pinned `mongo:7.0.48` image as a service container, and the `compose-mongo`
+job boots this exact file on every pull request as a required check, so the laptop and CI use
+the same database version and the file cannot drift unnoticed. Dependabot tracks 7.0 patch
+releases weekly; a major upgrade stays a deliberate change.
 
 ## Before you start
 
