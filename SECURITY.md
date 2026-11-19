@@ -1,172 +1,93 @@
 # Security Policy
 
-Inventory AI is a multi-tenant inventory management system: a React Native app, an
-Express/MongoDB API, and a read-only AI assistant. This file says how to report a
-security problem in it, what is in scope, and what is already known and open.
-
----
+Inventory AI is a multi-tenant inventory system: a React Native app, an Express/MongoDB
+API and a read-only AI assistant. This page explains how to report a security issue and
+which versions are supported.
 
 ## Supported versions
 
-There are **no tagged releases or GitHub Releases yet**. The `main` branch is the
-only supported version, and fixes land there. A report against an older commit
-will be answered by checking whether that behaviour still exists on `main`.
+The `main` branch is the only supported version. There are no tagged releases or
+backports; fixes land on `main`. A report against an older commit is checked against the
+current `main` behaviour.
 
----
+## Report a vulnerability privately
 
-## Reporting a vulnerability
+**Do not open a public issue, discussion, fork, gist or pull request for a vulnerability.**
 
-**Use GitHub's private vulnerability reporting** — open the **Security** tab and choose
-**Report a vulnerability**. The repository is **public**, so a normal issue is public;
-do not put a vulnerability report in one. Private vulnerability reporting is enabled and
-keeps the report visible only to the maintainer until a fix ships.
+Use GitHub's private vulnerability reporting:
 
-**If the form is unavailable**, contact the maintainer at the address recorded in this
-repository's commit metadata, or through whatever channel you were already contacted by.
+<https://github.com/nreffejzxc/inventory-ai/security/advisories/new>
 
-> **Why this is not a public issue.** The repository became public on 2026-10-30 to make
-> branch protection and secret scanning available. That makes the code readable by anyone,
-> so a vulnerability report must not be filed as an issue. Private vulnerability reporting
-> was verified enabled on the same day.
+You can also open the repository's **Security** tab and choose **Report a vulnerability**.
+The repository is public, so this private channel is the only safe way to send a report.
+If the form is unavailable, contact the maintainer through the address in the repository's
+commit metadata.
 
-**Do not disclose a vulnerability publicly** — no public fork, gist, blog post, social
-post or package — before a fix has shipped.
+Do not disclose the issue publicly until a fix has shipped.
 
-### What a useful report contains
+### What to include
 
-1. **What and where** — the component (`server/` or `mobile/`), the endpoint,
-   screen or file, and the affected commit or branch.
-2. **Reproduction** — the smallest sequence of steps or request that shows the
-   problem.
-3. **Impact** — what an attacker gains. Please say explicitly whether it crosses
-   a tenant boundary, escalates a role, bypasses authentication, or exposes
-   credentials or personal data.
-4. **Evidence** — a request/response pair, a log excerpt, or a screenshot, with
-   **your own secrets redacted**.
+- The component (`server/` or `mobile/`), endpoint, screen or file, and the affected
+  commit or branch.
+- The smallest reproduction: steps or a request that shows the problem.
+- The impact, including whether it crosses a tenant boundary, escalates a role, bypasses
+  authentication, or exposes credentials or personal data.
+- Evidence such as a request/response pair, log excerpt or screenshot, with **your own
+  secrets redacted**.
 
-### What never to send
+### Never send
 
 - Real credentials, API keys, tokens or password hashes.
 - Production data, or data belonging to a business you do not own.
 - Anything obtained by accessing another tenant's data.
 
-Use an account and business **you own**, on a local or test environment where
-possible.
+## Scope
 
----
+In scope:
 
-## In scope
+- Server authentication, sessions, logout, revocation and account recovery.
+- Authorization and RBAC, including routes reachable without the required capability.
+- Business (tenant) isolation, including any route that trusts a client-supplied
+  `businessId`.
+- The AI boundary: reading outside the caller's business, writing data, or reaching the
+  database except through the server-side read-only tools.
+- Mobile credential storage, session handling and reset/verification deep links.
+- Repository and CI security, including exposed secrets or a workflow that could run
+  untrusted code with credentials.
 
-- **Server authentication and sessions** — Firebase ID-token exchange, the
-  Inventory AI JWT and server-side session records, logout, per-session
-  revocation, sign-out-everywhere and session renewal.
-- **Authorization and RBAC** — role/permission enforcement, the server as the
-  only security boundary, and any route that can be reached without the
-  capability it requires.
-- **Business (tenant) isolation** — any path that returns or mutates another
-  business's data, or that trusts a client-supplied `businessId`.
-- **Account recovery and verification** — password reset, email verification,
-  token handling and the enumeration-resistance of those flows.
-- **The AI boundary** — anything that lets the assistant read outside the
-  caller's business, act as a write path, or reach the database other than
-  through its server-side read-only tools.
-- **Mobile client** — credentials reachable from the app bundle or device
-  storage, session handling, and deep-link handling for reset and verification
-  links.
-- **Repository and CI** — secret exposure in workflow definitions, or a
-  workflow that could be made to run untrusted code with credentials.
+Out of scope: reports requiring a rooted or jailbroken device, physical access to an
+unlocked device, or a modified client without server-side impact; missing security
+headers alone; automated scanner output without a demonstrated impact; denial-of-service
+or load testing; social engineering; and issues in third-party services.
 
-## Out of scope, or already known and open
+Before reporting, check the maintained records for already-known and accepted items:
 
-The project keeps a full, candid security record at
-[`docs/AUTH_SECURITY_MASTER_CHECKLIST.md`](docs/AUTH_SECURITY_MASTER_CHECKLIST.md).
-The following are **already recorded, and are not withheld findings** — please
-read them before reporting:
+- [`docs/AUTH_SECURITY_MASTER_CHECKLIST.md`](docs/AUTH_SECURITY_MASTER_CHECKLIST.md)
+- [`docs/SECURITY_DEPENDENCY_DECISIONS.md`](docs/SECURITY_DEPENDENCY_DECISIONS.md)
 
-| Item | State |
-| --- | --- |
-| **B1** — a residual timing term on the password-reset request path (the outbound send is detached, but the database work remains) | **Accepted for V1 and deferred**; partially mitigated, explicitly **not** closed |
-| **B2** and **E3** — shared-store work for rate limiting and related infrastructure | **Deferred to V4**; open |
-| **OD-10** — deriving the credential-change marker server-side instead of from the device-local marker | **Deferred by owner decision**; not implemented |
-| A dependency-level **PII logging** finding noted in that checklist — **ISS-02**, the `@react-native-firebase/auth` Auth-state log that printed the Firebase user object | **Closed.** Patched (§27AJ, 2026-10-10) and verified in the shipped dex and on a device (§27BA, 2026-10-12); the checklist's sensitive-logging row reads resolved |
-| Dependency advisories — `glob` (GHSA-3g3m-2fjr-6pw4, **medium**) on both manifests and `deepmerge` (GHSA-gcqx-w48m-w2h4, **low**) on mobile | Open; **no applicable fix exists today**. Re-measured on **2026-11-09**: `npm audit` reports **5** moderate entries in `server/` and **27** in `mobile/` (26 moderate, 1 low), which are dependents of those two advisories. `glob`'s patched floor is `14.0.2`, a major outside every installed consumer's range; `deepmerge@4.3.1` is both the newest release and inside `>= 4.2.0 <= 4.3.1`. Neither is reachable from application code or the shipped bundle: mobile `glob` is Expo/Metro/Jest/ESLint tooling, `deepmerge` is the Expo config loader and Jest, and the server `glob` is `firebase-admin`'s `google-gax → rimraf` cleanup path. The earlier `zod` high advisory was **cleared** by `expo@58.0.22`; `node-forge` is fixed at 1.4.2; and the `minimatch` pair is **fixed** by the reviewed D-13 override. No dismissal was applied. Evidence is in [`docs/SECURITY_DEPENDENCY_DECISIONS.md`](docs/SECURITY_DEPENDENCY_DECISIONS.md) and roadmap §27FJ/§27GX |
+These are not withheld findings; they are the project's open security record.
 
-The former **L-17** gate is **closed as not applicable (2026-11-07)**: the shipped password reset is
-the AUTH-06 six-digit code sent through Brevo; Firebase's reset-email action-link template is not
-part of the active path. This is a configuration decision, not a claim that the unused Firebase
-template was repaired.
+## Testing rules
 
-Also out of scope: reports that require a rooted or jailbroken device, physical
-access to an unlocked device, or a modified client build, unless they
-demonstrate a server-side impact. Missing security headers alone, and automated
-scanner output without a demonstrated impact, will be closed with an explanation
-rather than a fix.
-
----
-
-## Rules for testing
-
-Good-faith research is welcome on these terms:
-
-- **Only against accounts you own.** Never test against another person's account,
-  business or data.
-- **If you reach data you do not own, stop.** Report it immediately instead of
-  exploring further, and do not download, retain or share it.
-- **No denial of service**, load or stress testing, or automated scanning that
-  degrades the service for anyone.
-- **No social engineering** of the maintainer, hosting provider or any third
-  party, and no physical attacks.
-- Work from your own fork or local environment where the issue can be shown
-  there.
-
-There is **no bug-bounty programme and no payment** for reports.
-
----
+- Test only against accounts, businesses and data you own.
+- If you reach data you do not own, stop and report it immediately. Do not download,
+  retain or share it.
+- No denial-of-service, load or stress testing, and no scanning that degrades the service.
+- No social engineering or physical attacks.
+- There is no bug-bounty programme and no payment for reports.
 
 ## What to expect
 
-Reports are triaged on a **best-effort basis**. There is no guaranteed response
-time and no service-level agreement; the target is an initial acknowledgement
-**within five business days**.
+Reports are triaged on a best-effort basis. There is no guaranteed response time or SLA;
+the target is an initial acknowledgement within five business days. You will be told
+whether the report is accepted and updated when a fix ships. Credit is offered if you
+want it and withheld if you prefer.
 
-You will be told whether the report is accepted, and updated when a fix ships.
-Credit in the advisory is offered if you want it, and withheld if you prefer.
+## Related controls
 
----
-
-## Repository controls, for reference
-
-These are verifiable settings on this repository, not claims:
-
-- The repository is **public** (owner decision, 2026-10-30).
-- **`main` is protected.** Required checks: `server`, `secret-guard`,   `attribution-guard`,
-  `mobile`, `webauthn-e2e` and `dependency-review`; branches must be up to date; administrators are enforced; a pull request is required
-  with **0** approvals; force pushes and deletions are blocked; conversation resolution is required.
-- **GitHub secret scanning and push protection are enabled**, and
-  **`scripts/check-secrets.mjs`** still scans every tracked file on each CI run. The local guard
-  catches shapes the GitHub scanner may not, and both remain pattern matching rather than proof.
-- **Private vulnerability reporting is enabled.**
-- **Dependabot alerts and security updates** are enabled, with version-update configuration in
-  [`.github/dependabot.yml`](.github/dependabot.yml).
-- **Dependency review gates pull requests.** `.github/workflows/dependency-review.yml` fails a pull
-  request that introduces a high or critical advisory in any scope. The action is pinned to a full
-  commit SHA, needs only `contents: read`, and never edits a dependency or merges anything.
-- The full history scan found **no committed credential**; no `.env`, service-account JSON,
-  keystore, `.pem`, `.p12`, `google-services.json` or `GoogleService-Info.plist` was ever tracked.
-
-**Residual limitations, stated plainly:**
-
-1. **The source is public.** Anyone can read, clone, fork, mirror and index it. Branch protection
-   gates `main`; it does not make the code private.
-2. **The owner can merge their own pull request** after the required checks pass, because the required
-   approval count is **0**. That is deliberate for a single-maintainer repository; admin enforcement
-   means the rule cannot be silently bypassed.
-3. **Forking is allowed** by public visibility. A fork is outside this repository's controls.
-4. **No automated check watches visibility or the access list.** `access-guard.yml` was removed on
-   2026-10-09 to keep the workflow minimal; `node scripts/audit-access.mjs` is the manual check.
-5. **Two owner-side settings are not API-verifiable:** account 2FA and which GitHub Apps can reach
-   the repository. Check both in the GitHub UI.
-6. **A service-account key was exposed outside the repository.** A local terminal transcript on
-   2026-10-25 printed `FIREBASE_SERVICE_ACCOUNT_JSON`; it was never committed. **It was rotated on
-   2026-11-07** — new key verified, production sign-in confirmed, old key deleted. See
-   [`docs/SOURCE_PROTECTION.md`](docs/SOURCE_PROTECTION.md) §2.
+- [`docs/SOURCE_PROTECTION.md`](docs/SOURCE_PROTECTION.md) — what protects the source and
+  what does not.
+- [`docs/AUTH_SECURITY_MASTER_CHECKLIST.md`](docs/AUTH_SECURITY_MASTER_CHECKLIST.md) — the
+  security invariants, control status and open decisions.
+- [`.github/workflows/`](.github/workflows/) — the CI gates, including secret scanning,
+  dependency review and the workflow invariant guard.

@@ -172,8 +172,8 @@ date they were written. **Read them for an audit, not for orientation.**
 | [`evidence/`](evidence/device-runs/README.md) | Device runs, scale measurements and captured output |
 | [`freebuff/`](freebuff/README.md) | An older agent-activity log. Forensic only — not architecture, history or specification, and its status statements are frozen at their dates |
 
-At the repository root: [`../SECURITY.md`](../SECURITY.md) — how to report a vulnerability and what is
-in scope.
+At the repository root: [`../SECURITY.md`](../SECURITY.md) — private vulnerability reporting,
+supported versions, scope and response expectations.
 
 ## 4. Where we are now — the living log
 
@@ -215,13 +215,15 @@ the **how** obvious.
 guide is not linked here, when a map link points at a missing file, or when an invariant row is
 declared outside the one register. It runs in the required `server` CI job before dependencies are
 installed, so a documentation-only change is checked without a database or a server install. It also
-fails when a living reference document is past the review cadence in §2.
+fails when a living reference document is past the review cadence in §2. The same job runs
+`node scripts/check-workflow-invariants.mjs`, which checks action SHA pins, job timeouts, Mongo image
+parity with `compose.yaml` and `.nvmrc`/`engines.node` parity.
 
 At the close of every session:
 
 1. Update `DEVELOPMENT_LOG.md` and the document that owns the change.
-2. Commit, push, open the pull request and wait for every required check (five on `main` as of
-   2026-11-17).
+2. Commit, push, open the pull request and wait for every required check (seven on `main` as of
+   2026-11-19).
 3. Squash-merge, then `git switch main && git pull --ff-only`.
 4. Run `node scripts/check-repo-state.mjs`; it must report a clean `main` level with `origin/main`.
 
