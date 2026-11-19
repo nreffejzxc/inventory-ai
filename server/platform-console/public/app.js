@@ -208,6 +208,12 @@
   }
 
   function expiredSession() {
+    // Only an established session can expire. `state.admin` is set by
+    // setSession() and cleared by resetToLogin(), so while a password/MFA
+    // challenge is in progress there is no session to end. A late 401 from a
+    // request owned by the PREVIOUS session must not clear that new challenge;
+    // doing so sent the next security-key click with an empty mfaToken.
+    if (!state.admin) return;
     resetToLogin();
     showError('login-error', 'Your platform session ended. Sign in again.');
   }
@@ -1805,7 +1811,11 @@
   }
 
   async function logout() {
+    var epoch = state.sessionEpoch;
     try { await request('/auth/logout', { method: 'POST', body: {} }); } catch { /* session is ending anyway */ }
+    // A sign-in that started while the logout request was in flight owns the
+    // screen now; its challenge must not be cleared by this continuation.
+    if (epoch !== state.sessionEpoch) return;
     resetToLogin();
   }
 
