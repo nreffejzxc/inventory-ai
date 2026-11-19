@@ -44,6 +44,11 @@ at the end of every development session, newest entry first.
 **Goal:** finish and harden Inventory AI **V1** through production testing. No Play Store or App
 Store release is being prepared.
 
+**Compose MongoDB CI job, DEV-02 (2026-11-19):** `compose-mongo` boots
+`compose.yaml`, waits for healthy and asserts a MongoDB ping on every PR and main push.
+PR #347 run `44443515084` passed in 28 s; the container was healthy at 19 s and the ping
+returned `1`. It is not a required check; the deployed path is unchanged.
+
 **WebAuthn invalid-attempt reliability, PLAT-28 (2026-11-19):** merged after six green
 `webauthn-e2e` results — the original run at `b7e58a1` and five concurrent runs at
 `9d0a505` (44441934771, 44441968598, 44441972926, 44441977632, 44441982055). The fix
@@ -669,6 +674,20 @@ Known limits, checked before spending one of them:
   space that a backup or an index change would explain.
 - **Brevo** — used for verification codes, reset codes and invitations. Do not send test mail in
   bulk; a delivery failure is not a code regression until the provider log says so.
+
+---
+
+## 2026-11-19 — Compose MongoDB CI job
+
+**Status.** Added `compose-mongo` to `.github/workflows/ci.yml`, DEV-02 / §27JQ. It boots
+the committed `compose.yaml`, waits for its healthcheck, pings MongoDB, prints logs on
+failure and always tears down the container, volume and network.
+
+**Evidence.** PR #347 run `44443515084`: job passed in 28 s; `Container
+inventory-ai-mongo-1 Healthy` at 19 s; `OK: MongoDB ping = 1`; teardown removed all three
+resources.
+
+**Limit.** The job is not a required check, so branch protection still lists six contexts.
 
 ---
 
