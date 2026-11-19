@@ -56,6 +56,12 @@ WebAuthn 10 and both guards 5. PR #349 run `44459482854` passed the six CI jobs;
 compose container was healthy in about 11 s and pinged `1`. Dependabot pickup awaits its
 first scheduled run.
 
+**Merge queue prerequisites, DEV-05 (2026-11-19):** both required workflows accept
+`merge_group`; the attribution guard uses `merge_group.base_sha` and dependency-review
+passes queued base/head refs. The queue is **not active**: the repository is user-owned and
+the ruleset API rejects `merge_queue` with HTTP 422. PR #350's first run failed only on the
+missing §27JT record; its follow-up run is the normal gate.
+
 **Compose MongoDB CI job, DEV-02 (2026-11-19):** `compose-mongo` boots
 `compose.yaml`, waits for healthy and asserts a MongoDB ping on every PR and main push.
 PR #347 run `44443515084` passed in 28 s; the container was healthy at 19 s and the ping
@@ -686,6 +692,25 @@ Known limits, checked before spending one of them:
   space that a backup or an index change would explain.
 - **Brevo** — used for verification codes, reset codes and invitations. Do not send test mail in
   bulk; a delivery failure is not a code regression until the provider log says so.
+
+---
+
+## 2026-11-19 — merge queue prerequisites (blocked)
+
+**Status.** DEV-05 / §27JT. `ci.yml` and `dependency-review.yml` now accept
+`merge_group`; the attribution guard reads `merge_group.base_sha`, and dependency-review
+uses the queued base/head refs with per-group concurrency.
+
+**Blocker.** This repository is user-owned. GitHub offers merge queues only to public
+repositories owned by organizations. `POST /rulesets` with a `merge_queue` rule returned
+HTTP 422 `Invalid rule 'merge_queue'`; no ruleset was created. The triggers are inert until
+the repository moves to an organization.
+
+**Evidence.** YAML assertions passed for both workflows and all three merge-group refs;
+`BASE_SHA=HEAD~1 node scripts/check-commit-attribution.mjs` read the expected range and
+passed. PR #350 run `44461481592` passed six CI jobs and failed only the docs
+section-integrity test because this record did not yet exist. The follow-up run is the
+seven-check gate.
 
 ---
 
