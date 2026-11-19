@@ -40,9 +40,15 @@ at the end of every development session, newest entry first.
 
 ## Current position
 
-**Updated:** 2026-11-18
+**Updated:** 2026-11-19
 **Goal:** finish and harden Inventory AI **V1** through production testing. No Play Store or App
 Store release is being prepared.
+
+**WebAuthn invalid-attempt reliability, PLAT-28 (2026-11-19):** merged after six green
+`webauthn-e2e` results — the original run at `b7e58a1` and five concurrent runs at
+`9d0a505` (44441934771, 44441968598, 44441972926, 44441977632, 44441982055). The fix
+stops late session responses from clearing the MFA challenge. Local E2E is still blocked
+by the missing Docker/MongoDB install.
 
 **Optional local MongoDB container, DEV-01 (2026-11-19):** added `compose.yaml` for a
 loopback-only `mongo:7` and [Guide 20](guides/20-local-mongodb-with-docker.md). It is not
@@ -663,6 +669,20 @@ Known limits, checked before spending one of them:
   space that a backup or an index change would explain.
 - **Brevo** — used for verification codes, reset codes and invitations. Do not send test mail in
   bulk; a delivery failure is not a code regression until the provider log says so.
+
+---
+
+## 2026-11-19 — WebAuthn invalid-attempt reliability
+
+**Status.** Fixed and merged as PLAT-28, §27JP. A late session response no longer clears the
+console's MFA challenge; the E2E now asserts the challenge and the current MFA view before
+clicking.
+
+**Evidence.** Six green `webauthn-e2e` jobs: the original PR run at `b7e58a1`, then five
+runs at rebased commit `9d0a505` (44441934771, 44441968598, 44441972926, 44441977632,
+44441982055). Each run passed all six required checks; WebAuthn took 41–53 s.
+
+**Limit.** Local reproduction still needs Docker or `mongod`; neither is installed.
 
 ---
 

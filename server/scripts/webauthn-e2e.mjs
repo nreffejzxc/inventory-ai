@@ -386,6 +386,9 @@ async function main() {
           window.fetch = async (input, init) => {
             const url = typeof input === 'string' ? input : input.url;
             const entry = { url, method: (init && init.method) || 'GET', status: null };
+            if (url.includes('/mfa/webauthn/options')) {
+              try { entry.hasChallenge = Boolean(JSON.parse((init && init.body) || '{}').mfaToken); } catch { entry.hasChallenge = false; }
+            }
             if (url.includes('/api/platform/')) window.__e2eCalls.push(entry);
             const response = await __e2eFetch(input, init);
             entry.status = response.status;
@@ -676,9 +679,24 @@ async function main() {
         async () => shown('login-view') && !(await shown('mfa-view')),
         10000,
       );
+      // Start the invalid attempt from a fresh document. Signing in on the page
+      // that still owned the dashboard's in-flight requests let a late response
+      // from the previous session clear the new MFA challenge (the 2026-11-19
+      // VALIDATION_ERROR flake). A fresh page owns no such work.
+      await cdp.send('Page.navigate', { url: `${CONSOLE_ORIGIN}/` });
+      await waitFor(
+        'the console login form before the invalid attempt',
+        async () => shown('login-view'),
+        20000,
+      );
       await setValue('email', EMAIL);
       await setValue('password', PASSWORD);
       await submitLogin();
+      const invalidLogin = await evaluate('window.__e2eLogin');
+      assert(
+        invalidLogin && invalidLogin.mfaRequired && invalidLogin.mfaToken,
+        `the invalid-attempt login did not return an MFA challenge: ${JSON.stringify(invalidLogin)}`,
+      );
       await waitFor(
         'the WebAuthn option before the invalid attempt',
         async () => {
@@ -687,6 +705,9 @@ async function main() {
         },
         20000,
       );
+      // The click below uses element.click(), which ignores visibility. Require
+      // the MFA view to still be the current view immediately before it.
+      assert(await shown('mfa-view'), 'the MFA view disappeared before the tampered assertion');
       await evaluate(
         `(() => {
           const originalGet = navigator.credentials.get.bind(navigator.credentials);
@@ -721,6 +742,14 @@ async function main() {
         20000,
       );
       const invalidDebug = await evaluate('({ calls: window.__e2eCalls, errors: window.__e2eVerifyErrors })');
+      const invalidOptions = (invalidDebug.calls || []).filter((call) =>
+        call.url.endsWith('/mfa/webauthn/options'),
+      );
+      const lastInvalidOptions = invalidOptions[invalidOptions.length - 1];
+      assert(
+        lastInvalidOptions && lastInvalidOptions.hasChallenge !== false,
+        `the console sent the WebAuthn options request without its MFA challenge: ${JSON.stringify(invalidDebug)}`,
+      );
       assert(
         /invalid security key/i.test(invalidMessage),
         `unexpected invalid-attempt error: ${invalidMessage}; network=${JSON.stringify(invalidDebug)}`,
