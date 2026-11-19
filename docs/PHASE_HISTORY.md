@@ -216,4 +216,6 @@ audit and current docs to seven contexts; it is §27JR. DEV-04 pins `mongo:7.0.4
 weekly Docker Compose Dependabot tracking and bounds every CI job; it is §27JS. DEV-05
 wires `merge_group` and the merge-group base into both required workflows, but the queue is
 blocked because the repository is user-owned; it is §27JT. DEV-06 removes that inactive wiring,
-keeps the seven-check PR gate and enforces SHA-pinned Actions; it is §27JU.
+keeps the seven-check PR gate and enforces SHA-pinned Actions; it is §27JU. DEV-07 verifies the
+production-health workflow and keeps native Mongo service containers; DEV-08 is a ranked workflow
+improvement roadmap; they are §27JV and §27JW.
