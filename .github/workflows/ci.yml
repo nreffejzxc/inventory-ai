@@ -55,9 +55,13 @@ name: ci
 #     are used: the platform secrets and administrator password are generated for that run.
 #   * Every job carries a `timeout-minutes` bound, so a hung install, test, browser or Compose
 #     step fails as a named job instead of occupying the six-hour default.
+#   * `merge_group` is wired for a merge queue, but this repository is user-owned. GitHub
+#     rejects the merge-queue ruleset with HTTP 422; the trigger stays inert until the
+#     repository moves to an organization. See roadmap §27JT.
 
 on:
   pull_request:
+  merge_group:
   push:
     branches: [main]
   workflow_dispatch:
@@ -318,11 +322,11 @@ jobs:
 
       - name: Check this event's commit messages for a forbidden attribution trailer
         env:
-          # A pull request supplies its base commit, a push supplies `before`, and a manual run
-          # has neither — in which case the guard checks HEAD and says so, rather than implying
-          # the whole branch was read. An all-zero `before` (a branch's first push) is treated
-          # the same way by the script.
-          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          # A pull request supplies its base commit, a merge group supplies `base_sha`, and a
+          # push supplies `before`. A manual run has none — in which case the guard checks HEAD
+          # and says so, rather than implying the whole branch was read. An all-zero `before`
+          # (a branch's first push) is treated the same way by the script.
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.event.before }}
         run: node scripts/check-commit-attribution.mjs
 
   mobile:
