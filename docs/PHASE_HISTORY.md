@@ -208,4 +208,5 @@ to `v5.0.1`'s full SHA, is §27JN; it passed a clean run, failed a scratch
 `lodash@4.17.20` pull request, and became a required `main` check with six contexts.
 DEV-01, the optional loopback-only `mongo:7` compose service and its concise guide, is
 §27JO; it was not executed because Docker is not installed, and the deployed path is
-unchanged.
+unchanged. PLAT-28 keeps late session responses from clearing the console's MFA challenge
+and proved it with six green `webauthn-e2e` runs; it is §27JP.
