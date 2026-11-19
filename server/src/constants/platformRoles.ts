@@ -31,11 +31,12 @@ export const PLATFORM_ROLE_VALUES: readonly string[] = Object.freeze(
 /**
  * Capabilities the platform console can require.
  *
- * There is deliberately no TENANT-data write capability. PLAT-1 is a read-only
- * operations plane: no tenant data is created, changed or deleted. The
- * `platform.admin.manage` key exists only in the catalogue for future
- * administrator management and is bound to no route yet. No support grant
- * exists (see docs/superpowers/specs/2026-11-16-platform-admin-architecture.md).
+ * There is deliberately no TENANT-data write capability: no tenant data is
+ * created, changed or deleted. Support tickets and administrator lifecycle are
+ * platform-only writes. `platform.admin.manage` is bound to the administrator
+ * list/status/delete/key-removal routes, not to any tenant route. No
+ * tenant-detail support grant exists (see
+ * docs/superpowers/specs/2026-11-16-platform-admin-architecture.md).
  */
 export const PLATFORM_CAPABILITIES = Object.freeze({
   HEALTH_READ: 'platform.health.read',

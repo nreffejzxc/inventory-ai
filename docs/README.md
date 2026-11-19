@@ -91,7 +91,8 @@ Start with its index; these are the direct pages.
 | Document | Answers |
 | --- | --- |
 | [`platform-console/README.md`](platform-console/README.md) | The console documentation index, reading order, boundaries and maintenance rules |
-| [`01 — Status and accounts`](platform-console/01-status-and-accounts.md) | Current feature status, measured production data, AI monitoring, 5xx semantics and account creation |
+| **[`00 — User guide`](platform-console/00-user-guide.md)** | **Start here:** access, MFA and recovery, Superadmin/support/developer accounts, daily operations and security |
+| [`01 — Status and accounts`](platform-console/01-status-and-accounts.md) | Feature status, the dated production snapshot, AI monitoring, 5xx semantics and account creation |
 | [`02 — Accounts and credentials`](platform-console/02-accounts-and-credentials.md) | Platform and tenant roles, account lifecycle, every credential, storage, rotation, login and recovery |
 | [`03 — Console improvements`](platform-console/03-console-improvements.md) | Ranked console improvements and the next security/operational work; recommendations only |
 | [`04 — Production readiness`](platform-console/04-production-readiness.md) | The pre-exposure gates: HTTPS, network isolation, credentials, cookies/CORS, MFA, audit and sign-off |
@@ -120,8 +121,9 @@ Reference documents are consulted rather than read once, so they are reviewed on
 | [`DEVELOPING_ON_A_PHYSICAL_DEVICE.md`](DEVELOPING_ON_A_PHYSICAL_DEVICE.md) | 90 days | 2026-11-07 |
 | [`INVENTORY_INTEGRITY.md`](INVENTORY_INTEGRITY.md) | 90 days | 2026-11-15 |
 | [`MONITORING.md`](MONITORING.md) | 90 days | 2026-11-17 |
-| [`platform-console/README.md`](platform-console/README.md) | 90 days | 2026-11-18 |
-| [`01 — Status and accounts`](platform-console/01-status-and-accounts.md) | 90 days | 2026-11-18 |
+| [`platform-console/README.md`](platform-console/README.md) | 90 days | 2026-11-19 |
+| [`00 — User guide`](platform-console/00-user-guide.md) | 90 days | 2026-11-19 |
+| [`01 — Status and accounts`](platform-console/01-status-and-accounts.md) | 90 days | 2026-11-19 |
 | [`02 — Accounts and credentials`](platform-console/02-accounts-and-credentials.md) | 90 days | 2026-11-18 |
 | [`03 — Console improvements`](platform-console/03-console-improvements.md) | 90 days | 2026-11-17 |
 | [`04 — Production readiness`](platform-console/04-production-readiness.md) | 90 days | 2026-11-18 |

@@ -1,7 +1,9 @@
 # Platform accounts, credentials and access — owner/CEO guide
 
-**Assessed:** 2026-11-18, against production commit
-`50165538ba7b0bdd949ca65fcfbe5fded0669138` and the current implementation.
+**Assessed:** 2026-11-19 against the current implementation; public production health
+reported `f95b5e4`. The last full account snapshot was measured on 2026-11-18 against
+`50165538ba7b0bdd949ca65fcfbe5fded0669138` and was **not re-read** on 2026-11-19.
+**Start here:** [00 — User guide](00-user-guide.md) for the short operational path.
 **Companion to:** [01 — Status and accounts](01-status-and-accounts.md).
 That guide covers console status and measured production data; this one is the practical
 reference for accounts, credentials, access and recovery.
@@ -18,9 +20,11 @@ this guide.**
 > no biometric app lock, no SMS OTP, and no tenant MFA**. Platform accounts are created
 > only by the operator CLI. Tenant owners are created only by verified registration;
 > tenant admins can invite or directly create `ADMIN`, `MANAGER` and `STAFF`, but cannot
-> delete them. The current production platform account has TOTP, **0 WebAuthn keys** and
-> **7 unused recovery codes**; its local recovery-code file is stale. Those are the first
-> owner actions in §6.
+> delete them. The **last recorded** production platform account state (2026-11-18) was
+> TOTP, **0 WebAuthn keys** and **7 unused recovery codes**; its local recovery-code file
+> was stale. That snapshot was not re-read on 2026-11-19. Check the live count in
+> **Security & access** and replace any uncertain code set; those are the first owner
+> actions in §6.
 
 ---
 
@@ -536,8 +540,10 @@ also a security event. A disabled administrator stays disabled; another active
 
 ### 6.1 Do these first
 
-The current production state has one platform `SUPERADMIN` with TOTP, **0 WebAuthn keys**
-and **7 unused recovery codes**; the local recovery-code file is stale. In this order:
+The **last recorded** production state (2026-11-18) had one platform `SUPERADMIN` with TOTP,
+**0 WebAuthn keys** and **7 unused recovery codes**; the local recovery-code file was
+stale. Check the live count in **Security & access** before relying on those values. In
+this order:
 
 1. **Register two WebAuthn security keys.** Use a primary and a backup, stored separately.
    A hardware key makes phishing much harder than TOTP alone.
@@ -582,8 +588,9 @@ and **7 unused recovery codes**; the local recovery-code file is stale. In this 
 - Treat recovery codes as spare keys: offline, two copies, never in the repository or a
   ticket. Each code works once; regenerate the set when the count is low or the file is
   stale.
-- Never share the access key, a TOTP code, a recovery code, a session cookie or a CSRF
-  token. Support staff do not need any of them.
+- Never share your password, a TOTP code, a recovery code, a session cookie or a CSRF
+  token. Each support operator needs **their own account** and the shared outer access key;
+  never share an individual's credentials or factors.
 - Separate your platform identity from your tenant `OWNER` identity. Use a different email
   and password where practical; a tenant compromise must not become a platform compromise.
 - Keep the operating system, browser, password manager and authenticator updated. Use
@@ -706,10 +713,11 @@ recovery-code, WebAuthn and MFA-lock behavior; break-glass; tenant role rules; t
 invitation, verification, reset and self-deletion behavior; server-secret names and
 purposes.
 
-**Not verified in this pass:** an authenticated production browser session, a live
-break-glass run, a production recovery-code rotation, a WebAuthn registration, or a tenant
-account creation. The production account still has no WebAuthn key and its local recovery
-file is stale. No credential, secret or recovery code is recorded in this guide.
+**Not verified in this pass:** an authenticated production browser session, live
+administrator/key/recovery-code counts, a break-glass run, a production recovery-code
+rotation, a WebAuthn registration, or a tenant account creation. The last recorded
+production account had no WebAuthn key and a stale local recovery file; do not treat that
+as current. No credential, secret or recovery code is recorded in this guide.
 
 **Current implementation limits:** no PIN/biometric app lock, no SMS OTP, no tenant MFA,
 no self-service platform password reset, no platform role-change route, no platform

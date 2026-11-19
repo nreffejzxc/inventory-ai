@@ -168,6 +168,7 @@ binary. Full procedure, rollback and troubleshooting:
 | [`docs/guides/`](docs/guides/README.md) | everyday tasks: run it, use the phone, test accounts, every command, OTA, Play submission |
 | [`docs/SYSTEM_SPECIFICATION.md`](docs/SYSTEM_SPECIFICATION.md) | what the system must do |
 | [`docs/AUTH_SECURITY_MASTER_CHECKLIST.md`](docs/AUTH_SECURITY_MASTER_CHECKLIST.md) | authentication and authorization guarantees |
+| [`docs/platform-console/00-user-guide.md`](docs/platform-console/00-user-guide.md) | internal console access, accounts, daily operations and security |
 | [`docs/DEVELOPMENT_LOG.md`](docs/DEVELOPMENT_LOG.md) | what is current, verified, blocked and next |
 | [`docs/INVENTORY_INTEGRITY.md`](docs/INVENTORY_INTEGRITY.md) | the read-only orphan STOCK_IN and unreceipted-PO audit |
 | [`docs/DEVELOPMENT_ROADMAP.md`](docs/DEVELOPMENT_ROADMAP.md) | **the archive**: one dated record per increment |
