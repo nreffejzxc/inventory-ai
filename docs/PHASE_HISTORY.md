@@ -224,5 +224,5 @@ improvement roadmap; they are §27JV and §27JW. DEV-09 adds the workflow invari
 persisted checkout credentials and rewrites the security policy concisely; it is §27JX.
 DEV-10 proves the workflow guard end to end with five temporary fixture repositories, groups
 Dependabot security updates separately from routine updates for server, mobile and Actions, and
-records a new ranked future roadmap; it is §27JZ. CI and configuration only, with no production
-change.
+records a new ranked future roadmap; it is §27JZ. PR #355 passed all seven required checks (run
+`44513523159`). CI and configuration only, with no production change.

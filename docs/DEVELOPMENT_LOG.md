@@ -750,8 +750,9 @@ items. Recommendations only; nothing implemented.
 
 **Verification.** Guard exit 0 with 9 controls, 4 workflows, 15 action refs, 9 jobs, 2 Mongo refs,
 Node 24; fixture test `PASS — 5 fixture repositories`; PyYAML parse and structural readback; the
-documentation guard; `git diff --check`. No production setting, deployment, database, account or
-permission changed.
+documentation guard; `git diff --check`. PR #355 run `44513523159` passed all seven required checks;
+the `server` log ran the fixture test before `npm ci`. No production setting, deployment, database,
+account or permission changed.
 
 ---
 

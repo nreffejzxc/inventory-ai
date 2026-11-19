@@ -27575,7 +27575,7 @@ production setting was added.
 
 **Verification.** Local: the guard and its five-fixture test both exit 0; PyYAML parses both YAML
 files; `node scripts/check-docs.mjs` passes with the new page linked; `git diff --check` is clean.
-The pull request's seven required checks are recorded in `DEVELOPMENT_LOG.md` with the run id.
+PR #355 run `44513523159` passed all seven required checks: `server` 2m47s, `mobile` 1m21s, `webauthn-e2e` 50s, `compose-mongo` 43s, `secret-guard` 11s, `attribution-guard` 13s and `dependency-review` 4s (run `44513523181`). The seven required checks, strict protection and admin enforcement are unchanged.
 
 **Limits.** The Dependabot grouping has not yet produced a security-update PR, so its runtime
 behaviour is documented from GitHub's reference rather than observed. No production configuration,
