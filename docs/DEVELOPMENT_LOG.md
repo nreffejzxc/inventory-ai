@@ -44,6 +44,11 @@ at the end of every development session, newest entry first.
 **Goal:** finish and harden Inventory AI **V1** through production testing. No Play Store or App
 Store release is being prepared.
 
+**Optional local MongoDB container, DEV-01 (2026-11-19):** added `compose.yaml` for a
+loopback-only `mongo:7` and [Guide 20](guides/20-local-mongodb-with-docker.md). It is not
+part of the deployed path and was not executed, because Docker is not installed on this
+host.
+
 **Dependency-review gate, DEP-02 (2026-11-19):** `.github/workflows/dependency-review.yml`
 now fails a pull request that introduces a high or critical advisory in any scope. The action is
 pinned to the full `v5.0.1` commit `bbc44d14a204704ccc493733616cd1e93a0321ec`. PR #342 passed the
@@ -658,6 +663,22 @@ Known limits, checked before spending one of them:
   space that a backup or an index change would explain.
 - **Brevo** — used for verification codes, reset codes and invitations. Do not send test mail in
   bulk; a delivery failure is not a code regression until the provider log says so.
+
+---
+
+## 2026-11-19 — optional local MongoDB container
+
+**Status.** Added `compose.yaml` and
+[Guide 20](guides/20-local-mongodb-with-docker.md). This is DEV-01, §27JO.
+**Not executed:** Docker is not installed on this host.
+
+**Why.** The deployed path needs no container: Render runs Node directly, Atlas hosts
+the database, EAS builds the app, and CI already starts `mongo:7` as a service
+container. The local container is only for DB-backed tests and the browser E2E
+without the cloud database.
+
+**Verified.** Compose YAML parses (`PyYAML 6.0.3`); the image and healthcheck match CI;
+`node scripts/check-docs.mjs` passes.
 
 ---
 

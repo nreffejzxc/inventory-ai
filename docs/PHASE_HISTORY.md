@@ -206,3 +206,6 @@ accepted `picomatch` 4.0.7 residual review, is §27JM; merged as `ecbdb87` and
 deployed, with #25 remaining open. DEP-02, the dependency-review pull-request gate pinned
 to `v5.0.1`'s full SHA, is §27JN; it passed a clean run, failed a scratch
 `lodash@4.17.20` pull request, and became a required `main` check with six contexts.
+DEV-01, the optional loopback-only `mongo:7` compose service and its concise guide, is
+§27JO; it was not executed because Docker is not installed, and the deployed path is
+unchanged.
