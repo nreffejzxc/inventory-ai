@@ -44,10 +44,15 @@ at the end of every development session, newest entry first.
 **Goal:** finish and harden Inventory AI **V1** through production testing. No Play Store or App
 Store release is being prepared.
 
+**Compose MongoDB required check, DEV-03 (2026-11-19):** `compose-mongo` is now a
+required `main` check; strict and admin enforcement remain on. `audit-access.mjs` expects
+seven contexts and exits 0 with `PASS required checks`. PR template, CONTRIBUTING, source
+protection, the migration runbook and Guide 20 now say seven.
+
 **Compose MongoDB CI job, DEV-02 (2026-11-19):** `compose-mongo` boots
 `compose.yaml`, waits for healthy and asserts a MongoDB ping on every PR and main push.
 PR #347 run `44443515084` passed in 28 s; the container was healthy at 19 s and the ping
-returned `1`. It is not a required check; the deployed path is unchanged.
+returned `1`. It is now a required check (§27JR); the deployed path is unchanged.
 
 **WebAuthn invalid-attempt reliability, PLAT-28 (2026-11-19):** merged after six green
 `webauthn-e2e` results — the original run at `b7e58a1` and five concurrent runs at
@@ -674,6 +679,21 @@ Known limits, checked before spending one of them:
   space that a backup or an index change would explain.
 - **Brevo** — used for verification codes, reset codes and invitations. Do not send test mail in
   bulk; a delivery failure is not a code regression until the provider log says so.
+
+---
+
+## 2026-11-19 — compose-mongo required check
+
+**Status.** Promoted `compose-mongo` to a required `main` check, DEV-03 / §27JR. Strict
+up-to-date and admin enforcement are unchanged; branch protection now lists seven contexts.
+`scripts/audit-access.mjs` expects seven, and every current doc reference says seven.
+
+**Evidence.** API readback: seven contexts, `strict=true`, `enforce_admins=true`. Audit:
+exit 0, `PASS required checks — attribution-guard, compose-mongo, dependency-review,
+mobile, secret-guard, server, webauthn-e2e`.
+
+**History.** §27JN, §27JP and the DEV-02 entry correctly recorded six contexts at the
+time; §27JR supersedes the count only.
 
 ---
 

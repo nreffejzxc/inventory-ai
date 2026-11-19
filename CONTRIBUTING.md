@@ -87,7 +87,7 @@ npm test
 The full server suite needs `MONGODB_URI`; use `npm run test:unit` when no database is available and
 say so in the pull request. Do not report a check as passed if it was skipped, blocked or not run.
 
-Every pull request must pass the six required checks before merge:
+Every pull request must pass the seven required checks before merge:
 
 - `server`
 - `mobile`
@@ -95,6 +95,7 @@ Every pull request must pass the six required checks before merge:
 - `attribution-guard`
 - `webauthn-e2e` — the real-browser MFA proof
 - `dependency-review` — fails on a newly introduced high or critical advisory
+- `compose-mongo` — boots `compose.yaml`, waits for healthy and pings MongoDB
 
 The `dependency-review` gate compares the pull request with its base; it does not replace
 Dependabot alerts, edit a dependency or run `npm audit fix`. A browser limitation in
@@ -163,5 +164,5 @@ recoverable, an uncommitted folder is not.
 - [ ] The document that owns the change is updated, and `docs/DEVELOPMENT_LOG.md` records the session.
 - [ ] `node scripts/check-docs.mjs` passes; the relevant tests, typecheck and lint pass or are
       explicitly reported as blocked.
-- [ ] The pull request is merged with all six required checks green.
+- [ ] The pull request is merged with all seven required checks green.
 - [ ] Local `main` is clean and level with `origin/main`; `node scripts/check-repo-state.mjs` passes.
