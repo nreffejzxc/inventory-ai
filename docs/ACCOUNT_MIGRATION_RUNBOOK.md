@@ -28,7 +28,7 @@ not the completed email changes.
 | --- | --- |
 | Repository | `nreffejzxc/inventory-ai`, public; `main` at `af70ab2`; PR #246 merged |
 | Access | `nreffejzxc` is the only human with access; pending invitations: 0 |
-| Branch protection | Pull request required; four required checks; strict; admins enforced; force pushes and deletions blocked; conversation resolution required |
+| Branch protection | Pull request required; six required checks; strict; admins enforced; force pushes and deletions blocked; conversation resolution required |
 | Scanning | Secret scanning and push protection enabled; private vulnerability reporting enabled |
 | Git identity | `nreffejzxc` / `jeffernmalinaoqwe@gmail.com` |
 | Production | `/api/health` returned 200 with `status: ok`, `db: connected` and `environment: production` at 10:47 UTC. The serving commit is `c3bd692`; a docs-only merge does not redeploy. Free instance, so a cold start can delay the first response by 50 s or more. |

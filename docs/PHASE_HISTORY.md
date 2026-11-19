@@ -203,4 +203,6 @@ live label are recorded in `DEVELOPMENT_LOG.md` and
 stopped a store upload) and §27FK (the runtime boundary that made a stale process impossible to
 mistake for a server fault). DEP-01, the patched `glob@14.0.2` override in both manifests and the
 accepted `picomatch` 4.0.7 residual review, is §27JM; merged as `ecbdb87` and
-deployed, with #25 remaining open.
+deployed, with #25 remaining open. DEP-02, the dependency-review pull-request gate pinned
+to `v5.0.1`'s full SHA, is §27JN; it passed a clean run, failed a scratch
+`lodash@4.17.20` pull request, and became a required `main` check with six contexts.

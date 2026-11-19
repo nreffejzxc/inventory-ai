@@ -44,6 +44,15 @@ at the end of every development session, newest entry first.
 **Goal:** finish and harden Inventory AI **V1** through production testing. No Play Store or App
 Store release is being prepared.
 
+**Dependency-review gate, DEP-02 (2026-11-19):** `.github/workflows/dependency-review.yml`
+now fails a pull request that introduces a high or critical advisory in any scope. The action is
+pinned to the full `v5.0.1` commit `bbc44d14a204704ccc493733616cd1e93a0321ec`. PR #342 passed the
+clean run (5 s) and merged as `5a4e26a`; scratch PR #343 then failed on `lodash@4.17.20`
+(GHSA-35jh-r3h4-6jhm and GHSA-r5fr-rjxr-66jc, high, run `44438250810`) and was closed without
+merging. `dependency-review` is now a required `main` check beside `server`, `secret-guard`,
+`attribution-guard`, `mobile` and `webauthn-e2e`; API readback confirmed all six with strict and
+admin enforcement. No dependency version changed.
+
 **Dependency advisories, DEP-01 (2026-11-18):** `server/` and `mobile/` now override
 `glob` to **14.0.2**, the patched floor for GHSA-3g3m-2fjr-6pw4; both lockfiles resolve one copy.
 CommonJS globbing, `rimraf` async/sync glob deletion and the Expo config smoke pass. PR #339
@@ -649,6 +658,36 @@ Known limits, checked before spending one of them:
   space that a backup or an index change would explain.
 - **Brevo** — used for verification codes, reset codes and invitations. Do not send test mail in
   bulk; a delivery failure is not a code regression until the provider log says so.
+
+---
+
+## 2026-11-19 — dependency-review pull-request gate
+
+**Status.** PR #342 squash-merged as `5a4e26a`; the workflow is on `main` and the
+`dependency-review` context is a required check. This is DEP-02, recorded as §27JN.
+
+**What changed.** `.github/workflows/dependency-review.yml` runs
+`actions/dependency-review-action` at the full `v5.0.1` commit
+`bbc44d14a204704ccc493733616cd1e93a0321ec`. It fails a pull request that introduces a
+high or critical advisory in the runtime, development or unknown scope. Licence checks
+are off, the action needs only `contents: read`, and it posts no PR comment.
+
+**Clean run.** PR #342's `dependency-review` job passed in **5 s** (run
+`44286358498`), with "did not detect any vulnerable packages with severity level
+\"high\" or higher". The other five checks passed and the PR merged as `5a4e26a`.
+
+**Failure proof.** Scratch PR #343 added `lodash@4.17.20` as a server devDependency.
+Run `44438250810` failed in **5 s**, naming `lodash@4.17.20`, GHSA-35jh-r3h4-6jhm and
+GHSA-r5fr-rjxr-66jc (both high). The PR was closed without merging and the branch
+deleted; nothing reached `main`.
+
+**Required check.** Added only after both runs. API readback lists six contexts:
+`server`, `secret-guard`, `attribution-guard`, `mobile`, `webauthn-e2e` and
+`dependency-review`, with strict up-to-date enforcement and admin enforcement on.
+
+**Not changed.** No dependency version was changed by the gate; Dependabot #25
+`picomatch` remains open under D-16 and the read-only watch still reports `DEFERRED`.
+The licence policy and workflow lockfile remain future NZ-02 work.
 
 ---
 

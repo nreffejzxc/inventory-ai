@@ -139,8 +139,8 @@ Credit in the advisory is offered if you want it, and withheld if you prefer.
 These are verifiable settings on this repository, not claims:
 
 - The repository is **public** (owner decision, 2026-10-30).
-- **`main` is protected.** Required checks: `server`, `secret-guard`, `attribution-guard` and
-  `mobile`; branches must be up to date; administrators are enforced; a pull request is required
+- **`main` is protected.** Required checks: `server`, `secret-guard`,   `attribution-guard`,
+  `mobile`, `webauthn-e2e` and `dependency-review`; branches must be up to date; administrators are enforced; a pull request is required
   with **0** approvals; force pushes and deletions are blocked; conversation resolution is required.
 - **GitHub secret scanning and push protection are enabled**, and
   **`scripts/check-secrets.mjs`** still scans every tracked file on each CI run. The local guard
@@ -148,6 +148,9 @@ These are verifiable settings on this repository, not claims:
 - **Private vulnerability reporting is enabled.**
 - **Dependabot alerts and security updates** are enabled, with version-update configuration in
   [`.github/dependabot.yml`](.github/dependabot.yml).
+- **Dependency review gates pull requests.** `.github/workflows/dependency-review.yml` fails a pull
+  request that introduces a high or critical advisory in any scope. The action is pinned to a full
+  commit SHA, needs only `contents: read`, and never edits a dependency or merges anything.
 - The full history scan found **no committed credential**; no `.env`, service-account JSON,
   keystore, `.pem`, `.p12`, `google-services.json` or `GoogleService-Info.plist` was ever tracked.
 
@@ -155,7 +158,7 @@ These are verifiable settings on this repository, not claims:
 
 1. **The source is public.** Anyone can read, clone, fork, mirror and index it. Branch protection
    gates `main`; it does not make the code private.
-2. **The owner can merge their own pull request** after the four checks pass, because the required
+2. **The owner can merge their own pull request** after the required checks pass, because the required
    approval count is **0**. That is deliberate for a single-maintainer repository; admin enforcement
    means the rule cannot be silently bypassed.
 3. **Forking is allowed** by public visibility. A fork is outside this repository's controls.

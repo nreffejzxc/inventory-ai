@@ -87,17 +87,18 @@ npm test
 The full server suite needs `MONGODB_URI`; use `npm run test:unit` when no database is available and
 say so in the pull request. Do not report a check as passed if it was skipped, blocked or not run.
 
-Every pull request must pass the four required checks before merge:
+Every pull request must pass the six required checks before merge:
 
 - `server`
 - `mobile`
 - `secret-guard`
 - `attribution-guard`
+- `webauthn-e2e` — the real-browser MFA proof
+- `dependency-review` — fails on a newly introduced high or critical advisory
 
-CI also runs the `webauthn-e2e` browser job. It is not yet a branch-protection-required check:
-observe its first green GitHub run, then add it to the required set rather than assuming the local
-`npm run test:webauthn-e2e` covers the hosted browser. A browser limitation is reported, never
-silently skipped.
+The `dependency-review` gate compares the pull request with its base; it does not replace
+Dependabot alerts, edit a dependency or run `npm audit fix`. A browser limitation in
+`webauthn-e2e` is reported, never silently skipped.
 
 Do not bypass a failing check to make a branch mergeable. Fix the cause, or report the blocker.
 
@@ -162,5 +163,5 @@ recoverable, an uncommitted folder is not.
 - [ ] The document that owns the change is updated, and `docs/DEVELOPMENT_LOG.md` records the session.
 - [ ] `node scripts/check-docs.mjs` passes; the relevant tests, typecheck and lint pass or are
       explicitly reported as blocked.
-- [ ] The pull request is merged with all four required checks green.
+- [ ] The pull request is merged with all six required checks green.
 - [ ] Local `main` is clean and level with `origin/main`; `node scripts/check-repo-state.mjs` passes.
