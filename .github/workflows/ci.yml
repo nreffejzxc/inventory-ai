@@ -1,6 +1,6 @@
 name: ci
 
-# Phase 0 — CI gate. One workflow, five jobs, identical on every trigger.
+# Phase 0 — CI gate. One workflow, six jobs, identical on every trigger.
 #
 # Design constraints, all verified against the repository before implementation:
 #   * Node version comes from .nvmrc (repo root) — never hardcoded. setup-node's
@@ -44,6 +44,9 @@ name: ci
 #     2026-10-11 that was checkout v7.0.1 and setup-node v7.1.0 — and `.github/dependabot.yml`
 #     keeps them current within the line. Moving off v4.4.0 is what clears the Node 20
 #     deprecation warning GitHub printed on every run (ISS-12, roadmap §27AO).
+#   * `compose-mongo` boots `compose.yaml` with the runner's Docker, waits for the
+#     healthcheck and pings the database. DEV-01 could not execute that file on the
+#     development host, so this is the only place the optional developer path is proved.
 #   * The fifth job, `webauthn-e2e`, is the real-browser MFA proof: headless Chrome on
 #     ubuntu-latest, a CDP virtual authenticator, and a disposable MongoDB database. It is
 #     separate from `server` so a browser failure is named as a browser failure instead of
@@ -211,6 +214,31 @@ jobs:
 
           echo "OK: terminated within the shutdown window (status $APP_STATUS, not asserted)"
           echo "boot smoke passed"
+
+  # Boots the optional developer database from the committed compose file, not a
+  # duplicate service block, so the file cannot drift without this job failing.
+  compose-mongo:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Boot MongoDB from compose.yaml and wait for healthy
+        run: docker compose up -d --wait --wait-timeout 60 mongo
+
+      - name: Ping MongoDB
+        run: |
+          ok="$(docker compose exec -T mongo mongosh --quiet --eval 'db.runCommand({ ping: 1 }).ok')"
+          test "$ok" = "1"
+          echo "OK: MongoDB ping = $ok"
+
+      - name: Show MongoDB logs on failure
+        if: failure()
+        run: docker compose logs mongo
+
+      - name: Stop MongoDB
+        if: always()
+        run: docker compose down -v
 
   webauthn-e2e:
     runs-on: ubuntu-latest
