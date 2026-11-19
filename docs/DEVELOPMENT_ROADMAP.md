@@ -27486,6 +27486,12 @@ scope, testing rules and best-effort expectations. It links the maintained auth 
 dependency-decision record instead of copying their contents, and it is linked from the root
 README and the documentation map. No security control or branch protection changed.
 
-**Verification.** Local guard and documentation checks pass. PR #353 and its seven required
-checks are the remaining evidence; this record is updated after they finish. The seven required
-checks, strict protection, admin enforcement and zero approvals remain unchanged.
+**Verification.** PR #353 run `44469309631` passed all seven required checks: `server` 3m27s,
+`mobile` 1m42s, `webauthn-e2e` 1m2s, `compose-mongo` 36s, `secret-guard` 10s,
+`attribution-guard` 8s and `dependency-review` 11s. The `server` log shows the guard step:
+`[workflow-invariants] self-test: 9 controls passed` and `PASS — 4 workflows, 15 action refs,
+9 jobs, 2 Mongo image refs; Node 24`. Temporary fixtures also made the guard fail, as expected,
+on an unpinned action, a missing timeout, a Mongo image mismatch and a `.nvmrc`/`engines.node`
+mismatch. All four workflow YAML files parse, `check-docs` passes, section integrity is 5/5 and
+fact drift is 9/9. The seven required checks, strict protection, admin enforcement and zero
+approvals remain unchanged.

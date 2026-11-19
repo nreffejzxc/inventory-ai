@@ -60,7 +60,7 @@ first scheduled run.
 dependency-free invariant guard to the required `server` job; every checkout now sets
 `persist-credentials: false`; `SECURITY.md` is a concise private-reporting policy with
 supported versions and scope. Local guard: 9 controls, 4 workflows, 15 action refs, 9 jobs,
-2 Mongo refs, Node 24; exit 0. PR #353 verification is pending.
+2 Mongo refs, Node 24; exit 0. PR #353 run `44469309631` passed all seven required checks.
 
 **GitHub workflow roadmap, DEV-08 (2026-11-19):** recorded six ranked, unimplemented
 recommendations: workflow invariant check, checkout credential hygiene, runner pinning,
@@ -731,9 +731,13 @@ guard keeps `fetch-depth: 0`; no job pushes from its checkout.
 testing rules are stated, and known items link to the maintained auth checklist and dependency
 decisions. Linked from the root README and the documentation map.
 
-**Verification.** Local invariant and documentation checks pass. PR #353 and its seven required
-checks are pending; this entry is updated after the run. Branch protection and all seven required
-checks are unchanged.
+**Verification.** PR #353 run `44469309631` passed all seven required checks: `server` 3m27s,
+`mobile` 1m42s, `webauthn-e2e` 1m2s, `compose-mongo` 36s, `secret-guard` 10s,
+`attribution-guard` 8s and `dependency-review` 11s. The server log shows the guard's nine
+controls and `PASS — 4 workflows, 15 action refs, 9 jobs, 2 Mongo image refs; Node 24`. Temporary
+fixtures confirmed the guard fails on each of its four rules being broken. `check-docs`, section
+integrity 5/5 and fact drift 9/9 pass; all four workflow YAML files parse. Branch protection and
+all seven required checks are unchanged.
 
 ---
 
