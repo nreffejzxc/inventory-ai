@@ -192,10 +192,12 @@ tests and console documentation, committed to PR #336 as `282c8d6` with all five
 checks green and merged/deployed as `e7ce455`. No address activation or production
 account change was made.
 
-The tenant-facing
+PLAT-29, the console user guide and documentation reconciliation, is §27JY; documentation
+only, with no production setting, account creation or permission change. The tenant-facing
 Operations dashboard was removed before commit. The
 2026-11-15 post-deploy/triage/monitor close-out is §27IA;
-production currently serves `74e4b87` (the console delivery plus dependency PR #318) and the newest OTA is
+the last full authenticated production proof was `74e4b87` (the console delivery plus dependency
+PR #318), while public health reported `f95b5e4` on 2026-11-19. The newest OTA is
 `9d759ee5-82c5-4fbe-afe0-3a0ea2c44f6c`. The AI-105 retry fix and the
 live label are recorded in `DEVELOPMENT_LOG.md` and
 [`evidence/ai105-production-2026-11-11`](evidence/ai105-production-2026-11-11/README.md). Release engineering remains in

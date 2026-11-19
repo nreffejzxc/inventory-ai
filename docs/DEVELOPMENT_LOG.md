@@ -44,6 +44,15 @@ at the end of every development session, newest entry first.
 **Goal:** finish and harden Inventory AI **V1** through production testing. No Play Store or App
 Store release is being prepared.
 
+**Console user guide, PLAT-29 (2026-11-19):** added
+[`platform-console/00-user-guide.md`](platform-console/00-user-guide.md) as the beginner-facing
+entry point for access, MFA/recovery, Superadmin/support/developer accounts, the 16 daily-operation
+sections and security. Corrected the tenant-read-only wording, labelled the 2026-11-18 account and
+production snapshots as dated rather than current, fixed the support-credential sentence and the
+stale `platform.admin.manage` comment. Public health reported `f95b5e4`; no authenticated console
+session, account creation, permission change or production setting was touched. Documentation
+checks and the read-only production recheck pass; see §27JY.
+
 **Compose MongoDB required check, DEV-03 (2026-11-19):** `compose-mongo` is now a
 required `main` check; strict and admin enforcement remain on. `audit-access.mjs` expects
 seven contexts and exits 0 with `PASS required checks`. PR template, CONTRIBUTING, source
@@ -711,6 +720,36 @@ Known limits, checked before spending one of them:
   space that a backup or an index change would explain.
 - **Brevo** — used for verification codes, reset codes and invitations. Do not send test mail in
   bulk; a delivery failure is not a code regression until the provider log says so.
+
+---
+
+## 2026-11-19 — console user guide and documentation reconciliation
+
+**Documentation, PLAT-29 / §27JY.** Added `docs/platform-console/00-user-guide.md` as the single
+short entry point: two-layer access, mandatory TOTP and recovery codes, Superadmin creation and
+break-glass, separate SUPPORT accounts, the absence of a `DEVELOPER` role, least-privilege role
+choice, all 16 console sections, tenant-data limits and security/recovery rules. Linked it from the
+console index, documentation map, review cadence and root README.
+
+**Corrections.** Replaced “console is read-only” with “tenant-data read-only; support tickets and
+administrator lifecycle are platform-only writes.” Labelled the 2026-11-18 account and production
+snapshots as dated, retained `74e4b87` only as the last full authenticated proof, and recorded that
+public health reported `f95b5e4` on 2026-11-19. Corrected the sentence that said support staff need
+none of the shared access material: each operator needs their own account and the shared outer key.
+Updated the stale `platform.admin.manage` comment to name its actual administrator routes.
+
+**Production recheck (read-only).** `/api/health` 200 with `db: connected`, `production`,
+`f95b5e4`, zero process `serverErrors`; `/api/health/ready` 200. `/platform/` and
+`/api/platform/status` 401 `PLATFORM_ACCESS_REQUIRED` with a Basic challenge and `no-store`.
+No login, write, account creation or permission change.
+
+**Verification.** `check-docs` 66 active documents, 43 living references in cadence, 30 invariant
+rows and 30 register rows; workflow-invariant 9/9 controls; documentation tests 16/16 (section
+integrity 5/5, fact drift 9/9, links 2/2).
+
+**Not verified.** An authenticated production console session, live administrator/factor/recovery
+counts, and a live recovery or break-glass login. The dated snapshot is evidence, not a guarantee;
+the last full authenticated browser proof is `e218bb0`/`74e4b87`.
 
 ---
 

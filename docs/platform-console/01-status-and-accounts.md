@@ -1,26 +1,31 @@
 # Platform Operations console — current status and account guide
 
-**Assessed:** 2026-11-18, against production commit `74e4b87` and the console-delivery
-commit `282c8d6`; PR #336 is merged and dependency PR #318 is deployed.
+**Assessed:** 2026-11-19 against the implementation; public production health reported
+`f95b5e4` on 2026-11-19. The full measured snapshot below was taken on 2026-11-18 against
+`74e4b87` and was **not re-read** on 2026-11-19.
 **Production:** `https://ai-inventory-l1mi.onrender.com/platform`
 **Scope:** the INTERNAL Platform Operations console and API, platform-administrator
-authentication, current production data, AI monitoring, and account creation for every
-supported platform and tenant role.
+authentication, production data as measured on 2026-11-18, AI monitoring, and account
+creation for every supported platform and tenant role.
+**Start here:** [00 — User guide](00-user-guide.md) for access, sign-in, account roles and
+daily operations.
 **Companion:** for the full account lifecycle, credential inventory, storage and rotation
 rules, access/recovery runbook and owner/CEO security checklist, see
 [02 — Accounts and credentials](02-accounts-and-credentials.md).
 **No deployment or write was made for this assessment.** Production data was read with
 index creation disabled; no tenant, platform or audit row was changed. The console
 delivery was merged and deployed as `e7ce455`, then the dependency bump deployed as
-`74e4b87`; the data below was not re-read after either deploy.
+`74e4b87`. Public health reported `f95b5e4` on 2026-11-19; the data below was not re-read
+after those deploys.
 
 ## 1. Bottom line
 
 - The console is **live and access-gated**. `/platform` and `/api/platform/*` return
   `401 PLATFORM_ACCESS_REQUIRED` with a Basic challenge until the shared outer access
   key is supplied. A tenant login cannot open it.
-- The console is **read-only**. It has no tenant write, no tenant selector and no
-  member-identifying detail. Support tickets are platform-only records.
+- The console is **read-only for tenant data**. It has no tenant write, no tenant selector
+  and no member-identifying detail. Support tickets and administrator lifecycle actions are
+  platform-only writes; they do not touch tenant data.
 - The core read paths are implemented and covered by the platform tests. The production
   aggregates are **internally consistent** (the AI totals, movement totals, feedback
   reasons and audit-action totals reconcile; see §3).
@@ -30,20 +35,22 @@ delivery was merged and deployed as `e7ce455`, then the dependency bump deployed
   missing incidents: the old process counter included intentional
   `/api/health/integrity` 503s while the laptop heartbeat was stale, and that health route
   returns directly rather than through the error handler that writes durable rows. The
-  deployed `74e4b87` restarts the process and reports **0 `serverErrors`**; the durable
+  `74e4b87` restart cleared the counter and reported **0 `serverErrors`** at measurement; the durable
   store remains the record for application errors.
 - Platform authentication is implemented and tested: password → mandatory TOTP
   enrollment; later logins use TOTP, an enrolled WebAuthn key or a recovery code →
-  HttpOnly session cookie + CSRF. The sole production SUPERADMIN currently has TOTP,
-  **0 registered WebAuthn keys**, and **7 unused recovery codes**.
+  HttpOnly session cookie + CSRF. The **last recorded** production SUPERADMIN state
+  (2026-11-18) was TOTP, **0 registered WebAuthn keys** and **7 unused recovery codes**;
+  this was not re-read on 2026-11-19.
 - Platform accounts are created **only by the operator CLI**, never over HTTP. Tenant
   `OWNER` accounts are created only by verified registration; `ADMIN`, `MANAGER` and
   `STAFF` are created by the OWNER/ADMIN through user management or an invitation.
 - **Not re-observed in this pass:** an authenticated browser session and its rendered
   dashboard. That needs the platform password plus TOTP/recovery code or WebAuthn, which
   were not used here. The last recorded production browser proof was at `e218bb0`
-  (PLAT-7); the current build is `74e4b87`. This is a verification limitation, not a
-  known console defect.
+  (PLAT-7). Public health reported `f95b5e4` on 2026-11-19; an authenticated browser proof
+  for that build is still pending. This is a verification limitation, not a known console
+  defect.
 
 ## 2. Feature status
 
@@ -79,10 +86,11 @@ the honest subset is implemented and the missing sources are stated in the conso
 `inventoryai_prod_db`. Index creation/auto-create was disabled. No write was made. The
 public health checks were read at **06:36:50–06:36:51 UTC**.
 
-**Production build:** `74e4b87` (deployed 2026-11-18 09:36 UTC), containing the console
-delivery at `e7ce455` and the dependency bump. The production data below was measured on
-`5016553` before either deploy and was not re-read after the restarts; previous boot
-observations were `e7ce455`, `e218bb0` and `56e8c27`.
+**Production build at measurement:** `74e4b87` (deployed 2026-11-18 09:36 UTC),
+containing the console delivery at `e7ce455` and the dependency bump. Public health
+reported `f95b5e4` on 2026-11-19. The production data below was measured on `5016553`
+before either deploy and was not re-read after the restarts; previous boot observations
+were `e7ce455`, `e218bb0` and `56e8c27`.
 
 | Signal | Measured value |
 | --- | --- |
@@ -101,7 +109,7 @@ observations were `e7ce455`, `e218bb0` and `56e8c27`.
 | Support tickets | **1** total / **1** unresolved (NEW, HIGH) |
 | Platform audit events (7 days) | **201** — 1 failed admin login, 29 denied capability checks, 4 MFA failures |
 | Platform administrators | **1** SUPERADMIN, ACTIVE, TOTP enrolled, **0** WebAuthn keys, **7** unused recovery codes, 0 active sessions |
-| Current deployment | `74e4b87`; history also contains `e7ce455`, `5016553`, `e218bb0` and `56e8c27` |
+| Deployment at measurement | `74e4b87`; history also contains `e7ce455`, `5016553`, `e218bb0` and `56e8c27` |
 
 **Consistency checks that passed**
 
@@ -132,7 +140,7 @@ passes through the error handler that creates durable `ops_error_events` rows. T
 store also cannot record a readiness `503` while MongoDB is unreachable, which is why
 `/api/health/ready` is the availability signal for that case.
 
-The deployed `74e4b87` build keeps the monitoring-only integrity `503` counted in
+The `74e4b87` build at measurement keeps the monitoring-only integrity `503` counted in
 `responses` and `byStatusClass`, but not in `serverErrors` or `lastServerErrorAt`. The
 deploy restart cleared the 58; future integrity `503`s do not inflate the failure count.
 The durable store remains the record for application errors that reach the error handler;
@@ -204,8 +212,9 @@ reads a bounded 1–30 day UTC window (the page defaults to 7 days).
    enrollment. The administrator scans the secret and confirms a six-digit code. TOTP is
    mandatory.
 4. **Later logins.** TOTP, an enrolled WebAuthn security key, or a one-time recovery code
-   completes the login. The production account currently has TOTP and recovery codes but
-   **no WebAuthn key**, so WebAuthn is not offered as a login method for it.
+   completes the login. The last recorded production account (2026-11-18) had TOTP and
+   recovery codes but **no WebAuthn key**, so WebAuthn was not offered as a login method.
+   Recheck the live key count before relying on this.
 5. **Recovery setup is mandatory.** An administrator with zero unused recovery codes is
    restricted by the server to `GET /auth/me`, `GET /auth/csrf`,
    `POST /auth/recovery-codes` and `POST /auth/logout` until codes are generated.
@@ -225,10 +234,10 @@ reads a bounded 1–30 day UTC window (the page defaults to 7 days).
    MFA for 15 minutes. This budget is durable and account-scoped, not per-IP. A successful
    factor clears it. The login and MFA endpoints also have per-IP and per-account limits.
 
-**Current production platform identity state:** one SUPERADMIN, ACTIVE, TOTP enrolled,
-0 WebAuthn keys, 7 unused recovery codes, last login 2026-11-18 05:04:31 UTC, 0 active
-sessions. The console is therefore protected by password + TOTP (+ recovery codes), not
-by a hardware key.
+**Last recorded production platform identity state (2026-11-18):** one SUPERADMIN,
+ACTIVE, TOTP enrolled, 0 WebAuthn keys, 7 unused recovery codes, last login 2026-11-18
+05:04:31 UTC, 0 active sessions. The console was therefore protected by password + TOTP
+(+ recovery codes), not by a hardware key. This was not re-read on 2026-11-19.
 
 ### 5.2 Tenant users
 
@@ -440,9 +449,9 @@ chooses their own credential. Store recovery codes offline in the owner's secret
 
 | Priority | Item | Current state |
 | --- | --- | --- |
-| **P1** | Verify the post-deploy console | `74e4b87` is deployed; health/readiness and the gate/preflight checks pass. An authenticated browser proof after the deploy is still pending |
-| **P1** | Register a WebAuthn security key for the sole SUPERADMIN | 0 keys today; TOTP and recovery codes still work |
-| **P1** | Rotate the stale recovery-code file | 7 unused codes in the database, but the local file does not match them; use the current password + TOTP/recovery code |
+| **P1** | Verify the post-deploy console | Public health reports `f95b5e4`; the last full authenticated proof is `e218bb0` and a current authenticated browser proof is still pending |
+| **P1** | Register a WebAuthn security key for the last recorded SUPERADMIN | 0 keys at the 2026-11-18 measurement; recheck the live state. TOTP and recovery codes still work |
+| **P1** | Rotate the stale recovery-code file | 7 unused codes at the 2026-11-18 measurement, but the local file did not match them; check the live count and use the current password + TOTP/recovery code |
 | **P1** | Add an actual network/identity access layer | The URL is internet-reachable; the Basic key is not network isolation |
 | **P1** | Dual control for disable/delete/key removal | Step-up proof is implemented; a second SUPERADMIN approver is still open |
 | **P1** | Audit retention, export and an immutable sink | Model append-only only; raw database access is not constrained by this repo |
@@ -450,7 +459,7 @@ chooses their own credential. Store recovery codes offline in the owner's secret
 | **P2** | AI spend budget, model-health alerts and a paid-fallback kill switch | The console reports history; it does not alert or stop spend |
 | **P2** | Host/Atlas/backup, mobile and job telemetry | Explicitly unavailable; do not read the absent panels as “healthy” |
 | **P2** | Administrator creation/role-change UI | Creation and role changes are CLI/database work today |
-| **P2** | Authenticated browser re-proof on the current commit | The last recorded proof is `e218bb0`; the current build is `74e4b87` and this pass did not sign in |
+| **P2** | Authenticated browser re-proof on the current commit | The last recorded proof is `e218bb0`; public health reports `f95b5e4` and this pass did not sign in |
 
 ## 8. Evidence and limits
 
@@ -462,13 +471,13 @@ chooses their own credential. Store recovery codes offline in the owner's secret
   §3 were observed on 2026-11-18. No authenticated browser session, no platform account
   creation and no tenant write were performed for this assessment.
 - **Deployment:** PR #336 squash-merged as `e7ce455`; dependency PR #318 then
-  squash-merged as `74e4b87`. All five required checks passed on both heads. Production
-  `/api/health` reports `74e4b87`, `status: ok`, `db: connected` and **0** `serverErrors`;
-  `/api/health/ready` is **200**; `/platform/` and `/api/platform/status` remain **401**;
-  the destructive-route preflight is **204** with credentials and `x-platform-step-up`
-  allowed.
+  squash-merged as `74e4b87`. All five required checks passed on both heads. At
+  measurement, production was `74e4b87`, `status: ok`, `db: connected` and **0**
+  `serverErrors`; `/api/health/ready` was **200**; `/platform/` and `/api/platform/status`
+  remain **401**. Public health on 2026-11-19 reports `f95b5e4`; the authenticated browser
+  proof has not been repeated for that build.
 
-The console is usable as an aggregate read-only operations surface today. It is not yet a
+The console is usable as an aggregate, tenant-read-only operations surface today. It is not yet a
 complete support workspace, not a pager, not a tenant-detail tool and not a substitute for
 network isolation. The items in §7 are the gap between “working” and “operationally
 complete.”

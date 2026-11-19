@@ -4,14 +4,15 @@ This folder is the single home for the **Inventory AI Internal Operations & Moni
 Console** (the `/platform` console and `/api/platform` plane). It keeps console material
 separate from tenant, mobile, AI-assistant and general application documentation.
 
-**Status:** living reference. The last full review was **2026-11-18**.
+**Status:** living reference. The last full review was **2026-11-19**.
 **Production entry point:** `https://ai-inventory-l1mi.onrender.com/platform`.
-**Audience:** the owner/CEO, platform administrators and the engineer maintaining the console.
+**Audience:** the owner/CEO, platform administrators, support personnel, developers and the engineer maintaining the console.
 
 ## Start here
 
 | If you need to… | Read |
 | --- | --- |
+| **Start using the console: access, MFA, accounts, daily work and security** | **[00 — User guide](00-user-guide.md)** |
 | Understand what the console is, what it shows and what it deliberately cannot show | [01 — Status and accounts](01-status-and-accounts.md) |
 | See the roles, console-section access, account lifecycle and credential rules | [02 — Accounts and credentials](02-accounts-and-credentials.md) |
 | Plan the next console improvements | [03 — Console improvements](03-console-improvements.md) |
@@ -44,10 +45,11 @@ separate from tenant, mobile, AI-assistant and general application documentation
 
 ## How to maintain this folder
 
-1. **One topic, one document.** Do not add a second guide that repeats the status, account
-   or credential material; update the numbered document that owns it.
-2. **Keep current and planning separate.** Documents 01 and 02 are current operations.
-   Documents 03–08 are recommendations or planning unless their status says otherwise.
+1. **One owner per topic.** 00 is the short entry-point guide; 01 and 02 own the detailed
+   status and account/credential material. Do not add another guide that repeats those
+   details; update the numbered document that owns them.
+2. **Keep current and planning separate.** Documents 00, 01 and 02 are current operations.
+   Documents 03–09 are recommendations or planning unless their status says otherwise.
 3. **Record the date and basis.** Every edit updates the `Assessed`/`Reviewed` line and the
    implementation commit or production snapshot it was checked against.
 4. **Never add secrets.** Use environment-variable names and placeholders only. No password,

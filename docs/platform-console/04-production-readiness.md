@@ -2,7 +2,7 @@
 
 **Status:** **LIVE, INTERNAL RELEASE — GATES REMAIN OPEN.** The console is served at
 `https://ai-inventory-l1mi.onrender.com/platform` under the separate platform administrator login.
-The console delivery was deployed at `e7ce455`; the current production build `74e4b87` adds the server dependency bump. PLAT-7's forced recovery-code ceremony,
+The console delivery was deployed at `e7ce455`; the last full authenticated proof was on `74e4b87`, and public production health reported `f95b5e4` on 2026-11-19. PLAT-7's forced recovery-code ceremony,
 the application-level outer access gate and the break-glass reset remain in place. The production
 service supplies `PLATFORM_ACCESS_KEY`;
 the administrator generated 10 recovery codes from zero and 9 remain after the production recovery
@@ -10,7 +10,7 @@ drill. The forced browser ceremony itself is exercised locally by the PLAT7 brow
 named security review (PR-15) remain open or residual. The owner requested production availability;
 the residual exposure is recorded here rather than treated as closed.
 
-**Reviewed:** 2026-11-18
+**Reviewed:** 2026-11-19 (public health/gate recheck; the authenticated evidence below remains dated 2026-11-17/18)
 **Scope:** the INTERNAL `/api/platform` plane and `server/platform-console/`, including the
 same-origin `/platform` shell and the PLAT-6 operations surface. This does not authorize a tenant
 feature or tenant-detail reads. The production deployment is the API service's own origin; the
@@ -244,5 +244,6 @@ The browser test uses headless Chrome/Edge and fixed configurable ports (API 440
 CDP 9333). If CI cannot launch a browser, run `cd server && npm run test:webauthn-e2e` on a machine
 with Chrome and record the output; do not substitute a unit test for the browser proof.
 
-The checklist is a gate, not a deployment authorization. The console is deployed at `74e4b87` under
-the owner's production-availability decision; the open gates above remain open.
+The checklist is a gate, not a deployment authorization. The console is deployed and public health
+reported `f95b5e4` on 2026-11-19; the last full authenticated proof was `74e4b87`. The owner's
+production-availability decision stands and the open gates above remain open.
