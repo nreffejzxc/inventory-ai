@@ -129,6 +129,7 @@ does not expose it. **It was rotated on 2026-11-07:** the new key was verified w
 | Lever | Strength |
 | --- | --- |
 | **Branch protection on `main`** — seven required checks, strict up-to-date, admins enforced, pull request required, force pushes and deletions blocked | **High**; the merge gate |
+| **Merge queue** — workflows accept `merge_group`, but no queue is active | **Blocked**; GitHub offers queues only to organization-owned public repositories. The ruleset API rejects `merge_queue` with HTTP 422; moving the repository to an organization is the prerequisite (§27JT) |
 | **Server-side secrets only** — AI keys, Mongo credentials, mail keys and Firebase admin credentials never reach a client | **High**; enforced by architecture |
 | **Server-side tenant isolation and RBAC** — a stolen client cannot read another business's data | **High** |
 | **GitHub secret scanning and push protection** | **High** for the shapes they recognise |
