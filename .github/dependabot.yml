@@ -173,3 +173,21 @@ updates:
       - dependency-name: "*"
         update-types:
           - version-update:semver-major
+
+  # MongoDB is pinned to an exact 7.0 patch in compose.yaml and both CI service blocks.
+  # This entry is the only automatic path for a patch bump; without it the pin would never
+  # move. Majors stay deliberate, like every other ecosystem here.
+  - package-ecosystem: docker-compose
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:45"
+      timezone: Etc/UTC
+    open-pull-requests-limit: 2
+    labels:
+      - dependencies
+    ignore:
+      - dependency-name: "mongo"
+        update-types:
+          - version-update:semver-major

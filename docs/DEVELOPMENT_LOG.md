@@ -49,6 +49,13 @@ required `main` check; strict and admin enforcement remain on. `audit-access.mjs
 seven contexts and exits 0 with `PASS required checks`. PR template, CONTRIBUTING, source
 protection, the migration runbook and Guide 20 now say seven.
 
+**Pinned MongoDB and bounded CI jobs, DEV-04 (2026-11-19):** all three Mongo references
+use `mongo:7.0.48`, and a weekly `docker-compose` Dependabot entry tracks 7.0 patches with
+majors ignored. Every `ci.yml` job now has a timeout: server/mobile 20 minutes, compose 5,
+WebAuthn 10 and both guards 5. PR #349 run `44459482854` passed the six CI jobs; the
+compose container was healthy in about 11 s and pinged `1`. Dependabot pickup awaits its
+first scheduled run.
+
 **Compose MongoDB CI job, DEV-02 (2026-11-19):** `compose-mongo` boots
 `compose.yaml`, waits for healthy and asserts a MongoDB ping on every PR and main push.
 PR #347 run `44443515084` passed in 28 s; the container was healthy at 19 s and the ping
@@ -679,6 +686,21 @@ Known limits, checked before spending one of them:
   space that a backup or an index change would explain.
 - **Brevo** — used for verification codes, reset codes and invitations. Do not send test mail in
   bulk; a delivery failure is not a code regression until the provider log says so.
+
+---
+
+## 2026-11-19 — pinned MongoDB and bounded CI jobs
+
+**Status.** DEV-04 / §27JS. `mongo:7.0.48` replaces the floating `mongo:7` in
+`compose.yaml` and both CI service blocks. Dependabot's new `docker-compose` entry checks
+weekly, majors ignored. `server`, `mobile`, `secret-guard` and `attribution-guard` gained
+timeouts; every `ci.yml` job is now bounded.
+
+**Evidence.** YAML assertions: 6/6 jobs timed, 3/3 Mongo references pinned. Docker Hub
+resolves `mongo:7.0.48` (digest `sha256:884c055…`). PR #349 run `44459482854` passed all six
+CI jobs; `compose-mongo` took 25 s, the container was healthy in about 11 s and
+`OK: MongoDB ping = 1`. The dependent `dependency-review` check passed in 5 s. Dependabot's
+first scheduled run is still the pickup proof.
 
 ---
 
