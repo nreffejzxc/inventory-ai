@@ -222,3 +222,7 @@ keeps the seven-check PR gate and enforces SHA-pinned Actions; it is §27JU. DEV
 production-health workflow and keeps native Mongo service containers; DEV-08 is a ranked workflow
 improvement roadmap; they are §27JV and §27JW. DEV-09 adds the workflow invariant guard, removes
 persisted checkout credentials and rewrites the security policy concisely; it is §27JX.
+The console guide claim audit and follow-up recommendations are §27KA; documentation only, with no
+code, account, permission, deployment or production change. It corrected the TOTP display,
+`READ_ONLY` deployment claim, developer command, production-guard wording, step-up scope, lost-key
+order and production commit, and recorded five unimplemented follow-ups.

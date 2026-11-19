@@ -44,6 +44,8 @@ at the end of every development session, newest entry first.
 **Goal:** finish and harden Inventory AI **V1** through production testing. No Play Store or App
 Store release is being prepared.
 
+**Console guide claim audit (2026-11-19):** audited the guide against the operator CLIs, package scripts, platform env/security configuration, role capabilities, routes and the 16 section declarations. Corrected the manual TOTP secret (no QR), `READ_ONLY`'s missing deployment access, the non-runnable developer command, the production-guard condition, the step-up scope, the lost-key order and the production commit (`3587e71`). Public health was 200, readiness 200 and `/platform/` 401 with a Basic challenge. Five unimplemented follow-ups are ranked in §27KA; documentation checks and `git diff --check` pass. No code, account, permission or deployment change.
+
 **Console user guide, PLAT-29 (2026-11-19):** added
 [`platform-console/00-user-guide.md`](platform-console/00-user-guide.md) as the beginner-facing
 entry point for access, MFA/recovery, Superadmin/support/developer accounts, the 16 daily-operation
@@ -720,6 +722,49 @@ Known limits, checked before spending one of them:
   space that a backup or an index change would explain.
 - **Brevo** — used for verification codes, reset codes and invitations. Do not send test mail in
   bulk; a delivery failure is not a code regression until the provider log says so.
+
+---
+
+## 2026-11-19 — console guide claim audit and follow-up review
+
+**Documentation, §27KA.** Audited `docs/platform-console/00-user-guide.md` line by line against
+`server/scripts/create-platform-admin.mjs`, `server/scripts/platform-break-glass.mjs`,
+`server/package.json`, the platform JWT/MFA/access configuration, the role/capability catalogue,
+the platform routes and the console's 16 section declarations. No code, configuration, account,
+permission, database or deployment was changed. The record is numbered §27KA because open PR #355
+already claims JZ; merge after #355.
+
+**Corrections.** First-login TOTP setup is a manual secret, not a QR code; the guide now says to add
+the secret. `READ_ONLY` cannot read deployments, so the developer table now says health/status only.
+The developer-account example was a role-only command that could not run; it now points to the full
+§2.2 command. The production phrases are enforced only when the process sees `NODE_ENV=production`,
+and the guide now states that condition. Step-up applies to enable as well as disable/delete/key
+removal. The lost-key procedure removes the lost key before adding a replacement. The production
+recheck now records `3587e71`.
+
+**Verified unchanged.** Four roles and capabilities; all 16 sections and their capability gates;
+`PLATFORM_ACCESS_USER` default and 32-character key floor; 401/429 gate behavior; 15-minute token,
+15-minute idle timeout and 8-hour cap; mandatory TOTP, 10 recovery codes, 10 WebAuthn keys and
+required user verification; five failures/15-minute MFA lock; five-minute session-bound step-up;
+self/last-SUPERADMIN guards; one `platform.admin.created` event; break-glass clearing factors and
+sessions but not role/status; tenant-free support tickets; no role-change or deploy route; local
+`/platform` and 4100/4000 defaults.
+
+**Recommendations (not implemented).** Ranked in §27KA: step-up before WebAuthn key registration;
+explicit CLI role/operator and fail-closed production guards; a guide-to-source contract test; a
+read-only `platform-admin:inspect` command; and a bounded two-key outer-gate rotation. Existing
+IA/NS/SEC/NY items remain the authority for their subjects.
+
+**Production recheck (read-only).** `/api/health` 200 with `db: connected`, `production`, commit
+`3587e71`, zero process `serverErrors`; `/api/health/ready` 200; `/platform/` 401
+`PLATFORM_ACCESS_REQUIRED` with a Basic challenge and `no-store`. No login, write, account creation
+or permission change.
+
+**Verification.** `check-docs` 66 active documents, 43 living references, 30 invariant rows and 30
+register rows; documentation tests 31/31; `git diff --check` clean.
+
+**Not verified.** An authenticated production console session, live administrator/factor/recovery
+counts, or a live break-glass/WebAuthn/recovery login.
 
 ---
 
