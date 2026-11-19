@@ -60,7 +60,8 @@ first scheduled run.
 `merge_group`; the attribution guard uses `merge_group.base_sha` and dependency-review
 passes queued base/head refs. The queue is **not active**: the repository is user-owned and
 the ruleset API rejects `merge_queue` with HTTP 422. PR #350's first run failed only on the
-missing §27JT record; its follow-up run is the normal gate.
+missing §27JT record; follow-up run `44461982376` passed all seven required checks, though
+`merge_group` itself remains unexecuted.
 
 **Compose MongoDB CI job, DEV-02 (2026-11-19):** `compose-mongo` boots
 `compose.yaml`, waits for healthy and asserts a MongoDB ping on every PR and main push.
@@ -709,8 +710,8 @@ the repository moves to an organization.
 **Evidence.** YAML assertions passed for both workflows and all three merge-group refs;
 `BASE_SHA=HEAD~1 node scripts/check-commit-attribution.mjs` read the expected range and
 passed. PR #350 run `44461481592` passed six CI jobs and failed only the docs
-section-integrity test because this record did not yet exist. The follow-up run is the
-seven-check gate.
+section-integrity test because this record did not yet exist. The follow-up run
+`44461982376` passed all seven required checks; `merge_group` itself remains unexecuted.
 
 ---
 

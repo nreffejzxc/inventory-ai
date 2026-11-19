@@ -27382,4 +27382,5 @@ base expression, and both dependency-review refs. `BASE_SHA=HEAD~1
 node scripts/check-commit-attribution.mjs` read the expected range and passed. PR #350 run
 `44461481592` passed six CI jobs and failed only `server`'s docs section-integrity test
 because this §27JT record did not exist yet — the guard working, not a workflow defect. The
-follow-up run is the normal seven-check gate.
+follow-up run `44461982376` passed all seven required checks; `merge_group` itself remains
+unexecuted because no queue exists.
