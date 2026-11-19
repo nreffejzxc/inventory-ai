@@ -3,8 +3,9 @@
 Optional. Use this to run database tests or the browser E2E without the cloud database.
 Normal development and production use MongoDB Atlas; nothing in the app requires Docker.
 
-CI already starts the same `mongo:7` image as a service container, so this gives the
-laptop the same database version.
+CI starts the same `mongo:7` image as a service container, and the `compose-mongo` job
+boots this exact file on every pull request, so the laptop and CI use the same database
+version and the file cannot drift unnoticed.
 
 ## Before you start
 
