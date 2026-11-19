@@ -56,6 +56,12 @@ WebAuthn 10 and both guards 5. PR #349 run `44459482854` passed the six CI jobs;
 compose container was healthy in about 11 s and pinged `1`. Dependabot pickup awaits its
 first scheduled run.
 
+**Workflow guard, checkout hygiene and security policy, DEV-09 (2026-11-19):** added the
+dependency-free invariant guard to the required `server` job; every checkout now sets
+`persist-credentials: false`; `SECURITY.md` is a concise private-reporting policy with
+supported versions and scope. Local guard: 9 controls, 4 workflows, 15 action refs, 9 jobs,
+2 Mongo refs, Node 24; exit 0. PR #353 run `44469309631` passed all seven required checks.
+
 **GitHub workflow roadmap, DEV-08 (2026-11-19):** recorded six ranked, unimplemented
 recommendations: workflow invariant check, checkout credential hygiene, runner pinning,
 Dependabot security-update grouping, a concise `SECURITY.md`, and a scheduled WebAuthn
@@ -705,6 +711,33 @@ Known limits, checked before spending one of them:
   space that a backup or an index change would explain.
 - **Brevo** — used for verification codes, reset codes and invitations. Do not send test mail in
   bulk; a delivery failure is not a code regression until the provider log says so.
+
+---
+
+## 2026-11-19 — workflow invariant guard, checkout hygiene and security policy
+
+**Workflow guard, DEV-09 / §27JX.** Added `scripts/check-workflow-invariants.mjs` and run it in the
+required `server` job before `npm ci`. It checks full-SHA action pins, a positive job timeout in
+every workflow, Mongo image parity with `compose.yaml`, and `.nvmrc`/`engines.node` major parity.
+Its nine controls run first on every invocation. Local run: 4 workflows, 15 action refs, 9 jobs,
+2 Mongo refs, Node 24; exit 0.
+
+**Checkout hygiene, DEV-09 / §27JX.** All eight checkout steps now set
+`persist-credentials: false`; the production-health checkout already had it. The attribution
+guard keeps `fetch-depth: 0`; no job pushes from its checkout.
+
+**Security policy, DEV-09 / §27JX.** Replaced the long, stale `SECURITY.md` with a concise policy:
+`main` is the only supported version, private GitHub advisory reporting is the route, scope and
+testing rules are stated, and known items link to the maintained auth checklist and dependency
+decisions. Linked from the root README and the documentation map.
+
+**Verification.** PR #353 run `44469309631` passed all seven required checks: `server` 3m27s,
+`mobile` 1m42s, `webauthn-e2e` 1m2s, `compose-mongo` 36s, `secret-guard` 10s,
+`attribution-guard` 8s and `dependency-review` 11s. The server log shows the guard's nine
+controls and `PASS — 4 workflows, 15 action refs, 9 jobs, 2 Mongo image refs; Node 24`. Temporary
+fixtures confirmed the guard fails on each of its four rules being broken. `check-docs`, section
+integrity 5/5 and fact drift 9/9 pass; all four workflow YAML files parse. Branch protection and
+all seven required checks are unchanged.
 
 ---
 

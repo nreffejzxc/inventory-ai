@@ -164,6 +164,7 @@ binary. Full procedure, rollback and troubleshooting:
 | --- | --- |
 | [`docs/README.md`](docs/README.md) | the documentation map: guides, reference, records and current status |
 | [`CONTRIBUTING.md`](CONTRIBUTING.md) | the branch, documentation, check, pull-request and clean-`main` loop |
+| [`SECURITY.md`](SECURITY.md) | private vulnerability reporting, supported versions and scope |
 | [`docs/guides/`](docs/guides/README.md) | everyday tasks: run it, use the phone, test accounts, every command, OTA, Play submission |
 | [`docs/SYSTEM_SPECIFICATION.md`](docs/SYSTEM_SPECIFICATION.md) | what the system must do |
 | [`docs/AUTH_SECURITY_MASTER_CHECKLIST.md`](docs/AUTH_SECURITY_MASTER_CHECKLIST.md) | authentication and authorization guarantees |

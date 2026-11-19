@@ -218,4 +218,5 @@ wires `merge_group` and the merge-group base into both required workflows, but t
 blocked because the repository is user-owned; it is §27JT. DEV-06 removes that inactive wiring,
 keeps the seven-check PR gate and enforces SHA-pinned Actions; it is §27JU. DEV-07 verifies the
 production-health workflow and keeps native Mongo service containers; DEV-08 is a ranked workflow
-improvement roadmap; they are §27JV and §27JW.
+improvement roadmap; they are §27JV and §27JW. DEV-09 adds the workflow invariant guard, removes
+persisted checkout credentials and rewrites the security policy concisely; it is §27JX.

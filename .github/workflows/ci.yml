@@ -93,6 +93,8 @@ jobs:
         working-directory: server
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
@@ -106,6 +108,12 @@ jobs:
       - name: Check documentation map and invariant register
         working-directory: .
         run: node scripts/check-docs.mjs
+
+      # Dependency-free and run before npm install: this guards the workflow
+      # definitions themselves, not the application.
+      - name: Check workflow invariants
+        working-directory: .
+        run: node scripts/check-workflow-invariants.mjs
 
       # Dependency-free and run before npm install: the stub uses only Node built-ins.
       - name: Self-test the local quota stub
@@ -225,6 +233,8 @@ jobs:
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Boot MongoDB from compose.yaml and wait for healthy
         run: docker compose up -d --wait --wait-timeout 60 mongo
@@ -262,6 +272,8 @@ jobs:
         working-directory: server
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
@@ -291,6 +303,8 @@ jobs:
     # needs no `npm ci` — the script imports only Node built-ins.
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
@@ -312,6 +326,7 @@ jobs:
           # leave it unable to look, and it exits 2 rather than reporting a clean branch it
           # never read.
           fetch-depth: 0
+          persist-credentials: false
 
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
@@ -334,6 +349,8 @@ jobs:
         working-directory: mobile
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
