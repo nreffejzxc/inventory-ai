@@ -56,6 +56,17 @@ WebAuthn 10 and both guards 5. PR #349 run `44459482854` passed the six CI jobs;
 compose container was healthy in about 11 s and pinged `1`. Dependabot pickup awaits its
 first scheduled run.
 
+**GitHub workflow roadmap, DEV-08 (2026-11-19):** recorded six ranked, unimplemented
+recommendations: workflow invariant check, checkout credential hygiene, runner pinning,
+Dependabot security-update grouping, a concise `SECURITY.md`, and a scheduled WebAuthn
+repeat. No tool, service or workflow was added.
+
+**Production health and Mongo review, DEV-07 (2026-11-19):** manually dispatched
+`production-health-watch-v2`; run `44466873886` succeeded with the SHA-pinned checkout and
+no production-health alert open. The probe is GET-only; its only writes are GitHub issues.
+Kept the native Mongo service containers because Compose would add blocking startup and
+cleanup steps to both jobs and duplicate `compose-mongo`.
+
 **Simple PR flow, DEV-06 (2026-11-19):** removed the inactive `merge_group` wiring from
 both required workflows. The repository stays on the personal account; there is no merge
 queue and no third-party service. Branch protection is unchanged: seven required checks,
@@ -694,6 +705,30 @@ Known limits, checked before spending one of them:
   space that a backup or an index change would explain.
 - **Brevo** — used for verification codes, reset codes and invitations. Do not send test mail in
   bulk; a delivery failure is not a code regression until the provider log says so.
+
+---
+
+## 2026-11-19 — GitHub workflow roadmap and operational review
+
+**Workflow roadmap, DEV-08 / §27JW.** Six recommendations are recorded in the roadmap, ranked
+by value, effort, maintenance and risk. They are not implemented: a dependency-free workflow
+invariant check, checkout credential hygiene, runner pinning, Dependabot security-update
+grouping, a concise `SECURITY.md`, and a scheduled WebAuthn repeat. No new tool or service is
+proposed, and the merge queue remains excluded.
+
+**Production health, DEV-07 / §27JV.** Manual dispatch of `production-health-watch-v2` at
+`d423024` produced run `44466873886`: success. The log shows the pinned checkout SHA and
+`main`; both health endpoints were healthy. No production-health issue was open, so the
+recovery step only printed “Production is healthy; no open alert to close.” The probe script
+uses unauthenticated GETs and prints no response body; the workflow's only writes are GitHub
+issues.
+
+**Mongo CI review, DEV-07 / §27JV.** Kept the native `services.mongo` blocks in `server` and
+`webauthn-e2e`. They start and health-check before job steps and need no cleanup. Compose
+would add a blocking `up --wait` step and an `always()` `down -v` step to both jobs, duplicate
+the required `compose-mongo` proof, and add a failure surface. Both image lines now comment
+that they must stay in sync with `compose.yaml`; the residual Dependabot drift is the first
+roadmap recommendation.
 
 ---
 

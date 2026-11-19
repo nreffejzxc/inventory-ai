@@ -79,6 +79,7 @@ jobs:
     # so "database not ready yet" cannot surface as a transient failure.
     services:
       mongo:
+        # Keep in sync with compose.yaml; Dependabot updates the compose pin.
         image: mongo:7.0.48
         ports:
           - 27017:27017
@@ -247,6 +248,7 @@ jobs:
     timeout-minutes: 10
     services:
       mongo:
+        # Keep in sync with compose.yaml; Dependabot updates the compose pin.
         image: mongo:7.0.48
         ports:
           - 27017:27017
