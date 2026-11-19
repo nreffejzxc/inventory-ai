@@ -56,12 +56,13 @@ WebAuthn 10 and both guards 5. PR #349 run `44459482854` passed the six CI jobs;
 compose container was healthy in about 11 s and pinged `1`. Dependabot pickup awaits its
 first scheduled run.
 
-**Merge queue prerequisites, DEV-05 (2026-11-19):** both required workflows accept
-`merge_group`; the attribution guard uses `merge_group.base_sha` and dependency-review
-passes queued base/head refs. The queue is **not active**: the repository is user-owned and
-the ruleset API rejects `merge_queue` with HTTP 422. PR #350's first run failed only on the
-missing §27JT record; follow-up run `44461982376` passed all seven required checks, though
-`merge_group` itself remains unexecuted.
+**Simple PR flow, DEV-06 (2026-11-19):** removed the inactive `merge_group` wiring from
+both required workflows. The repository stays on the personal account; there is no merge
+queue and no third-party service. Branch protection is unchanged: seven required checks,
+strict up-to-date, admin enforcement, pull request required, conversation resolution, force
+pushes and deletions blocked, and zero required approvals because the sole owner cannot
+approve their own PR. All Actions are SHA-pinned and the repository now enforces that
+policy. PR #351 run `44464908485` passed all seven checks.
 
 **Compose MongoDB CI job, DEV-02 (2026-11-19):** `compose-mongo` boots
 `compose.yaml`, waits for healthy and asserts a MongoDB ping on every PR and main push.
@@ -693,6 +694,30 @@ Known limits, checked before spending one of them:
   space that a backup or an index change would explain.
 - **Brevo** — used for verification codes, reset codes and invitations. Do not send test mail in
   bulk; a delivery failure is not a code regression until the provider log says so.
+
+---
+
+## 2026-11-19 — simple PR flow; merge queue wiring removed
+
+**Status.** DEV-06 / §27JU. The personal-account repository keeps the normal flow: create PR,
+run the seven required checks, review, squash-merge. `merge_group` and its base/head handling
+were removed from both required workflows; no queue is active and no third-party service was
+added.
+
+**Branch protection.** Unchanged and deliberate: seven checks, strict up-to-date, admin
+enforcement, pull request required, conversation resolution, force pushes and deletions
+blocked. Zero required approvals remains because the sole owner cannot approve their own PR.
+No check was removed: `server`, `mobile`, `secret-guard`, `attribution-guard`,
+`webauthn-e2e`, `dependency-review` and `compose-mongo` cover distinct surfaces.
+
+**The workflow review.** Six `ci.yml` jobs remain distinct and timed. The manual-only
+production health watch's checkout was pinned, and repository policy now requires SHA pinning;
+every `uses:` is a full SHA. `audit-access.mjs` asserts the pinning policy.
+
+**Evidence.** PR #351 run `44464908485` passed all seven checks (`server` 2m32s,
+`compose-mongo` 38s, `webauthn-e2e` and `mobile` 1m10s, guards 11–12s,
+`dependency-review` 6s). Audit exits 0 with seven contexts and `PASS Actions require SHA
+pinning`; the API reports `sha_pinning_required=true`.
 
 ---
 

@@ -21,10 +21,9 @@ version: 2
 # any Expo SDK-pinned package in `mobile/`: it is taken with the SDK upgrade, not on its own — see the
 # block comment beside that list.
 #
-# REMINDER: `main` cannot be protected at this plan level — branch protection and rulesets both
-# answer `403 Upgrade to GitHub Pro or make this repository public` on a private repository
-# (docs/SOURCE_PROTECTION.md §4). Nothing forces these checks to pass, so a red dependency PR must
-# never be merged by hand.
+# REMINDER: `main` is protected by seven required checks and admin enforcement
+# (docs/SOURCE_PROTECTION.md). A red dependency PR must never be merged, and no major is taken
+# without the deliberate-upgrade process in issue #32.
 
 updates:
   - package-ecosystem: npm

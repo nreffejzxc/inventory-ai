@@ -16,6 +16,7 @@
  *   * the repository is public
  *   * the default branch is protected by the seven required checks, strict up-to-date
  *     enforcement, admin enforcement, a pull request, and blocked force pushes/deletions
+ *   * every workflow action is pinned to a full commit SHA
  *   * secret scanning and push protection are enabled
  *   * private vulnerability reporting is enabled
  *   * only the owner and explicitly trusted collaborators have access
@@ -241,6 +242,11 @@ if (actionsPolicy.status === 200 && actionsPolicy.data) {
     'allowed actions',
     `${actionsPolicy.data.allowed_actions}, sha_pinning_required=${actionsPolicy.data.sha_pinning_required}`,
   );
+  if (actionsPolicy.data.sha_pinning_required === true) {
+    pass('Actions require SHA pinning');
+  } else {
+    fail('Actions do not require SHA pinning', 'sha_pinning_required is off');
+  }
 } else {
   notVerifiable('Actions policy', actionsPolicy.status);
 }
