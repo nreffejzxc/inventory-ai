@@ -27,19 +27,15 @@ name: dependency-review
 # check that has never reported is the classic way to block every merge with a context that
 # never appears; that is why the gate went live before it was added to branch protection.
 
-# merge_group is wired for a merge queue, but this repository is user-owned; GitHub rejects
-# the merge-queue ruleset with HTTP 422. The trigger is inert until it moves to an organization.
-
 on:
   pull_request:
     types: [opened, synchronize, reopened]
-  merge_group:
 
 permissions:
   contents: read
 
 concurrency:
-  group: dependency-review-${{ github.event.pull_request.number || github.event.merge_group.head_sha }}
+  group: dependency-review-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
 jobs:
@@ -64,7 +60,3 @@ jobs:
           # A lockfile-only change can reach the dependency graph moments after the check starts.
           # Waiting briefly for that snapshot prevents a false "no changes" pass.
           retry-on-snapshot-warnings: true
-          # A merge group has no pull_request payload; these compare the queued base and head.
-          # The action ignores them for pull_request events.
-          base-ref: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}
-          head-ref: ${{ github.event.pull_request.head.sha || github.event.merge_group.head_sha }}
