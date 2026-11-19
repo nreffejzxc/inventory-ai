@@ -21,7 +21,7 @@
 ## Repository
 
 - [ ] The branch is based on current `main` and contains no unrelated uncommitted files.
-- [ ] The six required checks (`server`, `mobile`, `secret-guard`, `attribution-guard`, `webauthn-e2e`, `dependency-review`) are green, or a browser limitation is recorded.
+- [ ] The seven required checks (`server`, `mobile`, `secret-guard`, `attribution-guard`, `webauthn-e2e`, `dependency-review`, `compose-mongo`) are green, or a browser limitation is recorded.
 - [ ] I will close on a clean, synchronized `main` after merge (`node scripts/check-repo-state.mjs`).
 
 ## Deployment
