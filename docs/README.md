@@ -9,6 +9,10 @@ Four kinds of writing live here. Knowing which is which saves time:
 - **Status** — written to be *current*. It says what is being worked on, what is half-done, and
   what comes next. It is the one document here that is edited every session.
 
+**Style:** keep documents short and task-first. State the purpose, the commands, the result and the
+limits; link to a roadmap record instead of repeating its history. This applies to new and edited
+documents.
+
 ---
 
 ## 1. Start here — the plain-English guides
@@ -37,6 +41,7 @@ documents.
 | [17-web-search-and-fetch.md](guides/17-web-search-and-fetch.md) | Enabling or disabling OpenRouter web search and web fetch independently, and proving the setting |
 | [18-ai-assistant-limits.md](guides/18-ai-assistant-limits.md) | Every AI limit, timeout, safeguard, and the verified production values |
 | [19-ai-assistant-error-codes.md](guides/19-ai-assistant-error-codes.md) | Every AI error code and the exact Android sentence shown for it |
+| [20-local-mongodb-with-docker.md](guides/20-local-mongodb-with-docker.md) | Optional local MongoDB 7 container for database tests and the browser E2E |
 
 The numbered filenames are stable links. Guides 3 and 14 were consolidated into Guide 2, Guides 9–13 and
 Guide 6; no rule, command or safety procedure was removed.

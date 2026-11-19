@@ -1,0 +1,21 @@
+# Optional local MongoDB for database tests and the browser E2E.
+# Production uses MongoDB Atlas. CI starts the same image as a service container.
+# Usage: docs/guides/20-local-mongodb-with-docker.md
+
+services:
+  mongo:
+    image: mongo:7
+    ports:
+      # Loopback only: this database has no authentication and must not be
+      # reachable from the local network.
+      - "127.0.0.1:27017:27017"
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.runCommand({ ping: 1 }).ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  mongo-data:
