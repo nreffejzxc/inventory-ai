@@ -133,6 +133,11 @@ gh pr checks --watch
 gh pr merge --squash --delete-branch
 ```
 
+There is no merge queue. GitHub offers one only to organization-owned repositories, and this
+repository stays on the personal account. Because the required checks are strict, update the branch
+when `main` moves; then squash-merge. Review is the owner's review: no GitHub approval is required
+because the sole owner cannot approve their own pull request.
+
 Squash merge is the repository convention. The pull request number lands in the resulting subject as
 `(#N)`. A docs-only or mobile-only merge does **not** trigger Render, because Render deploys only
 when a file under `server/` changes. A merge that touches `server/` is a production change; treat it

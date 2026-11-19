@@ -215,4 +215,5 @@ MongoDB on every PR and push; it is §27JQ. DEV-03 makes it a required check and
 audit and current docs to seven contexts; it is §27JR. DEV-04 pins `mongo:7.0.48`, adds
 weekly Docker Compose Dependabot tracking and bounds every CI job; it is §27JS. DEV-05
 wires `merge_group` and the merge-group base into both required workflows, but the queue is
-blocked because the repository is user-owned; it is §27JT.
+blocked because the repository is user-owned; it is §27JT. DEV-06 removes that inactive wiring,
+keeps the seven-check PR gate and enforces SHA-pinned Actions; it is §27JU.

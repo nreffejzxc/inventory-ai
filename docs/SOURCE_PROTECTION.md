@@ -129,12 +129,17 @@ does not expose it. **It was rotated on 2026-11-07:** the new key was verified w
 | Lever | Strength |
 | --- | --- |
 | **Branch protection on `main`** — seven required checks, strict up-to-date, admins enforced, pull request required, force pushes and deletions blocked | **High**; the merge gate |
-| **Merge queue** — workflows accept `merge_group`, but no queue is active | **Blocked**; GitHub offers queues only to organization-owned public repositories. The ruleset API rejects `merge_queue` with HTTP 422; moving the repository to an organization is the prerequisite (§27JT) |
+| **SHA-pinned Actions** — repository policy requires full commit SHAs; every workflow action complies | **High**; enforced by GitHub and asserted by `audit-access.mjs` |
 | **Server-side secrets only** — AI keys, Mongo credentials, mail keys and Firebase admin credentials never reach a client | **High**; enforced by architecture |
 | **Server-side tenant isolation and RBAC** — a stolen client cannot read another business's data | **High** |
 | **GitHub secret scanning and push protection** | **High** for the shapes they recognise |
 | **`scripts/check-secrets.mjs` in CI** — fails a credential-shaped string; every rule carries a canary, so a rule that stopped matching fails the job instead of passing silently | Medium; pattern matching, not proof |
 | **`scripts/audit-access.mjs`** | Medium; manual, so only as current as its last run |
+
+**Merge queue.** Not used. GitHub offers merge queues only to organization-owned public
+repositories, and this repository remains under the personal account. The inactive `merge_group`
+wiring was removed; normal pull requests run the seven checks against current `main` and merge with
+squash (§27JU).
 | **Pinned action SHAs** | Medium; supply chain only |
 | **The protected-file register** — five paths whose contents must not change by accident | **Manual.** The register and its git blob hashes are in [`AUTH_SECURITY_MASTER_CHECKLIST.md`](AUTH_SECURITY_MASTER_CHECKLIST.md) §8; **no script verifies them**, so the check happens only when someone runs it |
 | **Proprietary licence** — copying is a licence breach, not a grey area | Legal, not technical |
