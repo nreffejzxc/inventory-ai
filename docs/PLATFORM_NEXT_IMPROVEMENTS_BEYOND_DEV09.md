@@ -11,9 +11,10 @@ RD-01–RD-06, NX-01–NX-07, NY-01–NY-07, NZ-01–NZ-07, SEC-01–SEC-12 and 
 ## 1. What the review found
 
 **CI is healthy.** `ci` accounts for 163 of the last 200 runs: 95 pull requests, 64 pushes and 4
-manual dispatches, with 25 failures. The failures are pull-request iterations and merge heads from
-2026-11-16–18; each is followed by a later green run, and the latest `main` run (`44472781110` at
-`3587e71`) is green. In that run `server` took 3m40s, `mobile` 1m22s, `webauthn-e2e` 52s,
+manual dispatches, with 25 failures. They are pull-request iterations, one deliberate
+negative-control scratch PR that was closed unmerged, and four merge heads from 2026-11-16–18.
+Each merge-head failure was followed by a later green `main` run, and the latest `main` run
+(`44472781110` at `3587e71`) is green. In that run `server` took 3m40s, `mobile` 1m22s, `webauthn-e2e` 52s,
 `compose-mongo` 31s, and the two guard jobs finished in seconds. The sample contains no unexplained
 recurring infrastructure failure, so adding more checks is not the highest-value next step.
 
