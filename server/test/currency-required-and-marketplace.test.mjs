@@ -23,14 +23,24 @@ import { ROLES } from '../src/constants/roles.ts';
 import { PRODUCT_CURRENCY_CODES } from '../src/constants/currencies.ts';
 import { validateProduct } from '../src/utils/validate.ts';
 import { executeTool } from '../src/services/ai/tools.ts';
-import { fetchVerifiedExchangeRate } from '../src/services/ai/exchangeRates.ts';
+import {
+  EXCHANGE_RATE_MAX_AGE_MS,
+  exchangeRateAvailability,
+  fetchVerifiedExchangeRate,
+  resetExchangeRateState,
+} from '../src/services/ai/exchangeRates.ts';
 import {
   convertListings,
   marketplaceCountryOf,
   priceListingFromText,
 } from '../src/services/ai/marketPrices.ts';
 import Product from '../src/models/product.model.ts';
+import AuditLog from '../src/models/auditLog.model.ts';
 import { productCurrencyAuditReport } from '../src/services/productCurrencyAudit.service.ts';
+import {
+  resolveProductCurrencies,
+  validateCurrencyResolutionEvidence,
+} from '../src/services/productCurrencyResolution.service.ts';
 
 const { dbOk, baseUrl, server } = await startServer();
 const api = makeApi(baseUrl);
@@ -168,19 +178,152 @@ unitSuite('Currency contract — marketplace country, match and conversion', () 
   });
 
   it('fetches an ECB reference rate without a key and refuses a malformed one', async () => {
+    const now = new Date('2026-11-20T12:00:00.000Z');
+    resetExchangeRateState();
     const quote = await fetchVerifiedExchangeRate('USD', 'PHP', {
+      now,
       fetchImpl: async () => ({
         ok: true,
+        status: 200,
         json: async () => ({ base: 'USD', date: '2026-11-19', rates: { PHP: 56.2 } }),
       }),
     });
     assert.equal(quote?.rate, 56.2);
     assert.equal(quote?.rateDate, '2026-11-19');
 
+    resetExchangeRateState();
     const malformed = await fetchVerifiedExchangeRate('USD', 'PHP', {
-      fetchImpl: async () => ({ ok: true, json: async () => ({ base: 'USD', date: 'not-a-date', rates: {} }) }),
+      now,
+      fetchImpl: async () => ({ ok: true, status: 200, json: async () => ({ base: 'USD', date: 'not-a-date', rates: {} }) }),
     });
     assert.equal(malformed, null);
+  });
+});
+
+unitSuite('Exchange-rate cache — dated, bounded and never guessed', () => {
+  const now = new Date('2026-11-20T12:00:00.000Z');
+  const freshDate = '2026-11-19';
+  const payload = (date = freshDate, rate = 58.5) => ({
+    ok: true,
+    status: 200,
+    json: async () => ({ base: 'USD', date, rates: { PHP: rate } }),
+  });
+
+  it('★ reuses a verified quote and re-validates its ECB date', async () => {
+    resetExchangeRateState();
+    const cache = new Map();
+    let calls = 0;
+    const fetchImpl = async () => {
+      calls += 1;
+      return payload();
+    };
+    const first = await fetchVerifiedExchangeRate('USD', 'PHP', { fetchImpl, now, cache });
+    const second = await fetchVerifiedExchangeRate('USD', 'PHP', { fetchImpl, now, cache });
+    assert.equal(calls, 1, 'a six-hour cache hit must not call the network again');
+    assert.equal(first?.rate, 58.5);
+    assert.equal(second?.rateDate, freshDate);
+    assert.ok(exchangeRateAvailability().cacheHits >= 1);
+  });
+
+  it('★ rejects a rate older than the maximum age and does not serve it from cache', async () => {
+    resetExchangeRateState();
+    const cache = new Map();
+    let calls = 0;
+    const fetchImpl = async () => {
+      calls += 1;
+      return payload('2026-11-01');
+    };
+    const quote = await fetchVerifiedExchangeRate('USD', 'PHP', {
+      fetchImpl,
+      now,
+      cache,
+      maxAgeMs: EXCHANGE_RATE_MAX_AGE_MS,
+    });
+    assert.equal(quote, null);
+    assert.equal(cache.size, 0, 'a stale quote is never cached');
+    assert.equal(exchangeRateAvailability().lastFailure, 'stale');
+
+    const later = await fetchVerifiedExchangeRate('USD', 'PHP', {
+      fetchImpl,
+      now: new Date('2026-12-01T12:00:00.000Z'),
+      cache,
+    });
+    assert.equal(later, null);
+    assert.equal(calls, 2, 'a stale quote must be re-fetched, not resurrected');
+  });
+
+  it('★ expires the six-hour cache and re-fetches when the cached date has aged out', async () => {
+    resetExchangeRateState();
+    const cache = new Map();
+    let calls = 0;
+    const fetchImpl = async () => {
+      calls += 1;
+      return payload(freshDate, calls === 1 ? 58.5 : 59.1);
+    };
+    const first = await fetchVerifiedExchangeRate('USD', 'PHP', { fetchImpl, now, cache });
+    assert.equal(first?.rate, 58.5);
+    const afterTtl = await fetchVerifiedExchangeRate('USD', 'PHP', {
+      fetchImpl,
+      now: new Date('2026-11-20T19:00:00.000Z'),
+      cache,
+    });
+    assert.equal(calls, 2, 'a quote older than six hours is re-fetched');
+    assert.equal(afterTtl?.rate, 59.1);
+
+    const agedOut = await fetchVerifiedExchangeRate('USD', 'PHP', {
+      fetchImpl: async () => {
+        calls += 1;
+        return payload(freshDate);
+      },
+      now: new Date('2026-12-01T12:00:00.000Z'),
+      cache,
+    });
+    assert.equal(agedOut, null, 'an aged cached date is discarded, never served');
+    assert.equal(calls, 3);
+    assert.ok(exchangeRateAvailability().stale >= 1);
+  });
+
+  it('★ rejects a missing rate, a malformed pair and a network failure without a fallback', async () => {
+    resetExchangeRateState();
+    const missing = await fetchVerifiedExchangeRate('USD', 'PHP', {
+      now,
+      fetchImpl: async () => ({ ok: true, status: 200, json: async () => ({ base: 'USD', date: freshDate, rates: {} }) }),
+    });
+    assert.equal(missing, null);
+    assert.equal(exchangeRateAvailability().lastFailure, 'missing-rate');
+
+    resetExchangeRateState();
+    const wrongPair = await fetchVerifiedExchangeRate('USD', 'PHP', {
+      now,
+      fetchImpl: async () => ({ ok: true, status: 200, json: async () => ({ base: 'EUR', date: freshDate, rates: { PHP: 58.5 } }) }),
+    });
+    assert.equal(wrongPair, null);
+    assert.equal(exchangeRateAvailability().lastFailure, 'pair-mismatch');
+
+    resetExchangeRateState();
+    const failed = await fetchVerifiedExchangeRate('USD', 'PHP', {
+      now,
+      fetchImpl: async () => {
+        throw new Error('network down');
+      },
+    });
+    assert.equal(failed, null);
+    assert.equal(exchangeRateAvailability().status, 'unavailable');
+  });
+
+  it('★ an identity rate never calls the network', async () => {
+    resetExchangeRateState();
+    let calls = 0;
+    const quote = await fetchVerifiedExchangeRate('php', 'PHP', {
+      now,
+      fetchImpl: async () => {
+        calls += 1;
+        return payload();
+      },
+    });
+    assert.equal(quote?.rate, 1);
+    assert.equal(calls, 0);
+    assert.equal(exchangeRateAvailability().sameCurrency, 1);
   });
 });
 
@@ -246,6 +389,132 @@ dbSuite('Currency contract — API, legacy rows, audit and assistant output', db
     assert.equal(resolved.status, 200, JSON.stringify(resolved.json));
     assert.equal(resolved.json.currency, 'PHP');
     assert.equal(resolved.json.sellingPrice, 20, 'the original monetary values were preserved');
+  });
+
+  it('★ a dry-run evidence file writes nothing; applying it resolves legacy rows once and audits them', async () => {
+    const missingName = uniqueName('Bulk missing');
+    const invalidName = uniqueName('Bulk invalid');
+    const missing = await Product.collection.insertOne({
+      businessId: new mongoose.Types.ObjectId(owner.businessId),
+      name: missingName,
+      status: 'ACTIVE',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    const invalid = await Product.collection.insertOne({
+      businessId: new mongoose.Types.ObjectId(owner.businessId),
+      name: invalidName,
+      currency: 'ABC',
+      status: 'ACTIVE',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    const paddedName = uniqueName('Bulk padded');
+    const padded = await Product.collection.insertOne({
+      businessId: new mongoose.Types.ObjectId(owner.businessId),
+      name: paddedName,
+      currency: 'php',
+      status: 'ACTIVE',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    const evidence = {
+      version: 1,
+      businessId: owner.businessId,
+      reviewedBy: 'Owner review',
+      reviewedAt: '2026-11-20T10:00:00.000Z',
+      source: 'Supplier invoice pack 2026-11-19',
+      entries: [
+        { productId: String(missing.insertedId), expectedName: missingName, currency: 'PHP', evidence: 'Invoice INV-100 line 1' },
+        { productId: String(invalid.insertedId), expectedName: invalidName, currency: 'PHP', evidence: 'Invoice INV-100 line 2' },
+        { productId: String(padded.insertedId), expectedName: paddedName, currency: 'PHP', evidence: 'Invoice INV-100 line 3' },
+      ],
+    };
+    const validated = validateCurrencyResolutionEvidence(evidence);
+    assert.equal(validated.ok, true, JSON.stringify(validated));
+
+    const beforeAudit = await AuditLog.countDocuments({ businessId: owner.businessId, action: 'PRODUCT_UPDATED' });
+    const dry = await resolveProductCurrencies({ evidence: validated.evidence, apply: false });
+    assert.equal(dry.wouldResolve, 3);
+    assert.equal(dry.resolved, 0);
+    assert.equal((await Product.findById(missing.insertedId)).currency, undefined);
+    assert.equal((await Product.findById(invalid.insertedId)).currency, 'ABC');
+    assert.equal((await Product.findById(padded.insertedId)).currency, 'php');
+
+    const applied = await resolveProductCurrencies({ evidence: validated.evidence, apply: true });
+    assert.equal(applied.resolved, 3, JSON.stringify(applied));
+    assert.equal(applied.failed, 0);
+    assert.equal((await Product.findById(missing.insertedId)).currency, 'PHP');
+    assert.equal((await Product.findById(invalid.insertedId)).currency, 'PHP');
+    assert.equal((await Product.findById(padded.insertedId)).currency, 'PHP');
+    assert.equal(
+      await AuditLog.countDocuments({ businessId: owner.businessId, action: 'PRODUCT_UPDATED' }),
+      beforeAudit + 3,
+      'one audit row per actual currency change',
+    );
+    const audit = await AuditLog.findOne({ businessId: owner.businessId, entityId: String(missing.insertedId) });
+    assert.equal(audit.metadata.reason, 'legacy-currency-resolution');
+    assert.equal(audit.metadata.reviewedBy, evidence.reviewedBy);
+    assert.deepEqual(audit.metadata.updated, ['currency']);
+
+    const again = await resolveProductCurrencies({ evidence: validated.evidence, apply: true });
+    assert.equal(again.alreadyResolved, 3);
+    assert.equal(again.resolved, 0);
+    assert.equal(
+      await AuditLog.countDocuments({ businessId: owner.businessId, action: 'PRODUCT_UPDATED' }),
+      beforeAudit + 3,
+      'rerunning the same evidence is a no-op and writes no duplicate audit rows',
+    );
+  });
+
+  it('★ bulk resolution refuses an existing different code, a cross-tenant id and a mismatched name', async () => {
+    const name = uniqueName('Bulk conflict');
+    const created = await api('POST', '/api/products', {
+      token: owner.token,
+      body: { name, currency: 'USD' },
+    });
+    assert.equal(created.status, 201, JSON.stringify(created.json));
+    const crossTenant = await Product.collection.insertOne({
+      businessId: new mongoose.Types.ObjectId(),
+      name: uniqueName('Other tenant legacy'),
+      status: 'ACTIVE',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    const mismatch = await Product.collection.insertOne({
+      businessId: new mongoose.Types.ObjectId(owner.businessId),
+      name: uniqueName('Bulk name mismatch'),
+      status: 'ACTIVE',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    const evidence = {
+      version: 1,
+      businessId: owner.businessId,
+      reviewedBy: 'Owner review',
+      reviewedAt: '2026-11-20T10:00:00.000Z',
+      source: 'Supplier invoice pack 2026-11-19',
+      entries: [
+        { productId: created.json.id, expectedName: name, currency: 'PHP', evidence: 'Invoice A' },
+        { productId: String(crossTenant.insertedId), currency: 'PHP', evidence: 'Invoice B' },
+        { productId: String(mismatch.insertedId), expectedName: 'a different product', currency: 'PHP', evidence: 'Invoice C' },
+      ],
+    };
+    const validated = validateCurrencyResolutionEvidence(evidence);
+    assert.equal(validated.ok, true, JSON.stringify(validated));
+    const report = await resolveProductCurrencies({ evidence: validated.evidence, apply: true });
+    assert.equal(report.conflicts, 1);
+    assert.equal(report.notFound, 1);
+    assert.equal(report.nameMismatches, 1);
+    assert.equal(report.resolved, 0);
+    assert.equal((await Product.findById(created.json.id)).currency, 'USD', 'a valid different code is never overwritten');
+    assert.equal((await Product.findById(crossTenant.insertedId)).currency, undefined, 'another tenant is untouched');
+    assert.equal((await Product.findById(mismatch.insertedId)).currency, undefined, 'a name mismatch is untouched');
+
+    const invalid = validateCurrencyResolutionEvidence({ ...evidence, reviewedBy: '', entries: [{ ...evidence.entries[0], currency: 'ABC' }] });
+    assert.equal(invalid.ok, false);
+    assert.ok(invalid.errors.some((error) => error.includes('reviewedBy')));
+    assert.ok(invalid.errors.some((error) => error.includes('currency')));
   });
 
   it('★ the assistant sees the exact recorded selling price and currency, never internal cost', async () => {

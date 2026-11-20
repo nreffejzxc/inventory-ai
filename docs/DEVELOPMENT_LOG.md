@@ -44,6 +44,13 @@ at the end of every development session, newest entry first.
 **Goal:** finish and harden Inventory AI **V1** through production testing. No Play Store or App
 Store release is being prepared.
 
+**Verified bulk currency resolution and dated exchange rates (2026-11-20):** added a
+human-approved evidence-file resolver with dry-run, conditional/idempotent PATCH-like updates,
+per-row audit metadata and production confirmation, plus a six-hour ECB rate cache that re-validates
+the reference date and refuses anything older than seven days. Focused unit and DB currency checks,
+typecheck and targeted ESLint pass; no production data, migration, merge or deployment was touched.
+Details: [`PRODUCT_CURRENCY.md`](PRODUCT_CURRENCY.md).
+
 **Alert deduplication and DB-backed triage (2026-11-20):** completed the four §27KH follow-ups.
 Alert issues and recovery comments carry stable hidden markers, so a retry whose response was lost
 and a second scheduler host do not post the same comment twice; an unreadable issue stays pending
@@ -836,6 +843,41 @@ Known limits, checked before spending one of them:
   bulk; a delivery failure is not a code regression until the provider log says so.
 
 ---
+
+## 2026-11-20 — verified bulk currency resolution and dated exchange-rate cache
+
+**Server, tests and documentation; PR #358.** Implemented the two currency follow-ups on the
+`feat/product-currency-resolution` branch without production data, a migration, a merge or a
+deployment.
+
+**Bulk resolution.** Added `npm run resolve:product-currency`. The command is a dry run by default
+and requires `--apply` to write. It reads a validated evidence file with a mandatory reviewer,
+review timestamp, source and per-row evidence note, plus an optional `expectedName` typo guard.
+The tenant comes from the evidence file, every query is scoped by it, and the production write path
+also requires `RESOLVE_PROD_CONFIRM=RESOLVE-PRODUCTION-CURRENCY`. A row is eligible only while its
+stored code is missing, empty or not an exact accepted ISO code. The update is conditional, so a
+concurrent human edit wins. An already-resolved row is a no-op; a different valid code is a
+conflict and is never overwritten. Each actual change writes one `PRODUCT_UPDATED` audit row with
+the previous/new code, evidence and reviewer metadata. `--template --business=<id>` prepares a
+read-only review file from all current missing/invalid rows.
+
+**Rates.** Hardened `exchangeRates.ts` with a six-hour per-pair cache, re-validation of the ECB
+`rateDate` on every cache hit, and a seven-day maximum age. Stale, future, malformed, missing,
+pair-mismatched and unavailable rates all return `null`; a stale cached quote is discarded and
+re-fetched, never served. Monitoring is process-local and exposes counts plus the last verified
+date/failure through `exchangeRateAvailability()`; each failure writes one structured warning with
+no credential or response body.
+
+**Verification.** `npm run typecheck` and targeted ESLint pass. Currency unit checks pass **13/13**
+(with one DB suite intentionally skipped), and the DB checks pass **5/5** (three unit suites
+intentionally skipped). They cover dry-run no-write, one audited resolution, rerun idempotency,
+valid-code conflict, cross-tenant refusal, name mismatch, evidence validation, cache reuse/expiry,
+stale and missing rates, malformed pairs and network failure.
+
+**Not done / residual.** No real resolution file was applied and no live ECB or marketplace call
+was made in this session. The monitoring counters are per process, not cluster-wide, and are not a
+readiness gate. The complete server suite was not rerun after these changes; the focused suites
+above are the evidence.
 
 ## 2026-11-20 — alert-comment deduplication and DB-backed triage
 

@@ -63,6 +63,7 @@ Guide 6; no rule, command or safety procedure was removed.
 | [`INVENTORY_INTEGRITY.md`](INVENTORY_INTEGRITY.md) | The read-only orphan STOCK_IN / unreceipted-PO audit, its scheduled baseline/history monitor, its exit codes and what to do with a finding |
 | [`INVENTORY_INTEGRITY_AUDIT_REVIEW_2026-11-19.md`](INVENTORY_INTEGRITY_AUDIT_REVIEW_2026-11-19.md) | The audit follow-up record: the four integrity/catalog fixes, the transfer and receiving crash-recovery assessment, and ten ranked next improvements |
 | [`INTEGRITY_RECOVERY.md`](INTEGRITY_RECOVERY.md) | Durable transfer journals and recovery, unique ledger guard and migration, cross-instance recovery lease, PO receive keys/fingerprints, stale-claim repair, category archive policy, audit-gap monitoring, price-quality commands, scheduled operational runner, limits and remaining risks |
+| [`PRODUCT_CURRENCY.md`](PRODUCT_CURRENCY.md) | The ISO 4217 contract, read-only legacy audit, human-approved evidence file, idempotent bulk resolution, dated ECB rate cache, maximum-age refusal and conversion monitoring |
 | [`MONITORING.md`](MONITORING.md) | The operator's health endpoints, response pulse, AI turn records, alert rules and incident procedure |
 | [`INVENTORY_AI_IMPROVEMENT_ASSESSMENT.md`](INVENTORY_AI_IMPROVEMENT_ASSESSMENT.md) | The whole-product ranked improvement assessment: current strengths, risk register, next-work order and the new gaps beyond the existing roadmaps |
 | [`PLATFORM_CLOUDFLARE_ACCESS_IMPLEMENTATION_PLAN.md`](PLATFORM_CLOUDFLARE_ACCESS_IMPLEMENTATION_PLAN.md) | The conditional Cloudflare Access migration plan: domain, origin JWT, WebAuthn migration, cutover, rollback and acceptance tests; free-tier/domain gate only, planning only |
@@ -138,6 +139,7 @@ Reference documents are consulted rather than read once, so they are reviewed on
 | [`INVENTORY_AI_IMPROVEMENT_ASSESSMENT.md`](INVENTORY_AI_IMPROVEMENT_ASSESSMENT.md) | 90 days | 2026-11-17 |
 | [`INVENTORY_INTEGRITY_AUDIT_REVIEW_2026-11-19.md`](INVENTORY_INTEGRITY_AUDIT_REVIEW_2026-11-19.md) | 90 days | 2026-11-19 |
 | [`INTEGRITY_RECOVERY.md`](INTEGRITY_RECOVERY.md) | 90 days | 2026-11-19 |
+| [`PRODUCT_CURRENCY.md`](PRODUCT_CURRENCY.md) | 90 days | 2026-11-20 |
 | [`PLATFORM_CLOUDFLARE_ACCESS_IMPLEMENTATION_PLAN.md`](PLATFORM_CLOUDFLARE_ACCESS_IMPLEMENTATION_PLAN.md) | 90 days | 2026-11-17 |
 | [`PLATFORM_SECURITY_CONTACTS.md`](PLATFORM_SECURITY_CONTACTS.md) | 90 days | 2026-11-17 |
 | [`PLATFORM_SECURITY_NOTIFICATION_EVIDENCE.md`](PLATFORM_SECURITY_NOTIFICATION_EVIDENCE.md) | 90 days | 2026-11-17 |
