@@ -34,9 +34,28 @@ prints a secret, a token, a prompt, an answer, a tenant id or a member's identit
     "serverErrors": 2,
     "lastServerErrorAt": "2026-11-11T08:12:03.114Z"
   },
+  "exchangeRates": {
+    "status": "available",
+    "requests": 12,
+    "cacheHits": 7,
+    "verified": 4,
+    "sameCurrency": 1,
+    "stale": 0,
+    "unavailable": 0,
+    "lastVerifiedAt": "2026-11-11T08:15:00.000Z",
+    "lastRateDate": "2026-11-10",
+    "lastFailureAt": null,
+    "lastFailure": null
+  },
   "timestamp": "2026-11-11T08:20:00.000Z"
 }
 ```
+
+`exchangeRates` is the existing process-local `exchangeRateAvailability()` snapshot. It is
+informational only: `/api/health/ready` and `/api/health/live` do not read it, and a stale or missing
+ECB rate never becomes a guessed conversion. Its `status` is `unused`, `available`, `degraded` or
+`unavailable`. It carries aggregate counts and timestamps, not a pair, a URL, tenant data or a
+provider body. It resets on restart, like the response counters.
 
 Every response also carries `X-Instance-ID`, the per-boot identity the port guard uses. It is not a
 credential and it changes on restart. It is how a stale process on the same port is detected.
@@ -251,7 +270,15 @@ have usable price data, and whether any transfer journal or PO receive claim nee
   `REQUIRES_ATTENTION` journals, keyed movement receipts and `inventory_transaction_quarantine` rows
   with their reasons, snapshots and ledger evidence. It is read-only and exits `1` when rows need attention; it never
   repairs or unflags anything.
-- **Writes:** the two audits and the triage view write nothing. `recover:integrity` performs only
+- **Movement receipt maintenance:** the scheduled recovery pass also completes abandoned keyed
+  stock-in/out/adjustment receipts from a matching ledger row or an exact `INVENTORY_WRITTEN`
+  snapshot. Its counters are `movements.completed`, `movements.flagged`, `movements.blocked` and
+  `movements.failed` in the recovery log/JSON; a blocked or failed count is visible to the
+  `recover:integrity` alert. The separate `cd server && npm run recover:movement-receipts --
+  --with-production` is a **dry run by default**; `--apply` writes only proven recovery and prunes
+  `COMPLETED` receipts older than 30 days. A dry run exits `1` when it finds work, and the command
+  refuses the test database.
+- **Writes:** the three audits and the triage view write nothing. `recover:integrity` performs only
   the exact, quantity-anchored actions in [`INTEGRITY_RECOVERY.md`](INTEGRITY_RECOVERY.md); an
   ambiguous row is flagged `REQUIRES_ATTENTION` for a human.
 - **Migration prerequisite:** the unique transfer-ledger index is applied with
@@ -509,6 +536,8 @@ grep "AI turn" <log> | grep -oE "model=[^ ]+ tier=[^ ]+" | sort | uniq -c
   one instance today; with several, a watcher polling one sees one instance's traffic. A shared
   counter needs a shared store, which this project does not have (§29, B2/E3). Do not present the
   counters as cluster-wide.
+- **The exchange-rate snapshot is process-local too.** It resets on restart and is not shared across
+  instances. It is an observation aid, not a readiness signal or a historical rate record.
 - **The metrics endpoint is per business and per UTC day.** It is not a billing export, and it does
   not see provider calls that never completed a turn.
 - **The platform report is cross-tenant and aggregate-only.** `ops_error_events` covers 5xx
@@ -533,8 +562,9 @@ grep "AI turn" <log> | grep -oE "model=[^ ]+ tier=[^ ]+" | sort | uniq -c
   checks cover readiness and the `db: connected` keyword. The Windows fallback is disabled, and the
   GitHub workflow is a manual/fallback path. A dedicated pager or hosted dashboard is still absent;
   record the integration here if one is added.
-- **`/api/health` is public.** It publishes a commit id, a posture name and counts. It never
-  publishes a path, a tenant, a member, a duration or a message.
+- **`/api/health` is public.** It publishes a commit id, a posture name, counts and the aggregate
+  exchange-rate availability snapshot. It never publishes a path, a tenant, a member, a duration, a
+  message, a currency pair, a provider URL or a credential.
 
 ---
 
@@ -560,6 +590,7 @@ grep "AI turn" <log> | grep -oE "model=[^ ]+ tier=[^ ]+" | sort | uniq -c
 | Metrics DB tests | `server/test/AI102-ai-metrics.test.mjs` |
 | Platform security and aggregation tests | `server/test/OPS7-platform-operations.test.mjs`, `server/test/PLAT2-platform-console.test.mjs`, `server/test/PLAT3-platform-security.test.mjs` |
 | Counters tests | `server/test/OPS2-operational-counters.test.mjs` |
+| Exchange-rate availability and health exposure tests | `server/test/currency-required-and-marketplace.test.mjs`, `server/test/phase07d-production-config.test.mjs` |
 | External uptime probe | `scripts/check-production-health.mjs` |
 | External watch workflow | `.github/workflows/production-health-watch-v2.yml` |
 | External scheduler wrapper | `scripts/trigger-production-health-watch.ps1` |

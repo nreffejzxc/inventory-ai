@@ -36,8 +36,8 @@ const { dbOk, baseUrl, server } = await startServer();
 const tracker = createTracker(dbOk);
 
 /** `makeApi`, plus request headers — the key travels in one. */
-async function api(method, path, { token, body, idempotencyKey } = {}) {
-  const headers = { 'content-type': 'application/json' };
+async function api(method, path, { token, body, idempotencyKey, headers: extraHeaders } = {}) {
+  const headers = { 'content-type': 'application/json', ...(extraHeaders || {}) };
   if (token) headers.authorization = `Bearer ${token}`;
   if (idempotencyKey) headers['idempotency-key'] = idempotencyKey;
   const res = await fetch(`${baseUrl}${path}`, {
@@ -485,6 +485,55 @@ dbSuite('Inventory idempotency — one operation, one movement', dbOk, () => {
   });
 
   describe('durable movement receipts', () => {
+    it('★ replays a movement after a literal HTTP 503 raised after the ledger commit', async () => {
+      const injectedProductId = await newProduct(business);
+      const key1 = key('receipt-injected-503');
+      const body = { productId: injectedProductId, locationId, quantity: 5, reason: 'injected 503' };
+
+      // The controller throws AFTER stockIn returned, so the inventory row, the
+      // ledger row and the COMPLETED receipt are all durable. The error handler
+      // produces a real HTTP 503 and the transport middleware releases its claim.
+      const first = await api('POST', '/api/inventory/stock-in', {
+        token: business.token,
+        body,
+        idempotencyKey: key1,
+        headers: { 'x-test-fault-after-commit': 'stock-in' },
+      });
+      assert.equal(first.status, 503, JSON.stringify(first.json));
+      assert.equal(first.json.code, 'TEST_FAULT_AFTER_COMMIT');
+      // The middleware releases a failed claim after sending the answer. Wait for
+      // that housekeeping to land, then retry exactly as the member would.
+      for (let attempt = 0; attempt < 100; attempt += 1) {
+        const claims = await mongoose.connection.db
+          .collection('idempotency_records')
+          .countDocuments({ key: key1 });
+        if (claims === 0) break;
+        await new Promise((resolve) => setTimeout(resolve, 10));
+      }
+      assert.equal(
+        await mongoose.connection.db.collection('idempotency_records').countDocuments({ key: key1 }),
+        0,
+        'the 503 must release the transport claim, leaving the durable receipt to answer',
+      );
+
+      const replay = await api('POST', '/api/inventory/stock-in', {
+        token: business.token,
+        body,
+        idempotencyKey: key1,
+      });
+      assert.equal(replay.status, 201, JSON.stringify(replay.json));
+
+      const ledger = await history(business, injectedProductId);
+      assert.equal(ledger.total, 1, 'the retry must replay, not write a second ledger row');
+      assert.equal((await row(business, injectedProductId, locationId)).quantity, 5);
+
+      const receipt = await mongoose.connection.db
+        .collection('stock_movement_operations')
+        .findOne({ requestKey: key1 });
+      assert.equal(receipt.state, 'COMPLETED');
+      assert.equal(String(receipt.inventoryTransactionId), replay.json.transaction.id);
+    });
+
     it('★ replays a committed stock-in after its transport record is gone', async () => {
       const durableProductId = await newProduct(business);
       const key1 = key('receipt-in');
@@ -559,6 +608,69 @@ dbSuite('Inventory idempotency — one operation, one movement', dbOk, () => {
       assert.equal(String(receipt.inventoryTransactionId), first.json.transaction.id);
       assert.equal((await history(business, crashProductId)).total, 1);
       assert.equal((await row(business, crashProductId, locationId)).quantity, 4);
+    });
+
+    it('★ reports receipt state without returning the key or stored answer', async () => {
+      const statusProductId = await newProduct(business);
+      const key1 = key('receipt-status');
+      const body = { productId: statusProductId, locationId, quantity: 2 };
+      const created = await api('POST', '/api/inventory/stock-in', {
+        token: business.token,
+        body,
+        idempotencyKey: key1,
+      });
+      assert.equal(created.status, 201, JSON.stringify(created.json));
+
+      const status = await api('POST', '/api/inventory/operations/status', {
+        token: business.token,
+        body: { key: key1 },
+      });
+      assert.equal(status.status, 200, JSON.stringify(status.json));
+      assert.equal(status.json.state, 'COMPLETED');
+      assert.match(status.json.reference, /^[a-f0-9]{24}$/i);
+      assert.equal(status.json.key, undefined, 'the status endpoint must never echo the key');
+      assert.equal(status.json.transaction, undefined, 'the status endpoint must not expose the answer');
+
+      await mongoose.connection.db.collection('stock_movement_operations').updateOne(
+        { requestKey: key1 },
+        { $set: { state: 'REQUIRES_ATTENTION', failure: 'status fixture' } },
+      );
+      const attention = await api('POST', '/api/inventory/operations/status', {
+        token: business.token,
+        body: { key: key1 },
+      });
+      assert.equal(attention.json.state, 'REQUIRES_ATTENTION');
+      assert.equal(attention.json.key, undefined);
+
+      const unknown = await api('POST', '/api/inventory/operations/status', {
+        token: business.token,
+        body: { key: key('receipt-status-unknown') },
+      });
+      assert.equal(unknown.json.state, 'UNKNOWN');
+      assert.equal(unknown.json.reference, null);
+    });
+
+    it('★ never calls a stale transport claim safely retryable', async () => {
+      const staleKey = key('transport-stale');
+      await mongoose.connection.db.collection('idempotency_records').insertOne({
+        businessId: new mongoose.Types.ObjectId(business.businessId),
+        key: staleKey,
+        fingerprint: 'stale-transport-fixture',
+        state: 'IN_PROGRESS',
+        createdAt: new Date(Date.now() - 5 * 60_000),
+        updatedAt: new Date(),
+      });
+
+      const status = await api('POST', '/api/inventory/operations/status', {
+        token: business.token,
+        body: { key: staleKey },
+      });
+      assert.equal(status.status, 200, JSON.stringify(status.json));
+      assert.equal(status.json.state, 'UNKNOWN');
+      assert.equal(status.json.key, undefined);
+      assert.match(status.json.reference, /^[a-f0-9]{24}$/i);
+
+      await mongoose.connection.db.collection('idempotency_records').deleteOne({ key: staleKey });
     });
 
     it('★ replays a committed stock-out and adjustment after the transport record is gone', async () => {

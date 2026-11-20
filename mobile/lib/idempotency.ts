@@ -46,7 +46,7 @@
 
 import * as SecureStore from 'expo-secure-store';
 
-import { ApiError } from './client';
+import { ApiError, apiFetch } from './client';
 
 /**
  * Whether an answer ENDS the operation, so the next press is a new one.
@@ -132,6 +132,36 @@ const STORAGE_PREFIX = 'inventoryai.idempotency.v3.';
 const PREVIOUS_STORAGE_PREFIX = 'inventoryai.idempotency.v2.';
 const LEGACY_STORAGE_PREFIX = 'inventoryai.idempotency.v1.';
 const STORED_KEY = /^op-[A-Za-z0-9._:-]{8,200}$/;
+const API_PATH = /^\/api\/[A-Za-z0-9/_-]+$/;
+const MAX_STORED_REQUEST_CHARS = 2400;
+
+/**
+ * A stored request may only replay the endpoint that belongs to its operation.
+ * The SecureStore value is device-local, but treating it as trusted would let a
+ * corrupt or tampered record send an arbitrary authenticated POST. Reference
+ * creation serves three resources; a PO receipt carries the order id.
+ */
+const FIXED_OPERATION_PATHS: Partial<Record<IdempotencyKind, string>> = {
+  'product.create': '/api/products',
+  'purchase-order.create': '/api/purchase-orders',
+  'stock-in': '/api/inventory/stock-in',
+  'stock-out': '/api/inventory/stock-out',
+  adjust: '/api/inventory/adjust',
+  transfer: '/api/inventory/transfer',
+};
+const REFERENCE_CREATE_PATHS = new Set(['/api/categories', '/api/locations', '/api/suppliers']);
+const RECEIVE_PATH = /^\/api\/purchase-orders\/[a-f0-9]{24}\/receive$/i;
+
+export const PENDING_OPERATION_KINDS: readonly IdempotencyKind[] = [
+  'product.create',
+  'purchase-order.create',
+  'reference.create',
+  'stock-in',
+  'stock-out',
+  'adjust',
+  'transfer',
+  'purchase-order.receive',
+];
 
 /**
  * A small bucket, not a cache: unresolved operations may still be retried, so
@@ -148,6 +178,28 @@ interface PendingOperation {
   target: string;
   fingerprint: string;
   createdAt: number;
+  /** Member-facing context, never the key. */
+  label?: string;
+  /** Enough to replay the same request from the Pending Operations screen. */
+  request?: PendingOperationRequest;
+}
+
+/** The finite API request a stored attempt may replay. */
+export interface PendingOperationRequest {
+  method: 'POST';
+  path: string;
+  body: unknown;
+}
+
+/** The only shape the screen receives: no key, owner id or raw fingerprint. */
+export interface PendingOperationView {
+  id: string;
+  kind: IdempotencyKind;
+  label: string;
+  target: string | null;
+  createdAt: number;
+  expiresAt: number;
+  requestAvailable: boolean;
 }
 
 interface PendingBucket {
@@ -169,6 +221,10 @@ export interface OperationKeyRequest {
   target?: string | null;
   /** The business payload; only its canonical digest is stored. */
   payload: unknown;
+  /** Short human context for the device screen. */
+  label?: string | null;
+  /** The same request, retained only when it is small enough for SecureStore. */
+  request?: PendingOperationRequest | null;
 }
 
 /** One bounded bucket per account and kind, mirrored in memory when SecureStore is unavailable. */
@@ -282,6 +338,8 @@ function parseRecordValue(value: unknown): PendingOperation | null {
   ) {
     return null;
   }
+  const label = typeof record.label === 'string' ? record.label.trim().slice(0, 160) : undefined;
+  const request = parseStoredRequest(record.request);
   return {
     version: 1,
     key: record.key,
@@ -289,7 +347,34 @@ function parseRecordValue(value: unknown): PendingOperation | null {
     target: record.target,
     fingerprint: record.fingerprint,
     createdAt: record.createdAt,
+    ...(label ? { label } : {}),
+    ...(request ? { request } : {}),
   };
+}
+
+function operationPathAllowed(kind: IdempotencyKind, path: string): boolean {
+  if (kind === 'reference.create') return REFERENCE_CREATE_PATHS.has(path);
+  if (kind === 'purchase-order.receive') return RECEIVE_PATH.test(path);
+  return FIXED_OPERATION_PATHS[kind] === path;
+}
+
+/** Validate a stored retry request before it can reach `apiFetch`. */
+function parseStoredRequest(value: unknown, kind?: IdempotencyKind): PendingOperationRequest | null {
+  if (!value || typeof value !== 'object') return null;
+  const request = value as Partial<PendingOperationRequest>;
+  if (request.method !== 'POST' || typeof request.path !== 'string' || !API_PATH.test(request.path)) {
+    return null;
+  }
+  if (kind && !operationPathAllowed(kind, request.path)) return null;
+  if (request.body === undefined) return null;
+  let length: number;
+  try {
+    length = JSON.stringify(request.body).length;
+  } catch {
+    return null;
+  }
+  if (length > MAX_STORED_REQUEST_CHARS) return null;
+  return { method: 'POST', path: request.path, body: request.body };
 }
 
 /** Read a v1 single record during the upgrade. New writes only use v3. */
@@ -469,6 +554,12 @@ function isReusable(
   );
 }
 
+function operationLabel(kind: IdempotencyKind, target: string, label?: string | null): string {
+  const explicit = typeof label === 'string' ? label.trim().slice(0, 160) : '';
+  if (explicit) return explicit;
+  return target ? `${kind} — ${target}` : kind;
+}
+
 /**
  * Resume the same operation across a crash or restart, or mint a new one.
  *
@@ -487,9 +578,13 @@ export async function getOrCreateOperationKey({
   ownerId,
   target,
   payload,
+  label,
+  request,
 }: OperationKeyRequest): Promise<string> {
   const owner = String(ownerId ?? '').trim();
   const resource = String(target ?? '').trim();
+  const nextLabel = operationLabel(kind, resource, label);
+  const nextRequest = parseStoredRequest(request, kind);
 
   return serialize(async () => {
     const fingerprint = fingerprintOf({ kind, ownerId: owner, target: resource, payload });
@@ -500,7 +595,19 @@ export async function getOrCreateOperationKey({
     const reusable = live.find((record) => isReusable(record, expected, now));
 
     if (reusable) {
-      if (live.length !== stored.length) await writeBucket(owner, kind, live);
+      let changed = live.length !== stored.length;
+      if (reusable.label !== nextLabel) {
+        reusable.label = nextLabel;
+        changed = true;
+      }
+      if (
+        nextRequest &&
+        (!reusable.request || !operationPathAllowed(kind, reusable.request.path))
+      ) {
+        reusable.request = nextRequest;
+        changed = true;
+      }
+      if (changed) await writeBucket(owner, kind, live);
       return reusable.key;
     }
 
@@ -519,6 +626,8 @@ export async function getOrCreateOperationKey({
         target: resource,
         fingerprint,
         createdAt: now,
+        label: nextLabel,
+        ...(nextRequest ? { request: nextRequest } : {}),
       },
     ]);
     return key;
@@ -545,6 +654,133 @@ export async function completeOperation(
     if (remaining.length === stored.length) return;
     await writeBucket(owner, kind, remaining);
   });
+}
+
+export type PendingOperationState =
+  | 'COMPLETED'
+  | 'PROCESSING'
+  | 'RECOVERY_PENDING'
+  | 'REQUIRES_ATTENTION'
+  | 'UNKNOWN';
+
+export interface PendingOperationCheck {
+  state: PendingOperationState;
+  reference: string | null;
+  checkedAt: string;
+  label: string;
+}
+
+/** Find a stored attempt by its non-secret view id. */
+async function findPendingOperation(ownerId: string, id: string) {
+  const split = id.indexOf(':');
+  if (split <= 0) return null;
+  const kind = id.slice(0, split) as IdempotencyKind;
+  const fingerprint = id.slice(split + 1);
+  if (!PENDING_OPERATION_KINDS.includes(kind) || !fingerprint) return null;
+  const record = (await readBucket(ownerId, kind)).find(
+    (candidate) => candidate.fingerprint === fingerprint && isFresh(candidate, Date.now()),
+  );
+  return record ? { kind, record } : null;
+}
+
+/**
+ * The screen's safe list. It contains no key, owner id or fingerprint as a
+ * separately readable field; `id` is an opaque handle the module resolves back
+ * to the stored attempt. Expired attempts are pruned here because they cannot be
+ * retried safely once the server's own 24-hour window has passed.
+ */
+export async function listPendingOperations(
+  ownerId: string | null | undefined,
+): Promise<PendingOperationView[]> {
+  const owner = String(ownerId ?? '').trim();
+  return serialize(async () => {
+    const now = Date.now();
+    const views: PendingOperationView[] = [];
+    for (const kind of PENDING_OPERATION_KINDS) {
+      const stored = await readBucket(owner, kind);
+      const live = stored.filter((record) => isFresh(record, now));
+      if (live.length !== stored.length) await writeBucket(owner, kind, live);
+      for (const record of live) {
+        views.push({
+          id: `${kind}:${record.fingerprint}`,
+          kind,
+          label: record.label || operationLabel(kind, record.target),
+          target: record.target || null,
+          createdAt: record.createdAt,
+          expiresAt: record.createdAt + PENDING_OPERATION_TTL_MS,
+          requestAvailable: Boolean(
+            record.request && record.request.method === 'POST' && operationPathAllowed(kind, record.request.path),
+          ),
+        });
+      }
+    }
+    return views.sort((a, b) => b.createdAt - a.createdAt);
+  });
+}
+
+/**
+ * Ask the server about one attempt without sending or showing its key. A
+ * COMPLETED answer removes the local key: the operation is settled, so keeping
+ * it would invite a useless retry. The key itself stays inside this module.
+ */
+export async function checkPendingOperation(
+  ownerId: string | null | undefined,
+  id: string,
+  token: string,
+): Promise<PendingOperationCheck> {
+  const owner = String(ownerId ?? '').trim();
+  const found = await findPendingOperation(owner, id);
+  if (!found) throw new Error('This operation is no longer stored on this device.');
+  const result = await apiFetch<{
+    state: PendingOperationState;
+    reference: string | null;
+    checkedAt: string;
+  }>('/api/inventory/operations/status', {
+    token,
+    method: 'POST',
+    body: { key: found.record.key },
+  });
+  if (result.state === 'COMPLETED') {
+    await completeOperation(found.kind, found.record.key, owner);
+  }
+  return {
+    ...result,
+    label: found.record.label || operationLabel(found.kind, found.record.target),
+  };
+}
+
+/**
+ * Replay the exact stored request under its existing key. A success or definite
+ * refusal settles the operation; an ambiguous answer keeps it for the next
+ * check, exactly as the originating form would.
+ */
+export async function retryPendingOperation(
+  ownerId: string | null | undefined,
+  id: string,
+  token: string,
+): Promise<unknown> {
+  const owner = String(ownerId ?? '').trim();
+  const found = await findPendingOperation(owner, id);
+  if (!found) throw new Error('This operation is no longer stored on this device.');
+  const request = found.record.request;
+  if (!request || !operationPathAllowed(found.kind, request.path)) {
+    throw new Error('This operation cannot be retried automatically. Use its original form.');
+  }
+  try {
+    const result = await apiFetch(request.path, {
+      token,
+      method: 'POST',
+      body: request.body,
+      idempotencyKey: found.record.key,
+    });
+    await completeOperation(found.kind, found.record.key, owner);
+    return result;
+  } catch (err) {
+    if (endsOperation(err)) {
+      await completeOperation(found.kind, found.record.key, owner);
+    }
+    throw err;
+  }
 }
 
 /**

@@ -213,7 +213,7 @@ dbSuite('Phase 06 — AI tools', dbOk, () => {
 
     const none = ok(await executeTool('getProduct', {}, ctxOf(A)));
     assert.equal(none.found, false);
-    assert.match(none.error, /Provide one of id, sku, or barcode/);
+    assert.match(none.error, /Provide exactly one of id, sku, or barcode/);
   });
 
   // -- getInventory -------------------------------------------------------
@@ -452,7 +452,7 @@ dbSuite('Phase 06 — AI tools', dbOk, () => {
     assert.equal(res.code, 'TOOL_ERROR');
   });
 
-  it('the tool catalog is strictly read-only (21 tools, no write verbs)', async () => {
+  it('the tool catalog is strictly read-only (22 tools, no write verbs)', async () => {
     const names = AI_TOOL_DEFS.map((t) => t.name).sort();
     assert.deepEqual(names, [
       // AI-116: only offered for a follow-up; re-reads the previous products.
@@ -471,6 +471,8 @@ dbSuite('Phase 06 — AI tools', dbOk, () => {
       'getLowStockProducts',
       'getOutOfStockProducts',
       'getProduct',
+      // AI-118: one-product, windowed run-out estimate from recorded stock-out.
+      'getProductStockCoverage',
       'getProductsByLocation',
       // AI-71: dead stock — ACTIVE products with no stock-out on record at all.
       'getProductsNeverSold',

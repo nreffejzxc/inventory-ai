@@ -178,6 +178,14 @@ interface GetProductArgs extends ToolArguments {
   barcode?: string;
 }
 
+/** Demand/run-out read: one identified product, optionally scoped to one place. */
+interface StockCoverageArgs extends ToolArguments, LocationRef {
+  id?: string;
+  sku?: string;
+  barcode?: string;
+  days?: number;
+}
+
 interface LocationRef {
   locationId?: string;
   location?: string;
@@ -468,6 +476,13 @@ function stockCard(doc: StockCardSource) {
     // can state the difference. `null` means no minimum is configured.
     unitsBelowMinimum: productService.unitsBelowMinimum(doc.available, doc.minimumStock),
   };
+}
+
+/** A deterministic display number: integers stay integers, fractions keep `digits`. */
+function roundTo(value: number, digits: number): number {
+  if (!Number.isFinite(value)) return 0;
+  const factor = 10 ** digits;
+  return Math.round(value * factor) / factor;
 }
 
 /**
@@ -1229,8 +1244,14 @@ const tools: Tool[] = [
       description: 'Provide exactly one of id, sku, or barcode.',
     },
     async executor(ctx: ToolContext, args: GetProductArgs) {
-      if (!args.id && !args.sku && !args.barcode) {
-        return { found: false, error: 'Provide one of id, sku, or barcode.' };
+      // The schema says exactly one, and the executor enforces it: when a model sends
+      // two, `getByIdentifier` would silently prefer the id and return a different
+      // product than the SKU the member said. A refusal is the only honest answer.
+      const identifiers = [args.id, args.sku, args.barcode].filter(
+        (value) => typeof value === 'string' && value.trim().length > 0
+      );
+      if (identifiers.length !== 1) {
+        return { found: false, error: 'Provide exactly one of id, sku, or barcode.' };
       }
       const doc = await productService.getByIdentifier(ctx.businessId, {
         id: args.id,
@@ -1258,6 +1279,138 @@ const tools: Tool[] = [
           stockRows: rows.total,
           ...(noStockRows ? { quantityOnHand: 0, stockStatus: 'OUT_OF_STOCK' } : {}),
         },
+      };
+    },
+  },
+
+  {
+    name: 'getProductStockCoverage',
+    description:
+      'Estimate how long ONE recorded product\'s current stock will last from its recorded STOCK_OUT movements in a lookback window. Pass exactly one of id, sku, or barcode; optionally scope it to a location and choose `days` (default 30, 7–365). It returns current available quantity, stock-out units and movement count, the simple average daily stock-out rate, days of cover and a 30-day run-rate projection. STOCK_OUT is a movement proxy: it can be a sale, usage, damage or a write-off, and stock-in, transfers and adjustments are deliberately excluded. This is not a sales figure, a supplier lead time or a guarantee, and a zero-movement window returns daysOfCover null rather than infinity. Use it for "how long will this product last", run-out, stock-cover and demand questions; never use it to rank the whole catalogue or to invent seasonality.',
+    permission: PERMISSIONS.INVENTORY_HISTORY_VIEW,
+    parameters: {
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        id: objectId,
+        sku: { type: 'string', maxLength: 100, description: 'Exact SKU.' },
+        barcode: { type: 'string', maxLength: 100, description: 'Exact barcode.' },
+        locationId: objectId,
+        location: {
+          type: 'string',
+          maxLength: 100,
+          description: 'Exact name of an ACTIVE location, e.g. "Main Warehouse".',
+        },
+        days: {
+          type: 'integer',
+          minimum: 7,
+          maximum: 365,
+          description: 'Lookback window in days (default 30).',
+        },
+      },
+      description: 'Provide exactly one of id, sku, or barcode.',
+    },
+    async executor(ctx: ToolContext, args: StockCoverageArgs) {
+      const identifiers = [args.id, args.sku, args.barcode].filter(
+        (value) => typeof value === 'string' && value.trim().length > 0
+      );
+      if (identifiers.length !== 1) {
+        return { found: false, error: 'Provide exactly one of id, sku, or barcode.' };
+      }
+
+      const location = await resolveLocation(ctx, args, { required: false });
+      if (!location.ok) return location.result;
+
+      // An id is a syntactic ObjectId, not proof that this tenant owns it. Resolve it
+      // before reading, so a foreign or deleted id is "not found" rather than a
+      // plausible-looking zero at a shelf that does not exist for this business.
+      let locationName: string | null = null;
+      let locationStatus: string | null = null;
+      if (location.id) {
+        try {
+          const locationDoc = await locationService.get(ctx.businessId, location.id);
+          locationName = String(locationDoc.name);
+          locationStatus = String(locationDoc.status);
+        } catch {
+          return { found: false, error: 'That location was not found in this business.' };
+        }
+      }
+
+      const product = await productService.getByIdentifier(ctx.businessId, {
+        id: args.id,
+        sku: args.sku,
+        barcode: args.barcode,
+      });
+      if (!product) {
+        return {
+          found: false,
+          error: 'No product in this business matches that identifier.',
+        };
+      }
+
+      const days = args.days ?? 30;
+      // One clock for the window and the `asOf` stamp: two reads a few milliseconds apart
+      // would otherwise describe slightly different windows in the same payload.
+      const asOf = new Date();
+      const from = new Date(asOf.getTime() - days * 24 * 60 * 60 * 1000).toISOString();
+      const productId = String(product._id);
+      const [current, totals] = await Promise.all([
+        inventoryService.productAvailability(ctx.businessId, {
+          productId,
+          ...(location.id ? { locationId: location.id } : {}),
+        }),
+        transactionsService.totals(ctx.businessId, {
+          productId,
+          ...(location.id ? { locationId: location.id } : {}),
+          type: 'STOCK_OUT',
+          from,
+        }),
+      ]);
+
+      const stockOut = totals.byType.STOCK_OUT;
+      const unitsOut = Number(stockOut?.units ?? 0);
+      const stockOutMovements = Number(stockOut?.rows ?? 0);
+      const averageDailyUnitsOutExact = unitsOut / days;
+      const averageDailyUnitsOut = roundTo(averageDailyUnitsOutExact, 3);
+      let daysOfCover: number | null = null;
+      if (averageDailyUnitsOutExact > 0) {
+        daysOfCover =
+          current.availableQuantity <= 0
+            ? 0
+            : roundTo(current.availableQuantity / averageDailyUnitsOutExact, 1);
+      }
+      const projectedUnitsOut30Days = roundTo(averageDailyUnitsOutExact * 30, 2);
+      const archivedNote =
+        product.status === 'ARCHIVED'
+          ? ' This product is ARCHIVED: its stock is still recorded, but it is not stock the member buys again, so do not recommend restocking it.'
+          : '';
+
+      return {
+        found: true,
+        asOf: asOf.toISOString(),
+        product: productCore(product),
+        scope: {
+          days,
+          windowStart: from,
+          ...(location.id
+            ? { locationId: location.id, locationName, locationStatus }
+            : { locationId: null, locationName: null, locationStatus: null }),
+        },
+        current,
+        movement: { unitsOut, stockOutMovements },
+        forecast: {
+          averageDailyUnitsOut,
+          daysOfCover,
+          projectedUnitsOut30Days,
+        },
+        note:
+          'STOCK_OUT is a movement proxy, not confirmed sales or customer demand: it can be usage, damage or a write-off. ' +
+          'Transfers, stock-in and adjustments are excluded. The average is a simple run rate over this window, with no ' +
+          'seasonality, lead time, supplier term or guarantee. ' +
+          (averageDailyUnitsOutExact > 0
+            ? 'daysOfCover is an estimate from that rate; quote it as an estimate and say the window.'
+            : 'There were no STOCK_OUT movements in this window, so daysOfCover is null; do not say the stock will last forever or invent a rate.') +
+          archivedNote,
       };
     },
   },
@@ -1603,7 +1756,7 @@ const tools: Tool[] = [
   {
     name: 'getProductsNeverSold',
     description:
-      'ACTIVE products with no stock-out on record at all — the dead-stock question. Reach for this on "dead stock", "what is not selling", "what has never sold", "what has not moved", "unsold", "stale stock", "zero sales" or "sitting on the shelf", NOT for low stock or out of stock: those products may be selling fine, and a full shelf is not a slow one. It is answered by comparing the whole catalogue against the whole ledger instead of asking the model to read one list against another. Optionally scoped to one location ("what has never moved from the sidewalk shelf?"), which also reports availability AT that location. A stock-out is stock LEAVING a location: usually a sale, but it can be usage, damage or a write-off, so this answers "has anything ever left the shelf for this product" and must never be reported as proof of a sale. Pass `from` when the member asks about a period ("nothing has moved since June"). Each row carries availableQuantity across all locations, and the result adds `soldProductCount` so "how many products have sold at all" needs no page counting.',
+      'ACTIVE products with no stock-out on record in the requested scope — the dead-stock question. Reach for this on "dead stock", "what is not selling", "what has never sold", "what has not moved", "unsold", "stale stock", "zero sales" or "sitting on the shelf", NOT for low stock or out of stock: those products may be selling fine, and a full shelf is not a slow one. It is answered by comparing the whole catalogue against the whole ledger instead of asking the model to read one list against another. Optionally scoped to one location ("what has never moved from the sidewalk shelf?"), which also reports availability AT that location. A stock-out is stock LEAVING a location: usually a sale, but it can be usage, damage or a write-off, so this answers "has anything ever left the shelf for this product" and must never be reported as proof of a sale. Pass `from` when the member asks about a period ("nothing has moved since June"); without it, the scope is the whole ledger. Each row carries availableQuantity across all locations, and the result adds `soldProductCount` so "how many products have sold at all" needs no page counting.',
     permission: PERMISSIONS.INVENTORY_VIEW,
     defaultLimit: 15,
     parameters: {
@@ -1970,7 +2123,7 @@ const tools: Tool[] = [
   {
     name: 'getProductsByLocation',
     description:
-      'Products currently stocked at a specific location, with the available quantity at that location. Give the location by exact name (`location`, e.g. "Main Warehouse") or by id (`locationId`) — the name saves a lookup step when the member already said it.',
+      'ACTIVE products currently stocked at a specific location, with the available quantity at that location. Give the location by exact name (`location`, e.g. "Main Warehouse") or by id (`locationId`) — the name saves a lookup step when the member already said it. Archived products are excluded because they are not stock the member buys again; use searchProducts with status ARCHIVED to find a retired product.',
     permission: PERMISSIONS.INVENTORY_VIEW,
     defaultLimit: 20,
     parameters: {
@@ -1991,6 +2144,7 @@ const tools: Tool[] = [
       if (!location.ok) return location.result;
       const { items, total } = await productService.list(ctx.businessId, {
         locationId: location.id,
+        status: 'ACTIVE',
         skip: 0,
         limit: Math.min(args.limit ?? 20, 50),
       });

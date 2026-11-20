@@ -181,6 +181,7 @@ dbSuite('TLI — recovery lease', dbOk, () => {
           claimsRan += 1;
           return { scanned: 0, released: 0, undone: 0, receipted: 0, flagged: 0, failed: 0 };
         },
+        recoverMovements: async () => ({ scanned: 0, completed: 0, flagged: 0, blocked: 0, failed: 0 }),
       });
       assert.equal(skipped.skipped, 'lease-held');
       assert.equal(skipped.lease?.acquired, false);
@@ -200,6 +201,7 @@ dbSuite('TLI — recovery lease', dbOk, () => {
         claimsRan += 1;
         return { scanned: 0, released: 0, undone: 0, receipted: 0, flagged: 0, failed: 0 };
       },
+      recoverMovements: async () => ({ scanned: 0, completed: 0, flagged: 0, blocked: 0, failed: 0 }),
     });
     assert.equal(ran.skipped, undefined);
     assert.equal(ran.lease?.acquired, true);

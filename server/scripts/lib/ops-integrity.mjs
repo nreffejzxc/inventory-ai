@@ -188,6 +188,7 @@ function countsFor(command, payload) {
   if (command === 'recover:integrity') {
     const transfers = payload.transfers ?? {};
     const claims = payload.claims ?? {};
+    const movements = payload.movements ?? {};
     return {
       transfers: {
         scanned: Number(transfers.scanned) || 0,
@@ -204,6 +205,13 @@ function countsFor(command, payload) {
         flagged: Number(claims.flagged) || 0,
         failed: Number(claims.failed) || 0,
       },
+      movements: {
+        scanned: Number(movements.scanned) || 0,
+        completed: Number(movements.completed) || 0,
+        flagged: Number(movements.flagged) || 0,
+        blocked: Number(movements.blocked) || 0,
+        failed: Number(movements.failed) || 0,
+      },
       leaseHeld: payload.skipped === 'lease-held',
     };
   }
@@ -215,7 +223,9 @@ function problemCountFor(command, counts) {
   if (command === 'audit:price-quality') return counts.problemCount ?? 0;
   if (command === 'recover:integrity') {
     return (counts.transfers?.failed ?? 0) + (counts.transfers?.flagged ?? 0) +
-      (counts.claims?.failed ?? 0) + (counts.claims?.flagged ?? 0);
+      (counts.claims?.failed ?? 0) + (counts.claims?.flagged ?? 0) +
+      (counts.movements?.failed ?? 0) + (counts.movements?.flagged ?? 0) +
+      (counts.movements?.blocked ?? 0);
   }
   return 0;
 }
@@ -247,6 +257,9 @@ export function opsSignature(command, status, counts) {
       counts.transfers?.flagged ?? 0,
       counts.claims?.failed ?? 0,
       counts.claims?.flagged ?? 0,
+      counts.movements?.failed ?? 0,
+      counts.movements?.flagged ?? 0,
+      counts.movements?.blocked ?? 0,
     ].join(':');
   }
   return status;
@@ -440,6 +453,10 @@ export function formatOpsMarkdown(summary) {
         `flagged ${summary.counts.transfers?.flagged ?? 0}, failed ${summary.counts.transfers?.failed ?? 0}`,
       `- PO claims: scanned ${summary.counts.claims?.scanned ?? 0}, ` +
         `flagged ${summary.counts.claims?.flagged ?? 0}, failed ${summary.counts.claims?.failed ?? 0}`,
+      `- movement receipts: scanned ${summary.counts.movements?.scanned ?? 0}, ` +
+        `flagged ${summary.counts.movements?.flagged ?? 0}, ` +
+        `blocked ${summary.counts.movements?.blocked ?? 0}, ` +
+        `failed ${summary.counts.movements?.failed ?? 0}`,
       '',
       'Anything flagged REQUIRES_ATTENTION must be reviewed by hand. Recovery never guesses.'
     );

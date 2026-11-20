@@ -44,12 +44,98 @@ at the end of every development session, newest entry first.
 **Goal:** finish and harden Inventory AI **V1** through production testing. No Play Store or App
 Store release is being prepared.
 
-**Verified bulk currency resolution and dated exchange rates (2026-11-20):** added a
-human-approved evidence-file resolver with dry-run, conditional/idempotent PATCH-like updates,
-per-row audit metadata and production confirmation, plus a six-hour ECB rate cache that re-validates
-the reference date and refuses anything older than seven days. Focused unit and DB currency checks,
-typecheck and targeted ESLint pass; no production data, migration, merge or deployment was touched.
-Details: [`PRODUCT_CURRENCY.md`](PRODUCT_CURRENCY.md).
+**Release candidate gate for AI coverage, currency, receipts and Pending Operations (2026-11-20):**
+reviewed and assembled §27KJ–§27KM into PR #358. A fresh review closed a stored-retry boundary in
+the mobile operation store: a retry descriptor may replay only the endpoint that belongs to its
+operation, and a corrupt or tampered descriptor is refused before `apiFetch`; 24 idempotency tests
+and 6 Pending Operations render tests pass. The complete server suite passed **3,312/3,312 tests
+across 538 suites** with **0 failures, 0 skips and 0 cancelled** (exit 0,
+`--test-concurrency=2`, 1,827,574.0981 ms); the complete mobile run passed **1,333/1,333 tests
+across 114 suites** (exit 0). Server/mobile typecheck, focused ESLint, `phase-docs-fact-drift`
+**9/9**, `check-docs` **71 active / 48 living** and `git diff --check` pass. No production data was
+read or written, no migration or live model call was made, and no maintenance command was run in
+production. The merge and Render proof are recorded in the final release report; the only release
+path is PR #358 through all seven required checks. Details: §27KN.
+
+**Currency review follow-up (2026-11-20):** added a real-database cap test proving
+`unresolvedCurrencyCandidates()` returns **5,000** of **5,001** unresolved rows with `truncated:
+true`; reviewed the CLI refactor, narrowed its template projection to `name`, removed unused parser
+assertions and exports, and made evidence-mode-only flags fail instead of being ignored. Focused
+currency, CLI, typecheck, ESLint and documentation checks pass; no complete suite was rerun in this
+follow-up.
+
+**Run-out correction and bounded live selection evaluation (2026-11-20):** added a narrow
+`asksForStockCoverage()` intent guard and one corrective re-ask, so a run-out answer cannot ship
+from `getProduct`/`getInventory` alone; a second miss becomes the existing honest ungrounded
+sentence. Q7 now scripts the wrong `getProduct` choice and proves the correction before the stored
+answer, while Q8 keeps the null-cover no-history behaviour and the movement-proxy caveat. Added
+`npm run eval:stock-coverage`, an opt-in maximum-six-paraphrase live harness on a disposable
+development tenant that records first/all tool choices without changing model or CI configuration;
+its `--validate-only` path passed for all six questions with no provider call. Focused results:
+AI-118 unit **5 passed/1 skipped**, AI-118 DB **8 passed/1 skipped**, Phase 06 behavior **14/14**,
+typecheck and focused ESLint passed. The complete server suite passed **3,311/3,311 tests across 538
+suites**, with **0 failures, 0 skips and 0 cancelled** (exit 0, `--test-concurrency=2`,
+1,840,452.9 ms). No live-model run, production data, migration, commit, push, merge or deployment
+was performed.
+
+**AI assistant audit and bounded run-out read (2026-11-20):** audited every read-only tool, the
+turn loop, tenant/permission gates, conversation persistence and response finalizers. Fixed
+`getProductsByLocation` returning archived products as current shelf stock and `getProduct`
+silently preferring one identifier when two were supplied. Added `getProductStockCoverage`, which
+estimates one product's days of cover from recorded `STOCK_OUT` over a bounded 7–365 day window and
+explicitly labels stock-out as a movement proxy, not sales. Focused DB/unit, read-only scan, Phase
+06 tool suite, typecheck, ESLint and docs guards pass. The DB-backed Phase 06 turn regression now
+passes 14/14, including a coverage turn and a no-history turn. The complete server suite passed
+**3,296 / 3,297 tests across 537 suites**; the one failure was PLAT-8’s child Mongo fixture timing
+out, and it passed 1/1 on rerun. No production data, migration, commit, push or deployment was
+touched.
+Full matrix and boundaries:
+[`AI_ASSISTANT_AUDIT_2026-11-20.md`](AI_ASSISTANT_AUDIT_2026-11-20.md).
+
+**Movement receipt recovery and Pending Operations (2026-11-20):** completed the five reliability
+tasks. A test-only post-commit 503 proves the same key replays one committed movement; recovery now
+validates the ledger row against the receipt's kind, product, location and quantities before it
+resolves attention; the scheduled pass and dry-run-first `recover:movement-receipts` command prune
+only completed receipts whose matching ledger still proves the movement; the authenticated status
+route returns state and a support reference only; and the mobile Pending Operations screen lists,
+checks and safely retries this device's stored operations for the signed-in account without
+exposing a key. The stale
+transport-claim state is `UNKNOWN`, never a false "safe to retry" claim. Verification and ranked
+future improvements are in §27KK; no production data, migration, commit or deployment was touched.
+
+**Required product currency and marketplace accuracy (2026-11-20):** completed the currency
+enforcement and AI-accuracy pass. Product create requires an ISO 4217 active-tender code, PATCH
+cannot clear it and cannot omit it on a legacy row with no valid code, and the model keeps old
+documents readable while requiring the field on new documents. The catalogue, demo/perf seeders and
+evaluation seeders state `PHP`; `audit:product-currency` reports missing/invalid legacy codes
+read-only, and resolution is an explicit verified PATCH. The product form uses a searchable ISO
+picker (code and English name) and the API/UI labels cost and selling price separately; the
+assistant carries selling price and the recorded currency only, because cost is internal;
+marketplace listings carry the marketplace
+country, listing currency (never guessed from a bare `$`), match evidence, original price and an
+optional ECB/Frankfurter-dated conversion. Verification and residual risks are in §27KJ; no
+production data, migration, commit or deployment was touched.
+
+**Currency rate visibility and resolver operations (2026-11-20):** exposed the existing
+process-local exchange-rate availability counters at `GET /api/health.exchangeRates` without making
+`/ready` or `/live` depend on them; the no-fallback conversion rule is unchanged. Refactored the
+resolver command into an injectable `runCli`, added a clear 5,000-row template truncation warning,
+and proved template/dry-run/apply/exit behavior with 13 database-free tests. Restored the phase
+record and suite citation, indexed §27KL in `CLAUDE.md`, and recorded 12 ranked follow-up ideas
+without implementing them. No production data, migration, commit, push or deployment was touched.
+
+**Currency follow-up review and AUTH-03 stabilization (2026-11-20):** confirmed `CLAUDE.md` states
+**245** `.ts` modules (the count is already correct in the working tree); `phase-docs-fact-drift` passed
+**9/9** and the documentation guards passed **31/31**. Made the AUTH-03 capped-session fixture TTL-safe:
+the test now expires a known row, asserts the `401 SESSION_REVOKED` refusal, explicitly deletes the
+TTL-eligible row and asserts cleanup, rather than racing the TTL monitor with a post-request read.
+The focused suite passes **17/17** in DB mode (one unit suite skipped). The receipt review factored
+the duplicate prune-item builder, stopped counting a `noop` recovery as a completion, and clarified
+the CLI limit wording; the two parser-only CLI cases were folded into their apply cases, reducing
+the resolver suite from 14 to **13/13** and the receipt CLI suite from 10 to **9/9** without
+dropping a contract assertion. The complete server suite then passed **3,310/3,310 tests across 538
+suites**, with **0 failures, 0 skips and 0 cancelled** (exit 0, `--test-concurrency=2`, 1,832,650
+ms). No production data, migration, commit, push, merge or deployment was touched.
 
 **Alert deduplication and DB-backed triage (2026-11-20):** completed the four §27KH follow-ups.
 Alert issues and recovery comments carry stable hidden markers, so a retry whose response was lost
@@ -844,40 +930,266 @@ Known limits, checked before spending one of them:
 
 ---
 
-## 2026-11-20 — verified bulk currency resolution and dated exchange-rate cache
+## 2026-11-20 — run-out correction and bounded live selection evaluation
 
-**Server, tests and documentation; PR #358.** Implemented the two currency follow-ups on the
-`feat/product-currency-resolution` branch without production data, a migration, a merge or a
-deployment.
+**AI-118 follow-up, server/tests/scripts/docs.** Completed the three requested follow-ups without
+touching the unrelated currency or reliability work.
 
-**Bulk resolution.** Added `npm run resolve:product-currency`. The command is a dry run by default
-and requires `--apply` to write. It reads a validated evidence file with a mandatory reviewer,
-review timestamp, source and per-row evidence note, plus an optional `expectedName` typo guard.
-The tenant comes from the evidence file, every query is scoped by it, and the production write path
-also requires `RESOLVE_PROD_CONFIRM=RESOLVE-PRODUCTION-CURRENCY`. A row is eligible only while its
-stored code is missing, empty or not an exact accepted ISO code. The update is conditional, so a
-concurrent human edit wins. An already-resolved row is a no-op; a different valid code is a
-conflict and is never overwritten. Each actual change writes one `PRODUCT_UPDATED` audit row with
-the previous/new code, evidence and reviewer metadata. `--template --business=<id>` prepares a
-read-only review file from all current missing/invalid rows.
+**Selection enforcement.** Added `asksForStockCoverage()` to `answerCompletion.ts`: it recognises the
+run-out/stock-cover/“how long” family but deliberately not ordinary stock counts, low-stock lists or
+delivery-duration questions. In `ai.service.ts`, a run-out answer that did not successfully use
+`getProductStockCoverage` is discarded; one corrective re-ask names the exact-one-identifier rule,
+the optional location and the bounded window. A second miss ships the existing
+`UNGROUNDED_ANSWER` sentence, so a plausible forecast from a stock quantity cannot pass. The tool's
+movement-proxy caveat and null `daysOfCover` behaviour are unchanged.
 
-**Rates.** Hardened `exchangeRates.ts` with a six-hour per-pair cache, re-validation of the ECB
-`rateDate` on every cache hit, and a seven-day maximum age. Stale, future, malformed, missing,
-pair-mismatched and unavailable rates all return `null`; a stale cached quote is discarded and
-re-fetched, never served. Monitoring is process-local and exposes counts plus the last verified
-date/failure through `exchangeRateAvailability()`; each failure writes one structured warning with
-no credential or response body.
+**Q7 proof.** The DB-backed turn now starts with the common wrong choice (`getProduct`), tries to
+answer from its quantity, then receives the corrective re-ask and calls coverage. The test asserts
+`toolsUsed = getProduct,getProductStockCoverage`, the 6-unit/4-unit/15-day figures, the proxy caveat
+and Inventory records provenance. Q8 still proves no stock-out history returns null cover.
 
-**Verification.** `npm run typecheck` and targeted ESLint pass. Currency unit checks pass **13/13**
-(with one DB suite intentionally skipped), and the DB checks pass **5/5** (three unit suites
-intentionally skipped). They cover dry-run no-write, one audited resolution, rerun idempotency,
-valid-code conflict, cross-tenant refusal, name mismatch, evidence validation, cache reuse/expiry,
-stale and missing rates, malformed pairs and network failure.
+**Review.** The coverage executor keeps the whole-set `productAvailability` aggregate, one
+exact-identifier resolution, the business-scoped location check and the ledger totals; each is
+needed for accuracy or isolation. The paraphrase predicate is now shared by the turn loop and the
+evaluator. No distinct schema, isolation, whole-set, null-rate, archive or identifier regression was
+removed.
 
-**Not done / residual.** No real resolution file was applied and no live ECB or marketplace call
-was made in this session. The monitoring counters are per process, not cluster-wide, and are not a
-readiness gate. The complete server suite was not rerun after these changes; the focused suites
-above are the evidence.
+**Live evaluation.** `server/scripts/eval-stock-coverage.mjs` and the `eval:stock-coverage` script run
+at most six paraphrases against the CURRENT configured model on a disposable development tenant.
+They record first/all tools, whether the correction fired, model, route, calls and a bounded answer
+excerpt to `.tmp-stock-coverage-live.json`. The harness refuses a non-development database and a
+run without `AI_TEST_ALLOW_PAID_MODELS=true`; it does not change model, fallback, reasoning or web
+configuration and is not registered in the test runner or CI. `--validate-only` proves all six
+questions classify and makes no provider or database call.
+
+**Verification.** `npm run typecheck` and focused ESLint passed. `AI118-stock-coverage.test.mjs`
+unit mode passed **5/6 with the DB suite skipped**; DB mode passed **8/9 with the unit suite
+skipped**. Phase 06 behavior passed **14/14**, including Q7 and Q8. `eval:stock-coverage
+--validate-only` passed for **6/6** paraphrases with no provider call. Documentation guards passed
+**31/31**. The complete server suite passed **3,311/3,311 tests across 538 suites**, with **0 failures, 0 skips and 0 cancelled** (exit 0, `--test-concurrency=2`, 1,840,452.9 ms).
+
+**Limitations.** No live-model run was executed, so the harness proves its bounded setup and the
+scripted correction path, not the configured model's real selection rate. A live run spends quota
+and needs separate approval. The disposable tenant is removed in `finally`; a hard kill can leave it
+for inspection. No production data, migration, commit, push, merge or deployment was performed.
+
+## 2026-11-20 — currency follow-up review, AUTH-03 stabilization and full-suite proof
+
+**Server, tests and documentation, §27KK/§27KL follow-up.** Completed the three requested follow-ups
+without touching the unrelated AI-118 work.
+
+**Module count and documentation.** `CLAUDE.md` states **245** `server/src` `.ts` modules, matching
+`find server/src -name '*.ts'`. `phase-docs-fact-drift` passed **9/9**; all documentation guards
+passed **31/31** across 6 suites; `check-docs` reports **71 active documents / 48 living reference
+documents** within cadence.
+
+**AUTH-03 capped-session stabilization.** The expired-session fixture was TTL-eligible, so a
+post-request `findById` could return `null` under a full-suite sweep. The case now creates a live
+session, expires that known row, asserts the `401 SESSION_REVOKED` refusal, explicitly deletes the
+fixture, and asserts the cleanup. Case 6 retains the live near-cap proof that a failed renewal does
+not move the session cap. The focused suite passes **17/17** in DB mode (one unit suite skipped).
+
+**Receipt/CLI review.** `runMovementReceiptMaintenance` now uses one `pruneItem` builder for dry-run
+and apply reports; a `noop` recovery is no longer counted as a completion; and the CLI usage now
+states that `--limit` bounds unfinished and completed rows separately. The resolver and receipt CLI
+parser-only cases were folded into their existing apply cases, so the resolver suite is **13/13** and
+the receipt CLI suite is **9/9** without losing any default/apply, bounds or exit-code assertion.
+The receipt recovery suite remains **8/8** DB cases.
+
+**Verification.** Typecheck, focused ESLint, resolver CLI **13/13**, receipt CLI **9/9**, receipt
+recovery **8/8**, AUTH-03 **17/17** in DB mode, docs guards **31/31** and fact drift **9/9** passed.
+The complete server suite passed **3,310/3,310 tests across 538 suites** (`--test-concurrency=2`),
+with **0 failures, 0 skips and 0 cancelled** (exit 0; 1,832,650 ms).
+
+**Limitations.** The full suite runs against the shared test database and emits transient MongoDB
+reconnect warnings, but no assertion failed. The AUTH-03 cleanup assertion proves the fixture was
+removed; it does not assert a post-request read of a TTL-eligible row, because that read is inherently
+racy. No production data, migration, commit, push, merge or deployment was performed.
+
+## 2026-11-20 — currency rate metrics, resolver CLI proof and ranked follow-ups
+
+**Server, tests and documentation, §27KL.** Completed the four follow-ups to the §27KJ currency
+work without touching the uncommitted AI-118 or reliability changes.
+
+**Rate visibility.** `GET /api/health` now returns `exchangeRates`, the existing
+`exchangeRateAvailability()` snapshot: status, request/cache-hit/verified/same-currency/stale/
+unavailable counts, and the last verified date, failure timestamp and failure kind. It contains
+aggregate process state only — no tenant, product, request, URL, API key or provider body. The
+legacy endpoint remains `200` while the process is up; `/api/health/live` and `/api/health/ready`
+are unchanged and never consult this snapshot. A missing or stale rate still returns no converted
+price, exactly as before, so the new field cannot introduce a fallback.
+
+**Resolver CLI.** `server/scripts/resolve-product-currency.mjs` now exports `runCli`; the direct-execution guard keeps imports inert, and the utility helpers stay private.
+Dependencies are injectable, so the command can be tested without MongoDB. `runCli` preserves the
+existing write contract: dry run is the default, `--apply` is explicit, the test database is
+refused, production writes need `RESOLVE_PROD_CONFIRM=RESOLVE-PRODUCTION-CURRENCY`, invalid evidence
+is rejected before connecting, and exits stay `0` clean / `1` findings / `2` NOT CHECKED. Template
+mode is read-only. `unresolvedCurrencyCandidates()` reads one extra row so a capped template can be
+distinguished from a complete one; at 5,000 rows the CLI prints a clear stderr warning and tells the
+operator to resolve that batch and rerun. The cap is exported as
+`MAX_CURRENCY_RESOLUTION_ENTRIES`.
+
+**Tests and citations.** `CURRENCY-RESOLVER-CLI.test.mjs` adds 13 database-free cases for empty and
+populated templates, the truncation warning, `--out`, dry-run, apply, all five unresolved fields,
+invalid arguments (including `--out` and `--business` in evidence mode), test-database refusal,
+unreachable MongoDB, unreadable/invalid evidence, production confirmation and help. It is classified
+as a pure suite in `run-tests.mjs` with the **§27KL** citation; the existing currency suite keeps
+**§27KJ**. Its DB suite now inserts **5,001** unresolved rows and proves the real candidate read
+returns **5,000**, marks the result `truncated: true` and excludes the probe row. The health test
+injects a fixed snapshot and proves `/api/health` publishes it while `/ready` and `/live` do not.
+
+**Documentation and ranked work.** Added `§27KL` to `docs/DEVELOPMENT_ROADMAP.md`, raised the record
+count to **295**, and added the table/index entry to `CLAUDE.md`. `docs/PRODUCT_CURRENCY.md` now
+documents the health field, the 5,000-row warning, the CLI test commands and 12 ranked proposals.
+`docs/MONITORING.md` includes the response field and its process-local/public limits. The proposals
+are not implemented; the highest-value dependencies are durable cross-instance rate telemetry and
+an alert owner, followed by conversion provenance and resumable review batches.
+
+**Verification.** `npm run typecheck` passed and focused ESLint on the changed route, service,
+script and tests passed. `CURRENCY-RESOLVER-CLI.test.mjs` passed **13/13**; the focused health suite
+passed **24/24** (5 suites); the currency suite passed **13/14** in unit mode (1 skip) and **6/8** in
+DB mode (3 skips) with zero failures, including the 5,001-row cap proof. Documentation guards passed **31/31** across 6 suites and
+`check-docs` reports **71 active documents / 48 living reference documents** within cadence.
+
+**Limitations.** The rate counters are per process and reset on restart; they are not a
+cluster-wide or durable metric and are not a readiness gate. No live ECB request was made. The
+complete server suite was later rerun at `--test-concurrency=2` and passed **3,310/3,310 tests
+across 538 suites**, with no failures or skips. The 12 ideas are recommendations only. No production
+data, migration, commit, push, merge or deployment was performed.
+
+**Currency follow-up review (2026-11-20).** Added a real-database cap test: 5,001 unresolved products
+return exactly 5,000 rows with `truncated: true`, and the extra probe row is excluded. The CLI review
+narrowed the template projection to `name`, kept the parser/output helpers private, removed duplicate
+parser assertions, and rejects `--out`/`--business` in evidence mode instead of silently ignoring
+them. Focused checks: typecheck and ESLint passed; CLI **13/13**; currency unit **13 passed/1
+skipped**; currency DB **6 passed/3 skipped**; docs guards **31/31**; `check-docs` **71 active / 48
+living**. No complete server suite was rerun in this follow-up, so no new full-suite count is claimed.
+
+## 2026-11-20 — assistant audit, archived-stock correction and bounded run-out read
+
+**Server, tests and documentation; AI-118.** Audited the complete assistant read path against the
+code, not the feature list: HTTP/SSE and conversation persistence, model routing, the 22 read-only
+tools and their services, the grounded answer finalizers, and the mobile chat entry points. The
+feature matrix and remaining boundaries are in
+[`AI_ASSISTANT_AUDIT_2026-11-20.md`](AI_ASSISTANT_AUDIT_2026-11-20.md).
+
+**Correctness fixes.** `getProductsByLocation` now filters to `ACTIVE` products, so a retired product
+cannot be presented as current shelf stock. `getProduct` now requires exactly one of id/SKU/barcode;
+before, a call carrying both an id and a SKU silently preferred the id and could return a different
+product than the one named. The dead-stock description now distinguishes a bounded `from` window from
+the whole-ledger default.
+
+**New read.** `getProductStockCoverage` takes one identified product, an optional location and a
+7–365 day window (default 30). It sums availability over every matching inventory row and `STOCK_OUT`
+units over the same scope, then returns the average daily outflow, days of cover and a 30-day
+run-rate projection. Transfers, stock-in and adjustments are excluded. A no-movement window returns
+`daysOfCover: null`; stock-out is labelled a movement proxy, not confirmed sales. Missing/foreign
+locations and products are refused. No write tool, model configuration or provider was added.
+
+**Verification.** `npm run typecheck`, targeted ESLint, the AI-2 read-only scan, AI-118 unit and DB
+suites, Phase 06's 22-tool catalogue suite, the four documentation guards and the focused OpenRouter
+all-tools rerun pass. The full server run returned **3,277 tests / 535 suites: 3,274 passed, 3
+failed**. The OpenRouter failure was the old 20-tool list, fixed and rerun green; the other two were
+remote MongoDB connection timeouts in DEMO-4 (green on rerun) and PLAT-8 (its fixture could not
+establish a connection on two reruns; the Atlas replica set reported no primary, then TLS socket
+timeouts), neither on the AI path. No production data, migration, commit, push or deployment was
+touched.
+
+**Follow-up — end-to-end run-out turn and review.** The Phase 06 DB-backed suite now has `Q7` and
+`Q8`. `Q7` asks a run-out question, proves `getProductStockCoverage` is offered to the provider, the
+turn executes it, the stored answer carries the current quantity, the 10-day stock-out basis and the
+proxy caveat, and provenance names `Inventory records`. `Q8` proves a product with no stock-out in
+the window returns `daysOfCover: null` and the answer refuses to say “forever”. The provider is
+scripted, so these tests prove the offer → selection → execution → persistence contract, not live
+model judgement. The tool now takes the window and `asOf` from one clock and uses a clearer
+`daysOfCover` branch; arithmetic, location scoping, tenant isolation and the permission gate are
+unchanged. Focused checks: typecheck and targeted ESLint pass; Phase 06 DB passes **14/14**; AI-118
+passes **8/8** DB cases (one unit suite intentionally skipped in DB mode); the OpenRouter workload
+passes **6/6** runnable tests with four DB-independent suites intentionally skipped, including the
+all-tools turn. The complete server run after these changes: **3,297 tests / 537 suites, 3,296
+passed, 1 failed**. The only failure was PLAT-8’s race fixture, whose child process could not
+connect to MongoDB (`MongooseServerSelectionError` after 15 s); its assertions never ran, and it
+passed **1/1** on a focused rerun. That is an Atlas connection timeout, not a code or AI-path
+failure. The previous AUTH-03 full-run fixture failure and the `CLAUDE.md` 244-vs-245 module-count
+drift did not recur; the count is corrected to **245**.
+The ranked follow-up opportunities, with benefits, dependencies and priorities, are in
+[`AI_ASSISTANT_IMPROVEMENT_ROADMAP.md`](AI_ASSISTANT_IMPROVEMENT_ROADMAP.md) §6; none is implemented
+here. No production data, model configuration, commit, push or deployment was touched.
+
+## 2026-11-20 — post-commit proof, receipt recovery and Pending Operations
+
+**Server, mobile, tests and documentation, §27KK.** Completed the five requested reliability tasks.
+No production data, migration, commit, push or deployment was touched.
+
+**Post-commit 503.** All four keyed movement controllers now raise a test-only `503
+TEST_FAULT_AFTER_COMMIT` only after the service has committed, gated on `TEST_MODE`/`NODE_ENV=test`
+and an explicit header, and impossible under `NODE_ENV=production`. The DB test proves the first
+delivery fails after the receipt and ledger are durable, then the same key replays the committed
+result with one ledger row, one receipt and unchanged stock. The test waits for the middleware's
+asynchronous failed-claim release before retrying; the momentary 409 is a transport window, not a
+second movement.
+
+**Fresh review.** The ledger proof in attention resolution accepted any row carrying the movement
+operation id. Recovery now requires the row's kind, product, location, previous/new quantities and
+movement quantity to match the receipt, and the exact-snapshot path requires an arithmetically valid
+snapshot. A contradictory ledger row becomes `REQUIRES_ATTENTION` with no audit; a new DB case
+corrupts a ledger quantity and proves it is not resolved. Retention was also tightened: a completed
+receipt is pruned only while its matching ledger row still proves the movement, and a ledger-less
+row is blocked and kept. The review kept the existing key identity and proof order intact.
+
+**Operator recovery.** `recoverStaleMovementReceipts` and `runMovementReceiptMaintenance` share the
+proof hierarchy, scope by business, use a 60-second stale threshold and 30-day completed-retention,
+and never auto-delete attention or unfinished rows. The scheduler runs the pass under the existing
+MongoDB integrity lease. `npm run recover:movement-receipts` is dry-run by default and supports
+`--apply`, `--with-production`, `--older-than-minutes`, `--retention-days`, `--limit`,
+`--business=<24-hex-id>` and JSON output, with `0/1/2` exit codes. Recovery and pruning write tenant
+audit events `MOVEMENT_RECEIPT_RECOVERED` and `MOVEMENT_RECEIPT_PRUNED` under entity type
+`STOCK_MOVEMENT_OPERATION`; neither includes the idempotency key.
+
+**Status and mobile.** `POST /api/inventory/operations/status` is authenticated, business-scoped and
+returns `COMPLETED`, `PROCESSING`, `RECOVERY_PENDING`, `REQUIRES_ATTENTION` or `UNKNOWN` plus a
+support reference and timestamp, never the key or stored answer. A stale transport claim is
+`UNKNOWN` because the handler may have committed before the claim went stale. Phase 23's route
+inventory is now **124 = 69 permission-gated + 24 authenticated + 31 public + 0 role-gated**.
+Mobile records gained a bounded label/request descriptor, and the new Pending Operations screen
+lists the signed-in account's attempts saved on this device, checks status, explains each state and
+retries under the original key after confirmation. The raw key remains inside `lib/idempotency.ts`.
+
+**Verification.** Server and mobile typechecks passed; focused server and mobile ESLint passed. The
+post-commit/status suite `INVENTORY-IDEMPOTENCY.test.mjs` passed **17/17**; the new
+`MOVEMENT-RECEIPT-RECOVERY.test.mjs` passed **8/8** DB-backed cases; mobile
+`idempotency-persistence.test.ts` passed **22/22** including safe listing, internal status lookup
+and exact-key retry; audit-label parity passed **8/8**. The complete mobile Jest run passed **1,331
+tests across 114 suites** (exit 0). The complete server suite was also run against this working
+tree: **3,295 tests across 537 suites**, **3,293 passed**. Its two failures were outside this
+increment: the then-uncommitted AI-118 work left `CLAUDE.md` one module behind (244 stated, 245 on
+disk; corrected to 245 in the 2026-11-20 follow-up above), and the AUTH-03 capped-session fixture
+row was absent under the full run; that suite passes **17/17** when rerun alone. The focused receipt,
+CLI, mobile and documentation checks for this increment are green.
+
+**Post-review hardening.** A bounded receipt pass now selects stale `IN_PROGRESS` /
+`INVENTORY_WRITTEN` rows first and gives `REQUIRES_ATTENTION` rows only the remaining slots, so a
+full old attention backlog cannot starve a newer unfinished receipt. The regression fills a two-row
+batch with old attention and proves the newer receipt is still recovered. `recover:movement-receipts`
+now has **9/9** database-free contract cases for dry-run default, no write intent without
+`--apply`, bounded options and the `0/1/2` exits; an apply that flags attention is exit **1**. The
+Pending Operations screen has **6/6** render cases for empty, completed, attention, retry
+confirmation, retry failure and list failure. The full mobile suite passed **1,331/1,331** tests in
+**114** suites.
+
+**Ranked future opportunities (not implemented).** The ten ranked ideas — offline operation queue,
+guided reconciliation workbench, cycle counts, dual-control thresholds, point-in-time replay,
+reorder-point suggestions, tamper-evident audit anchors, tenant export, anomaly detection and a
+signed event stream — are recorded with benefit, effort and risk in §27KK.
+
+**Limitations.** An unprovable receipt remains `REQUIRES_ATTENTION` and needs an operator; the
+scheduled batch reserves stale unfinished receipts before attention, so an old attention backlog
+cannot starve newer receipts; attention still waits when the batch is full of unfinished work, and
+the scoped dry-run command is the operational tool for a backlog. Retention requires ledger proof
+and is limited to completed rows.
+The mobile screen stores replay details only when they fit 2.4 KB; larger operations can be checked
+but must be retried from their original screen. No production data, migration, commit, push or
+deployment was touched.
 
 ## 2026-11-20 — alert-comment deduplication and DB-backed triage
 
@@ -915,6 +1227,62 @@ write witness.
 
 **Next.** No further work is required for this tranche. Keep the marker format stable; changing it
 would let an older host's comment look absent and post a duplicate.
+
+## 2026-11-20 — required product currency, legacy audit and marketplace accuracy
+
+**Server, mobile, tests and documentation, §27KJ.** Completed the currency enforcement and AI
+accuracy pass. No production data, migration, commit, push or deployment was touched.
+
+**Currency contract.** `server/src/constants/currencies.ts` is an explicit ISO 4217 active-tender
+list and `mobile/lib/currencies.ts` mirrors it; a regression test compares both arrays. Create
+requires a valid code (lower-case input is normalised), PATCH may omit it only when the stored row
+already has a valid code, and no request can clear it. The service repeats the validation for
+direct callers, the Mongoose schema requires it on new documents, and existing null/legacy rows stay
+readable and archivable. The catalogue and all seeders now state `PHP` explicitly; test fixtures
+carry the same default.
+
+**Audit and AI output.** `npm run audit:product-currency` is read-only, covers every status, reports
+missing and invalid codes with samples, and never guesses or writes. Resolution is a verified
+`PATCH /api/products/:id { "currency": "PHP" }` (or the edit form). The product API/UI labels
+`costPrice` and `sellingPrice` separately with `currency`; the assistant row stays limited to
+`sellingPrice` and `currency` because cost is internal accounting data, and the prompts say cost is
+not available rather than inferring it from a selling or market price. `audit:price-quality` now
+validates against the full ISO set rather than accepting any three letters.
+
+**Marketplace comparison.** Listings carry `marketplaceCountry`, listing `currency` only when the
+page or a country-specific dollar market proves it, `matchEvidence`, `originalPrice`, and an optional
+`convertedPrice` from the ECB reference rates via keyless Frankfurter with `rateDate`/`rateSource`.
+A bare `$` stays `unknown` unless the country resolves it; a failed, unsupported or ambiguous pair
+stays unconverted. The assistant prompt now permits only the server-returned conversion and never a
+self-computed one.
+
+**Review and picker.** The uncommitted diff was re-read end to end. A malformed legacy currency no
+longer reaches the exchange-rate fetcher (the listing stays `currency-unverified`), the catalogue's
+bulk list no longer applies `PHP` twice, and the mobile form now opens a searchable ISO 4217 picker
+showing `CODE — English name` and filtering on either. Selection sends only the code; the server
+still validates every write. Tests cover name search, selection, payload currency and a legacy
+product with no recorded currency. The ranked follow-up list is recorded in §27KJ; none of it is
+implemented here.
+
+**Verification.** Server and mobile typechecks passed; focused mobile lint passed and the product-form
+Jest file passed **5/5** (including picker search, selection and a legacy row without currency).
+Focused server coverage passed **8/8** unit and **3/3** DB currency tests,
+AI-48 passed, AI-49 passed **4/4** unit and **2/2** DB, AI-50 passed **7/7**, AI-51 passed **8/8**
+with one DB suite skipped, the Phase 06 AI-tools suite passed **22/22**, the catalog suite passed
+**23/23**, SEED-1 passed its unit and DB catalog checks, Phase 20 filter/pagination passed **24/24**
+after its fixtures were given the now-required currency, and PLAT-8 passed **1/1** on rerun. The final
+complete server run covered **3,255 tests / 532 suites**: **3,255 passed, 0 failed, 0 cancelled**.
+One transient MongoDB reconnect occurred during the run; the suite recovered and every test passed.
+`git diff --check` is clean; documentation guards passed **16/16** and `check-docs` reports **69
+active documents / 46 living references**.
+
+**Residual risks.** Frankfurter covers the ECB currency set, so unsupported pairs remain plainly
+unconverted; there is no fallback rate. Marketplace country is host-derived, and a page with no
+explicit currency stays `unknown` rather than being guessed. There is no automatic legacy backfill:
+a human must verify and PATCH each missing code. The picker searches the accepted list by code and
+English name, but it is not a locale-aware symbol catalogue. The final full server suite passed
+3,255/3,255 across 532 suites with no remaining failure; a transient MongoDB reconnect recovered
+during the run.
 
 ## 2026-11-20 — account-scoped keys, durable movement receipts and AI stream references
 

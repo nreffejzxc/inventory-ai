@@ -31,6 +31,7 @@ import {
   routeDeadStockReads,
   routeLowStockReads,
   asksForLowStockShare,
+  asksForStockCoverage,
   asksForRevenue,
   statesUnqualifiedMoney,
   withRevenueQualifier,
@@ -556,13 +557,17 @@ export function systemPrompt(
     // highest stock?" must not be answered from the first rows of an unsorted inventory read;
     // the server ranks the catalogue and the answer quotes that order and total.
     '42. For the highest or largest stock quantity, call getHighestStockProducts once and quote its ranked rows. Never sort an inventory page, compare quantities across separate reads, or describe the first page of an unfiltered read as the highest-stock set. When the result says it is the top N of a larger count, say that and give the total. When the member asks for a specific top N, pass that number as `limit` (up to 25).',
+    // AI-118 — a run-out estimate is a server-calculated rate, not a model guess. The
+    // tool exists because the roadmap required an explicit window and rule before any
+    // forecast-shaped answer could be shown.
+    '43. For how long stock will last, run-out, stock cover, demand or a forecast, first identify the ONE product the member means, then call getProductStockCoverage once with its id (or exact SKU/barcode), the location if one was named, and a bounded `days` window when the member gave one. Quote its current available quantity, the window, units out and the average daily rate exactly. Call daysOfCover an estimate based on recorded stock-out movements, not sales or a guarantee; stock-out can be usage, damage or a write-off. When daysOfCover is null, say the window had no stock-out and no rate can be estimated — never say the stock will last forever, and never invent seasonality or supplier lead time. This tool is for one product, not a catalogue-wide ranking.',
     ...(sourceRestricted
       ? [
           '39. INVENTORY-ONLY SOURCE LOCK: This question must be answered from the business\'s own recorded data only. Do not search the web, fetch a page, call researchInventoryProducts or researchMarketPrices, or use any external price, supplier, review, rating or quality information. You have no supplier or purchase-order tool on this turn. Use inventory tool output for product names, recorded selling prices, currency, stock and movements. If a market price, cost price, supplier term, lead time, external review or quality rating is not in a tool result, say that it is not available from the inventory tools; do not substitute web data or fill the gap from memory. Do not present an external brand or product as a recommendation. This rule supersedes rules 21, 23, 35 and 36.',
         ]
       : nativeWeb
         ? [
-            '39. OpenRouter native web search and web fetch are enabled for this deployment. For any public-web research, use those native tools directly; do NOT call researchInventoryProducts or researchMarketPrices, because they are not offered while both native tools are available. Rules 21, 23 and 35 are superseded for this turn. First identify the recorded product with findProducts. Then use web search for evidence and web fetch to read the specific source page. Never run the same search twice or fetch the same URL twice in one turn. Answer only from what the native tools returned, cite every source URL exactly, and state the retrieval date for prices. Quote a price only when it appears on a fetched page or in a search result, keep the recorded selling price separate, never convert currency, and never add a product or brand the business does not stock. If the native tools return an error or no usable source, say plainly that the web research is unavailable instead of filling the gap from memory.',
+            '39. OpenRouter native web search and web fetch are enabled for this deployment. For any public-web research, use those native tools directly; do NOT call researchInventoryProducts or researchMarketPrices, because they are not offered while both native tools are available. Rules 21, 23 and 35 are superseded for this turn. First identify the recorded product with findProducts. Then use web search for evidence and web fetch to read the specific source page. Never run the same search twice or fetch the same URL twice in one turn. Answer only from what the native tools returned, cite every source URL exactly, and state the retrieval date for prices. Quote a price only when it appears on a fetched page or in a search result, state its listed currency and the marketplace country, keep the recorded selling price separate, never convert currency yourself, and never add a product or brand the business does not stock. If the native tools return an error or no usable source, say plainly that the web research is unavailable instead of filling the gap from memory.',
           ]
         : []),
   ].join('\n');
@@ -842,6 +847,11 @@ export async function runAiChat({
    * location follow-ups keep their existing path.
    */
   let filteredOutOfStockRead = false;
+  // AI-118 — a run-out question gets ONE corrective re-ask if the model answers from a
+  // different read. The guard is separate from the grounding retry budget: it protects the
+  // named tool contract, and a second failure ships the honest ungrounded sentence instead
+  // of a plausible quantity with no coverage estimate.
+  let stockCoverageReasked = false;
   // AI-116 — the last row-shaped read whose rows the answer can build actions from. Its
   // product IDs become the membership set for a follow-up; its timestamp and filters are
   // the footer's provenance. The output itself is never stored here.
@@ -2100,6 +2110,35 @@ export async function runAiChat({
             break;
           }
         }
+        // AI-118 — a run-out answer must come from the coverage read, not from a plain stock
+        // read that lacks the rate and its window. A model can call getProduct/getInventory,
+        // see the quantity, and answer "about two weeks" without ever selecting the tool; the
+        // prompt alone does not prevent that. Ask once; if coverage still did not succeed,
+        // refuse the grounded-looking draft rather than shipping an invented forecast.
+        if (asksForStockCoverage(message) && !toolsSucceeded.has('getProductStockCoverage')) {
+          if (!isAnswerRound && !stockCoverageReasked) {
+            stockCoverageReasked = true;
+            console.warn(
+              `AI run-out question answered without getProductStockCoverage — asking once turn=${turnId}`,
+            );
+            messages.push({
+              role: 'user',
+              content:
+                'This is a run-out or stock-cover question, and your draft did not use the ' +
+                'coverage read. Call getProductStockCoverage once now, with exactly one of the ' +
+                'product id, SKU or barcode, the location if the member named one, and the ' +
+                'bounded days window if one was given. Answer only from that result: quote the ' +
+                'current available quantity, the stock-out rate and window, and the days-of-cover ' +
+                'estimate, and keep the movement-proxy caveat. Do not estimate from a plain stock ' +
+                'read and do not invent a rate.',
+            });
+            resetStreamedText('a run-out draft without the coverage read was discarded for a re-ask');
+            continue;
+          }
+          degraded = 'UNGROUNDED_ANSWER';
+          finalText = DEGRADED.UNGROUNDED_ANSWER;
+          break;
+        }
         // AI-72 — the model answered a wide read with the dropped place's name still in it.
         // The figures are already right; only the sentence that says what they cover is not, so
         // the label is corrected here instead of being asked for again (re-asking cost a whole
@@ -2822,6 +2861,14 @@ export async function runAiChat({
         inventoryPageComplete = read.complete;
         inventoryReadThisTurn = true;
         inventoryFacts.push(...read.facts);
+      }
+      if (name === 'getProductStockCoverage') {
+        // A coverage answer names one product, so keep its catalogue facts for inline
+        // product links. It is not a paged list and must not replace inventoryFacts:
+        // the available quantity in this result is already summed by the service, and
+        // feeding it into a page-row finalizer would make one product look like a list.
+        const fact = factFrom(resultRecord?.product);
+        if (fact) productFacts.push(fact);
       }
       if (name === 'getInventory') {
         // AI-99 — only the LAST inventory read describes the answer being written. Mixing

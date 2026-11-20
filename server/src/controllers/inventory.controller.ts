@@ -3,7 +3,10 @@ import type { Request, Response } from 'express';
 import { parsePagination, pageResult } from '../utils/pagination.ts';
 import { isObjectId, optionalObjectId, optionalSearch, optionalEnum, validateStockMovement, validateTransfer, ACTIVE_ARCHIVED_STATUSES } from '../utils/validate.ts';
 import { throwValidation, invalidId } from '../utils/errors.ts';
+import ApiError from '../utils/ApiError.ts';
+import { isIdempotencyKey } from '../utils/idempotencyKey.ts';
 import inventoryService from '../services/inventory.service.ts';
+import { inventoryOperationStatus } from '../services/inventoryOperationStatus.service.ts';
 
 /**
  * The request context this controller reads. Local and structural, following
@@ -128,6 +131,23 @@ function parseTransferInput(req: AuthenticatedRequest) {
   };
 }
 
+/**
+ * A literal post-commit 503 for the HTTP regression suite. It is deliberately
+ * gated on a test process and an explicit header, and it is called only AFTER
+ * the service returned, so the movement and its receipt are already durable
+ * when the failure is raised. Production code cannot reach this branch.
+ */
+function injectTestFailureAfterCommit(req: AuthenticatedRequest, operation: string): void {
+  if (!process.env.TEST_MODE && process.env.NODE_ENV !== 'test') return;
+  if (process.env.NODE_ENV === 'production') return;
+  if (req.get('x-test-fault-after-commit') !== operation) return;
+  throw new ApiError(
+    503,
+    `Injected test failure after ${operation} committed`,
+    'TEST_FAULT_AFTER_COMMIT',
+  );
+}
+
 const inventoryController = {
   async list(req: AuthenticatedRequest, res: Response) {
     const parsed = parseQueryList(req);
@@ -147,6 +167,7 @@ const inventoryController = {
       ...input,
       idempotencyKey: req.idempotencyKey,
     });
+    injectTestFailureAfterCommit(req, 'stock-in');
     res.status(201).json({
       transaction: out.transaction,
       previousQuantity: out.previousQuantity,
@@ -160,6 +181,7 @@ const inventoryController = {
       ...input,
       idempotencyKey: req.idempotencyKey,
     });
+    injectTestFailureAfterCommit(req, 'stock-out');
     res.json({
       transaction: out.transaction,
       previousQuantity: out.previousQuantity,
@@ -174,6 +196,7 @@ const inventoryController = {
       ...input,
       idempotencyKey: req.idempotencyKey,
     });
+    injectTestFailureAfterCommit(req, 'transfer');
     res.status(201).json({
       reference: out.reference,
       transaction: out.transaction,
@@ -194,11 +217,25 @@ const inventoryController = {
       ...input,
       idempotencyKey: req.idempotencyKey,
     });
+    injectTestFailureAfterCommit(req, 'adjust');
     res.json({
       transaction: out.transaction,
       previousQuantity: out.previousQuantity,
       newQuantity: out.newQuantity,
     });
+  },
+
+  /** Safe existence/state lookup for the device Pending Operations screen. */
+  async operationStatus(req: AuthenticatedRequest, res: Response) {
+    const key = typeof req.body?.key === 'string' ? req.body.key.trim() : '';
+    if (!isIdempotencyKey(key)) {
+      throwValidation([{ field: 'key', message: 'A valid operation key is required' }]);
+    }
+    const status = await inventoryOperationStatus({
+      businessId: req.user!.businessId,
+      key,
+    });
+    res.json(status);
   },
 };
 

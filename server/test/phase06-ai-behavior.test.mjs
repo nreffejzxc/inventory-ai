@@ -1,7 +1,8 @@
 // Phase 06 — AI chat behavior over the real routes with a scripted fake
 // provider. Proves chat answers are DB-backed (the model's final text is built
 // from real executor results, and we assert the exact numbers), multi-tool
-// flows work, history carries across follow-ups, conversations/messages persist
+// flows work, run-out questions reach the bounded coverage read, history carries
+// across follow-ups, conversations/messages persist
 // with the expected public shape, message length is bounded, and write requests
 // are refused (no write tool exists — they surface as TOOL_NOT_FOUND soft
 // results and nothing is written). DB-backed; fails loudly when MongoDB is
@@ -98,7 +99,7 @@ dbSuite('Phase 06 — AI chat behavior', dbOk, () => {
     expect.productCount = 3;
   });
 
-  // ---- Six sample questions, each DB-backed ----------------------------
+  // ---- Eight sample questions, each DB-backed ---------------------------
 
   it('Q1 "which products are low on stock?" returns the real low-stock set', async () => {
     let turn = 0;
@@ -239,6 +240,107 @@ dbSuite('Phase 06 — AI chat behavior', dbOk, () => {
     const res = await chat(biz.token, { message: 'Show inventory in the warehouse' });
     assert.equal(res.status, 201);
     assert.equal(res.json.assistantMessage.content, 'location-products=3');
+  });
+
+  // ---- Run-out / stock-coverage turns ---------------------------------
+
+  it('Q7 a wrong run-out tool choice is corrected before the answer', async () => {
+    // The provider is scripted: this proves the offer -> selection -> execution -> stored
+    // answer path, not that a live model will choose the tool for every paraphrase. The
+    // first turn deliberately makes the common wrong choice (a plain product/stock read);
+    // the turn loop must re-ask for coverage before any forecast-shaped answer is stored.
+    const runOutSku = uniqueName('COV-RUN');
+    const runOutName = uniqueName('Coverage Run-out');
+    const runOut = await newProduct(biz, { name: runOutName, sku: runOutSku, minimumStock: 2 });
+    await movement(biz, 'stock-in', runOut, locationId, 10);
+    await movement(biz, 'stock-out', runOut, locationId, 4);
+
+    let turn = 0;
+    let offered = [];
+    let system = '';
+    let correctionSeen = false;
+    setFakeScenario((ctx) => {
+      turn += 1;
+      if (turn === 1) {
+        offered = (ctx.tools || []).map((tool) => tool.name);
+        system = ctx.system || '';
+        assert.match(lastUserMessage(ctx), /how long will .* last\?/i);
+        // Wrong on purpose. getProduct reports stock but no coverage rate.
+        return fakeCalls([{ id: 'wrong-1', name: 'getProduct', input: { id: runOut } }]);
+      }
+      if (turn === 2) {
+        // The model tries to answer from the plain product read. The turn loop must
+        // discard this draft and ask for the coverage read before it can be stored.
+        return fakeText(`${runOutName} has 6 units, so it should last about 15 days.`);
+      }
+      if (turn === 3) {
+        const correction = lastUserMessage(ctx);
+        assert.match(correction, /getProductStockCoverage/);
+        assert.match(correction, /run-out|stock-cover/i);
+        correctionSeen = true;
+        return fakeCalls([
+          { id: 'coverage-1', name: 'getProductStockCoverage', input: { id: runOut, days: 10 } },
+        ]);
+      }
+
+      const result = lastToolResult(ctx).result;
+      assert.equal(result.found, true);
+      assert.equal(result.product.id, runOut);
+      assert.equal(result.current.availableQuantity, 6);
+      assert.equal(result.movement.unitsOut, 4);
+      assert.equal(result.movement.stockOutMovements, 1);
+      assert.equal(result.forecast.daysOfCover, 15);
+      assert.match(result.note, /movement proxy/i);
+      return fakeText(
+        `${runOutName} has 6 units available. Over the 10-day window, 4 units went out, ` +
+          'so the estimate is about 15 days of cover. Stock-out is a movement proxy, not confirmed sales.',
+      );
+    });
+
+    const res = await chat(biz.token, { message: `How long will ${runOutName} last?` });
+    assert.equal(res.status, 201, JSON.stringify(res.json));
+    assert.equal(correctionSeen, true, 'the wrong tool choice was never corrected');
+    assert.ok(offered.includes('getProductStockCoverage'), 'coverage tool was not offered to the model');
+    assert.match(system, /getProductStockCoverage/);
+    assert.match(system, /not sales|movement proxy/i);
+    assert.match(res.json.assistantMessage.content, /6 units available/);
+    assert.match(res.json.assistantMessage.content, /15 days of cover/);
+    assert.match(res.json.assistantMessage.content, /movement proxy, not confirmed sales/i);
+    assert.deepEqual(res.json.assistantMessage.toolsUsed, ['getProduct', 'getProductStockCoverage']);
+    assert.deepEqual(res.json.assistantMessage.answerContext.sources, ['Inventory records']);
+  });
+
+  it('Q8 a coverage turn with no stock-out history refuses to invent a rate', async () => {
+    const idleName = uniqueName('Coverage Idle');
+    const idle = await newProduct(biz, { name: idleName, sku: uniqueName('COV-IDLE') });
+    await movement(biz, 'stock-in', idle, locationId, 5);
+
+    let turn = 0;
+    setFakeScenario((ctx) => {
+      turn += 1;
+      if (turn === 1) {
+        return fakeCalls([
+          { id: 'coverage-2', name: 'getProductStockCoverage', input: { id: idle, days: 10 } },
+        ]);
+      }
+
+      const result = lastToolResult(ctx).result;
+      assert.equal(result.found, true);
+      assert.equal(result.current.availableQuantity, 5);
+      assert.equal(result.movement.unitsOut, 0);
+      assert.equal(result.movement.stockOutMovements, 0);
+      assert.equal(result.forecast.daysOfCover, null);
+      assert.match(result.note, /no STOCK_OUT movements/i);
+      return fakeText(
+        `The 10-day window has no stock-out movements for ${idleName}, so no rate can be estimated.`,
+      );
+    });
+
+    const res = await chat(biz.token, { message: `How long will ${idleName} last?` });
+    assert.equal(res.status, 201, JSON.stringify(res.json));
+    assert.match(res.json.assistantMessage.content, /no rate can be estimated/i);
+    assert.doesNotMatch(res.json.assistantMessage.content, /forever|infinite|infinity/i);
+    assert.deepEqual(res.json.assistantMessage.toolsUsed, ['getProductStockCoverage']);
   });
 
   // ---- Read-only enforcement -------------------------------------------

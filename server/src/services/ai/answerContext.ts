@@ -79,6 +79,7 @@ const INVENTORY_TOOLS = new Set([
   'getHighestStockProducts',
   'getStockValue',
   'getProductsNeverSold',
+  'getProductStockCoverage',
   'filterPreviousResults',
 ]);
 
@@ -113,6 +114,7 @@ const FILTER_LABELS: Record<string, string> = {
   type: 'Movement type',
   from: 'From',
   to: 'To',
+  days: 'Lookback days',
   limit: 'Limit',
 };
 

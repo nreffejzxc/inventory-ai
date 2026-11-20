@@ -291,7 +291,13 @@ export default function PoForm({ initial }: PoFormProps) {
     try {
       idempotencyKey = isEdit
         ? undefined
-        : await getOrCreateOperationKey({ kind: 'purchase-order.create', ownerId: user?.id, payload });
+        : await getOrCreateOperationKey({
+            kind: 'purchase-order.create',
+            ownerId: user?.id,
+            payload,
+            label: `Purchase order: ${items.length} line${items.length === 1 ? '' : 's'}`,
+            request: { method: 'POST', path: '/api/purchase-orders', body: payload },
+          });
       const res = isEdit
         ? await purchaseOrdersApi.update(token as string, initial.id, payload)
         : await purchaseOrdersApi.create(token as string, payload, idempotencyKey);

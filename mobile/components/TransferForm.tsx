@@ -153,6 +153,8 @@ export default function TransferForm({
         kind: 'transfer',
         ownerId: user?.id,
         payload,
+        label: `Transfer: ${selectedProduct?.label ?? 'product'} from ${fromLabel ?? 'source'} to ${toLabel ?? 'destination'}`,
+        request: { method: 'POST', path: '/api/inventory/transfer', body: payload },
       });
       const res = await inventoryApi.transfer(token as string, payload, idempotencyKey);
       await completeOperation('transfer', idempotencyKey, user?.id);

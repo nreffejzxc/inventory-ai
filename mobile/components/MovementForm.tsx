@@ -296,6 +296,12 @@ export default function MovementForm({
     const operationKind: IdempotencyKind =
       kind === 'stock-out' ? 'stock-out' : kind === 'adjust' ? 'adjust' : 'stock-in';
     let idempotencyKey: string | undefined;
+    const requestPath =
+      kind === 'stock-out'
+        ? '/api/inventory/stock-out'
+        : kind === 'adjust'
+          ? '/api/inventory/adjust'
+          : '/api/inventory/stock-in';
     const actions: Record<string, () => Promise<ApiResponse>> = {
       'stock-in': () => inventoryApi.stockIn(token as string, payload, idempotencyKey as string),
       'stock-out': () => inventoryApi.stockOut(token as string, payload, idempotencyKey as string),
@@ -307,6 +313,8 @@ export default function MovementForm({
         kind: operationKind,
         ownerId: user?.id,
         payload,
+        label: `${cfg.title}: ${selectedProduct?.label ?? 'product'} at ${selectedLocation?.label ?? 'location'}`,
+        request: { method: 'POST', path: requestPath, body: payload },
       });
       const res = await perform();
       await completeOperation(operationKind, idempotencyKey, user?.id);

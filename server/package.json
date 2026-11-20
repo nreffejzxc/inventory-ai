@@ -29,6 +29,7 @@
     "resolve:product-currency": "node scripts/resolve-product-currency.mjs",
     "audit:failures": "node scripts/audit-failures.mjs",
     "recover:integrity": "node scripts/recover-integrity.mjs",
+    "recover:movement-receipts": "node scripts/recover-movement-receipts.mjs",
     "triage:integrity": "node scripts/triage-integrity.mjs",
     "ops:integrity": "node scripts/ops-integrity.mjs",
     "audit:integrity:monitor": "node scripts/monitor-inventory-integrity.mjs",
@@ -68,6 +69,7 @@
     "perf:turns": "node scripts/measure-ai-turns.mjs",
     "drill:ai-failover": "node scripts/drill-ai-failover.mjs",
     "eval:simple-inventory": "node scripts/eval-simple-inventory.mjs",
+    "eval:stock-coverage": "node scripts/eval-stock-coverage.mjs",
     "eval:simple-10k": "node scripts/eval-simple-inventory-scale.mjs",
     "eval:deployed-gate": "node scripts/perf/deployed-gate.mjs"
   },

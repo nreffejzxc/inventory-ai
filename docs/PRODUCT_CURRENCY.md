@@ -54,6 +54,11 @@ starts with `expectedName` filled and `currency`/`evidence` blank. A human must:
 3. fill `currency` and the specific `evidence` note for every row;
 4. remove any row that cannot be verified.
 
+The template is capped at **5,000 rows**. If more unresolved rows exist, the command still writes a
+valid template but prints a `WARNING: review template truncated at 5,000 rows` line to stderr.
+Resolve that batch, then rerun `--template` for the next one. Never treat a truncated template as a
+complete review of the tenant.
+
 Do not infer a currency from a price, a symbol, a locale, a marketplace or the tenant's country.
 `expectedName` is a typo guard; the resolver refuses a row whose recorded name does not match it.
 
@@ -138,8 +143,13 @@ rates. It has no fallback rate.
 Monitoring is process-local since boot. `exchangeRateAvailability()` returns request, cache-hit,
 verified, stale and unavailable counts, the last verified date, and the last failure kind. Every
 failure emits one structured `[exchange-rates]` warning with the pair and reason, never a credential
-or response body. The counters are not a cluster-wide metric and are not a readiness gate: an ECB
-outage must not make the inventory service fail readiness.
+or response body. The same snapshot is published by `GET /api/health` under `exchangeRates`, beside
+the OPS-2 response counters. It contains aggregate process state only — no tenant, product, request,
+URL or provider body. Its `status` is `unused`, `available`, `degraded` or `unavailable`. The
+counters are not a cluster-wide metric and are not a readiness gate:
+`/api/health/ready` and `/api/health/live` do not read them, and an ECB outage must not make the
+inventory service fail readiness. No conversion path or fallback rule changes because this field is
+published.
 
 ## 5. Verification
 
@@ -148,11 +158,41 @@ cd server
 npm run typecheck
 TEST_MODE=unit node --test test/currency-required-and-marketplace.test.mjs
 TEST_MODE=db node --test test/currency-required-and-marketplace.test.mjs
+TEST_MODE=unit node --test test/CURRENCY-RESOLVER-CLI.test.mjs
+TEST_MODE=unit node --test test/phase07d-production-config.test.mjs
 ```
 
 The DB suite covers dry-run no-write behavior, a single audited resolution, rerun idempotency,
-valid-code conflicts, cross-tenant refusal, name mismatches and evidence validation. The unit suite
-covers cache reuse, expiry, stale dates, missing rates, malformed pairs and network failure.
+valid-code conflicts, cross-tenant refusal, name mismatches and evidence validation. It also creates
+**5,001** real unresolved rows and proves the read returns exactly **5,000**, sets
+`truncated: true` and excludes the extra probe row. The unit suite covers cache reuse, expiry, stale
+dates, missing rates, malformed pairs and network failure. The resolver CLI suite is database-free
+and covers template output (including the 5,000-row warning),
+dry-run, explicit apply, invalid arguments, test-database refusal, connection/evidence failures,
+production confirmation and the documented `0/1/2` exits. The focused health suite proves the
+`exchangeRates` snapshot is present on `/api/health` while `/ready` and `/live` remain unchanged.
+
+## 6. Ranked follow-up opportunities (not implemented)
+
+These are proposals for a later increment. None are implemented by §27KL. Rank is value against
+effort and operational risk; dependencies name the work that must land first. Six extend the §27KJ
+list (durable telemetry, conversion provenance, resumable batches, price effective dates, anomaly
+advice and audited bulk updates); the other six re-rank items already named there.
+
+| Rank | Improvement | Benefit | Dependency / guard |
+| --- | --- | --- | --- |
+| 1 | **Durable, cross-instance rate health and alerting.** Persist the availability counters and alert when verified rates stop arriving. | A restart currently erases the only evidence, and one instance can fail while another stays healthy. | A small metrics store or aggregate, retention and an alert owner. Keep the signal informational; never gate readiness or invent a fallback rate. |
+| 2 | **Conversion provenance on every converted listing.** Store the rate pair, provider, ECB rate date and the exact fetched value alongside the displayed conversion. | An operator can reproduce why a price was converted after the six-hour cache expires, and can audit a later correction. | A schema addition and a backfill decision for existing listings; keep the current “only dated ECB reference” rule. |
+| 3 | **Resumable review batches and conflict triage.** Track the 5,000-row template batches, their reviewer, remaining rows and conflicts in an operator queue. | The current cap is safe but manual; large tenants need to know which batch is next and what was rejected. | A durable review-status store, tenant-scoped audit events and a bounded operator UI/API. Never auto-fill a currency. |
+| 4 | **Price review queue with provenance and effective dates.** Give cost/selling prices a reviewed-at, source note and effective date, and surface stale or unverified rows. | Detects old or unapproved prices before they affect margins and analytics. | Price schema/versioning, migration and a review UI. Do not infer a price from a marketplace listing. |
+| 5 | **Currency-safe CSV and bulk import validation.** Require an explicit currency column on imports and reject mixed-currency or bare-price rows with row-level errors. | Bulk entry is the easiest way to bypass the create/PATCH rule; validation keeps the invariant at the boundary. | An import contract and preview/error report; the server remains authoritative. |
+| 6 | **Server-owned currency metadata endpoint.** Expose code, English name, symbol and minor-unit exponent from one server list. | Removes the mobile/server list-drift risk and gives every client one source for display rules. | An API contract and mobile adoption; no exchange-rate lookup is involved. |
+| 7 | **Currency change history and controlled correction.** Make a currency correction a versioned event with previous/new value, reason, reviewer and an explicit rollback path. | Today the audit event records the change, but operators cannot easily review or reverse a mistaken resolution later. | A history query and retention policy; corrections must stay separate from normal product edits. |
+| 8 | **Marketplace evidence hardening.** Prefer JSON-LD product/seller/variant fields, record the match method and flag listings whose evidence is stale. | Reduces wrong product matches and therefore wrong converted prices. | Parser/fixture work, fetch timeouts and cache limits; ambiguous evidence must remain unverified. |
+| 9 | **Verified provider failover with a circuit breaker.** Add a second dated reference-rate source only when it meets the same provenance rules, with explicit source labelling. | Keeps conversion available during a Frankfurter/ECB outage without guessing. | A reviewed provider contract, parser tests and a new no-fallback policy. This is deliberately last because it expands the trust boundary. |
+| 10 | **Advisory price anomaly detection.** Flag unusual cost/selling changes against product and category history for human review. | Catches typos and accidental decimal shifts earlier. | Enough history, a tenant-scoped baseline and false-positive review. Advisory only; never auto-edit a price. |
+| 11 | **Explicit no-sum multi-currency analytics.** Report stock value by currency with the rate date and refuse to add unlike currencies into one total. | Prevents a headline total from silently mixing currencies. | Reporting queries and labels; reuse the existing conversion/provenance rules rather than a new rate cache. |
+| 12 | **Audited bulk price updates with a currency guard.** Allow a reviewed batch price change while requiring the row's currency and a concurrency check. | Makes legitimate corrections efficient without weakening the one-row audit trail. | A bulk API, optimistic version checks and per-row audit; no currency inference. |
 
 No production data, migration or deployment is part of this workflow. A real resolution run needs a
 reviewed file and the explicit production confirmation above.

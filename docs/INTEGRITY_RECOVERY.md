@@ -1,13 +1,13 @@
 # Inventory integrity, recovery and price quality
 
-**Last reviewed:** 2026-11-19
+**Last reviewed:** 2026-11-20
 **Scope:** durable transfer journals and reconciliation, the unique transfer-ledger guard and its
 migration, the cross-instance recovery lease, PO receive idempotency and request fingerprints,
 abandoned receive-claim recovery, the category archive policy, audit-failure monitoring, the
 read-only price-quality report, currency-safe AI price ranking, the scheduled operational runner
 for the three integrity commands, fail-closed readiness for the unique ledger index, and the
-read-only attention triage. This is the operator and design reference; §27KG and §27KH in
-`DEVELOPMENT_ROADMAP.md` record this tranche.
+read-only attention triage, and receipt retention/recovery. This is the operator and design
+reference; §27KG, §27KH and §27KK in `DEVELOPMENT_ROADMAP.md` record this work.
 
 ## 1. What is guaranteed
 
@@ -16,7 +16,7 @@ proof around them; it does **not** turn multi-document work into a MongoDB trans
 
 | Operation | Guarantee | Deliberate limit |
 | --- | --- | --- |
-| Stock-in / stock-out / adjustment | A keyed movement writes a durable receipt before stock moves. A retry under the same key replays the stored answer, recovers the ledger row, or rolls the missing ledger row forward from the receipt's exact snapshots. | No key means no receipt: older clients and direct service callers keep the transport-only behavior. An outcome that cannot be proven becomes `REQUIRES_ATTENTION` and answers `409 MOVEMENT_REQUIRES_ATTENTION`. |
+| Stock-in / stock-out / adjustment | A keyed movement writes a durable receipt before stock moves. A retry under the same key replays the stored answer, recovers the ledger row, or rolls the missing ledger row forward from the receipt's exact snapshots. A scheduled pass and the dry-run-first operator command use the same proof, and completed receipts are pruned only after retention. | No key means no receipt: older clients and direct service callers keep the transport-only behavior. An outcome that cannot be proven becomes `REQUIRES_ATTENTION` and answers `409 MOVEMENT_REQUIRES_ATTENTION`; neither the pass nor the command deletes it. |
 | Stock transfer | A journal is written before stock moves. A stale journal is completed only when both inventory legs and their exact snapshots are present; otherwise the provable side is undone, or the row becomes `REQUIRES_ATTENTION`. | A row changed after the transfer window is never overwritten. Ambiguity is surfaced, not guessed. |
 | Transfer ledger uniqueness | The database enforces at most one TRANSFER ledger row per `(businessId, transferOperationId, locationId)` through a unique partial index. Two recovery passes can both try the missing leg; only one insert wins. | The index must be built in each environment. Existing duplicates are a migration decision, not silently deleted. |
 | Transfer retry | The same `Idempotency-Key` with the same request replays the stored response. The same key with different product, locations, quantity, reason or reference is `422 IDEMPOTENCY_KEY_REUSED`. | A journal created before this field existed has no fingerprint and is replayed by key alone. |
@@ -106,12 +106,31 @@ movements from `inventory_transactions`. A retry proves the outcome in this orde
 A verified compensation deletes the receipt so a corrected retry starts cleanly. An unverified
 failure keeps it. The same key with a different fingerprint is `422 IDEMPOTENCY_KEY_REUSED`. The
 client keeps its stored key on the attention answer; support resolves the receipt, and the next
-retry replays the resolved outcome. Receipts have no TTL or reaper yet: a `REQUIRES_ATTENTION` row
-stays until a person resolves it, and completed rows remain as operational evidence.
+retry replays the resolved outcome.
+
+The recovery pass uses stricter proof than a replay: a ledger row must also match the receipt's
+kind, product, location, previous/new quantities and movement quantity. A row that exists but
+contradicts the receipt becomes `REQUIRES_ATTENTION`; it is never accepted merely because it
+carries the receipt id. The `INVENTORY_WRITTEN` path similarly requires an arithmetically valid
+snapshot before it writes the missing ledger row.
+
+Receipt lifecycle:
+
+- an unfinished receipt older than **60 seconds** is abandoned and may be recovered by the
+  scheduled pass or the operator command;
+- a `REQUIRES_ATTENTION` receipt is reconsidered only through the same proof; a ledger row that
+  matches every movement field resolves it, and anything else leaves it visible;
+- a `COMPLETED` receipt older than **30 days** is pruned by the operator command only while its
+  matching ledger row still exists and still proves the movement; a missing or contradictory row
+  blocks pruning instead of erasing the evidence;
+- recovery writes `MOVEMENT_RECEIPT_RECOVERED` and retention writes `MOVEMENT_RECEIPT_PRUNED`
+  audit events under entity type `STOCK_MOVEMENT_OPERATION`, with the receipt id and ledger id but
+  never the idempotency key.
 
 ## 3. When recovery runs
 
-`server/src/services/recoveryScheduler.ts` runs one transfer pass and one claim pass:
+`server/src/services/recoveryScheduler.ts` runs one transfer pass, one claim pass and one movement
+receipt pass:
 
 - 30 seconds after a serving process boots;
 - every 5 minutes thereafter;
@@ -119,9 +138,9 @@ stays until a person resolves it, and completed rows remain as operational evide
 - never overlapping within one process;
 - stopped before database shutdown.
 
-Only transfer journals older than **60 seconds** and claims older than **10 minutes** are
-candidates, so a healthy request is not stolen. A failed pass is logged and does not stop the API.
-The reapers are bounded to 50 rows per pass.
+Only transfer journals and movement receipts older than **60 seconds**, and claims older than
+**10 minutes**, are candidates, so a healthy request is not stolen. A failed pass is logged and
+does not stop the API. The reapers are bounded to 50 rows per pass.
 
 Before either reaper runs, the pass acquires one MongoDB lease in
 `integrity_recovery_leases` (fixed id `integrity-recovery`, default 10-minute expiry, renewed
@@ -186,9 +205,18 @@ npm run audit:failures -- --business=<24-hex-id> --format=json
 npm run audit:price-quality
 npm run audit:price-quality -- --business=<24-hex-id> --format=json
 
+# Read-only: every status, missing or invalid product currency only.
+npm run audit:product-currency
+npm run audit:product-currency -- --business=<24-hex-id> --format=json
+
 # Writes only exact recovery actions; prints counts and flags anything unresolved.
 npm run recover:integrity
 npm run recover:integrity -- --format=json
+
+# Receipt maintenance: dry-run by default; --apply writes proven recovery/pruning.
+npm run recover:movement-receipts
+npm run recover:movement-receipts -- --with-production --format=json
+npm run recover:movement-receipts -- --with-production --apply
 
 # Read-only: REQUIRES_ATTENTION journals and quarantined ledger rows, with evidence.
 npm run triage:integrity
@@ -208,7 +236,9 @@ npm run ops:integrity -- --command=recover:integrity --with-production --notify
 | --- | --- | --- | --- |
 | `audit:failures` | no failures in the window | at least one gap | not checked (arguments, connection, wrong database) |
 | `audit:price-quality` | no price problem | at least one problem | not checked |
+| `audit:product-currency` | every product has a valid ISO 4217 code | at least one missing/invalid code | not checked |
 | `recover:integrity` | pass ran, no row failed | at least one row failed to reconcile | not checked |
+| `recover:movement-receipts` | nothing to do, or an apply left no attention or failure | attention remains, a failure occurred, or a dry run found work | not checked |
 | `triage:integrity` | no attention journal, movement receipt or quarantine row | at least one attention/quarantine row | not checked |
 | `migrate:transfer-ledger-index` | clean, or applied successfully | duplicates need review, or ambiguity blocked apply | not checked |
 | `ops:integrity` | command clean, or another run held the lock | finding/attention | NOT CHECKED or runner error |
@@ -216,6 +246,29 @@ npm run ops:integrity -- --command=recover:integrity --with-production --notify
 `recover:integrity` exits 0 when another process holds the recovery lease and the pass is
 skipped; this is duplicate-run prevention, not a claim that a different pass succeeded. Its JSON
 carries `skipped: "lease-held"` so a scheduler can tell the difference.
+
+`recover:movement-receipts` is a separate, dry-run-first command for the movement receipts. It
+does not take the integrity lease: it is an operator maintenance command, while the scheduled pass
+holds the shared lease. Use it as follows:
+
+```bash
+cd server
+npm run recover:movement-receipts -- --with-production
+# review the rows, then explicitly apply:
+npm run recover:movement-receipts -- --with-production --apply
+```
+
+`--older-than-minutes`, `--retention-days`, `--limit` and `--format=json` are bounded options.
+The command refuses the test database, requires `MONGODB_URI`, and never touches another tenant's
+receipt when `--business=<24-hex-id>` is supplied. A dry run reports `recovered`, `flagged`,
+`blocked`, `pruned` and `failed` counts plus each row's evidence, and changes nothing. An apply
+writes only the proven recovery/pruning actions and leaves blocked attention unchanged.
+
+The bounded batch is selected in two parts: stale `IN_PROGRESS` / `INVENTORY_WRITTEN` rows first,
+then `REQUIRES_ATTENTION` rows only for the remaining slots. An old attention backlog therefore
+cannot starve a newer unfinished receipt, while attention rows still appear whenever the batch has
+capacity. An apply that flags a previously unfinished row has left attention behind, so it exits
+**1** just as a remaining blocked row does.
 
 `ops:integrity` runs the existing command as a child, preserves its 0/1/2 distinction, and never
 turns a NOT CHECKED result into a data finding. It acquires one lock file per command under the
@@ -232,7 +285,10 @@ run without `--notify` carries the pending record forward instead of erasing it.
 write itself fails, the delivery cannot be retried automatically: the error is printed and the
 next successful run recomputes the signature from GitHub's open issues.
 
-`audit:failures` and `audit:price-quality` are reports, not repairs. `recover:integrity` writes
+`audit:failures`, `audit:price-quality` and `audit:product-currency` are reports, not repairs.
+`audit:product-currency` never assigns a code: verify the product's actual currency, then resolve it
+with `PATCH /api/products/:id { "currency": "PHP" }` (or the mobile edit form). A legacy product
+with no valid code must receive one before any other edit is accepted. `recover:integrity` writes
 only the actions in §2 and §5. A `REQUIRES_ATTENTION` row stays in the database for manual
 investigation; there is no automatic unflag command. `triage:integrity` is the read-only view for
 that investigation. Its database reads live in `server/scripts/lib/triage-read.mjs`, separate from
@@ -319,10 +375,12 @@ attempting the index read.
 - **Lease expiry is time-based.** A pass that loses its lease may finish alongside a new owner. The
   unique ledger guard and quantity-anchored recovery keep that safe, but a duplicate recovery audit
   can still be written. The lease reduces this window; it does not make the audit idempotent.
-- **A flagged movement receipt needs a person.** Retrying it under the same key answers `409
-  MOVEMENT_REQUIRES_ATTENTION`; there is no unflag or repair command. `triage:integrity` prints the
-  receipt and its evidence. Completed and abandoned receipts have no TTL or reaper yet, so the
-  collection grows with keyed movements.
+- **A flagged movement receipt still needs a person unless proof appears.** Retrying it under the
+  same key answers `409 MOVEMENT_REQUIRES_ATTENTION`; `recover:movement-receipts --apply` can
+  resolve it only when a matching ledger row or an exact `INVENTORY_WRITTEN` snapshot proves the
+  move. An unprovable row remains visible to `triage:integrity`. Completed receipts are pruned
+  after 30 days; abandoned and attention rows are never auto-deleted, so a permanently
+  unprovable receipt remains until an operator investigates it.
 - **Recovery audit can duplicate.** If a process died after writing the recovery audit but before
   marking `COMPLETED`, the next pass writes a second audit event. Inventory is unaffected.
 - **Alert retries need a later run.** A failed GitHub delivery is durable in local history, but
@@ -360,6 +418,14 @@ attempting the index read.
 - audit-gap sanitization and tenant scoping;
 - price-quality problems and write-free reporting;
 - AI price tie order and mixed-currency blocking.
+
+`server/test/MOVEMENT-RECEIPT-RECOVERY.test.mjs` covers 8 DB-backed cases: a dry run that writes
+nothing followed by a ledger-proven apply with an audit row; exact `INVENTORY_WRITTEN` snapshot
+recovery; a full batch of old attention rows not starving a newer unfinished receipt; an
+unprovable receipt flagged without deletion; attention resolved only by a matching ledger row
+while an ambiguous row stays blocked; a contradictory ledger row never resolving attention;
+completed-receipt retention with the dry run keeping the row; and a completed receipt whose
+ledger proof is missing being kept, not pruned.
 
 `server/test/TLI-transfer-ledger-guard.test.mjs` covers the new guard in 5 DB-backed cases:
 

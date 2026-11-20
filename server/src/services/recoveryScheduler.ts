@@ -3,6 +3,7 @@ import mongoose from 'mongoose';
 import { INSTANCE_ID } from '../config/instanceIdentity.ts';
 import { recoverStaleTransferOperations } from './stockTransferRecovery.service.ts';
 import { recoverStalePurchaseOrderClaims } from './purchaseOrderClaimRecovery.service.ts';
+import { recoverStaleMovementReceipts } from './stockMovementReceiptRecovery.service.ts';
 import {
   acquireIntegrityRecoveryLease,
   DEFAULT_INTEGRITY_RECOVERY_LEASE_MS,
@@ -19,6 +20,7 @@ export type IntegrityRecoveryHandle = {
 export type IntegrityRecoveryTotals = {
   transfers: Awaited<ReturnType<typeof recoverStaleTransferOperations>> | null;
   claims: Awaited<ReturnType<typeof recoverStalePurchaseOrderClaims>> | null;
+  movements: Awaited<ReturnType<typeof recoverStaleMovementReceipts>> | null;
   lease: { acquired: boolean; owner?: string; expiresAt?: string } | null;
   /** Set when the pass deliberately did nothing; never a claim that recovery is clean. */
   skipped?: 'not-connected' | 'lease-held';
@@ -40,19 +42,21 @@ export async function runIntegrityRecoveryPass({
   leaseTtlMs = DEFAULT_INTEGRITY_RECOVERY_LEASE_MS,
   recoverTransfers = recoverStaleTransferOperations,
   recoverClaims = recoverStalePurchaseOrderClaims,
+  recoverMovements = recoverStaleMovementReceipts,
 }: {
   owner?: string;
   leaseTtlMs?: number;
   recoverTransfers?: typeof recoverStaleTransferOperations;
   recoverClaims?: typeof recoverStalePurchaseOrderClaims;
+  recoverMovements?: typeof recoverStaleMovementReceipts;
 } = {}): Promise<IntegrityRecoveryTotals> {
   if (mongoose.connection.readyState !== 1) {
-    return { transfers: null, claims: null, lease: null, skipped: 'not-connected' };
+    return { transfers: null, claims: null, movements: null, lease: null, skipped: 'not-connected' };
   }
 
   const lease = await acquireIntegrityRecoveryLease({ owner, ttlMs: leaseTtlMs });
   if (!lease) {
-    return { transfers: null, claims: null, lease: { acquired: false }, skipped: 'lease-held' };
+    return { transfers: null, claims: null, movements: null, lease: { acquired: false }, skipped: 'lease-held' };
   }
 
   const heartbeat = setInterval(() => {
@@ -73,6 +77,7 @@ export async function runIntegrityRecoveryPass({
 
   let transfers: IntegrityRecoveryTotals['transfers'] = null;
   let claims: IntegrityRecoveryTotals['claims'] = null;
+  let movements: IntegrityRecoveryTotals['movements'] = null;
   try {
     try {
       transfers = await recoverTransfers();
@@ -88,6 +93,13 @@ export async function runIntegrityRecoveryPass({
         `[integrity-recovery] PO claim pass failed: ${err instanceof Error ? err.message : 'unknown error'}`,
       );
     }
+    try {
+      movements = await recoverMovements();
+    } catch (err) {
+      console.error(
+        `[integrity-recovery] movement receipt pass failed: ${err instanceof Error ? err.message : 'unknown error'}`,
+      );
+    }
 
     const transferWork =
       (transfers?.completed ?? 0) +
@@ -100,6 +112,11 @@ export async function runIntegrityRecoveryPass({
       (claims?.receipted ?? 0) +
       (claims?.flagged ?? 0) +
       (claims?.failed ?? 0);
+    const movementWork =
+      (movements?.completed ?? 0) +
+      (movements?.flagged ?? 0) +
+      (movements?.blocked ?? 0) +
+      (movements?.failed ?? 0);
     if (transferWork > 0) {
       console.log(
         `[integrity-recovery] transfers scanned=${transfers?.scanned ?? 0} completed=${transfers?.completed ?? 0} compensated=${transfers?.compensated ?? 0} flagged=${transfers?.flagged ?? 0} failed=${transfers?.failed ?? 0}`,
@@ -110,9 +127,15 @@ export async function runIntegrityRecoveryPass({
         `[integrity-recovery] PO claims scanned=${claims?.scanned ?? 0} released=${claims?.released ?? 0} undone=${claims?.undone ?? 0} receipted=${claims?.receipted ?? 0} flagged=${claims?.flagged ?? 0} failed=${claims?.failed ?? 0}`,
       );
     }
+    if (movementWork > 0) {
+      console.log(
+        `[integrity-recovery] movement receipts scanned=${movements?.scanned ?? 0} completed=${movements?.completed ?? 0} flagged=${movements?.flagged ?? 0} blocked=${movements?.blocked ?? 0} failed=${movements?.failed ?? 0}`,
+      );
+    }
     return {
       transfers,
       claims,
+      movements,
       lease: { acquired: true, owner: lease.owner, expiresAt: lease.expiresAt.toISOString() },
     };
   } finally {

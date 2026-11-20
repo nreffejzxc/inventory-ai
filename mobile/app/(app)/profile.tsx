@@ -311,6 +311,16 @@ export default function ProfileScreen() {
           style={styles.editName}
           onPress={() => router.push('/sessions')}
         />
+        <Button
+          title="Pending operations"
+          variant="secondary"
+          style={styles.editName}
+          onPress={() => router.push('/pending-operations')}
+        />
+        <Text style={styles.securityText}>
+          Check or safely retry a stock change or new record that was interrupted before this phone received an
+          answer.
+        </Text>
       </Card>
 
       {/*

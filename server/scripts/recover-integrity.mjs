@@ -123,9 +123,20 @@ async function main() {
       } else {
         console.log('PO claims: not run');
       }
+      if (totals.movements) {
+        console.log(
+          `movement receipts: scanned=${totals.movements.scanned} completed=${totals.movements.completed} ` +
+            `flagged=${totals.movements.flagged} blocked=${totals.movements.blocked} failed=${totals.movements.failed}`
+        );
+      } else {
+        console.log('movement receipts: not run');
+      }
       console.log('Anything flagged REQUIRES_ATTENTION must be reviewed by hand.');
     }
-    const failed = (totals.transfers?.failed ?? 0) + (totals.claims?.failed ?? 0);
+    const failed =
+      (totals.transfers?.failed ?? 0) +
+      (totals.claims?.failed ?? 0) +
+      (totals.movements?.failed ?? 0);
     // A skipped pass is not a failed reconciliation: another instance owns the
     // lease and is doing the work. This is the duplicate-run prevention path.
     return failed > 0 ? 1 : 0;

@@ -80,6 +80,8 @@ const EXPECTED_TOOLS = [
   'filterPreviousResults',
   // AI-71: dead stock — ACTIVE products with no stock-out on record at all.
   'getProductsNeverSold',
+  // AI-118: one-product, windowed run-out estimate from recorded stock-out.
+  'getProductStockCoverage',
   // AI-14: the two reference lists the id-taking tools needed to be usable.
   'listLocations',
   'listCategories',
@@ -1984,6 +1986,8 @@ dbSuite('OpenRouter provider — real full-catalogue workload', dbOk, () => {
       { id: 't19', name: 'researchMarketPrices', input: { productIds: '000000000000000000000000' } },
       // AI-113: the server-ranked highest-stock read, with no arguments it accepts.
       { id: 't20', name: 'getHighestStockProducts', input: {} },
+      // AI-118: the bounded run-out read for the product this fixture stocked.
+      { id: 't21', name: 'getProductStockCoverage', input: { id: productId, days: 10 } },
     ];
   }
 

@@ -38,7 +38,9 @@ import Product from '../src/models/product.model.ts';
 import AuditLog from '../src/models/auditLog.model.ts';
 import { productCurrencyAuditReport } from '../src/services/productCurrencyAudit.service.ts';
 import {
+  MAX_CURRENCY_RESOLUTION_ENTRIES,
   resolveProductCurrencies,
+  unresolvedCurrencyCandidates,
   validateCurrencyResolutionEvidence,
 } from '../src/services/productCurrencyResolution.service.ts';
 
@@ -515,6 +517,42 @@ dbSuite('Currency contract — API, legacy rows, audit and assistant output', db
     assert.equal(invalid.ok, false);
     assert.ok(invalid.errors.some((error) => error.includes('reviewedBy')));
     assert.ok(invalid.errors.some((error) => error.includes('currency')));
+  });
+
+  it('★ caps the review template at 5,000 rows and reports truncation', async () => {
+    const capBusinessId = new mongoose.Types.ObjectId();
+    const prefix = uniqueName('Cap candidates');
+    const candidateNames = Array.from(
+      { length: MAX_CURRENCY_RESOLUTION_ENTRIES + 1 },
+      (_, index) => `${prefix}-${String(index).padStart(5, '0')}`,
+    );
+    const now = new Date();
+
+    try {
+      await Product.collection.insertMany(
+        candidateNames.map((name) => ({
+          businessId: capBusinessId,
+          name,
+          status: 'ACTIVE',
+          createdAt: now,
+          updatedAt: now,
+        })),
+      );
+
+      const result = await unresolvedCurrencyCandidates({ businessId: String(capBusinessId) });
+      assert.equal(result.limit, MAX_CURRENCY_RESOLUTION_ENTRIES);
+      assert.equal(result.items.length, MAX_CURRENCY_RESOLUTION_ENTRIES);
+      assert.equal(result.truncated, true);
+      assert.equal(result.items[0].name, candidateNames[0]);
+      assert.equal(result.items.at(-1).name, candidateNames[MAX_CURRENCY_RESOLUTION_ENTRIES - 1]);
+      assert.equal(
+        result.items.some((row) => row.name === candidateNames[MAX_CURRENCY_RESOLUTION_ENTRIES]),
+        false,
+        'the extra probe row must not be included in the template',
+      );
+    } finally {
+      await Product.deleteMany({ businessId: capBusinessId });
+    }
   });
 
   it('★ the assistant sees the exact recorded selling price and currency, never internal cost', async () => {

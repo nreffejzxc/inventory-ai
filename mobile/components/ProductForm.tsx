@@ -155,7 +155,13 @@ export default function ProductForm({ initial }: { initial?: ApiResponse }) {
     try {
       idempotencyKey = isEdit
         ? undefined
-        : await getOrCreateOperationKey({ kind: 'product.create', ownerId: user?.id, payload });
+        : await getOrCreateOperationKey({
+            kind: 'product.create',
+            ownerId: user?.id,
+            payload,
+            label: `Product: ${payload.name || 'new product'}`,
+            request: { method: 'POST', path: '/api/products', body: payload },
+          });
       if (isEdit) await productsApi.update(token as string, initial.id, payload);
       else await productsApi.create(token as string, payload, idempotencyKey);
       if (idempotencyKey) await completeOperation('product.create', idempotencyKey, user?.id);

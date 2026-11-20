@@ -284,6 +284,145 @@ it('refuses a corrupt stored record rather than resuming it', async () => {
   expect(next).not.toBe(first);
 });
 
+/** Minimal response shape used by the real API client in these tests. */
+function apiResponse(body: unknown, status = 200): Response {
+  return {
+    status,
+    ok: status >= 200 && status < 300,
+    json: async () => body,
+    headers: { get: () => null },
+  } as unknown as Response;
+}
+
+it('lists unfinished operations with safe labels and never the raw key', async () => {
+  const module = coldStart();
+  const key = await module.getOrCreateOperationKey({
+    ...OPERATION,
+    label: 'Stock in: Kettle at Main warehouse',
+    request: {
+      method: 'POST',
+      path: '/api/inventory/stock-in',
+      body: OPERATION.payload,
+    },
+  });
+
+  const listed = await module.listPendingOperations(OPERATION.ownerId);
+  expect(listed).toHaveLength(1);
+  expect(listed[0]?.label).toBe('Stock in: Kettle at Main warehouse');
+  expect(listed[0]?.requestAvailable).toBe(true);
+  expect(JSON.stringify(listed)).not.toContain(key);
+  expect(listed[0]).not.toHaveProperty('key');
+});
+
+it('checks a stored operation internally and removes its key when completed', async () => {
+  const { idempotency } = coldStartWithClient();
+  const key = await idempotency.getOrCreateOperationKey({
+    ...OPERATION,
+    request: {
+      method: 'POST',
+      path: '/api/inventory/stock-in',
+      body: OPERATION.payload,
+    },
+  });
+  const [item] = await idempotency.listPendingOperations(OPERATION.ownerId);
+  const fetchMock = jest.fn(async () =>
+    apiResponse({ state: 'UNKNOWN', reference: 'MOV-123', checkedAt: '2026-11-20T00:00:00.000Z' }),
+  );
+  global.fetch = fetchMock as unknown as typeof fetch;
+
+  const result = await idempotency.checkPendingOperation(OPERATION.ownerId, item!.id, 'token');
+  expect(result.state).toBe('UNKNOWN');
+  expect(fetchMock).toHaveBeenCalledTimes(1);
+  const [, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+  expect(init.headers).not.toHaveProperty('Idempotency-Key');
+  expect(JSON.parse(String(init.body))).toEqual({ key });
+  expect(await idempotency.listPendingOperations(OPERATION.ownerId)).toHaveLength(1);
+
+  fetchMock.mockResolvedValueOnce(
+    apiResponse({ state: 'COMPLETED', reference: 'MOV-123', checkedAt: '2026-11-20T00:00:01.000Z' }),
+  );
+  await idempotency.checkPendingOperation(OPERATION.ownerId, item!.id, 'token');
+  expect(await idempotency.listPendingOperations(OPERATION.ownerId)).toHaveLength(0);
+});
+
+it('retries the exact stored request under its key and keeps it after an ambiguous failure', async () => {
+  const { idempotency } = coldStartWithClient();
+  const key = await idempotency.getOrCreateOperationKey({
+    ...OPERATION,
+    request: {
+      method: 'POST',
+      path: '/api/inventory/stock-in',
+      body: OPERATION.payload,
+    },
+  });
+  const [item] = await idempotency.listPendingOperations(OPERATION.ownerId);
+  const fetchMock = jest
+    .fn()
+    .mockResolvedValueOnce(apiResponse({ code: 'SERVER_ERROR', error: 'Failed' }, 503))
+    .mockResolvedValueOnce(apiResponse({ productId: 'p1', quantityAfter: 5 }));
+  global.fetch = fetchMock as unknown as typeof fetch;
+
+  await expect(
+    idempotency.retryPendingOperation(OPERATION.ownerId, item!.id, 'token'),
+  ).rejects.toMatchObject({ status: 503 });
+  expect(await idempotency.listPendingOperations(OPERATION.ownerId)).toHaveLength(1);
+
+  await idempotency.retryPendingOperation(OPERATION.ownerId, item!.id, 'token');
+  const [, init] = fetchMock.mock.calls[1] as unknown as [string, RequestInit];
+  expect(init.headers).toMatchObject({ 'Idempotency-Key': key });
+  expect(JSON.parse(String(init.body))).toEqual(OPERATION.payload);
+  expect(await idempotency.listPendingOperations(OPERATION.ownerId)).toHaveLength(0);
+});
+
+it('accepts a retry descriptor only on the endpoint that belongs to its operation', async () => {
+  const module = coldStart();
+  const cases = [
+    { kind: 'product.create', path: '/api/products' },
+    { kind: 'purchase-order.create', path: '/api/purchase-orders' },
+    { kind: 'reference.create', path: '/api/categories' },
+    { kind: 'reference.create', path: '/api/locations' },
+    { kind: 'reference.create', path: '/api/suppliers' },
+    { kind: 'stock-in', path: '/api/inventory/stock-in' },
+    { kind: 'stock-out', path: '/api/inventory/stock-out' },
+    { kind: 'adjust', path: '/api/inventory/adjust' },
+    { kind: 'transfer', path: '/api/inventory/transfer' },
+    { kind: 'purchase-order.receive', path: '/api/purchase-orders/507f1f77bcf86cd799439011/receive' },
+  ] as const;
+
+  for (const [index, entry] of cases.entries()) {
+    const ownerId = `owner-path-${index}`;
+    await module.getOrCreateOperationKey({
+      kind: entry.kind,
+      ownerId,
+      target: `target-${index}`,
+      payload: { sequence: index },
+      request: { method: 'POST', path: entry.path, body: { sequence: index } },
+    });
+    const [item] = await module.listPendingOperations(ownerId);
+    expect(item?.requestAvailable).toBe(true);
+  }
+});
+
+it('★ refuses a tampered retry descriptor before it can send an authenticated request', async () => {
+  const ownerId = 'owner-tampered';
+  await coldStart().getOrCreateOperationKey({
+    ...OPERATION,
+    ownerId,
+    request: { method: 'POST', path: '/api/users', body: OPERATION.payload },
+  });
+
+  const { idempotency } = coldStartWithClient();
+  const [item] = await idempotency.listPendingOperations(ownerId);
+  expect(item?.requestAvailable).toBe(false);
+
+  const fetchMock = jest.fn();
+  global.fetch = fetchMock as unknown as typeof fetch;
+  await expect(
+    idempotency.retryPendingOperation(ownerId, item!.id, 'token'),
+  ).rejects.toThrow('cannot be retried automatically');
+  expect(fetchMock).not.toHaveBeenCalled();
+});
+
 /** A v2 record, as the previous release wrote it. */
 function previousRecord(key: string, ownerId: string) {
   return {

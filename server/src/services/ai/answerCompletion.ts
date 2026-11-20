@@ -506,6 +506,22 @@ export function asksForLowStock(question: string): boolean {
   return ASKS_STOCK_LEVEL.test(String(question ?? ''));
 }
 
+/**
+ * AI-118 follow-up — wording that asks how long one product's stock will last.
+ *
+ * This is deliberately narrower than "any stock question": the coverage tool answers a
+ * run-out estimate, not a quantity or a low-stock list. It is used only to check that a
+ * run-out answer actually read coverage; an ordinary stock count must stay untouched.
+ * "How long until we run out" (and its paraphrase family) is the shape a live model can
+ * answer from a plain stock read, which is the wrong answer even when the quantity is right.
+ */
+const ASKS_STOCK_COVERAGE =
+  /\b(?:stock\s*cover(?:age)?|runway|(?:days?|weeks?|months?)\s+of\s+(?:stock\s+)?cover|(?:run(?:s|ning)?|ran)[\s-]*(?:out|dry)|out\s+of\s+stock\s+soon|deplet(?:e|ed|ion|ing)|how\s+many\s+(?:days|weeks|months)\s+(?:of\s+)?(?:stock\s+)?(?:cover|left|remaining)|how\s+(?:much\s+)?longer\s+(?:will|would|does|do|can)?\b[^?]{0,80}\b(?:last|remain|cover)|how\s+long\s+(?:will|would|does|do|can|until|before)\b[^?]{0,80}\b(?:last|remain|cover|run(?:s|ning)?[\s-]*(?:out|dry))|until\s+(?:the\s+)?(?:stock|supply|inventory)\s+(?:runs?|ran)\s+out|supply\s+(?:will\s+)?last)\b/i;
+
+export function asksForStockCoverage(question: string): boolean {
+  return ASKS_STOCK_COVERAGE.test(String(question ?? ''));
+}
+
 const NEVER_SOLD_TOOL = 'getProductsNeverSold';
 const STOCK_LEVEL_TOOLS = new Set(['getLowStockProducts', 'getOutOfStockProducts', 'getReorderNeededProducts']);
 

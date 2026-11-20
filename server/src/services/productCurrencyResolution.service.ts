@@ -6,7 +6,8 @@ import { normaliseCurrencyCode, PRODUCT_CURRENCY_CODES } from '../constants/curr
 import { recordAudit } from './audit.service.ts';
 import { monitorAuditFailure } from './auditFailure.service.ts';
 
-const MAX_ENTRIES = 5_000;
+/** One reviewed evidence file and one review template are both capped here. */
+export const MAX_CURRENCY_RESOLUTION_ENTRIES = 5_000;
 const MAX_EVIDENCE_CHARS = 1_000;
 const MAX_NAME_CHARS = 200;
 const MAX_REVIEWER_CHARS = 200;
@@ -126,8 +127,8 @@ export function validateCurrencyResolutionEvidence(input: unknown): ValidationRe
     errors.push('entries must be a non-empty array');
     return { ok: false, errors };
   }
-  if (entriesRaw.length > MAX_ENTRIES) {
-    errors.push(`entries may contain at most ${MAX_ENTRIES} products`);
+  if (entriesRaw.length > MAX_CURRENCY_RESOLUTION_ENTRIES) {
+    errors.push(`entries may contain at most ${MAX_CURRENCY_RESOLUTION_ENTRIES} products`);
   }
 
   const seen = new Set<string>();
@@ -433,21 +434,30 @@ export async function resolveProductCurrencies({
 /** Bounded read used to prepare a human review template; writes nothing. */
 export async function unresolvedCurrencyCandidates({
   businessId,
-  limit = 5_000,
+  limit = MAX_CURRENCY_RESOLUTION_ENTRIES,
 }: {
   businessId: string;
   limit?: number;
 }) {
   if (!mongoose.Types.ObjectId.isValid(businessId)) throw new Error('invalid businessId');
-  const bounded = Math.min(MAX_ENTRIES, Math.max(1, Math.trunc(limit)));
-  return Product.find({
+  const bounded = Math.min(MAX_CURRENCY_RESOLUTION_ENTRIES, Math.max(1, Math.trunc(limit)));
+  // Read one extra row so the CLI can tell a complete template from one that
+  // stopped at the cap; the extra row is never included in the template.
+  const rows = await Product.find({
     businessId: new mongoose.Types.ObjectId(businessId),
     ...legacyFilter(),
   })
     .sort({ name: 1, _id: 1 })
-    .limit(bounded)
-    .select('name sku status currency')
+    .limit(bounded + 1)
+    // The template needs only the id and expectedName. Do not load fields the
+    // operator cannot review here, especially on a 5,000-row read.
+    .select('name')
     .lean();
+  return {
+    items: rows.slice(0, bounded),
+    truncated: rows.length > bounded,
+    limit: bounded,
+  };
 }
 
 export default {

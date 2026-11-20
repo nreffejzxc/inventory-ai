@@ -65,6 +65,8 @@ export interface RefManageProps {
   canManageFn: (u: PermissionSubject | null | undefined) => boolean;
   singular: string;
   label: string;
+  /** The create route, retained only for a bounded replay from Pending Operations. */
+  idempotencyPath?: string;
   placeholder?: string;
   emptyTitle?: string;
   emptyMessage?: string;
@@ -89,6 +91,7 @@ export default function RefManage({
   canManageFn,
   singular,
   label,
+  idempotencyPath,
   placeholder,
   emptyTitle,
   emptyMessage,
@@ -184,6 +187,10 @@ export default function RefManage({
             ownerId: user?.id,
             target: singular.toLowerCase(),
             payload,
+            label: `${singular}: ${payload.name}`,
+            ...(idempotencyPath
+              ? { request: { method: 'POST' as const, path: idempotencyPath, body: payload } }
+              : {}),
           });
       if (editing) await api.update(token as string, editing.id, payload);
       else await api.create(token as string, payload, idempotencyKey);

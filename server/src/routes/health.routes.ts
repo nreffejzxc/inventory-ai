@@ -6,6 +6,7 @@ import { getDatabaseState, isDatabaseReady } from '../config/db.ts';
 import { operationalCounters } from '../config/operationalCounters.ts';
 import { readIntegrityHeartbeat } from '../services/integrityHeartbeat.service.ts';
 import { checkRequiredIndexes } from '../config/indexReadiness.ts';
+import { exchangeRateAvailability } from '../services/ai/exchangeRates.ts';
 
 /**
  * Health endpoints (Phase 07D / M1). Three complementary signals:
@@ -98,6 +99,9 @@ function timestamp() {
  * @param {() => Promise<{ready: boolean, failures: Array<{name: string, reason: string}>}>} [options.checkIndexes]
  *        Fail-closed required-index readiness. Injectable so the route can be
  *        pinned against a missing/incorrect index without a database.
+ * @param {() => ExchangeRateAvailability} [options.exchangeRates]
+ *        Process-local exchange-rate availability. Published on the legacy
+ *        endpoint as inert operational context; it is never a readiness input.
  */
 export function createHealthRouter({
   getState = getDatabaseState,
@@ -107,6 +111,7 @@ export function createHealthRouter({
   environment = () => env.nodeEnv,
   readIntegrity = readIntegrityHeartbeat,
   checkIndexes = checkRequiredIndexes,
+  exchangeRates = exchangeRateAvailability,
 } = {}) {
   const router = Router();
 
@@ -120,6 +125,10 @@ export function createHealthRouter({
       commit,
       uptimeSeconds,
       counters: counters(),
+      // The same exposure class as the response counters: aggregate process
+      // state, no tenant, request, URL or credential. An ECB failure must not
+      // make /ready fail, so this is observation only.
+      exchangeRates: exchangeRates(),
       timestamp: timestamp(),
     });
   });

@@ -9,6 +9,7 @@ export default function CategoriesScreen() {
       canManageFn={canManageCategories}
       singular="Category"
       label="Categories"
+      idempotencyPath="/api/categories"
       icon="pricetags"
       placeholder="Search categories by name…"
       emptyTitle="No categories yet"

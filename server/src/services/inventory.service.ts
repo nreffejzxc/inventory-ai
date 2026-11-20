@@ -533,7 +533,7 @@ type MovementReceiptState =
   | 'COMPLETED'
   | 'REQUIRES_ATTENTION';
 
-type MovementReceiptRecord = {
+export type MovementReceiptRecord = {
   _id: mongoose.Types.ObjectId;
   businessId: mongoose.Types.ObjectId;
   kind: MovementKind;
@@ -550,6 +550,8 @@ type MovementReceiptRecord = {
   createdRow?: boolean | null;
   inventoryTransactionId?: mongoose.Types.ObjectId | null;
   response?: unknown;
+  createdAt?: Date;
+  updatedAt?: Date;
 };
 
 type MovementReceiptRequest = {
@@ -598,6 +600,37 @@ async function findMovementLedgerRow(
   // The narrow public shape is what this recovery path reads; the lean document
   // itself carries more fields than any caller needs.
   return row as unknown as TransactionSource | null;
+}
+
+/** The ledger row must describe the same movement the receipt staged. */
+function ledgerMatchesReceipt(receipt: MovementReceiptRecord, txn: TransactionSource): boolean {
+  const expectedType = receipt.kind === 'ADJUST' ? 'ADJUSTMENT' : receipt.kind;
+  if (String(txn.type ?? '') !== expectedType) return false;
+  if (String(txn.productId ?? '').toLowerCase() !== String(receipt.productId).toLowerCase()) return false;
+  if (String(txn.locationId ?? '').toLowerCase() !== String(receipt.locationId).toLowerCase()) return false;
+  if (typeof receipt.previousQuantity === 'number' && Number(txn.previousQuantity) !== receipt.previousQuantity) {
+    return false;
+  }
+  if (typeof receipt.newQuantity === 'number' && Number(txn.newQuantity) !== receipt.newQuantity) {
+    return false;
+  }
+  const expectedQuantity =
+    receipt.kind === 'ADJUST'
+      ? Math.abs((receipt.newQuantity ?? 0) - (receipt.previousQuantity ?? 0))
+      : Number(receipt.quantity);
+  return Number(txn.quantity) === expectedQuantity;
+}
+
+/** The receipt's own snapshots must describe one arithmetically valid move. */
+function receiptQuantitiesAreConsistent(receipt: MovementReceiptRecord): boolean {
+  if (typeof receipt.previousQuantity !== 'number' || typeof receipt.newQuantity !== 'number') {
+    return false;
+  }
+  const quantity = Number(receipt.quantity);
+  if (!Number.isFinite(quantity) || quantity <= 0) return false;
+  if (receipt.kind === 'STOCK_IN') return receipt.newQuantity === receipt.previousQuantity + quantity;
+  if (receipt.kind === 'STOCK_OUT') return receipt.newQuantity === receipt.previousQuantity - quantity;
+  return Math.abs(receipt.newQuantity - receipt.previousQuantity) === quantity;
 }
 
 /** Rebuild the exact answer the first delivery produced. */
@@ -789,6 +822,121 @@ async function replayMovementReceipt(receipt: MovementReceiptRecord): Promise<Mo
     'This movement needs operator attention before it can be retried; do not submit it under a new key',
     'MOVEMENT_REQUIRES_ATTENTION',
   );
+}
+
+export type MovementReceiptAssessment = {
+  receipt: MovementReceiptRecord;
+  /** What the evidence permits right now. */
+  action: 'complete' | 'recover' | 'flag' | 'blocked';
+  evidence: 'ledger' | 'inventory-exact' | 'ambiguous' | 'attention';
+  ledgerId: string | null;
+};
+
+/**
+ * Read-only proof assessment for an operator or a reaper. It never writes, so a
+ * dry run can report exactly what an apply would do.
+ *
+ * `REQUIRES_ATTENTION` is not resolved merely because a row now looks plausible:
+ * only a ledger row, or the receipt's own INVENTORY_WRITTEN snapshot matching the
+ * current row exactly, proves this receipt's movement happened. A later movement
+ * can leave a row at the same number without this receipt having applied.
+ */
+export async function assessMovementReceiptById(id: unknown): Promise<MovementReceiptAssessment | null> {
+  const receipt = (await StockMovementOperation.findById(id).lean()) as unknown as MovementReceiptRecord | null;
+  if (!receipt) return null;
+
+  const txn = receipt.inventoryTransactionId
+    ? await InventoryTransaction.findOne({ _id: receipt.inventoryTransactionId, businessId: receipt.businessId }).lean()
+    : await findMovementLedgerRow(receipt.businessId, receipt._id);
+  if (receipt.state === 'COMPLETED') {
+    if (!txn || !ledgerMatchesReceipt(receipt, txn)) {
+      return { receipt, action: 'flag', evidence: 'ambiguous', ledgerId: txn ? String(txn._id) : null };
+    }
+    return { receipt, action: 'complete', evidence: 'ledger', ledgerId: String(txn._id) };
+  }
+  if (txn) {
+    if (!ledgerMatchesReceipt(receipt, txn)) {
+      return { receipt, action: 'flag', evidence: 'ambiguous', ledgerId: String(txn._id) };
+    }
+    return { receipt, action: 'complete', evidence: 'ledger', ledgerId: String(txn._id) };
+  }
+
+  if (
+    receipt.state === 'INVENTORY_WRITTEN' &&
+    receipt.inventoryRowId != null &&
+    receiptQuantitiesAreConsistent(receipt)
+  ) {
+    const row = await Inventory.findOne({
+      _id: receipt.inventoryRowId,
+      businessId: receipt.businessId,
+      productId: receipt.productId,
+      locationId: receipt.locationId,
+    })
+      .select('quantity')
+      .lean();
+    if (row && row.quantity === receipt.newQuantity) {
+      return { receipt, action: 'recover', evidence: 'inventory-exact', ledgerId: null };
+    }
+  }
+
+  return {
+    receipt,
+    action: receipt.state === 'REQUIRES_ATTENTION' ? 'blocked' : 'flag',
+    evidence: receipt.state === 'REQUIRES_ATTENTION' ? 'attention' : 'ambiguous',
+    ledgerId: null,
+  };
+}
+
+/**
+ * Apply the proof assessment. A ledger row wins; an exact INVENTORY_WRITTEN
+ * snapshot rolls the missing row forward; anything ambiguous is flagged, never
+ * guessed. The caller audits a successful recovery.
+ */
+export async function recoverMovementReceiptById(id: unknown): Promise<{
+  state: 'COMPLETED' | 'REQUIRES_ATTENTION';
+  action: 'completed' | 'flagged' | 'noop';
+  transactionId?: string;
+  evidence: MovementReceiptAssessment['evidence'] | 'already-completed';
+} | null> {
+  const assessment = await assessMovementReceiptById(id);
+  if (!assessment) return null;
+  if (assessment.receipt.state === 'COMPLETED') {
+    return {
+      state: 'COMPLETED',
+      action: 'noop',
+      ...(assessment.ledgerId ? { transactionId: assessment.ledgerId } : {}),
+      evidence: 'already-completed',
+    };
+  }
+  if (assessment.action === 'blocked') {
+    return { state: 'REQUIRES_ATTENTION', action: 'noop', evidence: assessment.evidence };
+  }
+  if (assessment.action === 'flag' && assessment.ledgerId) {
+    // A ledger row exists but contradicts the receipt's product, location,
+    // quantities or kind. That is evidence of a data problem, not permission to
+    // complete the receipt; make it visible instead of replaying it.
+    await failMovementReceipt(
+      assessment.receipt._id,
+      false,
+      new Error('the ledger row does not match the receipt snapshots'),
+    );
+    return { state: 'REQUIRES_ATTENTION', action: 'flagged', evidence: 'ambiguous' };
+  }
+
+  try {
+    const result = await replayMovementReceipt(assessment.receipt);
+    return {
+      state: 'COMPLETED',
+      action: 'completed',
+      transactionId: String(result.transaction.id),
+      evidence: assessment.evidence,
+    };
+  } catch (err) {
+    if (err instanceof ApiError && err.code === 'MOVEMENT_REQUIRES_ATTENTION') {
+      return { state: 'REQUIRES_ATTENTION', action: 'flagged', evidence: 'ambiguous' };
+    }
+    throw err;
+  }
 }
 
 /**
@@ -1925,6 +2073,51 @@ export const inventoryService = {
     const items = (result?.data ?? []).map(inventoryRowPublic);
     const total = result?.metadata?.[0]?.total ?? 0;
     return { items, total };
+  },
+
+  /**
+   * Summed stock for ONE product, optionally at one location, as one scoped read.
+   *
+   * WHY THIS EXISTS. A product can hold stock on twenty shelves, and the assistant's
+   * inventory page is capped at 25 rows. A run-out estimate that summed only the page
+   * would silently understate the stock and make a healthy product look nearly empty.
+   * The aggregate reads every matching row in the database, so the coverage figure and
+   * the quantity it divides are describing the same set.
+   *
+   * `availableQuantity` is on hand minus reserved, the same §19 definition every
+   * inventory row and stock ranking uses. A missing inventory row is zero units rather
+   * than an unreadable quantity, which is why an empty aggregate returns zeros.
+   */
+  async productAvailability(
+    businessId: string,
+    { productId, locationId }: { productId: string; locationId?: string }
+  ) {
+    const match: Record<string, unknown> = {
+      businessId: oid(businessId),
+      productId: oid(productId),
+    };
+    if (locationId) match.locationId = oid(locationId);
+
+    const [sum] = await Inventory.aggregate([
+      { $match: match },
+      {
+        $group: {
+          _id: null,
+          rows: { $sum: 1 },
+          quantity: { $sum: '$quantity' },
+          reservedQuantity: { $sum: '$reservedQuantity' },
+        },
+      },
+    ]);
+
+    const quantity = Number(sum?.quantity ?? 0);
+    const reservedQuantity = Number(sum?.reservedQuantity ?? 0);
+    return {
+      rows: Number(sum?.rows ?? 0),
+      quantity,
+      reservedQuantity,
+      availableQuantity: quantity - reservedQuantity,
+    };
   },
 
   /**

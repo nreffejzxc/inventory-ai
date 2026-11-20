@@ -9,6 +9,7 @@ export default function LocationsScreen() {
       canManageFn={canManageLocations}
       singular="Location"
       label="Locations"
+      idempotencyPath="/api/locations"
       icon="location"
       placeholder="Search locations by name…"
       emptyTitle="No locations yet"

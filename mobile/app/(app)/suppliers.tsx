@@ -9,6 +9,7 @@ export default function SuppliersScreen() {
       canManageFn={canManageSuppliers}
       singular="Supplier"
       label="Suppliers"
+      idempotencyPath="/api/suppliers"
       icon="storefront"
       placeholder="Search suppliers by name…"
       emptyTitle="No suppliers yet"

@@ -56,8 +56,8 @@ The following features are intentionally excluded from V1:
 - Subscription billing
 - Full offline synchronization
 - AI-powered stock modification
-- AI forecasting
-- Demand prediction
+- Catalogue-wide AI forecasting or demand prediction (the bounded, one-product run-out read in
+  §22 is the only permitted estimate; it is based on recorded stock-out movements, not sales)
 - Advanced supplier management
 - Complex accounting
 - Advanced reporting
@@ -761,6 +761,35 @@ requested quantity > available quantity
 
 The system must never silently create negative inventory.
 
+## Idempotent Stock Movements
+
+`POST /api/inventory/stock-in`, `stock-out` and `adjust` accept an
+`Idempotency-Key` header in the shape `[A-Za-z0-9._:-]{8,200}`. With a key, the
+server writes a durable `stock_movement_operations` receipt before changing
+stock. Repeating the same request under the same key replays the original answer
+or recovers the committed movement; it never applies the movement twice. A key
+reused with a different product, location, quantity, kind or text is refused with
+`422 IDEMPOTENCY_KEY_REUSED`.
+
+The receipt is resolved in this order: the stored completed answer; a matching
+ledger row; an exact `INVENTORY_WRITTEN` inventory snapshot; otherwise the receipt
+becomes `REQUIRES_ATTENTION` and the request answers `409
+MOVEMENT_REQUIRES_ATTENTION`. An authenticated member may ask
+`POST /api/inventory/operations/status` with `{ "key": "..." }` for that key's
+state: `COMPLETED`, `PROCESSING`, `RECOVERY_PENDING`, `REQUIRES_ATTENTION` or
+`UNKNOWN`, plus a receipt reference. The answer never contains the
+key or a stored response body.
+
+An unfinished receipt older than 60 seconds is recoverable by the scheduled
+integrity pass and by the dry-run-first `recover:movement-receipts` operator
+command. Recovery requires a ledger row whose kind, product, location and
+quantities match the receipt, or the exact inventory snapshot. `COMPLETED`
+receipts are retained for 30 days and then pruned only while their matching
+ledger row still proves the movement; attention, unfinished and ledger-less rows
+are never auto-deleted.
+The bounded recovery batch reserves stale unfinished receipts before attention rows, so an old
+`REQUIRES_ATTENTION` backlog cannot starve a newer unfinished receipt.
+
 ## Stock Transfer
 
 A transfer moves quantity of one product from one location to another location
@@ -1355,6 +1384,7 @@ getHighestStockProducts
 getLowStockProducts
 getOutOfStockProducts
 getProductsNeverSold
+getProductStockCoverage
 getReorderNeededProducts
 getStockValue
 getCatalogOverview
@@ -1382,6 +1412,16 @@ returns the ACTIVE products at or below their minimum, flagged `OUT_OF_STOCK` or
 locations/categories do I have"* and resolve a name whose exact form is unknown. They read the
 same records as `GET /api/locations` and `GET /api/categories`, which are authentication-only,
 and are gated on `inventory.view` / `products.view`. No tool writes.
+
+`getProductStockCoverage` (AI-118) is the bounded run-out read: one identified product, an optional
+location and a 7–365 day lookback (default 30). It sums current availability over every matching
+inventory row and sums `STOCK_OUT` units over the same product/location scope, then returns the
+simple average daily outflow, `daysOfCover` and a 30-day run-rate projection. A transfer, stock-in
+or adjustment is deliberately excluded; stock-out is a movement proxy that may be a sale, usage,
+damage or write-off, never confirmed sales. With no stock-out in the window, `daysOfCover` is
+`null`, not infinite, and the payload says so. This is not a catalogue-wide forecast and does not
+apply a supplier lead time or seasonality. `getProductsByLocation` returns ACTIVE products only;
+an archived product remains readable through the product/catalogue reads with its status intact.
 
 `getInventory`, `getProductsByLocation` and `getInventoryHistory` accept a location by
 `locationId` **or** by its exact `location` name (AI-15); `searchProducts` and
@@ -2740,6 +2780,7 @@ POST   /api/purchase-orders/:id/receive
 GET    /api/inventory
 POST   /api/inventory/stock-in
 POST   /api/inventory/stock-out
+POST   /api/inventory/operations/status
 
 GET    /api/transactions
 

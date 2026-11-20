@@ -243,6 +243,12 @@ function ReceiveStockForm() {
         ownerId: user?.id,
         target: poId,
         payload: receivePayload,
+        label: `Receive stock: ${po.number}`,
+        request: {
+          method: 'POST',
+          path: `/api/purchase-orders/${poId}/receive`,
+          body: receivePayload,
+        },
       });
       const res = await purchaseOrdersApi.receive(token as string, poId, receivePayload, idempotencyKey);
       await completeOperation('purchase-order.receive', idempotencyKey, user?.id);

@@ -4,6 +4,7 @@ import mongoose from 'mongoose';
 
 import IdempotencyRecord from '../models/idempotencyRecord.model.ts';
 import ApiError from '../utils/ApiError.ts';
+import { isIdempotencyKey } from '../utils/idempotencyKey.ts';
 
 /**
  * Idempotency for the writes that change stock or create an order.
@@ -42,9 +43,6 @@ import ApiError from '../utils/ApiError.ts';
  * only one of several concurrent retries becomes the new owner; the request budget
  * is 15 s, so a minute-old claim cannot still be running healthy work.
  */
-
-/** The key's own shape. Opaque to the server; only length and charset are policed. */
-const KEY_PATTERN = /^[A-Za-z0-9._:-]{8,200}$/;
 
 /** A claim older than this owes an answer it will never produce. */
 const STALE_CLAIM_MS = 60_000;
@@ -159,7 +157,7 @@ export function idempotent() {
     }
 
     const key = header.trim();
-    if (!KEY_PATTERN.test(key)) {
+    if (!isIdempotencyKey(key)) {
       next(new ApiError(400, 'The idempotency key is not usable', 'IDEMPOTENCY_KEY_INVALID'));
       return;
     }
