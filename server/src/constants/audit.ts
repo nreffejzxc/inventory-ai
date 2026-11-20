@@ -22,10 +22,21 @@ export const AUDIT_ACTIONS = Object.freeze({
   PURCHASE_ORDER_ISSUED: 'PURCHASE_ORDER_ISSUED',
   PURCHASE_ORDER_CANCELED: 'PURCHASE_ORDER_CANCELED',
   PURCHASE_ORDER_RECEIVED: 'PURCHASE_ORDER_RECEIVED',
+  // A reaper proved an abandoned receive claim and either released it or
+  // removed its exact stock-in. Recorded as a first-class business event so an
+  // operator can see that stock moved backwards without a user action.
+  PURCHASE_ORDER_CLAIM_RECOVERED: 'PURCHASE_ORDER_CLAIM_RECOVERED',
   INVENTORY_STOCK_IN: 'INVENTORY_STOCK_IN',
   INVENTORY_STOCK_OUT: 'INVENTORY_STOCK_OUT',
   INVENTORY_ADJUSTED: 'INVENTORY_ADJUSTED',
   INVENTORY_TRANSFERRED: 'INVENTORY_TRANSFERRED',
+  // A process or operator proved an abandoned keyed movement from its durable
+  // receipt (ledger row or exact inventory snapshot). The receipt id, never the
+  // idempotency key, is the entity; the ledger/stock outcome is unchanged.
+  MOVEMENT_RECEIPT_RECOVERED: 'MOVEMENT_RECEIPT_RECOVERED',
+  // Retention removed a COMPLETED receipt after its replay window. The ledger
+  // remains the source of truth; this row records that the handle is gone.
+  MOVEMENT_RECEIPT_PRUNED: 'MOVEMENT_RECEIPT_PRUNED',
   USER_CREATED: 'USER_CREATED',
   USER_UPDATED: 'USER_UPDATED',
   // Phase 26A — session lifecycle. Four distinct events rather than one, so the
@@ -89,6 +100,7 @@ export const AUDIT_ENTITY_TYPES = Object.freeze({
   PURCHASE_ORDER: 'PURCHASE_ORDER',
   INVENTORY: 'INVENTORY',
   INVENTORY_TRANSACTION: 'INVENTORY_TRANSACTION',
+  STOCK_MOVEMENT_OPERATION: 'STOCK_MOVEMENT_OPERATION',
   USER: 'USER',
   SESSION: 'SESSION',
   // The invitation itself — the entityId is the Invitation row, which is why this is

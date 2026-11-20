@@ -287,9 +287,17 @@ describe('JWT algorithm pinning (Phase 07G)', () => {
 // ---------------------------------------------------------------------------
 // M1 — health endpoints (stubbed DB so no database is needed)
 // ---------------------------------------------------------------------------
-function healthApp(getState, isReady) {
+function healthApp(getState, isReady, exchangeRates) {
   const app = express();
-  app.use('/api/health', createHealthRouter({ getState, isReady }));
+  app.use(
+    '/api/health',
+    createHealthRouter({
+      getState,
+      isReady,
+      checkIndexes: async () => ({ ready: true, failures: [] }),
+      ...(exchangeRates ? { exchangeRates } : {}),
+    }),
+  );
   return app;
 }
 
@@ -348,6 +356,37 @@ describe('M1 health endpoints (Phase 07D)', () => {
       assert.equal(res.status, 200);
       assert.equal(res.json.status, 'ok');
       assert.equal(res.json.db, 'disconnected');
+    } finally {
+      await stop();
+    }
+  });
+
+  it('legacy /api/health publishes process-local exchange-rate availability without gating readiness', async () => {
+    const availability = {
+      status: 'degraded',
+      requests: 4,
+      cacheHits: 1,
+      verified: 2,
+      sameCurrency: 0,
+      stale: 1,
+      unavailable: 2,
+      lastVerifiedAt: '2026-11-20T10:00:00.000Z',
+      lastRateDate: '2026-11-19',
+      lastFailureAt: '2026-11-20T11:00:00.000Z',
+      lastFailure: 'stale',
+    };
+    await listen(healthApp(() => 'connected', () => true, () => availability));
+    try {
+      const health = await get('/api/health');
+      assert.equal(health.status, 200);
+      assert.deepEqual(health.json.exchangeRates, availability);
+
+      // The metrics are observation only: neither probe grows a dependency.
+      const ready = await get('/api/health/ready');
+      assert.equal(ready.status, 200);
+      assert.equal('exchangeRates' in ready.json, false);
+      const live = await get('/api/health/live');
+      assert.equal('exchangeRates' in live.json, false);
     } finally {
       await stop();
     }

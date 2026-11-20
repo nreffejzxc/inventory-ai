@@ -803,6 +803,7 @@ try {
       categoryId: categoryId.get(product.category),
       costPrice: product.costPrice,
       sellingPrice: product.sellingPrice,
+      currency: product.currency,
       unit: product.unit,
       minimumStock: product.minimumStock,
       status: 'ACTIVE',

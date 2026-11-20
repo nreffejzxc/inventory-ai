@@ -179,7 +179,8 @@ unitSuite('AI-49 prices are extracted from citations', () => {
       ['₱5,095.00', 'PHP 6,997.00', '$74.99'],
     );
     assert.equal(prices[0].currency, 'PHP');
-    assert.equal(prices[2].currency, 'USD');
+    // A bare `$` does not prove USD; a marketplace country can resolve it.
+    assert.equal(prices[2].currency, 'unknown');
   });
 
   it('★ recognises the named marketplaces and names any other retailer', () => {
@@ -401,8 +402,8 @@ unitSuite('AI-49 prices are extracted from citations', () => {
   it('★ the assistant is told to use the tool and to keep web prices separate', () => {
     const prompt = systemPrompt();
     assert.match(prompt, /researchMarketPrices/);
-    assert.match(prompt, /exact `priceText`/);
-    assert.match(prompt, /never convert currency/i);
+    assert.match(prompt, /exact original price text/i);
+    assert.match(prompt, /never convert a currency yourself/i);
     assert.match(prompt, /with the ISO code in the recorded `currency` field/i);
     assert.match(prompt, /write the bare number with no symbol/i);
     assert.match(prompt, /keep the recorded selling price separate/i);
@@ -435,6 +436,7 @@ dbSuite('AI-49 market price tool is tenant-bound', dbOk, () => {
         brand: 'Keychron',
         description: 'Wireless mechanical keyboard for the office.',
         sellingPrice: 6990,
+        currency: 'PHP',
         unit: 'pcs',
       },
     });
@@ -471,7 +473,7 @@ dbSuite('AI-49 market price tool is tenant-bound', dbOk, () => {
     const other = await registerOwner(api, tracker);
     const foreign = await api('POST', '/api/products', {
       token: other.token,
-      body: { name: uniqueName('Foreign Keyboard'), brand: 'Outside Brand' },
+      body: { name: uniqueName('Foreign Keyboard'), brand: 'Outside Brand', currency: 'PHP' },
     });
     assert.equal(foreign.status, 201, JSON.stringify(foreign.json));
 

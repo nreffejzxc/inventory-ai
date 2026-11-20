@@ -7,6 +7,7 @@ import Banner from '../components/Banner';
 import Button from '../components/Button';
 import CodeInput from '../components/CodeInput';
 import { fieldErrorsFrom, formatRemaining } from '../lib/authCopy';
+import { errorRequestId } from '../lib/errors';
 import { ApiError } from '../lib/client';
 import { useSession } from '../lib/auth';
 import { defaultHomePath } from '../lib/permissions';
@@ -129,6 +130,7 @@ export default function VerifyEmailScreen() {
   const [code, setCode] = useState('');
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
+  const [formRequestId, setFormRequestId] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [sending, setSending] = useState(false);
@@ -278,8 +280,9 @@ export default function VerifyEmailScreen() {
     clearVerificationEntryError();
     try {
       await cancelFirebaseOnboarding();
-    } catch {
+    } catch (err) {
       setError(GENERIC_FAILURE_MESSAGE);
+      setFormRequestId(errorRequestId(err));
     } finally {
       setBusy(false);
     }
@@ -308,6 +311,7 @@ export default function VerifyEmailScreen() {
         setCooldownUntil(Date.now() + wait * 1000);
       }
       setError(errorMessage(err));
+      setFormRequestId(errorRequestId(err));
     } finally {
       setSending(false);
     }
@@ -341,8 +345,13 @@ export default function VerifyEmailScreen() {
       // On success the signedIn guard above redirects this screen away.
     } catch (err) {
       const fields = fieldErrorsFrom(err);
-      if (Object.keys(fields).length) setFieldErrors(fields);
-      else setError(errorMessage(err));
+      if (Object.keys(fields).length) {
+        setFieldErrors(fields);
+        setFormRequestId(null);
+      } else {
+        setError(errorMessage(err));
+        setFormRequestId(errorRequestId(err));
+      }
     } finally {
       confirming.current = false;
       setBusy(false);
@@ -354,8 +363,9 @@ export default function VerifyEmailScreen() {
     setError(null);
     try {
       await retryVerificationResume();
-    } catch {
+    } catch (err) {
       setError(GENERIC_FAILURE_MESSAGE);
+      setFormRequestId(errorRequestId(err));
     } finally {
       setBusy(false);
     }
@@ -376,7 +386,7 @@ export default function VerifyEmailScreen() {
         }
       >
         <Banner type="info" text={UNREACHABLE_BODY} />
-        <Banner type="error" text={error} />
+        <Banner type="error" text={error} requestId={formRequestId} />
         <Button title="Try again" onPress={tryAgain} loading={busy} full />
       </AuthLayout>
     );
@@ -402,7 +412,7 @@ export default function VerifyEmailScreen() {
       }
     >
       {notice ? <Banner type="info" text={notice} /> : null}
-      <Banner type="error" text={shownError} />
+      <Banner type="error" text={shownError} requestId={error ? formRequestId : null} />
       {/**
        * WHICH INBOX. A code that has not arrived is the commonest way this screen
        * stalls, and the first question is "which address did I use?". The address is

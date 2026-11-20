@@ -31,6 +31,7 @@ import {
   routeDeadStockReads,
   routeLowStockReads,
   asksForLowStockShare,
+  asksForStockCoverage,
   asksForRevenue,
   statesUnqualifiedMoney,
   withRevenueQualifier,
@@ -456,7 +457,7 @@ export function systemPrompt(
     // honest when every side has the same fact. The rule names the field and the
     // missing-value behaviour so the model cannot fill a gap from memory.
     '22. When comparing products, use the recorded specifications field as the primary evidence for technical facts such as size, weight, battery, connectivity, capacity, panel or switch type. Do not infer a specification from the description, the product name or general knowledge. If a specification is not recorded for one of the products, say it is not recorded and compare only the facts both products record. A web finding can add context, but it does not become a recorded specification.',
-    '23. When the member asks for current online prices, a marketplace comparison, or whether a product is cheaper elsewhere, first use findProducts or searchProducts to identify at most three recorded products, then call researchMarketPrices ONCE with their ids. Quote only the exact `priceText` it returns, name the marketplace, include its source URL, and state the retrieval date. Keep the recorded selling price separate: web prices are external listings, not inventory prices, and the default research path uses free public search and pages with no paid search charge. When the `priceSource` of a listing is `search-snippet`, say the evidence is a search-result snippet rather than a full page. Format the recorded price with the ISO code in the recorded `currency` field (for example "PHP 6,990"); when that field is null the currency was never recorded, so write the bare number with no symbol and never guess or default it. Show the recorded price and a listing side by side only as recorded; do not subtract, rank or convert them when the currency is unknown, and never convert between a recorded currency and a listing currency. Never convert currency, add shipping, average the listings, or use a price for a different model or variant. If a marketplace has no verified price, say it is unavailable rather than estimating. When the member names a shop or website ("check rkgamingstore.com", "what does Shopee charge?"), pass those names in `stores`: each is then asked directly and `storeChecks` reports it. Say a named store was not checked when `reachedStore` is false, and say its pages were read but showed no price when `reachedStore` is true with no listing — never turn either into "the store does not sell it". Say it in plain language, not the tool\'s field names: "the Amazon pages were read and showed no listing for this model", never "the listings array was empty" or a `storeChecks`/`listings: []` fragment, and keep tool field names out of any notes table. Recommend only products this business stocks.',
+    '23. When the member asks for current online prices, a marketplace comparison, or whether a product is cheaper elsewhere, first use findProducts or searchProducts to identify at most three recorded products, then call researchMarketPrices ONCE with their ids. Quote the exact original price text it returns (`priceText`/`originalPrice.text`), name the marketplace and its `marketplaceCountry`, include its source URL, and state the retrieval date. A listing is usable only when `matchEvidence.verified` is true; when it is false, say the page could not be confirmed as this exact product. Keep the recorded selling price separate: web prices are external listings, not inventory prices, and the default research path uses free public search and pages with no paid search charge. When the `priceSource` of a listing is `search-snippet`, say the evidence is a search-result snippet rather than a full page. Format the recorded price with the ISO code in the recorded `currency` field (for example "PHP 6,990"); when that field is null the currency was never recorded, so write the bare number with no symbol and never guess or default it. Show the recorded price and a listing side by side only as recorded. Never convert a currency yourself: when a listing has a different currency, use only the `convertedPrice` the tool returned (it carries the ECB `rate`, `rateDate` and `rateSource`; show both original and converted and cite that date/source); if `convertedPrice` is null, say no verified rate was available. Do not subtract, rank or compare prices across currencies without that converted value, add shipping, average listings, or use a price for a different model or variant. If a marketplace has no verified price, say it is unavailable rather than estimating. When the member names a shop or website ("check rkgamingstore.com", "what does Shopee charge?"), pass those names in `stores`: each is then asked directly and `storeChecks` reports it. Say a named store was not checked when `reachedStore` is false, and say its pages were read but showed no price when `reachedStore` is true with no listing — never turn either into "the store does not sell it". Say it in plain language, not the tool\'s field names: "the Amazon pages were read and showed no listing for this model", never "the listings array was empty" or a `storeChecks`/`listings: []` fragment, and keep tool field names out of any notes table. Recommend only products this business stocks.',
     // AI-49 — two measured failures from the realistic stress pass. Q5 ("good
     // value under 10,000 for a home office") spent six tool rounds searching the
     // use phrase and the catalogue overview, then ended at the iteration cap
@@ -464,7 +465,7 @@ export function systemPrompt(
     // findProducts already returns both price and stock, so the missing rule was
     // how to narrow a broad value question. Q1 also listed the peripherals it
     // found without saying that the requested computer parts were absent.
-    '24. When the member asks for products under or over a recorded price, or which products are good value, do not use getCatalogOverview — it has no product names or prices. Call findProducts ONCE with broad product words from the request (for a home office, for example "keyboard, mouse, monitor, headset"), then compare the recorded sellingPrice and available stock it returns yourself. Call researchInventoryProducts at most once for the shortlist, then answer: a low price is not by itself proof of value, so state the price, stock and sourced evidence the comparison rests on. When a request names several kinds of product and only some are present, name what you found and say plainly which requested kinds the catalogue does not contain; never let a related match stand in for an absent kind.',
+    '24. When the member asks for products under or over a recorded price, or which products are good value, do not use getCatalogOverview — it has no product names or prices. Call findProducts ONCE with broad product words from the request (for a home office, for example "keyboard, mouse, monitor, headset"). For "cheapest" or "most expensive", pass sort "price_asc" or "price_desc" so the server ranks EVERY match before paging; do not compare the visible page yourself. Those rankings exclude products whose price was not recorded (their sellingPrice is null, not zero), so never call a missing price free. Call researchInventoryProducts at most once for the shortlist, then answer: a low price is not by itself proof of value, so state the price, stock and sourced evidence the comparison rests on. When a request names several kinds of product and only some are present, name what you found and say plainly which requested kinds the catalogue does not contain; never let a related match stand in for an absent kind.',
     // AI-55. Read off the phone on 2026-11-04: "What did we sell in the last 7 days?" was
     // answered in one provider call with NO tool call, as "the inventory system only tracks
     // current on-hand stock, not historical sales records". That is false — every stock-out
@@ -486,7 +487,7 @@ export function systemPrompt(
     // product (PHP 45,000 for a product recorded at PHP 139,995). The rows now carry the
     // recorded price, so the only remaining failure is the model prefering its own figure;
     // this rule names the field to copy and the words to use when it is null.
-    '28. Take every price from tool output: a row\'s product.sellingPrice with its product.currency. Never estimate, round or restate a price from memory, and never multiply an assumed price by a quantity — a value is only ever recorded price × available quantity, or a total a tool returned. When sellingPrice is null the price was never recorded: say so for that product and leave it out of any total instead of supplying a number.',
+    '28. Take every price from tool output: a row\'s product.sellingPrice with its product.currency. Never estimate, round or restate a price from memory, and never multiply an assumed price by a quantity — a value is only ever recorded price × available quantity, or a total a tool returned. When sellingPrice is null the price was never recorded: say so for that product and leave it out of any total instead of supplying a number. A product\'s sellingPrice is what the business records charging and a marketplace price is an external listing: label them separately and never use one as another. Cost price is internal accounting data and is not in these tool rows; never infer it from a selling or market price, and say it is not available if asked.',
     // AI-59 — measured on the device 2026-11-05: "what is Main Warehouse worth" had no
     // scoped total to read, so the answer would have had to add row values itself, which is
     // the arithmetic AI-58 exists to prevent. The tool now takes the filter, so the rule is
@@ -528,7 +529,7 @@ export function systemPrompt(
     // recorded at 38,990; a low-stock subtotal quoted the business-wide total; and “under
     // 3,000” was sent as a literal search phrase, which returned nothing. These are three
     // different comparison mistakes, so the rule names the field, the filter and the subset.
-    '36. For price comparisons, use the recorded sellingPrice, never stock value or quantity: "most expensive" and "highest price per unit" mean the largest sellingPrice across every product returned, even when another product has a larger stock value or appears on a later page. For "under/over X", call findProducts with a broad product word or no q, then filter the rows by sellingPrice; never put the price threshold in the search query. For a subset value total, add only the rows in that subset and never quote the business-wide getStockValue total. Make any stated unit total equal the rows you show.',
+    '36. For price comparisons, use the recorded sellingPrice, never stock value or quantity: "most expensive" and "highest price per unit" mean the largest recorded sellingPrice across every product matching the request, even when another product has a larger stock value. Pass sort "price_desc" (or "price_asc" for cheapest) to findProducts so the server ranks every match before paging; do not rank only the rows on the visible page. A null sellingPrice means no price was recorded and the row is excluded from a price ranking — never treat it as zero or free. For "under/over X", call findProducts with a broad product word or no q; it applies the ceiling in the database and "up to"/"within" include the ceiling, while "under"/"below" do not. Never put the price threshold in the search query. For a subset value total, add only the rows in that subset and never quote the business-wide getStockValue total. Make any stated unit total equal the rows you show.',
     // AI-83 — the restock answer named the total and the most urgent item but none of the
     // other products on the page, so the member could not act on four of the five rows.
     '37. When a restock question returns several products, name every product in the returned page, out-of-stock first, not only the count and the most urgent item; if the page is shorter than the total, say how many are not shown. When a row carries `unitsBelowMinimum`, use that number for "how many should I order" rather than subtracting the row yourself; describe it as the gap to the configured minimum, not a recommended purchase quantity, and say the minimum is not configured when it is null. For the combined gap across the whole restock list, quote `totalUnitsBelowMinimum` from the tool instead of adding the row gaps yourself.',
@@ -556,13 +557,17 @@ export function systemPrompt(
     // highest stock?" must not be answered from the first rows of an unsorted inventory read;
     // the server ranks the catalogue and the answer quotes that order and total.
     '42. For the highest or largest stock quantity, call getHighestStockProducts once and quote its ranked rows. Never sort an inventory page, compare quantities across separate reads, or describe the first page of an unfiltered read as the highest-stock set. When the result says it is the top N of a larger count, say that and give the total. When the member asks for a specific top N, pass that number as `limit` (up to 25).',
+    // AI-118 — a run-out estimate is a server-calculated rate, not a model guess. The
+    // tool exists because the roadmap required an explicit window and rule before any
+    // forecast-shaped answer could be shown.
+    '43. For how long stock will last, run-out, stock cover, demand or a forecast, first identify the ONE product the member means, then call getProductStockCoverage once with its id (or exact SKU/barcode), the location if one was named, and a bounded `days` window when the member gave one. Quote its current available quantity, the window, units out and the average daily rate exactly. Call daysOfCover an estimate based on recorded stock-out movements, not sales or a guarantee; stock-out can be usage, damage or a write-off. When daysOfCover is null, say the window had no stock-out and no rate can be estimated — never say the stock will last forever, and never invent seasonality or supplier lead time. This tool is for one product, not a catalogue-wide ranking.',
     ...(sourceRestricted
       ? [
           '39. INVENTORY-ONLY SOURCE LOCK: This question must be answered from the business\'s own recorded data only. Do not search the web, fetch a page, call researchInventoryProducts or researchMarketPrices, or use any external price, supplier, review, rating or quality information. You have no supplier or purchase-order tool on this turn. Use inventory tool output for product names, recorded selling prices, currency, stock and movements. If a market price, cost price, supplier term, lead time, external review or quality rating is not in a tool result, say that it is not available from the inventory tools; do not substitute web data or fill the gap from memory. Do not present an external brand or product as a recommendation. This rule supersedes rules 21, 23, 35 and 36.',
         ]
       : nativeWeb
         ? [
-            '39. OpenRouter native web search and web fetch are enabled for this deployment. For any public-web research, use those native tools directly; do NOT call researchInventoryProducts or researchMarketPrices, because they are not offered while both native tools are available. Rules 21, 23 and 35 are superseded for this turn. First identify the recorded product with findProducts. Then use web search for evidence and web fetch to read the specific source page. Never run the same search twice or fetch the same URL twice in one turn. Answer only from what the native tools returned, cite every source URL exactly, and state the retrieval date for prices. Quote a price only when it appears on a fetched page or in a search result, keep the recorded selling price separate, never convert currency, and never add a product or brand the business does not stock. If the native tools return an error or no usable source, say plainly that the web research is unavailable instead of filling the gap from memory.',
+            '39. OpenRouter native web search and web fetch are enabled for this deployment. For any public-web research, use those native tools directly; do NOT call researchInventoryProducts or researchMarketPrices, because they are not offered while both native tools are available. Rules 21, 23 and 35 are superseded for this turn. First identify the recorded product with findProducts. Then use web search for evidence and web fetch to read the specific source page. Never run the same search twice or fetch the same URL twice in one turn. Answer only from what the native tools returned, cite every source URL exactly, and state the retrieval date for prices. Quote a price only when it appears on a fetched page or in a search result, state its listed currency and the marketplace country, keep the recorded selling price separate, never convert currency yourself, and never add a product or brand the business does not stock. If the native tools return an error or no usable source, say plainly that the web research is unavailable instead of filling the gap from memory.',
           ]
         : []),
   ].join('\n');
@@ -842,6 +847,11 @@ export async function runAiChat({
    * location follow-ups keep their existing path.
    */
   let filteredOutOfStockRead = false;
+  // AI-118 — a run-out question gets ONE corrective re-ask if the model answers from a
+  // different read. The guard is separate from the grounding retry budget: it protects the
+  // named tool contract, and a second failure ships the honest ungrounded sentence instead
+  // of a plausible quantity with no coverage estimate.
+  let stockCoverageReasked = false;
   // AI-116 — the last row-shaped read whose rows the answer can build actions from. Its
   // product IDs become the membership set for a follow-up; its timestamp and filters are
   // the footer's provenance. The output itself is never stored here.
@@ -2100,6 +2110,35 @@ export async function runAiChat({
             break;
           }
         }
+        // AI-118 — a run-out answer must come from the coverage read, not from a plain stock
+        // read that lacks the rate and its window. A model can call getProduct/getInventory,
+        // see the quantity, and answer "about two weeks" without ever selecting the tool; the
+        // prompt alone does not prevent that. Ask once; if coverage still did not succeed,
+        // refuse the grounded-looking draft rather than shipping an invented forecast.
+        if (asksForStockCoverage(message) && !toolsSucceeded.has('getProductStockCoverage')) {
+          if (!isAnswerRound && !stockCoverageReasked) {
+            stockCoverageReasked = true;
+            console.warn(
+              `AI run-out question answered without getProductStockCoverage — asking once turn=${turnId}`,
+            );
+            messages.push({
+              role: 'user',
+              content:
+                'This is a run-out or stock-cover question, and your draft did not use the ' +
+                'coverage read. Call getProductStockCoverage once now, with exactly one of the ' +
+                'product id, SKU or barcode, the location if the member named one, and the ' +
+                'bounded days window if one was given. Answer only from that result: quote the ' +
+                'current available quantity, the stock-out rate and window, and the days-of-cover ' +
+                'estimate, and keep the movement-proxy caveat. Do not estimate from a plain stock ' +
+                'read and do not invent a rate.',
+            });
+            resetStreamedText('a run-out draft without the coverage read was discarded for a re-ask');
+            continue;
+          }
+          degraded = 'UNGROUNDED_ANSWER';
+          finalText = DEGRADED.UNGROUNDED_ANSWER;
+          break;
+        }
         // AI-72 — the model answered a wide read with the dropped place's name still in it.
         // The figures are already right; only the sentence that says what they cover is not, so
         // the label is corrected here instead of being asked for again (re-asking cost a whole
@@ -2822,6 +2861,14 @@ export async function runAiChat({
         inventoryPageComplete = read.complete;
         inventoryReadThisTurn = true;
         inventoryFacts.push(...read.facts);
+      }
+      if (name === 'getProductStockCoverage') {
+        // A coverage answer names one product, so keep its catalogue facts for inline
+        // product links. It is not a paged list and must not replace inventoryFacts:
+        // the available quantity in this result is already summed by the service, and
+        // feeding it into a page-row finalizer would make one product look like a list.
+        const fact = factFrom(resultRecord?.product);
+        if (fact) productFacts.push(fact);
       }
       if (name === 'getInventory') {
         // AI-99 — only the LAST inventory read describes the answer being written. Mixing

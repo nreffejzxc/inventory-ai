@@ -42,7 +42,7 @@ let owner;
 async function newProduct(business, over = {}) {
   const res = await api('POST', '/api/products', {
     token: business.token,
-    body: { name: uniqueName('P07A'), ...over },
+    body: { currency: 'PHP', name: uniqueName('P07A'), ...over },
   });
   assert.equal(res.status, 201, JSON.stringify(res.json));
   return res.json.id;

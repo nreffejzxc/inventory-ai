@@ -5,11 +5,13 @@ import Product from '../models/product.model.ts';
 import Category from '../models/category.model.ts';
 import ApiError from '../utils/ApiError.ts';
 import { recordAudit } from './audit.service.ts';
+import { monitorAuditFailure } from './auditFailure.service.ts';
 import { notFound } from '../utils/errors.ts';
 import { AUDIT_ACTIONS, AUDIT_ENTITY_TYPES } from '../constants/audit.ts';
 import { classifyStockStatus } from '../constants/stockStatus.ts';
 import { internalEan13Candidates } from '../utils/internalBarcode.ts';
 import { normaliseLookupText } from '../utils/lookupText.ts';
+import { isProductCurrencyCode, normaliseCurrencyCode } from '../constants/currencies.ts';
 
 /**
  * A business/user id as it arrives here: the request layer stringifies it
@@ -56,19 +58,38 @@ type ReorderItemSource = ProductDTOsource & { available?: number | null };
 /** The create/update payload the products controller has already validated. */
 type ProductWritePayload = {
   name?: string;
-  brand?: string;
-  sku?: string;
-  barcode?: string;
-  description?: string;
-  specifications?: string;
-  categoryId?: string;
-  costPrice?: number;
-  sellingPrice?: number;
-  currency?: string;
-  unit?: string;
-  minimumStock?: number;
-  imageUrl?: string;
+  // `null` on a PATCH means "clear the recorded value"; `undefined` means "leave it
+  // untouched". The distinction is made by validateProduct's partial mode.
+  brand?: string | null;
+  sku?: string | null;
+  barcode?: string | null;
+  description?: string | null;
+  specifications?: string | null;
+  categoryId?: string | null;
+  costPrice?: number | null;
+  sellingPrice?: number | null;
+  currency?: string | null;
+  unit?: string | null;
+  minimumStock?: number | null;
+  imageUrl?: string | null;
 };
+
+/**
+ * A currency is never inferred: the caller must supply a valid ISO 4217 code.
+ * The controller validates it too, but the service is also called directly by
+ * seeds/tools and must not be able to write an untagged price.
+ */
+function requireProductCurrency(value: unknown): string {
+  const currency = normaliseCurrencyCode(value);
+  if (!currency) {
+    throw new ApiError(
+      400,
+      'A valid ISO 4217 currency is required (for example PHP, USD or GBP)',
+      'CURRENCY_REQUIRED'
+    );
+  }
+  return currency;
+}
 
 /**
  * List filters. `skip`/`limit` are required rather than optional because
@@ -91,6 +112,17 @@ type ProductListFilters = {
   categoryId?: string;
   /** Catalogue discovery price ceiling: only products priced BELOW this amount. */
   maxSellingPrice?: number;
+  /** `up to` / `within` include the ceiling; `under` / `below` do not. */
+  maxSellingPriceInclusive?: boolean;
+  /** Only products whose recorded price carries this ISO-4217 code. */
+  priceCurrency?: string;
+  /**
+   * Price ranking for discovery. The database sorts before paging, so the cheapest
+   * (or dearest) matching product cannot be pushed off the page by newer rows. A
+   * price sort also excludes products with no positive recorded price: an unrecorded
+   * price is not a price of zero.
+   */
+  sort?: ProductListSort;
   locationId?: string;
   lowStock?: boolean;
   outOfStock?: boolean;
@@ -119,8 +151,60 @@ type BrandSummaryFilters = {
   limit: number;
 };
 
+type ProductListSort = 'newest' | 'price_asc' | 'price_desc';
+
 const { ObjectId } = mongoose.Types;
+/**
+ * Audit is an append-only trail, not part of the product write's transaction. Once a
+ * create/update/archive has committed, a failed audit insert must not turn a saved
+ * product into a 500 that invites the client to retry the whole operation. Log the
+ * gap instead; `docs/INVENTORY_INTEGRITY.md` records the residual risk.
+ */
+async function safeProductAudit(payload: Parameters<typeof recordAudit>[0]) {
+  try {
+    await recordAudit(payload);
+  } catch (err) {
+    console.error(`[product] audit write failed after commit: ${String((err as { message?: unknown }).message)}`);
+    await monitorAuditFailure({
+      businessId: payload.businessId,
+      action: payload.action,
+      entityType: payload.entityType,
+      entityId: payload.entityId,
+      error: err,
+    });
+  }
+}
+
 const escapeRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+/**
+ * The selling-price predicate shared by both list paths. A price sort must rank only
+ * products whose price was actually recorded, so it adds `$gt: 0`; an unrecorded or
+ * zero price is not evidence that the product is free. The ceiling keeps the
+ * historical exclusive `<` for "under"/"below" and uses `<=` for "up to"/"within".
+ */
+function sellingPriceMatch(
+  maxSellingPrice: number | undefined,
+  maxSellingPriceInclusive: boolean | undefined,
+  requireRecordedPrice: boolean,
+): Record<string, unknown> | undefined {
+  const range: Record<string, unknown> = {};
+  if (requireRecordedPrice) range.$gt = 0;
+  if (maxSellingPrice !== undefined) {
+    range[maxSellingPriceInclusive ? '$lte' : '$lt'] = maxSellingPrice;
+  }
+  return Object.keys(range).length > 0 ? range : undefined;
+}
+
+function productSort(sort: ProductListSort | undefined): Record<string, 1 | -1> {
+  // Price ties are broken by name, then `_id`. A price-only page boundary that
+  // falls inside a tie is otherwise free to reorder between requests, which makes
+  // an answer like "the cheapest is X" depend on the request that happened to
+  // produce the page. Name is ascending in both directions; `_id` follows the
+  // primary direction so the deterministic paging convention still holds.
+  if (sort === 'price_asc') return { sellingPrice: 1, name: 1, _id: 1 };
+  if (sort === 'price_desc') return { sellingPrice: -1, name: 1, _id: -1 };
+  return { createdAt: -1, _id: -1 };
+}
 const BRAND_DESCRIPTION_MAX = 160;
 
 /**
@@ -362,6 +446,7 @@ function availabilityIdStages(
         __product: { $literal: true },
         __minimumStock: '$minimumStock',
         __createdAt: '$createdAt',
+        __sellingPrice: '$sellingPrice',
       },
     },
     {
@@ -387,6 +472,7 @@ function availabilityIdStages(
         __product: { $max: '$__product' },
         __minimumStock: { $max: '$__minimumStock' },
         __createdAt: { $max: '$__createdAt' },
+        __sellingPrice: { $max: '$__sellingPrice' },
         __quantity: { $max: '$__quantity' },
         __reserved: { $max: '$__reserved' },
         __hasRow: { $max: '$__hasRow' },
@@ -400,6 +486,7 @@ function availabilityIdStages(
       $project: {
         minimumStock: '$__minimumStock',
         createdAt: '$__createdAt',
+        sellingPrice: '$__sellingPrice',
         available: {
           $subtract: [{ $ifNull: ['$__quantity', 0] }, { $ifNull: ['$__reserved', 0] }],
         },
@@ -474,11 +561,17 @@ export const productService = {
   reorderItemPublic,
   unitsBelowMinimum,
 
-  async assertCategoryOfBusiness(businessId: IdLike, categoryId: string | undefined) {
+  async assertCategoryOfBusiness(businessId: IdLike, categoryId: string | null | undefined) {
     if (!categoryId) return null;
     const category = await Category.findOne({ _id: categoryId, businessId });
     if (!category) {
       throw new ApiError(404, 'Category not found', 'CATEGORY_NOT_FOUND');
+    }
+    // An archived category is still readable for history, but it is closed to new
+    // assignments. Without this a product could be filed under a category the
+    // catalogue no longer offers, and the archived reference would look live again.
+    if (category.status !== 'ACTIVE') {
+      throw new ApiError(409, 'This category is archived and cannot be assigned', 'CATEGORY_ARCHIVED');
     }
     return category;
   },
@@ -497,7 +590,7 @@ export const productService = {
       categoryId: payload.categoryId,
       costPrice: payload.costPrice ?? 0,
       sellingPrice: payload.sellingPrice ?? 0,
-      currency: payload.currency,
+      currency: requireProductCurrency(payload.currency),
       unit: payload.unit,
       minimumStock: payload.minimumStock ?? 0,
       imageUrl: payload.imageUrl,
@@ -518,7 +611,7 @@ export const productService = {
       throw err;
     }
 
-    await recordAudit({
+    await safeProductAudit({
       businessId,
       userId,
       action: AUDIT_ACTIONS.PRODUCT_CREATED,
@@ -575,6 +668,23 @@ export const productService = {
     const doc = await Product.findOne({ _id: id, businessId }).populate('categoryId', 'name status');
     if (!doc) notFound('Product not found');
 
+    // Every edit must leave the product with a valid currency. An existing
+    // product may keep the code it already has; a legacy row with none (or with
+    // a malformed code) must be given one in this request. This is also what
+    // makes the audit's resolution path safe: a human supplies the code after
+    // verifying it, and the API records exactly that value.
+    if (payload.currency === undefined) {
+      if (!isProductCurrencyCode(doc.currency)) {
+        throw new ApiError(
+          400,
+          'This product has no valid recorded currency. Send a verified ISO 4217 currency with the edit.',
+          'CURRENCY_REQUIRED'
+        );
+      }
+    } else {
+      payload.currency = requireProductCurrency(payload.currency);
+    }
+
     if (payload.categoryId !== undefined && String(payload.categoryId ?? '') !== String(doc.categoryId?._id ?? doc.categoryId ?? '')) {
       await this.assertCategoryOfBusiness(businessId, payload.categoryId);
     }
@@ -628,7 +738,7 @@ export const productService = {
         if (isDuplicateKey(err)) throw mapDuplicateKey(err);
         throw err;
       }
-      await recordAudit({
+      await safeProductAudit({
         businessId,
         userId,
         action: AUDIT_ACTIONS.PRODUCT_UPDATED,
@@ -711,7 +821,7 @@ export const productService = {
       throw new ApiError(409, 'The product changed while the barcode was being generated — try again', 'PRODUCT_CONFLICT');
     }
 
-    await recordAudit({
+    await safeProductAudit({
       businessId,
       userId,
       action: AUDIT_ACTIONS.PRODUCT_UPDATED,
@@ -730,7 +840,7 @@ export const productService = {
 
     doc.status = status;
     await doc.save();
-    await recordAudit({
+    await safeProductAudit({
       businessId,
       userId,
       action: status === 'ARCHIVED' ? AUDIT_ACTIONS.PRODUCT_ARCHIVED : AUDIT_ACTIONS.PRODUCT_UPDATED,
@@ -752,16 +862,25 @@ export const productService = {
       status,
       categoryId,
       maxSellingPrice,
+      maxSellingPriceInclusive,
+      priceCurrency,
+      sort,
       excludeIds,
       includeIds,
       skip,
       limit,
     }: ProductListFilters
   ) {
-    const filter: Record<string, unknown> = { businessId };
+    const filter: Record<string, unknown> = { businessId: new ObjectId(businessId) };
     if (status === 'ACTIVE' || status === 'ARCHIVED') filter.status = status;
     if (categoryId) filter.categoryId = new ObjectId(categoryId);
-    if (maxSellingPrice !== undefined) filter.sellingPrice = { $lt: maxSellingPrice };
+    const priceMatch = sellingPriceMatch(
+      maxSellingPrice,
+      maxSellingPriceInclusive,
+      maxSellingPrice !== undefined || sort === 'price_asc' || sort === 'price_desc',
+    );
+    if (priceMatch) filter.sellingPrice = priceMatch;
+    if (priceCurrency) filter.currency = priceCurrency;
     // AI-71 — "which products never sold" must be answered by the database, not by a page
     // compared against another page: the exclusion set is every product that HAS moved.
     if (excludeIds?.length || includeIds?.length) {
@@ -775,13 +894,69 @@ export const productService = {
     const total = await Product.countDocuments(filter);
     const docs = await Product.find(filter)
       .populate('categoryId', 'name status')
-      // `_id` breaks createdAt ties in the same direction as the primary sort,
-      // so paging a page boundary that falls inside a tie cannot repeat or skip
-      // a product (see the Phase 16 audit list for the same convention).
-      .sort({ createdAt: -1, _id: -1 })
+      // `_id` breaks the primary sort's ties in the same direction, so paging a
+      // boundary that falls inside a tie cannot repeat or skip a product (see the
+      // Phase 16 audit list for the same convention). Price sorts put the cheapest
+      // (or dearest) FIRST, before the page window is applied.
+      .sort(productSort(sort))
       .skip(skip)
       .limit(limit);
     return { items: docs, total };
+  },
+
+  /**
+   * The recorded currencies among every product matching a discovery filter.
+   * The assistant uses this BEFORE asking for a price ranking: if the matches
+   * carry more than one currency, a single numeric order would call a USD 10
+   * product cheaper than a PHP 900 one. `null` is reported as its own group,
+   * because "never recorded" is not evidence of any currency.
+   */
+  async priceCurrencies(
+    businessId: IdLike,
+    filters: Pick<
+      ProductListFilters,
+      | 'q'
+      | 'terms'
+      | 'exactTerms'
+      | 'includeDescription'
+      | 'status'
+      | 'categoryId'
+      | 'maxSellingPrice'
+      | 'maxSellingPriceInclusive'
+      | 'excludeIds'
+      | 'includeIds'
+    >,
+  ): Promise<Array<{ currency: string | null; count: number }>> {
+    // Aggregations do not cast, and callers pass a hex string as often as an
+    // ObjectId; without this conversion the match silently returns no groups
+    // and the assistant would rank a mixed-currency catalogue as if it were one.
+    const filter: Record<string, unknown> = { businessId: new ObjectId(businessId) };
+    if (filters.status === 'ACTIVE' || filters.status === 'ARCHIVED') filter.status = filters.status;
+    if (filters.categoryId) filter.categoryId = new ObjectId(filters.categoryId);
+    const priceMatch = sellingPriceMatch(
+      filters.maxSellingPrice,
+      filters.maxSellingPriceInclusive,
+      true,
+    );
+    if (priceMatch) filter.sellingPrice = priceMatch;
+    if (filters.excludeIds?.length || filters.includeIds?.length) {
+      filter._id = {
+        ...(filters.includeIds?.length ? { $in: filters.includeIds.map((id) => new ObjectId(id)) } : {}),
+        ...(filters.excludeIds?.length ? { $nin: filters.excludeIds.map((id) => new ObjectId(id)) } : {}),
+      };
+    }
+    const textOr = textSearchOr(filters);
+    if (textOr) filter.$or = textOr;
+
+    const rows = await Product.aggregate([
+      { $match: filter },
+      { $group: { _id: '$currency', count: { $sum: 1 } } },
+      { $sort: { _id: 1 } },
+    ]);
+    return rows.map((row) => ({
+      currency: typeof row._id === 'string' && row._id.trim() ? row._id : null,
+      count: typeof row.count === 'number' ? row.count : 0,
+    }));
   },
 
   /**
@@ -802,6 +977,9 @@ export const productService = {
       status,
       categoryId,
       maxSellingPrice,
+      maxSellingPriceInclusive,
+      priceCurrency,
+      sort,
       locationId,
       lowStock,
       outOfStock,
@@ -817,7 +995,13 @@ export const productService = {
     const match: Record<string, unknown> = { businessId: bizOid };
     if (status === 'ACTIVE' || status === 'ARCHIVED') match.status = status;
     if (categoryId) match.categoryId = new ObjectId(categoryId);
-    if (maxSellingPrice !== undefined) match.sellingPrice = { $lt: maxSellingPrice };
+    const priceMatch = sellingPriceMatch(
+      maxSellingPrice,
+      maxSellingPriceInclusive,
+      maxSellingPrice !== undefined || sort === 'price_asc' || sort === 'price_desc',
+    );
+    if (priceMatch) match.sellingPrice = priceMatch;
+    if (priceCurrency) match.currency = priceCurrency;
     // AI-71 — same exclusion as `listSimple`, applied before the stock merge so the page
     // window only ever counts products that have not moved.
     if (excludeIds?.length || includeIds?.length) {
@@ -873,7 +1057,7 @@ export const productService = {
         // affect it (a $facet's branches read the same input independently).
         metadata: [{ $count: 'total' }],
         data: [
-          { $sort: { createdAt: -1, _id: -1 } },
+          { $sort: productSort(sort) },
           { $skip: skip },
           { $limit: limit },
         ],
@@ -1401,6 +1585,9 @@ export const productService = {
       status,
       categoryId,
       maxSellingPrice,
+      maxSellingPriceInclusive,
+      priceCurrency,
+      sort,
       locationId,
       lowStock,
       outOfStock,
@@ -1421,6 +1608,9 @@ export const productService = {
         status,
         categoryId,
         maxSellingPrice,
+        maxSellingPriceInclusive,
+        priceCurrency,
+        sort,
         locationId,
         lowStock,
         outOfStock,
@@ -1439,6 +1629,9 @@ export const productService = {
       status,
       categoryId,
       maxSellingPrice,
+      maxSellingPriceInclusive,
+      priceCurrency,
+      sort,
       excludeIds,
       includeIds,
       skip,

@@ -43,6 +43,16 @@ export class ApiError extends Error {
    */
   retryAfter: number | null;
 
+  /**
+   * The server's correlation id for this refusal, copied from `X-Request-ID`.
+   *
+   * It is deliberately `null` for a network failure (no response exists) and for
+   * any header value this client would not safely display. The value is evidence
+   * for support, never an authorization input: it is not sent back to the server,
+   * persisted, logged or used to retry.
+   */
+  requestId: string | null;
+
   constructor(
     status: number,
     code?: string | null,
@@ -57,6 +67,7 @@ export class ApiError extends Error {
     this.fields = fields;
     this.applied = Array.isArray(applied) ? applied : undefined;
     this.retryAfter = null;
+    this.requestId = null;
   }
 
   get isNetwork(): boolean {
@@ -241,6 +252,54 @@ function readRetryAfter(res: Response): number | null {
   const headers = res.headers as Headers | undefined;
   if (!headers || typeof headers.get !== 'function') return null;
   return parseRetryAfter(headers.get('retry-after'));
+}
+
+/** Mirrors `server/src/middlewares/requestId.ts`: bounded and URL-safe. */
+const MAX_REQUEST_ID_LENGTH = 128;
+const SAFE_REQUEST_ID = /^[A-Za-z0-9._:-]+$/;
+
+/**
+ * Whether a value may be shown as a request reference.
+ *
+ * The server already rejects an unsafe incoming header and replaces it with a
+ * UUID, but the client must not trust a response stub, a proxy or a future
+ * server change to keep doing that. The test is the server's own rule: non-empty,
+ * at most 128 characters, and only `[A-Za-z0-9._:-]`. A blank, over-long, spaced
+ * or CR/LF-bearing value becomes `null`; it is never trimmed into validity and
+ * never replaced with a generated id.
+ */
+export function isSafeRequestId(value: unknown): value is string {
+  return (
+    typeof value === 'string' &&
+    value.length > 0 &&
+    value.length <= MAX_REQUEST_ID_LENGTH &&
+    SAFE_REQUEST_ID.test(value)
+  );
+}
+
+/**
+ * Reads `X-Request-ID` without assuming the response or its header bag is real.
+ *
+ * Several Jest suites stub `fetch` with the smallest object their subject needs,
+ * and an error path must never fail because a diagnostic header is unreadable.
+ * A missing or throwing header source therefore answers "no reference".
+ *
+ * Exported because the AI's streamed turn does not travel through `apiFetch`
+ * (a streaming body cannot be consumed by the JSON client) and must apply the
+ * same validation to its own response. The argument is structural rather than a
+ * DOM `Response` so that transport's narrow `StreamedResponse` can pass itself.
+ */
+export function readRequestId(res: {
+  headers?: { get(name: string): string | null } | null;
+}): string | null {
+  try {
+    const headers = res.headers;
+    if (!headers || typeof headers.get !== 'function') return null;
+    const raw = headers.get('x-request-id');
+    return isSafeRequestId(raw) ? raw : null;
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -551,6 +610,7 @@ async function apiFetchAttempt<T = unknown>(
     envelope.fields || [],
     envelope.applied,
   );
+  error.requestId = readRequestId(res);
   // The server's own cooldown, when it stated one. Read for EVERY failed
   // response rather than only 429s: the header is only ever emitted alongside a
   // refusal, and gating on the status here would encode a policy this transport

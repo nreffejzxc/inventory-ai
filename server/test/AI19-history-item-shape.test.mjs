@@ -47,7 +47,7 @@ dbSuite('AI-19 a history row is the movement, not the ledger record', dbOk, () =
     location = created.json;
 
     productName = uniqueName('HQProd');
-    const product = await api('POST', '/api/products', { token: A.token, body: { name: productName } });
+    const product = await api('POST', '/api/products', { token: A.token, body: { currency: 'PHP', name: productName } });
     assert.equal(product.status, 201, JSON.stringify(product.json));
     productId = product.json.id;
 

@@ -61,8 +61,12 @@ Guide 6; no rule, command or safety procedure was removed.
 | [`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md) | The mobile visual language: tokens, type, primitives, accessibility rules |
 | [`DEVELOPING_ON_A_PHYSICAL_DEVICE.md`](DEVELOPING_ON_A_PHYSICAL_DEVICE.md) | The deep phone reference: verified commands, log reading, failure → fix |
 | [`INVENTORY_INTEGRITY.md`](INVENTORY_INTEGRITY.md) | The read-only orphan STOCK_IN / unreceipted-PO audit, its scheduled baseline/history monitor, its exit codes and what to do with a finding |
+| [`INVENTORY_INTEGRITY_AUDIT_REVIEW_2026-11-19.md`](INVENTORY_INTEGRITY_AUDIT_REVIEW_2026-11-19.md) | The audit follow-up record: the four integrity/catalog fixes, the transfer and receiving crash-recovery assessment, and ten ranked next improvements |
+| [`INTEGRITY_RECOVERY.md`](INTEGRITY_RECOVERY.md) | Durable transfer journals and recovery, unique ledger guard and migration, cross-instance recovery lease, PO receive keys/fingerprints, stale-claim repair, category archive policy, audit-gap monitoring, price-quality and product-currency commands, scheduled operational runner, limits and remaining risks |
+| [`PRODUCT_CURRENCY.md`](PRODUCT_CURRENCY.md) | The ISO 4217 contract, read-only legacy audit, human-approved evidence file, idempotent bulk resolution, dated ECB rate cache, maximum-age refusal and conversion monitoring |
 | [`MONITORING.md`](MONITORING.md) | The operator's health endpoints, response pulse, AI turn records, alert rules and incident procedure |
 | [`INVENTORY_AI_IMPROVEMENT_ASSESSMENT.md`](INVENTORY_AI_IMPROVEMENT_ASSESSMENT.md) | The whole-product ranked improvement assessment: current strengths, risk register, next-work order and the new gaps beyond the existing roadmaps |
+| [`AI_ASSISTANT_AUDIT_2026-11-20.md`](AI_ASSISTANT_AUDIT_2026-11-20.md) | The assistant audit record: every read-only tool, the feature matrix, the defects fixed, the bounded run-out feature with its corrective re-ask and opt-in live selection harness, remaining boundaries and manual checks |
 | [`PLATFORM_CLOUDFLARE_ACCESS_IMPLEMENTATION_PLAN.md`](PLATFORM_CLOUDFLARE_ACCESS_IMPLEMENTATION_PLAN.md) | The conditional Cloudflare Access migration plan: domain, origin JWT, WebAuthn migration, cutover, rollback and acceptance tests; free-tier/domain gate only, planning only |
 | [`PLATFORM_SECURITY_CONTACTS.md`](PLATFORM_SECURITY_CONTACTS.md) | The primary/backup security contact record: the owner as primary, Cucumber as named backup with private contact details, the pending test gate and review cadence; planning only |
 | [`PLATFORM_SECURITY_NOTIFICATION_EVIDENCE.md`](PLATFORM_SECURITY_NOTIFICATION_EVIDENCE.md) | The owner-run two-contact test procedure and pending evidence record: existing free channels, channel types, timestamps, tester, both delivery confirmations and acknowledgement, with no private contact details or secrets |
@@ -81,6 +85,7 @@ Guide 6; no rule, command or safety procedure was removed.
 | [`PLATFORM_SENSITIVE_DATA_PROTECTION_DESIGN.md`](PLATFORM_SENSITIVE_DATA_PROTECTION_DESIGN.md) | NX-01 design only: sensitive-field map, approved log appearances, the G1–G9 code findings, redaction boundary, C1–C14 canary and acceptance checks |
 | [`PLATFORM_NEXT_IMPROVEMENTS_BEYOND_NX07.md`](PLATFORM_NEXT_IMPROVEMENTS_BEYOND_NX07.md) | Next ranked tranche beyond NX-07: AI provider data-handling attestation, release-artifact secret/PII scan, runbook freshness, TTL effectiveness, audit tamper-evidence and external-link freshness; recommendations only |
 | [`PLATFORM_NEXT_IMPROVEMENTS_BEYOND_NY07.md`](PLATFORM_NEXT_IMPROVEMENTS_BEYOND_NY07.md) | Next ranked tranche beyond NY-07: CodeQL, dependency review, deploy rollback, workflow audit, Android manifest privacy, privacy-policy drift and App Check; recommendations only |
+| [`FW_IMPLEMENTATION_PLANS_2026-11-19.md`](FW_IMPLEMENTATION_PLANS_2026-11-19.md) | Code-accurate plans for FW-04 (corrected PO transmission), FW-07 (mobile request reference), FW-05 (non-AI database deadline), linked stock-movement reversal and supplier replenishment terms; planning only |
 | [`../README.md`](../README.md) | The front door: stack, layout, how to run each half, deployment |
 
 ### Platform Operations console
@@ -109,8 +114,8 @@ Reference documents are consulted rather than read once, so they are reviewed on
 
 | Document | Cadence | Last reviewed |
 | --- | --- | --- |
-| [`../CLAUDE.md`](../CLAUDE.md) | 90 days | 2026-11-15 |
-| [`SYSTEM_SPECIFICATION.md`](SYSTEM_SPECIFICATION.md) | 90 days | 2026-11-15 |
+| [`../CLAUDE.md`](../CLAUDE.md) | 90 days | 2026-11-20 |
+| [`SYSTEM_SPECIFICATION.md`](SYSTEM_SPECIFICATION.md) | 90 days | 2026-11-20 |
 | [`AUTHENTICATION_AND_USER_VERIFICATION_TARGET_ARCHITECTURE.md`](AUTHENTICATION_AND_USER_VERIFICATION_TARGET_ARCHITECTURE.md) | 90 days | 2026-11-07 |
 | [`AUTH_SECURITY_MASTER_CHECKLIST.md`](AUTH_SECURITY_MASTER_CHECKLIST.md) | 90 days | 2026-11-07 |
 | [`SECURITY_DEPENDENCY_DECISIONS.md`](SECURITY_DEPENDENCY_DECISIONS.md) | 30 days | 2026-11-11 |
@@ -120,7 +125,7 @@ Reference documents are consulted rather than read once, so they are reviewed on
 | [`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md) | 90 days | 2026-11-07 |
 | [`DEVELOPING_ON_A_PHYSICAL_DEVICE.md`](DEVELOPING_ON_A_PHYSICAL_DEVICE.md) | 90 days | 2026-11-07 |
 | [`INVENTORY_INTEGRITY.md`](INVENTORY_INTEGRITY.md) | 90 days | 2026-11-15 |
-| [`MONITORING.md`](MONITORING.md) | 90 days | 2026-11-17 |
+| [`MONITORING.md`](MONITORING.md) | 90 days | 2026-11-19 |
 | [`platform-console/README.md`](platform-console/README.md) | 90 days | 2026-11-19 |
 | [`00 — User guide`](platform-console/00-user-guide.md) | 90 days | 2026-11-19 |
 | [`01 — Status and accounts`](platform-console/01-status-and-accounts.md) | 90 days | 2026-11-19 |
@@ -133,6 +138,10 @@ Reference documents are consulted rather than read once, so they are reviewed on
 | [`08 — Security roadmap`](platform-console/08-security-roadmap.md) | 90 days | 2026-11-18 |
 | [`09 — Remaining security priorities`](platform-console/09-remaining-security-priorities.md) | 90 days | 2026-11-18 |
 | [`INVENTORY_AI_IMPROVEMENT_ASSESSMENT.md`](INVENTORY_AI_IMPROVEMENT_ASSESSMENT.md) | 90 days | 2026-11-17 |
+| [`AI_ASSISTANT_AUDIT_2026-11-20.md`](AI_ASSISTANT_AUDIT_2026-11-20.md) | 90 days | 2026-11-20 |
+| [`INVENTORY_INTEGRITY_AUDIT_REVIEW_2026-11-19.md`](INVENTORY_INTEGRITY_AUDIT_REVIEW_2026-11-19.md) | 90 days | 2026-11-19 |
+| [`INTEGRITY_RECOVERY.md`](INTEGRITY_RECOVERY.md) | 90 days | 2026-11-19 |
+| [`PRODUCT_CURRENCY.md`](PRODUCT_CURRENCY.md) | 90 days | 2026-11-20 |
 | [`PLATFORM_CLOUDFLARE_ACCESS_IMPLEMENTATION_PLAN.md`](PLATFORM_CLOUDFLARE_ACCESS_IMPLEMENTATION_PLAN.md) | 90 days | 2026-11-17 |
 | [`PLATFORM_SECURITY_CONTACTS.md`](PLATFORM_SECURITY_CONTACTS.md) | 90 days | 2026-11-17 |
 | [`PLATFORM_SECURITY_NOTIFICATION_EVIDENCE.md`](PLATFORM_SECURITY_NOTIFICATION_EVIDENCE.md) | 90 days | 2026-11-17 |
@@ -151,6 +160,7 @@ Reference documents are consulted rather than read once, so they are reviewed on
 | [`PLATFORM_SENSITIVE_DATA_PROTECTION_DESIGN.md`](PLATFORM_SENSITIVE_DATA_PROTECTION_DESIGN.md) | 90 days | 2026-11-17 |
 | [`PLATFORM_NEXT_IMPROVEMENTS_BEYOND_NX07.md`](PLATFORM_NEXT_IMPROVEMENTS_BEYOND_NX07.md) | 90 days | 2026-11-17 |
 | [`PLATFORM_NEXT_IMPROVEMENTS_BEYOND_NY07.md`](PLATFORM_NEXT_IMPROVEMENTS_BEYOND_NY07.md) | 90 days | 2026-11-17 |
+| [`FW_IMPLEMENTATION_PLANS_2026-11-19.md`](FW_IMPLEMENTATION_PLANS_2026-11-19.md) | 90 days | 2026-11-19 |
 | [`../README.md`](../README.md) | 90 days | 2026-11-09 |
 
 The 2026-11-07 date starts each clock at adoption: it records when the cadence began, not that every
@@ -182,7 +192,7 @@ supported versions, scope and response expectations.
 | Document | Answers |
 | --- | --- |
 | [`DEVELOPMENT_LOG.md`](DEVELOPMENT_LOG.md) | What is being worked on now, what each session finished and verified, what is blocked, what is next — plus the resource budgets (EAS builds, OTA, CI minutes) |
-| [`AI_ASSISTANT_IMPROVEMENT_ROADMAP.md`](AI_ASSISTANT_IMPROVEMENT_ROADMAP.md) | The permanent eight-item assistant roadmap: what already exists, what is missing, the delivery order and the release gates |
+| [`AI_ASSISTANT_IMPROVEMENT_ROADMAP.md`](AI_ASSISTANT_IMPROVEMENT_ROADMAP.md) | The permanent eight-item assistant roadmap: what already exists, what is missing, the delivery order, the release gates and the 2026-11-20 ranked follow-up list |
 
 It is newest-first and is updated at the end of every development session. It does **not** replace
 the roadmap: the roadmap records what shipped, with measurements; the log records what is true

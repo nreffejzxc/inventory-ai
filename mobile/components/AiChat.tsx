@@ -6,7 +6,8 @@ import AssistantMarkdown from './AssistantMarkdown';
 import type { ProductLink } from './AssistantMarkdown';
 import Button from './Button';
 import { Icon } from './icons';
-import { CenterLoader, ErrorState, errorText } from './ListState';
+import { CenterLoader, ErrorState, errorRequestId, errorText } from './ListState';
+import RequestReference from './RequestReference';
 import { aiApi } from '../lib/api';
 import type { ApiResponse } from '../lib/api';
 import { MAX_ASSISTANT_MESSAGE_CHARS, readAssistantPrompt } from '../lib/assistantContext';
@@ -872,6 +873,15 @@ export default function AiChat({ conversationId = null, initialPrompt = '' }: Ai
   const [input, setInput] = useState(() => readAssistantPrompt(initialPrompt));
   const [sendError, setSendError] = useState<string | null>(null);
   /**
+   * The server's reference for a failed turn, when its response carried one.
+   *
+   * The streamed path does not pass through `apiFetch`, so this is the one screen
+   * where a provider or transport failure could otherwise be reported with no way
+   * for support to find the exact request. It is cleared with the sentence it
+   * belongs to, never shown on a healthy answer.
+   */
+  const [sendErrorId, setSendErrorId] = useState<string | null>(null);
+  /**
    * AI-40 — the answer as it is being written.
    *
    * Held apart from `rows` on purpose: it is not a stored message, it has no id and no
@@ -966,6 +976,7 @@ export default function AiChat({ conversationId = null, initialPrompt = '' }: Ai
     if (!message || sending) return;
     setInput('');
     setSendError(null);
+    setSendErrorId(null);
     setStopped(false);
     setStreamingText('');
     setCorrecting(false);
@@ -1091,6 +1102,7 @@ export default function AiChat({ conversationId = null, initialPrompt = '' }: Ai
         setInput(message);
       }
       setSendError(sendErrorMessage(err));
+      setSendErrorId(errorRequestId(err));
     } finally {
       stopRef.current = null;
       setCorrecting(false);
@@ -1128,7 +1140,14 @@ export default function AiChat({ conversationId = null, initialPrompt = '' }: Ai
     return <CenterLoader label="Loading conversation…" />;
   }
   if (loadError && rows.length === 0) {
-    return <ErrorState title="Couldn't load this chat" message={errorText(loadError)} onRetry={loadThread} />;
+    return (
+      <ErrorState
+        title="Couldn't load this chat"
+        message={errorText(loadError)}
+        requestId={errorRequestId(loadError)}
+        onRetry={loadThread}
+      />
+    );
   }
 
   return (
@@ -1161,6 +1180,7 @@ export default function AiChat({ conversationId = null, initialPrompt = '' }: Ai
         {sendError ? (
           <View style={styles.errorBanner}>
             <Text style={styles.errorText}>{sendError}</Text>
+            <RequestReference requestId={sendErrorId} align="start" />
           </View>
         ) : null}
         <View style={styles.composer}>

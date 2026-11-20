@@ -281,6 +281,7 @@ export async function seedDemoTenant() {
       categoryId: categoryId.get(p.category),
       costPrice: p.costPrice,
       sellingPrice: p.sellingPrice,
+      currency: p.currency,
       unit: p.unit,
       minimumStock: p.minimumStock,
       status: 'ACTIVE',

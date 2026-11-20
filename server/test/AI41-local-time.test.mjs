@@ -92,7 +92,7 @@ dbSuite('AI-41 the tool rows the model reads carry the member’s local time', d
     assert.equal(created.status, 201, JSON.stringify(created.json));
     location = created.json;
 
-    const product = await api('POST', '/api/products', { token: owner.token, body: { name: uniqueName('TZProd') } });
+    const product = await api('POST', '/api/products', { token: owner.token, body: { currency: 'PHP', name: uniqueName('TZProd') } });
     assert.equal(product.status, 201, JSON.stringify(product.json));
     productId = product.json.id;
 

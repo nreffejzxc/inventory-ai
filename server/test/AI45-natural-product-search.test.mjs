@@ -74,6 +74,8 @@ dbSuite('AI-45 natural product discovery', dbOk, () => {
   let ssdId;
   let exactCeilingId;
   let exactDellId;
+  let unpricedId;
+  let cheapSortableId;
 
   before(async () => {
     A = await registerOwner(api, tracker);
@@ -91,7 +93,7 @@ dbSuite('AI-45 natural product discovery', dbOk, () => {
     assert.equal(category.status, 201, JSON.stringify(category.json));
 
     const makeProduct = async (body) => {
-      const res = await api('POST', '/api/products', { token: A.token, body });
+      const res = await api('POST', '/api/products', { token: A.token, body: { currency: 'PHP', ...body } });
       assert.equal(res.status, 201, JSON.stringify(res.json));
       return res.json;
     };
@@ -150,6 +152,32 @@ dbSuite('AI-45 natural product discovery', dbOk, () => {
       minimumStock: 1,
     });
     exactCeilingId = exactCeiling.id;
+
+    // No sellingPrice is recorded. The REST DTO exposes 0 for compatibility, but the AI
+    // row must expose null and price ranking/filtering must not treat it as free.
+    const unpriced = await makeProduct({
+      name: uniqueName('Acme Unpriced Filter'),
+      brand: 'Acme',
+      categoryId: category.json.id,
+      description: 'Workshop consumable with no recorded price',
+      unit: 'pcs',
+      minimumStock: 0,
+    });
+    unpricedId = unpriced.id;
+
+    // Created cheapest-first, so a newest-first page would omit the cheap row. A price
+    // ranking must reach it through the database, before paging.
+    for (const price of [1, 10, 20, 30, 40, 50]) {
+      const sortable = await makeProduct({
+        name: `Zeta Sortable ${price}`,
+        brand: 'Zeta',
+        categoryId: category.json.id,
+        sellingPrice: price,
+        unit: 'pcs',
+        minimumStock: 0,
+      });
+      if (price === 1) cheapSortableId = sortable.id;
+    }
 
     // A family deep enough to fill a discovery page: the named 10232 is created first,
     // so it is the OLDEST row and falls outside the newest-first 15-row page.
@@ -257,6 +285,60 @@ dbSuite('AI-45 natural product discovery', dbOk, () => {
     assert.ok(result.items.every((row) => row.sellingPrice < 5000));
     assert.equal(result.items.some((row) => row.id === exactCeilingId), false);
     assert.equal(result.maxSellingPrice, 5000);
+  });
+
+  it('★ "up to" includes the ceiling and an unrecorded price never matches a price filter', async () => {
+    const result = await ok('findProducts', { keywords: 'products up to 5000' }, ctxOf(A));
+    assert.equal(result.maxSellingPrice, 5000);
+    assert.equal(result.maxSellingPriceInclusive, true);
+    assert.ok(result.items.some((row) => row.id === exactCeilingId), 'the exact ceiling must be included');
+    assert.equal(result.items.some((row) => row.id === unpricedId), false, 'an unrecorded price is not 0');
+    assert.ok(result.items.every((row) => typeof row.sellingPrice === 'number' && row.sellingPrice > 0));
+  });
+
+  it('★ price ranking happens before paging, so the cheapest old row is not pushed off', async () => {
+    const result = await ok(
+      'findProducts',
+      { keywords: 'zeta sortable', sort: 'price_asc', limit: 3 },
+      ctxOf(A),
+    );
+    assert.equal(result.items[0].id, cheapSortableId);
+    assert.deepEqual(result.items.map((row) => row.sellingPrice), [1, 10, 20]);
+    assert.equal(result.priceRank, 'price_asc');
+    assert.match(result.priceRankNote, /no recorded price/i);
+  });
+
+  it('★ price_desc ranks dearest first and still excludes an unpriced match', async () => {
+    const result = await ok(
+      'findProducts',
+      { keywords: 'zeta sortable, acme unpriced filter', sort: 'price_desc', limit: 2 },
+      ctxOf(A),
+    );
+    assert.deepEqual(result.items.map((row) => row.sellingPrice), [50, 40]);
+    assert.equal(result.items.some((row) => row.id === unpricedId), false);
+    assert.equal(result.priceRank, 'price_desc');
+  });
+
+  it('★ availability survives a price ranking and excludes unstocked matches', async () => {
+    const result = await ok(
+      'findProducts',
+      { keywords: 'acme', sort: 'price_asc', inStockOnly: true },
+      ctxOf(A),
+    );
+    assert.deepEqual(result.items.map((row) => row.id), [coolantId]);
+    assert.ok(result.items.every((row) => row.availableQuantity > 0));
+    assert.equal(result.items.some((row) => row.id === brakeId), false, 'out-of-stock brake fluid is excluded');
+    assert.equal(result.items.some((row) => row.id === unpricedId), false);
+  });
+
+  it('★ an unpriced product is null in the AI row, not a free price of 0', async () => {
+    const result = await ok('getProduct', { id: unpricedId }, ctxOf(A));
+    assert.equal(result.found, true);
+    assert.equal(result.product.sellingPrice, null);
+
+    const searched = await ok('findProducts', { keywords: 'acme unpriced filter' }, ctxOf(A));
+    assert.equal(searched.items[0].id, unpricedId);
+    assert.equal(searched.items[0].sellingPrice, null);
   });
 
   it('★ a no-match page states the limit of the search instead of inventing a product', async () => {

@@ -117,6 +117,7 @@ dbSuite('AI-43 a catalogue row carries its description and the boundary', dbOk, 
     const product = await api('POST', '/api/products', {
       token: A.token,
       body: {
+        currency: 'PHP',
         name: uniqueName('ZZ Engine Oil'),
         categoryId: category.json.id,
         description: longDescription,

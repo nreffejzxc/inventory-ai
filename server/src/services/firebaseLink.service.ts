@@ -60,6 +60,7 @@ import type mongoose from 'mongoose';
 import User from '../models/user.model.ts';
 import ApiError from '../utils/ApiError.ts';
 import { recordAudit } from './audit.service.ts';
+import { monitorAuditFailure } from './auditFailure.service.ts';
 import { error as logError } from '../utils/logger.ts';
 import { AUDIT_ACTIONS, AUDIT_ENTITY_TYPES } from '../constants/audit.ts';
 import { verifyFirebaseIdToken } from './firebase/index.ts';
@@ -152,6 +153,13 @@ async function auditLinkEvent({
     console.error(
       `[firebase-link] audit record failed for ${action} (the linking outcome is unaffected): ${(err as { message?: unknown }).message}`,
     );
+    await monitorAuditFailure({
+      businessId,
+      action,
+      entityType: AUDIT_ENTITY_TYPES.USER,
+      entityId: userId,
+      error: err,
+    });
   }
 }
 

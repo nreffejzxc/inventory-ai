@@ -7,7 +7,7 @@ import AssistantPromptCard from '../../../components/AssistantPromptCard';
 import Badge, { StatusBadge } from '../../../components/Badge';
 import Button from '../../../components/Button';
 import Card from '../../../components/Card';
-import { CenterLoader, ErrorState, errorText } from '../../../components/ListState';
+import { CenterLoader, ErrorState, errorRequestId, errorText } from '../../../components/ListState';
 import Screen from '../../../components/Screen';
 import SectionHeader from '../../../components/SectionHeader';
 import StatCard from '../../../components/StatCard';
@@ -78,7 +78,16 @@ export default function InventoryRowScreen() {
   useRefetchOnFocus(load);
 
   if (loading && !row) return <CenterLoader label="Loading stock record…" />;
-  if (error && !row) return <ErrorState title="Couldn't load the stock record" message={errorText(error)} onRetry={load} />;
+  if (error && !row) {
+    return (
+      <ErrorState
+        title="Couldn't load the stock record"
+        message={errorText(error)}
+        requestId={errorRequestId(error)}
+        onRetry={load}
+      />
+    );
+  }
   if (!row) return null;
 
   const productActive = row.product?.status === 'ACTIVE';

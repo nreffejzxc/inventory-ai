@@ -222,3 +222,105 @@ keeps the seven-check PR gate and enforces SHA-pinned Actions; it is §27JU. DEV
 production-health workflow and keeps native Mongo service containers; DEV-08 is a ranked workflow
 improvement roadmap; they are §27JV and §27JW. DEV-09 adds the workflow invariant guard, removes
 persisted checkout credentials and rewrites the security policy concisely; it is §27JX.
+The console guide claim audit and follow-up recommendations are §27KA; documentation only, with no
+code, account, permission, deployment or production change. It corrected the TOTP display,
+`READ_ONLY` deployment claim, developer command, production-guard wording, step-up scope, lost-key
+order and production commit, and recorded five unimplemented follow-ups.
+The five implementation plans are §27KB: a corrected FW-04, FW-07 request references, a
+measurement-first FW-05 deadline, linked stock-movement reversal and supplier replenishment terms.
+The FW-04 correction records that the tree has only `DRAFT`/`OPEN`/`RECEIVED`/`CANCELED`, that a
+partial receipt stays `OPEN`, and that no PDF generator or mail-attachment capability exists. The
+five-plan phase was documentation only: no code, schema, production data or configuration, email or
+deployment change.
+
+The audit-fix increment is §27KC: server-ranked AI price discovery with null-price exclusion and
+inclusive ceilings, the full-upsert transfer retry, PO receive receipt replay after an
+apply-then-throw finalize, explicit catalog PATCH clearing, archived-category refusal, idempotent
+catalog creates and best-effort post-commit audit writes. The accompanying review ranks ten next
+improvements and assesses the remaining transfer/receiving crash windows. Code and DB tests only;
+no production data or deployment change.
+
+FW-07 is §27KD: mobile-only copyable request references in the shared error state, sourced from a
+safely validated `X-Request-ID` on every failed response. `ListScreen` and every direct
+`ErrorState` caller expose it; form-level alerts remain a ranked follow-up. The increment also
+records ten recommendations beyond the five plans. Mobile tests and typecheck passed; no server,
+production data, configuration or deployment change.
+
+The transfer-ledger hardening is §27KG: a unique partial operation/location index with a
+preflight/quarantine migration, duplicate-key-safe recovery under a MongoDB lease shared across
+serving instances, and a scheduler-facing operations runner with per-command locks and GitHub issue
+alerts for the two read-only audits plus exact recovery. The complete DB suite passed 1,182 tests
+with zero failures. No production migration, task registration, commit or deployment was made.
+
+The three operational follow-ups are §27KH. `ops:integrity` now persists a failed GitHub create,
+comment or close as an undelivered alert and retries it on the next `--notify` run; a recovery close
+retry resumes at the close instead of duplicating its comment. `/api/health/ready` fails closed
+unless the exact unique partial transfer-ledger index is present with the required key order,
+uniqueness and filter, reading `listIndexes` without repairing anything. `triage:integrity` is the
+read-only operator view of `REQUIRES_ATTENTION` journals and `inventory_transaction_quarantine`
+rows, with reasons, snapshots and ledger evidence. Focused tests pass 38/38, unit mode 2,184 tests
+with 0 failures, and the complete suite 3,231 of 3,233 after the full run exposed a stale AI-2
+read-only allow-list; that test-only allow-list was corrected and its suite passes 10/10. No
+production database, migration, commit or deployment was touched.
+
+The 2026-11-20 follow-up closes the remaining alert-comment duplicate cases with a stable hidden
+marker in the issue body and each alert/recovery comment: a retry whose response was lost and a
+second scheduler host with separate history now read the issue before commenting, while an
+unreadable issue stays pending rather than posting blind, and a pending close is not resumed
+against a different issue number. Triage reads moved into a read-only module and gained a DB-backed
+test that seeds a `REQUIRES_ATTENTION` transfer and quarantine row, checks the exact evidence and
+proves every touched collection is unchanged. Focused tests pass 45/45, the complete server suite
+3,244 of 3,244 in 529 suites with zero failures or skips, and the documentation guards 16/16. No production database, migration, commit or deployment was touched.
+
+The required-currency and marketplace-accuracy increment is §27KJ: product create now requires an
+ISO 4217 active-tender code, PATCH cannot clear it and cannot omit it on a legacy row with no valid
+code, and the model repeats that rule while keeping old documents readable. The catalogue and every
+seeder state `PHP` explicitly; the product API/UI labels cost and selling price separately while the
+assistant keeps cost internal and carries selling price with the recorded currency;
+`audit:product-currency` reports missing/invalid legacy codes without writing,
+and resolution is a verified explicit PATCH. Market-price listings now carry the marketplace country,
+the listing currency only when the page proves it, brand/model match evidence, the original price and
+an optional ECB/Frankfurter-dated conversion; a bare `$` or unverified pair is never converted. The
+mobile form now uses a searchable ISO picker (code and English name), with tests for search,
+selection and legacy rows. A fresh diff review fixed malformed-code conversion attempts and removed
+a duplicate seed mapping; ranked follow-ups are recorded but not implemented. The focused checks are
+recorded in §27KJ; no production database, migration, commit or deployment was touched.
+
+The post-commit reliability increment is §27KK: a test-only 503 raised after the movement service
+returns proves the same-key retry replays one committed ledger row and leaves stock unchanged; a
+scheduled pass and the dry-run-first `recover:movement-receipts` command recover only receipts
+whose ledger row matches every movement field or whose exact inventory snapshot proves the move,
+flag contradictions, prune only `COMPLETED` rows after 30 days and write recovery/prune audit
+events without the idempotency key. The authenticated status route reports state and a support
+reference only, and the mobile Pending Operations screen checks or retries stored requests without
+displaying a raw key. Focused post-commit/idempotency **16/16**, receipt recovery **8/8** and mobile
+idempotency **22/22** pass; no production data, migration, commit or deployment was touched. A
+post-review batch-fairness pass selects stale unfinished receipts before attention rows, adds a
+full-old-attention backlog regression, and covers the CLI and Pending Operations screen at 9/9
+contract cases and 6/6 render cases respectively. The AUTH-03 capped-session fixture was made
+TTL-safe and the complete server suite later passed 3,310/3,310 tests across 538 suites.
+
+The currency-operations follow-up is §27KL: `GET /api/health` now publishes the existing
+process-local exchange-rate availability snapshot under `exchangeRates`, while `/ready` and `/live`
+remain unchanged and no-fallback conversion is untouched. The resolver command is injectable and
+tested without a database, template mode warns when it is capped at 5,000 rows, dry-run remains the
+default, and the `0/1/2` exit contract is covered. The phase record and suite citation are restored,
+and 12 ranked currency/rate/price proposals are documented but not implemented. No production
+data, migration, commit or deployment was touched.
+
+The run-out follow-up is §27KM: a narrow `asksForStockCoverage()` detector plus one corrective re-ask
+forces `getProductStockCoverage` before a run-out answer; Q7 now scripts the wrong `getProduct`
+choice and proves the correction, while Q8 keeps null cover for no stock-out. A bounded,
+opt-in six-paraphrase `eval:stock-coverage` harness records first/all tool choices on the current
+configured model without changing model or CI configuration. Focused AI-118 unit **5/6 (DB suite
+skipped)** and DB **8/9 (unit suite skipped)**, Phase 06 **14/14**, and the complete server suite
+**3,311/3,311 across 538 suites** (0 failures, 0 skips, exit 0) passed. No live-model run, production
+data, migration, commit or deployment was performed.
+
+The release gate for §27KJ–§27KM is §27KN: one PR through the protected `main` workflow, with a
+fresh review that added endpoint allowlisting for stored mobile retries. The complete server suite
+passed **3,312/3,312 across 538 suites** and the complete mobile suite **1,333/1,333 across 114
+suites**, both exit 0 with no failures or skips; server/mobile typecheck, focused ESLint and the
+documentation checks passed. No production data, migration, live-model call or maintenance command
+was touched by the verification. Render auto-deploy is scoped to `server/`, so the release PR is
+the deploy trigger; merge and Render evidence are in the final release report.

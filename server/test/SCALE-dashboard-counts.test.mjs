@@ -96,7 +96,7 @@ after(async () => {
 
 /** A product with the given status, plus its optional single inventory row. */
 async function seedProduct(businessId, locationId, { name, minimumStock, status = 'ACTIVE', quantity = null, reservedQuantity = 0 }) {
-  const product = await Product.create({ businessId, name, minimumStock, status });
+  const product = await Product.create({ businessId, name, minimumStock, status, currency: 'PHP' });
   if (quantity !== null) {
     await Inventory.create({ businessId, productId: product._id, locationId, quantity, reservedQuantity });
   }

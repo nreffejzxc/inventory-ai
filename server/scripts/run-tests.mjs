@@ -29,6 +29,25 @@ if (!VALID.includes(mode)) {
   process.exit(2);
 }
 
+// Windows can exhaust its child-process budget when every test file is spawned at
+// once (measured as 0xC0000142 in otherwise-unrelated files). This is opt-in so CI
+// keeps Node's default; a constrained machine can run, for example:
+//   npm run test:db -- --test-concurrency=4
+const forwarded = process.argv.slice(3);
+const concurrencyArg = forwarded.find((arg) => arg.startsWith('--test-concurrency='));
+const unknownForwarded = forwarded.filter((arg) => !arg.startsWith('--test-concurrency='));
+if (unknownForwarded.length > 0) {
+  console.error(`[run-tests] Unknown argument(s): ${unknownForwarded.join(' ')}. Only --test-concurrency=N is forwarded.`);
+  process.exit(2);
+}
+if (concurrencyArg) {
+  const value = Number(concurrencyArg.slice('--test-concurrency='.length));
+  if (!Number.isInteger(value) || value < 1 || value > 64) {
+    console.error('[run-tests] --test-concurrency must be an integer from 1 to 64.');
+    process.exit(2);
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Phase 07F suite classification (by actual DB/unit content, not filenames).
 // ---------------------------------------------------------------------------
@@ -119,10 +138,20 @@ const PURE_UNIT = [
   'AI113-highest-stock.test.mjs', // AI-113: highest-stock wording is separated from value/sales/low-stock shapes, the ranking is rebuilt from rows, and the whole-set restock shortfall is read from the tool rather than summed
   'inventory-integrity-monitor.test.mjs', // the scheduled integrity monitor's baseline/comparison: known findings are accepted explicitly, new and resolved rows are separated, a missing baseline makes everything new, malformed baselines are refused, the alert updates once per new set and closes on recovery, and a source scan proves the monitor never opens a database itself
   'integrity-heartbeat.test.mjs', // hosted freshness: the 26-hour threshold, missing/stale/NOT CHECKED/invalid states, the HTTP 200/503 contract, the writer's narrow single-collection surface, and its refusal of a free-form database
+  'ops-integrity.test.mjs', // the scheduled integrity-operations runner's policy: 0/1/2 stay distinct (NOT CHECKED is never a finding), recovery attention counts on exit 0, duplicate-run lock/stale takeover, per-signature alert deduplication, stable hidden alert markers, sanitized failure detail, and the source guard that the runner only spawns the existing commands
+  'ops-integrity-cli.test.mjs', // the runner's CLI path with fake child/gh: a failed create, comment or close is persisted as undelivered and retried on the next unchanged run; a marker prevents a retry or a second host from reposting a comment; a recovery close retry does not repost its comment; an unreadable issue stays pending; a no-notify run preserves the debt
+  'CURRENCY-RESOLVER-CLI.test.mjs', // §27KL: template mode is read-only and warns at the 5,000-row cap; dry-run is the default; --apply is explicit; production needs its phrase; arguments, test database, connect, evidence and report failures keep the 0/1/2 contract
+  'MOVEMENT-RECEIPT-CLI.test.mjs', // recover:movement-receipts' command contract without a database: dry-run is the default and sends no write intent, --apply is explicit and bounded, help/invalid arguments/test database/connection failures map to 0/2, and apply-time flagged/blocked/failed rows remain exit 1
+  'transfer-ledger-index-readiness.test.mjs', // fail-closed `/api/health/ready`: exact key order, unique and partial filter are required; a missing/wrong/erroring inspection answers 503 and the DB-down branch never inspects
+  'triage-integrity.test.mjs', // the read-only attention view: REQUIRES_ATTENTION reasons + snapshots + ledger rows, quarantine reasons/keptId, argument bounds, and a source guard against every write
   'PLAT2-platform-console.test.mjs', // PLAT-2: the dedicated console's strict CSP (no inline script/style/eval, exact API origin, frame-ancestors none), no event-handler attributes, origin-only config, traversal refusal, RFC 6238 TOTP vectors, replay refusal and AES-GCM tamper detection — no browser, no database
 ];
 const PURE_DB = [
+  'triage-integrity-db.test.mjs', // DB-backed read-only attention triage: a real REQUIRES_ATTENTION transfer plus quarantine row produce the exact reason/snapshot/ledger/keptId evidence, tenant scoping holds, and every touched collection is byte-for-byte unchanged after the read
+  'TLI-transfer-ledger-guard.test.mjs', // transfer ledger unique operation/location guard against real indexes, recovery lease ownership/stale takeover/skip, and a disposable-database migration that refuses ambiguous duplicates before writing, quarantines exact copies, and builds the unique partial index
+  'INTEGRITY-RECOVERY.test.mjs', // transfer journal recovery, abandoned PO-claim undo/release/flag, receive key fingerprints, category archive dependency, audit-failure rows and price-quality/AI ranking regressions
   'INVENTORY-IDEMPOTENCY.test.mjs', // §27GZ: one operation, one movement — the same Idempotency-Key delivered twice writes one ledger row and replays the first answer for stock in, stock out, adjustment, transfer, PO create and PO receive; a different key applies in full; a reused key with a changed body is 422 with no row; no key behaves as before; and a 409 that reports `applied` lines is replayed instead of re-run
+  'MOVEMENT-RECEIPT-RECOVERY.test.mjs', // signed-off operator recovery: dry-run writes nothing; ledger/inventory proofs complete a receipt with an audit row; ambiguity becomes REQUIRES_ATTENTION without deletion; a full batch of old attention rows cannot starve a newer unfinished receipt; a contradictory ledger row never resolves attention; only completed receipts past retention are pruned
   'AUTH02-session-cap.test.mjs', // AUTH-02 follow-up: the per-user session cap bounds ACCUMULATION (every sign-in, reinstall and exchange mints a row that lives for the full 14-day cap) without ever becoming a lockout — the session just created always survives, the OLDEST row goes, a revoked or expired row does not consume a slot, the rule is per account, and each eviction is written to the audit trail with its reason
   'DEMO3-code-coverage.test.mjs', // DEMO-3: the verifier's SKU/barcode coverage reads real products — every mode and a MIXED tenant counted from the database, plus a wrong check digit and a non-EAN-13 value through the barcode-health counter; the helper is read-only and an empty tenant is reported as empty rather than `none`
   'DEMO4-verify-cli.test.mjs', // DEMO-4: the command an operator runs, not just the helper — `verify:demo` opens the test database against disposable accounts, prints `Codes ... — empty` for an empty tenant, prints the `Barcodes` line and exits 1 for a wrong check digit, and leaves both accounts and businesses in place
@@ -162,6 +191,7 @@ const PURE_DB = [
 const MIXED = [
   'AI115-ai-feedback.test.mjs', // AI-115: a member rates only a stored answer in their own thread, a changed rating updates one row, thread reload carries only the caller's rating, OWNER/ADMIN review is tenant-scoped, and the queue keeps bounded Q/A excerpts and all-time counts
   'AI117-ai-feedback-conversation.test.mjs', // AI-117: the preview returns the complete reported answer and a bounded window, only OWNER/ADMIN may read it, another business gets 404, and no email/product id crosses the boundary
+  'AI118-stock-coverage.test.mjs', // AI-118: a run-out estimate is one identified product over a bounded window, stock is summed over every location, transfers and stock-in are excluded, no movement is null cover, foreign/missing identifiers are refused, archived products are not current location stock, and getProduct refuses two identifiers
   'AI116-follow-up-context.test.mjs', // AI-116: only an anaphoric follow-up uses the previous set, filtering re-reads current stock for exactly those products, category/place filters cannot escape the set or the tenant, and the stored context carries provenance without a payload
   'AI102-ai-metrics.test.mjs', // AI-102: one durable metrics row per turn (retries do not double-count, turn-id collisions stay separate), free/paid/unknown and failover/retry/re-ask stay distinct, provider cost is complete/partial/unknown and never invented, the endpoint is OWNER/ADMIN only and tenant-scoped, its UTC day window fills empty days, and a real turn writes the row from reportTurn
   'PLAT8-last-superadmin-race.test.mjs', // PLAT-8: two concurrent administrator disables, and a disable racing a delete, cannot both commit when the targets are the only ACTIVE SUPERADMINs — the race runs in a disposable database so the shared test database's other SUPERADMINs cannot make "the last one" unreachable
@@ -174,6 +204,7 @@ const MIXED = [
   'AI107-ai-single-flight.test.mjs', // AI-107: one active turn per user and conversation — the second request is 409 AI_TURN_IN_PROGRESS before the provider, another conversation or member still runs, and finish, close/abort, failure, new-chat and the bounded safety hold each release the slot
   'AI47-inventory-web-research.test.mjs', // AI-47: sourced web research cannot escape the inventory — product-id-only arguments, tenant-scoped row loading, findings filtered to recorded names, public source URLs, and no result without a citation; the model prompt is told to recommend only those subjects
   'AI49-market-price-research.test.mjs', // AI-49: marketplace prices exist only as cited page text — exact displayed strings, marketplace/URL/retrieval time, the recorded price kept separate, missing prices refused rather than estimated, and the tool bound to the session's own product IDs
+  'currency-required-and-marketplace.test.mjs', // §27KJ: ISO 4217 list parity, create/PATCH currency rules, legacy audit and verified PATCH resolution, exact AI cost/selling/currency output, marketplace country/match evidence, ambiguous `$` refusal and ECB-dated conversion
   'AI41-local-time.test.mjs', // AI-41: the assistant's clock is the member's — the UTC/local day boundary, stable date-then-24h formatting, unknown/absent zone falling back to UTC (never a 400), and the history + dashboard tool rows carrying localTime while an old caller's payload shape stays unchanged
   'AI40-ai-streaming.test.mjs', // AI-40: the answer arrives while it is written — SSE framing across chunk boundaries, a 2xx with no event reported as invalid_response (never an empty answer), an error event carrying its status, the provider assembling text and tool-call fragments into the SAME response shape, the unstreamed fallback for a gateway that ignores stream=true (but never after text was delivered), the turn loop forwarding deltas while keeping every non-streaming request unchanged, no failover once text is on screen, the empty-completion retry intact, and the wire contract — text/event-stream with deltas then one authoritative done event, the JSON path unchanged, a failed turn reported as an error event with nothing persisted, validation still a plain 400, and authentication still required
   'phase-openrouter-provider.test.mjs', // unit: provider selection + Anthropic wire mapping + DB-free loop compatibility; db: the real 9-tool workload over MongoDB
@@ -273,7 +304,7 @@ const desc = {
 console.log(`[run-tests] TEST_MODE=${mode}: ${files.length} file(s) — ${desc}`);
 console.log(`[run-tests] files: ${FILE_LISTS[mode].join(', ')}`);
 
-const child = spawn(process.execPath, ['--test', ...files], {
+const child = spawn(process.execPath, ['--test', ...(concurrencyArg ? [concurrencyArg] : []), ...files], {
   cwd: serverRoot,
   // LOG_REQUESTS=0 keeps the Phase 08A per-request access log off during test
   // runs (error logs are unaffected and always emit). Individual suites that

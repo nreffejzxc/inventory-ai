@@ -4,6 +4,7 @@ import mongoose from 'mongoose';
 
 import IdempotencyRecord from '../models/idempotencyRecord.model.ts';
 import ApiError from '../utils/ApiError.ts';
+import { isIdempotencyKey } from '../utils/idempotencyKey.ts';
 
 /**
  * Idempotency for the writes that change stock or create an order.
@@ -43,14 +44,16 @@ import ApiError from '../utils/ApiError.ts';
  * is 15 s, so a minute-old claim cannot still be running healthy work.
  */
 
-/** The key's own shape. Opaque to the server; only length and charset are policed. */
-const KEY_PATTERN = /^[A-Za-z0-9._:-]{8,200}$/;
-
 /** A claim older than this owes an answer it will never produce. */
 const STALE_CLAIM_MS = 60_000;
 
 /** Only the authenticated context this middleware reads. `requireAuth` sets it first. */
-type AuthenticatedRequest = Request & { user?: { id: string; businessId: string } };
+type AuthenticatedRequest = Request & {
+  user?: { id: string; businessId: string };
+  // Read by handlers that must recognise their own durable work after an ambiguous
+  // 5xx, when this middleware has already released the key.
+  idempotencyKey?: string;
+};
 
 /** MongoDB's duplicate-key error — the signal that somebody else owns the claim. */
 function isDuplicateKey(err: unknown): boolean {
@@ -154,7 +157,7 @@ export function idempotent() {
     }
 
     const key = header.trim();
-    if (!KEY_PATTERN.test(key)) {
+    if (!isIdempotencyKey(key)) {
       next(new ApiError(400, 'The idempotency key is not usable', 'IDEMPOTENCY_KEY_INVALID'));
       return;
     }
@@ -235,6 +238,7 @@ export function idempotent() {
     }
 
     const claimId = claim._id;
+    req.idempotencyKey = key;
     const json = res.json.bind(res) as (body?: unknown) => Response;
     res.json = ((body?: unknown) => {
       const send = () => json(body);

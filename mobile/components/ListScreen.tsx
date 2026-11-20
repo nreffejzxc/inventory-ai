@@ -5,7 +5,7 @@ import type { FlatListProps, ListRenderItem, StyleProp, ViewStyle } from 'react-
 import { spacing } from '../lib/theme';
 import type { Palette } from '../lib/theme';
 import { useTheme } from '../lib/theme-context';
-import { EmptyState, ErrorState, LoadingBlock, errorText } from './ListState';
+import { EmptyState, ErrorState, LoadingBlock, errorRequestId, errorText } from './ListState';
 import Screen from './Screen';
 
 const createStyles = (colors: Palette) =>
@@ -99,7 +99,17 @@ function ListScreen<T>({
   if (error && items.length === 0) {
     return (
       <Screen padded={false}>
-        <FlatList {...listProps} ListEmptyComponent={<ErrorState title={errorTitle} message={errorText(error)} onRetry={onRetry} />} />
+        <FlatList
+          {...listProps}
+          ListEmptyComponent={
+            <ErrorState
+              title={errorTitle}
+              message={errorText(error)}
+              requestId={errorRequestId(error)}
+              onRetry={onRetry}
+            />
+          }
+        />
       </Screen>
     );
   }

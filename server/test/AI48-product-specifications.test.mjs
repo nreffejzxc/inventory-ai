@@ -30,11 +30,11 @@ const SPECS =
 
 unitSuite('AI-48 specifications are a bounded recorded field', () => {
   it('accepts a specification and refuses an over-long one', () => {
-    const accepted = validateProduct({ name: 'Keychron K8 Pro', specifications: SPECS });
+    const accepted = validateProduct({ name: 'Keychron K8 Pro', specifications: SPECS, currency: 'PHP' });
     assert.deepEqual(accepted.problems, []);
     assert.equal(accepted.specifications, SPECS);
 
-    const refused = validateProduct({ name: 'Keychron K8 Pro', specifications: 'x'.repeat(1001) });
+    const refused = validateProduct({ name: 'Keychron K8 Pro', specifications: 'x'.repeat(1001), currency: 'PHP' });
     assert.ok(refused.problems.some((problem) => problem.field === 'specifications'));
   });
 
@@ -87,6 +87,7 @@ dbSuite('AI-48 specifications travel through the API and AI tools', dbOk, () => 
     const product = await api('POST', '/api/products', {
       token: owner.token,
       body: {
+        currency: 'PHP',
         name: uniqueName('Keychron K8 Pro'),
         brand: 'Keychron',
         categoryId: category.json.id,

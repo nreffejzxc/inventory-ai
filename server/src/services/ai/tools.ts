@@ -142,13 +142,48 @@ interface SearchProductsArgs extends ToolArguments, CategoryRef {
 interface FindProductsArgs extends ToolArguments, CategoryRef {
   keywords?: string;
   inStockOnly?: boolean;
+  sort?: 'price_asc' | 'price_desc';
   limit?: number;
+}
+
+/**
+ * The ISO code a member actually named, never a guessed one. A price ranking
+ * across currencies is not a ranking: PHP 900 is not greater than USD 10 in any
+ * meaningful sense. The tool uses this to keep a request such as "cheapest in
+ * PHP" inside one currency, and uses the catalogue's own currency groups when no
+ * code was named.
+ */
+export function currencyFromText(value: unknown): string | null {
+  const text = String(value ?? '');
+  const byCode = text.match(/\b(php|usd|eur|gbp|jpy|inr|aud|cad|sgd|nzd|hkd|pkr)\b/i);
+  if (byCode) return (byCode[1] ?? '').toUpperCase();
+  if (/\u20b1/.test(text)) return 'PHP';
+  if (/\$/.test(text)) return 'USD';
+  if (/\u20ac/.test(text)) return 'EUR';
+  if (/\u00a3/.test(text)) return 'GBP';
+  if (/\u00a5/.test(text)) return 'JPY';
+  if (/\u20b9/.test(text)) return 'INR';
+  if (/\bpesos?\b/i.test(text)) return 'PHP';
+  if (/\bdollars?\b/i.test(text)) return 'USD';
+  if (/\beuros?\b/i.test(text)) return 'EUR';
+  if (/\bpounds?\b/i.test(text)) return 'GBP';
+  if (/\byen\b/i.test(text)) return 'JPY';
+  if (/\brupees?\b/i.test(text)) return 'INR';
+  return null;
 }
 
 interface GetProductArgs extends ToolArguments {
   id?: string;
   sku?: string;
   barcode?: string;
+}
+
+/** Demand/run-out read: one identified product, optionally scoped to one place. */
+interface StockCoverageArgs extends ToolArguments, LocationRef {
+  id?: string;
+  sku?: string;
+  barcode?: string;
+  days?: number;
 }
 
 interface LocationRef {
@@ -342,7 +377,15 @@ function isExactProduct(row: ProductDTOSource, term: string): boolean {
 async function exactProductMatches(
   ctx: ToolContext,
   terms: string[],
-  filters: { categoryId?: string; maxSellingPrice?: number; inStockOnly?: boolean; limit: number },
+  filters: {
+    categoryId?: string;
+    maxSellingPrice?: number;
+    maxSellingPriceInclusive?: boolean;
+    priceCurrency?: string;
+    inStockOnly?: boolean;
+    sort?: 'price_asc' | 'price_desc';
+    limit: number;
+  },
 ): Promise<ProductDTOSource[]> {
   const matches = new Map<string, ProductDTOSource>();
   for (const term of terms) {
@@ -350,7 +393,10 @@ async function exactProductMatches(
       status: 'ACTIVE',
       categoryId: filters.categoryId,
       maxSellingPrice: filters.maxSellingPrice,
+      maxSellingPriceInclusive: filters.maxSellingPriceInclusive,
+      priceCurrency: filters.priceCurrency,
       inStockOnly: filters.inStockOnly,
+      sort: filters.sort,
       withStock: true,
       skip: 0,
       limit: filters.limit,
@@ -387,6 +433,11 @@ function productCoreWithDescription(
   specificationsMax: number,
 ) {
   const dto = productService.toProductDTO(doc);
+  // `toProductDTO` defaults a missing price to 0 for REST compatibility. To the
+  // assistant that 0 would read as a real free price. A missing/zero/unrecorded
+  // selling price is `null`; price ranking excludes those rows in SQL/Mongo instead
+  // of sorting them ahead of recorded prices.
+  const recordedPrice = Number.isFinite(dto.sellingPrice) && dto.sellingPrice > 0 ? dto.sellingPrice : null;
   return {
     id: dto.id,
     name: dto.name,
@@ -399,7 +450,7 @@ function productCoreWithDescription(
     status: dto.status,
     minimumStock: dto.minimumStock,
     category: dto.category,
-    sellingPrice: dto.sellingPrice,
+    sellingPrice: recordedPrice,
     // The ISO code the price was recorded in, or null. The assistant must not guess one.
     currency: dto.currency ?? null,
   };
@@ -425,6 +476,13 @@ function stockCard(doc: StockCardSource) {
     // can state the difference. `null` means no minimum is configured.
     unitsBelowMinimum: productService.unitsBelowMinimum(doc.available, doc.minimumStock),
   };
+}
+
+/** A deterministic display number: integers stay integers, fractions keep `digits`. */
+function roundTo(value: number, digits: number): number {
+  if (!Number.isFinite(value)) return 0;
+  const factor = 10 ** digits;
+  return Math.round(value * factor) / factor;
 }
 
 /**
@@ -926,6 +984,12 @@ const tools: Tool[] = [
           description: 'Exact name of an ACTIVE category, e.g. "Automotive"; "and" and "&" are treated as the same word. Use instead of categoryId when no id is known.',
         },
         inStockOnly: { type: 'boolean', description: 'When true, return only products with available stock above zero.' },
+        sort: {
+          type: 'string',
+          enum: ['price_asc', 'price_desc'],
+          description:
+            'Rank by recorded selling price across EVERY match, not just this page: price_asc for cheapest first, price_desc for dearest first. Products with no recorded price (or a price of 0) are excluded from a price ranking, so never call a missing price free. Use this for "cheapest", "most expensive" and similar questions instead of comparing the rows yourself.',
+        },
         limit: limitParam(15, 25),
       },
     },
@@ -933,23 +997,29 @@ const tools: Tool[] = [
       const category = await resolveCategory(ctx, args);
       if (!category.ok) return category.result;
       const rawKeywords = String(args.keywords ?? '').trim();
+      const requestedCurrency = currencyFromText(rawKeywords);
       // "products under 5,000" is a price request, not a product called "under 5,000".
       // The ceiling is applied in the database before paging, so a bounded page still
       // contains every qualifying row the answer may need.
       const priceLimit = rawKeywords.match(
-        /\b(?:less than|under|below|cheaper than|up to|within)\s+(?:php|p|\u20b1)?\s*([\d,]+(?:\.\d+)?)\s*(k)?\b/i,
+        /\b(?:less than|under|below|cheaper than|up to|within)\s+(?:(?:php|p|usd|eur|gbp|jpy|inr|aud|cad|sgd|nzd|hkd|pkr|\u20b1|\$|\u20ac|\u00a3|\u00a5|\u20b9)\s*)?([\d,]+(?:\.\d+)?)\s*(k)?\b/i,
       );
       const maxSellingPrice = priceLimit
         ? Number((priceLimit[1] ?? '').replace(/,/g, '')) * (priceLimit[2] ? 1000 : 1)
+        : undefined;
+      // "up to 5,000" and "within 5,000" include the ceiling; "under 5,000" does not.
+      const maxSellingPriceInclusive = priceLimit
+        ? /^(?:up to|within)\b/i.test(priceLimit[0])
         : undefined;
       const withoutPrice = priceLimit
         ? rawKeywords.replace(priceLimit[0], ' ')
         : rawKeywords;
       const cleaned = withoutPrice
         .replace(
-          /\b(?:products?|items?|things?|anything|something|show|me|which|what|are|is|cost|costs|costing|priced|price|prices|budget|php|pesos?)\b/gi,
+          /\b(?:products?|items?|things?|anything|something|show|me|which|what|are|is|cost|costs|costing|priced|price|prices|budget|php|pesos?|usd|dollars?|eur|euros?|gbp|pounds?|jpy|yen|inr|rupees?)\b/gi,
           ' ',
         )
+        .replace(/[\u20b1\u20ac\u00a3\u00a5\u20b9$]/g, ' ')
         .replace(/\s+/g, ' ')
         .trim();
       const requestedTerms = cleaned
@@ -983,6 +1053,35 @@ const tools: Tool[] = [
         return empty;
       }
       const pageLimit = Math.min(args.limit ?? 15, 25);
+      // A price ranking is only meaningful inside one recorded currency. First
+      // discover which currency groups the MATCHING catalogue carries, then
+      // either narrow to the one the member named / the only recorded one, or
+      // refuse to rank and say why. This runs before the page query, so a page
+      // cannot hide a second currency from the check.
+      let priceCurrency: string | undefined = requestedCurrency ?? undefined;
+      let priceRankBlocked = false;
+      let priceCurrencyGroups: Array<{ currency: string | null; count: number }> = [];
+      if (args.sort) {
+        priceCurrencyGroups = await productService.priceCurrencies(ctx.businessId, {
+          terms,
+          includeDescription: true,
+          status: 'ACTIVE',
+          categoryId: category.id,
+          maxSellingPrice,
+          maxSellingPriceInclusive,
+        });
+        if (!requestedCurrency) {
+          // `null` is its own group, not "unknown currency that can share a
+          // numeric order". One known group plus an unrecorded group is mixed
+          // just as surely as PHP plus USD.
+          const populated = priceCurrencyGroups.filter((group) => group.count > 0);
+          if (populated.length > 1) priceRankBlocked = true;
+          else if (populated.length === 1 && populated[0]!.currency) {
+            priceCurrency = populated[0]!.currency!;
+          }
+        }
+      }
+      const effectiveSort = priceRankBlocked ? undefined : args.sort;
       const search = (searchTerms: string[]) =>
         productService.list(ctx.businessId, {
           terms: searchTerms,
@@ -990,7 +1089,10 @@ const tools: Tool[] = [
           status: 'ACTIVE',
           categoryId: category.id,
           maxSellingPrice,
+          maxSellingPriceInclusive,
+          priceCurrency,
           inStockOnly: args.inStockOnly,
+          sort: effectiveSort,
           withStock: true,
           skip: 0,
           limit: pageLimit,
@@ -1038,15 +1140,37 @@ const tools: Tool[] = [
           ? await exactProductMatches(ctx, fallbackTerms, {
               categoryId: category.id,
               maxSellingPrice,
+              maxSellingPriceInclusive,
+              priceCurrency,
               inStockOnly: args.inStockOnly,
+              sort: effectiveSort,
               limit: pageLimit,
             })
           : [];
       const exactIds = new Set(exactItems.map((row) => String(row._id)));
-      const merged = [
+      const combined = [
         ...exactItems,
         ...items.filter((row) => !exactIds.has(String(row._id))),
-      ].slice(0, pageLimit);
+      ];
+      // A price ranking must rank the merged set too, not put exact-name matches first:
+      // the cheapest matching row is the answer even when its name is not the exact term.
+      if (effectiveSort === 'price_asc' || effectiveSort === 'price_desc') {
+        const direction = effectiveSort === 'price_asc' ? 1 : -1;
+        combined.sort((a, b) => {
+          const left = Number(a.sellingPrice);
+          const right = Number(b.sellingPrice);
+          const leftMissing = !Number.isFinite(left) || left <= 0;
+          const rightMissing = !Number.isFinite(right) || right <= 0;
+          if (leftMissing || rightMissing) {
+            if (leftMissing && rightMissing) return String(a._id).localeCompare(String(b._id));
+            return leftMissing ? 1 : -1;
+          }
+          if (left !== right) return (left - right) * direction;
+          return String(a.name ?? '').localeCompare(String(b.name ?? '')) ||
+            String(a._id).localeCompare(String(b._id));
+        });
+      }
+      const merged = combined.slice(0, pageLimit);
       const exactFound = exactItems.length > 0;
       // A no-match result is the END of this search, not an invitation to try
       // one-word variants until the six-step budget dies. Return the catalogue’s
@@ -1076,6 +1200,23 @@ const tools: Tool[] = [
             }
           : {}),
         ...(maxSellingPrice !== undefined ? { maxSellingPrice } : {}),
+        ...(maxSellingPriceInclusive ? { maxSellingPriceInclusive: true } : {}),
+        ...(args.sort && !priceRankBlocked
+          ? {
+              priceRank: args.sort,
+              ...(priceCurrency ? { priceCurrency } : {}),
+              priceRankNote:
+                'Rows are ranked by recorded selling price across every match, within one recorded currency (or the unrecorded-price group when no currency was recorded). Products with no recorded price are excluded and their price is null; never treat that as free.',
+            }
+          : {}),
+        ...(priceRankBlocked
+          ? {
+              priceRankBlocked: true,
+              priceCurrencies: priceCurrencyGroups,
+              priceRankNote:
+                'These matches carry more than one recorded currency, so there is no single cheapest or most expensive product across them. Report each currency separately; do not compare the numbers or call one row the overall cheapest.',
+            }
+          : {}),
         ...(categories
           ? {
               categories: categories.items.map(referenceItem),
@@ -1103,8 +1244,14 @@ const tools: Tool[] = [
       description: 'Provide exactly one of id, sku, or barcode.',
     },
     async executor(ctx: ToolContext, args: GetProductArgs) {
-      if (!args.id && !args.sku && !args.barcode) {
-        return { found: false, error: 'Provide one of id, sku, or barcode.' };
+      // The schema says exactly one, and the executor enforces it: when a model sends
+      // two, `getByIdentifier` would silently prefer the id and return a different
+      // product than the SKU the member said. A refusal is the only honest answer.
+      const identifiers = [args.id, args.sku, args.barcode].filter(
+        (value) => typeof value === 'string' && value.trim().length > 0
+      );
+      if (identifiers.length !== 1) {
+        return { found: false, error: 'Provide exactly one of id, sku, or barcode.' };
       }
       const doc = await productService.getByIdentifier(ctx.businessId, {
         id: args.id,
@@ -1132,6 +1279,138 @@ const tools: Tool[] = [
           stockRows: rows.total,
           ...(noStockRows ? { quantityOnHand: 0, stockStatus: 'OUT_OF_STOCK' } : {}),
         },
+      };
+    },
+  },
+
+  {
+    name: 'getProductStockCoverage',
+    description:
+      'Estimate how long ONE recorded product\'s current stock will last from its recorded STOCK_OUT movements in a lookback window. Pass exactly one of id, sku, or barcode; optionally scope it to a location and choose `days` (default 30, 7–365). It returns current available quantity, stock-out units and movement count, the simple average daily stock-out rate, days of cover and a 30-day run-rate projection. STOCK_OUT is a movement proxy: it can be a sale, usage, damage or a write-off, and stock-in, transfers and adjustments are deliberately excluded. This is not a sales figure, a supplier lead time or a guarantee, and a zero-movement window returns daysOfCover null rather than infinity. Use it for "how long will this product last", run-out, stock-cover and demand questions; never use it to rank the whole catalogue or to invent seasonality.',
+    permission: PERMISSIONS.INVENTORY_HISTORY_VIEW,
+    parameters: {
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        id: objectId,
+        sku: { type: 'string', maxLength: 100, description: 'Exact SKU.' },
+        barcode: { type: 'string', maxLength: 100, description: 'Exact barcode.' },
+        locationId: objectId,
+        location: {
+          type: 'string',
+          maxLength: 100,
+          description: 'Exact name of an ACTIVE location, e.g. "Main Warehouse".',
+        },
+        days: {
+          type: 'integer',
+          minimum: 7,
+          maximum: 365,
+          description: 'Lookback window in days (default 30).',
+        },
+      },
+      description: 'Provide exactly one of id, sku, or barcode.',
+    },
+    async executor(ctx: ToolContext, args: StockCoverageArgs) {
+      const identifiers = [args.id, args.sku, args.barcode].filter(
+        (value) => typeof value === 'string' && value.trim().length > 0
+      );
+      if (identifiers.length !== 1) {
+        return { found: false, error: 'Provide exactly one of id, sku, or barcode.' };
+      }
+
+      const location = await resolveLocation(ctx, args, { required: false });
+      if (!location.ok) return location.result;
+
+      // An id is a syntactic ObjectId, not proof that this tenant owns it. Resolve it
+      // before reading, so a foreign or deleted id is "not found" rather than a
+      // plausible-looking zero at a shelf that does not exist for this business.
+      let locationName: string | null = null;
+      let locationStatus: string | null = null;
+      if (location.id) {
+        try {
+          const locationDoc = await locationService.get(ctx.businessId, location.id);
+          locationName = String(locationDoc.name);
+          locationStatus = String(locationDoc.status);
+        } catch {
+          return { found: false, error: 'That location was not found in this business.' };
+        }
+      }
+
+      const product = await productService.getByIdentifier(ctx.businessId, {
+        id: args.id,
+        sku: args.sku,
+        barcode: args.barcode,
+      });
+      if (!product) {
+        return {
+          found: false,
+          error: 'No product in this business matches that identifier.',
+        };
+      }
+
+      const days = args.days ?? 30;
+      // One clock for the window and the `asOf` stamp: two reads a few milliseconds apart
+      // would otherwise describe slightly different windows in the same payload.
+      const asOf = new Date();
+      const from = new Date(asOf.getTime() - days * 24 * 60 * 60 * 1000).toISOString();
+      const productId = String(product._id);
+      const [current, totals] = await Promise.all([
+        inventoryService.productAvailability(ctx.businessId, {
+          productId,
+          ...(location.id ? { locationId: location.id } : {}),
+        }),
+        transactionsService.totals(ctx.businessId, {
+          productId,
+          ...(location.id ? { locationId: location.id } : {}),
+          type: 'STOCK_OUT',
+          from,
+        }),
+      ]);
+
+      const stockOut = totals.byType.STOCK_OUT;
+      const unitsOut = Number(stockOut?.units ?? 0);
+      const stockOutMovements = Number(stockOut?.rows ?? 0);
+      const averageDailyUnitsOutExact = unitsOut / days;
+      const averageDailyUnitsOut = roundTo(averageDailyUnitsOutExact, 3);
+      let daysOfCover: number | null = null;
+      if (averageDailyUnitsOutExact > 0) {
+        daysOfCover =
+          current.availableQuantity <= 0
+            ? 0
+            : roundTo(current.availableQuantity / averageDailyUnitsOutExact, 1);
+      }
+      const projectedUnitsOut30Days = roundTo(averageDailyUnitsOutExact * 30, 2);
+      const archivedNote =
+        product.status === 'ARCHIVED'
+          ? ' This product is ARCHIVED: its stock is still recorded, but it is not stock the member buys again, so do not recommend restocking it.'
+          : '';
+
+      return {
+        found: true,
+        asOf: asOf.toISOString(),
+        product: productCore(product),
+        scope: {
+          days,
+          windowStart: from,
+          ...(location.id
+            ? { locationId: location.id, locationName, locationStatus }
+            : { locationId: null, locationName: null, locationStatus: null }),
+        },
+        current,
+        movement: { unitsOut, stockOutMovements },
+        forecast: {
+          averageDailyUnitsOut,
+          daysOfCover,
+          projectedUnitsOut30Days,
+        },
+        note:
+          'STOCK_OUT is a movement proxy, not confirmed sales or customer demand: it can be usage, damage or a write-off. ' +
+          'Transfers, stock-in and adjustments are excluded. The average is a simple run rate over this window, with no ' +
+          'seasonality, lead time, supplier term or guarantee. ' +
+          (averageDailyUnitsOutExact > 0
+            ? 'daysOfCover is an estimate from that rate; quote it as an estimate and say the window.'
+            : 'There were no STOCK_OUT movements in this window, so daysOfCover is null; do not say the stock will last forever or invent a rate.') +
+          archivedNote,
       };
     },
   },
@@ -1477,7 +1756,7 @@ const tools: Tool[] = [
   {
     name: 'getProductsNeverSold',
     description:
-      'ACTIVE products with no stock-out on record at all — the dead-stock question. Reach for this on "dead stock", "what is not selling", "what has never sold", "what has not moved", "unsold", "stale stock", "zero sales" or "sitting on the shelf", NOT for low stock or out of stock: those products may be selling fine, and a full shelf is not a slow one. It is answered by comparing the whole catalogue against the whole ledger instead of asking the model to read one list against another. Optionally scoped to one location ("what has never moved from the sidewalk shelf?"), which also reports availability AT that location. A stock-out is stock LEAVING a location: usually a sale, but it can be usage, damage or a write-off, so this answers "has anything ever left the shelf for this product" and must never be reported as proof of a sale. Pass `from` when the member asks about a period ("nothing has moved since June"). Each row carries availableQuantity across all locations, and the result adds `soldProductCount` so "how many products have sold at all" needs no page counting.',
+      'ACTIVE products with no stock-out on record in the requested scope — the dead-stock question. Reach for this on "dead stock", "what is not selling", "what has never sold", "what has not moved", "unsold", "stale stock", "zero sales" or "sitting on the shelf", NOT for low stock or out of stock: those products may be selling fine, and a full shelf is not a slow one. It is answered by comparing the whole catalogue against the whole ledger instead of asking the model to read one list against another. Optionally scoped to one location ("what has never moved from the sidewalk shelf?"), which also reports availability AT that location. A stock-out is stock LEAVING a location: usually a sale, but it can be usage, damage or a write-off, so this answers "has anything ever left the shelf for this product" and must never be reported as proof of a sale. Pass `from` when the member asks about a period ("nothing has moved since June"); without it, the scope is the whole ledger. Each row carries availableQuantity across all locations, and the result adds `soldProductCount` so "how many products have sold at all" needs no page counting.',
     permission: PERMISSIONS.INVENTORY_VIEW,
     defaultLimit: 15,
     parameters: {
@@ -1844,7 +2123,7 @@ const tools: Tool[] = [
   {
     name: 'getProductsByLocation',
     description:
-      'Products currently stocked at a specific location, with the available quantity at that location. Give the location by exact name (`location`, e.g. "Main Warehouse") or by id (`locationId`) — the name saves a lookup step when the member already said it.',
+      'ACTIVE products currently stocked at a specific location, with the available quantity at that location. Give the location by exact name (`location`, e.g. "Main Warehouse") or by id (`locationId`) — the name saves a lookup step when the member already said it. Archived products are excluded because they are not stock the member buys again; use searchProducts with status ARCHIVED to find a retired product.',
     permission: PERMISSIONS.INVENTORY_VIEW,
     defaultLimit: 20,
     parameters: {
@@ -1865,6 +2144,7 @@ const tools: Tool[] = [
       if (!location.ok) return location.result;
       const { items, total } = await productService.list(ctx.businessId, {
         locationId: location.id,
+        status: 'ACTIVE',
         skip: 0,
         limit: Math.min(args.limit ?? 20, 50),
       });
@@ -2097,7 +2377,7 @@ const tools: Tool[] = [
   {
     name: 'researchMarketPrices',
     description:
-      'Compare current online retail prices for up to three products already recorded in this business. Pass product ids returned by findProducts or searchProducts; the tool loads those rows itself, so it cannot price a product the business does not have. It uses free keyless public search and public result pages by default, with no OpenRouter search spend, and reads retailers such as Shopee, Lazada, Amazon, official brand stores and local shops whenever they appear in the results. It returns only prices visible on a cited page or in a search-result snippet: each listing carries the exact price text, marketplace, source URL, retrieval time, evidence kind and a short snippet. `searchedQueries` shows the exact queries that ran and `checkedMarketplaces` shows only the retailers actually present in the sources, so describe the search from those fields rather than assuming a marketplace was covered. When the member names a shop or site ("check rkgamingstore.com", "what does Shopee charge?"), pass it in `stores` — each named store is then asked directly, and `storeChecks` reports per store whether its pages were reached and whether any of them showed a price. The recorded selling price remains separate in `subjects`. Online prices are external evidence, not inventory prices; it does not change stock or prices, convert currency or add shipping. If no price is verified, it reports available:false with the reason and the names of the products it could not price, instead of estimating.',
+      'Compare current online retail prices for up to three products already recorded in this business. Pass product ids returned by findProducts or searchProducts; the tool loads those rows itself, so it cannot price a product the business does not have. It uses free keyless public search and public result pages by default, with no OpenRouter search spend, and reads retailers such as Shopee, Lazada, Amazon, official brand stores and local shops whenever they appear in the results. It returns only prices visible on a cited page or in a search-result snippet: each listing carries the exact original price text, marketplace, `marketplaceCountry`, listing `currency`, source URL, retrieval time, evidence kind, product `matchEvidence`, and a short snippet. `currency` is `unknown` or `mixed` when the page did not prove one code; a bare `$` is never assumed to be USD. A listing from a different currency may carry `convertedPrice`, computed by the server from a dated ECB reference rate with its `rateDate`/`rateSource`; when it is null, no verified conversion exists and the tool did not invent one. `searchedQueries` shows the exact queries that ran and `checkedMarketplaces` shows only the retailers actually present in the sources, so describe the search from those fields rather than assuming a marketplace was covered. When the member names a shop or site ("check rkgamingstore.com", "what does Shopee charge?"), pass it in `stores` — each named store is then asked directly, and `storeChecks` reports per store whether its pages were reached and whether any of them showed a price. The recorded selling price remains separate in `subjects`; cost price, selling price and external market price are different amounts. Online prices are external evidence, not inventory prices; it does not change stock or prices or add shipping. If no price is verified, it reports available:false with the reason and the names of the products it could not price, instead of estimating.',
     permission: PERMISSIONS.PRODUCTS_VIEW,
     parameters: {
       type: 'object',

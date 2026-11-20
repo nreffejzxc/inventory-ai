@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Stack, useLocalSearchParams } from 'expo-router';
 
 import AccessDenied from '../../../components/AccessDenied';
-import { CenterLoader, ErrorState, errorText } from '../../../components/ListState';
+import { CenterLoader, ErrorState, errorRequestId, errorText } from '../../../components/ListState';
 import Screen from '../../../components/Screen';
 import UserForm from '../../../components/UserForm';
 import { usersApi } from '../../../lib/api';
@@ -73,7 +73,12 @@ function EditUser() {
         </Screen>
       ) : error && !target ? (
         <Screen>
-          <ErrorState title="Couldn't load this user" message={errorText(error)} onRetry={load} />
+          <ErrorState
+            title="Couldn't load this user"
+            message={errorText(error)}
+            requestId={errorRequestId(error)}
+            onRetry={load}
+          />
         </Screen>
       ) : target ? (
         <UserForm initial={target} key={target.id} />

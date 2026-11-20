@@ -14,7 +14,14 @@ import StatCard from './StatCard';
 import { inventoryApi, locationsApi, productsApi } from '../lib/api';
 import type { ApiResponse, MovementInput } from '../lib/api';
 import { ApiError } from '../lib/client';
-import { endsOperation, newIdempotencyKey } from '../lib/idempotency';
+import {
+  completeOperation,
+  endsOperation,
+  getOrCreateOperationKey,
+  PendingOperationsFullError,
+} from '../lib/idempotency';
+import type { IdempotencyKind } from '../lib/idempotency';
+import { errorRequestId } from '../lib/errors';
 import { useSession } from '../lib/auth';
 import { alert, confirm } from '../lib/confirm';
 import { formatNumber } from '../lib/format';
@@ -98,7 +105,7 @@ export default function MovementForm({
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const cfg = CONFIG[kind] ?? CONFIG['stock-in'];
-  const { token } = useSession();
+  const { token, user } = useSession();
 
   // When a workflow has already identified the product (e.g. a barcode scan),
   // the product is fixed and its identity is shown read-only so the user can
@@ -116,21 +123,12 @@ export default function MovementForm({
 
   const [fieldErrors, setFieldErrors] = useState<Record<string, string | undefined>>({});
   const [formError, setFormError] = useState<string | null>(null);
+  const [formRequestId, setFormRequestId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  // The operation's name on the wire (see `lib/idempotency.ts`). It survives a
-  // failed delivery — a timeout is not an answer, so the retry must be the SAME
-  // operation — and is dropped as soon as the form describes a different one.
-  const submitKey = useRef<string | null>(null);
   // A second press that lands before React has committed `busy` would otherwise
   // start a second request. `busy` is the UI's signal; this is the guard.
   const submitting = useRef(false);
-  useEffect(() => {
-    // NOT while a request is in flight: an edit made during a slow delivery would
-    // drop the name of an operation that may already have been applied, and the
-    // retry would then be a second, unguarded movement.
-    if (!submitting.current) submitKey.current = null;
-  }, [productId, locationId, quantity, reason, reference]);
 
   const { row: current, loading: loadingCurrent, loaded: loadedCurrent } = useInventoryRow(
     token,
@@ -285,8 +283,8 @@ export default function MovementForm({
 
     setBusy(true);
     setFormError(null);
+    setFormRequestId(null);
     setFieldErrors({});
-    const idempotencyKey = (submitKey.current ??= newIdempotencyKey());
     const payload: MovementInput = {
       productId,
       locationId,
@@ -295,25 +293,52 @@ export default function MovementForm({
       reason: reason.trim() || undefined,
       reference: reference.trim() || undefined,
     };
+    const operationKind: IdempotencyKind =
+      kind === 'stock-out' ? 'stock-out' : kind === 'adjust' ? 'adjust' : 'stock-in';
+    let idempotencyKey: string | undefined;
+    const requestPath =
+      kind === 'stock-out'
+        ? '/api/inventory/stock-out'
+        : kind === 'adjust'
+          ? '/api/inventory/adjust'
+          : '/api/inventory/stock-in';
     const actions: Record<string, () => Promise<ApiResponse>> = {
-      'stock-in': () => inventoryApi.stockIn(token as string, payload, idempotencyKey),
-      'stock-out': () => inventoryApi.stockOut(token as string, payload, idempotencyKey),
-      adjust: () => inventoryApi.adjust(token as string, payload, idempotencyKey),
+      'stock-in': () => inventoryApi.stockIn(token as string, payload, idempotencyKey as string),
+      'stock-out': () => inventoryApi.stockOut(token as string, payload, idempotencyKey as string),
+      adjust: () => inventoryApi.adjust(token as string, payload, idempotencyKey as string),
     };
     const perform = actions[kind];
     try {
+      idempotencyKey = await getOrCreateOperationKey({
+        kind: operationKind,
+        ownerId: user?.id,
+        payload,
+        label: `${cfg.title}: ${selectedProduct?.label ?? 'product'} at ${selectedLocation?.label ?? 'location'}`,
+        request: { method: 'POST', path: requestPath, body: payload },
+      });
       const res = await perform();
+      await completeOperation(operationKind, idempotencyKey, user?.id);
       const { previousQuantity, newQuantity } = res;
       const at = `${selectedProduct?.label ?? 'product'} at ${selectedLocation?.label ?? 'location'}`;
       await alert(cfg.title, `Done. ${at}: ${formatNumber(previousQuantity)} → ${formatNumber(newQuantity)}`);
       router.back();
     } catch (err) {
-      // Only an answer that ENDS the operation mints a new key; a transport failure
-      // and a still-in-flight claim both keep it. See `lib/idempotency.ts`.
-      if (endsOperation(err)) submitKey.current = null;
+      if (err instanceof PendingOperationsFullError) {
+        setFormError(err.message);
+        setFormRequestId(null);
+        return;
+      }
+      // Only an answer that ENDS the operation mints a new key; a transport failure,
+      // a 5xx and a still-in-flight claim all keep it. See `lib/idempotency.ts`.
+      if (idempotencyKey && endsOperation(err)) {
+        await completeOperation(operationKind, idempotencyKey, user?.id);
+      }
       const fields = fieldMap(err);
       if (Object.keys(fields).length) setFieldErrors(fields);
-      else setFormError((err as { message?: string } | null)?.message || 'The movement could not be completed.');
+      else {
+        setFormError((err as { message?: string } | null)?.message || 'The movement could not be completed.');
+        setFormRequestId(errorRequestId(err));
+      }
     } finally {
       submitting.current = false;
       setBusy(false);
@@ -328,7 +353,7 @@ export default function MovementForm({
 
   return (
     <Screen scroll contentStyle={styles.content}>
-      <Banner type="error" text={formError} />
+      <Banner type="error" text={formError} requestId={formRequestId} />
 
       {availState === 'loading' ? <Banner type="info" text="Checking current stock…" /> : null}
       {availState === 'missing' ? (

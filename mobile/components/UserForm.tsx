@@ -17,6 +17,7 @@ import type { ApiResponse, UserInput } from '../lib/api';
 import { ApiError } from '../lib/client';
 import { useSession } from '../lib/auth';
 import type { AuthUser } from '../lib/auth';
+import { errorRequestId } from '../lib/errors';
 import { confirm } from '../lib/confirm';
 import { assignableRoles, canModifyUser, roleLabel } from '../lib/permissions';
 import { spacing, type } from '../lib/theme';
@@ -67,6 +68,7 @@ export default function UserForm({ initial }: UserFormProps) {
 
   const [fieldErrors, setFieldErrors] = useState<Record<string, string | undefined>>({});
   const [formError, setFormError] = useState<string | null>(null);
+  const [formRequestId, setFormRequestId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   // A target the actor is not allowed to modify (self / OWNER / ADMIN-for-ADMIN)
@@ -123,6 +125,7 @@ export default function UserForm({ initial }: UserFormProps) {
 
     setBusy(true);
     setFormError(null);
+    setFormRequestId(null);
     setFieldErrors({});
     try {
       if (isEdit) {
@@ -142,7 +145,10 @@ export default function UserForm({ initial }: UserFormProps) {
     } catch (err) {
       const fields = fieldMap(err);
       if (Object.keys(fields).length) setFieldErrors(fields);
-      else setFormError((err as { message?: string } | null)?.message || 'Unable to save the user.');
+      else {
+        setFormError((err as { message?: string } | null)?.message || 'Unable to save the user.');
+        setFormRequestId(errorRequestId(err));
+      }
     } finally {
       setBusy(false);
     }
@@ -150,7 +156,7 @@ export default function UserForm({ initial }: UserFormProps) {
 
   return (
     <Screen scroll contentStyle={styles.content}>
-      <Banner type="error" text={formError} />
+      <Banner type="error" text={formError} requestId={formRequestId} />
       <Input name="name" label="Name" value={name} onChangeText={setName} error={fieldErrors.name} required autoCapitalize="words" editable={!isEdit} />
       <Input name="email" label="Email" value={email} onChangeText={setEmail} error={fieldErrors.email} keyboardType="email-address" autoCapitalize="none" required editable={!isEdit} />
 

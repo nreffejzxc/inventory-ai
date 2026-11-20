@@ -1,12 +1,18 @@
+import crypto from 'node:crypto';
+
 import mongoose from 'mongoose';
 import type { PipelineStage } from 'mongoose';
 
 import Inventory from '../models/inventory.model.ts';
 import InventoryTransaction from '../models/inventoryTransaction.model.ts';
+import StockTransferOperation from '../models/stockTransferOperation.model.ts';
+import StockMovementOperation from '../models/stockMovementOperation.model.ts';
 import Product from '../models/product.model.ts';
 import Location from '../models/location.model.ts';
 import ApiError from '../utils/ApiError.ts';
 import { recordAudit } from './audit.service.ts';
+import { monitorAuditFailure } from './auditFailure.service.ts';
+import { recoverTransferOperation } from './stockTransferRecovery.service.ts';
 import { AUDIT_ACTIONS, AUDIT_ENTITY_TYPES } from '../constants/audit.ts';
 import { normaliseLookupText } from '../utils/lookupText.ts';
 
@@ -23,6 +29,26 @@ const { ObjectId } = mongoose.Types;
 type IdLike = string | mongoose.Types.ObjectId;
 
 const oid = (id: IdLike) => new ObjectId(id);
+
+/**
+ * Canonical fingerprint of one transfer request. Ids are compared in their
+ * lower-case string form so an ObjectId and its hex string describe the same
+ * request; optional text is trimmed so whitespace alone is not a new request.
+ * The journal keeps this beyond the transport key's 24-hour lifetime, which is
+ * what stops an old key from replaying a completed transfer for a new movement.
+ */
+function transferFingerprint(businessId: IdLike, input: TransferInput): string {
+  const canonical = {
+    businessId: String(businessId).toLowerCase(),
+    productId: String(input.productId).toLowerCase(),
+    fromLocationId: String(input.fromLocationId).toLowerCase(),
+    toLocationId: String(input.toLocationId).toLowerCase(),
+    quantity: Number(input.quantity),
+    reason: (input.reason ?? '').trim(),
+    reference: (input.reference ?? '').trim(),
+  };
+  return crypto.createHash('sha256').update(JSON.stringify(canonical)).digest('hex');
+}
 
 const AUDIT_ACTION_BY_TYPE = {
   STOCK_IN: AUDIT_ACTIONS.INVENTORY_STOCK_IN,
@@ -45,6 +71,10 @@ type MovementInput = {
   quantity: number;
   reason?: string;
   reference?: string;
+  /** Internal: the PO receive claim that owns this STOCK_IN, when any. */
+  purchaseOrderClaimId?: IdLike;
+  /** Transport idempotency key, when the caller supplied one. */
+  idempotencyKey?: string;
 };
 
 /** The transfer payload, which names two locations instead of one. */
@@ -55,6 +85,8 @@ type TransferInput = {
   quantity: number;
   reason?: string;
   reference?: string;
+  /** Transport idempotency key, when the caller supplied one. */
+  idempotencyKey?: string;
 };
 
 /** The inventory list query, already parsed and validated by the controller. */
@@ -81,6 +113,9 @@ type MovementRecord = {
   newQuantity: number;
   reason?: string;
   reference?: string;
+  purchaseOrderClaimId?: IdLike;
+  /** The durable movement receipt that owns this ledger row, when keyed. */
+  movementOperationId?: IdLike;
 };
 
 /**
@@ -298,6 +333,8 @@ async function recordMovement({
   newQuantity,
   reason,
   reference,
+  purchaseOrderClaimId,
+  movementOperationId,
 }: MovementRecord) {
   const txn = await InventoryTransaction.create({
     businessId,
@@ -309,6 +346,8 @@ async function recordMovement({
     newQuantity,
     reason: reason || undefined,
     reference: reference || undefined,
+    purchaseOrderClaimId,
+    movementOperationId,
     userId,
   });
   try {
@@ -337,6 +376,13 @@ async function recordMovement({
     console.error(
       `[inventory] audit record failed for ${type} transaction ${String(txn._id)} (movement preserved): ${String((err as { message?: unknown }).message)}`
     );
+    await monitorAuditFailure({
+      businessId,
+      action: AUDIT_ACTION_BY_TYPE[type],
+      entityType: AUDIT_ENTITY_TYPES.INVENTORY_TRANSACTION,
+      entityId: txn._id,
+      error: err,
+    });
   }
   return txn;
 }
@@ -358,16 +404,19 @@ async function rollbackInventory(
   filter: Record<string, unknown>,
   operation: Record<string, unknown>,
   label: string
-) {
+): Promise<boolean> {
   try {
     const res = await Inventory.updateOne(filter, operation);
     if (res.modifiedCount !== 1) {
       console.error(`[inventory] ${label}: rollback skipped (row no longer at the written quantity)`);
+      return false;
     }
+    return true;
   } catch (err) {
     // `err.message`, narrowed. The raw value is passed through exactly as
     // before, so `console.error` still receives whatever the caught value held.
     console.error(`[inventory] ${label}: rollback failed:`, (err as { message?: unknown }).message);
+    return false;
   }
 }
 
@@ -385,7 +434,7 @@ async function rollbackCreatedRow(
   locationId: IdLike,
   quantity: number,
   label: string
-) {
+): Promise<boolean> {
   try {
     const res = await Inventory.deleteOne({
       businessId,
@@ -396,9 +445,12 @@ async function rollbackCreatedRow(
     });
     if (res.deletedCount !== 1) {
       console.error(`[inventory] ${label}: created-row rollback skipped (row no longer at quantity ${quantity})`);
+      return false;
     }
+    return true;
   } catch (err) {
     console.error(`[inventory] ${label}: created-row rollback failed:`, (err as { message?: unknown }).message);
+    return false;
   }
 }
 
@@ -450,6 +502,492 @@ async function compensateTransfer({
   }
 }
 
+/** Remove recovery markers after a transfer is finished or compensated. */
+async function clearTransferMarkers(businessId: IdLike, opId: unknown, rows: Array<{ _id?: unknown } | null | undefined>) {
+  for (const row of rows) {
+    if (!row || row._id == null) continue;
+    try {
+      await Inventory.updateOne(
+        { _id: row._id, businessId },
+        { $pull: { transferOperationIds: opId } }
+      );
+    } catch (err) {
+      console.error(`[inventory] transfer marker cleanup failed for ${String(row._id)}: ${String((err as { message?: unknown }).message)}`);
+    }
+  }
+}
+
+/** The movement kinds that now have a durable per-key receipt. */
+type MovementKind = 'STOCK_IN' | 'STOCK_OUT' | 'ADJUST';
+
+type MovementResult = {
+  transaction: ReturnType<typeof transactionPublic>;
+  previousQuantity: number;
+  newQuantity: number;
+  createdRow?: boolean;
+};
+
+type MovementReceiptState =
+  | 'IN_PROGRESS'
+  | 'INVENTORY_WRITTEN'
+  | 'COMPLETED'
+  | 'REQUIRES_ATTENTION';
+
+export type MovementReceiptRecord = {
+  _id: mongoose.Types.ObjectId;
+  businessId: mongoose.Types.ObjectId;
+  kind: MovementKind;
+  state: MovementReceiptState;
+  createdBy: mongoose.Types.ObjectId;
+  productId: mongoose.Types.ObjectId;
+  locationId: mongoose.Types.ObjectId;
+  quantity: number;
+  reason?: string | null;
+  reference?: string | null;
+  inventoryRowId?: mongoose.Types.ObjectId | null;
+  previousQuantity?: number | null;
+  newQuantity?: number | null;
+  createdRow?: boolean | null;
+  inventoryTransactionId?: mongoose.Types.ObjectId | null;
+  response?: unknown;
+  createdAt?: Date;
+  updatedAt?: Date;
+};
+
+type MovementReceiptRequest = {
+  businessId: IdLike;
+  userId: IdLike;
+  kind: MovementKind;
+  productId: IdLike;
+  locationId: IdLike;
+  quantity: number;
+  reason?: string;
+  reference?: string;
+  purchaseOrderClaimId?: IdLike;
+  idempotencyKey?: string;
+};
+
+/**
+ * What a key means for a movement: the business, the kind, the exact target, the
+ * quantity, and the text fields that reach the ledger. Two requests that differ in
+ * any of these are different operations, and a reused key must be refused rather
+ * than answering with the first movement's quantities.
+ */
+function movementFingerprint(input: MovementReceiptRequest): string {
+  const canonical = {
+    businessId: String(input.businessId).toLowerCase(),
+    kind: input.kind,
+    productId: String(input.productId).toLowerCase(),
+    locationId: String(input.locationId).toLowerCase(),
+    quantity: Number(input.quantity),
+    reason: (input.reason ?? '').trim(),
+    reference: (input.reference ?? '').trim(),
+    purchaseOrderClaimId: input.purchaseOrderClaimId
+      ? String(input.purchaseOrderClaimId).toLowerCase()
+      : '',
+  };
+  return crypto.createHash('sha256').update(JSON.stringify(canonical)).digest('hex');
+}
+
+async function findMovementLedgerRow(
+  businessId: IdLike,
+  receiptId: mongoose.Types.ObjectId,
+): Promise<TransactionSource | null> {
+  const row = await InventoryTransaction.findOne({
+    businessId: oid(businessId),
+    movementOperationId: receiptId,
+  }).lean();
+  // The narrow public shape is what this recovery path reads; the lean document
+  // itself carries more fields than any caller needs.
+  return row as unknown as TransactionSource | null;
+}
+
+/** The ledger row must describe the same movement the receipt staged. */
+function ledgerMatchesReceipt(receipt: MovementReceiptRecord, txn: TransactionSource): boolean {
+  const expectedType = receipt.kind === 'ADJUST' ? 'ADJUSTMENT' : receipt.kind;
+  if (String(txn.type ?? '') !== expectedType) return false;
+  if (String(txn.productId ?? '').toLowerCase() !== String(receipt.productId).toLowerCase()) return false;
+  if (String(txn.locationId ?? '').toLowerCase() !== String(receipt.locationId).toLowerCase()) return false;
+  if (typeof receipt.previousQuantity === 'number' && Number(txn.previousQuantity) !== receipt.previousQuantity) {
+    return false;
+  }
+  if (typeof receipt.newQuantity === 'number' && Number(txn.newQuantity) !== receipt.newQuantity) {
+    return false;
+  }
+  const expectedQuantity =
+    receipt.kind === 'ADJUST'
+      ? Math.abs((receipt.newQuantity ?? 0) - (receipt.previousQuantity ?? 0))
+      : Number(receipt.quantity);
+  return Number(txn.quantity) === expectedQuantity;
+}
+
+/** The receipt's own snapshots must describe one arithmetically valid move. */
+function receiptQuantitiesAreConsistent(receipt: MovementReceiptRecord): boolean {
+  if (typeof receipt.previousQuantity !== 'number' || typeof receipt.newQuantity !== 'number') {
+    return false;
+  }
+  const quantity = Number(receipt.quantity);
+  if (!Number.isFinite(quantity) || quantity <= 0) return false;
+  if (receipt.kind === 'STOCK_IN') return receipt.newQuantity === receipt.previousQuantity + quantity;
+  if (receipt.kind === 'STOCK_OUT') return receipt.newQuantity === receipt.previousQuantity - quantity;
+  return Math.abs(receipt.newQuantity - receipt.previousQuantity) === quantity;
+}
+
+/** Rebuild the exact answer the first delivery produced. */
+function receiptResponse(receipt: MovementReceiptRecord, txn: TransactionSource): MovementResult {
+  return {
+    transaction: transactionPublic(txn),
+    // The caller uses this to choose between deleting the row this stock-in
+    // created and restoring a pre-existing one. A replayed receipt must answer
+    // exactly like the first delivery, or an undo can leave an orphan row at 0.
+    ...(receipt.kind === 'STOCK_IN' ? { createdRow: receipt.createdRow === true } : {}),
+    previousQuantity:
+      typeof receipt.previousQuantity === 'number'
+        ? receipt.previousQuantity
+        : Number(txn.previousQuantity),
+    newQuantity:
+      typeof receipt.newQuantity === 'number' ? receipt.newQuantity : Number(txn.newQuantity),
+  };
+}
+
+async function completeMovementReceipt(
+  receiptId: mongoose.Types.ObjectId | null,
+  response: MovementResult,
+  transactionId: unknown,
+): Promise<void> {
+  if (!receiptId) return;
+  try {
+    await StockMovementOperation.updateOne(
+      { _id: receiptId },
+      { $set: { state: 'COMPLETED', response, inventoryTransactionId: transactionId } },
+    );
+  } catch (err) {
+    // The ledger row is already durable, so the outcome stands. The next retry
+    // recovers the response from the ledger rather than applying anything again.
+    console.error(
+      `[inventory] movement receipt ${String(receiptId)} could not be completed: ${String((err as { message?: unknown }).message)}`,
+    );
+  }
+}
+
+/**
+ * Stage the exact quantities this movement wrote, so a later process can tell an
+ * inventory change that landed from one that never did. It is written before the
+ * ledger row, and a failure here is compensated with the inventory write.
+ */
+async function markMovementInventoryWritten(
+  receiptId: mongoose.Types.ObjectId | null,
+  rowId: unknown,
+  previousQuantity: number,
+  newQuantity: number,
+  createdRow = false,
+): Promise<void> {
+  if (!receiptId) return;
+  await StockMovementOperation.updateOne(
+    { _id: receiptId },
+    {
+      $set: {
+        state: 'INVENTORY_WRITTEN',
+        inventoryRowId: rowId,
+        previousQuantity,
+        newQuantity,
+        createdRow,
+      },
+    },
+  );
+}
+
+/**
+ * End a failed attempt. A verified compensation means nothing moved, so the
+ * receipt is removed and the corrected retry starts cleanly. An unverified
+ * failure keeps the row as `REQUIRES_ATTENTION`: deleting it would let a retry
+ * apply a second movement over stock the first attempt may have changed.
+ */
+async function failMovementReceipt(
+  receiptId: mongoose.Types.ObjectId | null,
+  compensated: boolean,
+  err: unknown,
+): Promise<void> {
+  if (!receiptId) return;
+  try {
+    if (compensated) {
+      await StockMovementOperation.deleteOne({ _id: receiptId, state: { $ne: 'COMPLETED' } });
+      return;
+    }
+    await StockMovementOperation.updateOne(
+      { _id: receiptId, state: { $ne: 'COMPLETED' } },
+      {
+        $set: {
+          state: 'REQUIRES_ATTENTION',
+          failure: String((err as { message?: unknown })?.message ?? 'movement failed').slice(0, 1000),
+        },
+      },
+    );
+  } catch (updateErr) {
+    console.error(
+      `[inventory] movement receipt ${String(receiptId)} could not be updated: ${String((updateErr as { message?: unknown }).message)}`,
+    );
+  }
+}
+
+/**
+ * Replay a completed movement, or recover the one whose process died before it
+ * could finish recording it.
+ *
+ * ORDER OF PROOF, strongest first:
+ *   1. a stored COMPLETED response — the exact answer the member already saw;
+ *   2. the ledger row named by `inventoryTransactionId`, or found by the unique
+ *      `movementOperationId` — the ledger is the source of truth;
+ *   3. `INVENTORY_WRITTEN` plus an inventory row still exactly at `newQuantity` —
+ *      the stock change landed but the ledger row did not, so the missing row is
+ *      written from the receipt's own snapshots (the partial unique index makes
+ *      two recoverers safe);
+ *   4. anything else is ambiguous and is refused for a human, never re-applied.
+ */
+async function replayMovementReceipt(receipt: MovementReceiptRecord): Promise<MovementResult> {
+  if (receipt.state === 'COMPLETED' && receipt.response) {
+    return receipt.response as MovementResult;
+  }
+
+  const txn = receipt.inventoryTransactionId
+    ? ((await InventoryTransaction.findOne({
+        _id: receipt.inventoryTransactionId,
+        businessId: receipt.businessId,
+      }).lean()) as unknown as TransactionSource | null)
+    : await findMovementLedgerRow(receipt.businessId, receipt._id);
+
+  if (txn) {
+    const response = receiptResponse(receipt, txn);
+    await completeMovementReceipt(receipt._id, response, txn._id);
+    return response;
+  }
+
+  if (
+    receipt.state === 'INVENTORY_WRITTEN' &&
+    receipt.inventoryRowId != null &&
+    typeof receipt.previousQuantity === 'number' &&
+    typeof receipt.newQuantity === 'number'
+  ) {
+    const row = await Inventory.findOne({
+      _id: receipt.inventoryRowId,
+      businessId: receipt.businessId,
+      productId: receipt.productId,
+      locationId: receipt.locationId,
+    }).lean();
+    if (row && row.quantity === receipt.newQuantity) {
+      // An adjustment's ledger quantity is the magnitude of the change; the
+      // receipt stores the target it was asked for.
+      const ledgerQuantity =
+        receipt.kind === 'ADJUST'
+          ? Math.abs(receipt.newQuantity - receipt.previousQuantity)
+          : receipt.quantity;
+      let recovered: TransactionSource | null;
+      try {
+        recovered = (await recordMovement({
+          businessId: receipt.businessId,
+          userId: receipt.createdBy,
+          productId: receipt.productId,
+          locationId: receipt.locationId,
+          type: receipt.kind === 'ADJUST' ? 'ADJUSTMENT' : receipt.kind,
+          quantity: ledgerQuantity,
+          previousQuantity: receipt.previousQuantity,
+          newQuantity: receipt.newQuantity,
+          reason: receipt.reason ?? undefined,
+          reference: receipt.reference ?? undefined,
+          movementOperationId: receipt._id,
+        })) as unknown as TransactionSource;
+      } catch (err) {
+        if (!isDuplicateKey(err)) throw err;
+        recovered = await findMovementLedgerRow(receipt.businessId, receipt._id);
+      }
+      if (recovered) {
+        const response = receiptResponse(receipt, recovered);
+        await completeMovementReceipt(receipt._id, response, recovered._id);
+        return response;
+      }
+    }
+  }
+
+  await StockMovementOperation.updateOne(
+    { _id: receipt._id, state: { $ne: 'COMPLETED' } },
+    {
+      $set: {
+        state: 'REQUIRES_ATTENTION',
+        failure: 'the inventory write could not be proven or safely finished',
+      },
+    },
+  ).catch(() => undefined);
+  throw new ApiError(
+    409,
+    'This movement needs operator attention before it can be retried; do not submit it under a new key',
+    'MOVEMENT_REQUIRES_ATTENTION',
+  );
+}
+
+export type MovementReceiptAssessment = {
+  receipt: MovementReceiptRecord;
+  /** What the evidence permits right now. */
+  action: 'complete' | 'recover' | 'flag' | 'blocked';
+  evidence: 'ledger' | 'inventory-exact' | 'ambiguous' | 'attention';
+  ledgerId: string | null;
+};
+
+/**
+ * Read-only proof assessment for an operator or a reaper. It never writes, so a
+ * dry run can report exactly what an apply would do.
+ *
+ * `REQUIRES_ATTENTION` is not resolved merely because a row now looks plausible:
+ * only a ledger row, or the receipt's own INVENTORY_WRITTEN snapshot matching the
+ * current row exactly, proves this receipt's movement happened. A later movement
+ * can leave a row at the same number without this receipt having applied.
+ */
+export async function assessMovementReceiptById(id: unknown): Promise<MovementReceiptAssessment | null> {
+  const receipt = (await StockMovementOperation.findById(id).lean()) as unknown as MovementReceiptRecord | null;
+  if (!receipt) return null;
+
+  const txn = receipt.inventoryTransactionId
+    ? await InventoryTransaction.findOne({ _id: receipt.inventoryTransactionId, businessId: receipt.businessId }).lean()
+    : await findMovementLedgerRow(receipt.businessId, receipt._id);
+  if (receipt.state === 'COMPLETED') {
+    if (!txn || !ledgerMatchesReceipt(receipt, txn)) {
+      return { receipt, action: 'flag', evidence: 'ambiguous', ledgerId: txn ? String(txn._id) : null };
+    }
+    return { receipt, action: 'complete', evidence: 'ledger', ledgerId: String(txn._id) };
+  }
+  if (txn) {
+    if (!ledgerMatchesReceipt(receipt, txn)) {
+      return { receipt, action: 'flag', evidence: 'ambiguous', ledgerId: String(txn._id) };
+    }
+    return { receipt, action: 'complete', evidence: 'ledger', ledgerId: String(txn._id) };
+  }
+
+  if (
+    receipt.state === 'INVENTORY_WRITTEN' &&
+    receipt.inventoryRowId != null &&
+    receiptQuantitiesAreConsistent(receipt)
+  ) {
+    const row = await Inventory.findOne({
+      _id: receipt.inventoryRowId,
+      businessId: receipt.businessId,
+      productId: receipt.productId,
+      locationId: receipt.locationId,
+    })
+      .select('quantity')
+      .lean();
+    if (row && row.quantity === receipt.newQuantity) {
+      return { receipt, action: 'recover', evidence: 'inventory-exact', ledgerId: null };
+    }
+  }
+
+  return {
+    receipt,
+    action: receipt.state === 'REQUIRES_ATTENTION' ? 'blocked' : 'flag',
+    evidence: receipt.state === 'REQUIRES_ATTENTION' ? 'attention' : 'ambiguous',
+    ledgerId: null,
+  };
+}
+
+/**
+ * Apply the proof assessment. A ledger row wins; an exact INVENTORY_WRITTEN
+ * snapshot rolls the missing row forward; anything ambiguous is flagged, never
+ * guessed. The caller audits a successful recovery.
+ */
+export async function recoverMovementReceiptById(id: unknown): Promise<{
+  state: 'COMPLETED' | 'REQUIRES_ATTENTION';
+  action: 'completed' | 'flagged' | 'noop';
+  transactionId?: string;
+  evidence: MovementReceiptAssessment['evidence'] | 'already-completed';
+} | null> {
+  const assessment = await assessMovementReceiptById(id);
+  if (!assessment) return null;
+  if (assessment.receipt.state === 'COMPLETED') {
+    return {
+      state: 'COMPLETED',
+      action: 'noop',
+      ...(assessment.ledgerId ? { transactionId: assessment.ledgerId } : {}),
+      evidence: 'already-completed',
+    };
+  }
+  if (assessment.action === 'blocked') {
+    return { state: 'REQUIRES_ATTENTION', action: 'noop', evidence: assessment.evidence };
+  }
+  if (assessment.action === 'flag' && assessment.ledgerId) {
+    // A ledger row exists but contradicts the receipt's product, location,
+    // quantities or kind. That is evidence of a data problem, not permission to
+    // complete the receipt; make it visible instead of replaying it.
+    await failMovementReceipt(
+      assessment.receipt._id,
+      false,
+      new Error('the ledger row does not match the receipt snapshots'),
+    );
+    return { state: 'REQUIRES_ATTENTION', action: 'flagged', evidence: 'ambiguous' };
+  }
+
+  try {
+    const result = await replayMovementReceipt(assessment.receipt);
+    return {
+      state: 'COMPLETED',
+      action: 'completed',
+      transactionId: String(result.transaction.id),
+      evidence: assessment.evidence,
+    };
+  } catch (err) {
+    if (err instanceof ApiError && err.code === 'MOVEMENT_REQUIRES_ATTENTION') {
+      return { state: 'REQUIRES_ATTENTION', action: 'flagged', evidence: 'ambiguous' };
+    }
+    throw err;
+  }
+}
+
+/**
+ * Claim the key for this movement, or answer from the receipt that already owns
+ * it. The receipt is written BEFORE the first inventory change, so a crash at any
+ * later point leaves evidence a retry can reason about.
+ */
+async function beginMovementReceipt(input: MovementReceiptRequest): Promise<{
+  receiptId: mongoose.Types.ObjectId | null;
+  replay: MovementResult | null;
+}> {
+  if (!input.idempotencyKey) return { receiptId: null, replay: null };
+
+  const fingerprint = movementFingerprint(input);
+  try {
+    const doc = await StockMovementOperation.create({
+      businessId: oid(input.businessId),
+      requestKey: input.idempotencyKey,
+      requestFingerprint: fingerprint,
+      kind: input.kind,
+      state: 'IN_PROGRESS',
+      createdBy: oid(input.userId),
+      productId: oid(input.productId),
+      locationId: oid(input.locationId),
+      quantity: input.quantity,
+      reason: input.reason || undefined,
+      reference: input.reference || undefined,
+    });
+    return { receiptId: doc._id, replay: null };
+  } catch (err) {
+    if (!isDuplicateKey(err)) throw err;
+    const existing = await StockMovementOperation.findOne({
+      businessId: oid(input.businessId),
+      requestKey: input.idempotencyKey,
+    });
+    if (!existing) throw err;
+    if (existing.requestFingerprint !== fingerprint) {
+      throw new ApiError(
+        422,
+        'This idempotency key was already used for a different movement',
+        'IDEMPOTENCY_KEY_REUSED',
+      );
+    }
+    return {
+      receiptId: existing._id,
+      replay: await replayMovementReceipt(existing as unknown as MovementReceiptRecord),
+    };
+  }
+}
+
+
 /**
  * Inventory core service. Every operation is scoped by the server-derived
  * businessId. Quantity changes are single-document atomic updates with
@@ -482,9 +1020,26 @@ export const inventoryService = {
    * on first stock-in (upsert). Atomic; retried once if a concurrent upsert
    * races the unique (businessId, productId, locationId) index.
    */
-  async stockIn(businessId: IdLike, userId: IdLike, { productId, locationId, quantity, reason, reference }: MovementInput) {
+  async stockIn(businessId: IdLike, userId: IdLike, { productId, locationId, quantity, reason, reference, purchaseOrderClaimId, idempotencyKey }: MovementInput) {
     await this.assertOperationalProduct(businessId, productId);
     await this.assertOperationalLocation(businessId, locationId);
+
+    // The durable receipt is claimed before the first inventory change. A retry
+    // whose transport record was released after a 5xx arrives here with the same
+    // key and replays or recovers the committed movement instead of applying it.
+    const started = await beginMovementReceipt({
+      businessId,
+      userId,
+      kind: 'STOCK_IN',
+      productId,
+      locationId,
+      quantity,
+      reason,
+      reference,
+      purchaseOrderClaimId,
+      idempotencyKey,
+    });
+    if (started.replay) return started.replay;
 
     const filter = { businessId: oid(businessId), productId: oid(productId), locationId: oid(locationId) };
     const inc = { $inc: { quantity } };
@@ -497,25 +1052,42 @@ export const inventoryService = {
     // duplicate is surfaced rather than turned into a false success.
     let prev;
     let createdRow = false;
-    for (let attempt = 0; attempt < 3; attempt += 1) {
-      try {
-        prev = await Inventory.findOneAndUpdate(filter, inc, {
-          returnDocument: 'before',
-          upsert: true,
-          setDefaultsOnInsert: true,
-          runValidators: true,
-        });
-        createdRow = prev == null;
-        break;
-      } catch (err) {
-        if (!isDuplicateKey(err) || attempt === 2) throw err;
+    try {
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        try {
+          prev = await Inventory.findOneAndUpdate(filter, inc, {
+            returnDocument: 'before',
+            upsert: true,
+            setDefaultsOnInsert: true,
+            runValidators: true,
+          });
+          createdRow = prev == null;
+          break;
+        } catch (err) {
+          if (!isDuplicateKey(err) || attempt === 2) throw err;
+        }
       }
+    } catch (err) {
+      // An exhausted upsert retry cannot prove whether an earlier attempt
+      // inserted a row, so the receipt is kept for a human rather than risking a
+      // second movement under a fresh key.
+      await failMovementReceipt(started.receiptId, false, err);
+      throw err;
     }
 
     const previousQuantity = prev?.quantity ?? 0;
     const newQuantity = previousQuantity + quantity;
 
     try {
+      const writtenRowId =
+        prev?._id ?? (await Inventory.findOne(filter).select('_id').lean())?._id;
+      await markMovementInventoryWritten(
+        started.receiptId,
+        writtenRowId,
+        previousQuantity,
+        newQuantity,
+        createdRow,
+      );
       const txn = await recordMovement({
         businessId,
         userId,
@@ -527,8 +1099,10 @@ export const inventoryService = {
         newQuantity,
         reason,
         reference,
+        purchaseOrderClaimId,
+        movementOperationId: started.receiptId ?? undefined,
       });
-      return {
+      const response = {
         transaction: transactionPublic(txn),
         previousQuantity,
         newQuantity,
@@ -537,27 +1111,50 @@ export const inventoryService = {
         // deleting the freshly created row and reverting a pre-existing one.
         createdRow,
       };
+      await completeMovementReceipt(started.receiptId, response, txn._id);
+      return response;
     } catch (err) {
+      // A ledger row can exist even though this call threw — a duplicate-key race
+      // or a driver failure after the insert committed. The ledger is the truth:
+      // never compensate stock under a row that exists.
+      if (started.receiptId) {
+        let committed: TransactionSource | null;
+        try {
+          committed = await findMovementLedgerRow(businessId, started.receiptId);
+        } catch {
+          await failMovementReceipt(started.receiptId, false, err);
+          throw err;
+        }
+        if (committed) {
+          const response = {
+            transaction: transactionPublic(committed),
+            previousQuantity,
+            newQuantity,
+            createdRow,
+          };
+          await completeMovementReceipt(started.receiptId, response, committed._id);
+          return response;
+        }
+      }
+
+      let compensated = false;
       if (createdRow) {
         // This stock-in created the row (first stock-in, upsert inserted it).
         // Compensate by deleting the freshly created row — never by decrementing
         // it to zero and leaving an orphan row (L5). The delete is anchored on
         // the exact quantity we wrote so a concurrent movement that built on
         // the new row is preserved.
-        await rollbackCreatedRow(filter.businessId, filter.productId, filter.locationId, newQuantity, 'stock-in');
-      } else {
+        compensated = await rollbackCreatedRow(filter.businessId, filter.productId, filter.locationId, newQuantity, 'stock-in');
+      } else if (prev) {
         // Existing row: revert only while it is still exactly at the quantity
         // this operation produced; a concurrent movement makes it a no-op.
-        // `createdRow === false` means the upsert returned a row, but the guard
-        // makes that fact explicit to the type checker (and would catch a broken
-        // driver result rather than dereferencing null).
-        if (!prev) throw new Error('stock-in upsert returned no row', { cause: err });
-        await rollbackInventory(
+        compensated = await rollbackInventory(
           { _id: prev._id, quantity: newQuantity },
           { $inc: { quantity: -quantity } },
           'stock-in'
         );
       }
+      await failMovementReceipt(started.receiptId, compensated, err);
       throw err;
     }
   },
@@ -568,9 +1165,22 @@ export const inventoryService = {
    * never drive available below zero. Missing row vs insufficient stock are
    * distinguished with a follow-up read when the guard rejects the update.
    */
-  async stockOut(businessId: IdLike, userId: IdLike, { productId, locationId, quantity, reason, reference }: MovementInput) {
+  async stockOut(businessId: IdLike, userId: IdLike, { productId, locationId, quantity, reason, reference, idempotencyKey }: MovementInput) {
     await this.assertOperationalProduct(businessId, productId);
     await this.assertOperationalLocation(businessId, locationId);
+
+    const started = await beginMovementReceipt({
+      businessId,
+      userId,
+      kind: 'STOCK_OUT',
+      productId,
+      locationId,
+      quantity,
+      reason,
+      reference,
+      idempotencyKey,
+    });
+    if (started.replay) return started.replay;
 
     const filter = {
       businessId: oid(businessId),
@@ -579,8 +1189,19 @@ export const inventoryService = {
       $expr: { $gte: [{ $subtract: ['$quantity', '$reservedQuantity'] }, quantity] },
     };
 
-    const prev = await Inventory.findOneAndUpdate(filter, { $inc: { quantity: -quantity } }, { returnDocument: 'before' });
+    let prev;
+    try {
+      prev = await Inventory.findOneAndUpdate(filter, { $inc: { quantity: -quantity } }, { returnDocument: 'before' });
+    } catch (err) {
+      // The guarded update failed rather than refusing; whether it applied is not
+      // provable from here, so the receipt is kept for a human.
+      await failMovementReceipt(started.receiptId, false, err);
+      throw err;
+    }
     if (!prev) {
+      // The guard matched nothing, so no quantity moved. Release the receipt so the
+      // corrected retry is a fresh operation, then answer with the real reason.
+      await failMovementReceipt(started.receiptId, true, new Error('movement refused before any quantity changed'));
       const row = await Inventory.findOne({
         businessId: oid(businessId),
         productId: oid(productId),
@@ -596,6 +1217,12 @@ export const inventoryService = {
     const newQuantity = previousQuantity - quantity;
 
     try {
+      await markMovementInventoryWritten(
+        started.receiptId,
+        prev._id,
+        previousQuantity,
+        newQuantity,
+      );
       const txn = await recordMovement({
         businessId,
         userId,
@@ -607,16 +1234,39 @@ export const inventoryService = {
         newQuantity,
         reason,
         reference,
+        movementOperationId: started.receiptId ?? undefined,
       });
-      return { transaction: transactionPublic(txn), previousQuantity, newQuantity };
+      const response = { transaction: transactionPublic(txn), previousQuantity, newQuantity };
+      await completeMovementReceipt(started.receiptId, response, txn._id);
+      return response;
     } catch (err) {
+      if (started.receiptId) {
+        let committed: TransactionSource | null;
+        try {
+          committed = await findMovementLedgerRow(businessId, started.receiptId);
+        } catch {
+          await failMovementReceipt(started.receiptId, false, err);
+          throw err;
+        }
+        if (committed) {
+          const response = {
+            transaction: transactionPublic(committed),
+            previousQuantity,
+            newQuantity,
+          };
+          await completeMovementReceipt(started.receiptId, response, committed._id);
+          return response;
+        }
+      }
+
       // Revert only while the row is still exactly at the quantity this
       // stock-out produced; a concurrent movement makes it a no-op.
-      await rollbackInventory(
+      const compensated = await rollbackInventory(
         { _id: prev._id, quantity: newQuantity },
         { $inc: { quantity } },
         'stock-out'
       );
+      await failMovementReceipt(started.receiptId, compensated, err);
       throw err;
     }
   },
@@ -647,7 +1297,7 @@ export const inventoryService = {
   async transfer(
     businessId: IdLike,
     userId: IdLike,
-    { productId, fromLocationId, toLocationId, quantity, reason, reference }: TransferInput
+    { productId, fromLocationId, toLocationId, quantity, reason, reference, idempotencyKey }: TransferInput
   ) {
     if (String(fromLocationId) === String(toLocationId)) {
       throw new ApiError(409, 'Source and destination must be different locations', 'TRANSFER_SAME_LOCATION');
@@ -657,12 +1307,105 @@ export const inventoryService = {
     await this.assertOperationalLocation(businessId, fromLocationId);
     await this.assertOperationalLocation(businessId, toLocationId);
 
+    // A retry after an ambiguous response can reach the service with the same
+    // key after the middleware released it. If the journal already completed,
+    // replay its stored response; if it is still unfinished, try one bounded
+    // recovery and refuse rather than starting a second movement.
+    const requestFingerprint = idempotencyKey
+      ? transferFingerprint(businessId, { productId, fromLocationId, toLocationId, quantity, reason, reference })
+      : undefined;
+    if (idempotencyKey) {
+      const prior = await StockTransferOperation.findOne({
+        businessId: oid(businessId),
+        requestKey: idempotencyKey,
+      }).sort({ createdAt: -1 });
+      if (prior) {
+        // The key is only an alias for THIS request. A journal outlives the
+        // transport middleware's 24-hour record, so without this comparison a
+        // reused key could replay a completed transfer whose response has
+        // nothing to do with the stock the caller is now asking to move.
+        if (
+          typeof prior.requestFingerprint === 'string' &&
+          prior.requestFingerprint !== requestFingerprint
+        ) {
+          throw new ApiError(
+            422,
+            'This idempotency key was already used for a different transfer request',
+            'IDEMPOTENCY_KEY_REUSED'
+          );
+        }
+        if (prior.state === 'COMPLETED' && prior.response) return prior.response as never;
+        // A journal that could not prove a safe finish or undo must stay a
+        // blocker. Starting a new transfer under the same key would risk a
+        // second movement on top of the ambiguous one.
+        if (prior.state === 'REQUIRES_ATTENTION') {
+          throw new ApiError(
+            409,
+            'The previous transfer requires operator attention; do not retry it under the same key',
+            'TRANSFER_REQUIRES_ATTENTION'
+          );
+        }
+        if (['PREPARED', 'SOURCE_DEBITED', 'DESTINATION_CREDITED', 'LEDGER_WRITTEN', 'FAILED'].includes(prior.state)) {
+          const recovered = await recoverTransferOperation(prior._id);
+          if (recovered?.action === 'completed' && recovered.response) return recovered.response as never;
+          if (recovered?.action === 'compensated') {
+            throw new ApiError(
+              409,
+              'The previous transfer attempt was recovered without moving stock; submit a new transfer',
+              'TRANSFER_RECOVERED_COMPENSATED'
+            );
+          }
+          throw new ApiError(
+            409,
+            'The previous transfer is still being recovered; retry after it finishes',
+            'TRANSFER_RECOVERY_PENDING'
+          );
+        }
+      }
+    }
+
     const bizOid = oid(businessId);
     const prodOid = oid(productId);
     const fromOid = oid(fromLocationId);
     const toOid = oid(toLocationId);
+    const operationId = new ObjectId();
     // Correlates the two ledger rows (and the audit) as one transfer.
-    const transferRef = reference || `TRF-${new ObjectId().toString()}`;
+    const transferRef = reference || `TRF-${operationId.toString()}`;
+
+    // The journal is written before any stock moves. If it cannot be written,
+    // the transfer has not started and is safe to refuse.
+    const sourceBefore = await Inventory.findOne({
+      businessId: bizOid,
+      productId: prodOid,
+      locationId: fromOid,
+    }).lean();
+    const destinationBefore = await Inventory.findOne({
+      businessId: bizOid,
+      productId: prodOid,
+      locationId: toOid,
+    }).lean();
+    await StockTransferOperation.create({
+      _id: operationId,
+      businessId: bizOid,
+      ...(idempotencyKey ? { requestKey: idempotencyKey } : {}),
+      ...(requestFingerprint ? { requestFingerprint } : {}),
+      productId: prodOid,
+      fromLocationId: fromOid,
+      toLocationId: toOid,
+      quantity,
+      reason: reason || undefined,
+      reference: transferRef,
+      state: 'PREPARED',
+      createdBy: oid(userId),
+      sourceRowId: sourceBefore?._id,
+      sourcePreviousQuantity: sourceBefore?.quantity,
+      sourceNewQuantity: sourceBefore ? sourceBefore.quantity - quantity : undefined,
+      destinationRowId: destinationBefore?._id,
+      destinationPreviousQuantity: destinationBefore?.quantity ?? 0,
+      destinationNewQuantity: (destinationBefore?.quantity ?? 0) + quantity,
+      destinationCreated: destinationBefore == null,
+    });
+    try {
 
     // Leg 1 — debit the source. The guard is evaluated atomically with the
     // decrement, so concurrent transfers/stock-outs can never overspend.
@@ -673,7 +1416,10 @@ export const inventoryService = {
         locationId: fromOid,
         $expr: { $gte: [{ $subtract: ['$quantity', '$reservedQuantity'] }, quantity] },
       },
-      { $inc: { quantity: -quantity } },
+      {
+        $inc: { quantity: -quantity },
+        $addToSet: { transferOperationIds: operationId },
+      },
       { returnDocument: 'before' }
     );
     if (!srcPrev) {
@@ -688,41 +1434,76 @@ export const inventoryService = {
       throw new ApiError(409, 'Insufficient available stock at the source location', 'INSUFFICIENT_STOCK');
     }
     const srcNew = srcPrev.quantity - quantity;
+    await StockTransferOperation.updateOne(
+      { _id: operationId },
+      {
+        $set: {
+          state: 'SOURCE_DEBITED',
+          sourceRowId: srcPrev._id,
+          sourcePreviousQuantity: srcPrev.quantity,
+          sourceNewQuantity: srcNew,
+        },
+      }
+    );
 
     // Leg 2 — credit the destination (created on first arrival).
     const dstFilter = { businessId: bizOid, productId: prodOid, locationId: toOid };
-    const dstInc = { $inc: { quantity } };
+    const dstInc = {
+      $inc: { quantity },
+      $addToSet: { transferOperationIds: operationId },
+    };
     let dstPrev;
-    try {
-      dstPrev = await Inventory.findOneAndUpdate(dstFilter, dstInc, {
-        returnDocument: 'before',
-        upsert: true,
-        setDefaultsOnInsert: true,
-        runValidators: true,
-      });
-    } catch (err) {
-      if (!isDuplicateKey(err)) {
-        // The debit already landed — put it back before surfacing.
-        await compensateTransfer({
-          businessId,
-          productId,
-          toLocationId,
-          quantity,
-          srcPrev,
-          srcNew,
-          label: 'transfer (destination write failed)',
+    // A duplicate-key error on an upsert means another movement created the row
+    // between our guard and this write. Retrying the SAME full upsert is safe and
+    // is what `stockIn` does: if that row has since vanished (a concurrent delete),
+    // the retry re-creates it; an update-only retry would return null, and the
+    // function would then write ledger rows claiming stock that no destination row
+    // holds. Three attempts mirror `stockIn`'s bounded retry.
+    for (let attempt = 0; ; attempt += 1) {
+      try {
+        dstPrev = await Inventory.findOneAndUpdate(dstFilter, dstInc, {
+          returnDocument: 'before',
+          upsert: true,
+          setDefaultsOnInsert: true,
+          runValidators: true,
         });
-        throw err;
+        break;
+      } catch (err) {
+        const retryable = isDuplicateKey(err) && attempt < 2;
+        if (!retryable) {
+          // The debit already landed — put it back before surfacing. No destination
+          // row was created by this attempt (the upsert either failed before applying
+          // or all three attempts lost), so only the source needs compensation here.
+          await compensateTransfer({
+            businessId,
+            productId,
+            toLocationId,
+            quantity,
+            srcPrev,
+            srcNew,
+            label: 'transfer (destination write failed)',
+          });
+          await clearTransferMarkers(businessId, operationId, [srcPrev]);
+          throw err;
+        }
       }
-      // Another movement created the row between our read and this upsert.
-      dstPrev = await Inventory.findOneAndUpdate(dstFilter, dstInc, {
-        returnDocument: 'before',
-        runValidators: true,
-      });
     }
 
     const dstPrevQty = dstPrev?.quantity ?? 0;
     const dstNew = dstPrevQty + quantity;
+    const dstRow = dstPrev ?? (await Inventory.findOne(dstFilter).lean());
+    await StockTransferOperation.updateOne(
+      { _id: operationId },
+      {
+        $set: {
+          state: 'DESTINATION_CREDITED',
+          destinationRowId: dstRow?._id,
+          destinationPreviousQuantity: dstPrevQty,
+          destinationNewQuantity: dstNew,
+          destinationCreated: dstPrev == null,
+        },
+      }
+    );
 
     // Ledger — one TRANSFER row per leg, then ONE audit event for the transfer
     // as a whole. The rows are created directly rather than through
@@ -745,6 +1526,7 @@ export const inventoryService = {
             newQuantity: leg.newQuantity,
             reason: reason || undefined,
             reference: transferRef,
+            transferOperationId: operationId,
             userId,
           })
         );
@@ -774,8 +1556,19 @@ export const inventoryService = {
         dstNew,
         label: 'transfer (ledger write failed)',
       });
+      await clearTransferMarkers(businessId, operationId, [srcPrev, dstPrev]);
       throw err;
     }
+
+    await StockTransferOperation.updateOne(
+      { _id: operationId },
+      {
+        $set: {
+          state: 'LEDGER_WRITTEN',
+          inventoryTransactionIds: created.map((row) => row._id),
+        },
+      }
+    );
 
     // Once both ledger rows are durable the transfer stands, so an audit failure
     // is logged and swallowed — never compensated away (Phase 07A / H3).
@@ -807,9 +1600,16 @@ export const inventoryService = {
       console.error(
         `[inventory] audit record failed for TRANSFER ${transferRef} (movement preserved): ${String((err as { message?: unknown }).message)}`
       );
+      await monitorAuditFailure({
+        businessId,
+        action: AUDIT_ACTIONS.INVENTORY_TRANSFERRED,
+        entityType: AUDIT_ENTITY_TYPES.INVENTORY_TRANSACTION,
+        entityId: created[0]!._id,
+        error: err,
+      });
     }
 
-    return {
+    const result = {
       transaction: transactionPublic(created[0]!),
       destinationTransaction: transactionPublic(created[1]!),
       reference: transferRef,
@@ -818,6 +1618,29 @@ export const inventoryService = {
       destinationPreviousQuantity: dstPrevQty,
       destinationNewQuantity: dstNew,
     };
+    await clearTransferMarkers(businessId, operationId, [srcPrev, dstPrev]);
+    await StockTransferOperation.updateOne(
+      { _id: operationId },
+      { $set: { state: 'COMPLETED', response: result, reconciledAt: new Date() } }
+    );
+    return result;
+    } catch (err) {
+      // The synchronous paths above already compensated when they could. The
+      // journal deliberately records the failure and leaves recovery to prove
+      // the final state; a process that dies here is handled the same way.
+      await StockTransferOperation.updateOne(
+        { _id: operationId },
+        {
+          $set: {
+            state: 'FAILED',
+            failure: (err as { message?: unknown }).message
+              ? String((err as { message?: unknown }).message).slice(0, 1000)
+              : 'transfer failed',
+          },
+        }
+      ).catch(() => undefined);
+      throw err;
+    }
   },
 
   /**
@@ -826,31 +1649,72 @@ export const inventoryService = {
    * NO_CHANGE (no zero-quantity transaction is ever created). The update is
    * guarded so the resulting available quantity can never be negative.
    */
-  async adjust(businessId: IdLike, userId: IdLike, { productId, locationId, quantity: target, reason, reference }: MovementInput) {
+  async adjust(businessId: IdLike, userId: IdLike, { productId, locationId, quantity: target, reason, reference, idempotencyKey }: MovementInput) {
     await this.assertOperationalProduct(businessId, productId);
     await this.assertOperationalLocation(businessId, locationId);
+
+    const started = await beginMovementReceipt({
+      businessId,
+      userId,
+      kind: 'ADJUST',
+      productId,
+      locationId,
+      quantity: target,
+      reason,
+      reference,
+      idempotencyKey,
+    });
+    if (started.replay) return started.replay;
 
     const base = { businessId: oid(businessId), productId: oid(productId), locationId: oid(locationId) };
     const guard = {
       $and: [{ $ne: ['$quantity', target] }, { $gte: [target, '$reservedQuantity'] }],
     };
 
-    let prev = await Inventory.findOneAndUpdate({ ...base, $expr: guard }, { $set: { quantity: target } }, { returnDocument: 'before' });
+    let prev;
+    try {
+      prev = await Inventory.findOneAndUpdate({ ...base, $expr: guard }, { $set: { quantity: target } }, { returnDocument: 'before' });
+    } catch (err) {
+      await failMovementReceipt(started.receiptId, false, err);
+      throw err;
+    }
     if (!prev) {
-      const row = await Inventory.findOne(base);
-      if (!row) {
-        throw new ApiError(404, 'No inventory exists for this product at this location', 'INVENTORY_NOT_FOUND');
+      let row;
+      try {
+        row = await Inventory.findOne(base);
+      } catch (err) {
+        // The guarded update matched nothing, so no quantity moved.
+        await failMovementReceipt(started.receiptId, true, err);
+        throw err;
       }
-      if (row.quantity === target) {
-        throw new ApiError(409, 'Inventory is already at the requested quantity', 'NO_CHANGE');
-      }
-      if (target < row.reservedQuantity) {
+      if (!row || row.quantity === target || target < row.reservedQuantity) {
+        await failMovementReceipt(
+          started.receiptId,
+          true,
+          new Error('adjustment refused before any quantity changed'),
+        );
+        if (!row) {
+          throw new ApiError(404, 'No inventory exists for this product at this location', 'INVENTORY_NOT_FOUND');
+        }
+        if (row.quantity === target) {
+          throw new ApiError(409, 'Inventory is already at the requested quantity', 'NO_CHANGE');
+        }
         throw new ApiError(409, 'Target quantity is below the reserved quantity', 'ADJUSTMENT_BELOW_RESERVED');
       }
       // A concurrent operation finished between our attempt and this read; the
       // guard now passes, so apply the change once more.
-      prev = await Inventory.findOneAndUpdate({ _id: row._id, $expr: guard }, { $set: { quantity: target } }, { returnDocument: 'before' });
+      try {
+        prev = await Inventory.findOneAndUpdate({ _id: row._id, $expr: guard }, { $set: { quantity: target } }, { returnDocument: 'before' });
+      } catch (err) {
+        await failMovementReceipt(started.receiptId, false, err);
+        throw err;
+      }
       if (!prev) {
+        await failMovementReceipt(
+          started.receiptId,
+          true,
+          new Error('adjustment conflicted before any quantity changed'),
+        );
         throw new ApiError(409, 'Inventory changed concurrently; retry the adjustment', 'ADJUSTMENT_CONFLICT');
       }
     }
@@ -859,6 +1723,12 @@ export const inventoryService = {
     const delta = Math.abs(target - previousQuantity); // >= 1: equality was rejected above
 
     try {
+      await markMovementInventoryWritten(
+        started.receiptId,
+        prev._id,
+        previousQuantity,
+        target,
+      );
       const txn = await recordMovement({
         businessId,
         userId,
@@ -870,16 +1740,39 @@ export const inventoryService = {
         newQuantity: target,
         reason,
         reference,
+        movementOperationId: started.receiptId ?? undefined,
       });
-      return { transaction: transactionPublic(txn), previousQuantity, newQuantity: target };
+      const response = { transaction: transactionPublic(txn), previousQuantity, newQuantity: target };
+      await completeMovementReceipt(started.receiptId, response, txn._id);
+      return response;
     } catch (err) {
+      if (started.receiptId) {
+        let committed: TransactionSource | null;
+        try {
+          committed = await findMovementLedgerRow(businessId, started.receiptId);
+        } catch {
+          await failMovementReceipt(started.receiptId, false, err);
+          throw err;
+        }
+        if (committed) {
+          const response = {
+            transaction: transactionPublic(committed),
+            previousQuantity,
+            newQuantity: target,
+          };
+          await completeMovementReceipt(started.receiptId, response, committed._id);
+          return response;
+        }
+      }
+
       // Revert only while the row is still exactly at the target quantity this
       // adjustment wrote; a concurrent movement makes it a no-op.
-      await rollbackInventory(
+      const compensated = await rollbackInventory(
         { _id: prev._id, quantity: target },
         { $set: { quantity: previousQuantity } },
         'adjust'
       );
+      await failMovementReceipt(started.receiptId, compensated, err);
       throw err;
     }
   },
@@ -1180,6 +2073,51 @@ export const inventoryService = {
     const items = (result?.data ?? []).map(inventoryRowPublic);
     const total = result?.metadata?.[0]?.total ?? 0;
     return { items, total };
+  },
+
+  /**
+   * Summed stock for ONE product, optionally at one location, as one scoped read.
+   *
+   * WHY THIS EXISTS. A product can hold stock on twenty shelves, and the assistant's
+   * inventory page is capped at 25 rows. A run-out estimate that summed only the page
+   * would silently understate the stock and make a healthy product look nearly empty.
+   * The aggregate reads every matching row in the database, so the coverage figure and
+   * the quantity it divides are describing the same set.
+   *
+   * `availableQuantity` is on hand minus reserved, the same §19 definition every
+   * inventory row and stock ranking uses. A missing inventory row is zero units rather
+   * than an unreadable quantity, which is why an empty aggregate returns zeros.
+   */
+  async productAvailability(
+    businessId: string,
+    { productId, locationId }: { productId: string; locationId?: string }
+  ) {
+    const match: Record<string, unknown> = {
+      businessId: oid(businessId),
+      productId: oid(productId),
+    };
+    if (locationId) match.locationId = oid(locationId);
+
+    const [sum] = await Inventory.aggregate([
+      { $match: match },
+      {
+        $group: {
+          _id: null,
+          rows: { $sum: 1 },
+          quantity: { $sum: '$quantity' },
+          reservedQuantity: { $sum: '$reservedQuantity' },
+        },
+      },
+    ]);
+
+    const quantity = Number(sum?.quantity ?? 0);
+    const reservedQuantity = Number(sum?.reservedQuantity ?? 0);
+    return {
+      rows: Number(sum?.rows ?? 0),
+      quantity,
+      reservedQuantity,
+      availableQuantity: quantity - reservedQuantity,
+    };
   },
 
   /**

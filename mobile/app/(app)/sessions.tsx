@@ -7,11 +7,10 @@ import Card from '../../components/Card';
 import { Icon } from '../../components/icons';
 import ListRow from '../../components/ListRow';
 import ListScreen from '../../components/ListScreen';
-import { errorText } from '../../components/ListState';
 import { revokeSession, sessions as fetchSessions } from '../../lib/api';
 import type { ApiResponse } from '../../lib/api';
 import { isSessionError, useSession } from '../../lib/auth';
-import { alert, confirm } from '../../lib/confirm';
+import { alertError, confirm } from '../../lib/confirm';
 import { formatDateTime } from '../../lib/format';
 import { spacing, type } from '../../lib/theme';
 import type { Palette } from '../../lib/theme';
@@ -131,7 +130,9 @@ export default function SessionsScreen() {
       // A failure here would otherwise be invisible: the list is not empty, so
       // the screen-level error state never renders. A session that has itself
       // gone (401) is already handled centrally, so it needs no second message.
-      if (!isSessionError(err)) await alert('Could not sign out', errorText(err));
+      if (!isSessionError(err)) {
+        await alertError('Could not sign out', err, 'Could not sign out. Please try again.');
+      }
     } finally {
       setBusyId(null);
     }

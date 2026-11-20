@@ -38,6 +38,8 @@ import User from '../src/models/user.model.ts';
 import AIConversation from '../src/models/aiConversation.model.ts';
 import AIMessage from '../src/models/aiMessage.model.ts';
 import AiTurnMetric from '../src/models/aiTurnMetric.model.ts';
+import AuditFailure from '../src/models/auditFailure.model.ts';
+import StockTransferOperation from '../src/models/stockTransferOperation.model.ts';
 import OpsErrorEvent from '../src/models/opsErrorEvent.model.ts';
 import OpsFeatureUsage from '../src/models/opsFeatureUsage.model.ts';
 import { formatCollectionCounts } from '../scripts/cleanup/lib.mjs';
@@ -79,7 +81,7 @@ async function seedEveryCleanupCollection(businessId, userId) {
     Array.from({ length: 8 }, (_, i) => ({ businessId, name: `PREVIEW category ${i}` })),
   );
   const products = await Product.insertMany(
-    Array.from({ length: 4 }, (_, i) => ({ businessId, name: `PREVIEW product ${i}` })),
+    Array.from({ length: 4 }, (_, i) => ({ businessId, name: `PREVIEW product ${i}`, currency: 'PHP' })),
   );
 
   await Inventory.insertMany(
@@ -165,6 +167,32 @@ async function seedEveryCleanupCollection(businessId, userId) {
     })),
   );
 
+  // The integrity tranche added these two businessId-bearing collections to the
+  // shared teardown plan. They are seeded with their own distinct counts so a
+  // preview that paired a count with the wrong collection still fails.
+  await AuditFailure.insertMany(
+    Array.from({ length: 15 }, (_, i) => ({
+      businessId,
+      action: 'PRODUCT_CREATED',
+      entityType: 'PRODUCT',
+      entityId: String(products[i % products.length]._id),
+      occurredAt: new Date(Date.now() - i * 1000),
+      expiresAt,
+    })),
+  );
+  await StockTransferOperation.insertMany(
+    Array.from({ length: 16 }, (_, i) => ({
+      businessId,
+      productId: products[i % products.length]._id,
+      fromLocationId: locations[0]._id,
+      toLocationId: locations[1]._id,
+      quantity: 1,
+      reference: `PREVIEW-TRANSFER-${i + 1}`,
+      state: 'COMPLETED',
+      createdBy: userId,
+    })),
+  );
+
   await AiTurnMetric.insertMany(
     Array.from({ length: 12 }, (_, i) => ({
       businessId,
@@ -211,6 +239,8 @@ async function seedEveryCleanupCollection(businessId, userId) {
     locations: 9,
     suppliers: 10,
     audit_logs: 11,
+    audit_failures: 15,
+    stock_transfer_operations: 16,
     invitations: 1,
     ai_turn_metrics: 12,
     ai_feedback: 0,
@@ -243,6 +273,7 @@ async function seedTenant(businessId, userId, productName) {
     unit: 'unit',
     costPrice: 1,
     sellingPrice: 2,
+    currency: 'PHP',
   });
   return { conversation, messages, product };
 }
@@ -299,6 +330,8 @@ async function resetDemo2() {
     Business.deleteMany({ _id: { $in: businessIds } }),
     Product.deleteMany({ businessId: { $in: businessIds } }),
     AuditLog.deleteMany({ businessId: { $in: businessIds } }),
+    AuditFailure.deleteMany({ businessId: { $in: businessIds } }),
+    StockTransferOperation.deleteMany({ businessId: { $in: businessIds } }),
     Category.deleteMany({ businessId: { $in: businessIds } }),
     Inventory.deleteMany({ businessId: { $in: businessIds } }),
     InventoryTransaction.deleteMany({ businessId: { $in: businessIds } }),

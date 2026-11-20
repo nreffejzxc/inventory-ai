@@ -59,7 +59,7 @@ dbSuite('AI-42 a transfer is one event to the assistant', dbOk, () => {
 
     const product = await api('POST', '/api/products', {
       token: A.token,
-      body: { name: uniqueName('A42Prod') },
+      body: { currency: 'PHP', name: uniqueName('A42Prod') },
     });
     assert.equal(product.status, 201, JSON.stringify(product.json));
     productId = product.json.id;

@@ -75,7 +75,7 @@ dbSuite('AI-44 recorded brands are searchable and summarised', dbOk, () => {
     assert.equal(category.status, 201, JSON.stringify(category.json));
 
     const makeProduct = async (body) => {
-      const res = await api('POST', '/api/products', { token: A.token, body });
+      const res = await api('POST', '/api/products', { token: A.token, body: { currency: 'PHP', ...body } });
       assert.equal(res.status, 201, JSON.stringify(res.json));
       return res.json;
     };
@@ -147,7 +147,7 @@ dbSuite('AI-44 recorded brands are searchable and summarised', dbOk, () => {
     assert.equal(row.brand, 'ZZ Oil');
     assert.equal(row.productCount, 2);
     assert.deepEqual(row.categories, [categoryName]);
-    assert.deepEqual(row.priceRange, { min: 8, max: 12.5, currency: null });
+    assert.deepEqual(row.priceRange, { min: 8, max: 12.5, currency: 'PHP' });
     assert.equal(row.sampleProducts.length, 2);
     assert.ok(row.sampleProducts.every((product) => product.name));
     assert.ok(row.sampleProducts.some((product) => /API SN 10W-40/.test(product.description)));

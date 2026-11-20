@@ -3,8 +3,11 @@ import type { HydratedDocument, Model, QueryFilter } from 'mongoose';
 import Category from '../models/category.model.ts';
 import Location from '../models/location.model.ts';
 import Supplier from '../models/supplier.model.ts';
+import Product from '../models/product.model.ts';
 import { recordAudit } from './audit.service.ts';
+import { monitorAuditFailure } from './auditFailure.service.ts';
 import { notFound } from '../utils/errors.ts';
+import ApiError from '../utils/ApiError.ts';
 import {
   AUDIT_ACTIONS,
   AUDIT_ENTITY_TYPES,
@@ -42,7 +45,7 @@ type ReferenceActions = {
  */
 type ReferenceWritePayload = {
   name?: string;
-  description?: string;
+  description?: string | null;
 } & Record<string, unknown>;
 
 /** The parsed list query the controller forwards, plus the resolved paging. */
@@ -68,6 +71,26 @@ type ReferenceListFilters = {
 const escapeRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 /**
+ * Reference creates/updates are committed before this audit write. A failed trail
+ * insert must not turn a saved category/location/supplier into a 500 and invite a
+ * duplicate retry; log the gap instead.
+ */
+async function safeRecordReferenceAudit(payload: Parameters<typeof recordAudit>[0]) {
+  try {
+    await recordAudit(payload);
+  } catch (err) {
+    console.error(`[reference] audit write failed after commit: ${String((err as { message?: unknown }).message)}`);
+    await monitorAuditFailure({
+      businessId: payload.businessId,
+      action: payload.action,
+      entityType: payload.entityType,
+      entityId: payload.entityId,
+      error: err,
+    });
+  }
+}
+
+/**
  * Factory for simple business-scoped "reference" resources (Category/Location).
  * All queries are scoped by the server-derived businessId — a client id alone
  * can never cross into another business. Write operations create audit logs.
@@ -81,11 +104,14 @@ export function createReferenceService<Doc extends ReferenceDocShape>({
   entityType,
   actions,
   fields = [],
+  beforeArchive,
 }: {
   Model: Model<Doc>;
   entityType: string;
   actions: ReferenceActions;
   fields?: readonly string[];
+  /** Optional dependency policy checked before ACTIVE -> ARCHIVED. */
+  beforeArchive?: (businessId: string, id: string) => Promise<void>;
 }) {
   function toPublic(doc: HydratedDocument<Doc>) {
     const out: Record<string, unknown> = {
@@ -119,7 +145,7 @@ export function createReferenceService<Doc extends ReferenceDocShape>({
       // type declares, so its static type is a record. It IS the object the
       // untyped code passed, and the schema casts and validates it identically.
       const doc = await Model.create(data as Partial<Doc>);
-      await recordAudit({
+      await safeRecordReferenceAudit({
         businessId,
         userId,
         action: actions.create,
@@ -189,7 +215,7 @@ export function createReferenceService<Doc extends ReferenceDocShape>({
       }
       if (updatedFields.length > 0) {
         await doc.save();
-        await recordAudit({
+        await safeRecordReferenceAudit({
           businessId,
           userId,
           action: actions.update,
@@ -207,9 +233,13 @@ export function createReferenceService<Doc extends ReferenceDocShape>({
       if (!doc) notFound();
       if (doc.status === status) return doc;
 
+      if (status === 'ARCHIVED' && beforeArchive) {
+        await beforeArchive(businessId, id);
+      }
+
       doc.status = status;
       await doc.save();
-      await recordAudit({
+      await safeRecordReferenceAudit({
         businessId,
         userId,
         action: status === 'ARCHIVED' ? actions.archive : actions.update,
@@ -229,6 +259,28 @@ export const categoryService = createReferenceService({
     create: AUDIT_ACTIONS.CATEGORY_CREATED,
     update: AUDIT_ACTIONS.CATEGORY_UPDATED,
     archive: AUDIT_ACTIONS.CATEGORY_ARCHIVED,
+  },
+  /**
+   * A category is a filing choice, not a delete switch. Archiving one that still
+   * has ACTIVE products would hide the products' only grouping from every active
+   * picker while leaving the products themselves active. Refuse and name the
+   * dependency; the member can move or archive those products first. Products
+   * already ARCHIVED keep their historical category, which is why they do not
+   * block this transition.
+   */
+  async beforeArchive(businessId, id) {
+    const activeProducts = await Product.countDocuments({
+      businessId,
+      categoryId: id,
+      status: 'ACTIVE',
+    });
+    if (activeProducts > 0) {
+      throw new ApiError(
+        409,
+        `This category still has ${activeProducts} active product${activeProducts === 1 ? '' : 's'}. Move or archive them before archiving the category.`,
+        'CATEGORY_HAS_ACTIVE_PRODUCTS',
+      );
+    }
   },
 });
 

@@ -8,8 +8,10 @@ document, not a specification: behaviour is still owned by
 [`guides/18-ai-assistant-limits.md`](guides/18-ai-assistant-limits.md), and what shipped by the
 roadmap records in [`DEVELOPMENT_ROADMAP.md`](DEVELOPMENT_ROADMAP.md).
 
-**Last reviewed:** 2026-11-16, against AI-114 merged as `e5c1c1d`, AI-115/AI-116 in the working
-tree, the production server at `e5c1c1d`, and the production Android app on runtime `1.0.2` with OTA
+**Last reviewed:** 2026-11-20, against the read-only AI-118 audit, the bounded run-out read and the
+DB-backed Phase 06 run-out turns in the working tree. The earlier 2026-11-16 baseline was AI-114
+merged as `e5c1c1d`, AI-115/AI-116 in the working tree, the production server at `e5c1c1d`, and the
+production Android app on runtime `1.0.2` with OTA
 `9d759ee5-82c5-4fbe-afe0-3a0ea2c44f6c`. AI-114 renders an explicit complete restock/low-stock
 list deterministically, including an `OUTPUT_LIMIT` turn whose rows were complete; the production
 phone returned **19 products / 721 units**, copied all 19, and returned **9 products / 272 units**
@@ -42,8 +44,8 @@ piece is not implied to work because a related tool exists.
 | 2 | Complete list and pagination | 2 | **Implemented — production-verified** | Every paged tool answer now carries its total, a bounded page of the rows already read, and a screen link built from the filters the tool actually used. The mobile thread reveals those rows five at a time with “Showing X of Y” and keeps the screen link for the complete set. Inventory, Restock, Products and History initialize their filters from the link. Device proof: **5 of 19 → 10 of 19**, and Restock opened with **19 products**. | No search-within-results and no tool page cursor: “next 5” reveals only rows captured in this answer; a new tool read still requires a new turn. A destination filter that the screen cannot represent is omitted rather than claimed. |
 | 3 | Smarter inventory answers | High, sequence 3 | **Partial — strong** | Deterministic finalizers cover restock counts and explicit complete restock/low-stock lists, stock-value totals, product/location totals, most-expensive, top stock-out and several ranking shapes; tools compute counts over the whole matched set. AI-113 adds a server-ranked highest-stock read and answer, and the whole-set `totalUnitsBelowMinimum` replaces page-row addition. AI-114 renders every complete restock row in a bounded answer and can rescue an output-limited turn from those rows. AI-2/AI-60 tests guard grounding and partial lists. Device proof: **19 / 721**, Copy all 19, and the filtered **9 / 272**. | Coverage is still shape-by-shape: other comparisons, trends and report combinations can remain model-composed. Correctness must be proved per question shape, not inferred from the tool list. |
 | 4 | Better follow-up conversations | 4 | **Implemented — production-verified** | The server replays the last 20 USER/ASSISTANT messages (`AI_CONTEXT_MESSAGES`) and now stores a bounded membership set from the immediately previous answer. An explicit referent offers `filterPreviousResults`, whose first provider call is named as the required tool, and which re-reads current stock for exactly those products with the new category/location/stock filter; an old list-tool call is rewritten to it. A new question never inherits the old scope. Device proof: the fresh 19 products narrowed to **9** with `Filtered previous results` and `Category: Keyboards and Mice`. | The set is a flat product-id list capped at 100, not a general query cursor or a signed cross-turn query. A follow-up cannot add a filter the tool does not expose (for example a free-text search inside the previous set). |
-| 5 | Inventory comparison | 5 | **Partial** | `getLocationBreakdown` compares all locations in one read; `getProduct` returns per-location stock; product-stock-by-location and history totals have deterministic answers; history rows distinguish direction and transfer legs. | No deterministic two-product comparison, no compare-to-minimum table, and no “decreasing inventory” verdict. A trend read must be assembled by the model from movements; the tool reports movement, not a forecast. |
-| 6 | Inventory insights and recommendations | High, sequence 6 | **Partial** | Reorder-needed, low/out-of-stock, never-sold and history tools support restock priorities and dead-stock observations. Recommendations are explicitly read-only; no write tool exists. | No run-out-soon calculation (no sales-velocity forecast), no excess-inventory rule, and no monitoring score. These need defined data rules and disclosed windows, not model intuition. |
+| 5 | Inventory comparison | 5 | **Partial** | `getLocationBreakdown` compares all locations in one read; `getProduct` returns per-location stock; product-stock-by-location, history totals and the one-product coverage rate have deterministic answers; history rows distinguish direction and transfer legs. | No deterministic two-product comparison, no compare-to-minimum table, and no “decreasing inventory” verdict. A two-product trend must still be assembled by the model from movements; only `getProductStockCoverage` estimates one product's run-out. |
+| 6 | Inventory insights and recommendations | High, sequence 6 | **Partial — run-out read added** | Reorder-needed, low/out-of-stock, never-sold and history tools support restock priorities and dead-stock observations. `getProductStockCoverage` adds a one-product, windowed run-out estimate from recorded stock-out movements (AI-118). Recommendations are explicitly read-only; no write tool exists. | No catalogue-wide velocity forecast, no configured excess-stock rule and no monitoring score. Stock-out is a movement proxy, not confirmed sales; supplier lead time and seasonality are not recorded. |
 | 7 | Better error handling and transparency | 7 (cross-cutting) | **Implemented — residual hardening** | Grounding re-asks, degraded reasons, output-limit annotations, partial-list totals and the final restock completeness guard; AI-60 is 64/64. AI-116 adds retrieval time, sources, tools, product count and filters to every new answer, with Inspect for the details; an answer that read nothing says `No data read`. | Not every list shape gets a generic completeness marker; the 4,000-character trim does not add its own degraded marker; an unavailable service and a genuinely zero result rely on the answer copy. These are UX contracts to finish, not new AI writes. |
 | 8 | Inventory report summaries | 8 | **Partial** | `getInventorySummary` returns active products, healthy/low/out counts, total on-hand quantity and recent activity; `getCatalogOverview` adds category counts; `getLocationBreakdown` adds per-location totals. | No single deterministic report read that guarantees one summary containing catalogue totals, low/out counts, category split, location split and the reporting window. The model currently composes it from up to three reads. |
 
@@ -159,9 +161,10 @@ follow-up asks rather than answers the wrong set; tenant scoping remains server-
 zero-stock locations and archived locations. `getProduct` plus per-location rows answers a named
 product's distribution. History totals and top-out findings are computed over the matched set.
 
-**Missing.** Two-product comparison, product-versus-minimum comparison, and “decreasing inventory”
-are composed by the model. History records movements and signed deltas, but the assistant has no
-computed trend/velocity object. A model must not turn one movement into a trend.
+**Missing.** Two-product comparison and product-versus-minimum comparison are composed by the model.
+History records movements and signed deltas, and `getProductStockCoverage` now computes one
+product's windowed stock-out rate; there is still no two-product comparison object and no
+catalogue-wide decreasing-inventory verdict. A model must not turn one movement into a trend.
 
 **Next slice.** Add deterministic comparison helpers for named products and for
 current-versus-minimum. For “decreasing”, define an explicit window and use only recorded
@@ -179,15 +182,17 @@ its window; no cross-tenant or cross-currency arithmetic.
 restock priorities. The prompt forbids inventing a reason, a supplier or a quality claim, and the
 assistant has no write tool.
 
-**Missing.** Run-out-soon and excess-inventory insights require rules that do not exist yet. There
-is no sales velocity, no configured excess threshold, and no monitoring score. “Needs closer
-monitoring” is currently a human judgement, not a computed fact.
+**Implemented for the bounded case.** `getProductStockCoverage` (AI-118) returns current
+availability, stock-out units and movement count for one identified product, the simple average
+daily stock-out rate over a 7–365 day window, days of cover and a 30-day run-rate projection. It
+states that stock-out is a movement proxy (sale, usage, damage or write-off), excludes transfers,
+stock-in and adjustments, returns `daysOfCover: null` when the window has no movement, and refuses
+a foreign or missing product/location instead of reporting a plausible zero.
 
-**Next slice.** Start with **restock priority** using facts already recorded: units below minimum,
-out-of-stock status, and recent recorded outflow. Label the basis and the window. Add a run-out
-estimate only when both stock and a defined outflow rate exist; otherwise say the data is
-insufficient. Treat excess stock as a configurable rule, not a guess. Every output is a
-recommendation with its evidence, and every action remains the member's.
+**Still missing.** Catalogue-wide velocity/run-out ranking, a configured excess-stock rule and a
+monitoring score. “Needs closer monitoring” remains a human judgement, not a computed fact. Treat
+excess stock as a configurable rule, not a guess; every output is a recommendation with its
+evidence, and every action remains the member's.
 
 **Accepted when.** No insight is generated from a missing field; a run-out estimate states its
 window and does not pretend to be a guarantee; an excess recommendation states its rule; no
@@ -253,9 +258,11 @@ same file.
 | F | Insights and recommendations | Turns facts into priorities, never writes | Insufficient-data tests, no write path |
 | G | Report summaries | A consistent, explainable snapshot | Reconciliation and as-of tests |
 
-As of 2026-11-16, **slices A, B and C are implemented, merged, deployed and device-verified**;
+As of 2026-11-20, **slices A, B and C are implemented, merged, deployed and device-verified**;
 **slice D (follow-up result context)** and the answer-provenance part of item 7 are implemented with
-focused tests, and the member-feedback slice is implemented end to end. Deployment, OTA and the
+focused tests, and the member-feedback slice is implemented end to end. The bounded run-out read in
+slice F (`getProductStockCoverage`) is implemented with focused tests; catalogue-wide forecasting,
+excess-stock rules and monitoring remain open. Deployment, OTA and the
 mirrored-phone pass for AI-115/AI-116 are the remaining gate.
 PR #304 merged as `af366c1`; OTA group `9d759ee5-82c5-4fbe-afe0-3a0ea2c44f6c` runs on the
 installed app; production serves `e5c1c1d` after the auxiliary-list correction and AI-114. A and B
@@ -289,8 +296,10 @@ These stay out unless the owner separately approves a change to the read-only co
 - A general-purpose SQL/query tool, arbitrary filters, or a model-supplied business id.
 - Sending an entire catalogue to the model to “let it decide”.
 - Revenue, profit, cost-of-goods or supplier-lead-time claims from data the system does not record.
-- Forecasts presented as facts. A run-out estimate may be labelled as an estimate only after its
-  input window and rule are defined.
+- Forecasts presented as facts. `getProductStockCoverage` is the one permitted run-out estimate:
+  it labels its window, input movement type and estimate boundary, and returns no estimate when
+  the window has no recorded movement. A catalogue-wide forecast or an excess-stock verdict still
+  requires an approved rule.
 
 ## 5. Review checklist for the next increment
 
@@ -304,3 +313,33 @@ Before writing code for any item:
 - [ ] Add the smallest focused test set, then run the affected typecheck/lint.
 - [ ] Record the slice in `DEVELOPMENT_LOG.md` and a dated `DEVELOPMENT_ROADMAP.md` record.
 - [ ] After deployment, verify the member-visible path on the installed app, not only the API.
+
+## 6. Ranked follow-up opportunities (2026-11-20)
+
+This list is research only except the bounded evaluation harness added for item 1: **no feature,
+model, provider or production setting is changed by that harness**, and the remaining items are not
+implemented in this increment. It ranks work by member value, evidence in the current
+code and the dependency that must be cleared first. Priority `P0` is a verification gate rather than
+a product feature; `P1` is the next high-value tranche; `P2` needs a policy, data or mobile decision;
+`P3` needs a new data model or delivery surface.
+
+| Rank | Improvement | Priority | Benefit | Dependency / gate |
+|---:|---|---|---|---|
+| 1 | **Live-model coverage paraphrase evaluation.** The bounded `eval:stock-coverage` harness runs six run-out/cover/“how long” paraphrases against the configured model and records the first and all tools used, plus whether the corrective re-ask fired. A live result still needs to be captured. | P0 | The DB-backed `Q7`/`Q8` turn proves the offer → correction → execution → persistence path with a scripted provider; it cannot prove a live model picks the right tool. This is the missing evidence before trusting production selection. | An explicitly approved live run with the existing key/model and the six-question cap. Keep it out of default CI; never change the production model to make it pass. |
+| 2 | **Deterministic two-product comparison and current-versus-minimum comparison.** One scoped read or finalizer labels both sides, missing fields and the comparison basis. | P1 | Removes the last common model-composed arithmetic shape; makes “compare A and B” and “how far below minimum?” exact and testable. | Existing `getProduct`, inventory availability and `unitsBelowMinimum`; currency values must stay separate unless a verified rate exists. |
+| 3 | **Catalogue-wide run-out ranking.** Rank ACTIVE products by days of cover or projected need using one bounded aggregate, with an explicit stock-out-proxy rule. | P1 | Turns the one-product coverage read into a restock-priority list without N+1 product reads; answers “what will run out first?” with evidence. | A product/business-wide aggregation, a fixed window and a minimum-movement rule so a single stock-out cannot define a trend. Do not add seasonality or lead time. |
+| 4 | **One consistent inventory report snapshot.** Return catalogue totals, low/out counts, category and location splits, the as-of time and definitions in one object. | P1 | Prevents sections read at different moments from disagreeing and gives report questions one deterministic source. | Existing dashboard/inventory aggregates; an agreed definition of low versus out and a stated snapshot boundary. |
+| 5 | **Generic completeness and degraded marker.** Every paged, trimmed or partial answer says so, not only the shapes with a dedicated finalizer. | P1 | Closes a trust gap: a truncated page or a 4,000-character trim must not read as complete. | A shared answer-completion seam and tests for every list/finalizer path; the marker must not turn a complete answer into a partial one. |
+| 6 | **Search within a previous answer / bounded cursor.** Let a follow-up search or page the captured result set instead of re-reading the catalogue. | P2 | Makes “search those results” and “show the next rows” work after the turn; keeps context small and avoids repetition. | The stored `answerActions`/result-set shape, a server-side re-read, and a bounded cursor or query. Never resolve names or ids on the client. |
+| 7 | **Currency-safe product comparison.** Compare recorded prices only within one currency, or through the existing verified rate provenance. | P2 | Prevents a plausible but wrong cheapest/dearest answer across currencies; makes the limitation visible when no rate exists. | Product currency is required, but many legacy values may still be unresolved; the FX path must keep its rate date and source. |
+| 8 | **Supplier and purchase-order-aware restock recommendation.** Show open commitments and recorded supplier terms beside the shortage, with no order creation. | P2 | A recommendation becomes actionable without double-ordering; the assistant can explain what is already on the way. | Read-only supplier terms and open-PO reads; AI V1 must stay write-free, and a missing term must be stated, not guessed. |
+| 9 | **Configurable excess-stock rule.** A tenant-set threshold or days-of-cover ceiling, stated with every overstock observation. | P2 | Adds the missing counterweight to restock advice without inventing a rule from a ranking. | A product/business configuration and an owner-approved default; no recommendation may silently use a guessed threshold. |
+| 10 | **Scheduled digest or proactive alert.** A bounded daily/weekly summary delivered through an approved channel. | P3 | Moves the assistant from pull to timely attention for owners and managers. | A scheduler, a delivery surface, consent and deduplication; no AI write and no unbounded cross-tenant scan. |
+| 11 | **Confirmed sales reason on stock-out.** Record a reason (sale, usage, damage, write-off) so demand and loss can be separated. | P3 | Stock-out is currently a proxy; this would make true demand and shrink analysis possible without statistical guesses. | A schema/migration and a member-facing reason field; historical rows remain unknown and must not be relabelled. |
+| 12 | **Voice input and bounded file export.** Speech-to-text for the member's question and CSV/PDF export of the stored answer or captured rows. | P3 | Improves field use and sharing; neither changes the read-only answer logic. | A mobile dependency and privacy review for voice; a file/share and PDF path for export. Not server-side AI features. |
+
+**Sequencing rule.** The item 1 harness is implemented; a live result must be captured before any
+claim that production run-out answers select coverage. Items 2–5 are the next code tranche because they reuse recorded data and close known accuracy/transparency
+gaps. Items 6–9 need a product or data-boundary decision. Items 10–12 need a scheduler, schema or
+mobile dependency and should not be folded into an accuracy fix. None is a reason to weaken the
+read-only rule, tenant isolation or the existing permission gates.

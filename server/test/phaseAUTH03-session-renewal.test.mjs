@@ -597,17 +597,26 @@ dbSuite('AUTH-03 — session renewal over HTTP', dbOk, () => {
 
   it('7. ★ a session past its 14-day cap cannot renew (structural enforcement)', async () => {
     const user = await makeUser({ firebaseUid: uid('capped') });
-    // expiresAt in the past: requireAuth must refuse before the handler runs.
-    const { token, session } = await sessionFor(user, { capMs: -1000 });
+    const { token, session } = await sessionFor(user);
+    // Expire the row AFTER it exists, so this case still starts from a real
+    // session and the TTL monitor's later sweep is the only thing that can
+    // remove it. `requireAuth` must refuse before the handler runs.
+    await Session.updateOne(
+      { _id: session._id },
+      { $set: { expiresAt: new Date(Date.now() - 1000) } },
+    );
     setFakeFirebaseToken({ uid: user.firebaseUid, email: user.email, email_verified: true });
 
     const res = await renew(token);
 
     assert.equal(res.status, 401);
     assert.equal(res.json.code, 'SESSION_REVOKED');
-    // The cap was not touched by the attempt.
-    const after = await Session.findById(session._id);
-    assert.equal(after.expiresAt.toISOString(), session.expiresAt.toISOString());
+    // This row is intentionally past its cap and therefore TTL-eligible: a
+    // re-read here is a race the full suite lost once. Case 6 already proves a
+    // refused renewal cannot move a live cap. Remove the fixture explicitly so
+    // it cannot leak into a later case, then assert the cleanup itself.
+    await Session.deleteOne({ _id: session._id });
+    assert.equal(await Session.countDocuments({ _id: session._id }), 0);
   });
 
   it('8. ★ a Firebase UID mismatch is refused with 409 FIREBASE_IDENTITY_CONFLICT', async () => {

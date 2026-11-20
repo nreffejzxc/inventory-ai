@@ -50,6 +50,8 @@ import {
 import type { HealthWatchHandle } from '../services/ai/healthWatch.ts';
 import { boundPortOf, verifyBoundPort } from './portGuard.ts';
 import type { PortProbeResult } from './portGuard.ts';
+import { startIntegrityRecovery } from '../services/recoveryScheduler.ts';
+import type { IntegrityRecoveryHandle } from '../services/recoveryScheduler.ts';
 
 /**
  * What the live process says about itself, for the boot gate above.
@@ -309,6 +311,21 @@ export async function startServer({
     });
   }
 
+  // Durable transfer journals and abandoned PO receive claims are reconciled
+  // after boot and on a timer. Like deployment history this is operational
+  // housekeeping: a failed pass is logged and never stops the API. Test
+  // processes do not schedule it, so a suite never reaps rows it seeded.
+  let integrityRecovery: IntegrityRecoveryHandle | null = null;
+  if (connected && nodeEnv !== 'test') {
+    try {
+      integrityRecovery = startIntegrityRecovery({ logger });
+    } catch (err) {
+      logger.error(
+        `[integrity-recovery] could not schedule reconciliation: ${err instanceof Error ? err.message : 'unknown error'}`,
+      );
+    }
+  }
+
   // A port this process could not take at all is a boot failure, and it must read as one instead of as an
   // unhandled 'error' event.
   //
@@ -507,6 +524,8 @@ export async function startServer({
   const shutdownWithWatch: ShutdownHandler = (signal) => {
     healthWatchHandle?.stop();
     healthWatchHandle = null;
+    integrityRecovery?.stop();
+    integrityRecovery = null;
     return shutdown(signal);
   };
   registerSignalHandlers(signalTarget, shutdownWithWatch);

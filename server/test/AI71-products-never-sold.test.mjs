@@ -54,7 +54,7 @@ dbSuite('AI-71 — dead stock is read from the whole ledger', dbOk, () => {
     soldShelf = soldOnly.json;
 
     const create = async (name) => {
-      const res = await api('POST', '/api/products', { token: A.token, body: { name: uniqueName(name) } });
+      const res = await api('POST', '/api/products', { token: A.token, body: { currency: 'PHP', name: uniqueName(name) } });
       assert.equal(res.status, 201, JSON.stringify(res.json));
       const stocked = await api('POST', '/api/inventory/stock-in', {
         token: A.token,

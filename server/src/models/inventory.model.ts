@@ -33,6 +33,15 @@ const inventorySchema = new Schema(
       min: [0, 'reservedQuantity cannot be negative'],
       default: 0,
     },
+    // Operation ids of stock transfers that have touched this row but not yet
+    // cleared their marker. A crash between the source debit and the rest of a
+    // transfer leaves the id here, which is what lets the recovery service prove
+    // whether a quantity it sees is the one that transfer wrote. It is an array
+    // because two concurrent transfers to the same destination must not conflict.
+    transferOperationIds: {
+      type: [Schema.Types.ObjectId],
+      default: [],
+    },
   },
   { collection: 'inventory', timestamps: true }
 );

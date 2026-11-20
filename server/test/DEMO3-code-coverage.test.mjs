@@ -58,7 +58,7 @@ const businesses = [
 
 /** One product with exactly the fields its tenant's mode allows. */
 function product(businessId, index, { sku = false, barcode = false, barcodeValue } = {}) {
-  const doc = { businessId, name: `DEMO3 product ${index}` };
+  const doc = { businessId, name: `DEMO3 product ${index}`, currency: 'PHP' };
   if (sku) doc.sku = `DEMO3-SKU-${String(businessId).slice(-4)}-${index}`;
   if (barcodeValue !== undefined) doc.barcode = barcodeValue;
   else if (barcode) doc.barcode = ean13Value(`200000000${String(index).padStart(3, '0')}`);

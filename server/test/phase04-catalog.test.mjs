@@ -39,13 +39,25 @@ async function locationId(name = uniqueName('Loc'), token = owner.token) {
 }
 
 async function productId(payload = {}, token = owner.token) {
-  const res = await api('POST', '/api/products', { token, body: { name: uniqueName('P'), ...payload } });
+  const res = await api('POST', '/api/products', { token, body: { name: uniqueName('P'), currency: 'PHP', ...payload } });
   assert.equal(res.status, 201, JSON.stringify(res.json));
   return res.json.id;
 }
 
 async function auditExists(action) {
   return AuditLog.exists({ businessId: owner.businessId, action });
+}
+
+function stubAuditCreateToThrow() {
+  const real = AuditLog.create.bind(AuditLog);
+  AuditLog.create = async () => {
+    const err = new Error('injected audit-log failure');
+    err.name = 'InjectedAuditError';
+    throw err;
+  };
+  return () => {
+    AuditLog.create = real;
+  };
 }
 
 after(async () => {
@@ -100,6 +112,21 @@ dbSuite('Phase 04 — catalog: categories, locations, products', dbOk, () => {
 
       const restored = await api('POST', `/api/categories/${id}/restore`, { token: owner.token });
       assert.equal(restored.json.status, 'ACTIVE');
+    });
+
+    it('PATCH can clear a category description', async () => {
+      const created = await api('POST', '/api/categories', {
+        token: owner.token,
+        body: { name: uniqueName('Clearable Category'), description: 'Remove me' },
+      });
+      assert.equal(created.status, 201);
+
+      const cleared = await api('PATCH', `/api/categories/${created.json.id}`, {
+        token: owner.token,
+        body: { description: '' },
+      });
+      assert.equal(cleared.status, 200, JSON.stringify(cleared.json));
+      assert.ok(!cleared.json.description, 'description is cleared, not left as the old value');
     });
 
     it('validates a missing name (400 with fields)', async () => {
@@ -193,6 +220,7 @@ dbSuite('Phase 04 — catalog: categories, locations, products', dbOk, () => {
           categoryId: cat,
           costPrice: 1.25,
           sellingPrice: 2.5,
+          currency: 'PHP',
           unit: 'bag',
           minimumStock: 10,
           imageUrl: 'https://example.com/chips.png',
@@ -216,12 +244,12 @@ dbSuite('Phase 04 — catalog: categories, locations, products', dbOk, () => {
       const sku = uniqueName('DUP');
       const first = await api('POST', '/api/products', {
         token: owner.token,
-        body: { name: uniqueName('P'), sku },
+        body: { name: uniqueName('P'), sku, currency: 'PHP' },
       });
       assert.equal(first.status, 201);
       const dupSku = await api('POST', '/api/products', {
         token: owner.token,
-        body: { name: uniqueName('P'), sku },
+        body: { name: uniqueName('P'), sku, currency: 'PHP' },
       });
       assert.equal(dupSku.status, 409);
       assert.equal(dupSku.json.code, 'PRODUCT_SKU_EXISTS');
@@ -229,11 +257,11 @@ dbSuite('Phase 04 — catalog: categories, locations, products', dbOk, () => {
       const barcode = uniqueName('DUPB');
       await api('POST', '/api/products', {
         token: owner.token,
-        body: { name: uniqueName('P'), barcode },
+        body: { name: uniqueName('P'), barcode, currency: 'PHP' },
       });
       const dupBar = await api('POST', '/api/products', {
         token: owner.token,
-        body: { name: uniqueName('P'), barcode },
+        body: { name: uniqueName('P'), barcode, currency: 'PHP' },
       });
       assert.equal(dupBar.status, 409);
       assert.equal(dupBar.json.code, 'PRODUCT_BARCODE_EXISTS');
@@ -246,7 +274,7 @@ dbSuite('Phase 04 — catalog: categories, locations, products', dbOk, () => {
 
       const fracMin = await api('POST', '/api/products', {
         token: owner.token,
-        body: { name: uniqueName('P'), minimumStock: 2.5 },
+        body: { name: uniqueName('P'), minimumStock: 2.5, currency: 'PHP' },
       });
       assert.equal(fracMin.status, 400);
       assert.ok(fracMin.json.fields.some((f) => f.field === 'minimumStock'));
@@ -272,6 +300,143 @@ dbSuite('Phase 04 — catalog: categories, locations, products', dbOk, () => {
       });
       assert.equal(bad.status, 404);
       assert.equal(bad.json.code, 'CATEGORY_NOT_FOUND');
+    });
+
+    it('PATCH can clear a recorded field, while an omitted field stays untouched', async () => {
+      const cat = await categoryId('Clearable');
+      const id = await productId({
+        brand: 'Brand To Clear',
+        sku: uniqueName('CLEAR'),
+        barcode: uniqueName('CLEARBAR'),
+        description: 'Remove me',
+        specifications: 'Remove these too',
+        categoryId: cat,
+        costPrice: 4,
+        sellingPrice: 9,
+        currency: 'PHP',
+        unit: 'box',
+        minimumStock: 5,
+        imageUrl: 'https://example.com/clear.png',
+      });
+
+      const cleared = await api('PATCH', `/api/products/${id}`, {
+        token: owner.token,
+        body: {
+          brand: '',
+          sku: '',
+          barcode: '',
+          description: '',
+          specifications: '',
+          categoryId: null,
+          costPrice: '',
+          sellingPrice: '',
+          unit: '',
+          minimumStock: '',
+          imageUrl: '',
+        },
+      });
+      assert.equal(cleared.status, 200, JSON.stringify(cleared.json));
+      assert.equal(cleared.json.brand, null);
+      assert.equal(cleared.json.sku, null);
+      assert.equal(cleared.json.barcode, null);
+      assert.equal(cleared.json.description, null);
+      assert.equal(cleared.json.specifications, null);
+      assert.equal(cleared.json.category, null);
+      assert.equal(cleared.json.costPrice, 0);
+      assert.equal(cleared.json.sellingPrice, 0);
+      assert.equal(cleared.json.currency, 'PHP', 'currency is never cleared by an edit');
+      assert.equal(cleared.json.unit, null);
+      assert.equal(cleared.json.minimumStock, 0);
+      assert.equal(cleared.json.imageUrl, null);
+
+      const renamed = await api('PATCH', `/api/products/${id}`, {
+        token: owner.token,
+        body: { name: 'Only the name changed' },
+      });
+      assert.equal(renamed.status, 200);
+      assert.equal(renamed.json.name, 'Only the name changed');
+      assert.equal(renamed.json.brand, null, 'an omitted field is not resurrected');
+
+      const clearCurrency = await api('PATCH', `/api/products/${id}`, {
+        token: owner.token,
+        body: { currency: '' },
+      });
+      assert.equal(clearCurrency.status, 400, JSON.stringify(clearCurrency.json));
+      assert.ok(clearCurrency.json.fields.some((f) => f.field === 'currency'));
+    });
+
+    it('rejects an archived category on create and on a category change', async () => {
+      const cat = await categoryId('Archived Cat');
+      const archived = await api('POST', `/api/categories/${cat}/archive`, { token: owner.token });
+      assert.equal(archived.status, 200);
+
+      const create = await api('POST', '/api/products', {
+        token: owner.token,
+        body: { name: uniqueName('P'), categoryId: cat, currency: 'PHP' },
+      });
+      assert.equal(create.status, 409, JSON.stringify(create.json));
+      assert.equal(create.json.code, 'CATEGORY_ARCHIVED');
+
+      const id = await productId();
+      const patch = await api('PATCH', `/api/products/${id}`, {
+        token: owner.token,
+        body: { categoryId: cat },
+      });
+      assert.equal(patch.status, 409, JSON.stringify(patch.json));
+      assert.equal(patch.json.code, 'CATEGORY_ARCHIVED');
+    });
+
+    it('a repeated product create with the same Idempotency-Key returns one product', async () => {
+      const key = 'op-catalog-create-1';
+      const body = { name: uniqueName('Idempotent Product'), sku: uniqueName('IDEMP'), currency: 'PHP' };
+      const first = await api('POST', '/api/products', {
+        token: owner.token,
+        body,
+        headers: { 'Idempotency-Key': key },
+      });
+      assert.equal(first.status, 201, JSON.stringify(first.json));
+
+      const second = await api('POST', '/api/products', {
+        token: owner.token,
+        body,
+        headers: { 'Idempotency-Key': key },
+      });
+      assert.equal(second.status, 201, JSON.stringify(second.json));
+      assert.equal(second.json.id, first.json.id, 'the retry replayed the first product');
+    });
+
+    it('a failed audit write after commit does not turn a saved product or category into a 500', async () => {
+      const restore = stubAuditCreateToThrow();
+      let created;
+      let patched;
+      let category;
+      try {
+        created = await api('POST', '/api/products', {
+          token: owner.token,
+          body: { name: uniqueName('Audit Safe Product'), currency: 'PHP' },
+        });
+        assert.equal(created.status, 201, JSON.stringify(created.json));
+
+        patched = await api('PATCH', `/api/products/${created.json.id}`, {
+          token: owner.token,
+          body: { name: 'Audit Safe Renamed' },
+        });
+        assert.equal(patched.status, 200, JSON.stringify(patched.json));
+
+        category = await api('POST', '/api/categories', {
+          token: owner.token,
+          body: { name: uniqueName('Audit Safe Category') },
+        });
+        assert.equal(category.status, 201, JSON.stringify(category.json));
+      } finally {
+        restore();
+      }
+
+      const got = await api('GET', `/api/products/${created.json.id}`, { token: owner.token });
+      assert.equal(got.status, 200);
+      assert.equal(got.json.name, 'Audit Safe Renamed');
+      const gotCat = await api('GET', `/api/categories/${category.json.id}`, { token: owner.token });
+      assert.equal(gotCat.status, 200);
     });
 
     it('archives and restores a product (PRODUCT_ARCHIVED audit)', async () => {
@@ -308,13 +473,13 @@ dbSuite('Phase 04 — catalog: categories, locations, products', dbOk, () => {
       assert.equal(staffRead.status, 200);
       const staffCreate = await api('POST', '/api/products', {
         token: staff.token,
-        body: { name: uniqueName('P') },
+        body: { name: uniqueName('P'), currency: 'PHP' },
       });
       assert.equal(staffCreate.status, 403);
 
       const managerCreate = await api('POST', '/api/products', {
         token: manager.token,
-        body: { name: uniqueName('PMgr') },
+        body: { name: uniqueName('PMgr'), currency: 'PHP' },
       });
       assert.equal(managerCreate.status, 201);
 

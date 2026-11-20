@@ -20,6 +20,10 @@ router.get('/', requireAuth, requirePermission(PERMISSIONS.INVENTORY_VIEW), inve
 router.post('/stock-in', requireAuth, requirePermission(PERMISSIONS.INVENTORY_STOCK_IN), idempotent(), inventoryController.stockIn);
 router.post('/stock-out', requireAuth, requirePermission(PERMISSIONS.INVENTORY_STOCK_OUT), idempotent(), inventoryController.stockOut);
 router.post('/adjust', requireAuth, requirePermission(PERMISSIONS.INVENTORY_MANAGE), idempotent(), inventoryController.adjust);
+// A keyed write can outlive the client that sent it. This lookup answers whether
+// the caller's own business still holds a receipt or transport claim for a key;
+// it returns state and a support reference, never the key or an answer body.
+router.post('/operations/status', requireAuth, inventoryController.operationStatus);
 // Transfers reuse the inventory.manage gate (Phase 19): a transfer moves stock
 // between locations, so it needs the same managerial authority as an adjustment.
 // Deliberately NO new permission — the RBAC matrix is unchanged.

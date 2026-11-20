@@ -9,14 +9,19 @@ import Card from '../../../../components/Card';
 import { Icon } from '../../../../components/icons';
 import Input from '../../../../components/Input';
 import ListRow from '../../../../components/ListRow';
-import { CenterLoader, EmptyState, ErrorState, errorText } from '../../../../components/ListState';
+import { CenterLoader, EmptyState, ErrorState, errorRequestId, errorText } from '../../../../components/ListState';
 import Screen from '../../../../components/Screen';
 import SectionHeader from '../../../../components/SectionHeader';
 import AccessDenied from '../../../../components/AccessDenied';
 import { purchaseOrdersApi } from '../../../../lib/api';
 import type { ApiResponse } from '../../../../lib/api';
 import { ApiError } from '../../../../lib/client';
-import { endsOperation, newIdempotencyKey } from '../../../../lib/idempotency';
+import {
+  completeOperation,
+  endsOperation,
+  getOrCreateOperationKey,
+  PendingOperationsFullError,
+} from '../../../../lib/idempotency';
 import { isSessionError, useSession } from '../../../../lib/auth';
 import { alert } from '../../../../lib/confirm';
 import { formatNumber } from '../../../../lib/format';
@@ -102,7 +107,7 @@ function ReceiveStockForm() {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { id } = useLocalSearchParams();
-  const { token, signOut } = useSession();
+  const { token, user, signOut } = useSession();
   const poId = str(id);
 
   const [po, setPo] = useState<ApiResponse>(null);
@@ -111,19 +116,11 @@ function ReceiveStockForm() {
   const [quantities, setQuantities] = useState<Record<string, string>>({});
   const [reference, setReference] = useState('');
   const [formError, setFormError] = useState<string | null>(null);
-  const [partial, setPartial] = useState<{ message: string } | null>(null); // { message } when a 409 landed some lines
+  const [formRequestId, setFormRequestId] = useState<string | null>(null);
+  const [partial, setPartial] = useState<{ message: string; requestId: string | null } | null>(null);
   const [busy, setBusy] = useState(false);
 
-  // One name per receive attempt (see `lib/idempotency.ts`): a receipt whose answer
-  // was lost must not be applied twice on retry. It is dropped when the quantities
-  // or reference change, because that is a different batch of stock.
-  const submitKey = useRef<string | null>(null);
   const submitting = useRef(false);
-  useEffect(() => {
-    // NOT while a request is in flight — see MovementForm: an edit during a slow
-    // delivery must not rename an operation that may already have been applied.
-    if (!submitting.current) submitKey.current = null;
-  }, [quantities, reference]);
 
   const load = useCallback(async (): Promise<void> => {
     if (!token || !poId) return;
@@ -153,7 +150,16 @@ function ReceiveStockForm() {
   }, [load]);
 
   if (loading && !po) return <CenterLoader label="Loading order…" />;
-  if (error && !po) return <ErrorState title="Couldn't load the purchase order" message={errorText(error)} onRetry={load} />;
+  if (error && !po) {
+    return (
+      <ErrorState
+        title="Couldn't load the purchase order"
+        message={errorText(error)}
+        requestId={errorRequestId(error)}
+        onRetry={load}
+      />
+    );
+  }
   if (!po) return null;
 
   // Only OPEN orders are receivable. DRAFT must be issued server-side first;
@@ -221,26 +227,50 @@ function ReceiveStockForm() {
     submitting.current = true;
     setBusy(true);
     setFormError(null);
+    setFormRequestId(null);
     setPartial(null);
-    const idempotencyKey = (submitKey.current ??= newIdempotencyKey());
+    // Sort by product so reopening the order with the same remaining lines cannot
+    // change the local fingerprint merely because the rows were rendered in a
+    // different order. The server canonicalises its own fingerprint too.
+    const linesPayload = ok
+      .map((e) => ({ productId: e.line.productId, quantity: e.n }))
+      .sort((a, b) => a.productId.localeCompare(b.productId));
+    const receivePayload = { lines: linesPayload, reference: reference.trim() || undefined };
+    let idempotencyKey: string | undefined;
     try {
-      const linesPayload = ok.map((e) => ({ productId: e.line.productId, quantity: e.n }));
-      const res = await purchaseOrdersApi.receive(token as string, poId, {
-        lines: linesPayload,
-        reference: reference.trim() || undefined,
-      }, idempotencyKey);
+      idempotencyKey = await getOrCreateOperationKey({
+        kind: 'purchase-order.receive',
+        ownerId: user?.id,
+        target: poId,
+        payload: receivePayload,
+        label: `Receive stock: ${po.number}`,
+        request: {
+          method: 'POST',
+          path: `/api/purchase-orders/${poId}/receive`,
+          body: receivePayload,
+        },
+      });
+      const res = await purchaseOrdersApi.receive(token as string, poId, receivePayload, idempotencyKey);
+      await completeOperation('purchase-order.receive', idempotencyKey, user?.id);
       const summary = `Received ${formatNumber(units)} unit(s) across ${ok.length} line${ok.length === 1 ? '' : 's'}.`;
       const done = res?.allReceived ? `${summary}\n\nThis order is now fully received.` : summary;
       await alert('Receive Stock', done);
       router.back();
     } catch (err) {
+      if (err instanceof PendingOperationsFullError) {
+        setFormError(err.message);
+        setFormRequestId(null);
+        return;
+      }
       if (err instanceof ApiError && err.code === 'RECEIVE_CONFLICT') {
         // Some lines landed before the batch was rejected. Tell the operator,
         // then refetch the order so the applied lines drop out of the editors
         // and the user can immediately receive the rest.
         // The batch is answered: the remaining lines are a NEW operation, so the
         // next press must not replay this 409.
-        submitKey.current = null;
+        if (idempotencyKey) {
+          await completeOperation('purchase-order.receive', idempotencyKey, user?.id);
+        }
         const applied = err.applied ?? [];
         const landed = applied.reduce((sum, a) => sum + (a.quantity || 0), 0);
         setPartial({
@@ -248,15 +278,20 @@ function ReceiveStockForm() {
             applied.length > 0
               ? `Only part could be received — ${formatNumber(landed)} unit(s) across ${applied.length} line(s) landed. The rest is shown below; receive again to finish it.`
               : err?.message || 'This receive could not be applied. Refresh and retry the remaining lines.',
+          requestId: errorRequestId(err),
         });
         await load();
       } else {
-        // Only an answer that ENDS the operation mints a new key; a transport failure
-        // and a still-in-flight claim both keep it. See `lib/idempotency.ts`.
-        if (endsOperation(err)) submitKey.current = null;
+        // finalize may have committed and then thrown, so a 5xx or timeout keeps
+        // the key and lets the same receipt replay. `RECEIVE_CONFLICT` is handled
+        // above because the remaining lines are a new operation.
+        if (idempotencyKey && endsOperation(err)) {
+          await completeOperation('purchase-order.receive', idempotencyKey, user?.id);
+        }
         const e = err as { code?: string | null; message?: string } | null;
         const code = e?.code;
         setFormError((CODE_MESSAGES[code ?? ''] ?? e?.message) || 'The receive could not be completed.');
+        setFormRequestId(errorRequestId(err));
       }
     } finally {
       submitting.current = false;
@@ -281,8 +316,8 @@ function ReceiveStockForm() {
         </View>
       </Card>
 
-      <Banner type="error" text={formError} />
-      <Banner type="warn" text={partial?.message} />
+      <Banner type="error" text={formError} requestId={formRequestId} />
+      <Banner type="warn" text={partial?.message} requestId={partial?.requestId} />
 
       {loading ? <Banner type="info" text="Refreshing the order…" /> : null}
 

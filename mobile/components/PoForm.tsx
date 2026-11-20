@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { router } from 'expo-router';
 import { StyleSheet, Text, View } from 'react-native';
 
@@ -14,7 +14,13 @@ import { CenterLoader } from './ListState';
 import { locationsApi, productsApi, purchaseOrdersApi, suppliersApi } from '../lib/api';
 import type { ApiResponse, PurchaseOrderInput, PurchaseOrderLineInput } from '../lib/api';
 import { ApiError } from '../lib/client';
-import { endsOperation, newIdempotencyKey } from '../lib/idempotency';
+import {
+  completeOperation,
+  endsOperation,
+  getOrCreateOperationKey,
+  PendingOperationsFullError,
+} from '../lib/idempotency';
+import { errorRequestId } from '../lib/errors';
 import { useSession } from '../lib/auth';
 import { alert } from '../lib/confirm';
 import { useActiveRef } from '../hooks/useReferences';
@@ -135,7 +141,7 @@ export interface PoFormProps {
 export default function PoForm({ initial }: PoFormProps) {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const { token } = useSession();
+  const { token, user } = useSession();
   const isEdit = Boolean(initial);
 
   // Active reference lists for the pickers (products/locations/suppliers).
@@ -161,18 +167,10 @@ export default function PoForm({ initial }: PoFormProps) {
 
   const [fieldErrors, setFieldErrors] = useState<Record<string, string | undefined>>({});
   const [formError, setFormError] = useState<string | null>(null);
+  const [formRequestId, setFormRequestId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  // CREATE mints one key per attempt (see `lib/idempotency.ts`): a creation whose
-  // answer was lost must not leave two DRAFTs behind when it is retried. EDIT is a
-  // PATCH, which is already idempotent by construction, so no key is sent there.
-  const submitKey = useRef<string | null>(null);
   const submitting = useRef(false);
-  useEffect(() => {
-    // NOT while a request is in flight — see MovementForm: an edit during a slow
-    // delivery must not rename an operation that may already have been applied.
-    if (!submitting.current) submitKey.current = null;
-  }, [supplierId, locationId, expectedAt, notes, lines]);
 
   const supplierOptions = useMemo(() => {
     const list: SelectOption[] = suppliers.items.map((s) => ({ value: s.id, label: s.name }));
@@ -265,8 +263,8 @@ export default function PoForm({ initial }: PoFormProps) {
     submitting.current = true;
     setBusy(true);
     setFormError(null);
+    setFormRequestId(null);
     setFieldErrors({});
-    const idempotencyKey = isEdit ? undefined : (submitKey.current ??= newIdempotencyKey());
 
     const problems = validate();
     if (problems.length) {
@@ -288,11 +286,22 @@ export default function PoForm({ initial }: PoFormProps) {
     const et = expectedAt.trim();
     if (et) payload.expectedAt = et;
     if (notes.trim()) payload.notes = notes.trim();
+    let idempotencyKey: string | undefined;
 
     try {
+      idempotencyKey = isEdit
+        ? undefined
+        : await getOrCreateOperationKey({
+            kind: 'purchase-order.create',
+            ownerId: user?.id,
+            payload,
+            label: `Purchase order: ${items.length} line${items.length === 1 ? '' : 's'}`,
+            request: { method: 'POST', path: '/api/purchase-orders', body: payload },
+          });
       const res = isEdit
         ? await purchaseOrdersApi.update(token as string, initial.id, payload)
         : await purchaseOrdersApi.create(token as string, payload, idempotencyKey);
+      if (idempotencyKey) await completeOperation('purchase-order.create', idempotencyKey, user?.id);
       await alert(
         isEdit ? 'Order updated' : 'Order created',
         isEdit
@@ -310,12 +319,22 @@ export default function PoForm({ initial }: PoFormProps) {
         router.back();
       }
     } catch (err) {
-      // Only an answer that ENDS the operation mints a new key; a transport failure
-      // and a still-in-flight claim both keep it. See `lib/idempotency.ts`.
-      if (endsOperation(err)) submitKey.current = null;
+      if (err instanceof PendingOperationsFullError) {
+        setFormError(err.message);
+        setFormRequestId(null);
+        return;
+      }
+      // Only an answer that ENDS the operation mints a new key; a transport failure,
+      // a 5xx and a still-in-flight claim all keep it. See `lib/idempotency.ts`.
+      if (idempotencyKey && endsOperation(err)) {
+        await completeOperation('purchase-order.create', idempotencyKey, user?.id);
+      }
       const fields = fieldMap(err);
       if (Object.keys(fields).length) setFieldErrors(fields);
-      else setFormError(poErrorMessage(err));
+      else {
+        setFormError(poErrorMessage(err));
+        setFormRequestId(errorRequestId(err));
+      }
     } finally {
       submitting.current = false;
       setBusy(false);
@@ -324,7 +343,7 @@ export default function PoForm({ initial }: PoFormProps) {
 
   return (
     <Screen scroll contentStyle={styles.content}>
-      <Banner type="error" text={formError} />
+      <Banner type="error" text={formError} requestId={formRequestId} />
       <SelectField
         label="Supplier"
         placeholder="Choose a supplier…"

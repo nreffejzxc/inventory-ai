@@ -3,6 +3,7 @@ import { fireEvent, render, waitFor } from '@testing-library/react-native';
 import { inventoryApi } from '../lib/api';
 import { ApiError } from '../lib/client';
 import { useSession } from '../lib/auth';
+import { getOrCreateOperationKey } from '../lib/idempotency';
 import { ThemeProvider } from '../lib/theme-context';
 
 import MovementForm from '../components/MovementForm';
@@ -33,6 +34,18 @@ import MovementForm from '../components/MovementForm';
  * still start one request. `busy` disables the button on the next render, which is
  * a rendered state, not a guarantee about the handler.
  */
+
+const mockSecureStore = new Map<string, string>();
+
+jest.mock('expo-secure-store', () => ({
+  getItemAsync: jest.fn(async (key: string) => mockSecureStore.get(key) ?? null),
+  setItemAsync: jest.fn(async (key: string, value: string) => {
+    mockSecureStore.set(key, value);
+  }),
+  deleteItemAsync: jest.fn(async (key: string) => {
+    mockSecureStore.delete(key);
+  }),
+}));
 
 jest.mock('../lib/auth', () => ({
   useSession: jest.fn(),
@@ -108,6 +121,7 @@ async function submit(view: View): Promise<void> {
 
 beforeEach(() => {
   jest.clearAllMocks();
+  mockSecureStore.clear();
   mockedUseSession.mockReturnValue({
     user: { id: 'u1', name: 'Test User', role: 'OWNER' },
     token: 'token-1',
@@ -116,6 +130,24 @@ beforeEach(() => {
 });
 
 describe('a stock-in is one operation', () => {
+  it('★ submits under a key already persisted for this exact operation', async () => {
+    // The store-level cold-start case lives in `idempotency-persistence.test.ts`.
+    // Here the form must also ADOPT that stored key rather than mint one of its own.
+    const stored = await getOrCreateOperationKey({
+      kind: 'stock-in',
+      ownerId: 'u1',
+      payload: { productId: 'p1', locationId: 'l1', quantity: 5, reason: undefined, reference: undefined },
+    });
+
+    stockIn.mockResolvedValueOnce(APPLIED);
+    const view = await mount();
+    await enterQuantity(view, '5');
+    await submit(view);
+
+    await waitFor(() => expect(stockIn).toHaveBeenCalledTimes(1));
+    expect(stockIn.mock.calls[0][2]).toBe(stored);
+  });
+
   it('keeps the operation key across a transport failure, so the retry cannot apply it twice', async () => {
     stockIn
       .mockRejectedValueOnce(new ApiError(0, 'NETWORK_TIMEOUT', 'The request took too long.'))
@@ -136,6 +168,25 @@ describe('a stock-in is one operation', () => {
     expect(firstKey.length).toBeGreaterThanOrEqual(8);
     // THE ASSERTION THAT MATTERS: the retry names the SAME operation.
     expect(secondKey).toBe(firstKey);
+  });
+
+  it('★ keeps the same operation after a 5xx, because the server may have committed', async () => {
+    stockIn
+      .mockRejectedValueOnce(new ApiError(503, 'DB_UNAVAILABLE', 'The server is unavailable.'))
+      .mockResolvedValueOnce(APPLIED);
+
+    const view = await mount();
+    await enterQuantity(view, '5');
+
+    await submit(view);
+    await waitFor(() => expect(view.getByText('The server is unavailable.')).toBeTruthy());
+
+    await submit(view);
+    await waitFor(() => expect(stockIn).toHaveBeenCalledTimes(2));
+
+    // A 5xx is not proof that the movement did not land. The retry must carry
+    // the same key so a committed first delivery can be replayed, not applied twice.
+    expect(stockIn.mock.calls[1][2]).toBe(stockIn.mock.calls[0][2]);
   });
 
   it('keeps the same operation when the server says its key is still in flight', async () => {
@@ -176,5 +227,18 @@ describe('a stock-in is one operation', () => {
 
     // A refused attempt applied nothing, so the retry is a different operation.
     expect(stockIn.mock.calls[1][2]).not.toBe(stockIn.mock.calls[0][2]);
+  });
+
+  it('★ shows the server reference when a form-level failure carries one', async () => {
+    const error = new ApiError(500, 'SERVER_ERROR', 'The movement could not be completed.');
+    error.requestId = 'form-ref-42';
+    stockIn.mockRejectedValueOnce(error);
+
+    const view = await mount();
+    await enterQuantity(view, '5');
+    await submit(view);
+
+    await waitFor(() => expect(view.getByText(/Reference: form-ref-42/)).toBeTruthy());
+    expect(view.getByTestId('request-reference-copy')).toBeTruthy();
   });
 });

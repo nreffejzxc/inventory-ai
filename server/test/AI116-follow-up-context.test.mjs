@@ -49,7 +49,7 @@ async function newLocation(session, name) {
 async function newProduct(session, { name, categoryId, minimumStock = 10 }) {
   const res = await api('POST', '/api/products', {
     token: session.token,
-    body: { name, categoryId, minimumStock },
+    body: { currency: 'PHP', name, categoryId, minimumStock },
   });
   assert.equal(res.status, 201, JSON.stringify(res.json));
   return res.json.id;

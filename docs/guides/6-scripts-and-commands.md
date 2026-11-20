@@ -86,6 +86,47 @@ files EAS supplies as file variables (`GOOGLE_SERVICES_JSON`, `GOOGLE_SERVICE_IN
 ([Guide 7 § EAS environments](7-over-the-air-updates.md), and [Guide 2](2-run-on-your-phone.md) for
 the build that needs them).
 
+### Integrity recovery and the two read-only reports
+
+```bash
+cd C:/Users/jeffe/inventory-ai/server
+npm run audit:failures -- --days=30                    # audit rows that could not be written
+npm run audit:price-quality                            # missing/zero prices and currencies
+npm run recover:integrity                              # one exact recovery pass; writes only proven repairs
+npm run recover:movement-receipts                       # DRY RUN: abandoned receipts + completed-retention report
+npm run triage:integrity                               # read-only: attention journals + movement receipts + quarantine rows
+npm run migrate:transfer-ledger-index                  # read-only preflight for the unique ledger guard
+npm run ops:integrity -- --command=audit:failures      # scheduler-facing wrapper: lock, history, optional alert
+```
+
+These follow the same database rule as the integrity audit: development by default, production
+only with `--with-production`, and the test database refused. `audit:failures`, `audit:price-quality` and `triage:integrity` are read-only and exit **1** when
+they find something.
+`recover:integrity` exits **1** if a row could not be reconciled and exits **2** when it could not
+check. A `REQUIRES_ATTENTION` row is reported, never guessed away. `triage:integrity` prints the
+failure reason, inventory snapshots, ledger rows, the keyed movement receipt and quarantine
+reason/`keptId` for a human; it has no repair flag. Full behaviour, limits and the journal states are in
+[`INTEGRITY_RECOVERY.md`](../INTEGRITY_RECOVERY.md).
+
+`recover:movement-receipts` is dry-run by default. Review its `recovered` / `flagged` / `blocked` /
+`pruned` / `failed` counts, then re-run with `--apply` to write only a ledger-proven or exact-
+snapshot recovery and to prune only `COMPLETED` receipts older than the retention window
+(`--retention-days`, default 30). `--business=<24-hex-id>` narrows a run to one tenant;
+`--older-than-minutes` and `--limit` are bounded. It refuses the test database and exits **1** on a
+dry run that found work, remaining attention or a failure, and **2** when it could not check.
+Its batch reserves stale unfinished receipts before attention rows, so a large old attention backlog
+cannot delay newer unfinished receipts; an apply that flags a row also exits **1**.
+
+`migrate:transfer-ledger-index` is read-only until `--apply`; it refuses ambiguous duplicates and
+quarantines exact copies before deleting them. Production apply additionally needs
+`TRANSFER_LEDGER_MIGRATION_CONFIRM=MIGRATE-TRANSFER-LEDGER`. `ops:integrity` runs any of the three
+commands as a child, preserves its `0/1/2` meaning, prevents duplicate runs with a per-command lock,
+and with `--notify` maintains one GitHub issue per command. A failed GitHub create, comment or close
+is stored as an undelivered alert and retried by the next `--notify` run. The daily Windows task is
+registered by `scripts/register-integrity-ops-scheduler.ps1`; see [`MONITORING.md`](../MONITORING.md).
+`/api/health/ready` also returns `503` when the exact unique partial transfer-ledger index is
+missing or wrong; it checks `listIndexes` and never repairs the index.
+
 ### Label barcode — does it decode?
 
 ```bash
@@ -234,6 +275,7 @@ sub-second even at tens of thousands of products — so `perf:measure` is what i
 | `npm run ai:check` (`-- --probe`) | the configured models verified against the provider's catalogue |
 | `npm run ai:health` (`-- --alert`) | one model-health check; exit 0 healthy, 1 degraded/unavailable, 2 could not check |
 | `npm run eval:simple-inventory -- --limit=1` | small disposable fixture; paid baseline then free-first route (`--free-only` skips the baseline; `--validate-only` makes no call) |
+| `npm run eval:stock-coverage -- --limit=2` | six run-out paraphrases; records first/all tool selection on the current configured model (`--validate-only` makes no call) |
 | `npm run eval:simple-10k -- --phase=prepare` | disposable 10,256-product tenant and the gate/burst/sustained evaluator; `--phase=prepare` makes no model call |
 
 `perf:golden --compare` exits 0 identical, 1 different, 2 different tenants (a re-seed changes ids).
@@ -269,6 +311,23 @@ SEED_CONFIRM=seed-perf-ai AI_TEST_ALLOW_PAID_MODELS=true \
 SEED_CONFIRM=seed-perf-ai AI_TEST_ALLOW_PAID_MODELS=true \
   npm run eval:simple-10k -- --phase=sustained --concurrency=10 --requests=30
 ```
+
+The run-out evaluator is separate and deliberately cannot change the model configuration. It runs
+the real turn loop against a disposable development tenant and records whether
+`getProductStockCoverage` was the first tool, was selected later, or was missed; it also records
+whether the corrective re-ask fired. It is opt-in, at most six questions, and never part of the
+default test or CI path.
+
+```bash
+cd C:/Users/jeffe/inventory-ai/server
+npm run eval:stock-coverage -- --validate-only        # no provider or database call
+AI_TEST_ALLOW_PAID_MODELS=true npm run eval:stock-coverage -- --limit=2
+AI_TEST_ALLOW_PAID_MODELS=true npm run eval:stock-coverage
+```
+
+The result is `.tmp-stock-coverage-live.json`; set `STOCK_COVERAGE_EVAL_OUT` to keep a run. The
+script prints the configured primary but never changes it, the fallback list, reasoning, or the
+web switches.
 
 `eval:simple-10k` accepts `--phase=prepare|gate|burst|sustained`, `--size`, `--seed`,
 `--concurrency` (up to 40), `--requests` (up to 80), `--gap`, `--warmup`, `--transport=service|http`,
@@ -515,13 +574,22 @@ the trigger. See [`INVENTORY_INTEGRITY.md`](../INVENTORY_INTEGRITY.md) and
 | `npm run audit:integrity` | orphan STOCK_IN rows / unreceipted PO receipts | ✅ reads |
 | `npm run audit:integrity:monitor` | the same audit against an accepted baseline; records local history and can open one issue for new findings | ✅ reads |
 | `npm run integrity:heartbeat` | publishes the latest aggregate result to the hosted freshness document | ✅ inventory; writes one heartbeat document |
+| `npm run audit:failures` | durable audit-write gaps, by action and tenant | ✅ reads; exit 1 on a gap |
+| `npm run audit:price-quality` | ACTIVE products with missing/zero price or missing/invalid currency | ✅ reads; exit 1 on a problem |
+| `npm run audit:product-currency` | missing/invalid legacy product currencies; text or JSON, optionally one tenant | ✅ reads; exit 1 on rows needing review |
+| `npm run resolve:product-currency -- --template --business=…` / `--evidence=…` | read-only 5,000-row review template, then human-approved resolution; dry-run first, `--apply` to write | ⚠️ `--apply` writes audited currency changes only |
+| `npm run recover:integrity` | one exact transfer-journal and PO-claim reconciliation pass | ⚠️ writes only proven repair actions |
+| `npm run recover:movement-receipts` | abandoned movement receipts plus completed-receipt retention; dry-run by default | ⚠️ `--apply` writes only proven recovery/pruning |
+| `npm run triage:integrity` | `REQUIRES_ATTENTION` journals, movement receipts and quarantined ledger rows, with reasons and evidence | ✅ reads; exit 1 when rows need attention |
+| `npm run migrate:transfer-ledger-index` | unique operation/location ledger guard; read-only preflight, `--apply` after review | ⚠️ apply quarantines/removes exact duplicates and builds the index |
+| `npm run ops:integrity -- --command=…` | scheduler wrapper: one lock, local history and optional per-command GitHub issue | ⚠️ recovery command writes only proven repairs |
 | `npm run verify:transfer-ui` | one device transfer run's six rows and final stock | ✅ reads |
 | `npm run backup:db` | recoverable copy (needs `BACKUP_DIR` outside the project) | ✅ reads; safe on production |
 | `npm run restore:db -- --from=…` | put a copy back (needs `CONFIRM=restore-db`) | ⚠️⚠️ test/dev only; `--dry-run` |
 | `npm run ai:usage`, `ai:models`, `ai:check`, `ai:health` | cost, allowance, models, health | ✅ reads |
 | `npm run perf:measure`, `perf:golden` | query timings / answer fingerprints | ✅ reads |
 | `npm run perf:turns` | real turns (`--login` for a deployment) | ⚠️ spends AI quota |
-| `npm run eval:simple-inventory`, `eval:simple-10k` | free-first simple-inventory evaluation on a disposable tenant | ⚠️ spends AI quota; dev database only |
+| `npm run eval:simple-inventory`, `eval:stock-coverage`, `eval:simple-10k` | free-first simple-inventory and run-out tool-selection evaluation on a disposable tenant | ⚠️ spends AI quota; dev database only; never in default CI |
 | `npm run check:accounts`, `verify:demo`, `verify:roles` | whether the accounts exist, and read a seed back | ✅ reads |
 | `npm run seed`, `seed:demo`, `seed:accounts`, `seed:three`, `seed:roles`, `seed:demo-tenant`, `seed:perf`, `seed:perf-tenant` | sample data in | → [Guides 9](9-seeding-development.md) and [10](10-seeding-production.md) |
 | `npm run cleanup`, `cleanup:demo`, `cleanup:roles`, `cleanup:demo-tenant`, `cleanup:perf`, `cleanup:perf-tenant`, `cleanup:account`, `cleanup:three`, `cleanup:test-firebase` | data and identities out | → [Guides 11](11-deleting-development.md), [12](12-deleting-production.md) and [13](13-firebase-identities.md) |

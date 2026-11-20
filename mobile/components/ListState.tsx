@@ -8,6 +8,7 @@ import { useTheme } from '../lib/theme-context';
 import Button from './Button';
 import { Icon } from './icons';
 import type { IconName } from './icons';
+import RequestReference from './RequestReference';
 
 const createStyles = (colors: Palette) =>
   StyleSheet.create({
@@ -85,6 +86,8 @@ export interface ErrorStateProps {
   onRetry?: () => void;
   retryLabel?: ReactNode;
   icon?: IconName;
+  /** The server's safe `X-Request-ID`, when the failure carried one. */
+  requestId?: string | null;
 }
 
 /** Full error state with a Retry action. */
@@ -94,6 +97,7 @@ export function ErrorState({
   onRetry,
   retryLabel = 'Try again',
   icon = 'alert',
+  requestId,
 }: ErrorStateProps) {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -104,6 +108,7 @@ export function ErrorState({
       </View>
       <Text style={styles.emptyTitle}>{title}</Text>
       {message ? <Text style={styles.mutedCenter}>{message}</Text> : null}
+      <RequestReference requestId={requestId} />
       {onRetry ? (
         <View style={styles.emptyAction}>
           <Button title={retryLabel} onPress={onRetry} variant="secondary" />
@@ -113,13 +118,7 @@ export function ErrorState({
   );
 }
 
-/**
- * Message used by screens for thrown ApiError / network failures. The thrown
- * value is genuinely unknown (a rejected request can carry anything), so the
- * shape is checked here rather than assumed by every caller.
- */
-export function errorText(err: unknown, fallback = 'Unable to load. Check your connection and try again.'): string {
-  if (err == null) return fallback;
-  if (typeof err === 'string') return err;
-  return (err as { message?: string }).message || fallback;
-}
+// Kept as re-exports because every screen already imports these from here; the
+// pure implementations live in `lib/errors.ts` so Alerts and Banners share them.
+export { errorRequestId, errorText } from '../lib/errors';
+export { default as RequestReference } from './RequestReference';

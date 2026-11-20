@@ -9,6 +9,7 @@ import Input from '../../components/Input';
 import Screen from '../../components/Screen';
 import { updateMe } from '../../lib/api';
 import { ApiError } from '../../lib/client';
+import { errorRequestId } from '../../lib/errors';
 import { useSession } from '../../lib/auth';
 import { spacing } from '../../lib/theme';
 
@@ -32,6 +33,7 @@ export default function EditNameScreen() {
   const [name, setName] = useState(user?.name ?? '');
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState<string | null>(null);
+  const [formRequestId, setFormRequestId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   async function submit(): Promise<void> {
@@ -43,6 +45,7 @@ export default function EditNameScreen() {
 
     setBusy(true);
     setFormError(null);
+    setFormRequestId(null);
     setFieldErrors({});
     try {
       await updateMe(token as string, { name: trimmed });
@@ -51,7 +54,10 @@ export default function EditNameScreen() {
     } catch (err) {
       const fields = fieldMap(err);
       if (Object.keys(fields).length) setFieldErrors(fields);
-      else setFormError((err as { message?: string } | null)?.message || 'Unable to update your name.');
+      else {
+        setFormError((err as { message?: string } | null)?.message || 'Unable to update your name.');
+        setFormRequestId(errorRequestId(err));
+      }
     } finally {
       setBusy(false);
     }
@@ -61,7 +67,7 @@ export default function EditNameScreen() {
     <>
       <Stack.Screen options={{ title: 'Edit Name' }} />
       <Screen scroll contentStyle={styles.content}>
-        <Banner type="error" text={formError} />
+        <Banner type="error" text={formError} requestId={formRequestId} />
         <Card>
           <Input
             name="name"

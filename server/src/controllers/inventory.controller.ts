@@ -3,7 +3,10 @@ import type { Request, Response } from 'express';
 import { parsePagination, pageResult } from '../utils/pagination.ts';
 import { isObjectId, optionalObjectId, optionalSearch, optionalEnum, validateStockMovement, validateTransfer, ACTIVE_ARCHIVED_STATUSES } from '../utils/validate.ts';
 import { throwValidation, invalidId } from '../utils/errors.ts';
+import ApiError from '../utils/ApiError.ts';
+import { isIdempotencyKey } from '../utils/idempotencyKey.ts';
 import inventoryService from '../services/inventory.service.ts';
+import { inventoryOperationStatus } from '../services/inventoryOperationStatus.service.ts';
 
 /**
  * The request context this controller reads. Local and structural, following
@@ -22,7 +25,10 @@ import inventoryService from '../services/inventory.service.ts';
  * chaining was NOT used: it would silently pass `undefined` on where the code
  * would previously have thrown, which is a behaviour change.
  */
-type AuthenticatedRequest = Request & { user?: { id: string; businessId: string } };
+type AuthenticatedRequest = Request & {
+  user?: { id: string; businessId: string };
+  idempotencyKey?: string;
+};
 
 function paramId(req: AuthenticatedRequest) {
   // `req.params` is Express's `{ [key: string]: string | string[] }`, so the
@@ -125,6 +131,23 @@ function parseTransferInput(req: AuthenticatedRequest) {
   };
 }
 
+/**
+ * A literal post-commit 503 for the HTTP regression suite. It is deliberately
+ * gated on a test process and an explicit header, and it is called only AFTER
+ * the service returned, so the movement and its receipt are already durable
+ * when the failure is raised. Production code cannot reach this branch.
+ */
+function injectTestFailureAfterCommit(req: AuthenticatedRequest, operation: string): void {
+  if (!process.env.TEST_MODE && process.env.NODE_ENV !== 'test') return;
+  if (process.env.NODE_ENV === 'production') return;
+  if (req.get('x-test-fault-after-commit') !== operation) return;
+  throw new ApiError(
+    503,
+    `Injected test failure after ${operation} committed`,
+    'TEST_FAULT_AFTER_COMMIT',
+  );
+}
+
 const inventoryController = {
   async list(req: AuthenticatedRequest, res: Response) {
     const parsed = parseQueryList(req);
@@ -140,7 +163,11 @@ const inventoryController = {
 
   async stockIn(req: AuthenticatedRequest, res: Response) {
     const input = parseMovementInput(req);
-    const out = await inventoryService.stockIn(req.user!.businessId, req.user!.id, input);
+    const out = await inventoryService.stockIn(req.user!.businessId, req.user!.id, {
+      ...input,
+      idempotencyKey: req.idempotencyKey,
+    });
+    injectTestFailureAfterCommit(req, 'stock-in');
     res.status(201).json({
       transaction: out.transaction,
       previousQuantity: out.previousQuantity,
@@ -150,7 +177,11 @@ const inventoryController = {
 
   async stockOut(req: AuthenticatedRequest, res: Response) {
     const input = parseMovementInput(req);
-    const out = await inventoryService.stockOut(req.user!.businessId, req.user!.id, input);
+    const out = await inventoryService.stockOut(req.user!.businessId, req.user!.id, {
+      ...input,
+      idempotencyKey: req.idempotencyKey,
+    });
+    injectTestFailureAfterCommit(req, 'stock-out');
     res.json({
       transaction: out.transaction,
       previousQuantity: out.previousQuantity,
@@ -161,7 +192,11 @@ const inventoryController = {
   /** Moves stock between two locations of the caller's business (Phase 19). */
   async transfer(req: AuthenticatedRequest, res: Response) {
     const input = parseTransferInput(req);
-    const out = await inventoryService.transfer(req.user!.businessId, req.user!.id, input);
+    const out = await inventoryService.transfer(req.user!.businessId, req.user!.id, {
+      ...input,
+      idempotencyKey: req.idempotencyKey,
+    });
+    injectTestFailureAfterCommit(req, 'transfer');
     res.status(201).json({
       reference: out.reference,
       transaction: out.transaction,
@@ -178,12 +213,29 @@ const inventoryController = {
     // the reason is what makes the row explicable later. Required here, not just
     // in the form: an older client cannot skip the audit trail either.
     const input = parseMovementInput(req, { allowZero: true, requireReason: true });
-    const out = await inventoryService.adjust(req.user!.businessId, req.user!.id, input);
+    const out = await inventoryService.adjust(req.user!.businessId, req.user!.id, {
+      ...input,
+      idempotencyKey: req.idempotencyKey,
+    });
+    injectTestFailureAfterCommit(req, 'adjust');
     res.json({
       transaction: out.transaction,
       previousQuantity: out.previousQuantity,
       newQuantity: out.newQuantity,
     });
+  },
+
+  /** Safe existence/state lookup for the device Pending Operations screen. */
+  async operationStatus(req: AuthenticatedRequest, res: Response) {
+    const key = typeof req.body?.key === 'string' ? req.body.key.trim() : '';
+    if (!isIdempotencyKey(key)) {
+      throwValidation([{ field: 'key', message: 'A valid operation key is required' }]);
+    }
+    const status = await inventoryOperationStatus({
+      businessId: req.user!.businessId,
+      key,
+    });
+    res.json(status);
   },
 };
 

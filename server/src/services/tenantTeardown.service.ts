@@ -35,6 +35,8 @@ import AiTurnMetric from '../models/aiTurnMetric.model.ts';
 import AiFeedback from '../models/aiFeedback.model.ts';
 import OpsErrorEvent from '../models/opsErrorEvent.model.ts';
 import OpsFeatureUsage from '../models/opsFeatureUsage.model.ts';
+import AuditFailure from '../models/auditFailure.model.ts';
+import StockTransferOperation from '../models/stockTransferOperation.model.ts';
 import AuditLog from '../models/auditLog.model.ts';
 import Business from '../models/business.model.ts';
 import Category from '../models/category.model.ts';
@@ -74,12 +76,14 @@ type TenantModel = {
 export const TENANT_DATA_COLLECTIONS: Array<[string, TenantModel]> = [
   ['inventory', Inventory],
   ['inventory_transactions', InventoryTransaction],
+  ['stock_transfer_operations', StockTransferOperation],
   ['purchase_orders', PurchaseOrder],
   ['products', Product],
   ['categories', Category],
   ['locations', Location],
   ['suppliers', Supplier],
   ['audit_logs', AuditLog],
+  ['audit_failures', AuditFailure],
   // AI-102 — one operational row per assistant turn. It carries businessId, so a tenant
   // teardown must remove it with the rest of that tenant's data rather than leave metrics
   // that can no longer be tied to a business.

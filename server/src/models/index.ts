@@ -14,6 +14,10 @@ import Inventory from './inventory.model.ts';
 import InventoryTransaction from './inventoryTransaction.model.ts';
 import AuditLog from './auditLog.model.ts';
 import IdempotencyRecord from './idempotencyRecord.model.ts';
+import StockTransferOperation from './stockTransferOperation.model.ts';
+import StockMovementOperation from './stockMovementOperation.model.ts';
+import IntegrityRecoveryLease from './integrityRecoveryLease.model.ts';
+import AuditFailure from './auditFailure.model.ts';
 import AIConversation from './aiConversation.model.ts';
 import AIMessage from './aiMessage.model.ts';
 import AiTurnMetric from './aiTurnMetric.model.ts';
@@ -44,6 +48,10 @@ export {
   InventoryTransaction,
   AuditLog,
   IdempotencyRecord,
+  StockTransferOperation,
+  StockMovementOperation,
+  IntegrityRecoveryLease,
+  AuditFailure,
   AIConversation,
   AIMessage,
   AiTurnMetric,
@@ -76,6 +84,10 @@ export const models = [
   InventoryTransaction,
   AuditLog,
   IdempotencyRecord,
+  StockTransferOperation,
+  StockMovementOperation,
+  IntegrityRecoveryLease,
+  AuditFailure,
   AIConversation,
   AIMessage,
   AiTurnMetric,

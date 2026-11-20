@@ -34,9 +34,28 @@ prints a secret, a token, a prompt, an answer, a tenant id or a member's identit
     "serverErrors": 2,
     "lastServerErrorAt": "2026-11-11T08:12:03.114Z"
   },
+  "exchangeRates": {
+    "status": "available",
+    "requests": 12,
+    "cacheHits": 7,
+    "verified": 4,
+    "sameCurrency": 1,
+    "stale": 0,
+    "unavailable": 0,
+    "lastVerifiedAt": "2026-11-11T08:15:00.000Z",
+    "lastRateDate": "2026-11-10",
+    "lastFailureAt": null,
+    "lastFailure": null
+  },
   "timestamp": "2026-11-11T08:20:00.000Z"
 }
 ```
+
+`exchangeRates` is the existing process-local `exchangeRateAvailability()` snapshot. It is
+informational only: `/api/health/ready` and `/api/health/live` do not read it, and a stale or missing
+ECB rate never becomes a guessed conversion. Its `status` is `unused`, `available`, `degraded` or
+`unavailable`. It carries aggregate counts and timestamps, not a pair, a URL, tenant data or a
+provider body. It resets on restart, like the response counters.
 
 Every response also carries `X-Instance-ID`, the per-boot identity the port guard uses. It is not a
 credential and it changes on restart. It is how a stale process on the same port is detected.
@@ -118,7 +137,7 @@ dispatch and the GitHub issue path remain a fallback. The Windows task is disabl
 
 | Signal | Rule | Why it matters |
 | --- | --- | --- |
-| Readiness | `/api/health/ready` returns `503` twice, 20 s apart | The API cannot reach MongoDB; requests will fail even though the process is alive |
+| Readiness | `/api/health/ready` returns `503` twice, 20 s apart | The API cannot reach MongoDB, or the required unique transfer-ledger index is missing/incorrect; either way the process must not take traffic |
 | Server errors | `counters.serverErrors` increases by 2 or more within 5 minutes | Two consecutive 5xx answers are a failure, not a blip; the monitoring-only integrity `503` is excluded |
 | Posture | `environment` is not `production` on the production host | A deployment booted into the wrong posture and is probably using the wrong database |
 | Build | `commit` is not the commit that was merged | A stale build or a failed deploy is serving traffic |
@@ -210,6 +229,70 @@ for this repository, so no workflow cron is used. The baseline accepts known can
 repair them. The audit itself and the installed-app transfer checks are documented in
 [`INVENTORY_INTEGRITY.md`](INVENTORY_INTEGRITY.md); the baseline evidence is
 [`inventory-integrity-monitor`](evidence/inventory-integrity-monitor/README.md).
+
+### Integrity operations (daily, read-only audits plus exact recovery)
+
+The integrity monitor above checks ledger-to-inventory shape. These three commands answer the
+adjacent operational questions: whether committed writes left audit gaps, whether active products
+have usable price data, and whether any transfer journal or PO receive claim needs exact recovery.
+
+- **Task:** `InventoryAI Integrity Operations`, daily at **08:00 local**, `StartWhenAvailable`,
+  `MultipleInstances IgnoreNew`.
+- **Wrapper:** `scripts/run-integrity-ops.ps1`; **registration:**
+  `scripts/register-integrity-ops-scheduler.ps1`. The task was **not registered** in this tranche.
+- **Order:** `audit:failures`, `audit:price-quality`, `recover:integrity`. Each is a separate child
+  process, so one failure does not stop the next. The wrapper exits `2` if any command was NOT
+  CHECKED, otherwise `1` for any finding, otherwise `0`.
+- **Runner:** `cd server && npm run ops:integrity -- --command=<name> --with-production --notify`.
+  `ops:integrity` never reimplements a check; it preserves the child's `0/1/2` contract. A
+  failed GitHub create, comment or close is persisted as an undelivered alert and retried on the
+  next `--notify` run; a recovery close retry does not repost its comment.
+- **Duplicate-run prevention:** one local lock per command under
+  `%LOCALAPPDATA%\InventoryAI\integrity-ops\locks`. A duplicate exits `0` and does not touch the
+  history or alert. A lock older than 30 minutes — or five minutes beyond a configured longer child
+  timeout — is stale and may be taken over. The task has a 60-minute execution limit. The recovery
+  command is additionally guarded by the MongoDB recovery lease, so two serving instances do not
+  reconcile together.
+- **History:** `%LOCALAPPDATA%\InventoryAI\integrity-ops\<command>.json` and `history.jsonl`; the
+  wrapper log is `%LOCALAPPDATA%\InventoryAI\integrity-ops-scheduler.log`.
+- **Alert:** with `--notify`, one GitHub issue per command:
+  `[integrity-ops] Audit-write failures need review`,
+  `[integrity-ops] Price-data quality needs review`, and
+  `[integrity-ops] Integrity recovery needs attention`. The issue is created or commented only
+  when the result signature changes, and closed when the command recovers. Exit `2` is reported as
+  **NOT CHECKED**, never as a data fault. Raw child output and connection strings are sanitized out.
+  The issue body and each alert/recovery comment carry a stable hidden marker. Before commenting,
+  the runner reads the issue body and comments; a marker already present suppresses the comment, so
+  a retry whose response was lost and a second scheduler host with its own history do not post it
+  twice. An unreadable issue view is kept as a pending retry rather than posted blind; two hosts
+  commenting at the exact same moment can still race, and issue creation still deduplicates by title.
+- **Triage view:** `cd server && npm run triage:integrity -- --with-production` lists
+  `REQUIRES_ATTENTION` journals, keyed movement receipts and `inventory_transaction_quarantine` rows
+  with their reasons, snapshots and ledger evidence. It is read-only and exits `1` when rows need attention; it never
+  repairs or unflags anything.
+- **Movement receipt maintenance:** the scheduled recovery pass also completes abandoned keyed
+  stock-in/out/adjustment receipts from a matching ledger row or an exact `INVENTORY_WRITTEN`
+  snapshot. Its counters are `movements.completed`, `movements.flagged`, `movements.blocked` and
+  `movements.failed` in the recovery log/JSON; a blocked or failed count is visible to the
+  `recover:integrity` alert. The separate `cd server && npm run recover:movement-receipts --
+  --with-production` is a **dry run by default**; `--apply` writes only proven recovery and prunes
+  `COMPLETED` receipts older than 30 days. A dry run exits `1` when it finds work, and the command
+  refuses the test database.
+- **Writes:** the three audits and the triage view write nothing. `recover:integrity` performs only
+  the exact, quantity-anchored actions in [`INTEGRITY_RECOVERY.md`](INTEGRITY_RECOVERY.md); an
+  ambiguous row is flagged `REQUIRES_ATTENTION` for a human.
+- **Migration prerequisite:** the unique transfer-ledger index is applied with
+  `npm run migrate:transfer-ledger-index` (read-only preflight by default; `--apply` after review).
+  Run it before deploying a server that expects the guard. It was not run against production here.
+- **Readiness:** `/api/health/ready` now also requires that exact unique partial index. A missing,
+  non-unique, reordered or differently-filtered index answers `503` with a short reason; the check
+  only reads `listIndexes` and never repairs the index. Rely on this during the migration rollout.
+
+**Limits.** The task trigger is a current-user Windows task, not a hosted pager; it runs only while
+this user is signed in and the laptop is awake and online. The file lock is per machine; the
+read-only audits would be harmless if two machines ran them concurrently. The recovery lease is
+MongoDB-backed but time-based, so a pass that loses it may finish beside a new owner; the unique
+ledger index and quantity-anchored recovery still keep inventory safe.
 
 ### Hosted scheduler: UptimeRobot
 
@@ -453,6 +536,8 @@ grep "AI turn" <log> | grep -oE "model=[^ ]+ tier=[^ ]+" | sort | uniq -c
   one instance today; with several, a watcher polling one sees one instance's traffic. A shared
   counter needs a shared store, which this project does not have (§29, B2/E3). Do not present the
   counters as cluster-wide.
+- **The exchange-rate snapshot is process-local too.** It resets on restart and is not shared across
+  instances. It is an observation aid, not a readiness signal or a historical rate record.
 - **The metrics endpoint is per business and per UTC day.** It is not a billing export, and it does
   not see provider calls that never completed a turn.
 - **The platform report is cross-tenant and aggregate-only.** `ops_error_events` covers 5xx
@@ -477,8 +562,9 @@ grep "AI turn" <log> | grep -oE "model=[^ ]+ tier=[^ ]+" | sort | uniq -c
   checks cover readiness and the `db: connected` keyword. The Windows fallback is disabled, and the
   GitHub workflow is a manual/fallback path. A dedicated pager or hosted dashboard is still absent;
   record the integration here if one is added.
-- **`/api/health` is public.** It publishes a commit id, a posture name and counts. It never
-  publishes a path, a tenant, a member, a duration or a message.
+- **`/api/health` is public.** It publishes a commit id, a posture name, counts and the aggregate
+  exchange-rate availability snapshot. It never publishes a path, a tenant, a member, a duration, a
+  message, a currency pair, a provider URL or a credential.
 
 ---
 
@@ -504,6 +590,7 @@ grep "AI turn" <log> | grep -oE "model=[^ ]+ tier=[^ ]+" | sort | uniq -c
 | Metrics DB tests | `server/test/AI102-ai-metrics.test.mjs` |
 | Platform security and aggregation tests | `server/test/OPS7-platform-operations.test.mjs`, `server/test/PLAT2-platform-console.test.mjs`, `server/test/PLAT3-platform-security.test.mjs` |
 | Counters tests | `server/test/OPS2-operational-counters.test.mjs` |
+| Exchange-rate availability and health exposure tests | `server/test/currency-required-and-marketplace.test.mjs`, `server/test/phase07d-production-config.test.mjs` |
 | External uptime probe | `scripts/check-production-health.mjs` |
 | External watch workflow | `.github/workflows/production-health-watch-v2.yml` |
 | External scheduler wrapper | `scripts/trigger-production-health-watch.ps1` |
@@ -514,5 +601,8 @@ grep "AI turn" <log> | grep -oE "model=[^ ]+ tier=[^ ]+" | sort | uniq -c
 | Hosted scheduler evidence | `docs/evidence/production-health-scheduler-hosted-2026-11-12/README.md` |
 | Inventory-integrity monitor | `server/scripts/monitor-inventory-integrity.mjs`; baseline and first run in `docs/evidence/inventory-integrity-monitor/` |
 | Inventory-integrity task | `scripts/run-integrity-audit.ps1`, `scripts/register-integrity-audit-scheduler.ps1` |
+| Integrity-operations runner | `server/scripts/ops-integrity.mjs`, `server/scripts/lib/ops-integrity.mjs` |
+| Integrity-operations task | `scripts/run-integrity-ops.ps1`, `scripts/register-integrity-ops-scheduler.ps1` |
+| Transfer-ledger migration | `server/scripts/migrate-transfer-ledger-index.mjs`, `server/src/services/transferLedgerMigration.service.ts` |
 | Probe tests | `server/test/ops-production-health.test.mjs` |
 | Recorded design | `docs/DEVELOPMENT_ROADMAP.md` §27DI (the pulse), §27HU–§27HX (AI-99 through the external watch), §27IA (the integrity monitor) |

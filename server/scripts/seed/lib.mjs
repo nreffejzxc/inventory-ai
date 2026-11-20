@@ -1060,6 +1060,7 @@ export async function seedTenant({
       categoryId: categories[(categoryIndex >= 0 ? categoryIndex : i) % categories.length]._id,
       costPrice: template.costPrice,
       sellingPrice: template.sellingPrice,
+      currency: template.currency,
       unit: template.unit,
       minimumStock,
       status: 'ACTIVE',

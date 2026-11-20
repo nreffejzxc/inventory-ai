@@ -10,7 +10,7 @@ import Card, { PressableCard } from '../../components/Card';
 import IconButton from '../../components/IconButton';
 import { Icon } from '../../components/icons';
 import type { IconName } from '../../components/icons';
-import { CenterLoader, EmptyState, ErrorState, errorText } from '../../components/ListState';
+import { CenterLoader, EmptyState, ErrorState, errorRequestId, errorText } from '../../components/ListState';
 import ListRow from '../../components/ListRow';
 import Screen from '../../components/Screen';
 import SectionHeader from '../../components/SectionHeader';
@@ -364,7 +364,12 @@ function DashboardView() {
       {!summary && loading ? (
         <CenterLoader label="Loading dashboard…" />
       ) : !summary && error ? (
-        <ErrorState title="Couldn't load the dashboard" message={errorText(error)} onRetry={load} />
+        <ErrorState
+          title="Couldn't load the dashboard"
+          message={errorText(error)}
+          requestId={errorRequestId(error)}
+          onRetry={load}
+        />
       ) : summary ? (
         <>
           <Text style={styles.greeting}>{greeting}</Text>

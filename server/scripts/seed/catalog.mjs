@@ -39,6 +39,10 @@ export const BULK_CATEGORIES = Object.freeze([
   { key: 'automotive', name: 'Automotive & Car Care' },
 ]);
 
+// Every seeded price is in Philippine pesos. New products must state a currency,
+// so the catalogue states it once here rather than on each of the 40+ rows.
+const inPhp = (product) => ({ ...product, currency: 'PHP' });
+
 export const CATALOG_PRODUCTS = Object.freeze([
   {
     key: 'mx-keys-s',
@@ -240,7 +244,7 @@ export const CATALOG_PRODUCTS = Object.freeze([
       'Keys: 15 customizable LCD keys; Interface: USB 2.0, USB-C; Size: 118 x 84 x 25 mm without stand; Weight: 145 g without stand; Stand: detachable 45-degree; Compatibility: macOS and Windows',
     sourceUrl: 'https://help.elgato.com/hc/en-us/articles/18208816152333-Elgato-Stream-Deck-MK-2-Technical-Specifications',
   },
-]);
+].map(inPhp));
 
 const bulk = (key, name, brand, category, unit, costPrice, sellingPrice, description, specifications, sourceUrl) => ({
   key,
@@ -437,10 +441,13 @@ const BULK_ADDITIONS = Object.freeze([
     'Four-port GaN desktop charger that can fast-charge a laptop, phone, tablet and accessories from a single wall outlet.',
     'Output: 100 W total; Ports: 3x USB-C and 1x USB-A; Technology: GaN; Protocols: USB Power Delivery 3.0, PPS and Quick Charge; Plug: foldable; Protection: over-current, over-voltage and over-temperature',
     'https://www.ugreen.com/products/ugreen-nexode-100w-usb-c-charger'),
-]);
+].map(inPhp));
 
 /** Every real product available to the bulk seeders (demo keeps its smaller catalogue). */
-export const CATALOG_BULK_PRODUCTS = Object.freeze([...CATALOG_PRODUCTS, ...BULK_ADDITIONS]);
+export const CATALOG_BULK_PRODUCTS = Object.freeze([
+  ...CATALOG_PRODUCTS,
+  ...BULK_ADDITIONS,
+]);
 
 /** The catalogue row a bulk-seeded product index uses. */
 export function catalogProductAt(index) {

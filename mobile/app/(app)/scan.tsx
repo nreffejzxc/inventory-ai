@@ -12,14 +12,14 @@ import Button from '../../components/Button';
 import Card from '../../components/Card';
 import { Icon } from '../../components/icons';
 import ListRow from '../../components/ListRow';
-import { CenterLoader, LoadingBlock, errorText } from '../../components/ListState';
+import { CenterLoader, LoadingBlock, errorRequestId, errorText } from '../../components/ListState';
 import Screen from '../../components/Screen';
 import SectionHeader from '../../components/SectionHeader';
 import { inventoryApi, productsApi } from '../../lib/api';
 import type { ApiResponse } from '../../lib/api';
 import { isSessionError, useSession } from '../../lib/auth';
 import { ApiError } from '../../lib/client';
-import { formatMoney, formatNumber } from '../../lib/format';
+import { formatMoneyWithCurrency, formatNumber } from '../../lib/format';
 import useRefetchOnFocus from '../../hooks/useRefetchOnFocus';
 import { radius, spacing, type } from '../../lib/theme';
 import type { Palette } from '../../lib/theme';
@@ -245,7 +245,12 @@ export default function ScanScreen() {
         <View>
           <Icon name="warning" color={colors.warning} size={40} style={styles.bigIcon} />
           <Text style={styles.title}>Couldn&apos;t look up the barcode</Text>
-          <Banner type="error" text={errorText(lookupError)} style={styles.button} />
+          <Banner
+            type="error"
+            text={errorText(lookupError)}
+            requestId={errorRequestId(lookupError)}
+            style={styles.button}
+          />
           <Button title="Try again" full onPress={() => last && lookup(last.code)} style={styles.button} />
           <Button title="Scan again" full variant="secondary" onPress={rescan} style={styles.button} />
         </View>
@@ -349,8 +354,9 @@ function FoundProduct({ product, onRescan }: { product: ApiResponse; onRescan: (
         <Field label="SKU" value={product.sku} mono />
         <Field label="Category" value={product.category?.name} />
         <Field label="Unit" value={product.unit} />
-        <Field label="Cost price" value={product.costPrice != null ? formatMoney(product.costPrice) : null} mono />
-        <Field label="Selling price" value={product.sellingPrice != null ? formatMoney(product.sellingPrice) : null} mono />
+        <Field label="Currency" value={product.currency} mono />
+        <Field label="Cost price" value={product.costPrice != null ? formatMoneyWithCurrency(product.costPrice, product.currency) : null} mono />
+        <Field label="Selling price" value={product.sellingPrice != null ? formatMoneyWithCurrency(product.sellingPrice, product.currency) : null} mono />
         <Field label="Minimum stock" value={product.minimumStock != null ? formatNumber(product.minimumStock) : null} mono />
       </Card>
 

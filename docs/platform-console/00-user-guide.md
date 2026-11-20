@@ -47,8 +47,8 @@ or MFA.
    PLATFORM_ACCESS_REQUIRED`; repeated failures are rate-limited with `429`.
 3. Enter your platform email and password. A password alone never opens a session; it
    returns an MFA challenge.
-4. On a new account, scan the TOTP secret/QR with your authenticator and enter the
-   six-digit code. TOTP enrollment is mandatory.
+4. On a new account, add the TOTP secret shown by the console to your authenticator
+   and enter the six-digit code. TOTP enrollment is mandatory.
 5. The console then forces recovery-code setup. Re-enter your current password, generate
    the codes, save all **ten** codes offline in two separate secure places, tick the
    saved-code confirmation, and continue.
@@ -137,8 +137,8 @@ PLATFORM_ADMIN_PASSWORD='<16+ character password>' \
 npm run platform-admin:create
 ```
 
-For production, also set `NODE_ENV=production` and
-`PLATFORM_ADMIN_PROD_CONFIRM=CREATE-PLATFORM-ADMIN`. The command prints the new
+In the production environment, set `NODE_ENV=production`; the command then also
+requires `PLATFORM_ADMIN_PROD_CONFIRM=CREATE-PLATFORM-ADMIN`. The command prints the new
 administrator’s id, email and role; it never prints the password or hash. The password is
 read from the environment and should be cleared from the shell afterwards. Use a
 password-manager-generated password of at least 16 characters.
@@ -174,10 +174,10 @@ status, MFA state, key count and recovery-code count.
 | Delete | Permanently removes the administrator and their sessions. |
 | Remove key | Removes one WebAuthn key and revokes the target’s sessions. |
 
-Destructive actions require a fresh **password + TOTP step-up** in the dialog; the proof
-lasts five minutes and is bound to your session. The server refuses a missing or expired
-proof. You cannot disable or delete yourself, and the last active Superadmin cannot be
-disabled or deleted.
+Disable, enable, delete and key removal each require a fresh **password + TOTP step-up**
+in the dialog; the proof lasts five minutes and is bound to your session. The server
+refuses a missing or expired proof. You cannot disable or delete yourself, and the last
+active Superadmin cannot be disabled or deleted.
 
 There is **no role-change endpoint and no role-change button**. To change a role, create a
 new account with the intended role, verify it, then disable or delete the old account.
@@ -200,9 +200,9 @@ PLATFORM_BREAK_GLASS_OPERATOR='<operator label>' \
 npm run platform-admin:break-glass
 ```
 
-Production additionally requires
-`PLATFORM_BREAK_GLASS_PROD_CONFIRM=BREAK-GLASS-PLATFORM-ADMIN` and
-`NODE_ENV=production`. The reset clears TOTP, WebAuthn keys, recovery codes, the MFA lock
+In the production environment, set `NODE_ENV=production`; the command then also
+requires `PLATFORM_BREAK_GLASS_PROD_CONFIRM=BREAK-GLASS-PLATFORM-ADMIN`. The reset clears
+TOTP, WebAuthn keys, recovery codes, the MFA lock
 and every platform session. It leaves the role and status unchanged, so a disabled
 administrator stays disabled.
 
@@ -275,7 +275,7 @@ Developer access should be mapped to the work:
 
 | Work | Recommended role | Reason |
 | --- | --- | --- |
-| Watch health/deploy status only | `READ_ONLY` | Health and own security only; no cross-tenant metrics. |
+| Watch health/status only | `READ_ONLY` | Health and own security only; no deployments or cross-tenant metrics. |
 | Investigate aggregate errors, AI usage, deployments, tickets | `SUPPORT` | Operational reports and support workflow; no audit or team management. |
 | Security review and audit evidence | `SECURITY` | Metrics, deployments and audit; no ticket management or administrator lifecycle. |
 | Manage platform administrators | `SUPERADMIN` only if unavoidable | Full control; reserve for the smallest number of owners. |
@@ -284,12 +284,9 @@ A developer who needs to **deploy** uses the repository/Render/GitHub workflow, 
 console. The console only **reports** the current commit and boot history; it has no
 deploy, rollback or environment-change button.
 
-Create a developer account the same way, with the chosen role:
-
-```bash
-PLATFORM_ADMIN_ROLE=SUPPORT npm run platform-admin:create
-# or READ_ONLY / SECURITY; use SUPERADMIN only with owner approval
-```
+Create a developer account with the full command in §2.2, changing
+`PLATFORM_ADMIN_ROLE=SUPERADMIN` to `SUPPORT`, `READ_ONLY` or `SECURITY`. Use
+`SUPERADMIN` only with owner approval.
 
 There is no role-change route. Create a replacement account with the correct role, verify
 it, then disable/delete the old one. Do not share a developer account across people.
@@ -381,7 +378,7 @@ as a workaround.
 | Situation | Recovery |
 | --- | --- |
 | Lost TOTP device, recovery codes available | Sign in with a recovery code. Generate a new set; replacing TOTP itself requires break-glass. |
-| Lost security key, TOTP available | Sign in with TOTP. A Superadmin removes the lost key; add a replacement first. |
+| Lost security key, TOTP available | Sign in with TOTP. A Superadmin removes the lost key; then register a replacement. |
 | Lost recovery codes, TOTP/key available | Sign in normally; regenerate the ten codes with the current password and store them offline. |
 | Forgotten password, factors available | Break-glass. There is no self-service platform password reset. |
 | No factors and no password | Break-glass with database/deployment access. |
@@ -400,7 +397,7 @@ key limit, administrator lifecycle guards (`platformAdminLifecycle.service.ts`),
 break-glass CLI, and the console’s 16 sections (`server/platform-console/public/`).
 
 **Production read-only check (2026-11-19):** `/api/health` returned 200 with `db:
-connected`, environment `production`, commit `f95b5e4`, and zero process server errors;
+connected`, environment `production`, commit `3587e71`, and zero process server errors;
 `/api/health/ready` returned 200. `/platform/` and `/api/platform/status` without the
 outer key returned `401 PLATFORM_ACCESS_REQUIRED` with a Basic challenge and
 `Cache-Control: no-store`. This confirms the gate and health posture only.

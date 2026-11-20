@@ -12,17 +12,17 @@ import Card from '../../../../components/Card';
 import Ean13Barcode from '../../../../components/Ean13Barcode';
 import { Icon } from '../../../../components/icons';
 import ListRow from '../../../../components/ListRow';
-import { CenterLoader, EmptyState, ErrorState, errorText } from '../../../../components/ListState';
+import { CenterLoader, EmptyState, ErrorState, errorRequestId, errorText } from '../../../../components/ListState';
 import Screen from '../../../../components/Screen';
 import SectionHeader from '../../../../components/SectionHeader';
 import { inventoryApi, productsApi } from '../../../../lib/api';
 import type { ApiResponse } from '../../../../lib/api';
 import { useSession } from '../../../../lib/auth';
-import { confirm } from '../../../../lib/confirm';
+import { alertError, confirm } from '../../../../lib/confirm';
 import { barcodeLabelHtml, isEan13 } from '../../../../lib/ean13';
 import type { BarcodeLabel } from '../../../../lib/ean13';
 import { productAssistantPrompt } from '../../../../lib/assistantContext';
-import { formatDateTime, formatMoney, formatNumber } from '../../../../lib/format';
+import { formatDateTime, formatMoneyWithCurrency, formatNumber } from '../../../../lib/format';
 import { canAdjustStock, canManageProducts, canUseAi } from '../../../../lib/permissions';
 import { useProductDetail } from '../../../../hooks/useProductDetail';
 import useRefetchOnFocus from '../../../../hooks/useRefetchOnFocus';
@@ -138,7 +138,7 @@ export default function ProductDetailScreen() {
       await reload();
       await loadStock();
     } catch (err) {
-      Alert.alert('Could not update the product', errorText(err));
+      void alertError('Could not update the product', err);
     } finally {
       setBusyArchive(false);
     }
@@ -153,7 +153,7 @@ export default function ProductDetailScreen() {
       await productsApi.generateBarcode(token as string, product.id);
       await reload();
     } catch (err) {
-      Alert.alert('Could not generate a barcode', errorText(err));
+      void alertError('Could not generate a barcode', err);
     } finally {
       setBusyGen(false);
     }
@@ -189,7 +189,7 @@ export default function ProductDetailScreen() {
       const { html, width, height } = labelHtml();
       await printAsync({ html, width, height });
     } catch (err) {
-      Alert.alert('Could not print the label', errorText(err));
+      void alertError('Could not print the label', err);
     } finally {
       setBusyLabel(false);
     }
@@ -219,14 +219,23 @@ export default function ProductDetailScreen() {
         UTI: 'com.adobe.pdf',
       });
     } catch (err) {
-      Alert.alert('Could not save or share the label', errorText(err));
+      void alertError('Could not save or share the label', err);
     } finally {
       setBusyLabel(false);
     }
   }
 
   if (loading && !product) return <CenterLoader label="Loading product…" />;
-  if (error && !product) return <ErrorState title="Couldn't load the product" message={errorText(error)} onRetry={reload} />;
+  if (error && !product) {
+    return (
+      <ErrorState
+        title="Couldn't load the product"
+        message={errorText(error)}
+        requestId={errorRequestId(error)}
+        onRetry={reload}
+      />
+    );
+  }
   if (!product) return null;
 
   const moveParams = { productId: product.id, productName: product.name };
@@ -257,8 +266,9 @@ export default function ProductDetailScreen() {
         <Field label="Brand" value={product.brand} />
         <Field label="Category" value={product.category?.name} />
         <Field label="Unit" value={product.unit} />
-        <Field label="Cost price" value={product.costPrice != null ? formatMoney(product.costPrice) : null} mono />
-        <Field label="Selling price" value={product.sellingPrice != null ? formatMoney(product.sellingPrice) : null} mono />
+        <Field label="Currency" value={product.currency} mono />
+        <Field label="Cost price" value={product.costPrice != null ? formatMoneyWithCurrency(product.costPrice, product.currency) : null} mono />
+        <Field label="Selling price" value={product.sellingPrice != null ? formatMoneyWithCurrency(product.sellingPrice, product.currency) : null} mono />
         <Field label="Minimum stock" value={product.minimumStock != null ? formatNumber(product.minimumStock) : null} mono />
         <Field label="Updated" value={formatDateTime(product.updatedAt)} />
       </Card>

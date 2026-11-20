@@ -12,9 +12,22 @@ import type { SelectOption } from './SelectField';
 import { productsApi, categoriesApi } from '../lib/api';
 import type { ApiResponse, ProductInput } from '../lib/api';
 import { ApiError } from '../lib/client';
+import {
+  completeOperation,
+  endsOperation,
+  getOrCreateOperationKey,
+  PendingOperationsFullError,
+} from '../lib/idempotency';
+import { errorRequestId } from '../lib/errors';
+import { normaliseCurrencyCode, PRODUCT_CURRENCIES } from '../lib/currencies';
 import { useSession } from '../lib/auth';
 import { useActiveRef } from '../hooks/useReferences';
 import { spacing } from '../lib/theme';
+
+const CURRENCY_OPTIONS: SelectOption[] = PRODUCT_CURRENCIES.map(({ code, name }) => ({
+  value: code,
+  label: `${code} — ${name}`,
+}));
 
 function fieldMap(err: unknown): Record<string, string> {
   const out: Record<string, string> = {};
@@ -50,7 +63,7 @@ function toWhole(text: string | null | undefined): ParsedNumber {
  * a good UX and surfaces the server's { field, message } problems on submit).
  */
 export default function ProductForm({ initial }: { initial?: ApiResponse }) {
-  const { token } = useSession();
+  const { token, user } = useSession();
   const isEdit = Boolean(initial);
   const categories = useActiveRef(token, categoriesApi);
 
@@ -68,8 +81,9 @@ export default function ProductForm({ initial }: { initial?: ApiResponse }) {
   const [sellingPrice, setSellingPrice] = useState<string>(
     initial?.sellingPrice != null && initial.sellingPrice !== 0 ? String(initial.sellingPrice) : ''
   );
-  // ISO-4217 code for the two prices, so the assistant can format them with the right
-  // currency instead of guessing. Blank means "not recorded", which is a valid state.
+  // ISO 4217 code for the two prices. Required, so the assistant can format them with
+  // the right currency instead of guessing. An edit of a legacy row with no code must
+  // supply one here; the field is never silently cleared.
   const [currency, setCurrency] = useState<string>(initial?.currency ?? '');
   const [minimumStock, setMinimumStock] = useState<string>(
     initial?.minimumStock != null && initial.minimumStock !== 0 ? String(initial.minimumStock) : ''
@@ -78,6 +92,7 @@ export default function ProductForm({ initial }: { initial?: ApiResponse }) {
 
   const [fieldErrors, setFieldErrors] = useState<Record<string, string | undefined>>({});
   const [formError, setFormError] = useState<string | null>(null);
+  const [formRequestId, setFormRequestId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const nameRef = useRef<InputHandle>(null);
 
@@ -99,9 +114,9 @@ export default function ProductForm({ initial }: { initial?: ApiResponse }) {
     const min = toWhole(minimumStock);
     if (!min.ok) problems.minimumStock = min.message;
     else if (min.value != null && min.value < 0) problems.minimumStock = 'Minimum stock must be at least 0';
-    const code = currency.trim().toUpperCase();
-    if (code && !/^[A-Z]{3}$/.test(code)) {
-      problems.currency = 'Use a 3-letter ISO code, e.g. PHP';
+    const code = normaliseCurrencyCode(currency);
+    if (!code) {
+      problems.currency = 'Currency is required. Use a valid ISO 4217 code, e.g. PHP';
     }
     if (Object.keys(problems).length) {
       setFieldErrors(problems);
@@ -114,30 +129,58 @@ export default function ProductForm({ initial }: { initial?: ApiResponse }) {
 
     setBusy(true);
     setFormError(null);
+    setFormRequestId(null);
     setFieldErrors({});
+    // An edit must be able to REMOVE a recorded value. `undefined` means "leave this
+    // field alone" to the PATCH validator; `null` means "clear it". A create still
+    // omits blanks (a null there would be stored as an empty value).
+    const blank = (value: string) => value.trim() || (isEdit ? null : undefined);
+    const numberOrClear = (value: number | undefined) => value ?? (isEdit ? null : undefined);
     const payload: ProductInput = {
       name: name.trim(),
-      brand: brand.trim() || undefined,
-      sku: sku.trim() || undefined,
-      barcode: barcode.trim() || undefined,
-      categoryId: categoryId || undefined,
-      description: description.trim() || undefined,
-      specifications: specifications.trim() || undefined,
-      unit: unit.trim() || undefined,
-      costPrice: cost.value,
-      sellingPrice: sell.value,
-      currency: code || undefined,
-      minimumStock: min.value,
-      imageUrl: imageUrl.trim() || undefined,
+      brand: blank(brand),
+      sku: blank(sku),
+      barcode: blank(barcode),
+      categoryId: categoryId || (isEdit ? null : undefined),
+      description: blank(description),
+      specifications: blank(specifications),
+      unit: blank(unit),
+      costPrice: numberOrClear(cost.value),
+      sellingPrice: numberOrClear(sell.value),
+      currency: code ?? undefined,
+      minimumStock: numberOrClear(min.value),
+      imageUrl: blank(imageUrl),
     };
+    let idempotencyKey: string | undefined;
     try {
+      idempotencyKey = isEdit
+        ? undefined
+        : await getOrCreateOperationKey({
+            kind: 'product.create',
+            ownerId: user?.id,
+            payload,
+            label: `Product: ${payload.name || 'new product'}`,
+            request: { method: 'POST', path: '/api/products', body: payload },
+          });
       if (isEdit) await productsApi.update(token as string, initial.id, payload);
-      else await productsApi.create(token as string, payload);
+      else await productsApi.create(token as string, payload, idempotencyKey);
+      if (idempotencyKey) await completeOperation('product.create', idempotencyKey, user?.id);
       router.back();
     } catch (err) {
+      if (err instanceof PendingOperationsFullError) {
+        setFormError(err.message);
+        setFormRequestId(null);
+        return;
+      }
+      if (idempotencyKey && endsOperation(err)) {
+        await completeOperation('product.create', idempotencyKey, user?.id);
+      }
       const fields = fieldMap(err);
       if (Object.keys(fields).length) setFieldErrors(fields);
-      else setFormError((err as { message?: string } | null)?.message || 'Unable to save the product.');
+      else {
+        setFormError((err as { message?: string } | null)?.message || 'Unable to save the product.');
+        setFormRequestId(errorRequestId(err));
+      }
     } finally {
       setBusy(false);
     }
@@ -145,7 +188,7 @@ export default function ProductForm({ initial }: { initial?: ApiResponse }) {
 
   return (
     <Screen scroll contentStyle={styles.content}>
-      <Banner type="error" text={formError} />
+      <Banner type="error" text={formError} requestId={formRequestId} />
       <Input ref={nameRef} name="name" label="Product name" value={name} onChangeText={setName} error={fieldErrors.name} required autoCapitalize="words" />
       <Input name="brand" label="Brand" value={brand} onChangeText={setBrand} error={fieldErrors.brand} placeholder="Optional — e.g. Nestlé, Samsung" autoCapitalize="words" />
       <Input name="sku" label="SKU" value={sku} onChangeText={setSku} error={fieldErrors.sku} placeholder="Optional — unique per business" autoCapitalize="characters" />
@@ -173,7 +216,17 @@ export default function ProductForm({ initial }: { initial?: ApiResponse }) {
       />
       <Input name="costPrice" label="Cost price" value={costPrice} onChangeText={setCostPrice} keyboardType="decimal-pad" error={fieldErrors.costPrice} placeholder="0.00" />
       <Input name="sellingPrice" label="Selling price" value={sellingPrice} onChangeText={setSellingPrice} keyboardType="decimal-pad" error={fieldErrors.sellingPrice} placeholder="0.00" />
-      <Input name="currency" label="Currency" value={currency} onChangeText={setCurrency} error={fieldErrors.currency} placeholder="e.g. PHP" maxLength={3} autoCapitalize="characters" helper="3-letter ISO code for both prices. Leave blank if unknown — the assistant will not guess." />
+      <SelectField
+        label="Currency"
+        placeholder="Select a currency…"
+        options={CURRENCY_OPTIONS}
+        value={currency}
+        onChange={setCurrency}
+        error={fieldErrors.currency}
+        required
+        searchable
+        testID="currency-picker"
+      />
       <Input name="unit" label="Unit" value={unit} onChangeText={setUnit} error={fieldErrors.unit} placeholder="e.g. box, kg, litre" autoCapitalize="none" />
       <Input name="minimumStock" label="Minimum stock" value={minimumStock} onChangeText={setMinimumStock} keyboardType="number-pad" error={fieldErrors.minimumStock} helper="Alert when available stock drops to this level (0 = disabled)" />
       <Input name="imageUrl" label="Image URL" value={imageUrl} onChangeText={setImageUrl} error={fieldErrors.imageUrl} placeholder="Optional https://…" autoCapitalize="none" />

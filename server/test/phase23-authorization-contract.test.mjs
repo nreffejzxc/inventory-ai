@@ -316,6 +316,10 @@ const AUTHENTICATED_ROUTES = [
   { route: 'PATCH /api/auth/me', why: 'writes only the caller’s own name' },
   { route: 'POST /api/auth/change-password', why: 'changes only the caller’s own password' },
   {
+    route: 'POST /api/inventory/operations/status',
+    why: 'reports only the state of an idempotency key scoped to the authenticated business, and returns no raw key or stored answer',
+  },
+  {
     route: 'DELETE /api/auth/me',
     why: 'account deletion: deletes only the CALLER’S OWN account — the subject is req.user.id with no id in the request that could aim it elsewhere, re-authentication is required first, and no permission key could express "may delete my own account" without inventing an authorization concept the catalogue does not have',
   },

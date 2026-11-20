@@ -68,11 +68,15 @@ const READ_ONLY_SERVICE_CALLS = new Set([
   'productService.catalogOverview',
   // AI-57: stock value at the recorded selling price — one aggregate read.
   'productService.stockValue',
+  // §27KE: currency groups for a price ranking — one aggregate read, no write path.
+  'productService.priceCurrencies',
   'inventoryService.listRows',
   // AI-23: the per-location breakdown is one aggregate read over inventory rows — the same
   // class as the dashboard summary above, and named here explicitly so adding it was a
   // deliberate act rather than a hole in the scan.
   'inventoryService.locationBreakdown',
+  // AI-118: one scoped aggregate read for a product's current stock, with no write path.
+  'inventoryService.productAvailability',
   'dashboardService.summary',
   'transactionsService.list',
   // AI-68: the scoped totals aggregation behind "sold this week" counts.
@@ -84,6 +88,8 @@ const READ_ONLY_SERVICE_CALLS = new Set([
   // `create`/`update`/`setStatus` on the same services are writes and stay OFF this list,
   // which is what keeps the allow-list meaningful: it names methods, not services.
   'locationService.list',
+  // AI-118: resolve an id before a coverage read, so a foreign id cannot look like zero.
+  'locationService.get',
   'categoryService.list',
 ]);
 
