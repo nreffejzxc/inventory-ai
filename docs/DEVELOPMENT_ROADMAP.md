@@ -8,9 +8,9 @@ of truth for *what actually happened*, and it is why this file is long.
 
 **How to read it.** Do not read it top to bottom. Either find a record by number (§27FJ, §27DM — the
 numbers are cited from `CLAUDE.md` and from source comments), or use the index: `CLAUDE.md` §7 lists
-all **284** records by the title each gives itself.
+all **292** records by the title each gives itself.
 
-**Current state:** V1 complete and in production testing. The records that answer *where are we now* are §27KA (console guide claim audit and follow-up recommendations; documentation only), §27JY (PLAT-29 console user guide and documentation reconciliation; documentation only), §27JX (DEV-09 workflow invariant guard, checkout credential hygiene and concise security policy), §27JW (DEV-08 GitHub workflow improvement roadmap), §27JV (DEV-07 production-health verification and Mongo CI consolidation review), §27JU (DEV-06 merge-queue wiring removed; simple PR flow and SHA pinning retained), §27JS (DEV-04 pinned `mongo:7.0.48`, weekly Dependabot tracking and CI job timeouts), §27JR (DEV-03 `compose-mongo` required check: seven contexts, audit pass), §27JQ (DEV-02 compose MongoDB CI job: healthy and pinged in run `44443515084`, now required), §27JP (PLAT-28 WebAuthn invalid-attempt reliability: six green E2E runs and merge), §27JO (DEV-01 optional local MongoDB container; not executed because Docker is unavailable), §27JN (DEP-02 dependency-review gate: clean run, scratch failure proof and required-check readback), §27JM (DEP-01 `glob` 14.0.2 override and the accepted `picomatch` residual; merged and deployed as `ecbdb87`), §27JL (PLAT-27 SEC-08 step-up proof for destructive administrator actions; merged and deployed as `e7ce455`, with production now `ecbdb87` after this dependency merge; code, tests and console documentation), §27JK (PLAT-26 audited operator CLI creation; code and tests), §27JJ (PLAT-25 outer access-gate failure bounding and sampled audit; code and tests), §27JI (PLAT-24 dedicated console documentation and accuracy corrections; documentation only), §27JH (PLAT-23 owner/CEO account, credential and access guide; documentation only), §27JG (PLAT-22 additive security roadmap beyond PLAT-21; recommendations only), §27JF (PLAT-21 console status assessment and role/account guide; documentation and read-only production reads), §27JE (PLAT-20 atomic last-SUPERADMIN guard, monitor-only 5xx accounting and heartbeat restoration; code and documentation), §27JD (PLAT-19 NZ-01–NZ-07 roadmap beyond NY-07; documentation only), §27JC (PLAT-18 RD-01 code fact-check, NX-01 sensitive-data protection design and NY-01–NY-06 tranche; documentation only), §27JB (PLAT-17 checklist restoration, path-safe renderer, RD-01 local drill plan and NX-01–NX-07 tranche; documentation/tooling only), §27JA (PLAT-16 TS-01 plan, reproducible checklist renderer and next improvement tranche; documentation/tooling only), §27IZ (PLAT-15 verified one-page checklist PDF and tenant security review; documentation only), §27IY (PLAT-14 printable two-contact test checklist; documentation only), §27IX (PLAT-13 two-contact test procedure and IA-42–IA-45 additions; documentation only), §27IW (PLAT-12 contact-wording correction, joint-rank reconciliation, pending notification evidence and IA-38–IA-41 additions; documentation only), §27IV (PLAT-11 backup-contact registration, Firebase-plan safety review and IA-34–IA-37 additions; documentation only), §27IU (PLAT-10 security-contact record, Firebase recovery drill and multi-criteria ranking; documentation only), §27IT (PLAT-9 free-first planning: conditional Cloudflare migration, alert ownership, disposable restore drill and additive follow-up; documentation only), §27IS (PLAT-8 planning-only assessment of the access layer, platform security alerting and whole-product priorities; documentation only), §27IR (PLAT-7 deployed at `e218bb0`, the production gate and recovery proof, and the required WebAuthn check), §27IQ (forced recovery setup, the free-plan outer access gate and the break-glass drill), §27IP (the Platform Operations console was first deployed at `56e8c27`, with browser sign-in, TOTP, assets/CSP and API smoke observed), §27IJ (the INTERNAL Platform Operations plane — separate administrator identity, sessions and capabilities; committed in `d02a549`, now deployed through §27IP), §27IK (platform-admin architecture, now aligned with the implemented interim plane and its remaining gates), §27IL (the durable 5xx and feature-presence stores that report reads), §27IM (the dedicated console, mandatory TOTP/WebAuthn and append-only platform audit — committed and browser-verified; now deployed through §27IP), §27IN (fresh security review, CI browser WebAuthn, production-readiness checklist and prioritized recommendations), §27IO (recovery codes, durable account-scoped MFA lockout, password change, administrator lifecycle and fail-closed origin/cookie hardening), §27II (AI-117 complete feedback conversation preview, deployed `13fb3f8` and device-verified; one out-of-stock wording finding remains open), §27IH (AI-116 bounded follow-up context and answer freshness, deployed and device-verified), §27IG (AI-115 member feedback and the owner/admin review queue, deployed and device-verified), §27IF (AI-114 deterministic complete restock lists, deployed and device-verified), §27ID (the permanent assistant improvement roadmap and implementation audit; docs-only), §27IC (AI-110 contextual assistant entry and restock shortfall, deployed `7315675` and OTA-verified; the partial-restock guards completed in `1c3928b`), §27IB (scheduler proof and hosted freshness), §27IA (post-deploy phone proof, triage and monitor), §27HV (AI-99 10,256-product gate, 24/25 with one output-limit finding), §27HU (AI-99 free-first simple inventory, deployed with the 1.0.2 OTA), §27HT (AI-91/AI-92 exact product identity and per-location stock), §27HS (the AI-50–AI-84 increment register), §27HR (AI-48–AI-84 merged and deployed), §27HQ (grounded answers and scoped stock reads), §27HP (market prices from cited pages), §27HO (recorded specifications and the real seed catalogue), §27HN (inventory-only web research), §27HH (a transfer as one event to the assistant), §27HG (the stock-in link's product), §27HF (the single-location default's timing), §27HE (the stock-in link's location), §27HD (the movement fixes and the production device pass), §27HC (the assistant's local-time answers), §27FM (the V1 re-verification) and §27FJ (the two open advisories).
+**Current state:** V1 complete and in production testing. The records that answer *where are we now* are §27KI (account-scoped mobile operation keys, serialized key-store mutations, durable movement receipts, and AI streaming request references), §27KH (retryable GitHub alerts, fail-closed ledger-index readiness, and read-only attention triage), §27KG (unique transfer-ledger guard, duplicate-aware recovery, cross-instance recovery lease, and scheduled integrity operations), §27KF (FW-07 request references on forms, persisted mobile idempotency keys, and the receive/ranking follow-up verification), §27KE (integrity recovery — durable transfer journal, receive keys/fingerprints, stale-claim reaper, category policy, audit-gap monitoring, price-quality report and currency-safe AI ranking), §27KD (FW-07 mobile-only request references in shared error details, plus the ranked follow-up review beyond the five FW plans), §27KC (the four audit fixes — AI price ranking/null handling, transfer duplicate-key full upsert, PO receive receipt replay, catalog clearing/archive/idempotency/audit safety — plus the ranked audit review and crash-recovery assessment), §27KB (five documentation-only implementation plans: corrected FW-04, FW-07, FW-05, linked stock reversal and supplier replenishment terms), §27KA (console guide claim audit and follow-up recommendations; documentation only), §27JY (PLAT-29 console user guide and documentation reconciliation; documentation only), §27JX (DEV-09 workflow invariant guard, checkout credential hygiene and concise security policy), §27JW (DEV-08 GitHub workflow improvement roadmap), §27JV (DEV-07 production-health verification and Mongo CI consolidation review), §27JU (DEV-06 merge-queue wiring removed; simple PR flow and SHA pinning retained), §27JS (DEV-04 pinned `mongo:7.0.48`, weekly Dependabot tracking and CI job timeouts), §27JR (DEV-03 `compose-mongo` required check: seven contexts, audit pass), §27JQ (DEV-02 compose MongoDB CI job: healthy and pinged in run `44443515084`, now required), §27JP (PLAT-28 WebAuthn invalid-attempt reliability: six green E2E runs and merge), §27JO (DEV-01 optional local MongoDB container; not executed because Docker is unavailable), §27JN (DEP-02 dependency-review gate: clean run, scratch failure proof and required-check readback), §27JM (DEP-01 `glob` 14.0.2 override and the accepted `picomatch` residual; merged and deployed as `ecbdb87`), §27JL (PLAT-27 SEC-08 step-up proof for destructive administrator actions; merged and deployed as `e7ce455`, with production now `ecbdb87` after this dependency merge; code, tests and console documentation), §27JK (PLAT-26 audited operator CLI creation; code and tests), §27JJ (PLAT-25 outer access-gate failure bounding and sampled audit; code and tests), §27JI (PLAT-24 dedicated console documentation and accuracy corrections; documentation only), §27JH (PLAT-23 owner/CEO account, credential and access guide; documentation only), §27JG (PLAT-22 additive security roadmap beyond PLAT-21; recommendations only), §27JF (PLAT-21 console status assessment and role/account guide; documentation and read-only production reads), §27JE (PLAT-20 atomic last-SUPERADMIN guard, monitor-only 5xx accounting and heartbeat restoration; code and documentation), §27JD (PLAT-19 NZ-01–NZ-07 roadmap beyond NY-07; documentation only), §27JC (PLAT-18 RD-01 code fact-check, NX-01 sensitive-data protection design and NY-01–NY-06 tranche; documentation only), §27JB (PLAT-17 checklist restoration, path-safe renderer, RD-01 local drill plan and NX-01–NX-07 tranche; documentation/tooling only), §27JA (PLAT-16 TS-01 plan, reproducible checklist renderer and next improvement tranche; documentation/tooling only), §27IZ (PLAT-15 verified one-page checklist PDF and tenant security review; documentation only), §27IY (PLAT-14 printable two-contact test checklist; documentation only), §27IX (PLAT-13 two-contact test procedure and IA-42–IA-45 additions; documentation only), §27IW (PLAT-12 contact-wording correction, joint-rank reconciliation, pending notification evidence and IA-38–IA-41 additions; documentation only), §27IV (PLAT-11 backup-contact registration, Firebase-plan safety review and IA-34–IA-37 additions; documentation only), §27IU (PLAT-10 security-contact record, Firebase recovery drill and multi-criteria ranking; documentation only), §27IT (PLAT-9 free-first planning: conditional Cloudflare migration, alert ownership, disposable restore drill and additive follow-up; documentation only), §27IS (PLAT-8 planning-only assessment of the access layer, platform security alerting and whole-product priorities; documentation only), §27IR (PLAT-7 deployed at `e218bb0`, the production gate and recovery proof, and the required WebAuthn check), §27IQ (forced recovery setup, the free-plan outer access gate and the break-glass drill), §27IP (the Platform Operations console was first deployed at `56e8c27`, with browser sign-in, TOTP, assets/CSP and API smoke observed), §27IJ (the INTERNAL Platform Operations plane — separate administrator identity, sessions and capabilities; committed in `d02a549`, now deployed through §27IP), §27IK (platform-admin architecture, now aligned with the implemented interim plane and its remaining gates), §27IL (the durable 5xx and feature-presence stores that report reads), §27IM (the dedicated console, mandatory TOTP/WebAuthn and append-only platform audit — committed and browser-verified; now deployed through §27IP), §27IN (fresh security review, CI browser WebAuthn, production-readiness checklist and prioritized recommendations), §27IO (recovery codes, durable account-scoped MFA lockout, password change, administrator lifecycle and fail-closed origin/cookie hardening), §27II (AI-117 complete feedback conversation preview, deployed `13fb3f8` and device-verified; one out-of-stock wording finding remains open), §27IH (AI-116 bounded follow-up context and answer freshness, deployed and device-verified), §27IG (AI-115 member feedback and the owner/admin review queue, deployed and device-verified), §27IF (AI-114 deterministic complete restock lists, deployed and device-verified), §27ID (the permanent assistant improvement roadmap and implementation audit; docs-only), §27IC (AI-110 contextual assistant entry and restock shortfall, deployed `7315675` and OTA-verified; the partial-restock guards completed in `1c3928b`), §27IB (scheduler proof and hosted freshness), §27IA (post-deploy phone proof, triage and monitor), §27HV (AI-99 10,256-product gate, 24/25 with one output-limit finding), §27HU (AI-99 free-first simple inventory, deployed with the 1.0.2 OTA), §27HT (AI-91/AI-92 exact product identity and per-location stock), §27HS (the AI-50–AI-84 increment register), §27HR (AI-48–AI-84 merged and deployed), §27HQ (grounded answers and scoped stock reads), §27HP (market prices from cited pages), §27HO (recorded specifications and the real seed catalogue), §27HN (inventory-only web research), §27HH (a transfer as one event to the assistant), §27HG (the stock-in link's product), §27HF (the single-location default's timing), §27HE (the stock-in link's location), §27HD (the movement fixes and the production device pass), §27HC (the assistant's local-time answers), §27FM (the V1 re-verification) and §27FJ (the two open advisories).
 
 ---
 
@@ -27605,3 +27605,590 @@ setting change or write was made.
 **Limits.** The authenticated production console, live administrator/factor/recovery counts and live
 break-glass/WebAuthn/recovery logins were not observed. The 2026-11-18 snapshots remain evidence, not
 a current guarantee, and the last full authenticated proof remains `e218bb0`/`74e4b87`.
+
+---
+
+# 27KB. Five implementation plans — FW-04 correction, FW-07, FW-05, reversal and supplier terms (2026-11-19)
+
+**Scope.** Documentation only. Added [`docs/FW_IMPLEMENTATION_PLANS_2026-11-19.md`](FW_IMPLEMENTATION_PLANS_2026-11-19.md),
+a code-accuracy review and five implementation plans. No source, schema, test, environment, account,
+database or deployment change was made. No email, PDF, migration or production operation was run.
+
+**Source correction.** PR #355's FW review (`2e7a528`) is not merged. Its FW-04 paragraph assumes an
+`ISSUED` status and a `PARTIALLY_RECEIVED` status. The tree has neither: the statuses are `DRAFT`,
+`OPEN`, `RECEIVED` and `CANCELED`; `issue()` moves `DRAFT → OPEN`; a partial receipt remains `OPEN`;
+and an order auto-flips to `RECEIVED` only when every line is complete. The mail contract carries
+`to`, `subject`, `text` and `html` only, with no attachments; there is no PDF generator, template or
+response download path in `server/src/`; and there is no public stock-movement reversal. The new
+document supersedes the FW-04 paragraph and marks PR #355 as not mergeable with the uncorrected text.
+
+**Plans.**
+
+1. **FW-04 — PO transmission, corrected.** Only `OPEN` orders, including partially received ones;
+   no new status. The stored supplier email is the only recipient. The plan makes PDF generation and
+   mail attachments explicit prerequisites: a PDF writer, a Unicode-capable embedded font (standard
+   Helvetica is WinAnsi-only), a bounded renderer, a single ≤1 MiB PDF attachment, a transmission
+   history and `PURCHASE_ORDER_SENT` audit. It records the crash-after-send residual rather than
+   claiming atomicity.
+2. **FW-07 — mobile request reference.** Read the already-exposed `X-Request-ID` into `ApiError`, apply
+   the server's bounded-safe-character rule, and show/copy it in the shared `ErrorState`; invent no id
+   when absent. Mobile-only and reversible by OTA.
+3. **FW-05 — non-AI database deadline.** Measurement first: no non-AI p95 baseline exists. Add the
+   matched route to the existing `http` log, capture a dated p95 table, then apply a request-scoped
+   `maxTimeMS` table with explicit exemptions for `/api/ai/chat` and health. Map `MaxTimeMSExpired` /
+   code 50 to `503 DB_TIMEOUT`, with no query text or stack; count it in the 5xx store. Roll out
+   log-only then enforce; AI and health contracts stay unchanged.
+4. **Linked stock-movement reversal.** Add optional `reversalOf`/`reversedBy` fields and a unique
+   partial index; the compensating row is an `ADJUSTMENT` linked to the original, with a distinct
+   `INVENTORY_REVERSED` audit. Refuse transfers, PO-receipt transactions, reversal-of-reversal,
+   already-reversed, non-latest and stale/reserved conflicts. Original movement fields are never edited
+   or deleted; only the `reversedBy` link is set, and the crash window is documented.
+5. **Supplier replenishment terms.** Optional `leadTimeDays`, `minimumOrderQuantity` and
+   `orderMultiple` on suppliers, plus an optional `preferredSupplierId` on products because no such
+   link exists today. The restock page computes a rounded suggestion from the raw shortfall while
+   `unitsBelowMinimum` and `totalUnitsBelowMinimum` stay raw gaps; lead time is display-only without a
+   velocity figure. The plan explicitly covers the blank-vs-absent PATCH problem: the current
+   validators collapse both to `undefined`, so clearing a term needs an explicit nullable path.
+
+**Recommended order.** FW-07 (small, no schema), linked reversal (integrity), supplier terms
+(additive restock value), FW-04 (new PDF/font/attachment dependency and outbound-mail review), then
+FW-05 (baseline after the route set is stable). The document records effort and the parallelisable
+pairs.
+
+**Verification.** `node scripts/check-docs.mjs` passed with **67** active documents, **44** living
+references in cadence, 30 invariant rows and 30 register rows. The documentation tests passed
+**31/31** across six suites (section integrity, fact drift, invariant register, route inventory and
+relative links); `git diff --check` passed. No code test, database test, PDF render, email send, authenticated
+production read or deployment was run.
+
+**Limits.** The FW-05 p95 table is deliberately unfilled until real samples exist; the only latency
+figures available are dated point measurements and AI p95 values, and the document says so. The PDF
+font/library and attachment limit need dependency and security review. The reversal endpoint's
+no-multi-document-transaction window is stated, not solved. The supplier page-level supplier read is
+planned but not measured. No production logs were available to this session.
+
+**Next.** Implement FW-07 first. Do not merge PR #355 with its uncorrected FW-04 paragraph; use
+this record and the new plan document as the corrected source.
+
+---
+
+# 27KC. Audit fixes — AI price ranking, transfer retry, receive replay and catalog integrity (2026-11-19)
+
+**Scope.** Code, tests and documentation. Fixed the four audit findings selected for this pass and
+recorded the whole-audit review, the transfer/receiving crash-recovery assessment and ten ranked
+next improvements in
+[`docs/INVENTORY_INTEGRITY_AUDIT_REVIEW_2026-11-19.md`](INVENTORY_INTEGRITY_AUDIT_REVIEW_2026-11-19.md).
+No production data, deployment, account, permission, environment or configuration was changed.
+
+**AI catalogue reads.** `findProducts` now accepts `sort: "price_asc" | "price_desc"` and applies it
+in the database before paging, including the exact-product fallback and the merged result. A price
+sort and every price ceiling exclude products with no positive recorded price; `up to`/`within`
+include the ceiling and `under`/`below` do not. AI rows expose `sellingPrice: null` for an unrecorded
+price (the REST DTO keeps its historical `0` default), and `inStockOnly` survives the ranking. The
+prompt tells the model to use the server rank rather than comparing only the visible page.
+
+**Transfers.** The destination duplicate-key retry is a bounded full upsert, mirroring `stockIn`.
+If the racing row vanished, the retry re-creates it instead of returning `null` and writing ledger
+rows that no destination stock backs. The new DB test forces the E11000 race and asserts source,
+destination and both ledger rows agree.
+
+**PO receiving.** A receive stores the client `Idempotency-Key` on its claim and receipt. After a
+finalize that applied and then threw, a retry with the same key replays the complete durable receipt
+(`replayed: true`) without claiming or stocking again. A partial receipt or a surviving claim is a
+409 with the applied lines, never a fresh receive. A retry with a new key remains the documented
+residual; the recommendation to require a key is in the review document. The mobile receive screen
+keeps its key across a 5xx, transport failure or `RECEIVE_IN_PROGRESS`, so the retry it offers is
+the same operation rather than a new receipt.
+
+**Catalog.** Partial product/reference validators distinguish omitted (`undefined`) from explicit
+clear (`null`/blank), so an edit can remove a brand, SKU, barcode, description, specifications,
+category, units, image, price or currency. Archived categories are refused on create and on a
+category change (`CATEGORY_ARCHIVED`). Product, category, location and supplier creates mount the
+existing idempotency middleware; mobile product/reference creates send and retain a key across an
+ambiguous timeout. Product and reference audit writes are best-effort after commit: a failed trail
+insert logs and does not turn a saved change into a 500.
+
+**Verification.** AI-45 passed 13/13 runnable tests (1 mode-skipped) in `TEST_MODE=db`; Phase 19
+passed 25/25; Phase 13 receiving passed 17/17; Phase 04 catalog passed 23/23. Server and mobile
+`tsc --noEmit` passed. `node scripts/check-docs.mjs` and the six documentation suites are recorded
+in the log after the documentation edits.
+
+**Limits.** MongoDB was available locally for these runs; no production database was read or
+written. The price ranking is numeric and therefore not currency-aware (rank 1 in the review); the
+transfer crash window remains in-process-only (rank 2); a receive retry with a new key remains a
+residual (rank 3). No deployment was attempted.
+
+---
+
+# 27KD. FW-07 — mobile request reference, and follow-ups beyond the five plans (2026-11-19)
+
+**Scope.** Mobile-only code, tests and documentation. Implemented FW-07 exactly as approved in
+[`docs/FW_IMPLEMENTATION_PLANS_2026-11-19.md`](FW_IMPLEMENTATION_PLANS_2026-11-19.md): a failed
+request now carries the server's safe `X-Request-ID` into the shared error state as a copyable
+support reference. No server code, server configuration, schema, production data, account or
+deployment was changed. The other four FW plans remain planning-only.
+
+**Client.** `ApiError` gained `requestId: string | null`, defaulting to `null`. On every non-2xx
+response, `apiFetch` reads `X-Request-ID` with the server's own safety rule: non-empty, at most 128
+characters, and only `[A-Za-z0-9._:-]`. Missing, blank, over-long, spaced, CR/LF-bearing or other
+unsafe values become `null`; the client never trims an unsafe value into validity and never
+invents an id. A malformed response stub with no `headers` still produces the ordinary `ApiError`.
+Network failures have no response and therefore no reference. The value is display evidence only:
+it is not logged, persisted, sent back, or used for retry or authorization.
+
+**Presentation.** `ListState.tsx` now owns `RequestReference` and `errorRequestId`. The component
+renders only for a safe id, shows `Reference: <id>` as selectable text, and offers a copy action via
+React Native `Clipboard` with a two-second local `Copied` confirmation. It has testIDs
+`request-reference` and `request-reference-copy`. `ErrorState` takes an optional `requestId`;
+`ListScreen` derives it from its existing `error` prop, and every direct `ErrorState` caller was
+updated in the same change. Success screens, AI answer details, session-loss handling and retry
+behaviour are unchanged.
+
+**Original scope limit.** This first increment left form-level `Alert`/`Banner` surfaces showing only
+the message. That gap was closed in §27KF, which also persists idempotency keys; this record keeps
+the original boundary rather than retroactively claiming it.
+
+**Verification.** Mobile `npm run typecheck` passed. The new FW-07 suite passed **10/10**, covering a
+valid header, absent and unsafe values, the 128/129 boundary, network failure, a headerless stub,
+`errorRequestId`, render/no-render, exact copy, and `ListScreen` wiring. The full mobile Jest run
+passed **112 suites / 1,283 tests**. The new test's lint warning was fixed. Repository-wide
+`npm run lint` still exits 1 on **six pre-existing** `react-hooks/set-state-in-effect` errors in
+`history.tsx`, `inventory.tsx`, `products/index.tsx` (two), `restock.tsx` and `AiChat.tsx`; none is
+introduced by FW-07. `check-docs` passed with 68 active documents, 45 living references in cadence
+and 30 invariant/register rows; the six documentation suites passed 31/31. `git diff --check` is
+clean. No server test was run because no server file changed.
+
+**Recommendations beyond the five FW plans.** These are recommendations only; none was implemented
+in this increment. The five existing plans are FW-04, FW-07, FW-05, linked reversal and supplier
+terms; FW-07 is now the implemented one.
+
+| Rank | Improvement | Benefit | Value | Risk / effort |
+| ---: | --- | --- | --- | --- |
+| 1 | **Extend request references to form-level errors.** Give `Banner`/`Alert` surfaces the same copyable, safe reference, likely through a shared error-details helper. | A failed create, edit, archive or movement gets the same support trace as a list/detail load. Today those forms deliberately show only the message. | High | Low — presentation-only mobile work, reusing the validated id. |
+| 2 | **Persist idempotency keys for ambiguous operations across app restarts.** Keep the key, operation scope and a short expiry in secure local storage; reuse it only when the same operation is retried after a timeout or process death. | Current keys live in component refs, so a kill-and-reopen can mint a new key and repeat a create or movement whose answer was lost. This closes that client-side gap without changing the server contract. | High | Medium — storage lifecycle, tenant scoping, expiry and cleanup; must never reuse a key for a different body. |
+| 3 | **Require and fingerprint the PO receive key.** Reject keyless receives and store a request-body fingerprint beside the key so the replay gate cannot answer a different batch under a reused key. | Removes the remaining “new key after timeout” and key-reuse ambiguity in receiving, where a duplicate changes stock. | High | Medium — API contract and mobile roll-out; must preserve the visible partial-receipt flow. |
+| 4 | **Make price ranking currency-safe.** Group by recorded currency, require one currency for a ranked comparison, or expose a mixed-currency state and per-currency ranks. | A numeric sort across PHP and USD can call a $10 item cheaper than ₱900. The new server-side ranking makes that answer more authoritative, so the comparison needs the currency boundary. | High | Medium — query/response shape and prompt copy; no data migration. |
+| 5 | **Add a durable transfer operation journal and reconciler.** Write a pre-debit `PENDING` record, mark it `APPLIED` after both ledger rows, and reconcile stale entries on boot or a bounded worker. | Closes the remaining silent partial-write window when a process dies between source debit, destination credit and ledger writes. The HTTP idempotency key protects retries, not a process that never answered. | High | High — new model, compensation/reconciliation tests, multi-instance coordination; not a rushed schema change. |
+| 6 | **Add a stale purchase-order claim reaper.** Find old claims, verify whether their stock-in movement exists, then finalize or release; never release a claim whose movement exists. | Converts a visible ghost claim from manual cancel/recreate into bounded automatic recovery, while preserving the no-double-stock rule. | Medium-high | Medium — reconciler and idempotent finalize helper; needs production-like crash tests. |
+| 7 | **Carry a request reference through AI streaming failures.** Capture the streaming response's `X-Request-ID` and expose it in the same copyable error surface. | The streaming path bypasses `apiFetch`, so an AI turn that fails after the server has assigned an id currently gives support less to trace. | Medium | Low-medium — stream transport and one error surface; do not expose provider bodies. |
+| 8 | **Monitor post-commit audit gaps.** Emit a bounded metric or operator signal when a best-effort product/reference audit write fails, instead of relying on a console line. | Catalog writes remain available when audit is down, which is the right trade-off, but the trail can now be silently incomplete. | Medium | Low — structured log/metric and a threshold; no second write path. |
+| 9 | **Define category-archive dependency policy.** Choose and enforce whether archiving a category with ACTIVE products is blocked, allowed with a warning, or reassigns them; surface archived-category products in the catalog UI. | Write-time validation stops new assignments to an archived category, but the archive action itself does not examine dependents. | Medium | Low-medium — policy decision, one query, tests and copy. |
+| 10 | **Add a cross-tenant idempotency regression matrix.** Exercise same-key duplicate delivery for product, category, location and supplier creates, plus the same key in two businesses. | Proves the shared route wiring and tenant scoping, not just the product case; a middleware regression is otherwise invisible. | Medium | Low — tests only. |
+
+**Next.** Implement rank 1 first because it completes FW-07's user-facing promise at low risk. Ranks
+2–5 are the integrity/security tranche and should be sequenced before the larger FW-04/FW-05 work.
+
+---
+
+# 27KE. Integrity recovery, currency-safe ranking and price quality (2026-11-19)
+
+**Scope.** Server and mobile code, DB regression tests and documentation. Implemented the ten
+approved improvements from §27KD/§27KC as one coordinated change, and re-reviewed the existing AI
+price ranking, transfer retry, PO receive replay and catalog-clearing fixes. No production data,
+commit or deployment was touched.
+
+**Transfer journal.** New `stock_transfer_operations` rows are written before the source debit and
+carry the operation id also written into each inventory row's `transferOperationIds` by the same
+atomic update as its quantity. States are `PREPARED`, `SOURCE_DEBITED`, `DESTINATION_CREDITED`,
+`LEDGER_WRITTEN`, `COMPLETED`, `COMPENSATED`, `FAILED` and `REQUIRES_ATTENTION`. A reaper older
+than 60 seconds proves the state from markers and exact snapshots: complete both legs and the
+paired ledger when both are present, undo a source-only debit, or flag anything it cannot prove.
+Existing ledger rows are accepted only when location, product, quantity and both before/after
+quantities match the journal. Markers are cleared after completion. A request key is stored with a
+SHA-256 fingerprint of the canonical transfer; a completed journal replays the same request and
+refuses a different one with `422 IDEMPOTENCY_KEY_REUSED`. `REQUIRES_ATTENTION` blocks a fresh
+transfer under the same key with `409 TRANSFER_REQUIRES_ATTENTION`.
+
+**Receiving.** The HTTP route requires `Idempotency-Key`. The claim and each receipt store the key
+and a canonical fingerprint over the sorted lines, reference and PO. A complete matching receipt
+is replayed without another claim or stock-in; a partial receipt returns the durable applied lines;
+a changed request under the same key is `422`; a claim without a receipt is
+`409 RECEIVE_IN_PROGRESS`. The mobile receive screen already kept its key across a 5xx/transport
+failure and now sends it on the required route. The service still accepts an absent key for direct
+internal callers and historical tests; the HTTP contract is what enforces it.
+
+**Stale PO claims.** A claim older than 10 minutes is reconciled from its stock-in transaction:
+release only the reservation when a receipt references it; restore the exact pre-stock quantity,
+delete the transaction and its audit, and release otherwise; release an untouched claim; flag a
+`MOVED` claim with no transaction, or a row that moved after the stock-in. The action is recorded
+as `PURCHASE_ORDER_CLAIM_RECOVERED` and labelled in the mobile audit list.
+
+**Category policy.** Archiving a category with ACTIVE products is refused with
+`CATEGORY_HAS_ACTIVE_PRODUCTS`; archived products do not block the transition.
+
+**Audit gaps.** Every best-effort audit catch writes a bounded `audit_failures` row with action,
+entity type/id, a fixed `AUDIT_WRITE_FAILED` code, timestamps and a 90-day TTL. The upstream error
+message is never stored. The existing `[audit-gap]` console line now names only the error class.
+`npm run audit:failures` is a read-only per-tenant/per-action summary and exits 1 on a gap.
+
+**Price quality and AI ranking.** `npm run audit:price-quality` reports missing price, zero price,
+missing currency and malformed currency on ACTIVE products, plus a 25-row sample; it never writes.
+`findProducts` now discovers the matching catalogue's recorded currency groups before a price
+rank. Mixed known currencies, or a known currency plus unrecorded prices, disable the single rank
+and return the groups; one group is narrowed to that currency. Ties sort by name then `_id`, and
+zero/missing prices are excluded from ranking and ceilings. An explicit currency phrase filters the
+query; it does not turn a non-ranking question into a blocked one.
+
+**Operational wiring.** A serving process schedules reconciliation 30 seconds after boot and every
+5 minutes, with no overlap and no scheduling in tests; shutdown stops it. The new commands follow
+the existing development/production/test database rule.
+
+**Verification.** Server `npm run typecheck` passed. `INTEGRITY-RECOVERY.test.mjs` passed **15/15**,
+covering transfer undo/complete/flag, reused-key and attention retry, bad-ledger refusal, claim
+release/undo/flag, required receive key and changed-request refusal, category archive, sanitized
+audit gaps with tenant scoping, price quality and AI tie/mixed-currency ranking. Phase 13 receiving
+passed **17/17**; Phase 19 transfers passed **25/25**; Phase 04 catalog passed **23/23**; the
+inventory idempotency suite passed **10/10**. Broader `npm run test:unit` passed with **2,221 tests
+— 2,146 passed, 75 deliberately skipped, 0 failed**; the six documentation suites passed **40/40**
+and `check-docs` passed with 69 active documents and 46 cadence rows. Mobile `npm run typecheck`
+passed. Server lint still exits 1 on seven pre-existing `.scratch` errors (none in `src/` or
+`test/`). No production command, data change, commit
+or deployment was run.
+
+**Documentation.** [`INTEGRITY_RECOVERY.md`](INTEGRITY_RECOVERY.md) is the operator/design
+reference for guarantees, recovery order, commands, limitations and remaining risks. Guide 6 lists
+the three commands; the audit review §5 marks the ten recommendations implemented.
+
+**Remaining risks.** There is still no multi-document transaction. The reaper has no inter-process
+lease and the transfer ledger has no unique `(transferOperationId, locationId)` index, so two
+simultaneous serving instances can race a ledger create and earn a flag. Recovery can write a
+second audit event if the process died between the audit write and the `COMPLETED` mark. Old
+receipts/journals without fingerprints fall back to key-only replay. The currency-block check is
+conservative and ignores `inStockOnly`. Category archive is not transactional against a concurrent
+product create. Automated unflagging of `REQUIRES_ATTENTION` is intentionally absent.
+
+**Next.** Add a recovery lease or unique ledger index before horizontal scaling; add the remaining
+FW-07 recommendation for streaming-failure references; consider a small operator surface for
+`REQUIRES_ATTENTION` rows and a follow-up command that re-verifies legacy receipts.
+
+---
+
+# 27KF. FW-07 form references, persisted mobile operation keys, and integrity follow-up verification (2026-11-19)
+
+**Scope.** Mobile code and tests, one server regression test, and documentation. Implemented the
+follow-ups recorded in §27KD: request references on form-level `Banner`/`Alert` failures, and
+idempotency keys persisted across app restarts. Re-verified the existing PO receive and
+currency-safe price-ranking work, adding the missing cross-tenant receive test. No runtime server
+source, schema, production data, configuration, commit or deployment changed.
+
+**Form-level references.** `lib/errors.ts` owns the shared safe-message, safe-reference and
+reference-suffix helpers. `components/RequestReference.tsx` owns the one copyable presentation used
+by `ErrorState`, `Banner` and `ListState`. `Banner` takes an optional `requestId`, and `lib/confirm.ts`
+appends the reference to an Alert body and adds a `Copy reference` button because native Alert text
+is not selectable. All form-level API failures in the inventory forms, settings, users/invitations,
+login/registration, verification, password recovery, scan and profile connect paths now carry the
+reference. Static copy, client-side validation and permission refusals carry none because no server
+request produced them. Product label print/share use a fire-and-forget failure alert so the busy
+state is released immediately, preserving the previous behaviour.
+
+**Persisted operation keys.** `lib/idempotency.ts` stores pending attempts in SecureStore beside
+the session, with an in-memory fallback when the keystore is unavailable. Each operation kind has a
+`version: 2` bucket holding up to **eight** unresolved records, each with the key, owner id, target,
+a canonical payload fingerprint and creation time. A different operation ADDS a record; it never
+overwrites an earlier unresolved one. A retry resumes only when kind, owner, target and payload
+agree and the record is at most 24 hours old — the server's own idempotency TTL. Expired records are
+pruned on read; a full bucket refuses the new operation with `PendingOperationsFullError` rather
+than evicting a key, and the form shows that message without sending. Existing v1 single records are
+migrated into the v2 bucket on first read, and the v1 copy is removed only after the v2 write is
+durable. Success and definite refusals remove only the matching key. Transport failures (status 0),
+408, every 5xx, `IDEMPOTENT_REQUEST_IN_PROGRESS` and `RECEIVE_IN_PROGRESS` retain it because the
+server may have committed; the receive screen additionally treats `RECEIVE_CONFLICT` as the end of
+that batch because the remaining lines are a new operation. The movement, transfer, product-create,
+PO-create, reference-create and PO-receive forms mint inside the submit guard; edits do not mint
+operation keys.
+
+**Receive and ranking verification.** The HTTP receive route already required `Idempotency-Key`,
+stored a canonical fingerprint on the claim/receipt, replayed a completed receipt, reported durable
+partial lines, and refused a changed request under the same key. This increment did not change that
+runtime contract. It added a test proving the same key is independent in two tenants, each tenant
+can receive its own PO, and one tenant cannot receive the other's PO even with a valid key. The
+existing Phase 13 apply-then-throw case proves the ambiguous finalize replays the durable receipt
+without adding stock. The AI price rank already discovers currency groups before paging, excludes
+zero/unrecorded prices, narrows to one recorded currency, and returns `priceRankBlocked`,
+`priceCurrencies` and a no-comparison note when the matches mix currencies; the integrity suite
+asserts the mixed-currency and deterministic-tie cases.
+
+**Verification.** Mobile `npm run typecheck` passed. The focused key-retention/store suites passed
+**21/21** (3 suites), including the A→B→A switch, the eight-record cap, v1→v2 migration, the 5xx
+matrix, the movement 5xx retry and the product-create 5xx retry. The full mobile Jest run passed
+**113 suites / 1,305 tests**. Mobile lint still exits 1 on the same **six pre-existing**
+`react-hooks/set-state-in-effect` errors and has no new warnings. Server `npm run typecheck` passed;
+`INTEGRITY-RECOVERY.test.mjs` passed **16/16** (the cross-tenant case included); Phase 13 receiving
+passed **17/17**, including the apply-then-throw replay; Phase 19 transfers passed **25/25**; Phase 04
+catalog passed **23/23**; `INVENTORY-IDEMPOTENCY.test.mjs` passed **10/10**. `check-docs` passed with
+**69** active documents and **46** cadence rows; the documentation suites passed **31/31**;
+`git diff --check` is clean. No production command, data change, commit or deployment was run.
+
+**Limitations.** The bucket is deliberately bounded at eight unresolved operations per kind; when it
+is full, the member must retry or resolve one before starting another, and expired records are only
+pruned during a read/create. SecureStore failures degrade to the previous launch-only protection,
+never to a false duplicate. The client fingerprint is a local 128-bit canonical digest; the server's
+full-body SHA-256 remains the authority. Keeping a key after a 5xx is necessary but not sufficient
+for plain stock-in/out/adjust: the transport releases a key on a 5xx that changed nothing, and those
+three writes have no domain receipt, so a process that commits and then dies before storing the
+answer remains a server-side gap. A reference is display evidence only — it is not persisted,
+logged, sent back or used for authorization or retry.
+
+**Next.** Add the streaming-failure reference from §27KD and keep the receive/ranking tests in the
+integrity gate. The largest remaining integrity item is a server-side durable receipt or operation
+journal for plain stock movements, so a committed-then-crashed request is replayable even when the
+transport key was released.
+
+---
+
+# 27KG. Transfer-ledger guard, recovery lease, and scheduled integrity operations (2026-11-19)
+
+**Scope.** Server schema, recovery services, migration and operational tooling, database-backed
+tests and documentation. No production database, command, configuration, commit or deployment was
+touched.
+
+**Unique transfer-ledger guard.** `inventory_transactions` now declares
+`uniq_transfer_operation_location` on `(businessId, transferOperationId, locationId)`, unique and
+partial on `transferOperationId: { $type: 'objectId' }`. The partial filter is what keeps ordinary
+stock movements, which have no operation id, out of the index; the key prefix also serves the old
+`{ businessId, transferOperationId }` read, so the separate non-unique index was removed. The index
+checkers now compare `partialFilterExpression` as well as key order, uniqueness, sparsity and TTL,
+because the same key without the filter is a different — and unsafe — index.
+
+**Duplicate-aware recovery.** `rollForwardLedger` validates every existing row against the journal's
+location, product, quantity and before/after snapshots, accepts a duplicate-key loss only after
+re-reading the winning row, and returns the pair ordered by location rather than by `_id`. The
+no-marker branch now validates the same way instead of accepting any two ledger rows. The new
+unmarked wrong-quantity regression is covered in `INTEGRITY-RECOVERY.test.mjs` (**17** cases).
+
+**Migration.** `npm run migrate:transfer-ledger-index` is read-only by default. It groups duplicates,
+classifies a group exact only when every movement field agrees (ids/timestamps excluded), and refuses
+the whole run if any group is ambiguous. `--apply` writes exact copies to
+`inventory_transaction_quarantine` by original id, deletes a copy only while it still matches the
+quarantined movement, then builds and verifies the index. A crash between quarantine and delete is
+repeatable. Production apply requires
+`TRANSFER_LEDGER_MIGRATION_CONFIRM=MIGRATE-TRANSFER-LEDGER`. The command was **not run against
+production** in this pass.
+
+**Cross-instance recovery lease.** `integrity_recovery_leases` holds one fixed-id lease with a
+10-minute expiry, renewed during a pass. Acquisition only replaces an expired lease or the same
+token; a concurrent owner receives `skipped: lease-held`. An expired lease is taken over immediately;
+release is owner-scoped. `runIntegrityRecoveryPass` owns the lease, so the serving scheduler and the
+operator CLI share the same guard. The lease reduces duplicate work and recovery audits; the unique
+ledger index and quantity-anchored updates remain the correctness boundary if a lease is lost.
+
+**Operational scheduling and alerting.** `ops:integrity` runs `audit:failures`,
+`audit:price-quality` or `recover:integrity` as a child and preserves the existing `0/1/2` contract:
+`0` clean, `1` finding/attention, `2` NOT CHECKED. Each command has a local lock (stale after 30
+minutes), a latest/history file, and one GitHub issue deduplicated by a stable result signature; a
+recovery closes the issue. Raw output and connection strings are sanitized. The runner is scheduled
+by `scripts/run-integrity-ops.ps1` and `scripts/register-integrity-ops-scheduler.ps1`; the task was
+not registered on this host in this tranche.
+
+**Re-review changes.** No agreed behavior changed. The transfer recovery path now rejects an
+unmarked ledger pair that does not match the journal, returns source/destination by location rather
+than id order, and treats a duplicate-key insert as a successful race only after exact re-read.
+`audit:indexes` and `phase-index-integrity` gained partial-filter comparison. The migration now
+scans the index predicate instead of only `type: 'TRANSFER'`, blocks before writing when a same-key
+index is not the unique partial guard, blocks when its duplicate scan reaches `--limit`, and checks
+an existing quarantine copy before deleting. The operations runner's lock outlives its child
+timeout, `gh` calls are bounded, and the task limit is 60 minutes. The DEMO-2 fixture was updated for
+the two `businessId` collections added by the earlier integrity work (`audit_failures`,
+`stock_transfer_operations`); it had been under-seeding its own teardown plan.
+
+**Verification.** `npm run typecheck` passed. Focused DB coverage passed **35/35** across
+`INTEGRITY-RECOVERY` (17), `TLI-transfer-ledger-guard` (5), and `phase-index-integrity` (13 declared
+index cases plus its mechanism checks). `ops-integrity.test.mjs` passed **15/15**. The complete
+`npm run test:db -- --test-concurrency=4` passed **1,182 tests, 262 suites, 1,066 pass, 0 fail, 116
+skipped, 885 s**. The first unbounded run was invalid — 54 files failed from Windows child-process
+exhaustion (`0xC0000142`) and DEMO-2 exposed the stale fixture — and the four-worker rerun was clean.
+The complete run preceded the final migration-hardening edits; the affected TLI suite and
+typecheck were rerun after them. Both PowerShell scripts parse cleanly; neither was registered or
+executed.
+
+**Limitations.** The index is not built in production until the migration is run there. The lease is
+time-based, so a process that loses it mid-pass can finish beside a new owner; inventory remains
+safe, but a recovery audit can duplicate. The local operational lock is single-host for the two
+read-only audits. No `REQUIRES_ATTENTION` row was reviewed or changed in this pass.
+
+**Next.** Run the migration preflight on production, review any ambiguous group by hand, then apply
+before deploying the guard. Register the operations task after the operator accepts the 08:00
+schedule. Add an operator view for `REQUIRES_ATTENTION` rows if their volume becomes measurable.
+
+# 27KH. Retryable alerts, fail-closed index readiness, and read-only attention triage (2026-11-19)
+
+**Scope.** Server operational tooling, startup readiness, tests and documentation. No production
+database, migration, command, configuration, commit or deployment was touched.
+
+**Retryable GitHub alerts.** `ops:integrity` now writes a failed create, comment or close to its
+latest history as `notification.undelivered` plus a `notificationPending` record before it exits.
+The next `--notify` run retries the same intent even when the child status and signature are
+unchanged. A recovery whose comment succeeded but whose close failed resumes at the close, so the
+comment is not posted twice. A run without `--notify` carries the pending record forward. Histories
+written before this field existed (`action: "failed"`) are read as pending for compatibility. CLI
+regression tests drive the real lock/child/history/`gh` path with fakes: failed create, failed
+comment, failed recovery close and a no-notify preservation run.
+
+**Fail-closed index readiness.** The exact transfer-ledger definition now lives beside the schema in
+`inventoryTransaction.model.ts`; `transferLedgerMigration.service.ts` re-exports it so existing
+imports do not change. `config/indexReadiness.ts` checks the live `listIndexes` result for the exact
+key order `(businessId, transferOperationId, locationId)`, `unique: true`, and the canonical partial
+filter `{ transferOperationId: { $type: "objectId" } }`. `/api/health/ready` performs this read
+after the connection check and answers `503` with a short reason when the index is missing,
+non-unique, reordered or differently filtered. The check is read-only, bounded at 2.5 s, and fails
+closed if inspection throws. A database-down request never attempts it. No index is created or
+repaired on the readiness path.
+
+**Read-only attention triage.** `npm run triage:integrity` lists `REQUIRES_ATTENTION` transfer
+journals and `inventory_transaction_quarantine` rows, scoped by `--business`, bounded by `--limit`,
+with text or JSON output. Transfers carry the failure reason, caller reason/reference, inventory
+snapshots and every ledger row for the operation. Quarantine rows carry the quarantine reason,
+time, original id, `keptId`, operation id and movement fields. The command connects with
+`autoIndex: false` and `autoCreate: false` and only reads; there is no repair or unflag flag. Exit
+`1` means rows need attention, not that anything was changed.
+
+**Compatibility and failure handling.** The new history fields are additive; old histories still
+drive the same noise policy and are treated as pending when their last notification failed. The
+readiness route keeps its old `{status, db, timestamp}` shape on success and when the database is
+down; only the index-failure branch adds `reason`. The triage command has no write path. The index
+checker reads index metadata only, so it is safe to poll and cannot race a build by mutating it. A
+running process whose index is dropped becomes not ready on its next probe. Multi-instance safety
+is unchanged: readiness is per process, and the index itself is the database-level guard.
+
+**Verification.** `npm run typecheck` passed. Focused coverage passed **38/38** across
+`ops-integrity` (16), `ops-integrity-cli` (4), `transfer-ledger-index-readiness` (12) and
+`triage-integrity` (6). The focused DB run passed **37/39** with 2 intentional mode skips
+(`INTEGRITY-RECOVERY`, `TLI-transfer-ledger-guard`, `phase-index-integrity` and the real-app
+readiness suite). Unit mode passed **2,184 tests / 464 suites, 0 fail, 75 skipped**. The complete
+`npm test -- --test-concurrency=4` ran **3,233 tests / 527 suites, 3,231 pass, 2 fail, 0 skipped,
+943 s**; both failures were the pre-existing AI-2 read-only allow-list not yet naming
+`productService.priceCurrencies`, a read-only aggregate added by the earlier price-ranking work.
+That allow-list was corrected after the run and `AI2-ai-readonly-tools` now passes **10/10**; no
+product code changed. `node scripts/check-docs.mjs` reported 69 active documents and 46 living
+reference documents within cadence; `git diff --check` was clean apart from existing CRLF conversion
+warnings. Those are the original tranche's counts; the follow-up below supersedes them and closes
+two of its limitations.
+
+**Limitations.** A failed alert needs a later run to retry; nothing wakes the host. The outbox is
+local to one scheduler host. Before the 2026-11-20 follow-up, two hosts with separate histories
+could both comment on one issue, and a crash after a GitHub comment but before the history write
+could duplicate that comment; the marker read now prevents both on sequential retries and hosts.
+Two comment posts issued in the same instant can still race, and two simultaneous first runs can
+still create two issues because creation deduplicates by title rather than a uniqueness constraint.
+Readiness now
+pays one bounded `listIndexes` read per probe. The triage view does not resolve or repair ambiguous
+evidence. No production index, attention row or quarantine row was read or changed in this pass.
+
+**Next.** Run the migration preflight on production and watch `/api/health/ready` during rollout.
+Use `triage:integrity` before deciding whether an attention or quarantine row needs a hand repair.
+
+**Follow-up hardening (2026-11-20).** Every alert issue body and every alert or recovery comment
+now carries a stable hidden HTML marker derived from the command, status and result signature (the
+recovery marker is per command). Before commenting, `ops:integrity` reads the issue body and
+comments with `gh issue view --json body,comments`; a marker already present suppresses the
+comment. This closes two concrete duplicates: a retry whose comment reached GitHub but whose
+response was lost, and a second scheduler host whose local history does not know about the first
+host's comment. A failed issue read is persisted as a pending comment and retried, never posted
+blind. The close-retry path resumes at the close only when the pending issue number still matches,
+so a replacement issue with the same title gets its own recovery comment. The remaining race is
+exact simultaneity:
+two hosts can both pass the read before either posts, and two first runs can both create an issue
+because creation is deduplicated by title, not by a database constraint.
+
+The triage database reads moved out of `scripts/triage-integrity.mjs` into
+`scripts/lib/triage-read.mjs`, which returns transfers, movement receipts, quarantine rows, ledger
+rows and resolved names. The CLI keeps argument parsing, connection, formatting and exit codes.
+This made a real-DB zero-write test possible instead of only a source scan.
+
+**Follow-up verification.** `npm run typecheck` passed. Focused coverage passed **45/45** across
+`ops-integrity` (17), `ops-integrity-cli` (9), `transfer-ledger-index-readiness` (12),
+`triage-integrity` (6) and `triage-integrity-db` (1). The DB-backed test seeds one
+`REQUIRES_ATTENTION` transfer with source/destination snapshots and a ledger row, plus one
+quarantined duplicate carrying `keptId`, and a second tenant; it asserts the exact report evidence
+and tenant scoping, then compares every touched collection before and after to prove zero writes.
+The complete `npm test -- --test-concurrency=4` ran **3,244 tests / 529 suites, 3,244 pass, 0 fail,
+0 skipped, 976 s**. `node scripts/check-docs.mjs` reported 69 active documents and 46 living
+reference documents within cadence; the three documentation guard suites passed **16/16**.
+
+# 27KI. Account-scoped operation keys, serialized key-store writes, durable movement receipts, and AI streaming request references (2026-11-20)
+
+**Scope.** Mobile key persistence, server inventory-movement recovery, AI streaming error
+presentation, operator triage, tests and documentation. No production database, migration, commit,
+push or deployment was touched. The four code tasks were implemented; the fifth (a ranked
+follow-up list) is a recommendation, not code.
+
+**Account-scoped keys.** `mobile/lib/idempotency.ts` now stores unresolved operations under
+`inventoryai.idempotency.v3.<ownerDigest>.<kind>`. The digest is two FNV-1a passes (64 bits) over the
+authenticated user id and is not reversible; the record still carries the full `ownerId`, and a key
+is resumed only when that id, the target and the payload fingerprint all match. An empty owner uses
+the non-account `anonymous` namespace. Signing out therefore keeps the account's unresolved keys
+(the server may still hold their outcome), while another account on the same device has a separate
+bucket and full eight-operation allowance. The previous v2 bucket and v1 single record were global
+per kind. They are read once under a global mutation queue; only the signed-in account's records
+move to v3, other accounts' records are left in place for their own first read, and a leftover v2
+bucket no longer strands an older v1 record. Corrupt records are dropped, never resumed.
+
+**Serialized mutations.** `getOrCreateOperationKey` and `completeOperation` both run through one
+promise chain, so a mint cannot read an old bucket while a completion writes it. The queue always
+settles, so a rejected task cannot block the next, and the caller still receives that task's own
+rejection. The chain is process-local deliberately: SecureStore has no compare-and-swap, and the app
+has one JavaScript process. Tests drive eight simultaneous distinct submissions (eight distinct,
+resumable keys), six simultaneous copies of one submission (one key), a stale completion that must
+not erase a newer key, account capacity isolation and a two-account sign-out/sign-in cycle.
+
+**Durable movement receipts.** New `stock_movement_operations` model, unique on
+`(businessId, requestKey)`, written before the first inventory change whenever a stock-in, stock-out
+or adjustment carries an `Idempotency-Key`. The fingerprint covers business, kind, product, location,
+quantity, reason, reference and a PO claim id; the same key with a different movement is `422
+IDEMPOTENCY_KEY_REUSED`. States are `IN_PROGRESS` → `INVENTORY_WRITTEN` → `COMPLETED`, plus
+`REQUIRES_ATTENTION`. The receipt stores the exact row id, previous/new quantities, ledger id,
+stored response and the stock-in `createdRow` flag, so a replay answers exactly like the first
+delivery. Recovery proves the outcome in order: stored response, ledger row by id or
+`movementOperationId`, an inventory row still exactly at `newQuantity` (then write the missing
+ledger row), otherwise refuse with `409 MOVEMENT_REQUIRES_ATTENTION`. The ledger remains
+authoritative throughout. A verified compensation deletes the receipt so a corrected retry starts
+clean; an unverified failure keeps it. A new partial unique index
+`(businessId, movementOperationId)` on `inventory_transactions` makes two recoverers safe, and
+`movementOperationId` is carried on every keyed ledger row. `triage:integrity` now lists attention
+receipts with the request key, which must not be replaced by a fresh one.
+
+**AI streaming request references.** `readRequestId` is exported from `client.ts` and applies the
+same bounded URL-safe validation as the server. `chatStream` reads `X-Request-ID` from the response
+headers before checking the status, then attaches it to every failure it can produce: a pre-stream
+error envelope, an SSE `error` event, an ended-without-`done` stream, an idle stream, an abort, a
+timeout and a network failure. `AiChat` stores the reference beside the send error and renders the
+shared selectable/copyable `RequestReference`, so a streamed failure now carries the same support
+handle as an ordinary API error. Tests cover a 503, an SSE error after a 2xx, an idle stream, a
+missing reference, and the rendered copy action.
+
+**Compatibility and failure handling.** The new collection and indexes are additive; no API
+response shape changed (the controller still strips `createdRow`). A movement without a key takes
+the old path. The client keeps the key on status 0, 408, every 5xx, `IDEMPOTENT_REQUEST_IN_PROGRESS`,
+`RECEIVE_IN_PROGRESS` and `MOVEMENT_REQUIRES_ATTENTION`; definite 4xx answers end the operation.
+v1/v2 records remain readable during the upgrade. The attention state is deliberately sticky: a
+fresh key could apply a second movement over an ambiguous one. The mutation queue and receipt
+recovery add no multi-document transaction; all inventory changes remain single-document guarded
+updates.
+
+**Verification.** `npm run typecheck` passed in `server/` and `mobile/`; server lint on every
+changed source, script and test file passed, and mobile lint on `lib/idempotency.ts` passed (the
+repository still has six pre-existing `react-hooks/set-state-in-effect` errors elsewhere). Focused
+mobile Jest passed **59/59** across `idempotency-persistence`, `ai40-chat-stream-transport` and
+`ai40-assistant-streaming`; the complete mobile run passed **113 suites / 1,317 tests**. The focused
+server DB run passed **20/20** (`INVENTORY-IDEMPOTENCY` 14 and `triage-integrity` 6), including the
+5xx-after-commit state, crash-after-ledger recovery, stock-out/adjustment replay, changed-key
+rejection and the persisted `createdRow` flag. The complete server run
+`npm test -- --test-concurrency=4` passed **3,237 tests / 528 suites, 3,237 pass, 0 fail, 0
+skipped, 998 s**. That run preceded the final one-line recovery-query hardening; the
+`INVENTORY-IDEMPOTENCY` suite was rerun after it and passed **14/14**. `node
+scripts/check-docs.mjs` reported 69 active documents and 46 living reference documents, the three
+documentation guards passed **16/16**, and `git diff --check` was clean apart from existing CRLF
+conversion warnings.
+
+**Limitations.** The mutation chain is process-local, which matches the app's single JS process and
+SecureStore's lack of compare-and-swap. Completed and abandoned movement receipts have no TTL or
+reaper yet, and a `REQUIRES_ATTENTION` receipt has no unflag/repair command; `triage:integrity`
+shows it, but a person must resolve it. The 5xx regression reproduces the state after the transport
+record was released rather than injecting a 500 at the HTTP layer. Receipts exist only for keyed
+movements; older clients and direct service callers keep the transport-only behavior. The receipt
+and ledger are still two documents, so recovery narrows the ambiguity window rather than removing
+it.
+
+**Next.** Add a safe receipt reaper/retention policy and an operator resolution path, then expose
+pending operations on the device so a member can see and finish them; see the ranked follow-up list
+in the session report. No production data, migration, commit or deployment was performed.

@@ -86,6 +86,37 @@ files EAS supplies as file variables (`GOOGLE_SERVICES_JSON`, `GOOGLE_SERVICE_IN
 ([Guide 7 § EAS environments](7-over-the-air-updates.md), and [Guide 2](2-run-on-your-phone.md) for
 the build that needs them).
 
+### Integrity recovery and the two read-only reports
+
+```bash
+cd C:/Users/jeffe/inventory-ai/server
+npm run audit:failures -- --days=30                    # audit rows that could not be written
+npm run audit:price-quality                            # missing/zero prices and currencies
+npm run recover:integrity                              # one exact recovery pass; writes only proven repairs
+npm run triage:integrity                               # read-only: attention journals + movement receipts + quarantine rows
+npm run migrate:transfer-ledger-index                  # read-only preflight for the unique ledger guard
+npm run ops:integrity -- --command=audit:failures      # scheduler-facing wrapper: lock, history, optional alert
+```
+
+These follow the same database rule as the integrity audit: development by default, production
+only with `--with-production`, and the test database refused. `audit:failures`, `audit:price-quality` and `triage:integrity` are read-only and exit **1** when
+they find something.
+`recover:integrity` exits **1** if a row could not be reconciled and exits **2** when it could not
+check. A `REQUIRES_ATTENTION` row is reported, never guessed away. `triage:integrity` prints the
+failure reason, inventory snapshots, ledger rows, the keyed movement receipt and quarantine
+reason/`keptId` for a human; it has no repair flag. Full behaviour, limits and the journal states are in
+[`INTEGRITY_RECOVERY.md`](../INTEGRITY_RECOVERY.md).
+
+`migrate:transfer-ledger-index` is read-only until `--apply`; it refuses ambiguous duplicates and
+quarantines exact copies before deleting them. Production apply additionally needs
+`TRANSFER_LEDGER_MIGRATION_CONFIRM=MIGRATE-TRANSFER-LEDGER`. `ops:integrity` runs any of the three
+commands as a child, preserves its `0/1/2` meaning, prevents duplicate runs with a per-command lock,
+and with `--notify` maintains one GitHub issue per command. A failed GitHub create, comment or close
+is stored as an undelivered alert and retried by the next `--notify` run. The daily Windows task is
+registered by `scripts/register-integrity-ops-scheduler.ps1`; see [`MONITORING.md`](../MONITORING.md).
+`/api/health/ready` also returns `503` when the exact unique partial transfer-ledger index is
+missing or wrong; it checks `listIndexes` and never repairs the index.
+
 ### Label barcode — does it decode?
 
 ```bash
@@ -515,6 +546,12 @@ the trigger. See [`INVENTORY_INTEGRITY.md`](../INVENTORY_INTEGRITY.md) and
 | `npm run audit:integrity` | orphan STOCK_IN rows / unreceipted PO receipts | ✅ reads |
 | `npm run audit:integrity:monitor` | the same audit against an accepted baseline; records local history and can open one issue for new findings | ✅ reads |
 | `npm run integrity:heartbeat` | publishes the latest aggregate result to the hosted freshness document | ✅ inventory; writes one heartbeat document |
+| `npm run audit:failures` | durable audit-write gaps, by action and tenant | ✅ reads; exit 1 on a gap |
+| `npm run audit:price-quality` | ACTIVE products with missing/zero price or missing/invalid currency | ✅ reads; exit 1 on a problem |
+| `npm run recover:integrity` | one exact transfer-journal and PO-claim reconciliation pass | ⚠️ writes only proven repair actions |
+| `npm run triage:integrity` | `REQUIRES_ATTENTION` journals, movement receipts and quarantined ledger rows, with reasons and evidence | ✅ reads; exit 1 when rows need attention |
+| `npm run migrate:transfer-ledger-index` | unique operation/location ledger guard; read-only preflight, `--apply` after review | ⚠️ apply quarantines/removes exact duplicates and builds the index |
+| `npm run ops:integrity -- --command=…` | scheduler wrapper: one lock, local history and optional per-command GitHub issue | ⚠️ recovery command writes only proven repairs |
 | `npm run verify:transfer-ui` | one device transfer run's six rows and final stock | ✅ reads |
 | `npm run backup:db` | recoverable copy (needs `BACKUP_DIR` outside the project) | ✅ reads; safe on production |
 | `npm run restore:db -- --from=…` | put a copy back (needs `CONFIRM=restore-db`) | ⚠️⚠️ test/dev only; `--dry-run` |

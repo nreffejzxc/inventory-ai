@@ -50,7 +50,12 @@ const KEY_PATTERN = /^[A-Za-z0-9._:-]{8,200}$/;
 const STALE_CLAIM_MS = 60_000;
 
 /** Only the authenticated context this middleware reads. `requireAuth` sets it first. */
-type AuthenticatedRequest = Request & { user?: { id: string; businessId: string } };
+type AuthenticatedRequest = Request & {
+  user?: { id: string; businessId: string };
+  // Read by handlers that must recognise their own durable work after an ambiguous
+  // 5xx, when this middleware has already released the key.
+  idempotencyKey?: string;
+};
 
 /** MongoDB's duplicate-key error — the signal that somebody else owns the claim. */
 function isDuplicateKey(err: unknown): boolean {
@@ -235,6 +240,7 @@ export function idempotent() {
     }
 
     const claimId = claim._id;
+    req.idempotencyKey = key;
     const json = res.json.bind(res) as (body?: unknown) => Response;
     res.json = ((body?: unknown) => {
       const send = () => json(body);

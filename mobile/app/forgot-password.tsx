@@ -8,6 +8,7 @@ import Button from '../components/Button';
 import Input from '../components/Input';
 import { requestPasswordResetCode } from '../lib/api';
 import { fieldErrorsFrom } from '../lib/authCopy';
+import { errorRequestId } from '../lib/errors';
 import { spacing, type } from '../lib/theme';
 import type { Palette } from '../lib/theme';
 import { useTheme } from '../lib/theme-context';
@@ -68,6 +69,7 @@ export default function ForgotPasswordScreen() {
   const [email, setEmail] = useState('');
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState<string | null>(null);
+  const [formRequestId, setFormRequestId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   // Set on every failure, rendered only under `__DEV__`. The sentence a person sees is reduced to
   // safe copy, which is right for them and useless for an operator; the application code is shown
@@ -87,6 +89,7 @@ export default function ForgotPasswordScreen() {
 
     setBusy(true);
     setFormError(null);
+    setFormRequestId(null);
     setFieldErrors({});
     setDiagnostic(null);
     try {
@@ -109,11 +112,13 @@ export default function ForgotPasswordScreen() {
       setDiagnostic(`server: ${(err as { code?: string | null } | null)?.code ?? '(no code)'}`);
       const fields = fieldErrorsFrom(err);
       if (Object.keys(fields).length) setFieldErrors(fields);
-      else
+      else {
         setFormError(
           (err as { message?: string } | null)?.message ||
             'Unable to send a reset code. Please try again.'
         );
+        setFormRequestId(errorRequestId(err));
+      }
     } finally {
       setBusy(false);
     }
@@ -132,7 +137,7 @@ export default function ForgotPasswordScreen() {
         </Text>
       }
     >
-      <Banner type="error" text={formError} />
+      <Banner type="error" text={formError} requestId={formRequestId} />
       {__DEV__ && diagnostic ? (
         <Text style={styles.diagnostic} selectable>
           {DEV_DIAGNOSTIC_PREFIX}

@@ -300,6 +300,33 @@ describe('AI-40 — the assistant streams its answer', () => {
     expect(view.getByText('How much stock do we hold in total?')).toBeTruthy();
   });
 
+  it('★ shows the server\'s request reference when a turn fails', async () => {
+    // The streamed turn bypasses `apiFetch`, so this reference has to be carried by
+    // `chatStream` itself and rendered by the shared component. Without it support has
+    // a failure sentence and no way to find the exact request.
+    chatStream.mockRejectedValue(
+      Object.assign(new ApiError(503, 'AI_UNAVAILABLE', 'The AI service is unavailable.'), {
+        requestId: 'req-stream-001',
+      }),
+    );
+
+    const view = await mount();
+    await ask(view);
+
+    await waitFor(() => expect(view.getByTestId('request-reference')).toBeTruthy());
+    expect(view.getByText('Reference: req-stream-001')).toBeTruthy();
+  });
+
+  it('shows no reference for a failure whose response carried none', async () => {
+    chatStream.mockRejectedValue(new ApiError(503, 'AI_UNAVAILABLE', 'The AI service is unavailable.'));
+
+    const view = await mount();
+    await ask(view);
+
+    await waitFor(() => expect(view.getByText(OUTAGE)).toBeTruthy());
+    expect(view.queryByTestId('request-reference')).toBeNull();
+  });
+
   it('keeps a quota refusal as a quota refusal — it is not a stream failure', async () => {
     chatStream.mockRejectedValue(new ApiError(429, 'AI_QUOTA_EXCEEDED', 'The AI assistant has reached its usage limit.'));
 

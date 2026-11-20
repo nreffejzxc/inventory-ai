@@ -8,6 +8,7 @@ import Button from '../components/Button';
 import CodeInput from '../components/CodeInput';
 import { requestPasswordResetCode, verifyPasswordResetCode } from '../lib/api';
 import { fieldErrorsFrom, formatRemaining } from '../lib/authCopy';
+import { errorRequestId } from '../lib/errors';
 import { ApiError } from '../lib/client';
 import { beginVerifiedReset } from '../lib/passwordResetSession';
 import { spacing, type } from '../lib/theme';
@@ -97,6 +98,7 @@ export default function ResetPasswordCodeScreen() {
   const [code, setCode] = useState('');
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState<string | null>(null);
+  const [formRequestId, setFormRequestId] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [sending, setSending] = useState(false);
@@ -224,6 +226,7 @@ export default function ResetPasswordCodeScreen() {
     cancelAutoVerify();
     setSending(true);
     setFormError(null);
+    setFormRequestId(null);
     setNotice(null);
     try {
       await requestPasswordResetCode(email);
@@ -240,6 +243,7 @@ export default function ResetPasswordCodeScreen() {
         setCooldownUntil(Date.now() + wait * 1000);
       }
       setFormError((err as { message?: string } | null)?.message || GENERIC_FAILURE);
+      setFormRequestId(errorRequestId(err));
     } finally {
       setSending(false);
     }
@@ -260,6 +264,7 @@ export default function ResetPasswordCodeScreen() {
     verifying.current = true;
     setBusy(true);
     setFormError(null);
+    setFormRequestId(null);
     setNotice(null);
     setFieldErrors({});
     try {
@@ -277,11 +282,13 @@ export default function ResetPasswordCodeScreen() {
     } catch (err) {
       const fields = fieldErrorsFrom(err);
       if (Object.keys(fields).length) setFieldErrors(fields);
-      else
+      else {
         setFormError(
           (err as { message?: string } | null)?.message ||
             'That code could not be verified. Please try again.'
         );
+        setFormRequestId(errorRequestId(err));
+      }
     } finally {
       verifying.current = false;
       setBusy(false);
@@ -310,7 +317,7 @@ export default function ResetPasswordCodeScreen() {
         </Text>
       }
     >
-      <Banner type="error" text={formError} />
+      <Banner type="error" text={formError} requestId={formRequestId} />
       <Banner type="success" text={notice} />
       <CodeInput
         label="Reset code"

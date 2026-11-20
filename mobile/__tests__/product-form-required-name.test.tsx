@@ -3,6 +3,7 @@ import { fireEvent, render, waitFor } from '@testing-library/react-native';
 import ProductForm from '../components/ProductForm';
 import { productsApi } from '../lib/api';
 import { useSession } from '../lib/auth';
+import { ApiError } from '../lib/client';
 import { ThemeProvider } from '../lib/theme-context';
 
 /**
@@ -21,6 +22,17 @@ import { ThemeProvider } from '../lib/theme-context';
  */
 
 const mockNameFocus = jest.fn();
+const mockSecureStore = new Map<string, string>();
+
+jest.mock('expo-secure-store', () => ({
+  getItemAsync: jest.fn(async (key: string) => mockSecureStore.get(key) ?? null),
+  setItemAsync: jest.fn(async (key: string, value: string) => {
+    mockSecureStore.set(key, value);
+  }),
+  deleteItemAsync: jest.fn(async (key: string) => {
+    mockSecureStore.delete(key);
+  }),
+}));
 
 jest.mock('../components/Input', () => {
   const React = jest.requireActual<typeof import('react')>('react');
@@ -42,6 +54,7 @@ jest.mock('../components/Input', () => {
       null,
       props.label ? React.createElement(Text, null, props.label) : null,
       React.createElement(TextInput, {
+        testID: typeof props.label === 'string' ? `input-${props.label}` : undefined,
         value: props.value,
         onChangeText: props.onChangeText,
         placeholder: props.placeholder,
@@ -75,6 +88,7 @@ const create = productsApi.create as jest.Mock;
 
 beforeEach(() => {
   jest.clearAllMocks();
+  mockSecureStore.clear();
   mockedUseSession.mockReturnValue({ token: 'token-1', user: { id: 'u1' }, signOut: jest.fn() });
 });
 
@@ -91,5 +105,28 @@ describe('ProductForm — required name', () => {
     await waitFor(() => expect(view.getByText('Name is required')).toBeTruthy());
     expect(create).not.toHaveBeenCalled();
     await waitFor(() => expect(mockNameFocus).toHaveBeenCalledTimes(1));
+  });
+});
+
+describe('ProductForm — create idempotency', () => {
+  it('★ keeps the create key after a 5xx, because the product may already exist', async () => {
+    create
+      .mockRejectedValueOnce(new ApiError(500, 'SERVER_ERROR', 'The product could not be saved.'))
+      .mockResolvedValueOnce({ id: 'product-1', name: 'Kettle' });
+
+    const view = await render(
+      <ThemeProvider>
+        <ProductForm />
+      </ThemeProvider>
+    );
+
+    await fireEvent.changeText(view.getByTestId('input-Product name'), 'Kettle');
+    await fireEvent.press(view.getByText('Create product'));
+    await waitFor(() => expect(view.getByText('The product could not be saved.')).toBeTruthy());
+
+    await fireEvent.press(view.getByText('Create product'));
+    await waitFor(() => expect(create).toHaveBeenCalledTimes(2));
+
+    expect(create.mock.calls[1][2]).toBe(create.mock.calls[0][2]);
   });
 });

@@ -226,3 +226,48 @@ The console guide claim audit and follow-up recommendations are §27KA; document
 code, account, permission, deployment or production change. It corrected the TOTP display,
 `READ_ONLY` deployment claim, developer command, production-guard wording, step-up scope, lost-key
 order and production commit, and recorded five unimplemented follow-ups.
+The five implementation plans are §27KB: a corrected FW-04, FW-07 request references, a
+measurement-first FW-05 deadline, linked stock-movement reversal and supplier replenishment terms.
+The FW-04 correction records that the tree has only `DRAFT`/`OPEN`/`RECEIVED`/`CANCELED`, that a
+partial receipt stays `OPEN`, and that no PDF generator or mail-attachment capability exists. The
+five-plan phase was documentation only: no code, schema, production data or configuration, email or
+deployment change.
+
+The audit-fix increment is §27KC: server-ranked AI price discovery with null-price exclusion and
+inclusive ceilings, the full-upsert transfer retry, PO receive receipt replay after an
+apply-then-throw finalize, explicit catalog PATCH clearing, archived-category refusal, idempotent
+catalog creates and best-effort post-commit audit writes. The accompanying review ranks ten next
+improvements and assesses the remaining transfer/receiving crash windows. Code and DB tests only;
+no production data or deployment change.
+
+FW-07 is §27KD: mobile-only copyable request references in the shared error state, sourced from a
+safely validated `X-Request-ID` on every failed response. `ListScreen` and every direct
+`ErrorState` caller expose it; form-level alerts remain a ranked follow-up. The increment also
+records ten recommendations beyond the five plans. Mobile tests and typecheck passed; no server,
+production data, configuration or deployment change.
+
+The transfer-ledger hardening is §27KG: a unique partial operation/location index with a
+preflight/quarantine migration, duplicate-key-safe recovery under a MongoDB lease shared across
+serving instances, and a scheduler-facing operations runner with per-command locks and GitHub issue
+alerts for the two read-only audits plus exact recovery. The complete DB suite passed 1,182 tests
+with zero failures. No production migration, task registration, commit or deployment was made.
+
+The three operational follow-ups are §27KH. `ops:integrity` now persists a failed GitHub create,
+comment or close as an undelivered alert and retries it on the next `--notify` run; a recovery close
+retry resumes at the close instead of duplicating its comment. `/api/health/ready` fails closed
+unless the exact unique partial transfer-ledger index is present with the required key order,
+uniqueness and filter, reading `listIndexes` without repairing anything. `triage:integrity` is the
+read-only operator view of `REQUIRES_ATTENTION` journals and `inventory_transaction_quarantine`
+rows, with reasons, snapshots and ledger evidence. Focused tests pass 38/38, unit mode 2,184 tests
+with 0 failures, and the complete suite 3,231 of 3,233 after the full run exposed a stale AI-2
+read-only allow-list; that test-only allow-list was corrected and its suite passes 10/10. No
+production database, migration, commit or deployment was touched.
+
+The 2026-11-20 follow-up closes the remaining alert-comment duplicate cases with a stable hidden
+marker in the issue body and each alert/recovery comment: a retry whose response was lost and a
+second scheduler host with separate history now read the issue before commenting, while an
+unreadable issue stays pending rather than posting blind, and a pending close is not resumed
+against a different issue number. Triage reads moved into a read-only module and gained a DB-backed
+test that seeds a `REQUIRES_ATTENTION` transfer and quarantine row, checks the exact evidence and
+proves every touched collection is unchanged. Focused tests pass 45/45, the complete server suite
+3,244 of 3,244 in 529 suites with zero failures or skips, and the documentation guards 16/16. No production database, migration, commit or deployment was touched.

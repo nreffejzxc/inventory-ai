@@ -7,6 +7,7 @@ import Banner from '../components/Banner';
 import Button from '../components/Button';
 import Input from '../components/Input';
 import { fieldErrorsFrom, formatRemaining } from '../lib/authCopy';
+import { errorRequestId } from '../lib/errors';
 import { ApiError } from '../lib/client';
 import { useSession } from '../lib/auth';
 import { defaultHomePath } from '../lib/permissions';
@@ -106,6 +107,7 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState<string | null>(null);
+  const [formRequestId, setFormRequestId] = useState<string | null>(null);
   const [needsAccount, setNeedsAccount] = useState(false);
   const [busy, setBusy] = useState(false);
   const [googleBusy, setGoogleBusy] = useState(false);
@@ -131,6 +133,7 @@ export default function LoginScreen() {
       if (at >= cooldownUntil) {
         setCooldownUntil(null);
         setFormError(null);
+        setFormRequestId(null);
         return;
       }
       setNow(at);
@@ -169,6 +172,7 @@ export default function LoginScreen() {
     const fields = fieldErrorsFrom(err);
     if (Object.keys(fields).length) {
       setFieldErrors(fields);
+      setFormRequestId(null);
       return;
     }
     if (err instanceof ApiError && err.code === LOGIN_RATE_LIMITED) {
@@ -181,14 +185,17 @@ export default function LoginScreen() {
         setCooldownUntil(Date.now() + wait * 1000);
       }
       setFormError(RATE_LIMIT_MESSAGE);
+      setFormRequestId(errorRequestId(err));
       return;
     }
     setNeedsAccount(err instanceof ApiError && err.code === REGISTRATION_REQUIRED);
     setFormError((err as { message?: string } | null)?.message || 'Unable to sign in. Please try again.');
+    setFormRequestId(errorRequestId(err));
   }
 
   function resetFeedback(): void {
     setFormError(null);
+    setFormRequestId(null);
     setFieldErrors({});
     setNeedsAccount(false);
   }
@@ -313,7 +320,11 @@ export default function LoginScreen() {
         </View>
       }
     >
-      {needsAccount ? <Banner type="info" text={bannerText} /> : <Banner type="error" text={bannerText} />}
+      {needsAccount ? (
+        <Banner type="info" text={bannerText} />
+      ) : (
+        <Banner type="error" text={bannerText} requestId={formRequestId} />
+      )}
       {needsAccount ? (
         <Text style={styles.actionRow}>
           <Link href="/register-firebase" style={styles.link}>

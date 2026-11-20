@@ -29,6 +29,25 @@ if (!VALID.includes(mode)) {
   process.exit(2);
 }
 
+// Windows can exhaust its child-process budget when every test file is spawned at
+// once (measured as 0xC0000142 in otherwise-unrelated files). This is opt-in so CI
+// keeps Node's default; a constrained machine can run, for example:
+//   npm run test:db -- --test-concurrency=4
+const forwarded = process.argv.slice(3);
+const concurrencyArg = forwarded.find((arg) => arg.startsWith('--test-concurrency='));
+const unknownForwarded = forwarded.filter((arg) => !arg.startsWith('--test-concurrency='));
+if (unknownForwarded.length > 0) {
+  console.error(`[run-tests] Unknown argument(s): ${unknownForwarded.join(' ')}. Only --test-concurrency=N is forwarded.`);
+  process.exit(2);
+}
+if (concurrencyArg) {
+  const value = Number(concurrencyArg.slice('--test-concurrency='.length));
+  if (!Number.isInteger(value) || value < 1 || value > 64) {
+    console.error('[run-tests] --test-concurrency must be an integer from 1 to 64.');
+    process.exit(2);
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Phase 07F suite classification (by actual DB/unit content, not filenames).
 // ---------------------------------------------------------------------------
@@ -119,9 +138,16 @@ const PURE_UNIT = [
   'AI113-highest-stock.test.mjs', // AI-113: highest-stock wording is separated from value/sales/low-stock shapes, the ranking is rebuilt from rows, and the whole-set restock shortfall is read from the tool rather than summed
   'inventory-integrity-monitor.test.mjs', // the scheduled integrity monitor's baseline/comparison: known findings are accepted explicitly, new and resolved rows are separated, a missing baseline makes everything new, malformed baselines are refused, the alert updates once per new set and closes on recovery, and a source scan proves the monitor never opens a database itself
   'integrity-heartbeat.test.mjs', // hosted freshness: the 26-hour threshold, missing/stale/NOT CHECKED/invalid states, the HTTP 200/503 contract, the writer's narrow single-collection surface, and its refusal of a free-form database
+  'ops-integrity.test.mjs', // the scheduled integrity-operations runner's policy: 0/1/2 stay distinct (NOT CHECKED is never a finding), recovery attention counts on exit 0, duplicate-run lock/stale takeover, per-signature alert deduplication, stable hidden alert markers, sanitized failure detail, and the source guard that the runner only spawns the existing commands
+  'ops-integrity-cli.test.mjs', // the runner's CLI path with fake child/gh: a failed create, comment or close is persisted as undelivered and retried on the next unchanged run; a marker prevents a retry or a second host from reposting a comment; a recovery close retry does not repost its comment; an unreadable issue stays pending; a no-notify run preserves the debt
+  'transfer-ledger-index-readiness.test.mjs', // fail-closed `/api/health/ready`: exact key order, unique and partial filter are required; a missing/wrong/erroring inspection answers 503 and the DB-down branch never inspects
+  'triage-integrity.test.mjs', // the read-only attention view: REQUIRES_ATTENTION reasons + snapshots + ledger rows, quarantine reasons/keptId, argument bounds, and a source guard against every write
   'PLAT2-platform-console.test.mjs', // PLAT-2: the dedicated console's strict CSP (no inline script/style/eval, exact API origin, frame-ancestors none), no event-handler attributes, origin-only config, traversal refusal, RFC 6238 TOTP vectors, replay refusal and AES-GCM tamper detection — no browser, no database
 ];
 const PURE_DB = [
+  'triage-integrity-db.test.mjs', // DB-backed read-only attention triage: a real REQUIRES_ATTENTION transfer plus quarantine row produce the exact reason/snapshot/ledger/keptId evidence, tenant scoping holds, and every touched collection is byte-for-byte unchanged after the read
+  'TLI-transfer-ledger-guard.test.mjs', // transfer ledger unique operation/location guard against real indexes, recovery lease ownership/stale takeover/skip, and a disposable-database migration that refuses ambiguous duplicates before writing, quarantines exact copies, and builds the unique partial index
+  'INTEGRITY-RECOVERY.test.mjs', // transfer journal recovery, abandoned PO-claim undo/release/flag, receive key fingerprints, category archive dependency, audit-failure rows and price-quality/AI ranking regressions
   'INVENTORY-IDEMPOTENCY.test.mjs', // §27GZ: one operation, one movement — the same Idempotency-Key delivered twice writes one ledger row and replays the first answer for stock in, stock out, adjustment, transfer, PO create and PO receive; a different key applies in full; a reused key with a changed body is 422 with no row; no key behaves as before; and a 409 that reports `applied` lines is replayed instead of re-run
   'AUTH02-session-cap.test.mjs', // AUTH-02 follow-up: the per-user session cap bounds ACCUMULATION (every sign-in, reinstall and exchange mints a row that lives for the full 14-day cap) without ever becoming a lockout — the session just created always survives, the OLDEST row goes, a revoked or expired row does not consume a slot, the rule is per account, and each eviction is written to the audit trail with its reason
   'DEMO3-code-coverage.test.mjs', // DEMO-3: the verifier's SKU/barcode coverage reads real products — every mode and a MIXED tenant counted from the database, plus a wrong check digit and a non-EAN-13 value through the barcode-health counter; the helper is read-only and an empty tenant is reported as empty rather than `none`
@@ -273,7 +299,7 @@ const desc = {
 console.log(`[run-tests] TEST_MODE=${mode}: ${files.length} file(s) — ${desc}`);
 console.log(`[run-tests] files: ${FILE_LISTS[mode].join(', ')}`);
 
-const child = spawn(process.execPath, ['--test', ...files], {
+const child = spawn(process.execPath, ['--test', ...(concurrencyArg ? [concurrencyArg] : []), ...files], {
   cwd: serverRoot,
   // LOG_REQUESTS=0 keeps the Phase 08A per-request access log off during test
   // runs (error logs are unaffected and always emit). Individual suites that

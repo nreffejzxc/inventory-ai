@@ -9,6 +9,7 @@ import Input from '../components/Input';
 import { resetPassword } from '../lib/api';
 import { clearPasswordResetPending, markPasswordResetPending, useSession } from '../lib/auth';
 import { fieldErrorsFrom } from '../lib/authCopy';
+import { errorRequestId } from '../lib/errors';
 import { confirmFirebasePasswordReset, verifyFirebasePasswordResetCode } from '../lib/firebase-auth';
 import { type } from '../lib/theme';
 import type { Palette } from '../lib/theme';
@@ -135,6 +136,7 @@ function ResetPasswordForm({ attempt }: { attempt: ResetAttempt }) {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState<string | null>(null);
+  const [formRequestId, setFormRequestId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
 
@@ -164,6 +166,7 @@ function ResetPasswordForm({ attempt }: { attempt: ResetAttempt }) {
 
     setBusy(true);
     setFormError(null);
+    setFormRequestId(null);
     setFieldErrors({});
     try {
       if (attempt.kind === 'firebase') {
@@ -252,6 +255,7 @@ function ResetPasswordForm({ attempt }: { attempt: ResetAttempt }) {
         ? null
         : (err as { message?: string } | null)?.message || 'Unable to reset the password.';
       setFormError(tokenProblem || fallback);
+      if (tokenProblem || fallback) setFormRequestId(errorRequestId(err));
     } finally {
       setBusy(false);
     }
@@ -278,7 +282,7 @@ function ResetPasswordForm({ attempt }: { attempt: ResetAttempt }) {
         </Text>
       }
     >
-      <Banner type="error" text={formError} />
+      <Banner type="error" text={formError} requestId={formRequestId} />
       <Input
         name="newPassword"
         label="New password"

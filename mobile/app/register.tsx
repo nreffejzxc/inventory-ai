@@ -8,6 +8,7 @@ import Button from '../components/Button';
 import Card from '../components/Card';
 import Input from '../components/Input';
 import { fieldErrorsFrom } from '../lib/authCopy';
+import { errorRequestId } from '../lib/errors';
 import { useSession } from '../lib/auth';
 import { getPendingInvite } from '../lib/pendingInvite';
 import { defaultHomePath, roleLabel } from '../lib/permissions';
@@ -67,6 +68,7 @@ export default function RegisterScreen() {
   const [confirm, setConfirm] = useState('');
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState<string | null>(null);
+  const [formRequestId, setFormRequestId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   if (status === 'signedIn') return <Redirect href={defaultHomePath(user)} />;
@@ -132,6 +134,7 @@ export default function RegisterScreen() {
     }
     setBusy(true);
     setFormError(null);
+    setFormRequestId(null);
     setFieldErrors({});
     try {
       // Register issues no token — signUp logs the new owner in afterwards.
@@ -153,7 +156,10 @@ export default function RegisterScreen() {
     } catch (err) {
       const fields = fieldErrorsFrom(err);
       if (Object.keys(fields).length) setFieldErrors(fields);
-      else setFormError((err as { message?: string } | null)?.message || 'Unable to create your account. Please try again.');
+      else {
+        setFormError((err as { message?: string } | null)?.message || 'Unable to create your account. Please try again.');
+        setFormRequestId(errorRequestId(err));
+      }
     } finally {
       setBusy(false);
     }
@@ -176,7 +182,7 @@ export default function RegisterScreen() {
         </Text>
       }
     >
-      <Banner type="error" text={formError} />
+      <Banner type="error" text={formError} requestId={formRequestId} />
       {invite ? (
         <Card>
           <View style={styles.inviteRow}>

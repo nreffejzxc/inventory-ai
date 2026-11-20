@@ -5,6 +5,7 @@ import { buildInfo } from '../config/deploymentReadiness.ts';
 import { getDatabaseState, isDatabaseReady } from '../config/db.ts';
 import { operationalCounters } from '../config/operationalCounters.ts';
 import { readIntegrityHeartbeat } from '../services/integrityHeartbeat.service.ts';
+import { checkRequiredIndexes } from '../config/indexReadiness.ts';
 
 /**
  * Health endpoints (Phase 07D / M1). Three complementary signals:
@@ -16,13 +17,16 @@ import { readIntegrityHeartbeat } from '../services/integrityHeartbeat.service.t
  *                          answering — the deployed commit and the process
  *                          uptime.
  *   GET /api/health/live   200 always — process is alive. Never consults MongoDB.
- *   GET /api/health/ready  200 only when MongoDB is reachable right now, else
- *                          503. This is the operational readiness gate a load
- *                          balancer / orchestrator should poll.
+ *   GET /api/health/ready  200 only when MongoDB is reachable right now AND the
+ *                          exact unique partial transfer-ledger index is present
+ *                          with its required options, else 503. This is the
+ *                          operational readiness gate a load balancer /
+ *                          orchestrator should poll.
  *
  * None of these expose the MongoDB URI, credentials, driver internals, or stack
- * traces; /ready is a cheap local check of the driver's connection state (no
- * round-trip, no extra connections, no polling).
+ * traces. `/ready` performs one bounded `listIndexes` read after the driver's
+ * connection check, so a reachable database missing the ledger guard cannot be
+ * mistaken for a ready deployment. It never creates or repairs an index.
  *
  * OPS-2 — WHY `/api/health` ALSO CARRIES COUNTERS, AND WHY THE OTHER TWO DO NOT.
  *
@@ -91,6 +95,9 @@ function timestamp() {
  * @param {() => Promise<IntegrityHeartbeatView>} [options.readIntegrity]
  *        The hosted freshness signal. Injectable so the 200/503 branches can be
  *        pinned without writing a heartbeat or waiting for a scheduled task.
+ * @param {() => Promise<{ready: boolean, failures: Array<{name: string, reason: string}>}>} [options.checkIndexes]
+ *        Fail-closed required-index readiness. Injectable so the route can be
+ *        pinned against a missing/incorrect index without a database.
  */
 export function createHealthRouter({
   getState = getDatabaseState,
@@ -99,6 +106,7 @@ export function createHealthRouter({
   counters = operationalCounters,
   environment = () => env.nodeEnv,
   readIntegrity = readIntegrityHeartbeat,
+  checkIndexes = checkRequiredIndexes,
 } = {}) {
   const router = Router();
 
@@ -121,17 +129,41 @@ export function createHealthRouter({
     res.status(200).json({ status: 'live', timestamp: timestamp() });
   });
 
-  // Readiness: MongoDB reachable? 200 when ready, 503 otherwise.
-  router.get('/ready', (req, res) => {
-    if (isReady()) {
-      return res.status(200).json({
-        status: 'ready',
+  // Readiness: MongoDB reachable AND the required ledger guard present?
+  router.get('/ready', async (_req, res) => {
+    if (!isReady()) {
+      return res.status(503).json({
+        status: 'not ready',
         db: getState(),
         timestamp: timestamp(),
       });
     }
-    return res.status(503).json({
-      status: 'not ready',
+
+    let indexReadiness;
+    try {
+      const result = await checkIndexes();
+      if (!result || typeof result.ready !== 'boolean' || !Array.isArray(result.failures)) {
+        throw new Error('invalid required-index readiness result');
+      }
+      indexReadiness = result;
+    } catch {
+      indexReadiness = {
+        ready: false,
+        failures: [{ name: 'required-indexes', reason: 'the required index check could not run' }],
+      };
+    }
+    if (!indexReadiness.ready) {
+      return res.status(503).json({
+        status: 'not ready',
+        db: getState(),
+        reason:
+          indexReadiness.failures.map((failure) => failure.reason).join('; ') ||
+          'a required database index is missing or incorrect',
+        timestamp: timestamp(),
+      });
+    }
+    return res.status(200).json({
+      status: 'ready',
       db: getState(),
       timestamp: timestamp(),
     });

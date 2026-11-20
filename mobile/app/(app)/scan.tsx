@@ -12,7 +12,7 @@ import Button from '../../components/Button';
 import Card from '../../components/Card';
 import { Icon } from '../../components/icons';
 import ListRow from '../../components/ListRow';
-import { CenterLoader, LoadingBlock, errorText } from '../../components/ListState';
+import { CenterLoader, LoadingBlock, errorRequestId, errorText } from '../../components/ListState';
 import Screen from '../../components/Screen';
 import SectionHeader from '../../components/SectionHeader';
 import { inventoryApi, productsApi } from '../../lib/api';
@@ -245,7 +245,12 @@ export default function ScanScreen() {
         <View>
           <Icon name="warning" color={colors.warning} size={40} style={styles.bigIcon} />
           <Text style={styles.title}>Couldn&apos;t look up the barcode</Text>
-          <Banner type="error" text={errorText(lookupError)} style={styles.button} />
+          <Banner
+            type="error"
+            text={errorText(lookupError)}
+            requestId={errorRequestId(lookupError)}
+            style={styles.button}
+          />
           <Button title="Try again" full onPress={() => last && lookup(last.code)} style={styles.button} />
           <Button title="Scan again" full variant="secondary" onPress={rescan} style={styles.button} />
         </View>

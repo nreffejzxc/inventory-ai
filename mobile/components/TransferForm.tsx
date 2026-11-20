@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { router } from 'expo-router';
 import { StyleSheet, Text } from 'react-native';
 
@@ -12,7 +12,13 @@ import { CenterLoader } from './ListState';
 import StatCard from './StatCard';
 import { inventoryApi, locationsApi, productsApi } from '../lib/api';
 import { ApiError } from '../lib/client';
-import { endsOperation, newIdempotencyKey } from '../lib/idempotency';
+import {
+  completeOperation,
+  endsOperation,
+  getOrCreateOperationKey,
+  PendingOperationsFullError,
+} from '../lib/idempotency';
+import { errorRequestId } from '../lib/errors';
 import { useSession } from '../lib/auth';
 import { alert } from '../lib/confirm';
 import { formatNumber } from '../lib/format';
@@ -54,7 +60,7 @@ export default function TransferForm({
 }: TransferFormProps) {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const { token } = useSession();
+  const { token, user } = useSession();
 
   const products = useActiveRef(token, productsApi);
   const locations = useActiveRef(token, locationsApi);
@@ -68,17 +74,10 @@ export default function TransferForm({
 
   const [fieldErrors, setFieldErrors] = useState<Record<string, string | undefined>>({});
   const [formError, setFormError] = useState<string | null>(null);
+  const [formRequestId, setFormRequestId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  // One name per operation attempt (see `lib/idempotency.ts`), kept across a retry
-  // of the same attempt and dropped when the form describes a different transfer.
-  const submitKey = useRef<string | null>(null);
   const submitting = useRef(false);
-  useEffect(() => {
-    // NOT while a request is in flight — see MovementForm: an edit during a slow
-    // delivery must not rename an operation that may already have been applied.
-    if (!submitting.current) submitKey.current = null;
-  }, [productId, fromLocationId, toLocationId, quantity, reason, reference]);
 
   const { row: source, loading: loadingSource, loaded: loadedSource } = useInventoryRow(
     token,
@@ -137,18 +136,26 @@ export default function TransferForm({
     submitting.current = true;
     setBusy(true);
     setFormError(null);
+    setFormRequestId(null);
     setFieldErrors({});
-    const idempotencyKey = (submitKey.current ??= newIdempotencyKey());
+    const payload = {
+      productId,
+      fromLocationId,
+      toLocationId,
+      // `qtyNum` is non-null for any submittable form (qtyOk gates the button).
+      quantity: qtyNum as number,
+      reason: reason.trim() || undefined,
+      reference: reference.trim() || undefined,
+    };
+    let idempotencyKey: string | undefined;
     try {
-      const res = await inventoryApi.transfer(token as string, {
-        productId,
-        fromLocationId,
-        toLocationId,
-        // `qtyNum` is non-null for any submittable form (qtyOk gates the button).
-        quantity: qtyNum as number,
-        reason: reason.trim() || undefined,
-        reference: reference.trim() || undefined,
-      }, idempotencyKey);
+      idempotencyKey = await getOrCreateOperationKey({
+        kind: 'transfer',
+        ownerId: user?.id,
+        payload,
+      });
+      const res = await inventoryApi.transfer(token as string, payload, idempotencyKey);
+      await completeOperation('transfer', idempotencyKey, user?.id);
       const from = fromLabel ?? 'source';
       const to = toLabel ?? 'destination';
       await alert(
@@ -159,12 +166,22 @@ export default function TransferForm({
       );
       router.back();
     } catch (err) {
-      // Only an answer that ENDS the operation mints a new key; a transport failure
-      // and a still-in-flight claim both keep it. See `lib/idempotency.ts`.
-      if (endsOperation(err)) submitKey.current = null;
+      if (err instanceof PendingOperationsFullError) {
+        setFormError(err.message);
+        setFormRequestId(null);
+        return;
+      }
+      // Only an answer that ENDS the operation mints a new key; a transport failure,
+      // a 5xx and a still-in-flight claim all keep it. See `lib/idempotency.ts`.
+      if (idempotencyKey && endsOperation(err)) {
+        await completeOperation('transfer', idempotencyKey, user?.id);
+      }
       const fields = fieldMap(err);
       if (Object.keys(fields).length) setFieldErrors(fields);
-      else setFormError((err as { message?: string } | null)?.message || 'The transfer could not be completed.');
+      else {
+        setFormError((err as { message?: string } | null)?.message || 'The transfer could not be completed.');
+        setFormRequestId(errorRequestId(err));
+      }
     } finally {
       submitting.current = false;
       setBusy(false);
@@ -177,7 +194,7 @@ export default function TransferForm({
 
   return (
     <Screen scroll contentStyle={styles.content}>
-      <Banner type="error" text={formError} />
+      <Banner type="error" text={formError} requestId={formRequestId} />
 
       {sourceState === 'loading' ? <Banner type="info" text="Checking stock at the source location…" /> : null}
       {sourceState === 'missing' ? (

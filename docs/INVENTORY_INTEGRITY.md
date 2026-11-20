@@ -72,6 +72,19 @@ user is signed in and the laptop is awake and online. The audit itself remains r
 write is one operational heartbeat document, made by a separate writer after a completed run; it
 never touches inventory, ledger, purchase-order, product, location, user or baseline data.
 
+**Related operational checks.** `audit:failures` reports committed writes whose audit row is
+missing; `audit:price-quality` reports unusable price/currency data; `recover:integrity` performs
+only exact, quantity-anchored journal recovery. They are scheduled through `ops:integrity` with a
+lock per command and one GitHub issue alert per command; a failed GitHub delivery is persisted and
+retried on the next run. `triage:integrity` is the read-only operator view of
+`REQUIRES_ATTENTION` journals, keyed movement receipts and quarantined ledger rows, with reasons
+and evidence. The unique
+transfer-ledger index is a migration prerequisite: `npm run migrate:transfer-ledger-index` is
+read-only until `--apply`, and a duplicate group is refused rather than guessed. The same exact
+index is now a readiness requirement: `/api/health/ready` answers `503` if it is missing or wrong. The full semantics and limits are in
+[`INTEGRITY_RECOVERY.md`](INTEGRITY_RECOVERY.md); the schedule is in
+[`MONITORING.md`](MONITORING.md).
+
 ### Hosted freshness
 
 The daily task publishes the latest aggregate result to one document in

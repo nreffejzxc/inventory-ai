@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Stack, useLocalSearchParams } from 'expo-router';
 
 import AccessDenied from '../../../../components/AccessDenied';
-import { CenterLoader, EmptyState, ErrorState, errorText } from '../../../../components/ListState';
+import { CenterLoader, EmptyState, ErrorState, errorRequestId, errorText } from '../../../../components/ListState';
 import PoForm from '../../../../components/PoForm';
 import Screen from '../../../../components/Screen';
 import { purchaseOrdersApi } from '../../../../lib/api';
@@ -73,7 +73,12 @@ function EditPurchaseOrder() {
       {loading && !po ? (
         <CenterLoader label="Loading order…" />
       ) : error && !po ? (
-        <ErrorState title="Couldn't load this order" message={errorText(error)} onRetry={load} />
+        <ErrorState
+          title="Couldn't load this order"
+          message={errorText(error)}
+          requestId={errorRequestId(error)}
+          onRetry={load}
+        />
       ) : po ? (
         po.status === 'DRAFT' ? (
           <PoForm initial={po} key={po.id} />

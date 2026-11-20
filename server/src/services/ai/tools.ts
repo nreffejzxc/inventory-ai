@@ -142,7 +142,34 @@ interface SearchProductsArgs extends ToolArguments, CategoryRef {
 interface FindProductsArgs extends ToolArguments, CategoryRef {
   keywords?: string;
   inStockOnly?: boolean;
+  sort?: 'price_asc' | 'price_desc';
   limit?: number;
+}
+
+/**
+ * The ISO code a member actually named, never a guessed one. A price ranking
+ * across currencies is not a ranking: PHP 900 is not greater than USD 10 in any
+ * meaningful sense. The tool uses this to keep a request such as "cheapest in
+ * PHP" inside one currency, and uses the catalogue's own currency groups when no
+ * code was named.
+ */
+export function currencyFromText(value: unknown): string | null {
+  const text = String(value ?? '');
+  const byCode = text.match(/\b(php|usd|eur|gbp|jpy|inr|aud|cad|sgd|nzd|hkd|pkr)\b/i);
+  if (byCode) return (byCode[1] ?? '').toUpperCase();
+  if (/\u20b1/.test(text)) return 'PHP';
+  if (/\$/.test(text)) return 'USD';
+  if (/\u20ac/.test(text)) return 'EUR';
+  if (/\u00a3/.test(text)) return 'GBP';
+  if (/\u00a5/.test(text)) return 'JPY';
+  if (/\u20b9/.test(text)) return 'INR';
+  if (/\bpesos?\b/i.test(text)) return 'PHP';
+  if (/\bdollars?\b/i.test(text)) return 'USD';
+  if (/\beuros?\b/i.test(text)) return 'EUR';
+  if (/\bpounds?\b/i.test(text)) return 'GBP';
+  if (/\byen\b/i.test(text)) return 'JPY';
+  if (/\brupees?\b/i.test(text)) return 'INR';
+  return null;
 }
 
 interface GetProductArgs extends ToolArguments {
@@ -342,7 +369,15 @@ function isExactProduct(row: ProductDTOSource, term: string): boolean {
 async function exactProductMatches(
   ctx: ToolContext,
   terms: string[],
-  filters: { categoryId?: string; maxSellingPrice?: number; inStockOnly?: boolean; limit: number },
+  filters: {
+    categoryId?: string;
+    maxSellingPrice?: number;
+    maxSellingPriceInclusive?: boolean;
+    priceCurrency?: string;
+    inStockOnly?: boolean;
+    sort?: 'price_asc' | 'price_desc';
+    limit: number;
+  },
 ): Promise<ProductDTOSource[]> {
   const matches = new Map<string, ProductDTOSource>();
   for (const term of terms) {
@@ -350,7 +385,10 @@ async function exactProductMatches(
       status: 'ACTIVE',
       categoryId: filters.categoryId,
       maxSellingPrice: filters.maxSellingPrice,
+      maxSellingPriceInclusive: filters.maxSellingPriceInclusive,
+      priceCurrency: filters.priceCurrency,
       inStockOnly: filters.inStockOnly,
+      sort: filters.sort,
       withStock: true,
       skip: 0,
       limit: filters.limit,
@@ -387,6 +425,11 @@ function productCoreWithDescription(
   specificationsMax: number,
 ) {
   const dto = productService.toProductDTO(doc);
+  // `toProductDTO` defaults a missing price to 0 for REST compatibility. To the
+  // assistant that 0 would read as a real free price. A missing/zero/unrecorded
+  // selling price is `null`; price ranking excludes those rows in SQL/Mongo instead
+  // of sorting them ahead of recorded prices.
+  const recordedPrice = Number.isFinite(dto.sellingPrice) && dto.sellingPrice > 0 ? dto.sellingPrice : null;
   return {
     id: dto.id,
     name: dto.name,
@@ -399,7 +442,7 @@ function productCoreWithDescription(
     status: dto.status,
     minimumStock: dto.minimumStock,
     category: dto.category,
-    sellingPrice: dto.sellingPrice,
+    sellingPrice: recordedPrice,
     // The ISO code the price was recorded in, or null. The assistant must not guess one.
     currency: dto.currency ?? null,
   };
@@ -926,6 +969,12 @@ const tools: Tool[] = [
           description: 'Exact name of an ACTIVE category, e.g. "Automotive"; "and" and "&" are treated as the same word. Use instead of categoryId when no id is known.',
         },
         inStockOnly: { type: 'boolean', description: 'When true, return only products with available stock above zero.' },
+        sort: {
+          type: 'string',
+          enum: ['price_asc', 'price_desc'],
+          description:
+            'Rank by recorded selling price across EVERY match, not just this page: price_asc for cheapest first, price_desc for dearest first. Products with no recorded price (or a price of 0) are excluded from a price ranking, so never call a missing price free. Use this for "cheapest", "most expensive" and similar questions instead of comparing the rows yourself.',
+        },
         limit: limitParam(15, 25),
       },
     },
@@ -933,23 +982,29 @@ const tools: Tool[] = [
       const category = await resolveCategory(ctx, args);
       if (!category.ok) return category.result;
       const rawKeywords = String(args.keywords ?? '').trim();
+      const requestedCurrency = currencyFromText(rawKeywords);
       // "products under 5,000" is a price request, not a product called "under 5,000".
       // The ceiling is applied in the database before paging, so a bounded page still
       // contains every qualifying row the answer may need.
       const priceLimit = rawKeywords.match(
-        /\b(?:less than|under|below|cheaper than|up to|within)\s+(?:php|p|\u20b1)?\s*([\d,]+(?:\.\d+)?)\s*(k)?\b/i,
+        /\b(?:less than|under|below|cheaper than|up to|within)\s+(?:(?:php|p|usd|eur|gbp|jpy|inr|aud|cad|sgd|nzd|hkd|pkr|\u20b1|\$|\u20ac|\u00a3|\u00a5|\u20b9)\s*)?([\d,]+(?:\.\d+)?)\s*(k)?\b/i,
       );
       const maxSellingPrice = priceLimit
         ? Number((priceLimit[1] ?? '').replace(/,/g, '')) * (priceLimit[2] ? 1000 : 1)
+        : undefined;
+      // "up to 5,000" and "within 5,000" include the ceiling; "under 5,000" does not.
+      const maxSellingPriceInclusive = priceLimit
+        ? /^(?:up to|within)\b/i.test(priceLimit[0])
         : undefined;
       const withoutPrice = priceLimit
         ? rawKeywords.replace(priceLimit[0], ' ')
         : rawKeywords;
       const cleaned = withoutPrice
         .replace(
-          /\b(?:products?|items?|things?|anything|something|show|me|which|what|are|is|cost|costs|costing|priced|price|prices|budget|php|pesos?)\b/gi,
+          /\b(?:products?|items?|things?|anything|something|show|me|which|what|are|is|cost|costs|costing|priced|price|prices|budget|php|pesos?|usd|dollars?|eur|euros?|gbp|pounds?|jpy|yen|inr|rupees?)\b/gi,
           ' ',
         )
+        .replace(/[\u20b1\u20ac\u00a3\u00a5\u20b9$]/g, ' ')
         .replace(/\s+/g, ' ')
         .trim();
       const requestedTerms = cleaned
@@ -983,6 +1038,35 @@ const tools: Tool[] = [
         return empty;
       }
       const pageLimit = Math.min(args.limit ?? 15, 25);
+      // A price ranking is only meaningful inside one recorded currency. First
+      // discover which currency groups the MATCHING catalogue carries, then
+      // either narrow to the one the member named / the only recorded one, or
+      // refuse to rank and say why. This runs before the page query, so a page
+      // cannot hide a second currency from the check.
+      let priceCurrency: string | undefined = requestedCurrency ?? undefined;
+      let priceRankBlocked = false;
+      let priceCurrencyGroups: Array<{ currency: string | null; count: number }> = [];
+      if (args.sort) {
+        priceCurrencyGroups = await productService.priceCurrencies(ctx.businessId, {
+          terms,
+          includeDescription: true,
+          status: 'ACTIVE',
+          categoryId: category.id,
+          maxSellingPrice,
+          maxSellingPriceInclusive,
+        });
+        if (!requestedCurrency) {
+          // `null` is its own group, not "unknown currency that can share a
+          // numeric order". One known group plus an unrecorded group is mixed
+          // just as surely as PHP plus USD.
+          const populated = priceCurrencyGroups.filter((group) => group.count > 0);
+          if (populated.length > 1) priceRankBlocked = true;
+          else if (populated.length === 1 && populated[0]!.currency) {
+            priceCurrency = populated[0]!.currency!;
+          }
+        }
+      }
+      const effectiveSort = priceRankBlocked ? undefined : args.sort;
       const search = (searchTerms: string[]) =>
         productService.list(ctx.businessId, {
           terms: searchTerms,
@@ -990,7 +1074,10 @@ const tools: Tool[] = [
           status: 'ACTIVE',
           categoryId: category.id,
           maxSellingPrice,
+          maxSellingPriceInclusive,
+          priceCurrency,
           inStockOnly: args.inStockOnly,
+          sort: effectiveSort,
           withStock: true,
           skip: 0,
           limit: pageLimit,
@@ -1038,15 +1125,37 @@ const tools: Tool[] = [
           ? await exactProductMatches(ctx, fallbackTerms, {
               categoryId: category.id,
               maxSellingPrice,
+              maxSellingPriceInclusive,
+              priceCurrency,
               inStockOnly: args.inStockOnly,
+              sort: effectiveSort,
               limit: pageLimit,
             })
           : [];
       const exactIds = new Set(exactItems.map((row) => String(row._id)));
-      const merged = [
+      const combined = [
         ...exactItems,
         ...items.filter((row) => !exactIds.has(String(row._id))),
-      ].slice(0, pageLimit);
+      ];
+      // A price ranking must rank the merged set too, not put exact-name matches first:
+      // the cheapest matching row is the answer even when its name is not the exact term.
+      if (effectiveSort === 'price_asc' || effectiveSort === 'price_desc') {
+        const direction = effectiveSort === 'price_asc' ? 1 : -1;
+        combined.sort((a, b) => {
+          const left = Number(a.sellingPrice);
+          const right = Number(b.sellingPrice);
+          const leftMissing = !Number.isFinite(left) || left <= 0;
+          const rightMissing = !Number.isFinite(right) || right <= 0;
+          if (leftMissing || rightMissing) {
+            if (leftMissing && rightMissing) return String(a._id).localeCompare(String(b._id));
+            return leftMissing ? 1 : -1;
+          }
+          if (left !== right) return (left - right) * direction;
+          return String(a.name ?? '').localeCompare(String(b.name ?? '')) ||
+            String(a._id).localeCompare(String(b._id));
+        });
+      }
+      const merged = combined.slice(0, pageLimit);
       const exactFound = exactItems.length > 0;
       // A no-match result is the END of this search, not an invitation to try
       // one-word variants until the six-step budget dies. Return the catalogue’s
@@ -1076,6 +1185,23 @@ const tools: Tool[] = [
             }
           : {}),
         ...(maxSellingPrice !== undefined ? { maxSellingPrice } : {}),
+        ...(maxSellingPriceInclusive ? { maxSellingPriceInclusive: true } : {}),
+        ...(args.sort && !priceRankBlocked
+          ? {
+              priceRank: args.sort,
+              ...(priceCurrency ? { priceCurrency } : {}),
+              priceRankNote:
+                'Rows are ranked by recorded selling price across every match, within one recorded currency (or the unrecorded-price group when no currency was recorded). Products with no recorded price are excluded and their price is null; never treat that as free.',
+            }
+          : {}),
+        ...(priceRankBlocked
+          ? {
+              priceRankBlocked: true,
+              priceCurrencies: priceCurrencyGroups,
+              priceRankNote:
+                'These matches carry more than one recorded currency, so there is no single cheapest or most expensive product across them. Report each currency separately; do not compare the numbers or call one row the overall cheapest.',
+            }
+          : {}),
         ...(categories
           ? {
               categories: categories.items.map(referenceItem),

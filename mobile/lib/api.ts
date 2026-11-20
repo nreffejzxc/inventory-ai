@@ -1,4 +1,4 @@
-import { apiFetch, ApiError, REQUEST_CANCELLED, resolveRequestToken, unreachableMessage } from './client';
+import { apiFetch, ApiError, readRequestId, REQUEST_CANCELLED, resolveRequestToken, unreachableMessage } from './client';
 import type { QueryParams } from './client';
 import { API_URL, AI_REQUEST_TIMEOUT_MS } from './config';
 import { readSseStream, StreamIdleError } from './sse';
@@ -699,8 +699,17 @@ function referenceGroup(path: string, { fields = [] }: { fields?: string[] } = {
   return {
     list: (token: string, params?: QueryParams): Promise<ApiResponse> => apiFetch(`${path}`, { token, params }),
     get: (token: string, id: string): Promise<ApiResponse> => apiFetch(`${path}/${id}`, { token }),
-    create: (token: string, { name, description, ...extras }: ReferencePayload): Promise<ApiResponse> =>
-      apiFetch(`${path}`, { token, method: 'POST', body: bodyWithExtras({ name, description }, extras) }),
+    create: (
+      token: string,
+      { name, description, ...extras }: ReferencePayload,
+      idempotencyKey?: string,
+    ): Promise<ApiResponse> =>
+      apiFetch(`${path}`, {
+        token,
+        method: 'POST',
+        body: bodyWithExtras({ name, description }, extras),
+        idempotencyKey,
+      }),
     update: (token: string, id: string, { name, description, ...extras }: ReferencePayload): Promise<ApiResponse> =>
       apiFetch(`${path}/${id}`, { token, method: 'PATCH', body: bodyWithExtras({ name, description }, extras, { keepEmpty: true }) }),
     archive: (token: string, id: string): Promise<ApiResponse> => apiFetch(`${path}/${id}/archive`, { token, method: 'POST' }),
@@ -732,19 +741,21 @@ export const suppliersApi = referenceGroup('/api/suppliers', {
  */
 export interface ProductInput {
   name?: string;
-  brand?: string;
-  sku?: string;
-  barcode?: string;
-  categoryId?: string;
-  description?: string;
-  specifications?: string;
-  unit?: string;
+  // `null` clears a recorded value on PATCH; `undefined` leaves it untouched. The
+  // create form omits blanks instead.
+  brand?: string | null;
+  sku?: string | null;
+  barcode?: string | null;
+  categoryId?: string | null;
+  description?: string | null;
+  specifications?: string | null;
+  unit?: string | null;
   costPrice?: number | null;
   sellingPrice?: number | null;
   /** ISO-4217 code of the prices, e.g. PHP. Omitted means the currency is unknown. */
-  currency?: string;
+  currency?: string | null;
   minimumStock?: number | null;
-  imageUrl?: string;
+  imageUrl?: string | null;
 }
 
 export const productsApi = {
@@ -756,8 +767,8 @@ export const productsApi = {
   /** Look up one product by its exact barcode (business-scoped). 404 when unknown. */
   barcode: (token: string, barcode: string): Promise<ApiResponse> =>
     apiFetch('/api/products/barcode', { token, params: { barcode } }),
-  create: (token: string, payload: ProductInput): Promise<ApiResponse> =>
-    apiFetch('/api/products', { token, method: 'POST', body: payload }),
+  create: (token: string, payload: ProductInput, idempotencyKey?: string): Promise<ApiResponse> =>
+    apiFetch('/api/products', { token, method: 'POST', body: payload, idempotencyKey }),
   update: (token: string, id: string, payload: ProductInput): Promise<ApiResponse> =>
     apiFetch(`/api/products/${id}`, { token, method: 'PATCH', body: payload }),
   archive: (token: string, id: string): Promise<ApiResponse> => apiFetch(`/api/products/${id}/archive`, { token, method: 'POST' }),
@@ -1039,6 +1050,15 @@ export const aiApi = {
       fetchImpl?: (url: string, init: Record<string, unknown>) => Promise<StreamedResponse>;
     } = {},
   ): Promise<ApiResponse> => {
+    // The server's correlation id for THIS turn, read from the response headers as
+    // soon as they exist. Every failure below carries it, including a provider error
+    // delivered as an SSE event after a 2xx — the case with no `ApiError` envelope.
+    let requestId: string | null = null;
+    const withReference = <T extends ApiError>(error: T): T => {
+      error.requestId = requestId;
+      return error;
+    };
+
     const effectiveToken = await resolveRequestToken(token);
     const controller = new AbortController();
     let abortCause: 'timeout' | 'caller' | null = null;
@@ -1072,6 +1092,7 @@ export const aiApi = {
         body: JSON.stringify({ conversationId, message, timeZone: deviceTimeZone() }),
         signal: controller.signal,
       });
+      requestId = readRequestId(res);
 
       if (!res.ok) {
         // The server refused before streaming (validation, auth, rate limit, not configured).
@@ -1084,7 +1105,9 @@ export const aiApi = {
         } catch {
           body = {};
         }
-        throw new ApiError(res.status, body.code ?? null, body.error || 'Your message could not be sent.', body.fields ?? []);
+        throw withReference(
+          new ApiError(res.status, body.code ?? null, body.error || 'Your message could not be sent.', body.fields ?? []),
+        );
       }
 
       const stream = res.body;
@@ -1092,7 +1115,9 @@ export const aiApi = {
         // No body, and a body that ended before its `done` event, are both the same fact to the
         // caller: the connection did not deliver the answer. `status: 0` is the transport class
         // the rest of the client already uses (and the one the screen may retry over JSON).
-        throw new ApiError(0, 'NETWORK_ERROR', 'The assistant could not start streaming.');
+        throw withReference(
+          new ApiError(0, 'NETWORK_ERROR', 'The assistant could not start streaming.'),
+        );
       }
 
       let done: ApiResponse = null;
@@ -1140,14 +1165,18 @@ export const aiApi = {
 
       if (failure) {
         const f = failure as { status?: number; code?: string | null; message?: string };
-        throw new ApiError(
-          typeof f.status === 'number' ? f.status : 0,
-          f.code ?? 'AI_UNAVAILABLE',
-          f.message || 'The assistant could not answer. Please try again.',
+        throw withReference(
+          new ApiError(
+            typeof f.status === 'number' ? f.status : 0,
+            f.code ?? 'AI_UNAVAILABLE',
+            f.message || 'The assistant could not answer. Please try again.',
+          ),
         );
       }
       if (!done) {
-        throw new ApiError(0, 'NETWORK_ERROR', 'The assistant closed the connection before answering.');
+        throw withReference(
+          new ApiError(0, 'NETWORK_ERROR', 'The assistant closed the connection before answering.'),
+        );
       }
       return done;
     } catch (err) {
@@ -1155,15 +1184,19 @@ export const aiApi = {
       // The stream went quiet past its heartbeat: the connection died without closing. Reported as
       // the transport failure it is, so the screen may retry a turn that showed no text.
       if (err instanceof StreamIdleError) {
-        throw new ApiError(0, 'NETWORK_ERROR', 'The assistant stopped sending. Please try again.');
+        throw withReference(
+          new ApiError(0, 'NETWORK_ERROR', 'The assistant stopped sending. Please try again.'),
+        );
       }
       if (callerSignal?.aborted || abortCause === 'caller') {
-        throw new ApiError(0, REQUEST_CANCELLED, 'The request was cancelled.');
+        throw withReference(new ApiError(0, REQUEST_CANCELLED, 'The request was cancelled.'));
       }
       if (abortCause === 'timeout') {
-        throw new ApiError(0, 'NETWORK_TIMEOUT', 'The request timed out. Check your connection and try again.');
+        throw withReference(
+          new ApiError(0, 'NETWORK_TIMEOUT', 'The request timed out. Check your connection and try again.'),
+        );
       }
-      throw new ApiError(0, 'NETWORK_ERROR', unreachableMessage(API_URL, __DEV__));
+      throw withReference(new ApiError(0, 'NETWORK_ERROR', unreachableMessage(API_URL, __DEV__)));
     } finally {
       release();
     }
@@ -1209,6 +1242,8 @@ interface StreamedResponse {
   ok: boolean;
   status: number;
   body: { getReader(): { read(): Promise<{ done: boolean; value?: Uint8Array }>; cancel?(): Promise<void>; releaseLock?(): void } } | null;
+  /** Diagnostics only; absent on a minimal test double, which answers no reference. */
+  headers?: { get(name: string): string | null } | null;
   text(): Promise<string>;
 }
 

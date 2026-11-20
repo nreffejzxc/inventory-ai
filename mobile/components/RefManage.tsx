@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
-import { Alert, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import type { TextInputProps } from 'react-native';
 
 import { StatusBadge } from './Badge';
@@ -15,11 +15,17 @@ import ListRow from './ListRow';
 import ListScreen from './ListScreen';
 import SearchField from './SearchField';
 import Sheet from './Sheet';
-import { errorText } from './ListState';
 import { ApiError } from '../lib/client';
+import {
+  completeOperation,
+  endsOperation,
+  getOrCreateOperationKey,
+  PendingOperationsFullError,
+} from '../lib/idempotency';
+import { errorRequestId } from '../lib/errors';
 import type { QueryParams } from '../lib/client';
 import { useSession } from '../lib/auth';
-import { confirm } from '../lib/confirm';
+import { alertError, confirm } from '../lib/confirm';
 import type { PermissionSubject } from '../lib/permissions';
 import type { ApiResponse, ReferencePayload } from '../lib/api';
 import useDebounced from '../hooks/useDebounced';
@@ -48,7 +54,7 @@ export interface RefField {
 /** The shared reference CRUD surface (categories, locations, suppliers). */
 export interface RefManageApi {
   list: (token: string, params?: QueryParams) => Promise<ApiResponse>;
-  create: (token: string, payload: ReferencePayload) => Promise<ApiResponse>;
+  create: (token: string, payload: ReferencePayload, idempotencyKey?: string) => Promise<ApiResponse>;
   update: (token: string, id: string, payload: ReferencePayload) => Promise<ApiResponse>;
   archive: (token: string, id: string) => Promise<ApiResponse>;
   restore: (token: string, id: string) => Promise<ApiResponse>;
@@ -122,6 +128,7 @@ export default function RefManage({
   const [extras, setExtras] = useState<Record<string, string>>({});
   const [fieldErrors, setFieldErrors] = useState<Record<string, string | undefined>>({});
   const [formError, setFormError] = useState<string | null>(null);
+  const [formRequestId, setFormRequestId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   function openCreate(): void {
@@ -131,6 +138,7 @@ export default function RefManage({
     setExtras({});
     setFieldErrors({});
     setFormError(null);
+    setFormRequestId(null);
     setFormOpen(true);
   }
   function openEdit(item: ApiResponse): void {
@@ -142,6 +150,7 @@ export default function RefManage({
     setExtras(next);
     setFieldErrors({});
     setFormError(null);
+    setFormRequestId(null);
     setFormOpen(true);
   }
   function closeForm(): void {
@@ -151,8 +160,14 @@ export default function RefManage({
   async function save(): Promise<void> {
     setSaving(true);
     setFormError(null);
+    setFormRequestId(null);
     setFieldErrors({});
-    const payload: ReferencePayload = { name: name.trim(), description: description.trim() || undefined };
+    const payload: ReferencePayload = {
+      name: name.trim(),
+      // An edit must be able to clear the description. The service treats '' as an
+      // explicit clear on PATCH; create still omits a blank.
+      description: description.trim() || (editing ? '' : undefined),
+    };
     for (const f of fields) {
       const v = (extras[f.name] ?? '').trim();
       // create: skip blanks so nothing empty is stored; update: forward '' so
@@ -160,15 +175,36 @@ export default function RefManage({
       if (editing) payload[f.name] = v;
       else if (v) payload[f.name] = v;
     }
+    let idempotencyKey: string | undefined;
     try {
+      idempotencyKey = editing
+        ? undefined
+        : await getOrCreateOperationKey({
+            kind: 'reference.create',
+            ownerId: user?.id,
+            target: singular.toLowerCase(),
+            payload,
+          });
       if (editing) await api.update(token as string, editing.id, payload);
-      else await api.create(token as string, payload);
+      else await api.create(token as string, payload, idempotencyKey);
+      if (idempotencyKey) await completeOperation('reference.create', idempotencyKey, user?.id);
       setFormOpen(false);
       list.reload();
     } catch (err) {
+      if (err instanceof PendingOperationsFullError) {
+        setFormError(err.message);
+        setFormRequestId(null);
+        return;
+      }
+      if (idempotencyKey && endsOperation(err)) {
+        await completeOperation('reference.create', idempotencyKey, user?.id);
+      }
       const fields = fieldMap(err);
       if (Object.keys(fields).length) setFieldErrors(fields);
-      else setFormError((err as { message?: string } | null)?.message || `Unable to save the ${singular.toLowerCase()}.`);
+      else {
+        setFormError((err as { message?: string } | null)?.message || `Unable to save the ${singular.toLowerCase()}.`);
+        setFormRequestId(errorRequestId(err));
+      }
     } finally {
       setSaving(false);
     }
@@ -180,7 +216,7 @@ export default function RefManage({
         await api.restore(token as string, item.id);
         list.reload();
       } catch (err) {
-        Alert.alert('Could not restore', errorText(err));
+        await alertError('Could not restore', err);
       }
       return;
     }
@@ -194,7 +230,7 @@ export default function RefManage({
       await api.archive(token as string, item.id);
       list.reload();
     } catch (err) {
-      Alert.alert('Could not archive', errorText(err));
+      await alertError('Could not archive', err);
     }
   }
 
@@ -275,7 +311,7 @@ export default function RefManage({
         title={editing ? `Edit ${singular.toLowerCase()}` : `New ${singular.toLowerCase()}`}
       >
         <KeyboardScrollView style={styles.sheetScroll} contentContainerStyle={styles.sheetBody} keyboardShouldPersistTaps="handled">
-          <Banner type="error" text={formError} />
+          <Banner type="error" text={formError} requestId={formRequestId} />
           <Input
             name="name"
             label="Name"

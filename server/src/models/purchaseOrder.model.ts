@@ -85,6 +85,34 @@ const poClaimSchema = new Schema(
       ref: 'User',
       required: [true, 'createdBy is required'],
     },
+    // The client's Idempotency-Key for the receive that owns this claim. It lets a
+    // retry recognise its own in-flight claim instead of reserving the same quantity
+    // again. Optional: requests without a key keep the old behaviour.
+    requestKey: {
+      type: String,
+      trim: true,
+      maxlength: [200, 'requestKey must be at most 200 characters'],
+    },
+    // SHA-256 of this receive's canonical lines + reference. A reused key with a
+    // different request is refused instead of replaying somebody else's receipt.
+    requestFingerprint: {
+      type: String,
+      trim: true,
+      maxlength: 64,
+    },
+    // Recovery marker for a claim whose movement may already exist. `CLAIMED`
+    // means no stock-in has been confirmed; `MOVED` is set after the stock-in;
+    // `REQUIRES_ATTENTION` means a reaper could not prove a safe undo.
+    phase: {
+      type: String,
+      enum: ['CLAIMED', 'MOVED', 'REQUIRES_ATTENTION'],
+      default: 'CLAIMED',
+    },
+    inventoryTransactionId: {
+      type: Schema.Types.ObjectId,
+      ref: 'InventoryTransaction',
+    },
+    lastAttemptAt: Date,
     createdAt: {
       type: Date,
       default: Date.now,
@@ -155,6 +183,19 @@ const receiptSchema = new Schema(
       trim: true,
       maxlength: [200, 'reference must be at most 200 characters'],
       default: '',
+    },
+    // The Idempotency-Key that produced this receipt, stored so a retry after an
+    // ambiguous finalize can be answered from the durable receipt instead of adding
+    // the same stock a second time. Optional for historical receipts.
+    requestKey: {
+      type: String,
+      trim: true,
+      maxlength: [200, 'requestKey must be at most 200 characters'],
+    },
+    requestFingerprint: {
+      type: String,
+      trim: true,
+      maxlength: 64,
     },
     lines: {
       type: [receiptLineSchema],

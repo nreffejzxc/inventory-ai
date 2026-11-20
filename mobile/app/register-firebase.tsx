@@ -7,6 +7,7 @@ import Banner from '../components/Banner';
 import Button from '../components/Button';
 import Input from '../components/Input';
 import { fieldErrorsFrom } from '../lib/authCopy';
+import { errorRequestId } from '../lib/errors';
 import { ApiError } from '../lib/client';
 import { useSession } from '../lib/auth';
 import { FirebaseAuthError } from '../lib/firebase-auth';
@@ -122,6 +123,7 @@ export default function FirebaseRegisterScreen() {
   const [name, setName] = useState('');
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState<string | null>(null);
+  const [formRequestId, setFormRequestId] = useState<string | null>(null);
   const [signInInstead, setSignInInstead] = useState(false);
   const [busy, setBusy] = useState(false);
 
@@ -178,6 +180,7 @@ export default function FirebaseRegisterScreen() {
 
     setBusy(true);
     setFormError(null);
+    setFormRequestId(null);
     setFieldErrors({});
     setSignInInstead(false);
     try {
@@ -206,6 +209,9 @@ export default function FirebaseRegisterScreen() {
       // Phase 27 established for a field error with no input of its own).
       if (orphaned.length) setFormError(orphaned[0] ?? null);
       else if (Object.keys(fields).length === 0) setFormError(messageFor(err));
+      if (orphaned.length || Object.keys(fields).length === 0) {
+        setFormRequestId(errorRequestId(err));
+      }
       setSignInInstead(offersSignIn(err));
     } finally {
       setBusy(false);
@@ -229,7 +235,7 @@ export default function FirebaseRegisterScreen() {
         </Text>
       }
     >
-      <Banner type="error" text={formError} />
+      <Banner type="error" text={formError} requestId={formRequestId} />
       {signInInstead ? (
         <Text style={styles.actionRow}>
           <Link href="/login" style={styles.link}>

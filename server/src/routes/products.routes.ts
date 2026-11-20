@@ -2,6 +2,7 @@ import { Router } from 'express';
 
 import requireAuth from '../middlewares/authenticate.ts';
 import { requirePermission } from '../middlewares/authorize.ts';
+import { idempotent } from '../middlewares/idempotency.ts';
 import productsController from '../controllers/products.controller.ts';
 import { PERMISSIONS } from '../constants/roles.ts';
 
@@ -14,7 +15,7 @@ const router = Router();
 // MANAGER per spec §7). Phase 22 pinned both bindings in
 // test/phase22-authorization-contract.test.mjs.
 router.get('/', requireAuth, requirePermission(PERMISSIONS.PRODUCTS_VIEW), productsController.list);
-router.post('/', requireAuth, requirePermission(PERMISSIONS.PRODUCTS_MANAGE), productsController.create);
+router.post('/', requireAuth, requirePermission(PERMISSIONS.PRODUCTS_MANAGE), idempotent(), productsController.create);
 // Static path must be registered before the parameterized /:id routes below.
 router.get('/reorder', requireAuth, requirePermission(PERMISSIONS.PRODUCTS_VIEW), productsController.reorder);
 router.get('/barcode', requireAuth, requirePermission(PERMISSIONS.PRODUCTS_VIEW), productsController.byBarcode);

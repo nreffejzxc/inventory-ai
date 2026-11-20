@@ -22,7 +22,10 @@ import inventoryService from '../services/inventory.service.ts';
  * chaining was NOT used: it would silently pass `undefined` on where the code
  * would previously have thrown, which is a behaviour change.
  */
-type AuthenticatedRequest = Request & { user?: { id: string; businessId: string } };
+type AuthenticatedRequest = Request & {
+  user?: { id: string; businessId: string };
+  idempotencyKey?: string;
+};
 
 function paramId(req: AuthenticatedRequest) {
   // `req.params` is Express's `{ [key: string]: string | string[] }`, so the
@@ -140,7 +143,10 @@ const inventoryController = {
 
   async stockIn(req: AuthenticatedRequest, res: Response) {
     const input = parseMovementInput(req);
-    const out = await inventoryService.stockIn(req.user!.businessId, req.user!.id, input);
+    const out = await inventoryService.stockIn(req.user!.businessId, req.user!.id, {
+      ...input,
+      idempotencyKey: req.idempotencyKey,
+    });
     res.status(201).json({
       transaction: out.transaction,
       previousQuantity: out.previousQuantity,
@@ -150,7 +156,10 @@ const inventoryController = {
 
   async stockOut(req: AuthenticatedRequest, res: Response) {
     const input = parseMovementInput(req);
-    const out = await inventoryService.stockOut(req.user!.businessId, req.user!.id, input);
+    const out = await inventoryService.stockOut(req.user!.businessId, req.user!.id, {
+      ...input,
+      idempotencyKey: req.idempotencyKey,
+    });
     res.json({
       transaction: out.transaction,
       previousQuantity: out.previousQuantity,
@@ -161,7 +170,10 @@ const inventoryController = {
   /** Moves stock between two locations of the caller's business (Phase 19). */
   async transfer(req: AuthenticatedRequest, res: Response) {
     const input = parseTransferInput(req);
-    const out = await inventoryService.transfer(req.user!.businessId, req.user!.id, input);
+    const out = await inventoryService.transfer(req.user!.businessId, req.user!.id, {
+      ...input,
+      idempotencyKey: req.idempotencyKey,
+    });
     res.status(201).json({
       reference: out.reference,
       transaction: out.transaction,
@@ -178,7 +190,10 @@ const inventoryController = {
     // the reason is what makes the row explicable later. Required here, not just
     // in the form: an older client cannot skip the audit trail either.
     const input = parseMovementInput(req, { allowZero: true, requireReason: true });
-    const out = await inventoryService.adjust(req.user!.businessId, req.user!.id, input);
+    const out = await inventoryService.adjust(req.user!.businessId, req.user!.id, {
+      ...input,
+      idempotencyKey: req.idempotencyKey,
+    });
     res.json({
       transaction: out.transaction,
       previousQuantity: out.previousQuantity,

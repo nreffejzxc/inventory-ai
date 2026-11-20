@@ -118,6 +118,34 @@ function stubTxnToThrow() {
 }
 
 /**
+ * Make the FIRST destination upsert throw E11000, as a racing writer that created the
+ * row would. The retry then finds the row ABSENT (the racer's row vanished, which is the
+ * case this regression is named for). The retry must be a FULL upsert, not an update-only
+ * lookup: an update-only retry would return null while the service still writes both
+ * ledger rows, leaving destination stock at zero.
+ */
+function stubDestinationUpsertDuplicateOnce(productId, toLocationId) {
+  const real = Inventory.findOneAndUpdate.bind(Inventory);
+  let injected = false;
+  Inventory.findOneAndUpdate = (filter, update, opts) => {
+    const isDestinationUpsert =
+      Boolean(opts && opts.upsert) &&
+      String(filter.productId) === String(productId) &&
+      String(filter.locationId) === String(toLocationId);
+    if (isDestinationUpsert && !injected) {
+      injected = true;
+      const err = new Error('injected duplicate-key race on the destination row');
+      err.code = 11000;
+      throw err;
+    }
+    return real(filter, update, opts);
+  };
+  return () => {
+    Inventory.findOneAndUpdate = real;
+  };
+}
+
+/**
  * Replace InventoryTransaction.create so the FIRST call passes through to the
  * real create and every LATER call throws. For a transfer this leaves exactly
  * one ledger row written (the source leg) before the failure, which is the
@@ -484,6 +512,31 @@ dbSuite('Phase 19 — stock transfers between locations', dbOk, () => {
     assert.equal(await rowQuantity(owner.businessId, p, from), 10, 'the source debit is compensated');
     assert.equal(await rowQuantity(owner.businessId, p, to), null, 'the destination credit is undone');
     assert.equal(await transferredAuditCount(owner.businessId, p), 0);
+  });
+
+  it('a duplicate-key destination upsert whose row has vanished retries a FULL upsert, so no ledger row is written without destination stock', async () => {
+    const p = await newProduct(owner);
+    const from = await newLocation(owner);
+    const to = await newLocation(owner);
+    await stockIn(owner, p, from, 10);
+
+    const restore = stubDestinationUpsertDuplicateOnce(p, to);
+    let res;
+    try {
+      res = await transfer(owner, {
+        productId: p,
+        fromLocationId: from,
+        toLocationId: to,
+        quantity: 4,
+      });
+    } finally {
+      restore();
+    }
+
+    assert.equal(res.status, 201, JSON.stringify(res.json));
+    assert.equal(await rowQuantity(owner.businessId, p, from), 6, 'the source debit is kept');
+    assert.equal(await rowQuantity(owner.businessId, p, to), 4, 'the retry re-created the destination row');
+    assert.equal(await txnCount(owner.businessId, p, 'TRANSFER'), 2, 'both ledger rows have backing stock');
   });
 
   it('a compensating transfer onto an EXISTING destination row restores it, leaving no orphan', async () => {

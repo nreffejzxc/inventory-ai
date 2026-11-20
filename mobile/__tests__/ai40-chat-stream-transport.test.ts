@@ -76,10 +76,11 @@ function bodyOf(chunks: string[]) {
   return { body: { getReader: () => reader }, reader };
 }
 
-const okResponse = (body: unknown) => ({
+const okResponse = (body: unknown, headers: Record<string, string> = {}) => ({
   ok: true,
   status: 200,
   body,
+  headers: { get: (name: string) => headers[name.toLowerCase()] ?? null },
   text: async () => '',
 });
 
@@ -227,6 +228,74 @@ describe('AI-40 — chatStream settles even when the body does not', () => {
     await expect(aiApi.chatStream('token-1', { message: 'x' }, streamOptions())).rejects.toMatchObject({
       code: 'NETWORK_ERROR',
       status: 0,
+    });
+  });
+
+  describe('request references', () => {
+    it('★ carries a safe X-Request-ID from a pre-stream refusal', async () => {
+      mockStreamingFetch.mockResolvedValue({
+        ok: false,
+        status: 503,
+        body: null,
+        headers: { get: (name: string) => (name.toLowerCase() === 'x-request-id' ? 'req-ai-503' : null) },
+        text: async () => JSON.stringify({ code: 'AI_UNAVAILABLE', error: 'The AI service is unavailable.' }),
+      });
+
+      await expect(aiApi.chatStream('token-1', { message: 'x' }, streamOptions())).rejects.toMatchObject({
+        status: 503,
+        code: 'AI_UNAVAILABLE',
+        requestId: 'req-ai-503',
+      });
+    });
+
+    it('★ carries it from an SSE error event on a 2xx stream', async () => {
+      mockStreamingFetch.mockResolvedValue(
+        okResponse(
+          bodyOf([
+            'event: error\ndata: {"status":429,"code":"AI_RATE_LIMITED","message":"Slow down"}\n\n',
+          ]).body,
+          { 'x-request-id': 'req-ai-event' },
+        ),
+      );
+
+      await expect(aiApi.chatStream('token-1', { message: 'x' }, streamOptions())).rejects.toMatchObject({
+        status: 429,
+        code: 'AI_RATE_LIMITED',
+        requestId: 'req-ai-event',
+      });
+    });
+
+    it('★ carries it when the stream breaks after its headers', async () => {
+      jest.useFakeTimers();
+      mockStreamingFetch.mockResolvedValue(
+        okResponse(wedgedBody().body, { 'x-request-id': 'req-ai-idle' }),
+      );
+
+      const pending = aiApi.chatStream('token-1', { message: 'x' }, streamOptions());
+      pending.catch(() => {});
+      await flush();
+      await jest.advanceTimersByTimeAsync(20_001);
+
+      await expect(pending).rejects.toMatchObject({
+        code: 'NETWORK_ERROR',
+        requestId: 'req-ai-idle',
+      });
+    });
+
+    it('never shows an unsafe or absent header as a reference', async () => {
+      const unsafe = 'bad request id';
+      mockStreamingFetch.mockResolvedValue({
+        ok: false,
+        status: 500,
+        body: null,
+        headers: { get: (name: string) => (name.toLowerCase() === 'x-request-id' ? unsafe : null) },
+        text: async () => JSON.stringify({ code: 'AI_UNAVAILABLE', error: 'Failed' }),
+      });
+
+      await expect(aiApi.chatStream('token-1', { message: 'x' }, streamOptions())).rejects.toMatchObject({
+        status: 500,
+        requestId: null,
+      });
     });
   });
 });

@@ -450,7 +450,12 @@ describe('DEP-1 the health surface', () => {
     const app = express();
     app.use(
       '/api/health',
-      createHealthRouter({ getState: () => 'connected', isReady: () => true, build }),
+      createHealthRouter({
+        getState: () => 'connected',
+        isReady: () => true,
+        checkIndexes: async () => ({ ready: true, failures: [] }),
+        build,
+      }),
     );
     const server = app.listen(0);
     await new Promise((resolve) => server.once('listening', resolve));
@@ -494,6 +499,7 @@ describe('DEP-1 the health surface', () => {
     app.use('/api/health', createHealthRouter({
       getState: () => 'connected',
       isReady: () => true,
+      checkIndexes: async () => ({ ready: true, failures: [] }),
       build: injected,
       environment: () => 'production',
     }));

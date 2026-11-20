@@ -812,6 +812,12 @@ export function optionalObjectId(value: unknown, field: string) {
   return { value, problems: [] };
 }
 
+/** PATCH-only optionalObjectId where `null`/blank clears the reference. */
+export function nullableObjectId(value: unknown, field: string) {
+  if (value === null || value === '') return { value: null, problems: [] };
+  return optionalObjectId(value, field);
+}
+
 /** Trimmed optional string; blank -> undefined; over-length -> a problem. */
 export function optionalString(value: unknown, field: string, max?: number) {
   if (value === undefined || value === null) return { value: undefined, problems: [] };
@@ -824,6 +830,18 @@ export function optionalString(value: unknown, field: string, max?: number) {
     return { value: undefined, problems: [{ field, message: `${field} must be at most ${max} characters` }] };
   }
   return { value: trimmed, problems: [] };
+}
+
+/**
+ * PATCH-only variant of optionalString: an explicit `null` or blank string clears the
+ * recorded value instead of being indistinguishable from an omitted field. This is
+ * what lets the edit form remove a brand, SKU, description or price; on create the
+ * ordinary optional helpers still treat blank as "not provided".
+ */
+export function nullableString(value: unknown, field: string, max?: number) {
+  if (value === null) return { value: null, problems: [] };
+  if (typeof value === 'string' && value.trim() === '') return { value: null, problems: [] };
+  return optionalString(value, field, max);
 }
 
 /** Required trimmed string. */
@@ -922,6 +940,12 @@ export function optionalNumber(value: unknown, field: string, opts: NumberBounds
   return { value: n, problems: numberProblems(n, field, opts) };
 }
 
+/** PATCH-only optionalNumber where `null`/blank means "clear the recorded number". */
+export function nullableNumber(value: unknown, field: string, opts: NumberBounds = {}) {
+  if (value === null || value === '') return { value: null, problems: [] };
+  return optionalNumber(value, field, opts);
+}
+
 // ---------------------------------------------------------------------------
 // Domain validators (Phase 04)
 // ---------------------------------------------------------------------------
@@ -934,7 +958,9 @@ function nameAndDescriptionProblems(body: Body, partial: boolean, nameMax: numbe
   const problems = [];
   const r = partial ? optionalString(body?.name, 'name', nameMax) : requiredString(body?.name, 'name', nameMax);
   problems.push(...r.problems);
-  const d = optionalString(body?.description, 'description', DESCRIPTION_MAX);
+  const d = partial
+    ? nullableString(body?.description, 'description', DESCRIPTION_MAX)
+    : optionalString(body?.description, 'description', DESCRIPTION_MAX);
   problems.push(...d.problems);
   return { problems, name: r.value, description: d.value, prefix };
 }
@@ -960,18 +986,22 @@ export function validateSupplier(body: Body, { partial = false }: PartialOption 
     : requiredString(body?.name, 'name', SUPPLIER_NAME_MAX);
   problems.push(...name.problems);
 
-  const description = optionalString(body?.description, 'description', DESCRIPTION_MAX);
+  const description = partial
+    ? nullableString(body?.description, 'description', DESCRIPTION_MAX)
+    : optionalString(body?.description, 'description', DESCRIPTION_MAX);
   problems.push(...description.problems);
 
-  const contactName = optionalString(body?.contactName, 'contactName', CONTACT_NAME_MAX);
+  const contactName = partial
+    ? nullableString(body?.contactName, 'contactName', CONTACT_NAME_MAX)
+    : optionalString(body?.contactName, 'contactName', CONTACT_NAME_MAX);
   problems.push(...contactName.problems);
 
-  const phone = optionalString(body?.phone, 'phone', PHONE_MAX);
+  const phone = partial ? nullableString(body?.phone, 'phone', PHONE_MAX) : optionalString(body?.phone, 'phone', PHONE_MAX);
   problems.push(...phone.problems);
 
-  const email = optionalString(body?.email, 'email', MAX_EMAIL);
+  const email = partial ? nullableString(body?.email, 'email', MAX_EMAIL) : optionalString(body?.email, 'email', MAX_EMAIL);
   problems.push(...email.problems);
-  if (email.value !== undefined && !EMAIL_RE.test(email.value)) {
+  if (email.value != null && !EMAIL_RE.test(email.value)) {
     problems.push({ field: 'email', message: 'email must be a valid email address' });
   }
 
@@ -1001,40 +1031,60 @@ export function validateProduct(body: Body, { partial = false }: PartialOption =
     : requiredString(body?.name, 'name', PRODUCT_NAME_MAX);
   problems.push(...name.problems);
 
-  const brand = optionalString(body?.brand, 'brand', PRODUCT_BRAND_MAX);
+  const brand = partial
+    ? nullableString(body?.brand, 'brand', PRODUCT_BRAND_MAX)
+    : optionalString(body?.brand, 'brand', PRODUCT_BRAND_MAX);
   problems.push(...brand.problems);
-  const sku = optionalString(body?.sku, 'sku', CODE_MAX);
+  const sku = partial ? nullableString(body?.sku, 'sku', CODE_MAX) : optionalString(body?.sku, 'sku', CODE_MAX);
   problems.push(...sku.problems);
-  const barcode = optionalString(body?.barcode, 'barcode', CODE_MAX);
+  const barcode = partial
+    ? nullableString(body?.barcode, 'barcode', CODE_MAX)
+    : optionalString(body?.barcode, 'barcode', CODE_MAX);
   problems.push(...barcode.problems);
-  const description = optionalString(body?.description, 'description', PRODUCT_DESCRIPTION_MAX);
+  const description = partial
+    ? nullableString(body?.description, 'description', PRODUCT_DESCRIPTION_MAX)
+    : optionalString(body?.description, 'description', PRODUCT_DESCRIPTION_MAX);
   problems.push(...description.problems);
-  const specifications = optionalString(
-    body?.specifications,
-    'specifications',
-    PRODUCT_SPECIFICATIONS_MAX,
-  );
+  const specifications = partial
+    ? nullableString(body?.specifications, 'specifications', PRODUCT_SPECIFICATIONS_MAX)
+    : optionalString(body?.specifications, 'specifications', PRODUCT_SPECIFICATIONS_MAX);
   problems.push(...specifications.problems);
-  const categoryId = optionalObjectId(body?.categoryId, 'categoryId');
+  const categoryId = partial
+    ? nullableObjectId(body?.categoryId, 'categoryId')
+    : optionalObjectId(body?.categoryId, 'categoryId');
   problems.push(...categoryId.problems);
-  const unit = optionalString(body?.unit, 'unit', UNIT_MAX);
+  const unit = partial ? nullableString(body?.unit, 'unit', UNIT_MAX) : optionalString(body?.unit, 'unit', UNIT_MAX);
   problems.push(...unit.problems);
-  const imageUrl = optionalString(body?.imageUrl, 'imageUrl', IMAGE_URL_MAX);
+  const imageUrl = partial
+    ? nullableString(body?.imageUrl, 'imageUrl', IMAGE_URL_MAX)
+    : optionalString(body?.imageUrl, 'imageUrl', IMAGE_URL_MAX);
   problems.push(...imageUrl.problems);
 
-  const costPrice = optionalNumber(body?.costPrice, 'costPrice', { min: 0 });
+  const costPrice = partial
+    ? nullableNumber(body?.costPrice, 'costPrice', { min: 0 })
+    : optionalNumber(body?.costPrice, 'costPrice', { min: 0 });
   problems.push(...costPrice.problems);
-  const sellingPrice = optionalNumber(body?.sellingPrice, 'sellingPrice', { min: 0 });
+  const sellingPrice = partial
+    ? nullableNumber(body?.sellingPrice, 'sellingPrice', { min: 0 })
+    : optionalNumber(body?.sellingPrice, 'sellingPrice', { min: 0 });
   problems.push(...sellingPrice.problems);
   // ISO-4217 code of the prices. Optional: an omitted or blank value leaves the currency unknown.
-  const currencyRaw = optionalString(body?.currency, 'currency', 3);
+  const currencyRaw = partial
+    ? nullableString(body?.currency, 'currency', 3)
+    : optionalString(body?.currency, 'currency', 3);
   problems.push(...currencyRaw.problems);
-  let currency: string | undefined = currencyRaw.value?.trim() ? currencyRaw.value.trim().toUpperCase() : undefined;
-  if (currency !== undefined && !/^[A-Z]{3}$/.test(currency)) {
+  let currency: string | null | undefined = currencyRaw.value === null
+    ? null
+    : currencyRaw.value?.trim()
+      ? currencyRaw.value.trim().toUpperCase()
+      : undefined;
+  if (currency != null && !/^[A-Z]{3}$/.test(currency)) {
     problems.push({ field: 'currency', message: 'currency must be a 3-letter ISO code' });
     currency = undefined;
   }
-  const minimumStock = optionalNumber(body?.minimumStock, 'minimumStock', { min: 0, integer: true });
+  const minimumStock = partial
+    ? nullableNumber(body?.minimumStock, 'minimumStock', { min: 0, integer: true })
+    : optionalNumber(body?.minimumStock, 'minimumStock', { min: 0, integer: true });
   problems.push(...minimumStock.problems);
 
   return {

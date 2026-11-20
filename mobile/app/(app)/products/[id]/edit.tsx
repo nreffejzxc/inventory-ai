@@ -1,7 +1,7 @@
 import { useLocalSearchParams } from 'expo-router';
 
 import AccessDenied from '../../../../components/AccessDenied';
-import { CenterLoader, ErrorState, errorText } from '../../../../components/ListState';
+import { CenterLoader, ErrorState, errorRequestId, errorText } from '../../../../components/ListState';
 import ProductForm from '../../../../components/ProductForm';
 import { useSession } from '../../../../lib/auth';
 import { canManageProducts } from '../../../../lib/permissions';
@@ -16,6 +16,15 @@ export default function EditProductScreen() {
     return <AccessDenied message="Only managers and above can edit products." />;
   }
   if (loading && !product) return <CenterLoader label="Loading product…" />;
-  if (error && !product) return <ErrorState title="Couldn't load the product" message={errorText(error)} onRetry={reload} />;
+  if (error && !product) {
+    return (
+      <ErrorState
+        title="Couldn't load the product"
+        message={errorText(error)}
+        requestId={errorRequestId(error)}
+        onRetry={reload}
+      />
+    );
+  }
   return <ProductForm initial={product} key={product?.id ?? id} />;
 }

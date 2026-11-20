@@ -117,6 +117,16 @@ async function activitiesFor(business, id) {
   return res.json.recentActivity.filter((entry) => entry.id === id);
 }
 
+/**
+ * Drop the TRANSPORT claim for a key, simulating the two ways it disappears while
+ * the movement itself is still committed: the 5xx path releases a claim that
+ * changed nothing (and cannot know it applied work), and the record expires after
+ * 24 hours. The domain receipt must answer the retry on its own.
+ */
+async function releaseTransportClaim(key) {
+  await mongoose.connection.db.collection('idempotency_records').deleteMany({ key });
+}
+
 /** An OPEN purchase order with one line, so a receive can be delivered to it. */
 async function openPo(business, { supplierId, locationId, productId, quantityOrdered }) {
   const created = await api('POST', '/api/purchase-orders', {
@@ -471,6 +481,160 @@ dbSuite('Inventory idempotency — one operation, one movement', dbOk, () => {
 
       const entries = await activitiesFor(business, txnId);
       assert.equal(entries.length, 1, 'one receipt must be one Recent Activity entry');
+    });
+  });
+
+  describe('durable movement receipts', () => {
+    it('★ replays a committed stock-in after its transport record is gone', async () => {
+      const durableProductId = await newProduct(business);
+      const key1 = key('receipt-in');
+      const body = { productId: durableProductId, locationId, quantity: 6, reason: 'durable receipt' };
+
+      const first = await api('POST', '/api/inventory/stock-in', {
+        token: business.token,
+        body,
+        idempotencyKey: key1,
+      });
+      assert.equal(first.status, 201, JSON.stringify(first.json));
+
+      // The 5xx case: the movement committed, the answer was lost, and the
+      // transport released the key.
+      await releaseTransportClaim(key1);
+
+      const replay = await api('POST', '/api/inventory/stock-in', {
+        token: business.token,
+        body,
+        idempotencyKey: key1,
+      });
+      assert.equal(replay.status, 201, JSON.stringify(replay.json));
+      assert.equal(replay.json.transaction.id, first.json.transaction.id, 'the same movement is replayed');
+      assert.equal(replay.json.previousQuantity, first.json.previousQuantity);
+      assert.equal(replay.json.newQuantity, first.json.newQuantity);
+
+      const ledger = await history(business, durableProductId);
+      assert.equal(ledger.total, 1, 'one operation must still be one ledger row');
+      assert.equal((await row(business, durableProductId, locationId)).quantity, 6);
+
+      // The replay must still say it created the row: a PO finalize that loses a
+      // race uses this flag to delete the row instead of leaving an orphan at 0.
+      const receipt = await mongoose.connection.db
+        .collection('stock_movement_operations')
+        .findOne({ requestKey: key1 });
+      assert.equal(receipt.createdRow, true, 'the receipt remembers it created the row');
+      assert.equal(receipt.state, 'COMPLETED');
+    });
+
+    it('★ recovers a ledger row whose receipt was left unfinished by a crash', async () => {
+      const crashProductId = await newProduct(business);
+      const key1 = key('receipt-crash');
+      const body = { productId: crashProductId, locationId, quantity: 4 };
+
+      const first = await api('POST', '/api/inventory/stock-in', {
+        token: business.token,
+        body,
+        idempotencyKey: key1,
+      });
+      assert.equal(first.status, 201, JSON.stringify(first.json));
+
+      // The process died after the ledger row was written and before the receipt
+      // was marked COMPLETED. The transport record is gone as well.
+      await mongoose.connection.db.collection('stock_movement_operations').updateOne(
+        { requestKey: key1 },
+        { $set: { state: 'IN_PROGRESS' }, $unset: { response: '', inventoryTransactionId: '' } },
+      );
+      await releaseTransportClaim(key1);
+
+      const recovered = await api('POST', '/api/inventory/stock-in', {
+        token: business.token,
+        body,
+        idempotencyKey: key1,
+      });
+      assert.equal(recovered.status, 201, JSON.stringify(recovered.json));
+      assert.equal(recovered.json.transaction.id, first.json.transaction.id);
+
+      const receipt = await mongoose.connection.db
+        .collection('stock_movement_operations')
+        .findOne({ requestKey: key1 });
+      assert.equal(receipt.state, 'COMPLETED', 'the reply completes the abandoned receipt');
+      assert.equal(String(receipt.inventoryTransactionId), first.json.transaction.id);
+      assert.equal((await history(business, crashProductId)).total, 1);
+      assert.equal((await row(business, crashProductId, locationId)).quantity, 4);
+    });
+
+    it('★ replays a committed stock-out and adjustment after the transport record is gone', async () => {
+      const outProductId = await newProduct(business);
+      const seed = await api('POST', '/api/inventory/stock-in', {
+        token: business.token,
+        body: { productId: outProductId, locationId, quantity: 10 },
+      });
+      assert.equal(seed.status, 201, JSON.stringify(seed.json));
+
+      const outKey = key('receipt-out');
+      const outBody = { productId: outProductId, locationId, quantity: 4, reason: 'durable out' };
+      const outFirst = await api('POST', '/api/inventory/stock-out', {
+        token: business.token,
+        body: outBody,
+        idempotencyKey: outKey,
+      });
+      assert.equal(outFirst.status, 200, JSON.stringify(outFirst.json));
+      await releaseTransportClaim(outKey);
+      const outReplay = await api('POST', '/api/inventory/stock-out', {
+        token: business.token,
+        body: outBody,
+        idempotencyKey: outKey,
+      });
+      assert.equal(outReplay.status, 200, JSON.stringify(outReplay.json));
+      assert.equal(outReplay.json.transaction.id, outFirst.json.transaction.id);
+      assert.equal(
+        (await history(business, outProductId)).items.filter((entry) => entry.type === 'STOCK_OUT').length,
+        1,
+      );
+      assert.equal((await row(business, outProductId, locationId)).quantity, 6);
+
+      const adjustKey = key('receipt-adjust');
+      const adjustBody = { productId: outProductId, locationId, quantity: 2, reason: 'durable adjust' };
+      const adjustFirst = await api('POST', '/api/inventory/adjust', {
+        token: business.token,
+        body: adjustBody,
+        idempotencyKey: adjustKey,
+      });
+      assert.equal(adjustFirst.status, 200, JSON.stringify(adjustFirst.json));
+      await releaseTransportClaim(adjustKey);
+      const adjustReplay = await api('POST', '/api/inventory/adjust', {
+        token: business.token,
+        body: adjustBody,
+        idempotencyKey: adjustKey,
+      });
+      assert.equal(adjustReplay.status, 200, JSON.stringify(adjustReplay.json));
+      assert.equal(adjustReplay.json.transaction.id, adjustFirst.json.transaction.id);
+      const ledger = await history(business, outProductId);
+      assert.equal(
+        ledger.items.filter((entry) => entry.type === 'ADJUSTMENT').length,
+        1,
+      );
+      assert.equal((await row(business, outProductId, locationId)).quantity, 2);
+    });
+
+    it('★ refuses a key reused for a different movement after the transport record is gone', async () => {
+      const reuseProductId = await newProduct(business);
+      const key1 = key('receipt-reuse');
+      const first = await api('POST', '/api/inventory/stock-in', {
+        token: business.token,
+        body: { productId: reuseProductId, locationId, quantity: 2 },
+        idempotencyKey: key1,
+      });
+      assert.equal(first.status, 201, JSON.stringify(first.json));
+
+      await releaseTransportClaim(key1);
+      const changed = await api('POST', '/api/inventory/stock-in', {
+        token: business.token,
+        body: { productId: reuseProductId, locationId, quantity: 5 },
+        idempotencyKey: key1,
+      });
+      assert.equal(changed.status, 422, JSON.stringify(changed.json));
+      assert.equal(changed.json.code, 'IDEMPOTENCY_KEY_REUSED');
+      assert.equal((await history(business, reuseProductId)).total, 1);
+      assert.equal((await row(business, reuseProductId, locationId)).quantity, 2);
     });
   });
 

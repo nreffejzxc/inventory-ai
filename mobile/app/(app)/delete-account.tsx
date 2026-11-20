@@ -8,6 +8,7 @@ import Card from '../../components/Card';
 import Input from '../../components/Input';
 import Screen from '../../components/Screen';
 import { fieldErrorsFrom } from '../../lib/authCopy';
+import { errorRequestId } from '../../lib/errors';
 import { isSessionError, useSession } from '../../lib/auth';
 import { DELETE_CONFIRMATION, deleteMyAccount } from '../../lib/accountDeletion';
 import { spacing, type } from '../../lib/theme';
@@ -50,6 +51,7 @@ export default function DeleteAccountScreen() {
   const [confirmation, setConfirmation] = useState('');
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState<string | null>(null);
+  const [formRequestId, setFormRequestId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   async function submit(): Promise<void> {
@@ -62,11 +64,13 @@ export default function DeleteAccountScreen() {
     if (Object.keys(problems).length) {
       setFieldErrors(problems);
       setFormError(null);
+      setFormRequestId(null);
       return;
     }
 
     setBusy(true);
     setFormError(null);
+    setFormRequestId(null);
     setFieldErrors({});
     try {
       await deleteMyAccount({
@@ -93,6 +97,7 @@ export default function DeleteAccountScreen() {
         setFormError(
           (err as { message?: string } | null)?.message || 'Unable to delete the account.'
         );
+        setFormRequestId(errorRequestId(err));
       }
     } finally {
       setBusy(false);
@@ -110,7 +115,7 @@ export default function DeleteAccountScreen() {
             'member. It cannot be undone.'
           }
         />
-        <Banner type="error" text={formError} />
+        <Banner type="error" text={formError} requestId={formRequestId} />
 
         <Card>
           {/* The most likely reader of this screen is a sole proprietor, and for them the

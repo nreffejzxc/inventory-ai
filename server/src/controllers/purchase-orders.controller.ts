@@ -5,6 +5,7 @@ import { isObjectId, validatePurchaseOrder, validateReceive, validatePurchaseOrd
 import { throwValidation, invalidId } from '../utils/errors.ts';
 import { PURCHASE_ORDER_STATUSES } from '../models/purchaseOrder.model.ts';
 import { purchaseOrderService } from '../services/purchase-orders.service.ts';
+import ApiError from '../utils/ApiError.ts';
 
 /**
  * The request context this controller reads. Local and structural, following
@@ -23,7 +24,10 @@ import { purchaseOrderService } from '../services/purchase-orders.service.ts';
  * chaining was NOT used: it would silently pass `undefined` on where the code
  * would previously have thrown, which is a behaviour change.
  */
-type AuthenticatedRequest = Request & { user?: { id: string; businessId: string } };
+type AuthenticatedRequest = Request & {
+  user?: { id: string; businessId: string };
+  idempotencyKey?: string;
+};
 
 /**
  * One validated receive line (`parseReceiveLine`). `validateReceive` reports a
@@ -124,6 +128,13 @@ export const purchaseOrdersController = {
 
   /** Receive stock against an OPEN purchase order (Phase 13C). */
   async receive(req: AuthenticatedRequest, res: Response) {
+    if (!req.idempotencyKey) {
+      throw new ApiError(
+        400,
+        'An Idempotency-Key header is required to receive stock',
+        'IDEMPOTENCY_KEY_REQUIRED'
+      );
+    }
     const v = validateReceive(req.body ?? {});
     if (v.problems.length) throwValidation(v.problems);
     const result = await purchaseOrderService.receive(req.user!.businessId, req.user!.id, paramId(req), {
@@ -132,6 +143,7 @@ export const purchaseOrdersController = {
       // service has both.
       lines: v.lines as ValidatedReceiveLine[],
       reference: v.reference,
+      idempotencyKey: req.idempotencyKey,
     });
     res.json(result);
   },

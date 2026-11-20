@@ -17,6 +17,7 @@
     "PURCHASE_ORDER_ISSUED": "PO issued",
     "PURCHASE_ORDER_CANCELED": "PO canceled",
     "PURCHASE_ORDER_RECEIVED": "PO received",
+    "PURCHASE_ORDER_CLAIM_RECOVERED": "PO receive recovered",
     "INVENTORY_STOCK_IN": "Stock in",
     "INVENTORY_STOCK_OUT": "Stock out",
     "INVENTORY_ADJUSTED": "Inventory adjusted",

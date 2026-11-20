@@ -8,6 +8,7 @@ import Card from '../../components/Card';
 import Input from '../../components/Input';
 import Screen from '../../components/Screen';
 import { changePassword } from '../../lib/api';
+import { errorRequestId } from '../../lib/errors';
 import { fieldErrorsFrom } from '../../lib/authCopy';
 import { isSessionError, useSession } from '../../lib/auth';
 import { spacing } from '../../lib/theme';
@@ -29,6 +30,7 @@ export default function ChangePasswordScreen() {
 
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState<string | null>(null);
+  const [formRequestId, setFormRequestId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   async function submit(): Promise<void> {
@@ -55,6 +57,7 @@ export default function ChangePasswordScreen() {
 
     setBusy(true);
     setFormError(null);
+    setFormRequestId(null);
     setFieldErrors({});
     try {
       await changePassword(token as string, { currentPassword, newPassword });
@@ -67,7 +70,10 @@ export default function ChangePasswordScreen() {
       } else {
         const fields = fieldErrorsFrom(err);
         if (Object.keys(fields).length) setFieldErrors(fields);
-        else setFormError((err as { message?: string } | null)?.message || 'Unable to change the password.');
+        else {
+          setFormError((err as { message?: string } | null)?.message || 'Unable to change the password.');
+          setFormRequestId(errorRequestId(err));
+        }
       }
     } finally {
       setBusy(false);
@@ -78,7 +84,7 @@ export default function ChangePasswordScreen() {
     <>
       <Stack.Screen options={{ title: 'Change Password' }} />
       <Screen scroll contentStyle={styles.content}>
-        <Banner type="error" text={formError} />
+        <Banner type="error" text={formError} requestId={formRequestId} />
         <Card>
           <Input
             name="currentPassword"

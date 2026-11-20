@@ -12,6 +12,13 @@ import type { SelectOption } from './SelectField';
 import { productsApi, categoriesApi } from '../lib/api';
 import type { ApiResponse, ProductInput } from '../lib/api';
 import { ApiError } from '../lib/client';
+import {
+  completeOperation,
+  endsOperation,
+  getOrCreateOperationKey,
+  PendingOperationsFullError,
+} from '../lib/idempotency';
+import { errorRequestId } from '../lib/errors';
 import { useSession } from '../lib/auth';
 import { useActiveRef } from '../hooks/useReferences';
 import { spacing } from '../lib/theme';
@@ -50,7 +57,7 @@ function toWhole(text: string | null | undefined): ParsedNumber {
  * a good UX and surfaces the server's { field, message } problems on submit).
  */
 export default function ProductForm({ initial }: { initial?: ApiResponse }) {
-  const { token } = useSession();
+  const { token, user } = useSession();
   const isEdit = Boolean(initial);
   const categories = useActiveRef(token, categoriesApi);
 
@@ -78,6 +85,7 @@ export default function ProductForm({ initial }: { initial?: ApiResponse }) {
 
   const [fieldErrors, setFieldErrors] = useState<Record<string, string | undefined>>({});
   const [formError, setFormError] = useState<string | null>(null);
+  const [formRequestId, setFormRequestId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const nameRef = useRef<InputHandle>(null);
 
@@ -114,30 +122,52 @@ export default function ProductForm({ initial }: { initial?: ApiResponse }) {
 
     setBusy(true);
     setFormError(null);
+    setFormRequestId(null);
     setFieldErrors({});
+    // An edit must be able to REMOVE a recorded value. `undefined` means "leave this
+    // field alone" to the PATCH validator; `null` means "clear it". A create still
+    // omits blanks (a null there would be stored as an empty value).
+    const blank = (value: string) => value.trim() || (isEdit ? null : undefined);
+    const numberOrClear = (value: number | undefined) => value ?? (isEdit ? null : undefined);
     const payload: ProductInput = {
       name: name.trim(),
-      brand: brand.trim() || undefined,
-      sku: sku.trim() || undefined,
-      barcode: barcode.trim() || undefined,
-      categoryId: categoryId || undefined,
-      description: description.trim() || undefined,
-      specifications: specifications.trim() || undefined,
-      unit: unit.trim() || undefined,
-      costPrice: cost.value,
-      sellingPrice: sell.value,
-      currency: code || undefined,
-      minimumStock: min.value,
-      imageUrl: imageUrl.trim() || undefined,
+      brand: blank(brand),
+      sku: blank(sku),
+      barcode: blank(barcode),
+      categoryId: categoryId || (isEdit ? null : undefined),
+      description: blank(description),
+      specifications: blank(specifications),
+      unit: blank(unit),
+      costPrice: numberOrClear(cost.value),
+      sellingPrice: numberOrClear(sell.value),
+      currency: code || (isEdit ? null : undefined),
+      minimumStock: numberOrClear(min.value),
+      imageUrl: blank(imageUrl),
     };
+    let idempotencyKey: string | undefined;
     try {
+      idempotencyKey = isEdit
+        ? undefined
+        : await getOrCreateOperationKey({ kind: 'product.create', ownerId: user?.id, payload });
       if (isEdit) await productsApi.update(token as string, initial.id, payload);
-      else await productsApi.create(token as string, payload);
+      else await productsApi.create(token as string, payload, idempotencyKey);
+      if (idempotencyKey) await completeOperation('product.create', idempotencyKey, user?.id);
       router.back();
     } catch (err) {
+      if (err instanceof PendingOperationsFullError) {
+        setFormError(err.message);
+        setFormRequestId(null);
+        return;
+      }
+      if (idempotencyKey && endsOperation(err)) {
+        await completeOperation('product.create', idempotencyKey, user?.id);
+      }
       const fields = fieldMap(err);
       if (Object.keys(fields).length) setFieldErrors(fields);
-      else setFormError((err as { message?: string } | null)?.message || 'Unable to save the product.');
+      else {
+        setFormError((err as { message?: string } | null)?.message || 'Unable to save the product.');
+        setFormRequestId(errorRequestId(err));
+      }
     } finally {
       setBusy(false);
     }
@@ -145,7 +175,7 @@ export default function ProductForm({ initial }: { initial?: ApiResponse }) {
 
   return (
     <Screen scroll contentStyle={styles.content}>
-      <Banner type="error" text={formError} />
+      <Banner type="error" text={formError} requestId={formRequestId} />
       <Input ref={nameRef} name="name" label="Product name" value={name} onChangeText={setName} error={fieldErrors.name} required autoCapitalize="words" />
       <Input name="brand" label="Brand" value={brand} onChangeText={setBrand} error={fieldErrors.brand} placeholder="Optional — e.g. Nestlé, Samsung" autoCapitalize="words" />
       <Input name="sku" label="SKU" value={sku} onChangeText={setSku} error={fieldErrors.sku} placeholder="Optional — unique per business" autoCapitalize="characters" />

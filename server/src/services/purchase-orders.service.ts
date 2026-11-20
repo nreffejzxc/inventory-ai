@@ -1,3 +1,4 @@
+import crypto from 'node:crypto';
 import mongoose from 'mongoose';
 
 import PurchaseOrder from '../models/purchaseOrder.model.ts';
@@ -8,6 +9,7 @@ import AuditLog from '../models/auditLog.model.ts';
 import { inventoryService } from './inventory.service.ts';
 import ApiError from '../utils/ApiError.ts';
 import { recordAudit } from './audit.service.ts';
+import { monitorAuditFailure } from './auditFailure.service.ts';
 import { AUDIT_ACTIONS, AUDIT_ENTITY_TYPES } from '../constants/audit.ts';
 
 const { ObjectId } = mongoose.Types;
@@ -32,6 +34,25 @@ const PO_NUMBER_MAX_ATTEMPTS = 10;
 // reference, so the ledger history reads uniformly (spec §15 three-type enum is
 // unchanged — receiving IS a stock-in, never a new movement type).
 const PO_RECEIVE_REASON = 'PO receipt';
+const RECEIVE_KEY_PATTERN = /^[A-Za-z0-9._:-]{8,200}$/;
+
+/**
+ * Canonical fingerprint of one receive request. Lines are sorted by product id
+ * so reordering the same lines is the same request, while changing a quantity,
+ * the invoice reference or the purchase order is not. This is deliberately
+ * independent of the transport middleware's fingerprint: the durable receipt
+ * must be able to defend itself even when the middleware's 24-hour row expired.
+ */
+function receiveFingerprint(id: IdLike, lines: ReceiveLine[], reference?: string): string {
+  const canonical = {
+    po: String(id),
+    lines: lines
+      .map((line) => ({ productId: String(line.productId).toLowerCase(), quantity: line.quantity }))
+      .sort((a, b) => a.productId.localeCompare(b.productId) || a.quantity - b.quantity),
+    reference: (reference ?? '').trim(),
+  };
+  return crypto.createHash('sha256').update(JSON.stringify(canonical)).digest('hex');
+}
 
 /**
  * A reference field that has been populated by `fetchPo`/`list`: the referenced
@@ -73,11 +94,22 @@ type ReceiptSource = {
   receivedAt?: unknown;
   userId?: unknown;
   reference?: unknown;
+  requestKey?: unknown;
+  requestFingerprint?: unknown;
   lines?: ReceiptLineSource[];
 };
 
 /** One stored in-flight claim — the fields `pendingClaimsPublic` reads. */
-type ClaimSource = { productId?: unknown; quantity?: unknown; createdAt?: unknown };
+type ClaimSource = {
+  _id?: unknown;
+  productId?: unknown;
+  quantity?: unknown;
+  requestKey?: unknown;
+  requestFingerprint?: unknown;
+  phase?: unknown;
+  inventoryTransactionId?: unknown;
+  createdAt?: unknown;
+};
 
 /**
  * A purchase order as read back — the lean, optionally-populated result of
@@ -169,7 +201,16 @@ type PoListFilters = {
 type ReceiveLine = { productId: string; quantity: number };
 
 /** The validated receive payload (`validateReceive`). */
-type ReceivePayload = { lines: ReceiveLine[]; reference?: string };
+type ReceivePayload = {
+  lines: ReceiveLine[];
+  reference?: string;
+  /**
+   * The HTTP Idempotency-Key. The HTTP controller requires it; the service
+   * still accepts an absent key so direct internal callers and historical
+   * tests can exercise a single receive without the transport contract.
+   */
+  idempotencyKey?: string;
+};
 
 /** One line the receive loop durably applied, as reported in a partial result. */
 type AppliedLine = {
@@ -249,6 +290,13 @@ async function recordPoAudit(
     // ToString for every value the original could hold, and keeping it bare means
     // the emitted JavaScript is unchanged.
     console.error(`[purchase-orders] audit record failed for ${action} ${String(entityId)}: ${(err as { message?: unknown }).message}`);
+    await monitorAuditFailure({
+      businessId,
+      action,
+      entityType: AUDIT_ENTITY_TYPES.PURCHASE_ORDER,
+      entityId,
+      error: err,
+    });
   }
 }
 
@@ -673,9 +721,21 @@ type ClaimRemainingArgs = {
   remainingBound: number;
   userId: IdLike;
   claimId: mongoose.Types.ObjectId;
+  requestKey?: string;
+  requestFingerprint?: string;
 };
 
-async function claimRemaining({ poId, oidBiz, productId, quantity, remainingBound, userId, claimId }: ClaimRemainingArgs) {
+async function claimRemaining({
+  poId,
+  oidBiz,
+  productId,
+  quantity,
+  remainingBound,
+  userId,
+  claimId,
+  requestKey,
+  requestFingerprint,
+}: ClaimRemainingArgs) {
   return PurchaseOrder.findOneAndUpdate(
     {
       _id: poId,
@@ -691,6 +751,8 @@ async function claimRemaining({ poId, oidBiz, productId, quantity, remainingBoun
           productId,
           quantity,
           createdBy: oid(userId),
+          ...(requestKey ? { requestKey } : {}),
+          ...(requestFingerprint ? { requestFingerprint } : {}),
           createdAt: new Date(),
         },
       },
@@ -798,8 +860,102 @@ async function releaseClaim({ poId, oidBiz, productId, quantity, claimId }: Rele
  * mid-receive can leave a visible ghost claim (see detailPublic pendingClaims),
  * recoverable by cancel + re-create.
  */
-async function receive(businessId: IdLike, userId: IdLike, id: IdLike, { lines, reference }: ReceivePayload) {
+async function receive(
+  businessId: IdLike,
+  userId: IdLike,
+  id: IdLike,
+  { lines, reference, idempotencyKey }: ReceivePayload
+) {
+  if (idempotencyKey !== undefined && !RECEIVE_KEY_PATTERN.test(idempotencyKey)) {
+    throw new ApiError(
+      400,
+      'The Idempotency-Key is not in the accepted format',
+      'INVALID_IDEMPOTENCY_KEY'
+    );
+  }
+  const requestFingerprint = idempotencyKey
+    ? receiveFingerprint(id, lines, reference)
+    : undefined;
   const po = await fetchPo(businessId, id);
+
+  // Retry gate. A finalize that throws AFTER its atomic write has already moved stock
+  // and stored a receipt, but the client saw a 5xx. The idempotency middleware releases
+  // a 5xx key (it cannot know work landed), so the retry reaches the service again.
+  // Recognise our own durable receipt by the client's key and replay it — never claim or
+  // stock-in again. A receipt for only part of this batch is a partial outcome, not a
+  // fresh request: report the lines that landed and let the client decide, because
+  // claiming the rest could double-count a line whose receipt exists.
+  if (idempotencyKey) {
+    const ownReceipts = (po.receipts ?? []).filter((receipt) => receipt.requestKey === idempotencyKey);
+    if (ownReceipts.length > 0) {
+      const conflictingReceipt = ownReceipts.find(
+        (receipt) =>
+          typeof receipt.requestFingerprint === 'string' &&
+          receipt.requestFingerprint !== requestFingerprint
+      );
+      if (conflictingReceipt) {
+        throw new ApiError(
+          422,
+          'This idempotency key was already used for a different receive request',
+          'IDEMPOTENCY_KEY_REUSED'
+        );
+      }
+      const receiptLines = ownReceipts.flatMap((receipt) => receipt.lines ?? []);
+      const appliedByProduct = new Map<string, number>();
+      for (const line of receiptLines) {
+        const key = String(line.productId);
+        appliedByProduct.set(key, (appliedByProduct.get(key) ?? 0) + Number(line.quantity ?? 0));
+      }
+      const allRequestedApplied = lines.every(
+        (line) => (appliedByProduct.get(String(line.productId)) ?? 0) >= line.quantity
+      );
+      const applied = receiptLines.map((line) => ({
+        productId: String(line.productId),
+        quantity: Number(line.quantity),
+        previousQuantity: Number(line.previousQuantity),
+        newQuantity: Number(line.newQuantity),
+        inventoryTransactionId: String(line.inventoryTransactionId),
+      }));
+      if (allRequestedApplied) {
+        return {
+          allReceived: po.items.every((item) => (item.quantityReceived || 0) >= item.quantityOrdered),
+          applied,
+          po: detailPublic(po),
+          replayed: true,
+        };
+      }
+      const err = new ApiError(
+        409,
+        'Part of this receive was already applied; refresh the purchase order before retrying the remainder',
+        'RECEIVE_CONFLICT'
+      );
+      (err as ApiError & { applied: AppliedLine[] }).applied = applied;
+      throw err;
+    }
+    // A claim with this key but no receipt means the previous attempt never finalized.
+    // It may or may not have stock-in applied, so refusing without moving stock is the
+    // only safe answer; a visible pending claim can be recovered by cancel + re-create.
+    if ((po.claims ?? []).some((claim) => claim.requestKey === idempotencyKey)) {
+      const ownClaim = (po.claims ?? []).find((claim) => claim.requestKey === idempotencyKey);
+      if (
+        ownClaim &&
+        typeof ownClaim.requestFingerprint === 'string' &&
+        ownClaim.requestFingerprint !== requestFingerprint
+      ) {
+        throw new ApiError(
+          422,
+          'This idempotency key was already used for a different receive request',
+          'IDEMPOTENCY_KEY_REUSED'
+        );
+      }
+      throw new ApiError(
+        409,
+        'This receive is already in progress; refresh the purchase order before retrying',
+        'RECEIVE_IN_PROGRESS'
+      );
+    }
+  }
+
   if (po.status === 'DRAFT') throw new ApiError(409, 'Issue the purchase order before receiving it', 'PO_NOT_ISSUED');
   if (po.status === 'RECEIVED') throw new ApiError(409, 'This purchase order has already been received', 'PO_ALREADY_RECEIVED');
   if (po.status === 'CANCELED') throw new ApiError(409, 'A canceled purchase order cannot be received', 'PO_CANCELED');
@@ -885,7 +1041,17 @@ async function receive(businessId: IdLike, userId: IdLike, id: IdLike, { lines, 
     // STOCK_IN (the movement-first residual this redesign removes).
     let claimed;
     try {
-      claimed = await claimRemaining({ poId, oidBiz, productId, quantity: step.quantity, remainingBound, userId, claimId });
+      claimed = await claimRemaining({
+        poId,
+        oidBiz,
+        productId,
+        quantity: step.quantity,
+        remainingBound,
+        userId,
+        claimId,
+        requestKey: idempotencyKey,
+        requestFingerprint,
+      });
     } catch (err) {
       // Ambiguous whether the claim inserted. Release by id (a no-op if it did
       // not) so a reservation that never moved stock is never leaked, then
@@ -920,6 +1086,7 @@ async function receive(businessId: IdLike, userId: IdLike, id: IdLike, { lines, 
         quantity: step.quantity,
         reason: PO_RECEIVE_REASON,
         reference: po.number,
+        purchaseOrderClaimId: claimId,
       });
     } catch (err) {
       // stockIn already restored its own row before rejecting, so no movement
@@ -933,6 +1100,28 @@ async function receive(businessId: IdLike, userId: IdLike, id: IdLike, { lines, 
       }
       if (applied.length === 0) throw err;
       await throwPartial();
+    }
+
+    // Mark the claim as moved BEFORE finalize. If the process dies between the
+    // stock-in and finalize, the reaper uses this marker plus the transaction's
+    // purchaseOrderClaimId to prove the movement and undo it exactly. A failure
+    // to write this marker is not fatal: the transaction itself carries the same
+    // claim id, which is the stronger proof.
+    try {
+      await PurchaseOrder.updateOne(
+        { _id: poId, businessId: oidBiz, 'claims._id': claimId },
+        {
+          $set: {
+            'claims.$.phase': 'MOVED',
+            'claims.$.inventoryTransactionId': oid(move.transaction.id),
+            'claims.$.lastAttemptAt': new Date(),
+          },
+        }
+      );
+    } catch (markerErr) {
+      console.error(
+        `[purchase-orders] receive: could not mark claim ${String(claimId)} MOVED; the stock-in transaction remains the recovery proof: ${(markerErr as { message?: unknown }).message}`
+      );
     }
 
     // (c) Op3 FINALIZE — movement -> durable receipt in ONE atomic write guarded
@@ -951,6 +1140,8 @@ async function receive(businessId: IdLike, userId: IdLike, id: IdLike, { lines, 
           receivedAt: new Date(),
           userId: oid(userId),
           reference: reference || '',
+          ...(idempotencyKey ? { requestKey: idempotencyKey } : {}),
+          requestFingerprint,
           lines: [
             {
               productId,

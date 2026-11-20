@@ -9,7 +9,7 @@ import Button from '../../../../components/Button';
 import Card from '../../../../components/Card';
 import { Icon } from '../../../../components/icons';
 import ListRow from '../../../../components/ListRow';
-import { CenterLoader, EmptyState, ErrorState, errorText } from '../../../../components/ListState';
+import { CenterLoader, EmptyState, ErrorState, errorRequestId, errorText } from '../../../../components/ListState';
 import { poErrorMessage } from '../../../../components/PoForm';
 import Screen from '../../../../components/Screen';
 import SectionHeader from '../../../../components/SectionHeader';
@@ -98,7 +98,16 @@ export default function PurchaseOrderDetailScreen() {
   }
 
   if (loading && !po) return <CenterLoader label="Loading purchase order…" />;
-  if (error && !po) return <ErrorState title="Couldn't load the purchase order" message={errorText(error)} onRetry={load} />;
+  if (error && !po) {
+    return (
+      <ErrorState
+        title="Couldn't load the purchase order"
+        message={errorText(error)}
+        requestId={errorRequestId(error)}
+        onRetry={load}
+      />
+    );
+  }
   if (!po) return null;
 
   const totals = po.totals ?? {};
@@ -120,7 +129,7 @@ export default function PurchaseOrderDetailScreen() {
       await load();
       await alert('Order issued', `${updated?.number ?? po.number} is now open for receiving.`);
     } catch (err) {
-      await alert('Could not issue', poErrorMessage(err));
+      await alert('Could not issue', poErrorMessage(err), { requestId: errorRequestId(err) });
       await load();
     }
   }
@@ -136,7 +145,7 @@ export default function PurchaseOrderDetailScreen() {
       await load();
       await alert('Order canceled', `${updated?.number ?? po.number} was canceled.`);
     } catch (err) {
-      await alert('Could not cancel', poErrorMessage(err));
+      await alert('Could not cancel', poErrorMessage(err), { requestId: errorRequestId(err) });
       await load();
     }
   }

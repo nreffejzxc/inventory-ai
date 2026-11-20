@@ -9,6 +9,7 @@ import Input from '../../components/Input';
 import Screen from '../../components/Screen';
 import SectionHeader from '../../components/SectionHeader';
 import { ApiError } from '../../lib/client';
+import { errorRequestId } from '../../lib/errors';
 import { isSessionError, useSession } from '../../lib/auth';
 import type { FirebaseConfirmMethod } from '../../lib/firebase-auth';
 import { spacing, type } from '../../lib/theme';
@@ -160,6 +161,7 @@ export default function ChangeFirebasePasswordScreen() {
 
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState<string | null>(null);
+  const [formRequestId, setFormRequestId] = useState<string | null>(null);
   /**
    * An INSTRUCTION rather than a complaint, so it is an info strip and not an error
    * banner: the wrong-option reply, and the freshness refusal that discards the password.
@@ -205,6 +207,7 @@ export default function ChangeFirebasePasswordScreen() {
 
   function resetFeedback(): void {
     setFormError(null);
+    setFormRequestId(null);
     setFieldErrors({});
     setInfo(null);
   }
@@ -323,6 +326,7 @@ export default function ChangeFirebasePasswordScreen() {
         setMethod(null);
         setFieldErrors({});
         setFormError(null);
+        setFormRequestId(null);
         setInfo(REAUTHENTICATION_NOTICE);
         setStep('choose');
         return;
@@ -349,12 +353,19 @@ export default function ChangeFirebasePasswordScreen() {
         setSignInPassword('');
         setMethod(null);
         setInfo(isWrongMethodRefusal(err) ? OTHER_OPTION_MESSAGE : null);
-        setFormError(needsAnotherConfirmation(err) ? messageFor(err) : null);
+        const message = needsAnotherConfirmation(err) ? messageFor(err) : null;
+        setFormError(message);
+        setFormRequestId(message ? errorRequestId(err) : null);
         setStep('choose');
       } else {
         const fields = fieldMap(err);
-        if (Object.keys(fields).length) setFieldErrors(fields);
-        else setFormError(messageFor(err));
+        if (Object.keys(fields).length) {
+          setFieldErrors(fields);
+          setFormRequestId(null);
+        } else {
+          setFormError(messageFor(err));
+          setFormRequestId(errorRequestId(err));
+        }
       }
     } finally {
       setBusy(false);
@@ -365,7 +376,7 @@ export default function ChangeFirebasePasswordScreen() {
     <>
       <Stack.Screen options={{ title: 'Change sign-in password' }} />
       <Screen scroll contentStyle={styles.content}>
-        <Banner type="error" text={formError} />
+        <Banner type="error" text={formError} requestId={formRequestId} />
         {info ? <Banner type="info" text={info} /> : null}
 
         {done ? (

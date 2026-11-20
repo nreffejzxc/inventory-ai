@@ -60,7 +60,25 @@ const { ObjectId } = mongoose.Types;
 const oid = (id) => new ObjectId(id);
 
 const { dbOk, baseUrl, server } = await startServer();
-const api = makeApi(baseUrl);
+const rawApi = makeApi(baseUrl);
+let receiveKeySeq = 0;
+/**
+ * The receive route now requires an Idempotency-Key. Every existing receive in
+ * this suite gets a unique one unless it deliberately names its own, so the
+ * lifecycle/concurrency cases keep testing what they were written for. The
+ * dedicated no-key refusal lives in INTEGRITY-RECOVERY.test.mjs.
+ */
+const api = (method, path, options = {}) => {
+  if (method === 'POST' && /\/receive$/.test(path)) {
+    const headers = { ...(options.headers || {}) };
+    if (!headers['Idempotency-Key'] && !headers['idempotency-key']) {
+      receiveKeySeq += 1;
+      headers['Idempotency-Key'] = `p13c-${process.pid}-${Date.now()}-${receiveKeySeq}`;
+    }
+    return rawApi(method, path, { ...options, headers });
+  }
+  return rawApi(method, path, options);
+};
 const tracker = createTracker(dbOk);
 
 const poUrl = (id) => `/api/purchase-orders/${id}`;
@@ -207,6 +225,34 @@ function stubReceiveOps({ onClaim, onFinalize } = {}) {
       if (onFinalize(finalizeCalls)) return null;
     }
     return real(filter, update, opts);
+  };
+  return () => {
+    PurchaseOrder.findOneAndUpdate = real;
+  };
+}
+
+/**
+ * Apply the FIRST FINALIZE, then throw as if the response was lost after the atomic
+ * write. This is the ambiguous case a retry must survive: the receipt and stock-in are
+ * durable, but the client saw a 5xx. Returns a restore function.
+ */
+function stubFinalizeApplyThenThrowOnce() {
+  const real = PurchaseOrder.findOneAndUpdate.bind(PurchaseOrder);
+  let fired = false;
+  PurchaseOrder.findOneAndUpdate = (filter, update, opts) => {
+    const inc = (update && update.$inc) || {};
+    const isFinalize =
+      Boolean(update && update.$push && update.$push.receipts) &&
+      Boolean(update && update.$pull && update.$pull.claims) &&
+      inc['items.$[l].quantityReceived'];
+    if (!isFinalize || fired) return real(filter, update, opts);
+    fired = true;
+    return Promise.resolve(real(filter, update, opts)).then((doc) => {
+      if (!doc) throw new Error('injected finalize no-op');
+      const err = new Error('injected failure AFTER finalize applied');
+      err.name = 'InjectedFinalizeAfterApply';
+      throw err;
+    });
   };
   return () => {
     PurchaseOrder.findOneAndUpdate = real;
@@ -858,6 +904,51 @@ dbSuite('Phase 13C — purchase-order receiving over real HTTP', dbOk, () => {
     assert.equal(doc.items[0].quantityCommitted, 0, 'the claim was released after the precise undo');
     assert.equal((doc.claims || []).length, 0, 'no claim left outstanding');
     assert.equal(doc.receipts.length, 0, 'no receipt recorded');
+  });
+
+  it('★ a retry after a finalize that APPLIED then threw replays the durable receipt instead of adding stock twice', async () => {
+    const p = await newProduct(main);
+    const po = await mkOpenPo(main, { supplierId: sup.id, locationId: loc.id, items: [{ productId: p.id, quantityOrdered: 10 }] });
+    const key = 'op-receive-apply-then-throw';
+    const body = { lines: [{ productId: p.id, quantity: 4 }], reference: 'INV-AMBIGUOUS' };
+
+    const restore = stubFinalizeApplyThenThrowOnce();
+    let first;
+    try {
+      first = await api('POST', `${poUrl(po.id)}/receive`, {
+        token: main.token,
+        body,
+        headers: { 'Idempotency-Key': key },
+      });
+    } finally {
+      restore();
+    }
+    assert.equal(first.status, 500, 'the first delivery reports the ambiguous failure');
+    assert.equal(await rowQuantity(main.businessId, p.id, loc.id), 4, 'the finalize applied before throwing');
+    assert.equal((await stockInsFor(main.businessId, po.number)).length, 1);
+
+    // The 5xx releases its idempotency claim; wait for that housekeeping to land, then
+    // retry the SAME operation. Without the receipt replay this body would fit the
+    // remaining 6 and add another 4 units.
+    let retry;
+    for (let attempt = 0; attempt < 20; attempt += 1) {
+      retry = await api('POST', `${poUrl(po.id)}/receive`, {
+        token: main.token,
+        body,
+        headers: { 'Idempotency-Key': key },
+      });
+      if (!(retry.status === 409 && retry.json?.code === 'IDEMPOTENT_REQUEST_IN_PROGRESS')) break;
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+    assert.equal(retry.status, 200, JSON.stringify(retry.json));
+    assert.equal(retry.json.replayed, true, 'the answer comes from the stored receipt');
+    assert.equal(await rowQuantity(main.businessId, p.id, loc.id), 4, 'the retry added no stock');
+    assert.equal((await stockInsFor(main.businessId, po.number)).length, 1, 'still exactly one stock-in');
+    const doc = await poDoc(po.id);
+    assert.equal(doc.items[0].quantityReceived, 4, 'the PO counter was advanced once');
+    assert.equal(doc.receipts.length, 1, 'exactly one durable receipt');
+    assert.equal(doc.receipts[0].requestKey, key, 'the receipt names the retried operation');
+    assert.equal((doc.claims || []).length, 0, 'no claim is left behind');
   });
 
   it('mid-batch CLAIM loss: earlier lines stay durably applied and are reported as applied; the lost line moves nothing', async () => {

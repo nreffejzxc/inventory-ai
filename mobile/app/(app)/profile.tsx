@@ -13,6 +13,7 @@ import Screen from '../../components/Screen';
 import SectionHeader from '../../components/SectionHeader';
 import { useSession } from '../../lib/auth';
 import { API_URL } from '../../lib/config';
+import { errorRequestId } from '../../lib/errors';
 import { confirm } from '../../lib/confirm';
 import { formatDateTime } from '../../lib/format';
 import { roleLabel, defaultHomePath } from '../../lib/permissions';
@@ -54,6 +55,7 @@ export default function ProfileScreen() {
   const { user, signOut, refresh, connectFirebase } = useSession();
   const [connectBusy, setConnectBusy] = useState(false);
   const [connectError, setConnectError] = useState<string | null>(null);
+  const [connectRequestId, setConnectRequestId] = useState<string | null>(null);
   const [connectNotice, setConnectNotice] = useState<string | null>(null);
   const [legalError, setLegalError] = useState<string | null>(null);
 
@@ -108,6 +110,7 @@ export default function ProfileScreen() {
   async function onConnectGoogle(): Promise<void> {
     setConnectBusy(true);
     setConnectError(null);
+    setConnectRequestId(null);
     setConnectNotice(null);
     try {
       const outcome = await connectFirebase();
@@ -121,6 +124,7 @@ export default function ProfileScreen() {
         (err as { message?: string } | null)?.message ||
           'Unable to add Google sign-in. Please try again.'
       );
+      setConnectRequestId(errorRequestId(err));
     } finally {
       setConnectBusy(false);
     }
@@ -172,7 +176,7 @@ export default function ProfileScreen() {
         </Text>
         {/* Both render nothing when empty, so only the live feedback shows. */}
         <Banner type="success" text={connectNotice} />
-        <Banner type="error" text={connectError} />
+        <Banner type="error" text={connectError} requestId={connectRequestId} />
         {/**
          * Phase 32K, widened by this pass — local password management is offered only
          * where the server will actually accept it. `authMethods.password` is false

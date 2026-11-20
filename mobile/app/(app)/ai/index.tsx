@@ -7,7 +7,7 @@ import Button from '../../../components/Button';
 import { PressableCard } from '../../../components/Card';
 import { Icon } from '../../../components/icons';
 import ListRow from '../../../components/ListRow';
-import { EmptyState, ErrorState, LoadingBlock, errorText } from '../../../components/ListState';
+import { EmptyState, ErrorState, LoadingBlock, errorRequestId, errorText } from '../../../components/ListState';
 import Screen from '../../../components/Screen';
 import { aiApi } from '../../../lib/api';
 import type { ApiResponse } from '../../../lib/api';
@@ -95,7 +95,20 @@ function AiConversations() {
       {list.loading && list.items.length === 0 ? (
         <FlatList data={[]} renderItem={() => null} ListHeaderComponent={header} ListEmptyComponent={<LoadingBlock label="Loading chats…" />} contentContainerStyle={styles.content} />
       ) : list.error && list.items.length === 0 ? (
-        <FlatList data={[]} renderItem={() => null} ListHeaderComponent={header} ListEmptyComponent={<ErrorState title="Couldn't load your chats" message={errorText(list.error)} onRetry={list.reload} />} contentContainerStyle={styles.content} />
+        <FlatList
+          data={[]}
+          renderItem={() => null}
+          ListHeaderComponent={header}
+          ListEmptyComponent={
+            <ErrorState
+              title="Couldn't load your chats"
+              message={errorText(list.error)}
+              requestId={errorRequestId(list.error)}
+              onRetry={list.reload}
+            />
+          }
+          contentContainerStyle={styles.content}
+        />
       ) : (
         <FlatList
           data={list.items}

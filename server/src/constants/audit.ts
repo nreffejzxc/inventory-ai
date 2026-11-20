@@ -22,6 +22,10 @@ export const AUDIT_ACTIONS = Object.freeze({
   PURCHASE_ORDER_ISSUED: 'PURCHASE_ORDER_ISSUED',
   PURCHASE_ORDER_CANCELED: 'PURCHASE_ORDER_CANCELED',
   PURCHASE_ORDER_RECEIVED: 'PURCHASE_ORDER_RECEIVED',
+  // A reaper proved an abandoned receive claim and either released it or
+  // removed its exact stock-in. Recorded as a first-class business event so an
+  // operator can see that stock moved backwards without a user action.
+  PURCHASE_ORDER_CLAIM_RECOVERED: 'PURCHASE_ORDER_CLAIM_RECOVERED',
   INVENTORY_STOCK_IN: 'INVENTORY_STOCK_IN',
   INVENTORY_STOCK_OUT: 'INVENTORY_STOCK_OUT',
   INVENTORY_ADJUSTED: 'INVENTORY_ADJUSTED',

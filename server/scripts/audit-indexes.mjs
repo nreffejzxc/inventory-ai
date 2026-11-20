@@ -67,9 +67,34 @@ function normalizeKey(key) {
     .join(',');
 }
 
+/**
+ * A stable form of a partial filter. Key order in the filter is not semantic, so
+ * sorting makes `{a:1,b:2}` and `{b:2,a:1}` compare equal; the filter itself is
+ * compared because a key with the same fields but no filter is a DIFFERENT index
+ * (and a unique index over an optional field would reject ordinary rows).
+ */
+function normalizePartialFilter(filter) {
+  if (filter == null) return null;
+  const sortValue = (value) => {
+    if (Array.isArray(value)) return value.map(sortValue);
+    if (value && typeof value === 'object') {
+      return Object.fromEntries(Object.keys(value).sort().map((key) => [key, sortValue(value[key])]));
+    }
+    return value;
+  };
+  return JSON.stringify(sortValue(filter));
+}
+
 /** The differences that matter between a declared index and the one in the database. */
 function differences(declared, actual) {
   const out = [];
+  const declaredPartial = normalizePartialFilter(declared?.partialFilterExpression);
+  const actualPartial = normalizePartialFilter(actual?.partialFilterExpression);
+  if (declaredPartial !== actualPartial) {
+    out.push(
+      `partialFilter declared=${declaredPartial ?? 'none'} database=${actualPartial ?? 'none'}`,
+    );
+  }
   if (Boolean(declared?.unique) !== Boolean(actual.unique)) {
     out.push(`unique declared=${Boolean(declared?.unique)} database=${Boolean(actual.unique)}`);
   }

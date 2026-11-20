@@ -135,11 +135,14 @@ export function createTracker(dbOk) {
         }
       };
       await deleteByBusiness('inventory_transactions');
+      await deleteByBusiness('stock_movement_operations');
+      await deleteByBusiness('stock_transfer_operations');
       await deleteByBusiness('inventory');
       await deleteByBusiness('products');
       await deleteByBusiness('categories');
       await deleteByBusiness('locations');
       await deleteByBusiness('audit_logs');
+      await deleteByBusiness('audit_failures');
       await deleteByBusiness('ai_turn_metrics');
       await deleteByBusiness('ai_feedback');
       await deleteByBusiness('ops_error_events');

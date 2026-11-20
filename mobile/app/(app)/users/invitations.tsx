@@ -18,6 +18,7 @@ import type { ApiResponse } from '../../../lib/api';
 import { useSession } from '../../../lib/auth';
 import { ApiError } from '../../../lib/client';
 import { confirm } from '../../../lib/confirm';
+import { errorRequestId as requestIdOf } from '../../../lib/errors';
 import { assignableRoles, canManageUsers, roleLabel } from '../../../lib/permissions';
 import { formatDate } from '../../../lib/format';
 import { spacing, type } from '../../../lib/theme';
@@ -128,11 +129,13 @@ function InvitationsManager() {
   // refresh must not replace the list with that label while the gesture is still running.
   const [refreshing, setRefreshing] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [loadRequestId, setLoadRequestId] = useState<string | null>(null);
 
   const [email, setEmail] = useState('');
   const [role, setRole] = useState('');
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState<string | null>(null);
+  const [formRequestId, setFormRequestId] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [revoking, setRevoking] = useState<string | null>(null);
@@ -144,6 +147,7 @@ function InvitationsManager() {
 
   const load = useCallback(async (): Promise<void> => {
     setLoadError(null);
+    setLoadRequestId(null);
     try {
       const result = await invitationsApi.list(authToken);
       setItems(Array.isArray(result?.items) ? result.items : []);
@@ -154,6 +158,7 @@ function InvitationsManager() {
         return;
       }
       setLoadError((err as { message?: string } | null)?.message || "Couldn't load invitations.");
+      setLoadRequestId(requestIdOf(err));
     } finally {
       setLoading(false);
     }
@@ -202,6 +207,7 @@ function InvitationsManager() {
 
     setBusy(true);
     setFormError(null);
+    setFormRequestId(null);
     setNotice(null);
     setFieldErrors({});
     try {
@@ -214,7 +220,10 @@ function InvitationsManager() {
       const fields = fieldMap(err);
       if (Object.keys(fields).length) setFieldErrors(fields);
       else if (err instanceof ApiError && err.code === EMAIL_IN_USE) setFieldErrors({ email: err.message });
-      else setFormError((err as { message?: string } | null)?.message || 'Unable to send the invitation.');
+      else {
+        setFormError((err as { message?: string } | null)?.message || 'Unable to send the invitation.');
+        setFormRequestId(requestIdOf(err));
+      }
     } finally {
       setBusy(false);
     }
@@ -229,6 +238,7 @@ function InvitationsManager() {
     if (!ok) return;
     setRevoking(String(item.id));
     setFormError(null);
+    setFormRequestId(null);
     setNotice(null);
     try {
       await invitationsApi.revoke(authToken, String(item.id));
@@ -240,6 +250,7 @@ function InvitationsManager() {
         return;
       }
       setFormError((err as { message?: string } | null)?.message || 'Unable to revoke that invitation.');
+      setFormRequestId(requestIdOf(err));
     } finally {
       setRevoking(null);
     }
@@ -255,7 +266,11 @@ function InvitationsManager() {
           void refresh();
         }}
       >
-        <Banner type="error" text={formError || loadError} />
+        <Banner
+          type="error"
+          text={formError || loadError}
+          requestId={formError ? formRequestId : loadRequestId}
+        />
         <Banner type="success" text={notice} />
 
         <Card style={styles.formCard}>

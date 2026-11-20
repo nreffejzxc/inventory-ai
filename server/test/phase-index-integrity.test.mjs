@@ -64,6 +64,19 @@ function normalizeKey(key) {
     .join(',');
 }
 
+/** Stable form of a partial filter; a missing filter differs from an empty one. */
+function normalizePartialFilter(filter) {
+  if (filter == null) return null;
+  const sortValue = (value) => {
+    if (Array.isArray(value)) return value.map(sortValue);
+    if (value && typeof value === 'object') {
+      return Object.fromEntries(Object.keys(value).sort().map((key) => [key, sortValue(value[key])]));
+    }
+    return value;
+  };
+  return JSON.stringify(sortValue(filter));
+}
+
 /** Every non-implicit index the model declares, keyed by its ordered key. */
 function declaredIndexes(model) {
   const out = new Map();
@@ -114,6 +127,14 @@ dbSuite('Index integrity — declared indexes exist in the database', dbOk, () =
         }
         if (Boolean(options.sparse) !== Boolean(found.sparse)) {
           report.push(`${model.modelName}: ${key} sparse declared=${Boolean(options.sparse)} database=${Boolean(found.sparse)}`);
+        }
+        const declaredPartial = normalizePartialFilter(options.partialFilterExpression);
+        const actualPartial = normalizePartialFilter(found.partialFilterExpression);
+        if (declaredPartial !== actualPartial) {
+          report.push(
+            `${model.modelName}: ${key} partialFilter declared=${declaredPartial ?? 'none'} ` +
+              `database=${actualPartial ?? 'none'}`,
+          );
         }
         if (options.expireAfterSeconds !== found.expireAfterSeconds) {
           report.push(

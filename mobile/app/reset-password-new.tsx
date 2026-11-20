@@ -9,6 +9,7 @@ import Input from '../components/Input';
 import { confirmPasswordResetCode } from '../lib/api';
 import { useSession } from '../lib/auth';
 import { fieldErrorsFrom } from '../lib/authCopy';
+import { errorRequestId } from '../lib/errors';
 import { clearVerifiedReset, readVerifiedReset } from '../lib/passwordResetSession';
 import { spacing, type } from '../lib/theme';
 import type { Palette } from '../lib/theme';
@@ -72,6 +73,7 @@ export default function ResetPasswordNewScreen() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState<string | null>(null);
+  const [formRequestId, setFormRequestId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
 
@@ -129,6 +131,7 @@ export default function ResetPasswordNewScreen() {
 
     setBusy(true);
     setFormError(null);
+    setFormRequestId(null);
     setFieldErrors({});
     try {
       await confirmPasswordResetCode({
@@ -153,7 +156,10 @@ export default function ResetPasswordNewScreen() {
       }
       const fields = fieldErrorsFrom(err);
       if (Object.keys(fields).length) setFieldErrors(fields);
-      else setFormError((err as { message?: string } | null)?.message || GENERIC_FAILURE);
+      else {
+        setFormError((err as { message?: string } | null)?.message || GENERIC_FAILURE);
+        setFormRequestId(errorRequestId(err));
+      }
     } finally {
       setBusy(false);
     }
@@ -176,7 +182,7 @@ export default function ResetPasswordNewScreen() {
         </Text>
       }
     >
-      <Banner type="error" text={formError} />
+      <Banner type="error" text={formError} requestId={formRequestId} />
       <Input
         name="newPassword"
         label="New password"

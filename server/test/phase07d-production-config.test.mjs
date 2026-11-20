@@ -289,7 +289,14 @@ describe('JWT algorithm pinning (Phase 07G)', () => {
 // ---------------------------------------------------------------------------
 function healthApp(getState, isReady) {
   const app = express();
-  app.use('/api/health', createHealthRouter({ getState, isReady }));
+  app.use(
+    '/api/health',
+    createHealthRouter({
+      getState,
+      isReady,
+      checkIndexes: async () => ({ ready: true, failures: [] }),
+    }),
+  );
   return app;
 }
 
