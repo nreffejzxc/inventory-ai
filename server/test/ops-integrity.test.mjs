@@ -110,7 +110,7 @@ describe('ops:integrity — result classification', () => {
     const result = classifyOpsResult({
       command: 'audit:price-quality',
       exitCode: 2,
-      stderr: '[price-quality] NOT CHECKED (exit 2) — could not reach mongodb://user:secret@host/db',
+      stderr: '[price-quality] NOT CHECKED (exit 2) — could not reach mongodb://user:secret@host/db', // secret-guard:allow (redaction test fixture; not a credential)
     });
     assert.equal(result.status, OPS_STATUS.NOT_CHECKED);
     assert.doesNotMatch(result.detail, /secret/);

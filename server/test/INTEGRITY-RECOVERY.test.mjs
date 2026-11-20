@@ -664,7 +664,7 @@ dbSuite('INTEGRITY — audit failure monitoring and price quality', dbOk, () => 
       action: 'INVENTORY_TRANSFERRED',
       entityType: 'INVENTORY_TRANSACTION',
       entityId: new ObjectId(),
-      error: new Error('mongodb://user:secret@host/private should never be stored'),
+      error: new Error('mongodb://user:secret@host/private should never be stored'), // secret-guard:allow (redaction test fixture; not a credential)
     });
     assert.equal(wrote, true);
     const row = await AuditFailure.findOne({ businessId: oid(owner.businessId) });

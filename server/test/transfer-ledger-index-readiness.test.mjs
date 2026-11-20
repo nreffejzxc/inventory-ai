@@ -98,7 +98,7 @@ describe('transfer-ledger index readiness — evaluation', () => {
       model: {
         collection: {
           indexes: async () => {
-            throw new Error('mongodb://user:secret@host/db');
+            throw new Error('mongodb://user:secret@host/db'); // secret-guard:allow (redaction test fixture; not a credential)
           },
         },
       },
