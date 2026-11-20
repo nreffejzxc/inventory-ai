@@ -89,8 +89,8 @@ dbSuite('DEMO-4 verify:demo exits 1 for an empty tenant and a wrong check digit'
       emailVerified: true,
     });
     await Product.insertMany([
-      { businessId: badBarcodeBusinessId, name: 'DEMO4 valid EAN-13', barcode: VALID_BARCODE },
-      { businessId: badBarcodeBusinessId, name: 'DEMO4 bad check digit', barcode: INVALID_BARCODE },
+      { businessId: badBarcodeBusinessId, name: 'DEMO4 valid EAN-13', barcode: VALID_BARCODE, currency: 'PHP' },
+      { businessId: badBarcodeBusinessId, name: 'DEMO4 bad check digit', barcode: INVALID_BARCODE, currency: 'PHP' },
     ]);
   });
 

@@ -752,7 +752,7 @@ export interface ProductInput {
   unit?: string | null;
   costPrice?: number | null;
   sellingPrice?: number | null;
-  /** ISO-4217 code of the prices, e.g. PHP. Omitted means the currency is unknown. */
+  /** Required ISO 4217 code of the prices, e.g. PHP. PATCH may omit it only when the product already has one. */
   currency?: string | null;
   minimumStock?: number | null;
   imageUrl?: string | null;

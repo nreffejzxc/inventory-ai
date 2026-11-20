@@ -37,6 +37,7 @@ function seedableProduct(product) {
   assert.ok(product.description && product.description.length >= 40, `${product.name} has a thin description`);
   assert.ok(product.specifications && product.specifications.includes(':'), `${product.name} has no recorded specifications`);
   assert.ok(product.unit, `${product.name} has no unit`);
+  assert.match(product.currency, /^[A-Z]{3}$/, `${product.name} has no ISO 4217 currency`);
   assert.ok(product.sellingPrice > 0, `${product.name} has no selling price`);
   assert.ok(product.costPrice > 0 && product.costPrice < product.sellingPrice, `${product.name} has unusable prices`);
   assert.match(product.sourceUrl, /^https:\/\//, `${product.name} has no source URL`);
@@ -78,6 +79,7 @@ unitSuite('SEED-1 the curated catalogue is real and useful', () => {
     assert.match(source, /catalogProductAt/);
     assert.match(source, /template\.brand/);
     assert.match(source, /template\.description/);
+    assert.match(source, /template\.currency/);
     assert.match(source, /template\.specifications/);
     assert.doesNotMatch(source, /ADJECTIVES|NOUNS|Seeded row/);
   });
@@ -131,6 +133,7 @@ dbSuite('SEED-1 the bulk seeder writes the curated catalogue', dbOk, () => {
       assert.ok(product.brand && product.brand.length > 1, `${product.name} has no brand`);
       assert.ok(product.description && product.description.length >= 40, `${product.name} has no description`);
       assert.ok(product.specifications && product.specifications.includes(':'), `${product.name} has no specifications`);
+      assert.equal(product.currency, 'PHP', `${product.name} was seeded without its currency`);
       assert.ok(product.categoryId, `${product.name} has no category`);
       assert.doesNotMatch(`${product.name} ${product.description}`, PLACEHOLDER);
     }

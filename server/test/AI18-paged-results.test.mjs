@@ -117,7 +117,7 @@ dbSuite('AI-18 a page of a larger set says so', dbOk, () => {
     for (let i = 0; i < 3; i += 1) {
       const created = await api('POST', '/api/products', {
         token: A.token,
-        body: { name: uniqueName(`Widget${i}`) },
+        body: { currency: 'PHP', name: uniqueName(`Widget${i}`) },
       });
       assert.equal(created.status, 201, JSON.stringify(created.json));
       if (i < 2) {

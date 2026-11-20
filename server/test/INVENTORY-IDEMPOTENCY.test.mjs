@@ -64,7 +64,7 @@ async function newProduct(business) {
   seq += 1;
   const res = await api('POST', '/api/products', {
     token: business.token,
-    body: { name: `Idem Product ${process.pid}-${seq}` },
+    body: { currency: 'PHP', name: `Idem Product ${process.pid}-${seq}` },
   });
   assert.equal(res.status, 201, JSON.stringify(res.json));
   return res.json.id;

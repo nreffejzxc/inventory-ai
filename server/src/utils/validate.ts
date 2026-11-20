@@ -10,6 +10,7 @@ import { NON_OWNER_ROLES } from '../constants/roles.ts';
 import { AUDIT_ACTIONS, AUDIT_ENTITY_TYPES } from '../constants/audit.ts';
 import { DELETE_CONFIRMATION_PHRASE } from '../constants/accountDeletion.ts';
 import { INVITABLE_ROLES, INVITATION_TOKEN_PATTERN } from '../constants/invitations.ts';
+import { isProductCurrencyCode } from '../constants/currencies.ts';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MAX_EMAIL = 254;
@@ -1068,19 +1069,29 @@ export function validateProduct(body: Body, { partial = false }: PartialOption =
     ? nullableNumber(body?.sellingPrice, 'sellingPrice', { min: 0 })
     : optionalNumber(body?.sellingPrice, 'sellingPrice', { min: 0 });
   problems.push(...sellingPrice.problems);
-  // ISO-4217 code of the prices. Optional: an omitted or blank value leaves the currency unknown.
-  const currencyRaw = partial
-    ? nullableString(body?.currency, 'currency', 3)
-    : optionalString(body?.currency, 'currency', 3);
-  problems.push(...currencyRaw.problems);
-  let currency: string | null | undefined = currencyRaw.value === null
-    ? null
-    : currencyRaw.value?.trim()
-      ? currencyRaw.value.trim().toUpperCase()
-      : undefined;
-  if (currency != null && !/^[A-Z]{3}$/.test(currency)) {
-    problems.push({ field: 'currency', message: 'currency must be a 3-letter ISO code' });
+  // A product's money has exactly one ISO 4217 currency, and it must be stated:
+  // guessing it from a symbol or the tenant's locale is how a $ price becomes
+  // the wrong amount. On create it is required; on edit it may be omitted only
+  // when the stored product already has a valid code (enforced in the service,
+  // which can read the document). Clearing it is never allowed.
+  let currency: string | undefined;
+  const currencyValue = body?.currency;
+  if (partial && currencyValue === undefined) {
     currency = undefined;
+  } else if (typeof currencyValue !== 'string' || currencyValue.trim() === '') {
+    problems.push({
+      field: 'currency',
+      message: partial
+        ? 'currency cannot be cleared; send a valid ISO 4217 code'
+        : 'currency is required (a valid ISO 4217 code such as PHP, USD or GBP)',
+    });
+  } else {
+    const code = currencyValue.trim().toUpperCase();
+    if (!isProductCurrencyCode(code)) {
+      problems.push({ field: 'currency', message: 'currency must be a valid ISO 4217 code' });
+    } else {
+      currency = code;
+    }
   }
   const minimumStock = partial
     ? nullableNumber(body?.minimumStock, 'minimumStock', { min: 0, integer: true })

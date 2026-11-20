@@ -85,6 +85,19 @@ jest.mock('../lib/api', () => ({
 
 const mockedUseSession = useSession as jest.Mock;
 const create = productsApi.create as jest.Mock;
+const update = productsApi.update as jest.Mock;
+
+async function selectCurrency(
+  view: Awaited<ReturnType<typeof render>>,
+  query: string,
+  label: string,
+) {
+  await fireEvent.press(view.getByTestId('currency-picker'));
+  await fireEvent.changeText(view.getByPlaceholderText('Search…'), query);
+  await waitFor(() => expect(view.getByText(label)).toBeTruthy());
+  await fireEvent.press(view.getByText(label));
+  await waitFor(() => expect(view.getByText(label)).toBeTruthy());
+}
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -121,6 +134,7 @@ describe('ProductForm — create idempotency', () => {
     );
 
     await fireEvent.changeText(view.getByTestId('input-Product name'), 'Kettle');
+    await selectCurrency(view, 'PHP', 'PHP — Philippine Peso');
     await fireEvent.press(view.getByText('Create product'));
     await waitFor(() => expect(view.getByText('The product could not be saved.')).toBeTruthy());
 
@@ -128,5 +142,61 @@ describe('ProductForm — create idempotency', () => {
     await waitFor(() => expect(create).toHaveBeenCalledTimes(2));
 
     expect(create.mock.calls[1][2]).toBe(create.mock.calls[0][2]);
+  });
+
+  it('★ requires a currency before sending anything', async () => {
+    const view = await render(
+      <ThemeProvider>
+        <ProductForm />
+      </ThemeProvider>
+    );
+
+    await fireEvent.changeText(view.getByTestId('input-Product name'), 'Kettle');
+    await fireEvent.press(view.getByText('Create product'));
+
+    await waitFor(() =>
+      expect(view.getByText('Currency is required. Use a valid ISO 4217 code, e.g. PHP')).toBeTruthy()
+    );
+    expect(create).not.toHaveBeenCalled();
+  });
+
+  it('★ searches the ISO list by currency name and saves the selected code', async () => {
+    const view = await render(
+      <ThemeProvider>
+        <ProductForm />
+      </ThemeProvider>
+    );
+
+    await fireEvent.changeText(view.getByTestId('input-Product name'), 'Kettle');
+    await fireEvent.press(view.getByTestId('currency-picker'));
+    await fireEvent.changeText(view.getByPlaceholderText('Search…'), 'philippine');
+
+    await waitFor(() => expect(view.getByText('PHP — Philippine Peso')).toBeTruthy());
+    expect(view.queryByText('USD — US Dollar')).toBeNull();
+
+    await fireEvent.press(view.getByText('PHP — Philippine Peso'));
+    await fireEvent.press(view.getByText('Create product'));
+
+    await waitFor(() => expect(create).toHaveBeenCalledTimes(1));
+    expect(create.mock.calls[0][1]).toMatchObject({ currency: 'PHP' });
+  });
+
+  it('★ shows a legacy product without currency as unselected and requires a choice', async () => {
+    const view = await render(
+      <ThemeProvider>
+        <ProductForm initial={{ id: 'legacy-1', name: 'Kettle', currency: null }} />
+      </ThemeProvider>
+    );
+
+    expect(view.getByText('Select a currency…')).toBeTruthy();
+    await fireEvent.press(view.getByText('Save changes'));
+    await waitFor(() => expect(view.getByText('Currency is required. Use a valid ISO 4217 code, e.g. PHP')).toBeTruthy());
+    expect(update).not.toHaveBeenCalled();
+
+    await selectCurrency(view, 'USD', 'USD — US Dollar');
+    await fireEvent.press(view.getByText('Save changes'));
+
+    await waitFor(() => expect(update).toHaveBeenCalledTimes(1));
+    expect(update.mock.calls[0][2]).toMatchObject({ currency: 'USD' });
   });
 });

@@ -28,7 +28,7 @@ const tracker = createTracker(dbOk);
 // Every tool/executor lives on the shipped services; helper seeds use the same
 // HTTP endpoints the app uses so tool results are guaranteed to match the app.
 async function newProduct(business, over = {}) {
-  const res = await api('POST', '/api/products', { token: business.token, body: { name: uniqueName('P'), ...over } });
+  const res = await api('POST', '/api/products', { token: business.token, body: { currency: 'PHP', name: uniqueName('P'), ...over } });
   assert.equal(res.status, 201, JSON.stringify(res.json));
   return res.json.id;
 }

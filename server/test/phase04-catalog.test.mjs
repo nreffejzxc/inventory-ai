@@ -39,7 +39,7 @@ async function locationId(name = uniqueName('Loc'), token = owner.token) {
 }
 
 async function productId(payload = {}, token = owner.token) {
-  const res = await api('POST', '/api/products', { token, body: { name: uniqueName('P'), ...payload } });
+  const res = await api('POST', '/api/products', { token, body: { name: uniqueName('P'), currency: 'PHP', ...payload } });
   assert.equal(res.status, 201, JSON.stringify(res.json));
   return res.json.id;
 }
@@ -220,6 +220,7 @@ dbSuite('Phase 04 — catalog: categories, locations, products', dbOk, () => {
           categoryId: cat,
           costPrice: 1.25,
           sellingPrice: 2.5,
+          currency: 'PHP',
           unit: 'bag',
           minimumStock: 10,
           imageUrl: 'https://example.com/chips.png',
@@ -243,12 +244,12 @@ dbSuite('Phase 04 — catalog: categories, locations, products', dbOk, () => {
       const sku = uniqueName('DUP');
       const first = await api('POST', '/api/products', {
         token: owner.token,
-        body: { name: uniqueName('P'), sku },
+        body: { name: uniqueName('P'), sku, currency: 'PHP' },
       });
       assert.equal(first.status, 201);
       const dupSku = await api('POST', '/api/products', {
         token: owner.token,
-        body: { name: uniqueName('P'), sku },
+        body: { name: uniqueName('P'), sku, currency: 'PHP' },
       });
       assert.equal(dupSku.status, 409);
       assert.equal(dupSku.json.code, 'PRODUCT_SKU_EXISTS');
@@ -256,11 +257,11 @@ dbSuite('Phase 04 — catalog: categories, locations, products', dbOk, () => {
       const barcode = uniqueName('DUPB');
       await api('POST', '/api/products', {
         token: owner.token,
-        body: { name: uniqueName('P'), barcode },
+        body: { name: uniqueName('P'), barcode, currency: 'PHP' },
       });
       const dupBar = await api('POST', '/api/products', {
         token: owner.token,
-        body: { name: uniqueName('P'), barcode },
+        body: { name: uniqueName('P'), barcode, currency: 'PHP' },
       });
       assert.equal(dupBar.status, 409);
       assert.equal(dupBar.json.code, 'PRODUCT_BARCODE_EXISTS');
@@ -273,7 +274,7 @@ dbSuite('Phase 04 — catalog: categories, locations, products', dbOk, () => {
 
       const fracMin = await api('POST', '/api/products', {
         token: owner.token,
-        body: { name: uniqueName('P'), minimumStock: 2.5 },
+        body: { name: uniqueName('P'), minimumStock: 2.5, currency: 'PHP' },
       });
       assert.equal(fracMin.status, 400);
       assert.ok(fracMin.json.fields.some((f) => f.field === 'minimumStock'));
@@ -329,7 +330,6 @@ dbSuite('Phase 04 — catalog: categories, locations, products', dbOk, () => {
           categoryId: null,
           costPrice: '',
           sellingPrice: '',
-          currency: '',
           unit: '',
           minimumStock: '',
           imageUrl: '',
@@ -344,7 +344,7 @@ dbSuite('Phase 04 — catalog: categories, locations, products', dbOk, () => {
       assert.equal(cleared.json.category, null);
       assert.equal(cleared.json.costPrice, 0);
       assert.equal(cleared.json.sellingPrice, 0);
-      assert.equal(cleared.json.currency, null);
+      assert.equal(cleared.json.currency, 'PHP', 'currency is never cleared by an edit');
       assert.equal(cleared.json.unit, null);
       assert.equal(cleared.json.minimumStock, 0);
       assert.equal(cleared.json.imageUrl, null);
@@ -356,6 +356,13 @@ dbSuite('Phase 04 — catalog: categories, locations, products', dbOk, () => {
       assert.equal(renamed.status, 200);
       assert.equal(renamed.json.name, 'Only the name changed');
       assert.equal(renamed.json.brand, null, 'an omitted field is not resurrected');
+
+      const clearCurrency = await api('PATCH', `/api/products/${id}`, {
+        token: owner.token,
+        body: { currency: '' },
+      });
+      assert.equal(clearCurrency.status, 400, JSON.stringify(clearCurrency.json));
+      assert.ok(clearCurrency.json.fields.some((f) => f.field === 'currency'));
     });
 
     it('rejects an archived category on create and on a category change', async () => {
@@ -365,7 +372,7 @@ dbSuite('Phase 04 — catalog: categories, locations, products', dbOk, () => {
 
       const create = await api('POST', '/api/products', {
         token: owner.token,
-        body: { name: uniqueName('P'), categoryId: cat },
+        body: { name: uniqueName('P'), categoryId: cat, currency: 'PHP' },
       });
       assert.equal(create.status, 409, JSON.stringify(create.json));
       assert.equal(create.json.code, 'CATEGORY_ARCHIVED');
@@ -381,7 +388,7 @@ dbSuite('Phase 04 — catalog: categories, locations, products', dbOk, () => {
 
     it('a repeated product create with the same Idempotency-Key returns one product', async () => {
       const key = 'op-catalog-create-1';
-      const body = { name: uniqueName('Idempotent Product'), sku: uniqueName('IDEMP') };
+      const body = { name: uniqueName('Idempotent Product'), sku: uniqueName('IDEMP'), currency: 'PHP' };
       const first = await api('POST', '/api/products', {
         token: owner.token,
         body,
@@ -406,7 +413,7 @@ dbSuite('Phase 04 — catalog: categories, locations, products', dbOk, () => {
       try {
         created = await api('POST', '/api/products', {
           token: owner.token,
-          body: { name: uniqueName('Audit Safe Product') },
+          body: { name: uniqueName('Audit Safe Product'), currency: 'PHP' },
         });
         assert.equal(created.status, 201, JSON.stringify(created.json));
 
@@ -466,13 +473,13 @@ dbSuite('Phase 04 — catalog: categories, locations, products', dbOk, () => {
       assert.equal(staffRead.status, 200);
       const staffCreate = await api('POST', '/api/products', {
         token: staff.token,
-        body: { name: uniqueName('P') },
+        body: { name: uniqueName('P'), currency: 'PHP' },
       });
       assert.equal(staffCreate.status, 403);
 
       const managerCreate = await api('POST', '/api/products', {
         token: manager.token,
-        body: { name: uniqueName('PMgr') },
+        body: { name: uniqueName('PMgr'), currency: 'PHP' },
       });
       assert.equal(managerCreate.status, 201);
 

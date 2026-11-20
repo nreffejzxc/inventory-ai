@@ -19,9 +19,15 @@ import {
   PendingOperationsFullError,
 } from '../lib/idempotency';
 import { errorRequestId } from '../lib/errors';
+import { normaliseCurrencyCode, PRODUCT_CURRENCIES } from '../lib/currencies';
 import { useSession } from '../lib/auth';
 import { useActiveRef } from '../hooks/useReferences';
 import { spacing } from '../lib/theme';
+
+const CURRENCY_OPTIONS: SelectOption[] = PRODUCT_CURRENCIES.map(({ code, name }) => ({
+  value: code,
+  label: `${code} — ${name}`,
+}));
 
 function fieldMap(err: unknown): Record<string, string> {
   const out: Record<string, string> = {};
@@ -75,8 +81,9 @@ export default function ProductForm({ initial }: { initial?: ApiResponse }) {
   const [sellingPrice, setSellingPrice] = useState<string>(
     initial?.sellingPrice != null && initial.sellingPrice !== 0 ? String(initial.sellingPrice) : ''
   );
-  // ISO-4217 code for the two prices, so the assistant can format them with the right
-  // currency instead of guessing. Blank means "not recorded", which is a valid state.
+  // ISO 4217 code for the two prices. Required, so the assistant can format them with
+  // the right currency instead of guessing. An edit of a legacy row with no code must
+  // supply one here; the field is never silently cleared.
   const [currency, setCurrency] = useState<string>(initial?.currency ?? '');
   const [minimumStock, setMinimumStock] = useState<string>(
     initial?.minimumStock != null && initial.minimumStock !== 0 ? String(initial.minimumStock) : ''
@@ -107,9 +114,9 @@ export default function ProductForm({ initial }: { initial?: ApiResponse }) {
     const min = toWhole(minimumStock);
     if (!min.ok) problems.minimumStock = min.message;
     else if (min.value != null && min.value < 0) problems.minimumStock = 'Minimum stock must be at least 0';
-    const code = currency.trim().toUpperCase();
-    if (code && !/^[A-Z]{3}$/.test(code)) {
-      problems.currency = 'Use a 3-letter ISO code, e.g. PHP';
+    const code = normaliseCurrencyCode(currency);
+    if (!code) {
+      problems.currency = 'Currency is required. Use a valid ISO 4217 code, e.g. PHP';
     }
     if (Object.keys(problems).length) {
       setFieldErrors(problems);
@@ -140,7 +147,7 @@ export default function ProductForm({ initial }: { initial?: ApiResponse }) {
       unit: blank(unit),
       costPrice: numberOrClear(cost.value),
       sellingPrice: numberOrClear(sell.value),
-      currency: code || (isEdit ? null : undefined),
+      currency: code ?? undefined,
       minimumStock: numberOrClear(min.value),
       imageUrl: blank(imageUrl),
     };
@@ -203,7 +210,17 @@ export default function ProductForm({ initial }: { initial?: ApiResponse }) {
       />
       <Input name="costPrice" label="Cost price" value={costPrice} onChangeText={setCostPrice} keyboardType="decimal-pad" error={fieldErrors.costPrice} placeholder="0.00" />
       <Input name="sellingPrice" label="Selling price" value={sellingPrice} onChangeText={setSellingPrice} keyboardType="decimal-pad" error={fieldErrors.sellingPrice} placeholder="0.00" />
-      <Input name="currency" label="Currency" value={currency} onChangeText={setCurrency} error={fieldErrors.currency} placeholder="e.g. PHP" maxLength={3} autoCapitalize="characters" helper="3-letter ISO code for both prices. Leave blank if unknown — the assistant will not guess." />
+      <SelectField
+        label="Currency"
+        placeholder="Select a currency…"
+        options={CURRENCY_OPTIONS}
+        value={currency}
+        onChange={setCurrency}
+        error={fieldErrors.currency}
+        required
+        searchable
+        testID="currency-picker"
+      />
       <Input name="unit" label="Unit" value={unit} onChangeText={setUnit} error={fieldErrors.unit} placeholder="e.g. box, kg, litre" autoCapitalize="none" />
       <Input name="minimumStock" label="Minimum stock" value={minimumStock} onChangeText={setMinimumStock} keyboardType="number-pad" error={fieldErrors.minimumStock} helper="Alert when available stock drops to this level (0 = disabled)" />
       <Input name="imageUrl" label="Image URL" value={imageUrl} onChangeText={setImageUrl} error={fieldErrors.imageUrl} placeholder="Optional https://…" autoCapitalize="none" />

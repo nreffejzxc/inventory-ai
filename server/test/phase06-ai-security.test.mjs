@@ -46,7 +46,7 @@ async function chat(token, body) {
 }
 
 async function newProduct(business) {
-  const res = await api('POST', '/api/products', { token: business.token, body: { name: uniqueName('P') } });
+  const res = await api('POST', '/api/products', { token: business.token, body: { currency: 'PHP', name: uniqueName('P') } });
   assert.equal(res.status, 201, JSON.stringify(res.json));
   return res.json.id;
 }

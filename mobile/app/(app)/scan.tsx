@@ -19,7 +19,7 @@ import { inventoryApi, productsApi } from '../../lib/api';
 import type { ApiResponse } from '../../lib/api';
 import { isSessionError, useSession } from '../../lib/auth';
 import { ApiError } from '../../lib/client';
-import { formatMoney, formatNumber } from '../../lib/format';
+import { formatMoneyWithCurrency, formatNumber } from '../../lib/format';
 import useRefetchOnFocus from '../../hooks/useRefetchOnFocus';
 import { radius, spacing, type } from '../../lib/theme';
 import type { Palette } from '../../lib/theme';
@@ -354,8 +354,9 @@ function FoundProduct({ product, onRescan }: { product: ApiResponse; onRescan: (
         <Field label="SKU" value={product.sku} mono />
         <Field label="Category" value={product.category?.name} />
         <Field label="Unit" value={product.unit} />
-        <Field label="Cost price" value={product.costPrice != null ? formatMoney(product.costPrice) : null} mono />
-        <Field label="Selling price" value={product.sellingPrice != null ? formatMoney(product.sellingPrice) : null} mono />
+        <Field label="Currency" value={product.currency} mono />
+        <Field label="Cost price" value={product.costPrice != null ? formatMoneyWithCurrency(product.costPrice, product.currency) : null} mono />
+        <Field label="Selling price" value={product.sellingPrice != null ? formatMoneyWithCurrency(product.sellingPrice, product.currency) : null} mono />
         <Field label="Minimum stock" value={product.minimumStock != null ? formatNumber(product.minimumStock) : null} mono />
       </Card>
 

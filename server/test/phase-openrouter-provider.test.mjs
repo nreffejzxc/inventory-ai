@@ -1929,7 +1929,7 @@ dbSuite('OpenRouter provider — real full-catalogue workload', dbOk, () => {
     owner = await registerOwner(api, tracker);
     const product = await api('POST', '/api/products', {
       token: owner.token,
-      body: { name: uniqueName('OpenRouter Widget'), sku: 'OR-SKU-1', minimumStock: 5 },
+      body: { currency: 'PHP', name: uniqueName('OpenRouter Widget'), sku: 'OR-SKU-1', minimumStock: 5 },
     });
     assert.equal(product.status, 201, JSON.stringify(product.json));
     productId = product.json.id;

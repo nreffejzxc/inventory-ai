@@ -81,7 +81,7 @@ async function seedEveryCleanupCollection(businessId, userId) {
     Array.from({ length: 8 }, (_, i) => ({ businessId, name: `PREVIEW category ${i}` })),
   );
   const products = await Product.insertMany(
-    Array.from({ length: 4 }, (_, i) => ({ businessId, name: `PREVIEW product ${i}` })),
+    Array.from({ length: 4 }, (_, i) => ({ businessId, name: `PREVIEW product ${i}`, currency: 'PHP' })),
   );
 
   await Inventory.insertMany(
@@ -273,6 +273,7 @@ async function seedTenant(businessId, userId, productName) {
     unit: 'unit',
     costPrice: 1,
     sellingPrice: 2,
+    currency: 'PHP',
   });
   return { conversation, messages, product };
 }

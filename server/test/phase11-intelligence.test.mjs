@@ -84,7 +84,7 @@ const api = makeApi(baseUrl);
 const tracker = createTracker(dbOk);
 
 async function newProduct(business, over = {}) {
-  const res = await api('POST', '/api/products', { token: business.token, body: { name: uniqueName('P11'), ...over } });
+  const res = await api('POST', '/api/products', { token: business.token, body: { currency: 'PHP', name: uniqueName('P11'), ...over } });
   assert.equal(res.status, 201, JSON.stringify(res.json));
   return res.json.id;
 }

@@ -52,9 +52,20 @@ const tracker = createTracker(dbOk);
 let owner;
 
 async function newProduct(body) {
-  const res = await api('POST', '/api/products', { token: owner.token, body });
+  const res = await api('POST', '/api/products', { token: owner.token, body: { currency: 'PHP', ...body } });
   assert.equal(res.status, 201, JSON.stringify(res.json));
   return res.json;
+}
+
+/** A pre-rule/imported row: the API now refuses this, but history still contains it. */
+async function newLegacyProduct(body) {
+  await Product.collection.insertOne({
+    businessId: oid(owner.businessId),
+    status: 'ACTIVE',
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    ...body,
+  });
 }
 
 async function newLocation() {
@@ -564,7 +575,7 @@ dbSuite('INTEGRITY — receive keys and fingerprints', dbOk, () => {
     assert.equal(otherSupplier.status, 201, JSON.stringify(otherSupplier.json));
     const otherProduct = await api('POST', '/api/products', {
       token: other.token,
-      body: { name: uniqueName('IR-cross-product') },
+      body: { name: uniqueName('IR-cross-product'), currency: 'PHP' },
     });
     assert.equal(otherProduct.status, 201, JSON.stringify(otherProduct.json));
     const otherLocation = await api('POST', '/api/locations', {
@@ -696,7 +707,7 @@ dbSuite('INTEGRITY — audit failure monitoring and price quality', dbOk, () => 
   it('reports missing/zero prices, missing and invalid currencies without writing', async () => {
     const prefix = uniqueName('IR-price');
     await newProduct({ name: `${prefix} PHP`, sellingPrice: 100, currency: 'PHP' });
-    await newProduct({ name: `${prefix} unrecorded`, sellingPrice: 50 });
+    await newLegacyProduct({ name: `${prefix} unrecorded`, sellingPrice: 50 });
     await newProduct({ name: `${prefix} zero`, sellingPrice: 0, currency: 'PHP' });
     // The schema rejects a malformed currency on write. A legacy/imported row
     // can still carry one, which is exactly the case this read-only report must
@@ -745,7 +756,7 @@ dbSuite('INTEGRITY — audit failure monitoring and price quality', dbOk, () => 
     const mixed = uniqueName('MixRank');
     await newProduct({ name: `${mixed} USD`, sellingPrice: 10, currency: 'USD' });
     await newProduct({ name: `${mixed} PHP`, sellingPrice: 900, currency: 'PHP' });
-    await newProduct({ name: `${mixed} Unknown`, sellingPrice: 50 });
+    await newLegacyProduct({ name: `${mixed} Unknown`, sellingPrice: 50 });
 
     const blocked = await executeTool('findProducts', { keywords: mixed, sort: 'price_asc' }, ctx);
     assert.equal(blocked.ok, true, JSON.stringify(blocked));

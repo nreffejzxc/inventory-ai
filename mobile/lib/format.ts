@@ -26,6 +26,13 @@ export function formatMoney(value: unknown): string {
   return `${sign}${grouped}.${decRaw}`;
 }
 
+/** "PHP 6,990.00" when a code is recorded; the bare amount when it is not. */
+export function formatMoneyWithCurrency(value: unknown, currency: unknown): string {
+  const amount = formatMoney(value);
+  const code = typeof currency === 'string' ? currency.trim().toUpperCase() : '';
+  return code ? `${code} ${amount}` : amount;
+}
+
 function parseDate(value: unknown): Date | null {
   if (!value) return null;
   const d = value instanceof Date ? value : new Date(value as string | number);

@@ -426,7 +426,7 @@ dbSuite('Phase 07B — H2 business status enforcement (login + existing JWT)', d
       assert.equal(list.status, 200, `${role} list`);
       const create = await api(url, 'POST', '/api/products', {
         token: sessions[role],
-        body: { name: unique('Prod') },
+        body: { currency: 'PHP', name: unique('Prod') },
       });
       if (role === 'STAFF') {
         assert.equal(create.status, 403, 'STAFF must not create products');
@@ -443,7 +443,7 @@ dbSuite('Phase 07B — H2 business status enforcement (login + existing JWT)', d
     const b = await seedBusinessUser();
     const created = await api(url, 'POST', '/api/products', {
       token: b.token,
-      body: { name: unique('ProdB') },
+      body: { currency: 'PHP', name: unique('ProdB') },
     });
     assert.equal(created.status, 201);
     trackProduct(created.json.id);

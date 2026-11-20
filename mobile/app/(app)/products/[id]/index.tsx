@@ -22,7 +22,7 @@ import { alertError, confirm } from '../../../../lib/confirm';
 import { barcodeLabelHtml, isEan13 } from '../../../../lib/ean13';
 import type { BarcodeLabel } from '../../../../lib/ean13';
 import { productAssistantPrompt } from '../../../../lib/assistantContext';
-import { formatDateTime, formatMoney, formatNumber } from '../../../../lib/format';
+import { formatDateTime, formatMoneyWithCurrency, formatNumber } from '../../../../lib/format';
 import { canAdjustStock, canManageProducts, canUseAi } from '../../../../lib/permissions';
 import { useProductDetail } from '../../../../hooks/useProductDetail';
 import useRefetchOnFocus from '../../../../hooks/useRefetchOnFocus';
@@ -266,8 +266,9 @@ export default function ProductDetailScreen() {
         <Field label="Brand" value={product.brand} />
         <Field label="Category" value={product.category?.name} />
         <Field label="Unit" value={product.unit} />
-        <Field label="Cost price" value={product.costPrice != null ? formatMoney(product.costPrice) : null} mono />
-        <Field label="Selling price" value={product.sellingPrice != null ? formatMoney(product.sellingPrice) : null} mono />
+        <Field label="Currency" value={product.currency} mono />
+        <Field label="Cost price" value={product.costPrice != null ? formatMoneyWithCurrency(product.costPrice, product.currency) : null} mono />
+        <Field label="Selling price" value={product.sellingPrice != null ? formatMoneyWithCurrency(product.sellingPrice, product.currency) : null} mono />
         <Field label="Minimum stock" value={product.minimumStock != null ? formatNumber(product.minimumStock) : null} mono />
         <Field label="Updated" value={formatDateTime(product.updatedAt)} />
       </Card>

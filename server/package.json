@@ -25,6 +25,7 @@
     "audit:duplicates": "node scripts/audit-duplicate-ledger.mjs",
     "audit:integrity": "node scripts/audit-inventory-integrity.mjs",
     "audit:price-quality": "node scripts/audit-price-quality.mjs",
+    "audit:product-currency": "node scripts/audit-product-currency.mjs",
     "audit:failures": "node scripts/audit-failures.mjs",
     "recover:integrity": "node scripts/recover-integrity.mjs",
     "triage:integrity": "node scripts/triage-integrity.mjs",

@@ -48,7 +48,7 @@ let staff;
 async function newProduct(business, over = {}) {
   const res = await api('POST', '/api/products', {
     token: business.token,
-    body: { name: uniqueName('P19'), ...over },
+    body: { currency: 'PHP', name: uniqueName('P19'), ...over },
   });
   assert.equal(res.status, 201, JSON.stringify(res.json));
   return res.json.id;

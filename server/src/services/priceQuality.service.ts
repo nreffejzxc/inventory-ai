@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 
 import Product from '../models/product.model.ts';
+import { normaliseCurrencyCode } from '../constants/currencies.ts';
 
 type IdLike = string | mongoose.Types.ObjectId;
 
@@ -24,7 +25,6 @@ export type PriceQualityReport = {
   }>;
 };
 
-const ISO_CURRENCY = /^[A-Z]{3}$/;
 const SAMPLE_LIMIT = 25;
 
 function asObjectId(value: IdLike): mongoose.Types.ObjectId {
@@ -91,7 +91,7 @@ export async function priceQualityReport({
     count: typeof row.count === 'number' ? row.count : 0,
   }));
   const invalidCurrency = currencies
-    .filter((row) => row.currency !== null && !ISO_CURRENCY.test(row.currency))
+    .filter((row) => row.currency !== null && normaliseCurrencyCode(row.currency) !== row.currency)
     .reduce((sum, row) => sum + row.count, 0);
 
   return {

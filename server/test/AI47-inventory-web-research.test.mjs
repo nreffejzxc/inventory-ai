@@ -408,6 +408,7 @@ dbSuite('AI-47 inventory research tool', dbOk, () => {
     const product = await api('POST', '/api/products', {
       token: owner.token,
       body: {
+        currency: 'PHP',
         name: uniqueName('Ridgeline Trail Lamp'),
         brand: 'Ridgeline',
         description: 'A battery lantern for camping.',
@@ -420,7 +421,7 @@ dbSuite('AI-47 inventory research tool', dbOk, () => {
 
     const archived = await api('POST', '/api/products', {
       token: owner.token,
-      body: { name: uniqueName('Retired Lamp'), brand: 'Retired Brand' },
+      body: { currency: 'PHP', name: uniqueName('Retired Lamp'), brand: 'Retired Brand' },
     });
     assert.equal(archived.status, 201, JSON.stringify(archived.json));
     const archivedPatch = await api('POST', `/api/products/${archived.json.id}/archive`, {
@@ -457,7 +458,7 @@ dbSuite('AI-47 inventory research tool', dbOk, () => {
     const other = await registerOwner(api, tracker);
     const foreign = await api('POST', '/api/products', {
       token: other.token,
-      body: { name: uniqueName('Foreign Lamp'), brand: 'Foreign Brand' },
+      body: { currency: 'PHP', name: uniqueName('Foreign Lamp'), brand: 'Foreign Brand' },
     });
     assert.equal(foreign.status, 201, JSON.stringify(foreign.json));
 

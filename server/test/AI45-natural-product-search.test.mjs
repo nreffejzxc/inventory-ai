@@ -93,7 +93,7 @@ dbSuite('AI-45 natural product discovery', dbOk, () => {
     assert.equal(category.status, 201, JSON.stringify(category.json));
 
     const makeProduct = async (body) => {
-      const res = await api('POST', '/api/products', { token: A.token, body });
+      const res = await api('POST', '/api/products', { token: A.token, body: { currency: 'PHP', ...body } });
       assert.equal(res.status, 201, JSON.stringify(res.json));
       return res.json;
     };

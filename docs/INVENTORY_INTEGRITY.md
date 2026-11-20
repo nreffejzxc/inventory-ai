@@ -73,7 +73,9 @@ write is one operational heartbeat document, made by a separate writer after a c
 never touches inventory, ledger, purchase-order, product, location, user or baseline data.
 
 **Related operational checks.** `audit:failures` reports committed writes whose audit row is
-missing; `audit:price-quality` reports unusable price/currency data; `recover:integrity` performs
+missing; `audit:price-quality` reports unusable price data; `audit:product-currency` lists every
+product whose ISO 4217 code is missing or invalid without writing a value (resolve it only through a
+verified explicit PATCH); `recover:integrity` performs
 only exact, quantity-anchored journal recovery. They are scheduled through `ops:integrity` with a
 lock per command and one GitHub issue alert per command; a failed GitHub delivery is persisted and
 retried on the next run. `triage:integrity` is the read-only operator view of

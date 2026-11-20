@@ -71,6 +71,8 @@ export interface SelectFieldProps {
   disabled?: boolean;
   required?: boolean;
   searchable?: boolean;
+  /** Test handle for the trigger; the sheet keeps its own labels. */
+  testID?: string;
 }
 
 /**
@@ -89,6 +91,7 @@ export default function SelectField({
   disabled,
   required,
   searchable,
+  testID,
 }: SelectFieldProps) {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -108,6 +111,7 @@ export default function SelectField({
         </Text>
       ) : null}
       <Pressable
+        testID={testID}
         accessibilityRole="button"
         onPress={() => {
           setQuery('');
@@ -149,6 +153,7 @@ export default function SelectField({
                 <TextInputInline value={query} onChangeText={setQuery} />
               ) : undefined
             }
+            ListEmptyComponent={<Text style={styles.empty}>No matches.</Text>}
             renderItem={({ item }) => {
               const isSel = item.value === value;
               return (

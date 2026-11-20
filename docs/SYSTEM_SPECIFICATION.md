@@ -566,6 +566,7 @@ Product
 ├── categoryId
 ├── costPrice
 ├── sellingPrice
+├── currency       # required ISO 4217 code shared by both prices
 ├── unit
 ├── minimumStock
 ├── imageUrl
@@ -573,6 +574,15 @@ Product
 ├── createdAt
 └── updatedAt
 ```
+
+`costPrice` and `sellingPrice` are recorded in the single ISO 4217 `currency`
+field. New products must state it; a legacy product with no recorded code stays
+readable but must be given a verified code before any edit.
+
+The mobile create/edit form presents the accepted ISO list in a searchable picker
+(matching either the code or its English name) and saves only the code; the
+server validates every write, so the picker is a convenience rather than the
+authority.
 
 Possible status:
 
@@ -2708,6 +2718,9 @@ GET    /api/products/:id
 PATCH  /api/products/:id
 POST   /api/products/:id/archive
 POST   /api/products/:id/restore
+
+# POST and PATCH /api/products require a valid ISO 4217 currency.
+# PATCH may omit it only when the product already stores one; it cannot be cleared.
 
 GET    /api/suppliers
 POST   /api/suppliers

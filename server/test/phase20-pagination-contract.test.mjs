@@ -65,7 +65,7 @@ dbSuite('Phase 20C — offset pagination coercion contract', dbOk, () => {
     for (let i = 0; i < SEEDED; i += 1) {
       const res = await api('POST', PATH, {
         token: owner.token,
-        body: { name: uniqueName('P20C') },
+        body: { currency: 'PHP', name: uniqueName('P20C') },
       });
       assert.equal(res.status, 201, `product create -> ${res.status} ${JSON.stringify(res.json)}`);
     }

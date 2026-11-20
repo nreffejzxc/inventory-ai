@@ -154,8 +154,8 @@ dbSuite('Phase 20D — list filter contract', dbOk, () => {
     otherSupplier = await created('/api/suppliers', { name: uniqueName('P20D-sup-other') }, other.token);
 
     // Products: one ACTIVE with stock, one ARCHIVED.
-    activeProduct = await created('/api/products', { name: uniqueName('P20D-prod') });
-    archivedProduct = await created('/api/products', { name: uniqueName('P20D-prod-arch') });
+    activeProduct = await created('/api/products', { currency: 'PHP', name: uniqueName('P20D-prod') });
+    archivedProduct = await created('/api/products', { currency: 'PHP', name: uniqueName('P20D-prod-arch') });
     await posted(`/api/products/${archivedProduct.id}/archive`);
     await created('/api/inventory/stock-in', {
       productId: activeProduct.id,

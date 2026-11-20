@@ -40,7 +40,7 @@ const barcodeUrl = (code) => `/api/products/barcode?barcode=${encodeURIComponent
 const productUrl = (id) => `/api/products/${id}`;
 
 async function newProduct(business, over = {}) {
-  const res = await api('POST', '/api/products', { token: business.token, body: { name: uniqueName('P12D'), ...over } });
+  const res = await api('POST', '/api/products', { token: business.token, body: { currency: 'PHP', name: uniqueName('P12D'), ...over } });
   assert.equal(res.status, 201, JSON.stringify(res.json));
   return res.json; // the created product DTO (id, barcode, status, ...)
 }
@@ -135,7 +135,7 @@ dbSuite('Phase 12D — internal barcode generation (POST /:id/generate-barcode) 
   it('uniqueness within a business stays enforced (create + index)', async () => {
     const dup = await api('POST', '/api/products', {
       token: main.token,
-      body: { name: uniqueName('P12D Dup'), barcode: noCodeCode },
+      body: { currency: 'PHP', name: uniqueName('P12D Dup'), barcode: noCodeCode },
     });
     assert.equal(dup.status, 409, JSON.stringify(dup.json));
     assert.equal(dup.json.code, 'PRODUCT_BARCODE_EXISTS');

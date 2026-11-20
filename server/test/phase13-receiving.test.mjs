@@ -96,7 +96,7 @@ async function newLocation(biz) {
 }
 
 async function newProduct(biz, over = {}) {
-  const res = await api('POST', '/api/products', { token: biz.token, body: { name: uniqueName('P13C'), ...over } });
+  const res = await api('POST', '/api/products', { token: biz.token, body: { currency: 'PHP', name: uniqueName('P13C'), ...over } });
   assert.equal(res.status, 201, JSON.stringify(res.json));
   return res.json;
 }

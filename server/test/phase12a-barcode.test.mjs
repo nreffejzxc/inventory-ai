@@ -44,7 +44,7 @@ async function newCategory(business, name) {
 }
 
 async function newProduct(business, over = {}) {
-  const res = await api('POST', '/api/products', { token: business.token, body: { name: uniqueName('P12A'), ...over } });
+  const res = await api('POST', '/api/products', { token: business.token, body: { currency: 'PHP', name: uniqueName('P12A'), ...over } });
   assert.equal(res.status, 201, JSON.stringify(res.json));
   return res.json; // the created product DTO (id, barcode, status, ...)
 }
@@ -161,7 +161,7 @@ dbSuite('Phase 12A — barcode lookup (GET /api/products/barcode) over real HTTP
   it('duplicate barcode within a business stays rejected (409) and the lookup stays singular', async () => {
     const dup = await api('POST', '/api/products', {
       token: main.token,
-      body: { name: uniqueName('P12A Dup'), barcode: dupSource.barcode },
+      body: { currency: 'PHP', name: uniqueName('P12A Dup'), barcode: dupSource.barcode },
     });
     assert.equal(dup.status, 409, JSON.stringify(dup.json));
     assert.equal(dup.json.code, 'PRODUCT_BARCODE_EXISTS');

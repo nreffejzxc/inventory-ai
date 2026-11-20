@@ -11,6 +11,7 @@ import { AUDIT_ACTIONS, AUDIT_ENTITY_TYPES } from '../constants/audit.ts';
 import { classifyStockStatus } from '../constants/stockStatus.ts';
 import { internalEan13Candidates } from '../utils/internalBarcode.ts';
 import { normaliseLookupText } from '../utils/lookupText.ts';
+import { isProductCurrencyCode, normaliseCurrencyCode } from '../constants/currencies.ts';
 
 /**
  * A business/user id as it arrives here: the request layer stringifies it
@@ -72,6 +73,23 @@ type ProductWritePayload = {
   minimumStock?: number | null;
   imageUrl?: string | null;
 };
+
+/**
+ * A currency is never inferred: the caller must supply a valid ISO 4217 code.
+ * The controller validates it too, but the service is also called directly by
+ * seeds/tools and must not be able to write an untagged price.
+ */
+function requireProductCurrency(value: unknown): string {
+  const currency = normaliseCurrencyCode(value);
+  if (!currency) {
+    throw new ApiError(
+      400,
+      'A valid ISO 4217 currency is required (for example PHP, USD or GBP)',
+      'CURRENCY_REQUIRED'
+    );
+  }
+  return currency;
+}
 
 /**
  * List filters. `skip`/`limit` are required rather than optional because
@@ -572,7 +590,7 @@ export const productService = {
       categoryId: payload.categoryId,
       costPrice: payload.costPrice ?? 0,
       sellingPrice: payload.sellingPrice ?? 0,
-      currency: payload.currency,
+      currency: requireProductCurrency(payload.currency),
       unit: payload.unit,
       minimumStock: payload.minimumStock ?? 0,
       imageUrl: payload.imageUrl,
@@ -649,6 +667,23 @@ export const productService = {
   async update(businessId: IdLike, id: IdLike, userId: IdLike, payload: ProductWritePayload) {
     const doc = await Product.findOne({ _id: id, businessId }).populate('categoryId', 'name status');
     if (!doc) notFound('Product not found');
+
+    // Every edit must leave the product with a valid currency. An existing
+    // product may keep the code it already has; a legacy row with none (or with
+    // a malformed code) must be given one in this request. This is also what
+    // makes the audit's resolution path safe: a human supplies the code after
+    // verifying it, and the API records exactly that value.
+    if (payload.currency === undefined) {
+      if (!isProductCurrencyCode(doc.currency)) {
+        throw new ApiError(
+          400,
+          'This product has no valid recorded currency. Send a verified ISO 4217 currency with the edit.',
+          'CURRENCY_REQUIRED'
+        );
+      }
+    } else {
+      payload.currency = requireProductCurrency(payload.currency);
+    }
 
     if (payload.categoryId !== undefined && String(payload.categoryId ?? '') !== String(doc.categoryId?._id ?? doc.categoryId ?? '')) {
       await this.assertCategoryOfBusiness(businessId, payload.categoryId);
