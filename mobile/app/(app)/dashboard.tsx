@@ -319,13 +319,15 @@ function DashboardView() {
     if (ok) await signOut();
   }
 
-  // Health tiles reuse the existing dashboardApi.summary (B) — only real fields,
-  // and the same deep links the previous dashboard offered.
+  // Health tiles reuse the existing dashboardApi.summary (B). Each product card
+  // opens the PRODUCT-level list behind its own count — never the inventory-row
+  // list, where one product would appear once per location and the total would
+  // not match. Low and out are mutually exclusive statuses.
   const healthTiles: HealthTile[] = [
-    { key: 'in', label: 'In stock', value: formatNumber(summary?.inStockProducts), tone: 'success', route: '/products' },
-    { key: 'low', label: 'Low stock', value: formatNumber(summary?.lowStockProducts), tone: 'warning', route: '/inventory?status=low' },
-    { key: 'out', label: 'Out of stock', value: formatNumber(summary?.outOfStockProducts), tone: 'danger', route: '/inventory?status=out' },
-    { key: 'active', label: 'Active products', value: formatNumber(summary?.totalProducts), tone: 'primary', route: '/products' },
+    { key: 'in', label: 'In stock', value: formatNumber(summary?.inStockProducts), tone: 'success', route: '/products?status=ACTIVE&stockStatus=IN_STOCK' },
+    { key: 'low', label: 'Low stock', value: formatNumber(summary?.lowStockProducts), tone: 'warning', route: '/products?status=ACTIVE&stockStatus=LOW_STOCK' },
+    { key: 'out', label: 'Out of stock', value: formatNumber(summary?.outOfStockProducts), tone: 'danger', route: '/products?status=ACTIVE&stockStatus=OUT_OF_STOCK' },
+    { key: 'active', label: 'Active products', value: formatNumber(summary?.totalProducts), tone: 'primary', route: '/products?status=ACTIVE' },
     { key: 'onhand', label: 'Total on-hand qty', value: formatNumber(summary?.totalInventoryQuantity), tone: 'default', route: '/inventory' },
   ];
 

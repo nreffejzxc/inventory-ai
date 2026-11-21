@@ -243,15 +243,19 @@ dbSuite('Phase 11 — inventory intelligence (reorder + health) over real HTTP',
     );
   });
 
-  it('/api/dashboard reports the healthy in-stock count consistent with total and low', async () => {
+  it('/api/dashboard reports disjoint in/low/out counts that partition the active catalogue', async () => {
     const d = await api('GET', '/api/dashboard', { token: main.token });
     assert.equal(d.status, 200, JSON.stringify(d.json));
     assert.equal(d.json.totalProducts, 5);
     assert.equal(d.json.totalInventoryQuantity, 15); // includes the archived product's 1
-    assert.equal(d.json.lowStockProducts, 4);
-    assert.equal(d.json.outOfStockProducts, 2);
-    assert.equal(d.json.inStockProducts, 1);
-    assert.equal(d.json.inStockProducts, d.json.totalProducts - d.json.lowStockProducts);
+    assert.equal(d.json.lowStockProducts, 2); // lowAtMin + scarce, both above zero
+    assert.equal(d.json.outOfStockProducts, 2); // out + empty, never also low
+    assert.equal(d.json.inStockProducts, 1); // healthy
+    assert.equal(
+      d.json.inStockProducts,
+      d.json.totalProducts - d.json.lowStockProducts - d.json.outOfStockProducts,
+      'in + low + out must partition the ACTIVE catalogue',
+    );
   });
 
   it('keeps reorder + dashboard health isolated per business', async () => {
@@ -267,12 +271,11 @@ dbSuite('Phase 11 — inventory intelligence (reorder + health) over real HTTP',
     assert.equal(d.json.inStockProducts, 0);
   });
 
-  it('minimumStock = 0: health still satisfies inStock = total - low (low collapses to out)', async () => {
+  it('minimumStock = 0: out is counted once and low stays empty', async () => {
     // A dedicated business whose products all carry a zero restock threshold. At
-    // min 0 the dashboard low set (available <= minimumStock) collapses onto the
-    // out set (available <= 0), so the single inStock = total - low subtraction
-    // still excludes every out-of-stock product and only truly stocked products
-    // are healthy. (Uses its own business so the main fixture counts stay intact.)
+    // min 0 there is no positive-but-at-or-below-minimum region, so the two
+    // backordered products are OUT and the low set is empty. (Uses its own
+    // business so the main fixture counts stay intact.)
     const zeroMin = await registerOwner(api, tracker);
     const loc = await newLocation(zeroMin);
 
@@ -288,11 +291,14 @@ dbSuite('Phase 11 — inventory intelligence (reorder + health) over real HTTP',
     const d = await api('GET', '/api/dashboard', { token: zeroMin.token });
     assert.equal(d.status, 200, JSON.stringify(d.json));
     assert.equal(d.json.totalProducts, 3);
-    assert.equal(d.json.lowStockProducts, 2);
+    assert.equal(d.json.lowStockProducts, 0, 'a zero-stock product is OUT, never also LOW');
     assert.equal(d.json.outOfStockProducts, 2);
-    assert.equal(d.json.lowStockProducts, d.json.outOfStockProducts, 'at minimumStock 0 the low set is the out set');
-    assert.equal(d.json.inStockProducts, d.json.totalProducts - d.json.lowStockProducts);
     assert.equal(d.json.inStockProducts, 1, 'only the product with positive availability is healthy');
+    assert.equal(
+      d.json.inStockProducts,
+      d.json.totalProducts - d.json.lowStockProducts - d.json.outOfStockProducts,
+      'in + low + out must partition the ACTIVE catalogue',
+    );
 
     // Restock list sees only the two OUT items — a stocked min-0 product is not a
     // candidate, and nothing at a zero threshold can be LOW_STOCK.
@@ -374,8 +380,12 @@ dbSuite('Phase 11 — inventory intelligence (reorder + health) over real HTTP',
     const sum = await executeTool('getInventorySummary', {}, ownerCtxOf(main));
     assert.equal(sum.ok, true, JSON.stringify(sum));
     assert.equal(sum.result.totalProducts, 5);
-    assert.equal(sum.result.lowStockProducts, 4);
+    assert.equal(sum.result.lowStockProducts, 2);
+    assert.equal(sum.result.outOfStockProducts, 2);
     assert.equal(sum.result.inStockProducts, 1);
-    assert.equal(sum.result.inStockProducts, sum.result.totalProducts - sum.result.lowStockProducts);
+    assert.equal(
+      sum.result.inStockProducts,
+      sum.result.totalProducts - sum.result.lowStockProducts - sum.result.outOfStockProducts,
+    );
   });
 });

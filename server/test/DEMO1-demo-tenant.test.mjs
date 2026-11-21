@@ -67,12 +67,18 @@ test('DEMO-1 the fixture summary is the §19 definition, not a restatement', () 
   );
 
   // Recomputed from first principles rather than compared with a literal, so a
-  // fixture edit cannot make this pass with a stale expectation.
-  const low = DEMO_PRODUCTS.filter((p) => (byProduct.get(p.key) ?? 0) <= p.minimumStock);
-  const out = DEMO_PRODUCTS.filter((p) => (byProduct.get(p.key) ?? 0) <= 0);
+  // fixture edit cannot make this pass with a stale expectation. OUT takes
+  // precedence, so LOW is positive availability at or below minimum.
+  const available = (p) => byProduct.get(p.key) ?? 0;
+  const low = DEMO_PRODUCTS.filter((p) => available(p) > 0 && available(p) <= p.minimumStock);
+  const out = DEMO_PRODUCTS.filter((p) => available(p) <= 0);
   assert.deepEqual(summary.lowStockNames.sort(), low.map((p) => p.name).sort());
   assert.deepEqual(summary.outOfStockNames.sort(), out.map((p) => p.name).sort());
-  assert.equal(summary.inStockProducts, DEMO_PRODUCTS.length - low.length);
+  assert.equal(
+    summary.inStockProducts,
+    DEMO_PRODUCTS.length - low.length - out.length,
+    'in + low + out must partition the active catalogue',
+  );
   assert.equal(summary.outOfStockProducts, 1);
 });
 

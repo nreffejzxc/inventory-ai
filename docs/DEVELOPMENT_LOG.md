@@ -44,6 +44,36 @@ at the end of every development session, newest entry first.
 **Goal:** finish and harden Inventory AI **V1** through production testing. No Play Store or App
 Store release is being prepared.
 
+**Overview stock-count parity (2026-11-21):** the four Overview cards now use one product-level,
+mutually exclusive classification: IN = available > minimum, LOW = 0 < available <= minimum, OUT =
+available <= 0, and Active = every ACTIVE product. This fixes three separate mismatches. The cards
+counted products across all locations, but Low/Out opened the inventory-row list, where a product
+with a row at several locations appeared more than once. Low also included out-of-stock products,
+so 94 In + 19 Low + 10 Out double-counted the 10 Out products instead of partitioning the 113
+ACTIVE catalogue. In stock and Active products both opened an unfiltered product list. The
+dashboard links now open product lists filtered by `status=ACTIVE` plus the new validated
+`stockStatus=IN_STOCK|LOW_STOCK|OUT_OF_STOCK` filter, and the product screen shows the returned
+total. Overview counts are now expected to read 94 / 9 / 10 / 113 for the reported tenant: 9 Low +
+10 Out + 94 In = 113 Active. Focused DB suites passed **33 tests / 0 failed / 1 mode-skipped**
+(`SCALE-dashboard-counts`, `phase04-inventory`, `phase11-intelligence`), including a two-location
+case where a product has low-looking rows but healthy summed availability; the Phase 20D list-filter
+recheck also passed **16/16** across the SCALE and Phase 20D suites, including rejection of an unknown
+`stockStatus`; unit suites
+passed 32 / 0 failed / 1 mode-skipped. Server and mobile typecheck pass. The dashboard screen lints clean; the
+products screen retains its two pre-existing `set-state-in-effect` errors in the named-category and
+named-location resolvers. No device or production UI inspection was performed, and no deployment or
+production data change occurred.
+
+**Bulk import, draft-from-restock and FW-03 plan (2026-11-21):** local feature work only; no push,
+deploy, OTA/APK publication or production data change. FW-01 adds an OWNER/ADMIN CSV dry run and
+apply path with row errors, opening stock, a durable tenant/key receipt and one audit event, plus a
+mobile picker/preview screen. The restock list can create exactly one `DRAFT` purchase order through
+`POST /api/purchase-orders/from-restock`, with stale-row refusal and no issue/send path. A detailed,
+planning-only stocktake design is in `docs/FW_03_STOCKTAKE_IMPLEMENTATION_PLAN.md`. Server typecheck,
+the parser and two focused DB suites (2/2, 6/6, 5/5), the Phase 22/23 and docs/index guards, Phase 13
+purchase orders, Phase 24 runtime authorization, focused lint and mobile typecheck passed; the mobile
+file picker cannot run on the installed binary because it is a native module.
+
 **Release delivered and production-tested (2026-11-21):** the release is merged to `main` as
 `ae6ec297d8f39f425f17dc95d4b04590635c2f4c` (PR #359). All seven required checks passed. The direct
 push was refused by branch protection, so delivery used the required PR path; no protection rule was

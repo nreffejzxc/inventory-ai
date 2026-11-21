@@ -131,7 +131,7 @@ dbSuite('SCALE the dashboard summary at scale', dbOk, () => {
       await seedProduct(businessId, location._id, { name: `Reserved ${i}`, minimumStock: 5, quantity: 10, reservedQuantity: 8 });
     }
     await seedProduct(businessId, location._id, { name: 'Reserved Empty', minimumStock: 0, quantity: 5, reservedQuantity: 5 });
-    // A zero minimum with zero stock is both low and out — the boundary of `<=`.
+    // A zero minimum with zero stock is OUT, never also LOW — OUT takes precedence.
     await seedProduct(businessId, location._id, { name: 'Zero Minimum', minimumStock: 0, quantity: 0 });
     // ARCHIVED with stock: its units count toward on-hand, it is not a product and not low.
     for (let i = 0; i < 3; i += 1) {
@@ -146,16 +146,104 @@ dbSuite('SCALE the dashboard summary at scale', dbOk, () => {
     assert.equal(s.outOfStockProducts, 9, 'available <= 0: no-row 3, empty 4, reserved-empty 1, zero-minimum 1');
     assert.equal(
       s.lowStockProducts,
-      17,
-      'available <= minimum: the 9 above, plus low-only 6 and reserved-low 2',
+      8,
+      '0 < available <= minimum: low-only 6 plus reserved-low 2; the 9 OUT products are a separate status',
     );
-    assert.equal(s.inStockProducts, s.totalProducts - s.lowStockProducts, 'healthy is the complement, as §19 defines it');
+    assert.equal(
+      s.inStockProducts,
+      s.totalProducts - s.lowStockProducts - s.outOfStockProducts,
+      'healthy is the complement of the disjoint low and out sets, as §19 defines it',
+    );
     assert.equal(s.inStockProducts, 5, 'exactly the five comfortable rows');
     assert.equal(
       s.totalInventoryQuantity,
       605,
       'EVERY inventory row counts on-hand, archived included: 250 + 30 + 20 + 5 + 300',
     );
+  });
+
+  it('★ every Overview count has exactly the product-level list behind it', async () => {
+    const owner = await registerOwner(api, tracker);
+    const businessId = owner.businessId;
+    const front = await Location.create({ businessId, name: 'Overview Front' });
+    const back = await Location.create({ businessId, name: 'Overview Back' });
+
+    async function product(name, minimumStock, rows = [], status = 'ACTIVE') {
+      const doc = await Product.create({ businessId, name, minimumStock, status, currency: 'PHP' });
+      for (const [locationId, quantity] of rows) {
+        await Inventory.create({ businessId, productId: doc._id, locationId, quantity });
+      }
+      return doc;
+    }
+
+    // Four ACTIVE products: two healthy, one low, one out. The split product has
+    // a low-looking row at EACH location but 4 available in total, which is the
+    // exact case that made the old row-based links disagree with the card.
+    const healthy = await product('Overview Healthy', 5, [[front._id, 10]]);
+    const low = await product('Overview Low', 3, [[front._id, 3]]);
+    const out = await product('Overview Out', 1);
+    const split = await product('Overview Split', 3, [[front._id, 2], [back._id, 2]]);
+    const archivedOut = await product('Overview Archived Out', 10, [], 'ARCHIVED');
+
+    const dash = await api('GET', '/api/dashboard', { token: owner.token });
+    assert.equal(dash.status, 200, JSON.stringify(dash.json));
+    assert.equal(dash.json.totalProducts, 4, 'ACTIVE only: archived products are excluded');
+    assert.equal(dash.json.inStockProducts, 2, 'healthy + split (summed availability 4 > minimum 3)');
+    assert.equal(dash.json.lowStockProducts, 1, 'low only; out is a separate status');
+    assert.equal(dash.json.outOfStockProducts, 1, 'out only; it is not also low');
+    assert.equal(
+      dash.json.inStockProducts + dash.json.lowStockProducts + dash.json.outOfStockProducts,
+      dash.json.totalProducts,
+      'the three statuses partition the ACTIVE catalogue',
+    );
+
+    async function listed(stockStatus) {
+      const query = stockStatus ? `&stockStatus=${stockStatus}` : '';
+      const res = await api('GET', `/api/products?status=ACTIVE${query}&limit=100`, { token: owner.token });
+      assert.equal(res.status, 200, JSON.stringify(res.json));
+      return res.json;
+    }
+
+    const inList = await listed('IN_STOCK');
+    const lowList = await listed('LOW_STOCK');
+    const outList = await listed('OUT_OF_STOCK');
+    const activeList = await listed('');
+
+    assert.equal(inList.total, dash.json.inStockProducts);
+    assert.equal(lowList.total, dash.json.lowStockProducts);
+    assert.equal(outList.total, dash.json.outOfStockProducts);
+    assert.equal(activeList.total, dash.json.totalProducts);
+
+    const ids = (page) => page.items.map((item) => item.id).sort();
+    assert.deepEqual(ids(inList), [String(healthy._id), String(split._id)].sort());
+    assert.deepEqual(ids(lowList), [String(low._id)]);
+    assert.deepEqual(ids(outList), [String(out._id)]);
+    assert.equal(
+      new Set([...ids(inList), ...ids(lowList), ...ids(outList)]).size,
+      dash.json.totalProducts,
+      'no product is counted in two lists and none is missing',
+    );
+    assert.ok(!ids(activeList).includes(String(archivedOut._id)), 'the Active card excludes archived products');
+
+    // The old destinations demonstrate the bug this test prevents: inventory rows
+    // are per location, so the split product appears here twice even though the
+    // Overview correctly calls it healthy.
+    const rowLow = await api(
+      'GET',
+      `/api/inventory?lowStock=true&locationId=${front._id}&limit=100`,
+      { token: owner.token },
+    );
+    assert.equal(rowLow.status, 200, JSON.stringify(rowLow.json));
+    assert.equal(rowLow.json.total, 2, 'front-location rows: low + the split product\u2019s low-looking row');
+    assert.ok(
+      rowLow.json.items.some((row) => row.product.id === String(split._id)),
+      'inventory-row counts cannot be compared with a product-level card',
+    );
+
+    const bad = await api('GET', '/api/products?stockStatus=BOGUS', { token: owner.token });
+    assert.equal(bad.status, 400);
+    assert.equal(bad.json.code, 'VALIDATION_ERROR');
+    assert.equal(bad.json.fields?.[0]?.field, 'stockStatus');
   });
 
   it('never ships the catalogue to the API process to count it', async () => {

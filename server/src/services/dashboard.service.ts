@@ -185,10 +185,12 @@ function recentActivities(rows: LedgerRow[]): (MovementActivity | TransferActivi
 
 /**
  * Dashboard summary (SYSTEM_SPECIFICATION.md §20). Definitions match the
- * product/inventory stock-status logic so filters and the dashboard agree
- * (§19): low stock = available <= minimumStock, out of stock = available <= 0.
- * Availability is summed across the business (no location selected on the
- * V1 dashboard). Only ACTIVE products are counted for product metrics.
+ * canonical classifier in constants/stockStatus.ts so every card and its list
+ * agree (§19): OUT = available <= 0, LOW = 0 < available <= minimumStock, and
+ * IN = available > minimumStock. OUT takes precedence, so the three sets are
+ * disjoint and sum to the ACTIVE catalogue. Availability is summed across the
+ * business (no location selected on the V1 dashboard). Only ACTIVE products are
+ * counted for product metrics.
  */
 export const dashboardService = {
   async summary(businessId: string) {
@@ -279,15 +281,28 @@ export const dashboardService = {
               _id: null,
               totalProducts: { $sum: { $ifNull: ['$__isProduct', 0] } },
               totalInventoryQuantity: { $sum: { $ifNull: ['$__quantity', 0] } },
-              // §19's definitions, unchanged: low = available <= minimumStock and
-              // out = available <= 0, with a product that has no inventory row at all
-              // counting as 0 available rather than as missing stock.
+              // §19's mutually exclusive definitions: out = available <= 0,
+              // low = 0 < available <= minimumStock. A zero-stock product is OUT,
+              // never also LOW — the overlap that made the Overview's low card
+              // include out-of-stock products and disagree with its list. A product
+              // with no inventory row counts as 0 available, not missing stock.
               lowStockProducts: {
                 $sum: {
                   $cond: [
                     {
                       $and: [
                         { $eq: ['$__isProduct', 1] },
+                        {
+                          $gt: [
+                            {
+                              $subtract: [
+                                { $ifNull: ['$__quantity', 0] },
+                                { $ifNull: ['$__reserved', 0] },
+                              ],
+                            },
+                            0,
+                          ],
+                        },
                         {
                           $lte: [
                             {
@@ -355,10 +370,10 @@ export const dashboardService = {
       totalProducts,
       totalInventoryQuantity: counts[0]?.totalInventoryQuantity ?? 0,
       lowStockProducts,
-      // Healthy = available > minimumStock. Within the ACTIVE products counted
-      // above this is exactly the complement of the low-stock set (§19), so it
-      // needs no extra query and can never disagree with lowStockProducts.
-      inStockProducts: totalProducts - lowStockProducts,
+      // Healthy = available > minimumStock. Low and out are disjoint, so the
+      // healthy set is the complement of their union within ACTIVE products;
+      // it needs no extra query and can never overlap either card.
+      inStockProducts: totalProducts - lowStockProducts - outOfStockProducts,
       outOfStockProducts,
       recentActivity: recentActivities(recent),
     };

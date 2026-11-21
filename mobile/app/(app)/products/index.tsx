@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { router, useLocalSearchParams } from 'expo-router';
-import { StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import type { ListRenderItem } from 'react-native';
 
 import { StatusBadge } from '../../../components/Badge';
@@ -16,6 +16,7 @@ import { categoriesApi, locationsApi, productsApi } from '../../../lib/api';
 import type { ApiResponse } from '../../../lib/api';
 import { useSession } from '../../../lib/auth';
 import type { QueryParams } from '../../../lib/client';
+import { formatNumber } from '../../../lib/format';
 import useDebounced from '../../../hooks/useDebounced';
 import { useActiveRef } from '../../../hooks/useReferences';
 import usePagedList from '../../../hooks/usePagedList';
@@ -52,6 +53,24 @@ export default function ProductsScreen() {
   const [status, setStatus] = useState(() =>
     requestedStatus === 'ACTIVE' || requestedStatus === 'ARCHIVED' ? requestedStatus : 'ALL',
   );
+  // The Overview cards deep-link with a canonical, mutually exclusive product
+  // status. It is applied together with ACTIVE so the list's total is exactly
+  // the card's count (the old links opened per-location inventory rows).
+  const requestedStockStatus = str(params.stockStatus).toUpperCase();
+  const stockStatus =
+    requestedStockStatus === 'IN_STOCK' ||
+    requestedStockStatus === 'LOW_STOCK' ||
+    requestedStockStatus === 'OUT_OF_STOCK'
+      ? requestedStockStatus
+      : '';
+  const stockStatusLabel =
+    stockStatus === 'IN_STOCK'
+      ? 'in stock'
+      : stockStatus === 'LOW_STOCK'
+        ? 'low stock'
+        : stockStatus === 'OUT_OF_STOCK'
+          ? 'out of stock'
+          : '';
   const [categoryId, setCategoryId] = useState(() => str(params.categoryId));
   const [locationId, setLocationId] = useState(() => str(params.locationId));
   const [low, setLow] = useState(() => str(params.lowStock) === 'true');
@@ -86,11 +105,12 @@ export default function ProductsScreen() {
       status: status === 'ALL' ? undefined : status,
       categoryId: categoryId || undefined,
       locationId: locationId || undefined,
+      stockStatus: stockStatus || undefined,
     };
     if (low) p.lowStock = true;
     if (out) p.outOfStock = true;
     return p;
-  }, [debouncedQ, status, categoryId, locationId, low, out]);
+  }, [debouncedQ, status, categoryId, locationId, stockStatus, low, out]);
 
   const fetcher = useCallback(
     (page: number, limit: number) => productsApi.list(token as string, { ...queryParams(), page, limit }),
@@ -120,6 +140,21 @@ export default function ProductsScreen() {
         placeholder="Search by name, brand, SKU or barcode…"
         style={styles.search}
       />
+      {stockStatus && !list.loading ? (
+        <View style={styles.stockBanner}>
+          <Text testID="product-stock-count" style={[styles.stockCount, { color: colors.text }]}>
+            {formatNumber(list.total)} {list.total === 1 ? 'product' : 'products'} {stockStatusLabel}
+          </Text>
+          <Pressable
+            onPress={() => router.setParams({ stockStatus: '' })}
+            accessibilityRole="button"
+            accessibilityLabel="Clear stock status filter"
+            style={styles.clearStock}
+          >
+            <Text style={[styles.clearStockText, { color: colors.primary }]}>Clear</Text>
+          </Pressable>
+        </View>
+      ) : null}
       <View style={styles.filterRow}>
         <Chip label="All" selected={status === 'ALL'} onPress={() => setStatus('ALL')} />
         <Chip label="Active" selected={status === 'ACTIVE'} onPress={() => setStatus('ACTIVE')} />
@@ -133,14 +168,19 @@ export default function ProductsScreen() {
           />
         ) : null}
       </View>
-      <View style={styles.chipRow}>
-        {/* NOTE (MOD-02): this chip carried tone="warning", which is not a
-            ChipTone — Chip renders anything other than 'danger' as primary, so
-            the prop was already inert. Omitted (default is 'primary') to keep
-            the rendered chip identical. */}
-        <Chip label="Low stock" selected={low} onPress={() => setLow((v) => !v)} />
-        <Chip label="Out of stock" tone="danger" selected={out} onPress={() => setOut((v) => !v)} />
-      </View>
+      {/* The legacy low/out flags are broad at-or-below-minimum filters (low
+          includes out). They would contradict an exact Overview status, so they
+          are hidden while that status is active. */}
+      {!stockStatus ? (
+        <View style={styles.chipRow}>
+          {/* NOTE (MOD-02): this chip carried tone="warning", which is not a
+              ChipTone — Chip renders anything other than 'danger' as primary, so
+              the prop was already inert. Omitted (default is 'primary') to keep
+              the rendered chip identical. */}
+          <Chip label="Low stock" selected={low} onPress={() => setLow((v) => !v)} />
+          <Chip label="Out of stock" tone="danger" selected={out} onPress={() => setOut((v) => !v)} />
+        </View>
+      ) : null}
       <SelectField label="Category" placeholder="Filter by category…" options={catOptions} value={categoryId} onChange={setCategoryId} />
       <SelectField label="Location" placeholder="Filter by location…" options={locOptions} value={locationId} onChange={setLocationId} />
     </View>
@@ -172,13 +212,28 @@ export default function ProductsScreen() {
       loadingMore={list.loadingMore}
       loadingLabel="Loading products…"
       emptyTitle="No products found"
-      emptyMessage={q ? `Nothing matches “${q}”.` : 'Add your first product to start tracking stock.'}
+      emptyMessage={
+        q
+          ? `Nothing matches “${q}”.`
+          : stockStatus
+            ? `No active products are ${stockStatusLabel} right now.`
+            : 'Add your first product to start tracking stock.'
+      }
       emptyAction={manage && !q ? <Button title="Add product" onPress={() => router.push('/products/new')} /> : null}
     />
   );
 }
 
 const styles = StyleSheet.create({
+  stockBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing.md,
+  },
+  stockCount: { flexShrink: 1, fontWeight: '700' },
+  clearStock: { minHeight: 44, justifyContent: 'center', paddingLeft: spacing.md },
+  clearStockText: { fontWeight: '700' },
   scanBtn: { marginBottom: spacing.lg },
   search: { marginBottom: spacing.lg },
   filterRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: spacing.sm },

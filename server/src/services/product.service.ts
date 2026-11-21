@@ -138,6 +138,8 @@ type ProductListFilters = {
   locationId?: string;
   lowStock?: boolean;
   outOfStock?: boolean;
+  /** Canonical product-level classification; mutually exclusive with low/out. */
+  stockStatus?: string;
   inStockOnly?: boolean;
   withStock?: boolean;
   /** AI-71 — product ids to leave out, so a dead-stock read can filter in the database. */
@@ -1075,8 +1077,13 @@ export const productService = {
    * Product list that also evaluates stock status. When a locationId is given,
    * only products stocked at that location are returned and availability is
    * computed there; otherwise availability is summed across the business.
-   * lowStock  -> available <= minimumStock
+   * lowStock  -> available <= minimumStock (legacy broad filter; includes out)
    * outOfStock -> available <= 0
+   * stockStatus -> the canonical, mutually exclusive classification from
+   *                classifyStockStatus: IN (available > minimum), LOW
+   *                (0 < available <= minimum), OUT (available <= 0). The
+   *                Overview deep links use this so a product cannot appear in
+   *                two cards or be counted once per location.
    * (SYSTEM_SPECIFICATION.md §19 — availability, never total quantity.)
    */
   async listWithStock(
@@ -1095,6 +1102,7 @@ export const productService = {
       locationId,
       lowStock,
       outOfStock,
+      stockStatus,
       inStockOnly,
       excludeIds,
       includeIds,
@@ -1161,6 +1169,26 @@ export const productService = {
     }
     if (lowStock) {
       pipeline.push({ $match: { $expr: { $lte: ['$available', '$minimumStock'] } } });
+    }
+    if (stockStatus === 'OUT_OF_STOCK') {
+      pipeline.push({ $match: { $expr: { $lte: ['$available', 0] } } });
+    } else if (stockStatus === 'LOW_STOCK') {
+      pipeline.push({
+        $match: {
+          $expr: {
+            $and: [
+              { $gt: ['$available', 0] },
+              { $lte: ['$available', { $ifNull: ['$minimumStock', 0] }] },
+            ],
+          },
+        },
+      });
+    } else if (stockStatus === 'IN_STOCK') {
+      pipeline.push({
+        $match: {
+          $expr: { $gt: ['$available', { $ifNull: ['$minimumStock', 0] }] },
+        },
+      });
     }
 
     pipeline.push({
@@ -1704,6 +1732,7 @@ export const productService = {
       locationId,
       lowStock,
       outOfStock,
+      stockStatus,
       inStockOnly,
       withStock,
       excludeIds,
@@ -1711,7 +1740,9 @@ export const productService = {
       skip,
       limit,
     } = query;
-    const needsStock = Boolean(locationId || lowStock || outOfStock || inStockOnly || withStock);
+    const needsStock = Boolean(
+      locationId || lowStock || outOfStock || stockStatus || inStockOnly || withStock,
+    );
     if (needsStock) {
       return this.listWithStock(businessId, {
         q,
@@ -1727,6 +1758,7 @@ export const productService = {
         locationId,
         lowStock,
         outOfStock,
+        stockStatus,
         inStockOnly,
         excludeIds,
         includeIds,

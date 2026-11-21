@@ -14,6 +14,7 @@ import {
 } from '../utils/validate.ts';
 import { throwValidation, invalidId } from '../utils/errors.ts';
 import { productService } from '../services/product.service.ts';
+import { STOCK_STATUS_VALUES } from '../constants/stockStatus.ts';
 
 /**
  * The request context this controller reads. Local and structural, following
@@ -72,6 +73,10 @@ function parseQueryList(req: AuthenticatedRequest) {
 
   const lowStock = parseFlag(req.query.lowStock);
   const outOfStock = parseFlag(req.query.outOfStock);
+  const stockStatus = optionalEnum(req.query.stockStatus, 'stockStatus', STOCK_STATUS_VALUES, {
+    message: 'stockStatus must be IN_STOCK, LOW_STOCK or OUT_OF_STOCK',
+  });
+  problems.push(...stockStatus.problems);
 
   return {
     q: search.value,
@@ -80,6 +85,7 @@ function parseQueryList(req: AuthenticatedRequest) {
     locationId: locationId.value,
     lowStock,
     outOfStock,
+    stockStatus: stockStatus.value,
     page,
     limit,
     skip,

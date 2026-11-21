@@ -15,12 +15,19 @@ export const STOCK_STATUSES = Object.freeze({
   OUT_OF_STOCK: 'OUT_OF_STOCK',
 });
 
+/** The three statuses as a validated list-filter enum. */
+export const STOCK_STATUS_VALUES = Object.freeze(Object.values(STOCK_STATUSES));
+
 /**
  * Classify a product's stock position from its summed availability and its
  * configured minimum stock:
  *   OUT_OF_STOCK  -> available <= 0            (nothing available)
  *   LOW_STOCK     -> 0 < available <= minimum  (still available, at/below min)
  *   IN_STOCK      -> available > minimum       (healthy)
+ *
+ * OUT takes precedence, so the three sets are mutually exclusive and their
+ * counts sum to the active catalogue. A zero-stock product is never also low:
+ * that mixing made the Overview's low card overlap its out card.
  *
  * A product with no inventory row has availability 0, so it classifies OUT
  * (consistent with the dashboard/product low/out filters, which count such
@@ -42,4 +49,4 @@ export function classifyStockStatus(
   return STOCK_STATUSES.IN_STOCK;
 }
 
-export default { STOCK_STATUSES, classifyStockStatus };
+export default { STOCK_STATUSES, STOCK_STATUS_VALUES, classifyStockStatus };

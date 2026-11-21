@@ -930,21 +930,29 @@ Search should be optimized using appropriate MongoDB indexes.
 
 # 19. Low Stock Logic
 
-A product is considered low stock when:
+Stock status is one mutually exclusive classification of a product:
 
 ```text
-availableQuantity <= minimumStock
+OUT_OF_STOCK   availableQuantity <= 0
+LOW_STOCK      0 < availableQuantity <= minimumStock
+IN_STOCK       availableQuantity > minimumStock
 ```
 
-Out-of-stock:
+Out-of-stock takes precedence: a product with no sellable stock is never also
+low stock. The three sets therefore partition the active catalogue, and the
+Overview cards (In stock, Low stock, Out of stock, Active products) and their
+lists use these same definitions.
 
-```text
-availableQuantity <= 0
-```
+Availability is quantity minus reserved quantity, summed across the business
+unless a location is selected. The exact implementation must account for the
+selected location.
 
-The exact implementation must account for the selected location.
-
-Dashboard statistics must use consistent definitions.
+Dashboard statistics must use consistent definitions, and each summary count
+must equal the total of the product-level list that opens from it. Inventory-row
+lists are not a substitute: one product can have a row at every location. The
+Inventory screen's row-level low filter is deliberately broader (it may include
+an out-of-stock row, whose OUT badge takes precedence); that per-location list is
+not the product-level list behind an Overview card.
 
 ---
 

@@ -193,20 +193,21 @@ export function stockByLocation() {
 
 /**
  * What `getInventorySummary` and the dashboard must answer, by §19's own
- * definitions: low = available <= minimumStock, out = available <= 0, and
- * inStock is the complement of low among ACTIVE products.
+ * definitions: out = available <= 0, low = 0 < available <= minimumStock (OUT
+ * takes precedence), and inStock is the complement of their disjoint union.
  */
 export function expectedSummary() {
   const byProduct = stockByProduct();
-  const low = DEMO_PRODUCTS.filter((p) => (byProduct.get(p.key) ?? 0) <= p.minimumStock);
-  const out = DEMO_PRODUCTS.filter((p) => (byProduct.get(p.key) ?? 0) <= 0);
+  const available = (p) => byProduct.get(p.key) ?? 0;
+  const low = DEMO_PRODUCTS.filter((p) => available(p) > 0 && available(p) <= p.minimumStock);
+  const out = DEMO_PRODUCTS.filter((p) => available(p) <= 0);
   const totalInventoryQuantity = DEMO_STOCK.reduce((sum, row) => sum + row.quantity, 0);
   return {
     totalProducts: DEMO_PRODUCTS.length,
     totalInventoryQuantity,
     lowStockProducts: low.length,
     outOfStockProducts: out.length,
-    inStockProducts: DEMO_PRODUCTS.length - low.length,
+    inStockProducts: DEMO_PRODUCTS.length - low.length - out.length,
     lowStockNames: low.map((p) => p.name),
     outOfStockNames: out.map((p) => p.name),
   };

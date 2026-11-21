@@ -497,8 +497,8 @@ dbSuite('Phase 04 — inventory core + dashboard', dbOk, () => {
     assert.equal(res.status, 200);
     assert.equal(res.json.totalProducts, 3); // active products only (d1,d2,d3)
     assert.equal(res.json.totalInventoryQuantity, 14); // includes archived d4 stock
-    assert.equal(res.json.lowStockProducts, 2); // d2 (3<=3) + d3 (0<=0)
-    assert.equal(res.json.outOfStockProducts, 1); // d3 only
+    assert.equal(res.json.lowStockProducts, 1); // d2 (3<=3), still above zero
+    assert.equal(res.json.outOfStockProducts, 1); // d3 (0) — OUT takes precedence over LOW
     assert.equal(res.json.recentActivity.length, 3);
     const newest = res.json.recentActivity[0];
     assert.ok(newest.product?.name);
