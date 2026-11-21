@@ -44,6 +44,21 @@ at the end of every development session, newest entry first.
 **Goal:** finish and harden Inventory AI **V1** through production testing. No Play Store or App
 Store release is being prepared.
 
+**Release delivered and production-tested (2026-11-21):** the release is merged to `main` as
+`ae6ec297d8f39f425f17dc95d4b04590635c2f4c` (PR #359). All seven required checks passed. The direct
+push was refused by branch protection, so delivery used the required PR path; no protection rule was
+changed. The post-deploy verifier reached the merged SHA on attempt 5 (60.9 s) and `/health`,
+`/ready` and `/live` all returned **200** with the database connected. Android OTA update group
+`095457c2-e427-4805-b17d-0f945812e701` (runtime **1.0.2**, commit `1f7e94c`) is live on the
+installed CPH1969 build. Production device checks passed: the new What's New note appeared once,
+opened with all three points, and disappeared after acknowledgement; a legacy demo product required
+a correction reason and price reconfirmation and saved as PHP; and the assistant returned the
+stock-cover window, its no-rate outcome and the movement-proxy caveat from production data. One
+intentional test write was made in the demo test tenant (the demo product's currency); no real
+tenant data changed. The only test-log warning investigated was the transient MongoDB fixture
+disconnect notice; a focused unit run produced no Mongoose deprecation output and no source change
+was warranted. Remaining work is ordinary follow-up, not a release blocker.
+
 **Currency code review and complete-suite proof (2026-11-21):** reviewed every uncommitted currency
 change and corrected three client/tool mismatches without weakening a server guard: the mobile
 correction now sends top-level `reason`/`priceReconfirmed` (the documented endpoint shape), a legacy
@@ -1004,6 +1019,49 @@ Known limits, checked before spending one of them:
   bulk; a delivery failure is not a code regression until the provider log says so.
 
 ---
+
+## 2026-11-21 — release delivered, deployed and production-tested
+
+**Complete and observed in production.** This session closed the four remaining follow-ups and
+delivered the working tree rather than adding another review round.
+
+**The four follow-ups.**
+1. **Stale-reporting regression.** Added a dashboard test that keeps earlier figures on screen after
+a failed refresh, shows `Showing earlier data — pull to retry.`, keeps the What's New card reachable
+below the warning, and clears the warning after retry. The release-notes suite passes **32/32**.
+2. **Documentation and release note.** Added a new top `RELEASE_NOTES` entry describing the currency
+correction, mixed-currency price scope and stock-cover behaviour, and recorded the release outcome
+here and in [`PRODUCT_CURRENCY.md`](PRODUCT_CURRENCY.md) §5.
+3. **Warning investigation.** The complete-suite log's only recurring notices were **107** transient
+`MongoDB connection lost` fixture messages with zero server-selection failures. A focused phase07b
+unit run produced no Mongoose deprecation warning, so no model or runtime change was made.
+4. **Deployment verification.** The §27KP verifier, health aliases and ranked refresh were already
+implemented; the deploy/health contract tests passed **26/26**.
+
+**Delivery.** The working tree moved from `feat/product-currency-resolution` to `main` without
+conflict. A direct push was rejected (`GH006`, PR-only, seven required checks), so commit `1f7e94c`
+was pushed on `release/2026-11-21-currency-deploy` and merged as PR #359 at
+`ae6ec297d8f39f425f17dc95d4b04590635c2f4c`. The first CI run failed `attribution-guard` because the
+commit carried a generated-by footer; the footer was removed and the amended commit passed all
+seven checks.
+
+**Production proof.**
+- `node scripts/verify-production-deploy.mjs --sha=ae6ec29…` returned `verified: true` after **5**
+  attempts and **60.9 s**: health/readiness/liveness **200**, database `connected`, exact commit.
+- OTA `eas update --channel production --environment production --platform android` published
+  group `095457c2-e427-4805-b17d-0f945812e701` for runtime **1.0.2** at commit `1f7e94c`. The
+  installed app on the CPH1969 device showed the new note, the three points, and the acknowledged
+  state after `Done` (the card did not return).
+- The demo-tenant product `DEMOSKU-112` opened with `Select a currency…`; choosing **PHP**, entering a
+  reason and checking the reconfirmation saved successfully. The detail page then showed
+  `PHP 4,700.00` and `PHP 6,290.00` with an updated timestamp.
+- The assistant answered a production stock-cover question with **149** units at Main Warehouse, a
+  **30-day** window, **no** stock-out rate, no days-of-cover estimate, and the explicit statement
+  that stock-out is a movement proxy rather than confirmed sales.
+
+**Resource and data note.** One OTA publication, one successful seven-check CI run, one Render deploy
+and one intentional write in the demo test tenant. No migration, seed, deletion or real-tenant write
+was made. A scratch screenshot and UI dump remain untracked and are not part of the release.
 
 ## 2026-11-21 — currency code review and complete-suite verification
 

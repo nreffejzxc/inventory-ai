@@ -249,6 +249,15 @@ was updated and the complete suite rerun. The log recorded **107** transient `Mo
 lost` notices and **0** `MongooseServerSelectionError` entries. Server and mobile typecheck and the
 focused mobile form tests (**6/6**) passed. No production data was read or written.
 
+**Production correction verification (2026-11-21).** After the OTA reached the installed Android
+**1.0.2** build, a legacy demo product in the demo test tenant opened with `Select a currency…`.
+The form required a correction reason and the price-reconfirmation checkbox; selecting **PHP**,
+entering a reason and confirming saved successfully. The product detail then showed
+`PHP 4,700.00` / `PHP 6,290.00` with a fresh timestamp. This confirms the top-level
+`reason`/`priceReconfirmed` contract and the legacy-code correction path against production, not
+only against tests. It was the release's one intentional production test write; no real tenant data
+was changed.
+
 ## 6. Ranked follow-up opportunities (reviewed 2026-11-20)
 
 The explicit currency-change ceremony, currency-aware product sorting/filtering and bounded FX
