@@ -63,6 +63,7 @@ npm run test:webauthn-e2e # real browser + MongoDB; TOTP/WebAuthn proof
 npm run check:extensions # half-finished file rename
 npm run check:specifiers # import pointing at nothing
 node ../scripts/check-workflow-invariants.mjs # action pins, job timeouts, Mongo/Node parity
+node ../scripts/test-workflow-invariants.mjs  # guard e2e: clean fixture + four failure fixtures
 ```
 
 ```bash

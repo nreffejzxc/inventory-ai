@@ -59,6 +59,15 @@ tenant data changed. The only test-log warning investigated was the transient Mo
 disconnect notice; a focused unit run produced no Mongoose deprecation output and no source change
 was warranted. Remaining work is ordinary follow-up, not a release blocker.
 
+**Repository and branch audit; DEV-10 completed (2026-11-21):** reviewed every remote branch and
+open GitHub surface. The only open pull request was #355, a conflicting DEV-10 branch; its approved
+changes were rebuilt on current `main` and delivered instead of force-landing the old history. All
+other remote branches mapped to merged PRs or a closed duplicate; 30 were removed after their PR
+state and content were verified. The closed scratch branch `tmp/branch-protection-proof` was kept
+because its only change is the deliberate negative-control edit, not shipped work. One open issue
+remains: #32 tracks the TypeScript 7 upgrade, blocked by the `@typescript-eslint` peer range rather
+than by this repository. No new feature review was started.
+
 **Currency code review and complete-suite proof (2026-11-21):** reviewed every uncommitted currency
 change and corrected three client/tool mismatches without weakening a server guard: the mobile
 correction now sends top-level `reason`/`priceReconfirmed` (the documented endpoint shape), a legacy
@@ -1017,6 +1026,29 @@ Known limits, checked before spending one of them:
   space that a backup or an index change would explain.
 - **Brevo** — used for verification codes, reset codes and invitations. Do not send test mail in
   bulk; a delivery failure is not a code regression until the provider log says so.
+
+---
+
+## 2026-11-21 — repository audit and DEV-10 completion
+
+**Complete locally; CI is the merge gate.** The repository had one genuinely unfinished delivery:
+PR #355 (DEV-10) was open and `DIRTY`, with approved CI fixture proof, Dependabot security grouping
+and a future roadmap. Its branch was based on the 2026-11-19 tree and conflicted with later records.
+The changes were reconstructed on current `main` — code, workflow configuration, the new roadmap page
+and the documentation references — rather than merging the stale branch or rewriting history.
+
+**Branch audit.** Thirty remote branches were verified as merged by PR (or, for
+`docs/plat8-assessment`, identical to the merged #322 content) and deleted. The open #355 branch is
+superseded by the rebuilt branch; the closed scratch #319 remains because its diff is the deliberate
+WebAuthn negative-control edit, not work to ship. Local refs with no upstream were checked against
+`main`: their evidence directories, the centavo fix and the product-form tests are already present.
+Several earlier evidence branches remain recoverable from Git history but had no unmerged code.
+
+**Verification.** `node scripts/test-workflow-invariants.mjs` — **PASS, 5 fixture repositories**;
+`node scripts/check-workflow-invariants.mjs` — **PASS**, 9 controls, 4 workflows, 15 action refs,
+9 jobs, 2 Mongo image refs, Node 24; `node scripts/check-docs.mjs` passes with the new page linked;
+`git diff --check` clean. The change touches no server or mobile runtime, so no Render deploy or OTA
+is required. No production data, account or configuration was changed.
 
 ---
 
