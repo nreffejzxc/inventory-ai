@@ -577,7 +577,15 @@ Product
 
 `costPrice` and `sellingPrice` are recorded in the single ISO 4217 `currency`
 field. New products must state it; a legacy product with no recorded code stays
-readable but must be given a verified code before any edit.
+readable but must be given a verified code through the explicit correction path
+before any edit. An ordinary `PATCH /api/products/:id` may omit the field while a
+valid code is stored, or repeat that exact stored code, but it may not replace or
+clear it. A replacement requires
+`POST /api/products/:id/currency-correction` with the replacement code, a reason
+of 3–500 characters and the literal `priceReconfirmed: true`; the endpoint may
+save the corrected prices and other product fields in the same operation and
+records `PRODUCT_CURRENCY_CORRECTED` with the previous and new code, reason and
+changed fields. No price or rate is inferred.
 
 The mobile create/edit form presents the accepted ISO list in a searchable picker
 (matching either the code or its English name) and saves only the code; the
@@ -859,6 +867,7 @@ Examples:
 ```text
 PRODUCT_CREATED
 PRODUCT_UPDATED
+PRODUCT_CURRENCY_CORRECTED
 PRODUCT_ARCHIVED
 
 INVENTORY_STOCK_IN
@@ -885,6 +894,10 @@ AuditLog
 ```
 
 Audit logs should provide enough information to understand:
+
+`PRODUCT_CURRENCY_CORRECTED` is the distinct event for the explicit correction route; its metadata
+records `previousCurrency`, `currency`, `reason`, `priceReconfirmed` and the changed fields. An
+ordinary product update keeps `PRODUCT_UPDATED`.
 
 - Who performed the action
 - What was changed
@@ -1401,7 +1414,10 @@ researchMarketPrices
 ```
 
 The list above is the current set as implemented, and no tool writes. `findProducts` adds exact
-identity lookup by name, SKU or barcode (AI-91); `getStockValue` groups value by recorded currency;
+identity lookup by name, SKU or barcode (AI-91); it scopes a price ceiling or price ranking to one
+recorded currency (named explicitly or found unambiguously), blocks a comparison when known or
+unrecorded currencies are mixed, and never ranks an unrecorded price as zero. `getStockValue`
+groups value by recorded currency;
 `getProductsNeverSold`, `getCatalogOverview` and `getLocationBreakdown` complete the catalogue and
 location reads; `listBrands` is a reference lookup like `listLocations` and `listCategories`; and
 `filterPreviousResults` is offered only when the immediately previous answer left a bounded product
@@ -1413,8 +1429,10 @@ locations/categories do I have"* and resolve a name whose exact form is unknown.
 same records as `GET /api/locations` and `GET /api/categories`, which are authentication-only,
 and are gated on `inventory.view` / `products.view`. No tool writes.
 
-`getProductStockCoverage` (AI-118) is the bounded run-out read: one identified product, an optional
-location and a 7–365 day lookback (default 30). It sums current availability over every matching
+`getProductStockCoverage` (AI-118) is the bounded run-out read: one identified product (id, exact
+SKU/barcode, or exact recorded name), an optional location and a 7–365 day lookback (default 30).
+An exact name is anchored to the whole recorded name and the caller's business; a partial name is
+not found, and duplicate names return their candidates instead of choosing one. It sums current availability over every matching
 inventory row and sums `STOCK_OUT` units over the same product/location scope, then returns the
 simple average daily outflow, `daysOfCover` and a 30-day run-rate projection. A transfer, stock-in
 or adjustment is deliberately excluded; stock-out is a movement proxy that may be a sale, usage,
@@ -1422,6 +1440,9 @@ damage or write-off, never confirmed sales. With no stock-out in the window, `da
 `null`, not infinite, and the payload says so. This is not a catalogue-wide forecast and does not
 apply a supplier lead time or seasonality. `getProductsByLocation` returns ACTIVE products only;
 an archived product remains readable through the product/catalogue reads with its status intact.
+The turn-loop finalizer rebuilds the stored answer from a successful coverage result, so the
+days-of-cover estimate (or the explicit null/no-rate outcome), its window and the movement-proxy
+caveat are present even when the model's draft omits them.
 
 `getInventory`, `getProductsByLocation` and `getInventoryHistory` accept a location by
 `locationId` **or** by its exact `location` name (AI-15); `searchProducts` and
@@ -2756,11 +2777,13 @@ GET    /api/products
 POST   /api/products
 GET    /api/products/:id
 PATCH  /api/products/:id
+POST   /api/products/:id/currency-correction
 POST   /api/products/:id/archive
 POST   /api/products/:id/restore
 
 # POST and PATCH /api/products require a valid ISO 4217 currency.
-# PATCH may omit it only when the product already stores one; it cannot be cleared.
+# PATCH may omit/repeat the stored code; it cannot clear or replace it.
+# A replacement requires currency-correction, a reason and priceReconfirmed: true.
 
 GET    /api/suppliers
 POST   /api/suppliers

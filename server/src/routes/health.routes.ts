@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, type Request, type Response } from 'express';
 
 import env from '../config/env.ts';
 import { buildInfo } from '../config/deploymentReadiness.ts';
@@ -103,7 +103,7 @@ function timestamp() {
  *        Process-local exchange-rate availability. Published on the legacy
  *        endpoint as inert operational context; it is never a readiness input.
  */
-export function createHealthRouter({
+export function createHealthHandlers({
   getState = getDatabaseState,
   isReady = isDatabaseReady,
   build = buildInfo,
@@ -113,100 +113,115 @@ export function createHealthRouter({
   checkIndexes = checkRequiredIndexes,
   exchangeRates = exchangeRateAvailability,
 } = {}) {
-  const router = Router();
-
-  // Legacy liveness + db state (kept for compatibility).
-  router.get('/', (req, res) => {
-    const { commit, uptimeSeconds } = build();
-    res.status(200).json({
-      status: 'ok',
-      db: getState(),
-      environment: environment(),
-      commit,
-      uptimeSeconds,
-      counters: counters(),
-      // The same exposure class as the response counters: aggregate process
-      // state, no tenant, request, URL or credential. An ECB failure must not
-      // make /ready fail, so this is observation only.
-      exchangeRates: exchangeRates(),
-      timestamp: timestamp(),
-    });
-  });
-
-  // Liveness: the process is up. No database involvement.
-  router.get('/live', (req, res) => {
-    res.status(200).json({ status: 'live', timestamp: timestamp() });
-  });
-
-  // Readiness: MongoDB reachable AND the required ledger guard present?
-  router.get('/ready', async (_req, res) => {
-    if (!isReady()) {
-      return res.status(503).json({
-        status: 'not ready',
+  return {
+    // Legacy liveness + db state (kept for compatibility).
+    health(_req: Request, res: Response) {
+      const { commit, uptimeSeconds } = build();
+      res.status(200).json({
+        status: 'ok',
         db: getState(),
+        environment: environment(),
+        commit,
+        uptimeSeconds,
+        counters: counters(),
+        // The same exposure class as the response counters: aggregate process
+        // state, no tenant, request, URL or credential. An ECB failure must not
+        // make /ready fail, so this is observation only.
+        exchangeRates: exchangeRates(),
         timestamp: timestamp(),
       });
-    }
+    },
 
-    let indexReadiness;
-    try {
-      const result = await checkIndexes();
-      if (!result || typeof result.ready !== 'boolean' || !Array.isArray(result.failures)) {
-        throw new Error('invalid required-index readiness result');
+    // Liveness: the process is up. No database involvement.
+    live(_req: Request, res: Response) {
+      res.status(200).json({ status: 'live', timestamp: timestamp() });
+    },
+
+    // Readiness: MongoDB reachable AND the required ledger guard present?
+    async ready(_req: Request, res: Response) {
+      if (!isReady()) {
+        return res.status(503).json({
+          status: 'not ready',
+          db: getState(),
+          timestamp: timestamp(),
+        });
       }
-      indexReadiness = result;
-    } catch {
-      indexReadiness = {
-        ready: false,
-        failures: [{ name: 'required-indexes', reason: 'the required index check could not run' }],
-      };
-    }
-    if (!indexReadiness.ready) {
-      return res.status(503).json({
-        status: 'not ready',
+
+      let indexReadiness;
+      try {
+        const result = await checkIndexes();
+        if (!result || typeof result.ready !== 'boolean' || !Array.isArray(result.failures)) {
+          throw new Error('invalid required-index readiness result');
+        }
+        indexReadiness = result;
+      } catch {
+        indexReadiness = {
+          ready: false,
+          failures: [{ name: 'required-indexes', reason: 'the required index check could not run' }],
+        };
+      }
+      if (!indexReadiness.ready) {
+        return res.status(503).json({
+          status: 'not ready',
+          db: getState(),
+          reason:
+            indexReadiness.failures.map((failure) => failure.reason).join('; ') ||
+            'a required database index is missing or incorrect',
+          timestamp: timestamp(),
+        });
+      }
+      return res.status(200).json({
+        status: 'ready',
         db: getState(),
-        reason:
-          indexReadiness.failures.map((failure) => failure.reason).join('; ') ||
-          'a required database index is missing or incorrect',
         timestamp: timestamp(),
       });
-    }
-    return res.status(200).json({
-      status: 'ready',
-      db: getState(),
-      timestamp: timestamp(),
-    });
-  });
+    },
 
-  // Hosted freshness: is the laptop-based audit still reporting? The endpoint
-  // is public because it is a monitor target, but it publishes only the audit's
-  // freshness and aggregate counts — no tenant, product, location or user data.
-  // A missing, malformed, stale or NOT CHECKED heartbeat is a 503 on purpose:
-  // an uptime monitor must be able to treat it as an incident with no parsing.
-  router.get('/integrity', async (_req, res) => {
-    res.setHeader('Cache-Control', 'no-store');
-    try {
-      const heartbeat = await readIntegrity();
-      return res.status(heartbeat.fresh ? 200 : 503).json({
-        ...heartbeat,
-        timestamp: timestamp(),
-      });
-    } catch {
-      return res.status(503).json({
-        state: 'not_checked',
-        fresh: false,
-        lastCheckedAt: null,
-        ageSeconds: null,
-        maxAgeSeconds: null,
-        auditStatus: null,
-        newCount: 0,
-        resolvedCount: 0,
-        scannedStockIns: null,
-        timestamp: timestamp(),
-      });
-    }
-  });
+    // Hosted freshness: is the laptop-based audit still reporting? The endpoint
+    // is public because it is a monitor target, but it publishes only the audit's
+    // freshness and aggregate counts — no tenant, product, location or user data.
+    // A missing, malformed, stale or NOT CHECKED heartbeat is a 503 on purpose:
+    // an uptime monitor must be able to treat it as an incident with no parsing.
+    async integrity(_req: Request, res: Response) {
+      res.setHeader('Cache-Control', 'no-store');
+      try {
+        const heartbeat = await readIntegrity();
+        return res.status(heartbeat.fresh ? 200 : 503).json({
+          ...heartbeat,
+          timestamp: timestamp(),
+        });
+      } catch {
+        return res.status(503).json({
+          state: 'not_checked',
+          fresh: false,
+          lastCheckedAt: null,
+          ageSeconds: null,
+          maxAgeSeconds: null,
+          auditStatus: null,
+          newCount: 0,
+          resolvedCount: 0,
+          scannedStockIns: null,
+          timestamp: timestamp(),
+        });
+      }
+    },
+  };
+}
 
+/**
+ * The canonical four-route health router. `createHealthHandlers` is separate so
+ * the backward-compatible bare `/health` and `/ready` aliases in `app.ts` use the
+ * exact same handlers rather than a second implementation.
+ */
+export function createHealthRouter(
+  options: Parameters<typeof createHealthHandlers>[0] = {},
+) {
+  const router = Router();
+  const handlers = createHealthHandlers(options);
+  router.get('/', handlers.health);
+  router.get('/live', handlers.live);
+  router.get('/ready', handlers.ready);
+  router.get('/integrity', handlers.integrity);
   return router;
 }
 

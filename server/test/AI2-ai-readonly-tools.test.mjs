@@ -57,6 +57,8 @@ const READ_ONLY_SERVICE_CALLS = new Set([
   // AI-113: one aggregate ranking read over the availability merge, no write path.
   'productService.highestStock',
   'productService.getByIdentifier',
+  // AI-118 follow-up: exact recorded-name resolution for one coverage read, business-scoped.
+  'productService.listByExactName',
   'productService.toProductDTO',
   'productService.reorderItemPublic',
   // AI-110: a pure formatter for the shortfall to a configured minimum. It reads no record

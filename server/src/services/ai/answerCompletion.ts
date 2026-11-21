@@ -522,6 +522,75 @@ export function asksForStockCoverage(question: string): boolean {
   return ASKS_STOCK_COVERAGE.test(String(question ?? ''));
 }
 
+/** The coverage fields the deterministic answer is built from. */
+export interface StockCoverageSummary {
+  productName: string;
+  availableQuantity: number;
+  days: number;
+  unitsOut: number;
+  stockOutMovements: number;
+  averageDailyUnitsOut: number;
+  daysOfCover: number | null;
+  locationName?: string | null;
+}
+
+function displayNumber(value: number): string {
+  return new Intl.NumberFormat('en-PH', { maximumFractionDigits: 3 }).format(value);
+}
+
+/**
+ * AI-118 follow-up — build the complete run-out answer from the coverage read.
+ *
+ * The live audit selected the tool but stored a quantity-only answer, so tool
+ * selection cannot be the guarantee. This finalizer always states the estimate
+ * (or the explicit no-rate outcome), the window, the movement basis and the
+ * proxy caveat. It is deterministic for the same reason the value and stock
+ * totals are: the tool result is the source of truth and the model's prose is
+ * not allowed to drop one of those facts.
+ */
+export function stockCoverageAnswer(
+  summary: StockCoverageSummary,
+  maxChars: number,
+): string | null {
+  const name = summary.productName.trim();
+  if (!name || !Number.isFinite(maxChars) || maxChars <= 0) return null;
+  // Product names are not length-bounded by the product model. Keep the deterministic
+  // sentence inside the answer cap even for an unusually long recorded name; the
+  // caveat and the figures must survive rather than being cut off with the name.
+  const displayName = name.length > 160 ? `${name.slice(0, 157)}…` : name;
+  const where = summary.locationName ? ` at ${summary.locationName}` : '';
+  const windowLabel = `${displayNumber(summary.days)}-day`;
+  const movementWord = summary.stockOutMovements === 1 ? 'movement' : 'movements';
+  const caveat =
+    'Stock-out is a movement proxy, not confirmed sales: it can be usage, damage or a write-off, ' +
+    'so this is an estimate, not a guarantee.';
+  let full: string;
+  let compact: string;
+  if (summary.daysOfCover === null) {
+    full =
+      `${displayName}${where} has ${displayNumber(summary.availableQuantity)} units available. ` +
+      `Over the ${windowLabel} window there were no stock-out movements, so no rate can be ` +
+      `estimated and no days-of-cover estimate is available. ${caveat}`;
+    compact =
+      `${displayName}${where} has ${displayNumber(summary.availableQuantity)} units available. ` +
+      `The ${windowLabel} window has no stock-out movements, so no rate can be estimated. ${caveat}`;
+  } else {
+    full =
+      `${displayName}${where} has ${displayNumber(summary.availableQuantity)} units available. ` +
+      `Over the ${windowLabel} window, ${displayNumber(summary.unitsOut)} units went out across ` +
+      `${displayNumber(summary.stockOutMovements)} stock-out ${movementWord}, an average of ` +
+      `${displayNumber(summary.averageDailyUnitsOut)} units per day, so the estimate is ` +
+      `${displayNumber(summary.daysOfCover)} days of cover. ${caveat}`;
+    compact =
+      `${displayName}${where} has ${displayNumber(summary.availableQuantity)} units available; ` +
+      `estimated ${displayNumber(summary.daysOfCover)} days of cover from the ${windowLabel} ` +
+      `stock-out rate. ${caveat}`;
+  }
+  if (full.length <= maxChars) return full;
+  if (compact.length <= maxChars) return compact;
+  return null;
+}
+
 const NEVER_SOLD_TOOL = 'getProductsNeverSold';
 const STOCK_LEVEL_TOOLS = new Set(['getLowStockProducts', 'getOutOfStockProducts', 'getReorderNeededProducts']);
 

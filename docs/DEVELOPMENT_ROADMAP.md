@@ -8,9 +8,9 @@ of truth for *what actually happened*, and it is why this file is long.
 
 **How to read it.** Do not read it top to bottom. Either find a record by number (§27FJ, §27DM — the
 numbers are cited from `CLAUDE.md` and from source comments), or use the index: `CLAUDE.md` §7 lists
-all **297** records by the title each gives itself.
+all **301** records by the title each gives itself.
 
-**Current state:** V1 complete and in production testing. The records that answer *where are we now* are §27KN (release gate and production update for §27KJ–§27KM), §27KM (run-out intent guard and live selection evaluation), §27KL (currency resolution operations, process-local rate metrics and resolver CLI proof), §27KK (post-commit 5xx proof, movement-receipt recovery and mobile Pending Operations), §27KJ (required ISO 4217 product currency, legacy audit and verified marketplace conversion), §27KI (account-scoped mobile operation keys, serialized key-store mutations, durable movement receipts, and AI streaming request references), §27KH (retryable GitHub alerts, fail-closed ledger-index readiness, and read-only attention triage), §27KG (unique transfer-ledger guard, duplicate-aware recovery, cross-instance recovery lease, and scheduled integrity operations), §27KF (FW-07 request references on forms, persisted mobile idempotency keys, and the receive/ranking follow-up verification), §27KE (integrity recovery — durable transfer journal, receive keys/fingerprints, stale-claim reaper, category policy, audit-gap monitoring, price-quality report and currency-safe AI ranking), §27KD (FW-07 mobile-only request references in shared error details, plus the ranked follow-up review beyond the five FW plans), §27KC (the four audit fixes — AI price ranking/null handling, transfer duplicate-key full upsert, PO receive receipt replay, catalog clearing/archive/idempotency/audit safety — plus the ranked audit review and crash-recovery assessment), §27KB (five documentation-only implementation plans: corrected FW-04, FW-07, FW-05, linked stock reversal and supplier replenishment terms), §27KA (console guide claim audit and follow-up recommendations; documentation only), §27JY (PLAT-29 console user guide and documentation reconciliation; documentation only), §27JX (DEV-09 workflow invariant guard, checkout credential hygiene and concise security policy), §27JW (DEV-08 GitHub workflow improvement roadmap), §27JV (DEV-07 production-health verification and Mongo CI consolidation review), §27JU (DEV-06 merge-queue wiring removed; simple PR flow and SHA pinning retained), §27JS (DEV-04 pinned `mongo:7.0.48`, weekly Dependabot tracking and CI job timeouts), §27JR (DEV-03 `compose-mongo` required check: seven contexts, audit pass), §27JQ (DEV-02 compose MongoDB CI job: healthy and pinged in run `44443515084`, now required), §27JP (PLAT-28 WebAuthn invalid-attempt reliability: six green E2E runs and merge), §27JO (DEV-01 optional local MongoDB container; not executed because Docker is unavailable), §27JN (DEP-02 dependency-review gate: clean run, scratch failure proof and required-check readback), §27JM (DEP-01 `glob` 14.0.2 override and the accepted `picomatch` residual; merged and deployed as `ecbdb87`), §27JL (PLAT-27 SEC-08 step-up proof for destructive administrator actions; merged and deployed as `e7ce455`, with production now `ecbdb87` after this dependency merge; code, tests and console documentation), §27JK (PLAT-26 audited operator CLI creation; code and tests), §27JJ (PLAT-25 outer access-gate failure bounding and sampled audit; code and tests), §27JI (PLAT-24 dedicated console documentation and accuracy corrections; documentation only), §27JH (PLAT-23 owner/CEO account, credential and access guide; documentation only), §27JG (PLAT-22 additive security roadmap beyond PLAT-21; recommendations only), §27JF (PLAT-21 console status assessment and role/account guide; documentation and read-only production reads), §27JE (PLAT-20 atomic last-SUPERADMIN guard, monitor-only 5xx accounting and heartbeat restoration; code and documentation), §27JD (PLAT-19 NZ-01–NZ-07 roadmap beyond NY-07; documentation only), §27JC (PLAT-18 RD-01 code fact-check, NX-01 sensitive-data protection design and NY-01–NY-06 tranche; documentation only), §27JB (PLAT-17 checklist restoration, path-safe renderer, RD-01 local drill plan and NX-01–NX-07 tranche; documentation/tooling only), §27JA (PLAT-16 TS-01 plan, reproducible checklist renderer and next improvement tranche; documentation/tooling only), §27IZ (PLAT-15 verified one-page checklist PDF and tenant security review; documentation only), §27IY (PLAT-14 printable two-contact test checklist; documentation only), §27IX (PLAT-13 two-contact test procedure and IA-42–IA-45 additions; documentation only), §27IW (PLAT-12 contact-wording correction, joint-rank reconciliation, pending notification evidence and IA-38–IA-41 additions; documentation only), §27IV (PLAT-11 backup-contact registration, Firebase-plan safety review and IA-34–IA-37 additions; documentation only), §27IU (PLAT-10 security-contact record, Firebase recovery drill and multi-criteria ranking; documentation only), §27IT (PLAT-9 free-first planning: conditional Cloudflare migration, alert ownership, disposable restore drill and additive follow-up; documentation only), §27IS (PLAT-8 planning-only assessment of the access layer, platform security alerting and whole-product priorities; documentation only), §27IR (PLAT-7 deployed at `e218bb0`, the production gate and recovery proof, and the required WebAuthn check), §27IQ (forced recovery setup, the free-plan outer access gate and the break-glass drill), §27IP (the Platform Operations console was first deployed at `56e8c27`, with browser sign-in, TOTP, assets/CSP and API smoke observed), §27IJ (the INTERNAL Platform Operations plane — separate administrator identity, sessions and capabilities; committed in `d02a549`, now deployed through §27IP), §27IK (platform-admin architecture, now aligned with the implemented interim plane and its remaining gates), §27IL (the durable 5xx and feature-presence stores that report reads), §27IM (the dedicated console, mandatory TOTP/WebAuthn and append-only platform audit — committed and browser-verified; now deployed through §27IP), §27IN (fresh security review, CI browser WebAuthn, production-readiness checklist and prioritized recommendations), §27IO (recovery codes, durable account-scoped MFA lockout, password change, administrator lifecycle and fail-closed origin/cookie hardening), §27II (AI-117 complete feedback conversation preview, deployed `13fb3f8` and device-verified; one out-of-stock wording finding remains open), §27IH (AI-116 bounded follow-up context and answer freshness, deployed and device-verified), §27IG (AI-115 member feedback and the owner/admin review queue, deployed and device-verified), §27IF (AI-114 deterministic complete restock lists, deployed and device-verified), §27ID (the permanent assistant improvement roadmap and implementation audit; docs-only), §27IC (AI-110 contextual assistant entry and restock shortfall, deployed `7315675` and OTA-verified; the partial-restock guards completed in `1c3928b`), §27IB (scheduler proof and hosted freshness), §27IA (post-deploy phone proof, triage and monitor), §27HV (AI-99 10,256-product gate, 24/25 with one output-limit finding), §27HU (AI-99 free-first simple inventory, deployed with the 1.0.2 OTA), §27HT (AI-91/AI-92 exact product identity and per-location stock), §27HS (the AI-50–AI-84 increment register), §27HR (AI-48–AI-84 merged and deployed), §27HQ (grounded answers and scoped stock reads), §27HP (market prices from cited pages), §27HO (recorded specifications and the real seed catalogue), §27HN (inventory-only web research), §27HH (a transfer as one event to the assistant), §27HG (the stock-in link's product), §27HF (the single-location default's timing), §27HE (the stock-in link's location), §27HD (the movement fixes and the production device pass), §27HC (the assistant's local-time answers), §27FM (the V1 re-verification) and §27FJ (the two open advisories).
+**Current state:** V1 complete and in production testing. The records that answer *where are we now* are §27KR (the explicit product-currency correction ceremony, mixed-currency price comparisons and bounded FX retry), §27KQ (deterministic stock coverage, exact-name resolution and semantic evaluation), §27KP (bare health aliases, read-only post-deploy SHA verification, and the startup 5xx review), §27KO (run-out regression and live coverage selection audit), §27KN (release gate and production update for §27KJ–§27KM), §27KM (run-out intent guard and live selection evaluation), §27KL (currency resolution operations, process-local rate metrics and resolver CLI proof), §27KK (post-commit 5xx proof, movement-receipt recovery and mobile Pending Operations), §27KJ (required ISO 4217 product currency, legacy audit and verified marketplace conversion), §27KI (account-scoped mobile operation keys, serialized key-store mutations, durable movement receipts, and AI streaming request references), §27KH (retryable GitHub alerts, fail-closed ledger-index readiness, and read-only attention triage), §27KG (unique transfer-ledger guard, duplicate-aware recovery, cross-instance recovery lease, and scheduled integrity operations), §27KF (FW-07 request references on forms, persisted mobile idempotency keys, and the receive/ranking follow-up verification), §27KE (integrity recovery — durable transfer journal, receive keys/fingerprints, stale-claim reaper, category policy, audit-gap monitoring, price-quality report and currency-safe AI ranking), §27KD (FW-07 mobile-only request references in shared error details, plus the ranked follow-up review beyond the five FW plans), §27KC (the four audit fixes — AI price ranking/null handling, transfer duplicate-key full upsert, PO receive receipt replay, catalog clearing/archive/idempotency/audit safety — plus the ranked audit review and crash-recovery assessment), §27KB (five documentation-only implementation plans: corrected FW-04, FW-07, FW-05, linked stock reversal and supplier replenishment terms), §27KA (console guide claim audit and follow-up recommendations; documentation only), §27JY (PLAT-29 console user guide and documentation reconciliation; documentation only), §27JX (DEV-09 workflow invariant guard, checkout credential hygiene and concise security policy), §27JW (DEV-08 GitHub workflow improvement roadmap), §27JV (DEV-07 production-health verification and Mongo CI consolidation review), §27JU (DEV-06 merge-queue wiring removed; simple PR flow and SHA pinning retained), §27JS (DEV-04 pinned `mongo:7.0.48`, weekly Dependabot tracking and CI job timeouts), §27JR (DEV-03 `compose-mongo` required check: seven contexts, audit pass), §27JQ (DEV-02 compose MongoDB CI job: healthy and pinged in run `44443515084`, now required), §27JP (PLAT-28 WebAuthn invalid-attempt reliability: six green E2E runs and merge), §27JO (DEV-01 optional local MongoDB container; not executed because Docker is unavailable), §27JN (DEP-02 dependency-review gate: clean run, scratch failure proof and required-check readback), §27JM (DEP-01 `glob` 14.0.2 override and the accepted `picomatch` residual; merged and deployed as `ecbdb87`), §27JL (PLAT-27 SEC-08 step-up proof for destructive administrator actions; merged and deployed as `e7ce455`, with production now `ecbdb87` after this dependency merge; code, tests and console documentation), §27JK (PLAT-26 audited operator CLI creation; code and tests), §27JJ (PLAT-25 outer access-gate failure bounding and sampled audit; code and tests), §27JI (PLAT-24 dedicated console documentation and accuracy corrections; documentation only), §27JH (PLAT-23 owner/CEO account, credential and access guide; documentation only), §27JG (PLAT-22 additive security roadmap beyond PLAT-21; recommendations only), §27JF (PLAT-21 console status assessment and role/account guide; documentation and read-only production reads), §27JE (PLAT-20 atomic last-SUPERADMIN guard, monitor-only 5xx accounting and heartbeat restoration; code and documentation), §27JD (PLAT-19 NZ-01–NZ-07 roadmap beyond NY-07; documentation only), §27JC (PLAT-18 RD-01 code fact-check, NX-01 sensitive-data protection design and NY-01–NY-06 tranche; documentation only), §27JB (PLAT-17 checklist restoration, path-safe renderer, RD-01 local drill plan and NX-01–NX-07 tranche; documentation/tooling only), §27JA (PLAT-16 TS-01 plan, reproducible checklist renderer and next improvement tranche; documentation/tooling only), §27IZ (PLAT-15 verified one-page checklist PDF and tenant security review; documentation only), §27IY (PLAT-14 printable two-contact test checklist; documentation only), §27IX (PLAT-13 two-contact test procedure and IA-42–IA-45 additions; documentation only), §27IW (PLAT-12 contact-wording correction, joint-rank reconciliation, pending notification evidence and IA-38–IA-41 additions; documentation only), §27IV (PLAT-11 backup-contact registration, Firebase-plan safety review and IA-34–IA-37 additions; documentation only), §27IU (PLAT-10 security-contact record, Firebase recovery drill and multi-criteria ranking; documentation only), §27IT (PLAT-9 free-first planning: conditional Cloudflare migration, alert ownership, disposable restore drill and additive follow-up; documentation only), §27IS (PLAT-8 planning-only assessment of the access layer, platform security alerting and whole-product priorities; documentation only), §27IR (PLAT-7 deployed at `e218bb0`, the production gate and recovery proof, and the required WebAuthn check), §27IQ (forced recovery setup, the free-plan outer access gate and the break-glass drill), §27IP (the Platform Operations console was first deployed at `56e8c27`, with browser sign-in, TOTP, assets/CSP and API smoke observed), §27IJ (the INTERNAL Platform Operations plane — separate administrator identity, sessions and capabilities; committed in `d02a549`, now deployed through §27IP), §27IK (platform-admin architecture, now aligned with the implemented interim plane and its remaining gates), §27IL (the durable 5xx and feature-presence stores that report reads), §27IM (the dedicated console, mandatory TOTP/WebAuthn and append-only platform audit — committed and browser-verified; now deployed through §27IP), §27IN (fresh security review, CI browser WebAuthn, production-readiness checklist and prioritized recommendations), §27IO (recovery codes, durable account-scoped MFA lockout, password change, administrator lifecycle and fail-closed origin/cookie hardening), §27II (AI-117 complete feedback conversation preview, deployed `13fb3f8` and device-verified; one out-of-stock wording finding remains open), §27IH (AI-116 bounded follow-up context and answer freshness, deployed and device-verified), §27IG (AI-115 member feedback and the owner/admin review queue, deployed and device-verified), §27IF (AI-114 deterministic complete restock lists, deployed and device-verified), §27ID (the permanent assistant improvement roadmap and implementation audit; docs-only), §27IC (AI-110 contextual assistant entry and restock shortfall, deployed `7315675` and OTA-verified; the partial-restock guards completed in `1c3928b`), §27IB (scheduler proof and hosted freshness), §27IA (post-deploy phone proof, triage and monitor), §27HV (AI-99 10,256-product gate, 24/25 with one output-limit finding), §27HU (AI-99 free-first simple inventory, deployed with the 1.0.2 OTA), §27HT (AI-91/AI-92 exact product identity and per-location stock), §27HS (the AI-50–AI-84 increment register), §27HR (AI-48–AI-84 merged and deployed), §27HQ (grounded answers and scoped stock reads), §27HP (market prices from cited pages), §27HO (recorded specifications and the real seed catalogue), §27HN (inventory-only web research), §27HH (a transfer as one event to the assistant), §27HG (the stock-in link's product), §27HF (the single-location default's timing), §27HE (the stock-in link's location), §27HD (the movement fixes and the production device pass), §27HC (the assistant's local-time answers), §27FM (the V1 re-verification) and §27FJ (the two open advisories).
 
 ---
 
@@ -28500,14 +28500,19 @@ returns exactly **5,000**, sets `truncated: true` and excludes the extra probe r
   living reference documents** within cadence.
 - Complete server suite — `npm test -- --test-concurrency=2` passed **3,310/3,310 tests across 538
   suites**, with **0 failures, 0 skips and 0 cancelled** (exit 0). The follow-up cap case was added
-after that run; the complete suite was intentionally not rerun for the focused follow-up.
+  after that run; the complete suite was intentionally not rerun for the focused follow-up. A later
+  complete run including that case passed **3,314/3,314 across 538 suites**, 0 failures/skips, exit
+  0, in **1,826,533.4359 ms**; the cap case itself passed in **6,859.8979 ms**.
 
 **Ranked follow-ups (not implemented).** `docs/PRODUCT_CURRENCY.md` §6 ranks twelve ideas across
-durable rate observability, conversion provenance, resumable review queues, currency-safe imports,
-currency metadata, change history, marketplace evidence, provider failover, price review/effective
-dates, anomaly advice, and explicit no-sum analytics. Six extend the §27KJ list and six re-rank
-items already named there. The highest-value dependencies are a durable
-store for cross-restart metrics and an alerting owner; none of those changes are made here.
+  durable rate observability, conversion provenance, resumable review queues, currency-safe imports,
+  currency metadata, change history, marketplace evidence, provider failover, price review/effective
+  dates, anomaly advice, and explicit no-sum analytics. Six extend the §27KJ list and six re-rank
+  items already named there. The 2026-11-20 follow-up adds six new candidates and a revised order in
+  the same section: the currency-change ceremony, currency-aware list sorting/filtering, FX
+  single-flight/negative caching, risk-ranked unresolved batches, minor-unit money representation
+  and supplier/PO currency alignment. The highest-value dependencies remain a durable store for
+  cross-restart metrics and an alerting owner; none of those changes is made here.
 
 **Limitations.** The health counters reset on restart and are per process. No live ECB request was
 made during this work. No production data, migration, commit, push, merge or deployment was performed.
@@ -28563,7 +28568,8 @@ passed **3,311/3,311 tests across 538 suites**, with **0 failures, 0 skips and 0
 **Limitations.** No live-model run was executed in this pass, so the harness proves its bounded
 setup and the scripted correction path, not the configured model's real selection rate. A live run
 spends quota and must be approved separately. The development-only disposable tenant is removed in
-`finally`; a hard kill can leave it for the next run's inspection.
+`finally`; a hard kill can leave it for the next run's inspection. The approved live run and the new
+regressions are recorded in §27KO.
 
 # 27KN. Release gate — AI coverage, currency, durable receipts and Pending Operations (2026-11-20)
 
@@ -28595,3 +28601,310 @@ call was made, no real currency evidence file was applied, and no maintenance co
 against production. Render auto-deploy is scoped to `server/`; this release changes `server/`, so
 the merge is the deploy trigger. The final head must pass all seven required checks and merge
 without a force-push or protection bypass.
+
+# 27KO. Run-out correction regressions and live coverage selection audit (2026-11-20)
+
+**Scope.** Complete the three AI stock-coverage follow-ups: add the two missing turn-loop
+regressions, run the approved six-paraphrase live evaluation on the development database, and
+re-rank the stock-coverage/AI follow-ups. Q7 and Q8 are unchanged. No model, fallback, reasoning or
+web configuration was changed; no production data, commit, push, merge or deployment was made.
+
+**Regression coverage.** `phase06-ai-behavior.test.mjs` now has two additional DB-backed turns:
+
+- **Q7b — first draft ran no tool.** The first provider response is a forecast-shaped sentence with
+  no tool call. The turn loop discards it, issues the coverage-specific corrective re-ask, the
+  model calls `getProductStockCoverage`, and the stored answer carries the 6-unit/4-unit/15-day
+  figures and the proxy caveat. `toolsUsed` is only `getProductStockCoverage`.
+- **Q7c — second coverage miss.** The first no-tool draft receives the same correction; the second
+  draft still does not call coverage. The turn stops after the one correction and stores the exact
+  `UNGROUNDED_ANSWER` sentence with no invented quantity or forecast. `toolsUsed` is empty.
+
+Q7 (wrong `getProduct` first choice) and Q8 (no stock-out history, `daysOfCover: null`) remain in the
+same suite and still pass. The focused Phase 06 suite passed **16/16** after the additions.
+
+**Live evaluation configuration and boundary.** `AI_TEST_ALLOW_PAID_MODELS=true npm run
+eval:stock-coverage` ran against the configured OpenRouter primary `openai/gpt-oss-20b` with two
+configured fallbacks; the live run changed nothing. The harness itself reported
+`changed: false`. It seeded 14 products, 22 stock rows and 30 movements into a disposable
+development tenant, then removed it in `finally`. Six questions were asked, each was a normal
+inventory question with no web research. The process exited **1 by design** because coverage was not
+selected in all six turns; there were **0 errors** and no infinite-cover claims. Recorded turn cost
+was about **$0.007846** in total.
+
+| Question id | First tool | All tools | Coverage | Corrected | Observed outcome |
+| --- | --- | --- | --- | --- | --- |
+| `how-long` | `searchProducts` | `searchProducts` | not selected | yes | **UNGROUNDED** after one correction; no coverage call; honest refusal |
+| `days-of-cover` | `findProducts` | `findProducts`, `getProductStockCoverage` | selected later | no | 45 days of cover from the 30-day stock-out window |
+| `run-out-soon` | `findProducts` | `findProducts`, `getInventory`, `getProductStockCoverage` | selected later | no | 10 pcs, 3 units out / 30 days, about 100 days |
+| `stock-coverage` | `searchProducts` | `searchProducts`, `getProductStockCoverage`, `getInventory` | selected later | no | **answer stated only 12 units on hand; it omitted the estimate and caveat** |
+| `until-runs-out` | `searchProducts` | `searchProducts`, `getProductStockCoverage` | selected later | no | 32 units, 0.27 units/day, about 120 days |
+| `longer-at-rate` | `findProducts` | `findProducts`, `getProductStockCoverage` | selected later | no | 8 units, 0.067 units/day, about 120 days; explicitly names stock-out events as sales, usage, damage or write-offs |
+
+Harness summary: **first-read coverage 0/6; coverage anywhere 5/6; corrected by re-ask 1; errors
+0; exact proxy-caveat phrase 0/6; infinite-cover claims 0.** The exact-phrase metric is narrower
+than the answers: manual reading found **1 of the 5 grounded answers** explicitly stating that
+stock-out is not confirmed sales; three named the stock-out/outflow basis without that boundary,
+one (`stock-coverage`) omitted the estimate entirely, and `how-long` was ungrounded. Calls per
+turn were 3–5; latency was 5.6–45.8 seconds.
+
+**Fresh review against the artifact (2026-11-20).** The recorded file is
+`server/.tmp-stock-coverage-live.json`, generated at **18:33:38.835Z** with six rows. Re-reading it
+confirms the table above: first 0/6, anywhere 5/6, one corrected no-tool turn, 0 errors, one
+selected-but-unused answer, 3–5 calls, 5.6–45.8 seconds and **$0.007846** recorded turn cost. The
+fixture counts are exactly 14 products, 22 stock rows and 30 movements, and every first/all-tool
+list in the table matches the artifact. The stored `proxyCaveatAnswers: 0` is the old
+**exact-phrase** count; the new semantic detector counts the `longer-at-rate` answer's "sales,
+usage, damage, or write-offs" wording as **1/6** without changing the artifact. Q7b/Q7c were
+re-read against the turn loop: the first draft has no tool call in Q7b, the second still has none
+in Q7c, and both assertions match the one-re-ask contract. The duplicate counting code in the
+evaluator was removed in the follow-up; the shared pure metrics module now owns those judgements.
+
+**What the live run proves, and what it does not.** It proves the configured model can reach
+coverage for most name-based paraphrases and that the single correction can rescue a wrong-tool
+draft. It also shows three narrower defects: (1) coverage is never the first tool for a tool that
+accepts only id/SKU/barcode while the member names a product; (2) one corrected turn still failed
+to select coverage and correctly degraded; and (3) successful selection is not proof
+the answer used the coverage result — `stock-coverage` selected the tool and then answered only
+quantity. The run is one six-question sample, so it is evidence, not a selection-rate guarantee or a
+statistical benchmark.
+
+**Ranked follow-ups (recommendations at the time; items 1–3 and the metric split are implemented in §27KQ).**
+
+1. **Make the coverage answer deterministic from the coverage result (P1).** Build or verify the
+   days-of-cover sentence from `forecast.daysOfCover`, the current quantity, the movement count and
+   the window, and refuse an answer that omits the estimate. Why: the live run selected coverage
+   but stored a quantity-only answer; a successful tool read currently guarantees nothing about
+   what the member sees.
+2. **Resolve a named product and read coverage in one route (P1).** Add an exact-name (or
+   name-resolving) coverage path, with ambiguity refusal, or route run-out questions through a
+   deterministic resolver before the model. Why: first-choice coverage was 0/6 because every
+   question named a product and the tool accepts only id/SKU/barcode; the workaround is an extra
+   search call, extra latency and cost.
+3. **Enforce the movement-proxy caveat at the answer boundary (P1).** Append the caveat
+   deterministically when the answer states a run-out estimate without it, or reject and repair the
+   draft. Why: only one of five grounded live answers explicitly said stock-out is not confirmed
+   sales, and the prompt alone did not hold.
+4. **Catalogue-wide run-out ranking (P1).** Rank ACTIVE products by days of cover or projected need
+   from one bounded aggregate with a minimum-movement rule. Why: the single-product read is useful,
+   but “what will run out first?” is the operational question and N+1 reads are not a plan.
+5. **Deterministic two-product and current-versus-minimum comparison (P1).** Return both labelled
+   sides, missing fields and the comparison basis from one scoped read. Why: comparison is the last
+   common arithmetic shape left to model composition, and the currency boundary must stay visible.
+6. **Repeat the live selection check as a bounded evidence ledger (P2).** Keep the six-question cap,
+   record selected-versus-used separately, and compare repeated runs without putting paid calls in
+   CI. Why: one run shows a correction failure and an answer-utilization failure; a trend needs more
+   than one sample.
+7. **Search and page within the previous answer (P2).** Add a bounded cursor or query over the
+   captured result set. Why: follow-ups currently re-read the catalogue and cannot search the rows
+   the member is looking at.
+8. **Supplier/PO-aware restock recommendations (P2).** Show open commitments and recorded terms
+   beside the shortage, read-only. Why: prevents double-ordering and makes a recommendation
+   actionable without adding a write path.
+9. **Confirmed stock-out reason (P3).** Record sale/usage/damage/write-off so demand and loss can be
+   separated. Why: the live answers and the tool both depend on a movement proxy that cannot prove
+   a sale; historical rows must remain unknown.
+10. **Scheduled digest or proactive alert (P3).** Deliver a bounded summary through an approved
+   channel. Why: moves the assistant from pull to timely attention; it needs a scheduler, consent
+   and deduplication that do not exist.
+
+**Verification.** Phase 06 behavior **16/16**; AI-118 unit mode **5 pass, 1 skipped, 0 failed** (DB
+suite skipped); AI-118 DB mode **8 pass, 1 skipped, 0 failed** (unit suite skipped); `npm run
+typecheck` passed; focused ESLint on `phase06-ai-behavior.test.mjs` passed; documentation tests
+**31/31** and `check-docs` **71 active / 48 living** passed; `git diff --check` passed. The live
+harness completed with the six outcomes above and exited 1 by design. Details and the full result
+table are also in [`AI_ASSISTANT_AUDIT_2026-11-20.md`](AI_ASSISTANT_AUDIT_2026-11-20.md) §10. No
+complete-suite run was made for this follow-up; no production data, commit, push, merge or
+deployment was made.
+
+# 27KP. Bare health aliases, post-deploy SHA verification and startup 5xx review (2026-11-20)
+
+**Scope.** Four follow-ups after the `7d112cc` release: classify the single Render startup 5xx,
+add a read-only post-deployment SHA/readiness verifier, add backward-compatible `/health` and
+`/ready` aliases, and refresh the ranked Inventory AI follow-up list. No production data, model
+configuration, commit, push, merge or deployment was changed.
+
+**Startup 5xx review.** The merge committed at **18:18:21Z**. The serving process's counters began
+at approximately **18:19:01Z**. Its only 5xx was at **18:19:18.513Z**, about 17 seconds later. By
+**19:24Z** the same process had served **1,031** responses: **988 `2xx`**, **34 `3xx`**, **8 `4xx`**,
+**1 `5xx`**, and `/api/health`, `/api/health/ready` and `/api/health/live` all answered `200` with
+the database connected. This is the signature of a transient readiness/startup probe, not a genuine
+startup failure: a process that failed to start would not serve the next 1,000 requests, and a
+readiness `503` is intentionally counted in `serverErrors`. The process counter retains only status
+and time, not the request path; no Render API token or dashboard log was available, so the exact
+request path is **not proven**. No startup code was changed — returning `200` before the database and
+index checks pass would weaken the readiness gate.
+
+**Health aliases.** `createHealthHandlers()` is the single implementation used by the canonical
+router and by `GET /health` / `GET /ready` in `app.ts`. The aliases return the same body and status
+as `/api/health` and `/api/health/ready`; there is deliberately no `/health/live` or
+`/health/ready` alias. The route inventory moved from **124** to **126** routes and from **31** to
+**33 public** routes. Both aliases are declared in the Phase 23 public-route contract.
+
+**Post-deploy verification.** `scripts/verify-production-deploy.mjs` polls `/api/health` until the
+reported `commit` matches the expected SHA, then requires `/api/health/ready` to be `200` with
+`status: ready` and `db: connected`, and `/api/health/live` to be `200`. It is read-only and exits
+`0` verified, `1` for `sha_mismatch` / `health_check_failed` / `timeout`, and `2` for invalid
+configuration. `.github/workflows/verify-production-deploy.yml` runs it on every `server/`-scoped
+push to `main` and on manual dispatch; it never deploys or rolls back. Against production it verified
+`7d112cc22f66a7c871d22e2c573313df1f493427` on the first attempt in **361 ms**: health `200`, readiness
+`200`, liveness `200`, database `connected`. An all-zero mismatch control failed in **1,083 ms** with
+`sha_mismatch`, naming the observed commit, after six attempts.
+
+**Ranking.** [`INVENTORY_AI_FOLLOWUP_ASSESSMENT.md`](INVENTORY_AI_FOLLOWUP_ASSESSMENT.md) §3 now
+contains a 2026-11-20 top-ten refresh. The new candidates are answer provenance/scope (`PD-01`),
+pre-answer data-quality gating (`PD-02`), making deployment verification a required release gate
+(`PD-03`) and unit-of-measure/pack metadata (`PD-04`). They join the existing coverage finalizer,
+name-resolving coverage route, catalogue-wide run-out ranking, proxy caveat, comparison, repeated
+selection ledger and supplier/PO-aware restock. Planning only; none is implemented here.
+
+**Verification.** `POST-DEPLOY-verification.test.mjs` **5/5**; Phase 23 authorization contract
+**21/21**; OPS-2 unit suite **9/9** plus DB suite skipped in unit mode; route inventory guard
+**11/11**; `npm run typecheck` passed; focused ESLint on the two changed server files passed; the live
+production verifier passed and the mismatch control failed as designed. Documentation tests and
+`git diff --check` are recorded in [`DEVELOPMENT_LOG.md`](DEVELOPMENT_LOG.md). No complete-suite run
+was made for this follow-up; no production write, deployment or release workflow was run.
+
+# 27KQ. Deterministic stock coverage, exact-name resolution and semantic evaluation (2026-11-20)
+
+**Scope.** Five AI stock-coverage follow-ups after §27KO: freshly verify Q7b/Q7c and the recorded
+live results, finalize successful coverage answers deterministically, accept an exact product name
+with ambiguity refusal, separate selected/succeeded/used coverage in the evaluator with a semantic
+proxy-caveat judgement, and update the affected documentation. Q7 and Q8 were not edited. No model,
+fallback, reasoning or web configuration was changed; no production data, paid evaluation, commit,
+push, merge or deployment was made.
+
+**Fresh review.** The recorded artifact is `server/.tmp-stock-coverage-live.json` at
+**2026-11-20T18:33:38.835Z**. Its six rows, summary and fixture counts (14 products, 22 stock rows,
+30 movements) match §27KO exactly: **0/6 first-choice, 5/6 coverage anywhere, 1 correction, 0
+errors, 0 infinite-cover claims**, **$0.007846** recorded turn cost and **5.6–45.8 s** latency. The
+artifact's `proxyCaveatAnswers: 0` is an exact-phrase count; the new semantic detector finds the
+one `longer-at-rate` answer that says "sales, usage, damage, or write-offs" without saying
+"movement proxy". The old artifact predates the new per-row succeeded/used fields, so recomputing it
+reports those as unknown/null rather than treating all five selected rows as unused; selection and
+the semantic caveat are the only new metrics that can be reconstructed from it. Q7b was re-read as
+a no-tool first draft followed by one correction and a coverage call; Q7c was re-read as a second
+miss that stores the ungrounded sentence. The evaluator's duplicated count expressions were replaced
+by one pure metrics module rather than left duplicated.
+
+**Deterministic finalizer.** A successful `getProductStockCoverage` result is captured in the turn
+loop and the stored answer is rebuilt from `product.name`, current available quantity, the window,
+units out, movement count, average daily rate, `daysOfCover` and location scope. A non-null estimate
+is stated as days of cover; a null result states that the window had no stock-out movements and no
+rate can be estimated. Both forms include: "Stock-out is a movement proxy, not confirmed sales: it
+can be usage, damage or a write-off, so this is an estimate, not a guarantee." The finalizer also
+rescues an `OUTPUT_LIMIT` draft because the tool result is complete, and a later failed coverage call
+clears any earlier product's summary. `ChatResult.coverageRead` exposes `succeeded`, `finalized` and
+`daysOfCover` for measurement without exposing a new client field.
+
+**Exact-name resolution.** `getProductStockCoverage` now accepts exactly one of `id`, `sku`,
+`barcode` or `name`. `productService.listByExactName` performs an anchored, case- and
+surrounding-whitespace-insensitive whole-name query scoped by `businessId`, with at most two
+candidates. Zero matches return a clear not-found result; two matches return `ambiguous: true`,
+the candidate ids/names/SKUs and an instruction to ask which one; partial names do not match. The
+prompt and the corrective re-ask now prefer the exact name and forbid choosing an ambiguous row.
+
+**Evaluator.** `eval-stock-coverage-metrics.mjs` now owns the judgements. A row separates
+`coverageSelected` (the model requested the tool), `coverageSucceeded` (the tool returned a usable
+coverage result) and `coverageUsed` (the finalizer actually shaped the stored answer). The summary
+adds `succeededAny`, `usedAny`, `selectedButUnused`, `coverageSucceededRateAny`,
+`coverageUsedRateAny` and semantic `proxyCaveatAnswers`. The harness exits 1 when selection is
+incomplete **or** a selected coverage call did not finalize an answer. The `--validate-only` path
+still makes no provider or database call; no paid evaluation was run.
+
+**Tests added.** Q7d sends a quantity-only draft after a successful coverage read and asserts the
+6-unit/15-day estimate and caveat; Q7e sends an estimate-only draft and asserts the caveat appears
+exactly once. Q7b now relies on the finalizer instead of duplicating the expected prose. AI-118 adds
+schema acceptance for `name`, exact-name success, case/whitespace normalization, partial/foreign
+refusal, duplicate ambiguity and the exactly-one-identifier refusal. Three pure tests cover exact
+and semantic caveats, selected/succeeded/used counts, and empty-sample null rates.
+
+**Verification.** AI-118 DB **9/9** (unit suite skipped in DB mode); AI-118 unit **5/5** (DB suite
+skipped in unit mode); Phase 06 **18/18**; evaluator metrics **4/4**; focused AI-2 read-only scan,
+typecheck and ESLint recorded in [`DEVELOPMENT_LOG.md`](DEVELOPMENT_LOG.md). The full server suite
+was not run. No paid evaluation, production write, commit, push, merge or deployment was made.
+
+**Limitations and remaining work.** The finalizer is deterministic for the coverage facts, but it
+replaces model prose for a coverage question rather than merging a second requested fact; a future
+compound-question path should preserve that second fact. Exact names are intentionally strict and
+do not fuzzy-match; duplicate names require a follow-up choice. The live selection rate is still a
+single six-question sample and was not re-run. The semantic caveat detector is a bounded wording
+heuristic, not a proof of meaning. Catalogue-wide run-out ranking, two-product/current-versus-minimum
+comparison, a repeated live ledger and confirmed stock-out reasons remain unimplemented.
+
+# 27KR. Explicit product-currency correction, mixed-currency price comparisons and bounded FX retry (2026-11-20)
+
+**Scope.** Completed the three currency-hardening follow-ups from §27KJ/§27KL: an audited way to
+correct a product's recorded currency, currency-safe price sorting/filtering, and bounded FX
+single-flight/negative-cache/backoff. The prior AI-118 stock-coverage work, the release and
+monitoring work and all unrelated reliability changes remain in the tree unchanged. No model,
+fallback, reasoning, web, production-data or production-configuration change was made; no commit,
+push, merge or deployment was performed.
+
+**Currency edit guard.** `PATCH /api/products/:id` still accepts a repeated exact stored code so an
+ordinary edit can keep the field, but it refuses any actual replacement with
+`CURRENCY_CORRECTION_REQUIRED`; clearing or a legacy row with no valid code is refused as before.
+The only replacement path is `POST /api/products/:id/currency-correction`, bound to
+`products.manage`, tenant-scoped and validated with the normal partial product payload plus a
+3–500-character `reason` and the literal `priceReconfirmed: true`. The service re-checks both
+conditions for direct callers, refuses a same-code correction with
+`CURRENCY_CORRECTION_NOT_APPLICABLE`, and writes `PRODUCT_CURRENCY_CORRECTED` with
+`previousCurrency`, `currency`, `reason`, `priceReconfirmed` and the changed fields. The mobile edit
+form detects a changed picker value, collects the reason and shows a reconfirmation chip before
+calling the correction API; an unchanged code still uses ordinary PATCH.
+
+**Mixed-currency sorting and filters.** The ordinary product list exposes no price sort or price
+ceiling, so the guarded comparison lives in the assistant's `findProducts`. It discovers the exact
+recorded currency groups across the whole matching set (including a `null` group), then:
+
+- scopes to the ISO code the member named; or
+- uses the one unambiguous recorded code; or
+- refuses a mixed/unrecorded comparison and returns `priceRankBlocked` / `priceFilterBlocked` with
+  `priceCurrencies` and zero items rather than comparing unlike raw numbers.
+
+`productService.priceCurrencies()` and `productService.list()` independently refuse a numeric price
+ceiling or ranking without one exact recorded currency, so a direct service caller cannot bypass the
+tool rule. Unrecorded prices stay `null`, are excluded from a ranking and never match a price
+ceiling; no conversion is performed. The response carries `priceFilterCurrency` and a note when an
+explicit currency scopes a successful ceiling.
+
+**FX retry and health.** `exchangeRates.fetchVerifiedExchangeRate()` keeps the dated ECB verification,
+six-hour positive cache and seven-day maximum rate age, and adds:
+
+- one in-flight promise per `from:to` pair, so concurrent callers share one provider request;
+- a bounded 256-entry negative cache, starting at 30 seconds and doubling after each failure up to
+  five minutes, which returns `null` without a provider call while active;
+- a successful quote clearing the negative entry immediately, preserving recovery;
+- `negativeCacheHits` and `coalescedRequests` beside the existing request, cache-hit, verified,
+  same-currency, stale and unavailable counters, all still process-local and published through
+  `/api/health.exchangeRates` without tenant or provider detail.
+
+There is still no guessed-rate fallback and `/ready` / `/live` remain independent of FX
+availability.
+
+**Tests and surface.** `currency-required-and-marketplace.test.mjs` now covers an ordinary-PATCH
+replacement refusal, a repeated same-code edit, a legacy-row correction with audit metadata, the
+required reason/reconfirmation, cross-tenant refusal and the service price-scope guard. Its FX cases
+prove three simultaneous lookups produce one provider request, a failure is briefly suppressed and
+never returns a number, repeated failures back off exponentially, and a success clears the negative
+entry. `AI45-natural-product-search.test.mjs` adds a mixed PHP/USD/unrecorded fixture: both a
+ceiling and a ranking refuse the mixed set, while an explicit PHP or USD code scopes each result.
+The mobile form tests cover the currency picker and legacy correction path. The route inventory is
+now **127 routes = 70 permission-gated + 24 authenticated + 33 public + 0 role-gated**.
+
+**Verification.** Server typecheck and focused ESLint pass. Currency unit mode passed **17 pass / 1
+skipped** and DB mode **8 pass / 3 skipped**, both with 0 failures. AI-45 DB passed **14 pass / 1
+skipped**, including the mixed-currency filter/ranking case. INTEGRITY-RECOVERY passed **17/17**;
+phase04 catalog and phase20 filter/pagination regressions passed **47/47**. Phase 23 and
+documentation guards passed **41/41**, including the 127-route inventory, record count and index
+checks. Audit-label parity passed **8/8** after the new action was labelled. Mobile
+typecheck, focused form Jest **5/5**, audit-label Jest **4/4** and focused ESLint pass. `check-docs`
+reports **71 active / 48 living**, and `git diff --check` is clean. No production data, migration,
+commit, push, merge or deployment was made.
+
+**Limitations.** Mixed groups are blocked conservatively and deliberately ignore `inStockOnly`, so
+an out-of-stock product in another currency can still block a comparison; an explicit ISO code is
+the escape hatch. The ordinary list has no price sort, so a future list-level sort/filter must reuse
+the same scope rule rather than adding an unguarded numeric sort. The correction audit is
+best-effort after the product commit, like other product audit events. FX failures remain
+process-local with no durable alerting or second provider; a restart clears both caches and the
+counters. No live FX outage, production database or mobile device was exercised in this pass.

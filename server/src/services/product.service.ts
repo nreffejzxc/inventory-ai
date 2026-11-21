@@ -11,7 +11,7 @@ import { AUDIT_ACTIONS, AUDIT_ENTITY_TYPES } from '../constants/audit.ts';
 import { classifyStockStatus } from '../constants/stockStatus.ts';
 import { internalEan13Candidates } from '../utils/internalBarcode.ts';
 import { normaliseLookupText } from '../utils/lookupText.ts';
-import { isProductCurrencyCode, normaliseCurrencyCode } from '../constants/currencies.ts';
+import { normaliseCurrencyCode } from '../constants/currencies.ts';
 
 /**
  * A business/user id as it arrives here: the request layer stringifies it
@@ -74,6 +74,12 @@ type ProductWritePayload = {
   imageUrl?: string | null;
 };
 
+/** Explicit authority for the one operation that may replace a recorded currency. */
+export type ProductCurrencyCorrection = {
+  reason: string;
+  priceReconfirmed: true;
+};
+
 /**
  * A currency is never inferred: the caller must supply a valid ISO 4217 code.
  * The controller validates it too, but the service is also called directly by
@@ -89,6 +95,12 @@ function requireProductCurrency(value: unknown): string {
     );
   }
   return currency;
+}
+
+/** Legacy rows may hold a lower-case or padded code; only an exact stored code is already valid. */
+function exactStoredCurrency(value: unknown): string | null {
+  if (typeof value !== 'string' || value === '') return null;
+  return value === normaliseCurrencyCode(value) ? value : null;
 }
 
 /**
@@ -193,6 +205,28 @@ function sellingPriceMatch(
     range[maxSellingPriceInclusive ? '$lte' : '$lt'] = maxSellingPrice;
   }
   return Object.keys(range).length > 0 ? range : undefined;
+}
+
+/**
+ * A numeric price comparison needs one recorded currency. The AI tool decides
+ * which currency the matching rows carry before calling the list service; this
+ * guard is the service-level backstop so a future caller cannot silently rank
+ * a PHP amount against a USD amount. It is deliberately a 400 contract error,
+ * not an inference: the caller must name or discover the currency.
+ */
+function assertPriceComparisonScope(
+  sort: ProductListSort | undefined,
+  maxSellingPrice: number | undefined,
+  priceCurrency: string | undefined,
+) {
+  const priceSort = sort === 'price_asc' || sort === 'price_desc';
+  if ((priceSort || maxSellingPrice !== undefined) && !priceCurrency) {
+    throw new ApiError(
+      400,
+      'A price comparison requires one recorded ISO 4217 currency.',
+      'PRICE_CURRENCY_REQUIRED',
+    );
+  }
 }
 
 function productSort(sort: ProductListSort | undefined): Record<string, 1 | -1> {
@@ -653,6 +687,27 @@ export const productService = {
   },
 
   /**
+   * Resolve a product by its EXACT recorded name, scoped to the business.
+   *
+   * The coverage tool accepts a name so a run-out question can use the tool
+   * directly instead of spending a search round-trip. A name is not an id:
+   * only an anchored, case-insensitive whole-name match qualifies, and at most
+   * two rows are returned so the caller can refuse an ambiguous duplicate
+   * rather than silently choosing one product. This is a read-only lookup.
+   */
+  async listByExactName(businessId: IdLike, name: unknown) {
+    const value = normaliseLookupText(name);
+    if (!value) return [];
+    return Product.find({
+      businessId,
+      name: { $regex: `^${escapeRegExp(value)}$`, $options: 'i' },
+    })
+      .populate('categoryId', 'name status')
+      .sort({ _id: 1 })
+      .limit(2);
+  },
+
+  /**
    * Single-product barcode lookup for the REST endpoint. Barcodes are unique
    * within a business (partial unique index), so this resolves to at most one
    * product; ARCHIVED products are returned with their status (never treated as
@@ -664,25 +719,71 @@ export const productService = {
     return doc;
   },
 
-  async update(businessId: IdLike, id: IdLike, userId: IdLike, payload: ProductWritePayload) {
+  async update(
+    businessId: IdLike,
+    id: IdLike,
+    userId: IdLike,
+    payload: ProductWritePayload,
+    currencyCorrection?: ProductCurrencyCorrection,
+  ) {
     const doc = await Product.findOne({ _id: id, businessId }).populate('categoryId', 'name status');
     if (!doc) notFound('Product not found');
 
-    // Every edit must leave the product with a valid currency. An existing
-    // product may keep the code it already has; a legacy row with none (or with
-    // a malformed code) must be given one in this request. This is also what
-    // makes the audit's resolution path safe: a human supplies the code after
-    // verifying it, and the API records exactly that value.
+    // Every edit must leave the product with a valid currency. An ordinary edit
+    // may keep the exact code the row already has, but it may never replace it:
+    // a currency change reinterprets both stored price numbers, so it needs the
+    // explicit correction endpoint, a human reason and a price reconfirmation.
+    // Keep the raw previous value for the audit (a legacy `php` or padded code is
+    // evidence of what was actually stored); `previousCurrency` is the exact
+    // accepted code used by the guard.
+    const rawPreviousCurrency = typeof doc.currency === 'string' && doc.currency !== '' ? doc.currency : null;
+    const previousCurrency = exactStoredCurrency(doc.currency);
+    let nextCurrency = previousCurrency;
+    let currencyChanged = false;
     if (payload.currency === undefined) {
-      if (!isProductCurrencyCode(doc.currency)) {
+      if (!previousCurrency) {
         throw new ApiError(
           400,
-          'This product has no valid recorded currency. Send a verified ISO 4217 currency with the edit.',
+          'This product has no valid recorded currency. Use the currency-correction endpoint with a verified ISO 4217 code, a reason and price reconfirmation.',
           'CURRENCY_REQUIRED'
         );
       }
+      if (currencyCorrection) {
+        throw new ApiError(
+          400,
+          'A currency correction must send the replacement currency.',
+          'CURRENCY_CORRECTION_REQUIRED'
+        );
+      }
     } else {
-      payload.currency = requireProductCurrency(payload.currency);
+      nextCurrency = requireProductCurrency(payload.currency);
+      currencyChanged = nextCurrency !== previousCurrency;
+      if (currencyChanged && !currencyCorrection) {
+        throw new ApiError(
+          400,
+          'Changing a product currency requires the explicit currency-correction endpoint, a reason and price reconfirmation.',
+          'CURRENCY_CORRECTION_REQUIRED'
+        );
+      }
+      if (
+        currencyChanged &&
+        currencyCorrection &&
+        (currencyCorrection.priceReconfirmed !== true || currencyCorrection.reason.trim().length < 3)
+      ) {
+        throw new ApiError(
+          400,
+          'A currency correction requires a reason of at least 3 characters and explicit price reconfirmation.',
+          'CURRENCY_CORRECTION_REQUIRED'
+        );
+      }
+      if (!currencyChanged && currencyCorrection) {
+        throw new ApiError(
+          400,
+          'The replacement currency is the same as the recorded code; no correction is needed.',
+          'CURRENCY_CORRECTION_NOT_APPLICABLE'
+        );
+      }
+      payload.currency = nextCurrency;
     }
 
     if (payload.categoryId !== undefined && String(payload.categoryId ?? '') !== String(doc.categoryId?._id ?? doc.categoryId ?? '')) {
@@ -741,10 +842,20 @@ export const productService = {
       await safeProductAudit({
         businessId,
         userId,
-        action: AUDIT_ACTIONS.PRODUCT_UPDATED,
+        action: currencyChanged
+          ? AUDIT_ACTIONS.PRODUCT_CURRENCY_CORRECTED
+          : AUDIT_ACTIONS.PRODUCT_UPDATED,
         entityType: AUDIT_ENTITY_TYPES.PRODUCT,
         entityId: doc._id,
-        metadata: { updated: updatedFields },
+        metadata: currencyChanged
+          ? {
+              updated: updatedFields,
+              previousCurrency: rawPreviousCurrency,
+              currency: nextCurrency,
+              reason: currencyCorrection!.reason.trim(),
+              priceReconfirmed: true,
+            }
+          : { updated: updatedFields },
       });
     }
     return doc;
@@ -871,6 +982,7 @@ export const productService = {
       limit,
     }: ProductListFilters
   ) {
+    assertPriceComparisonScope(sort, maxSellingPrice, priceCurrency);
     const filter: Record<string, unknown> = { businessId: new ObjectId(businessId) };
     if (status === 'ACTIVE' || status === 'ARCHIVED') filter.status = status;
     if (categoryId) filter.categoryId = new ObjectId(categoryId);
@@ -990,6 +1102,7 @@ export const productService = {
       limit,
     }: ProductListFilters
   ) {
+    assertPriceComparisonScope(sort, maxSellingPrice, priceCurrency);
     const bizOid = new ObjectId(businessId);
     // Loose filter document: keys are added conditionally below.
     const match: Record<string, unknown> = { businessId: bizOid };

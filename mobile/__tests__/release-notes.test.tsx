@@ -62,6 +62,14 @@ jest.mock('../lib/auth', () => ({
   isSessionError: () => false,
 }));
 
+const mockFocusRefetch: { current: (() => void) | null } = { current: null };
+jest.mock('../hooks/useRefetchOnFocus', () => ({
+  __esModule: true,
+  default: (callback: () => void) => {
+    mockFocusRefetch.current = callback;
+  },
+}));
+
 jest.mock('../lib/api', () => ({
   dashboardApi: { summary: jest.fn(async () => ({})) },
   productsApi: { reorder: jest.fn(async () => ({ items: [] })) },
@@ -432,5 +440,24 @@ describe('the dashboard', () => {
 
     await waitFor(() => expect(summary).toHaveBeenCalled());
     expect(queryByText(LATEST.title)).toBeNull();
+  });
+
+  it('keeps earlier data visible with an honest stale warning, and retries from it', async () => {
+    const view = await mount(<DashboardScreen />);
+    await waitFor(() => expect(view.getByText('Overview')).toBeTruthy());
+    expect(view.queryByText('Showing earlier data — pull to retry.')).toBeNull();
+
+    await waitFor(() => expect(mockFocusRefetch.current).toBeTruthy());
+    summary.mockRejectedValueOnce(new Error('network down'));
+    await act(async () => {
+      await mockFocusRefetch.current?.();
+    });
+
+    expect(await view.findByText('Showing earlier data — pull to retry.')).toBeTruthy();
+    // The figures may be old, but the change note is still reachable below the warning.
+    expect(view.getByText(LATEST.title)).toBeTruthy();
+
+    await fireEvent.press(view.getByText('Showing earlier data — pull to retry.'));
+    await waitFor(() => expect(view.queryByText('Showing earlier data — pull to retry.')).toBeNull());
   });
 });

@@ -2,6 +2,7 @@
   "actions": {
     "PRODUCT_CREATED": "Product created",
     "PRODUCT_UPDATED": "Product updated",
+    "PRODUCT_CURRENCY_CORRECTED": "Currency corrected",
     "PRODUCT_ARCHIVED": "Product archived",
     "CATEGORY_CREATED": "Category created",
     "CATEGORY_UPDATED": "Category updated",

@@ -8,8 +8,14 @@ document, not a specification: behaviour is still owned by
 [`guides/18-ai-assistant-limits.md`](guides/18-ai-assistant-limits.md), and what shipped by the
 roadmap records in [`DEVELOPMENT_ROADMAP.md`](DEVELOPMENT_ROADMAP.md).
 
-**Last reviewed:** 2026-11-20, against the read-only AI-118 audit, the bounded run-out read and the
-DB-backed Phase 06 run-out turns in the working tree. The earlier 2026-11-16 baseline was AI-114
+**Last reviewed:** 2026-11-20, against the read-only AI-118 audit, the bounded run-out read, the
+DB-backed Phase 06 run-out turns, the approved six-paraphrase live run and the deterministic
+coverage follow-up. The live run selected coverage somewhere in **5/6**, first in **0/6**, corrected
+one wrong-tool draft, left one corrected turn ungrounded, and exposed one turn where coverage was
+selected but the answer omitted the estimate. The follow-up now adds exact-name resolution with
+ambiguity refusal and a finalizer that rebuilds a successful coverage answer with the estimate and
+proxy caveat; model configuration is unchanged. The live run remains one sample; its full result is
+in the audit §10 and roadmap §27KO, and the implementation is §27KQ. The earlier 2026-11-16 baseline was AI-114
 merged as `e5c1c1d`, AI-115/AI-116 in the working tree, the production server at `e5c1c1d`, and the
 production Android app on runtime `1.0.2` with OTA
 `9d759ee5-82c5-4fbe-afe0-3a0ea2c44f6c`. AI-114 renders an explicit complete restock/low-stock
@@ -192,7 +198,9 @@ a foreign or missing product/location instead of reporting a plausible zero.
 **Still missing.** Catalogue-wide velocity/run-out ranking, a configured excess-stock rule and a
 monitoring score. “Needs closer monitoring” remains a human judgement, not a computed fact. Treat
 excess stock as a configurable rule, not a guess; every output is a recommendation with its
-evidence, and every action remains the member's.
+evidence, and every action remains the member's. The 2026-11-21 stock-coverage candidate ranking
+(evidence gate, days-to-minimum, catalogue-wide run-out and six further items) is in
+[`INVENTORY_AI_FOLLOWUP_ASSESSMENT.md`](INVENTORY_AI_FOLLOWUP_ASSESSMENT.md) §3; none is implemented.
 
 **Accepted when.** No insight is generated from a missing field; a run-out estimate states its
 window and does not pretend to be a guarantee; an excess recommendation states its rule; no
@@ -325,7 +333,7 @@ a product feature; `P1` is the next high-value tranche; `P2` needs a policy, dat
 
 | Rank | Improvement | Priority | Benefit | Dependency / gate |
 |---:|---|---|---|---|
-| 1 | **Live-model coverage paraphrase evaluation.** The bounded `eval:stock-coverage` harness runs six run-out/cover/“how long” paraphrases against the configured model and records the first and all tools used, plus whether the corrective re-ask fired. A live result still needs to be captured. | P0 | The DB-backed `Q7`/`Q8` turn proves the offer → correction → execution → persistence path with a scripted provider; it cannot prove a live model picks the right tool. This is the missing evidence before trusting production selection. | An explicitly approved live run with the existing key/model and the six-question cap. Keep it out of default CI; never change the production model to make it pass. |
+| 1 | **Live-model coverage paraphrase evaluation.** The bounded `eval:stock-coverage` harness runs six run-out/cover/“how long” paraphrases against the configured model and records the first and all tools used, plus whether the corrective re-ask fired. The 2026-11-20 run captured **0/6 first-choice, 5/6 anywhere, 1 corrected draft, 1 ungrounded**, plus one selected-but-unused estimate; see below and audit §10. | P0 | The DB-backed `Q7`/`Q8` turn proves the offer → correction → execution → persistence path with a scripted provider; it cannot prove a live model picks the right tool. The 2026-11-20 result supplies the missing evidence: 5/6 anywhere and 0/6 first for these six name questions, with one selected-but-unused answer. It does not establish a production selection rate. The follow-up (§27KQ) implements the finalizer and exact-name path; repeat live runs remain. | An explicitly approved live run with the existing key/model and the six-question cap. Keep it out of default CI; never change the production model to make it pass. |
 | 2 | **Deterministic two-product comparison and current-versus-minimum comparison.** One scoped read or finalizer labels both sides, missing fields and the comparison basis. | P1 | Removes the last common model-composed arithmetic shape; makes “compare A and B” and “how far below minimum?” exact and testable. | Existing `getProduct`, inventory availability and `unitsBelowMinimum`; currency values must stay separate unless a verified rate exists. |
 | 3 | **Catalogue-wide run-out ranking.** Rank ACTIVE products by days of cover or projected need using one bounded aggregate, with an explicit stock-out-proxy rule. | P1 | Turns the one-product coverage read into a restock-priority list without N+1 product reads; answers “what will run out first?” with evidence. | A product/business-wide aggregation, a fixed window and a minimum-movement rule so a single stock-out cannot define a trend. Do not add seasonality or lead time. |
 | 4 | **One consistent inventory report snapshot.** Return catalogue totals, low/out counts, category and location splits, the as-of time and definitions in one object. | P1 | Prevents sections read at different moments from disagreeing and gives report questions one deterministic source. | Existing dashboard/inventory aggregates; an agreed definition of low versus out and a stated snapshot boundary. |
@@ -338,8 +346,47 @@ a product feature; `P1` is the next high-value tranche; `P2` needs a policy, dat
 | 11 | **Confirmed sales reason on stock-out.** Record a reason (sale, usage, damage, write-off) so demand and loss can be separated. | P3 | Stock-out is currently a proxy; this would make true demand and shrink analysis possible without statistical guesses. | A schema/migration and a member-facing reason field; historical rows remain unknown and must not be relabelled. |
 | 12 | **Voice input and bounded file export.** Speech-to-text for the member's question and CSV/PDF export of the stored answer or captured rows. | P3 | Improves field use and sharing; neither changes the read-only answer logic. | A mobile dependency and privacy review for voice; a file/share and PDF path for export. Not server-side AI features. |
 
-**Sequencing rule.** The item 1 harness is implemented; a live result must be captured before any
-claim that production run-out answers select coverage. Items 2–5 are the next code tranche because they reuse recorded data and close known accuracy/transparency
-gaps. Items 6–9 need a product or data-boundary decision. Items 10–12 need a scheduler, schema or
-mobile dependency and should not be folded into an accuracy fix. None is a reason to weaken the
-read-only rule, tenant isolation or the existing permission gates.
+### 2026-11-20 live result and revised order
+
+The approved run used the configured `openai/gpt-oss-20b` primary with two fallbacks and a
+disposable development tenant. It is one six-question sample, not a benchmark, and the harness
+exited 1 by design because coverage was not selected in every turn. The important outcomes are
+behavioural, not a score: at the time, a name question could not select coverage first because the
+tool accepted only id/SKU/barcode (now fixed by the exact-name path); one corrected turn still failed
+to select it and correctly degraded; and one
+turn selected coverage but stored only a quantity, so the member never saw the estimate. Only one
+of the five grounded answers explicitly explained that stock-out is not confirmed sales.
+
+**Implemented in the 2026-11-20 follow-up (§27KQ):** the deterministic coverage finalizer builds
+the days-of-cover answer (or the explicit no-rate outcome) and proxy caveat from a successful tool
+result; `getProductStockCoverage` now accepts an exact recorded product name and refuses ambiguous
+or partial names; and the evaluator separates selected, succeeded and finalized/used coverage and
+judges the caveat semantically. The model configuration was not changed. Q7/Q8 remain in place,
+with Q7b/Q7c retained and Q7d/Q7e added for the missing-estimate and missing-caveat paths.
+
+**Revised remaining priorities:**
+
+1. **Catalogue-wide run-out ranking (existing #3, P1).** One bounded aggregate with an explicit
+   minimum-movement rule. Why: “what will run out first?” is the operational question; N+1 product
+   reads are not.
+2. **Two-product and current-versus-minimum comparison (existing #2, P1).** Both labelled sides,
+   missing fields and the comparison basis from one read. Why: comparison remains the last common
+   model-composed arithmetic shape and must keep currencies separate.
+3. **Repeated bounded selection ledger (new, P2).** The harness now records selected, succeeded,
+   finalized/used and selected-but-unused outcomes with semantic caveat judgement. Repeat approved
+   runs outside CI without changing the model; one sample cannot establish a trend.
+4. **Search/page within the previous answer (existing #6, P2).** A bounded cursor or query over the
+   captured result set. Why: follow-ups currently re-read the catalogue they already saw.
+5. **Supplier/PO-aware restock (existing #8, P2).** Read-only commitments and recorded terms beside
+   the shortage. Why: prevents double-ordering without adding a write path.
+6. **Confirmed stock-out reason (existing #11, P3).** Sale/usage/damage/write-off needs a schema;
+   historical rows stay unknown.
+7. **Scheduled digest or proactive alert (existing #10, P3).** Needs a scheduler, delivery surface,
+    consent and deduplication.
+
+**Sequencing rule.** The live evaluation is complete; it does not prove production selection or
+answer quality. The finalizer, exact-name route and semantic evaluator are implemented and focused
+tests pass. Catalogue-wide ranking and comparison follow the remaining accuracy/transparency gates;
+the repeated ledger, supplier/PO work and the P3 items need a product/data-boundary decision, a
+schema or a delivery surface. None is a reason to weaken the read-only rule, tenant isolation or the
+existing permission gates.

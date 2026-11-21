@@ -310,6 +310,174 @@ dbSuite('Phase 06 — AI chat behavior', dbOk, () => {
     assert.deepEqual(res.json.assistantMessage.answerContext.sources, ['Inventory records']);
   });
 
+  it('Q7b a no-tool run-out draft is corrected, then answered from coverage', async () => {
+    // The no-tool answer is the other common failure: the model writes a forecast-shaped
+    // sentence without reading anything at all. The coverage guard must issue the same one
+    // corrective re-ask before that sentence can be stored, and the corrected turn must use
+    // only the coverage read rather than a plain quantity read.
+    const noToolName = uniqueName('Coverage No-tool');
+    const noTool = await newProduct(biz, {
+      name: noToolName,
+      sku: uniqueName('COV-NOTOOL'),
+      minimumStock: 2,
+    });
+    await movement(biz, 'stock-in', noTool, locationId, 10);
+    await movement(biz, 'stock-out', noTool, locationId, 4);
+
+    let turn = 0;
+    let correctionSeen = false;
+    setFakeScenario((ctx) => {
+      turn += 1;
+      if (turn === 1) {
+        return fakeText(`${noToolName} should last about two weeks.`);
+      }
+      if (turn === 2) {
+        const correction = lastUserMessage(ctx);
+        assert.match(correction, /getProductStockCoverage/);
+        assert.match(correction, /run-out|stock-cover/i);
+        correctionSeen = true;
+        return fakeCalls([
+          { id: 'coverage-notool', name: 'getProductStockCoverage', input: { id: noTool, days: 10 } },
+        ]);
+      }
+
+      const result = lastToolResult(ctx).result;
+      assert.equal(result.found, true);
+      assert.equal(result.current.availableQuantity, 6);
+      assert.equal(result.movement.unitsOut, 4);
+      assert.equal(result.forecast.daysOfCover, 15);
+      // The finalizer must supply the estimate and caveat even when the model's draft
+      // omits both; this keeps the corrected-path test from depending on model prose.
+      return fakeText(`${noToolName} has 6 units available.`);
+    });
+
+    const res = await chat(biz.token, { message: `How long will ${noToolName} last?` });
+    assert.equal(res.status, 201, JSON.stringify(res.json));
+    assert.equal(turn, 3, 'the no-tool draft did not receive exactly one correction and a read');
+    assert.equal(correctionSeen, true, 'the no-tool draft was never corrected');
+    assert.equal(res.json.degraded, undefined);
+    assert.match(res.json.assistantMessage.content, /6 units available/);
+    assert.match(res.json.assistantMessage.content, /15 days of cover/);
+    assert.match(res.json.assistantMessage.content, /movement proxy, not confirmed sales/i);
+    assert.deepEqual(res.json.assistantMessage.toolsUsed, ['getProductStockCoverage']);
+  });
+
+  it('Q7c a second draft without coverage ships the honest ungrounded sentence', async () => {
+    // One correction is the whole budget. If the model answers again without the coverage
+    // read, the turn must not store a plausible forecast assembled from conversation or
+    // ordinary knowledge; it must use the existing member-facing ungrounded sentence.
+    const failedName = uniqueName('Coverage Second-miss');
+    const failed = await newProduct(biz, {
+      name: failedName,
+      sku: uniqueName('COV-SECOND'),
+      minimumStock: 2,
+    });
+    await movement(biz, 'stock-in', failed, locationId, 5);
+
+    let turn = 0;
+    let correctionSeen = false;
+    setFakeScenario((ctx) => {
+      turn += 1;
+      if (turn === 1) {
+        return fakeText(`${failedName} should last about two weeks.`);
+      }
+      assert.match(lastUserMessage(ctx), /getProductStockCoverage/);
+      correctionSeen = true;
+      return fakeText(`${failedName} has 5 units, so it should last about 15 days.`);
+    });
+
+    const res = await chat(biz.token, { message: `How long will ${failedName} last?` });
+    assert.equal(res.status, 201, JSON.stringify(res.json));
+    assert.equal(turn, 2, 'a second miss must stop after the one corrective re-ask');
+    assert.equal(correctionSeen, true, 'the first miss was never corrected');
+    assert.equal(res.json.degraded, 'UNGROUNDED_ANSWER');
+    assert.equal(
+      res.json.assistantMessage.content,
+      'I could not read that from your records just now. Please ask again — or open the Inventory screen to check it directly.',
+    );
+    assert.doesNotMatch(res.json.assistantMessage.content, /15 days|two weeks|5 units/i);
+    assert.deepEqual(res.json.assistantMessage.toolsUsed ?? [], []);
+  });
+
+  it('Q7d a successful coverage read repairs a quantity-only draft', async () => {
+    // The live artifact selected the tool and then stored only "12 units on hand".
+    // A successful coverage result must be enough: the finalizer supplies the days
+    // estimate and the proxy caveat without another model call.
+    const missingEstimateName = uniqueName('Coverage Missing Estimate');
+    const missingEstimate = await newProduct(biz, {
+      name: missingEstimateName,
+      sku: uniqueName('COV-MISSING-ESTIMATE'),
+      minimumStock: 2,
+    });
+    await movement(biz, 'stock-in', missingEstimate, locationId, 10);
+    await movement(biz, 'stock-out', missingEstimate, locationId, 4);
+
+    let turn = 0;
+    setFakeScenario(() => {
+      turn += 1;
+      if (turn === 1) {
+        return fakeCalls([
+          {
+            id: 'coverage-missing-estimate',
+            name: 'getProductStockCoverage',
+            input: { id: missingEstimate, days: 10 },
+          },
+        ]);
+      }
+      // Deliberately incomplete: the tool returned the estimate, but the draft drops it.
+      return fakeText(`${missingEstimateName} has 6 units available.`);
+    });
+
+    const res = await chat(biz.token, { message: `How long will ${missingEstimateName} last?` });
+    assert.equal(res.status, 201, JSON.stringify(res.json));
+    assert.equal(res.json.degraded, undefined);
+    assert.match(res.json.assistantMessage.content, /6 units available/);
+    assert.match(res.json.assistantMessage.content, /15 days of cover/);
+    assert.match(res.json.assistantMessage.content, /movement proxy, not confirmed sales/i);
+    assert.deepEqual(res.json.assistantMessage.toolsUsed, ['getProductStockCoverage']);
+  });
+
+  it('Q7e a grounded estimate without the proxy caveat is completed', async () => {
+    const missingCaveatName = uniqueName('Coverage Missing Caveat');
+    const missingCaveat = await newProduct(biz, {
+      name: missingCaveatName,
+      sku: uniqueName('COV-MISSING-CAVEAT'),
+      minimumStock: 2,
+    });
+    await movement(biz, 'stock-in', missingCaveat, locationId, 10);
+    await movement(biz, 'stock-out', missingCaveat, locationId, 4);
+
+    let turn = 0;
+    setFakeScenario(() => {
+      turn += 1;
+      if (turn === 1) {
+        return fakeCalls([
+          {
+            id: 'coverage-missing-caveat',
+            name: 'getProductStockCoverage',
+            input: { id: missingCaveat, days: 10 },
+          },
+        ]);
+      }
+      return fakeText(
+        `${missingCaveatName} has 6 units available. Over the 10-day window, 4 units went out, ` +
+          'so the estimate is 15 days of cover.',
+      );
+    });
+
+    const res = await chat(biz.token, { message: `How long will ${missingCaveatName} last?` });
+    assert.equal(res.status, 201, JSON.stringify(res.json));
+    assert.equal(res.json.degraded, undefined);
+    assert.match(res.json.assistantMessage.content, /15 days of cover/);
+    assert.match(res.json.assistantMessage.content, /movement proxy, not confirmed sales/i);
+    assert.equal(
+      (res.json.assistantMessage.content.match(/movement proxy/gi) ?? []).length,
+      1,
+      'the finalizer must not duplicate the caveat',
+    );
+    assert.deepEqual(res.json.assistantMessage.toolsUsed, ['getProductStockCoverage']);
+  });
+
   it('Q8 a coverage turn with no stock-out history refuses to invent a rate', async () => {
     const idleName = uniqueName('Coverage Idle');
     const idle = await newProduct(biz, { name: idleName, sku: uniqueName('COV-IDLE') });

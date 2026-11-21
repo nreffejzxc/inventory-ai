@@ -13,6 +13,10 @@ export const AUDIT_ACTIONS = Object.freeze({
   LOCATION_ARCHIVED: 'LOCATION_ARCHIVED',
   PRODUCT_CREATED: 'PRODUCT_CREATED',
   PRODUCT_UPDATED: 'PRODUCT_UPDATED',
+  // A currency code reinterprets every stored price number. Recorded separately
+  // from an ordinary edit so the trail carries the previous/new code, the human
+  // reason and the explicit price reconfirmation, not just "currency changed".
+  PRODUCT_CURRENCY_CORRECTED: 'PRODUCT_CURRENCY_CORRECTED',
   PRODUCT_ARCHIVED: 'PRODUCT_ARCHIVED',
   SUPPLIER_CREATED: 'SUPPLIER_CREATED',
   SUPPLIER_UPDATED: 'SUPPLIER_UPDATED',

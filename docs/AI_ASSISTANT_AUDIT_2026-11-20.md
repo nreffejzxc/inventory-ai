@@ -1,10 +1,15 @@
 # Inventory AI Assistant — audit and status, 2026-11-20
 
-**Status:** audited and implemented in the working tree; **not committed, deployed or exercised against a
-live provider in this pass.** The assistant remains read-only under `CLAUDE.md` §AI V1. `Q7` now
-starts with a wrong `getProduct` choice and proves the single corrective re-ask before the answer;
-the bounded `eval:stock-coverage` harness exists but its live result is not part of this pass. This
-record is the evidence behind the feature matrix; `SYSTEM_SPECIFICATION.md` owns behaviour and
+**Status:** audited and implemented in the working tree; the scripted turn regressions and one
+approved six-paraphrase live run were completed on 2026-11-20. **Not committed or deployed.** The
+assistant remains read-only under `CLAUDE.md` §AI V1. `Q7` now starts with a wrong `getProduct`
+choice and proves the single corrective re-ask before the answer; `Q7b` covers a no-tool first
+draft and `Q7c` covers a second miss, while Q8 keeps the no-history null-cover behaviour. The live
+run selected coverage somewhere in 5/6 paraphrases, first in 0/6, corrected one draft and exposed
+one selected-but-unused estimate. The follow-up adds Q7d/Q7e for missing estimates/caveats, exact-name
+coverage resolution with ambiguity refusal, and a deterministic coverage finalizer; see §10. This
+record is the evidence behind the feature matrix;
+`SYSTEM_SPECIFICATION.md` owns behaviour and
 [`guides/18-ai-assistant-limits.md`](guides/18-ai-assistant-limits.md) owns limits.
 
 ## 1. Method
@@ -86,17 +91,18 @@ both to be quoted.
 
 This is verified at four levels: the wire-level catalogue test (the exact 22 tool names and strict
 schemas), the executor tests (arguments, isolation, arithmetic), the prompt tests (coverage rule
-present, proxy boundary stated), and the DB-backed Phase 06 turn regression (`Q7`/`Q8`). That turn
-goes through the real HTTP route, tool loop, MongoDB reads, answer persistence and provenance: the
-provider is offered `getProductStockCoverage`, the turn executes it, and the stored answer keeps the
-proxy caveat; a no-history product keeps `daysOfCover: null` and refuses to invent a rate. **The provider is scripted**, so this proves the offer → correction → execution → persistence contract,
-not that a live model chooses coverage for every paraphrase. `Q7` first asks for `getProduct`; the
-turn loop discards that draft, issues one corrective re-ask, then executes coverage and stores the
-caveated answer. A second miss ships the honest ungrounded sentence. The free simple route
-deliberately does not recognise run-out wording, so it escalates to the tool-capable route instead
-of answering from the free prompt. `npm run eval:stock-coverage` is the bounded, opt-in live
-selection check; it records first/all tool choices without changing model configuration and is not
-part of default CI.
+present, proxy boundary stated), and the DB-backed Phase 06 turn regressions (`Q7`, `Q7b`, `Q7c`,
+`Q8`). Those turns go through the real HTTP route, tool loop, MongoDB reads, answer persistence and
+provenance: the provider is offered `getProductStockCoverage`, the turn executes it, and the stored
+answer keeps the proxy caveat; a no-history product keeps `daysOfCover: null` and refuses to invent
+a rate. **The provider is scripted**, so this proves the offer → correction → execution →
+persistence contract, not that a live model chooses coverage for every paraphrase. `Q7` first asks
+for `getProduct`; `Q7b` writes a forecast-shaped sentence with no tool call; both receive the one
+corrective re-ask and then execute coverage. `Q7c` proves a second miss ships the honest ungrounded
+sentence. The free simple route deliberately does not recognise run-out wording, so it escalates to
+the tool-capable route instead of answering from the free prompt. `npm run eval:stock-coverage` is
+the bounded, opt-in live selection check; the 2026-11-20 run is recorded in §10. It records
+first/all tool choices without changing model configuration and is not part of default CI.
 
 ## 3. Defects found and fixed
 
@@ -189,22 +195,33 @@ with a wrong `getProduct` choice and proves coverage is executed before the answ
 without a provider or database call. Focused AI-118 results were **5/6 unit with the DB suite
 skipped** and **8/9 DB with the unit suite skipped**; Phase 06 behaviour passed **14/14**. The
 complete server suite then passed **3,311/3,311 tests across 538 suites**, with **0 failures, 0
-skips and 0 cancelled** (exit 0, `--test-concurrency=2`, 1,840,452.9 ms). The implemented feature was
-**not** exercised against a live provider, a production database or the installed phone, and no live
-model-evaluation result is claimed.
+skips and 0 cancelled** (exit 0, `--test-concurrency=2`, 1,840,452.9 ms).
+
+**2026-11-20 follow-up.** Added Q7b (no-tool first draft) and Q7c (second miss); Phase 06 now passes
+**16/16**; AI-118 unit mode passed **5 with 1 skipped** and DB mode **8 with 1 skipped**; typecheck,
+focused ESLint and documentation tests **31/31** passed. The approved six-paraphrase live run
+completed against the configured `openai/gpt-oss-20b` primary with two fallbacks, a disposable
+development tenant, and no configuration change. Coverage was selected somewhere in **5/6**, first
+in **0/6**; one corrected turn stayed ungrounded; one selected turn stored only a quantity. The
+harness exited **1 by design** for the incomplete selection, with **0 errors** and **0 infinite-cover
+claims**. Full detail and the limitation that this is one sample are in §10. The feature was still
+**not** exercised against production or the installed phone.
 
 ## 7. Files changed in this audit
 
 | Area | File | Change |
 | --- | --- | --- |
-| Tool | `server/src/services/ai/tools.ts` | New coverage tool; exact-identifier guard; active-only location stock; corrected dead-stock wording |
+| Tool | `server/src/services/ai/tools.ts` | Coverage tool with exact id/SKU/barcode/name resolution and ambiguity refusal; active-only location stock; corrected dead-stock wording |
 | Service | `server/src/services/inventory.service.ts` | `productAvailability` whole-set aggregate |
-| Prompt/context | `server/src/services/ai/ai.service.ts` | Coverage prompt rule, inline product-fact capture and the one corrective run-out re-ask |
-| Intent guard | `server/src/services/ai/answerCompletion.ts` | Narrow run-out/stock-cover detector; ordinary stock questions stay untouched |
+| Product lookup | `server/src/services/product.service.ts` | Business-scoped, anchored exact-name lookup (at most two candidates) |
+| Prompt/context | `server/src/services/ai/ai.service.ts` | Coverage prompt rule, exact-name guidance, inline coverage capture, one corrective re-ask and deterministic finalizer |
+| Intent guard/finalizer | `server/src/services/ai/answerCompletion.ts` | Narrow run-out detector plus the deterministic estimate/caveat answer |
 | Provenance | `server/src/services/ai/answerContext.ts` | Coverage source labeling and `days` Inspect filter |
 | Tests | `server/test/AI118-stock-coverage.test.mjs` | New unit + DB regression suite |
-| Tests | `server/test/phase06-ai-behavior.test.mjs` | DB-backed run-out turn with a wrong first tool, corrective re-ask, and no-history turn |
-| Evaluation | `server/scripts/eval-stock-coverage.mjs`, `server/package.json` | Bounded opt-in six-paraphrase live selection evaluator; no model/config change |
+| Tests | `server/test/phase06-ai-behavior.test.mjs` | DB-backed run-out turns: wrong first tool, no-tool first draft, second miss, missing estimate, missing caveat, corrective re-ask, and no-history turn |
+| Tests | `server/test/AI118-stock-coverage.test.mjs` | Exact-name resolution, partial/duplicate/foreign refusal, plus the original coverage arithmetic |
+| Tests | `server/test/eval-stock-coverage-metrics.test.mjs` | Pure semantic-caveat and selected/succeeded/used metric tests; no paid call |
+| Evaluation | `server/scripts/eval-stock-coverage.mjs`, `server/scripts/eval-stock-coverage-metrics.mjs`, `server/package.json` | Bounded opt-in live evaluator with separate selection/success/use and semantic caveat metrics; no model/config change |
 | Tests | `server/test/AI2-ai-readonly-tools.test.mjs` | Read-only allowlist for the new service methods |
 | Tests | `server/test/phase06-ai-tools.test.mjs` | 22-tool catalogue and exact-identifier error |
 | Tests | `server/test/phase-openrouter-provider.test.mjs` | 22-tool wire workload |
@@ -239,11 +256,74 @@ model or key.
 
 ## 9. Remaining work
 
-The ranked follow-up list, with benefits, dependencies and priorities, is kept in
-[`AI_ASSISTANT_IMPROVEMENT_ROADMAP.md`](AI_ASSISTANT_IMPROVEMENT_ROADMAP.md) §6. The nearest safe
-slices are capturing a live `eval:stock-coverage` result, a deterministic two-product comparison,
-a catalogue-wide run-out ranking with an explicit rule, and a single consistent report object.
-Supplier lead time, confirmed sales, cost basis, revenue and true demand history are not recorded,
-so the assistant must continue to say so rather than infer them. Voice input and file export require
-a separate mobile/product decision; automatic reports and proactive alerts require a scheduler and
-a delivery surface that do not exist. None of the ranked ideas is implemented by this audit.
+The live evaluation is captured in §10; the ranked follow-up list, with benefits, dependencies and
+priorities, is kept in
+[`AI_ASSISTANT_IMPROVEMENT_ROADMAP.md`](AI_ASSISTANT_IMPROVEMENT_ROADMAP.md) §6. The deterministic
+coverage finalizer, exact-name resolution and semantic evaluator are implemented in the follow-up
+recorded in §10; the remaining accuracy work is catalogue-wide run-out ranking, two-product
+comparison and a repeated selection ledger.
+A deterministic two-product comparison, a catalogue-wide run-out ranking with an explicit rule, and
+a single consistent report object remain the next accuracy tranche. Supplier lead time, confirmed
+sales, cost basis, revenue and true demand history are not recorded, so the assistant must continue
+to say so rather than infer them. Voice input and file export require a separate mobile/product
+decision; automatic reports and proactive alerts require a scheduler and a delivery surface that do
+not exist. The original audit did not implement the ranked ideas; the 2026-11-20 follow-up
+implements the first three (finalizer, exact-name coverage and semantic evaluator).
+
+## 10. Live coverage evaluation — 2026-11-20
+
+**Configuration and boundary.** `AI_TEST_ALLOW_PAID_MODELS=true npm run eval:stock-coverage` used
+the configured OpenRouter primary `openai/gpt-oss-20b` and its two configured fallbacks. It changed
+no model, fallback, reasoning or web setting. It ran against the development database with a
+disposable tenant seeded from the demo fixture (14 products, 22 stock rows, 30 movements), then
+removed that tenant in `finally`. The six questions are fixed run-out paraphrases; no question
+invoked web research. The process exited **1 by design** because coverage was not selected in all
+six turns; there were **0 errors** and no infinite-cover claims. The recorded turn cost was about
+**$0.007846**.
+
+| Question | First tool | All tools | Coverage | Corrected | Outcome |
+| --- | --- | --- | --- | --- | --- |
+| `how-long` | `searchProducts` | `searchProducts` | not selected | yes | **ungrounded** after one correction; no coverage call |
+| `days-of-cover` | `findProducts` | `findProducts`, `getProductStockCoverage` | later | no | 45 days from the 30-day stock-out window |
+| `run-out-soon` | `findProducts` | `findProducts`, `getInventory`, `getProductStockCoverage` | later | no | 10 pcs, 3 units out / 30 days, about 100 days |
+| `stock-coverage` | `searchProducts` | `searchProducts`, `getProductStockCoverage`, `getInventory` | later | no | **12 units on hand only; estimate and caveat omitted** |
+| `until-runs-out` | `searchProducts` | `searchProducts`, `getProductStockCoverage` | later | no | 32 units, 0.27 units/day, about 120 days |
+| `longer-at-rate` | `findProducts` | `findProducts`, `getProductStockCoverage` | later | no | 8 units, 0.067 units/day, about 120 days; explicit stock-out caveat |
+
+Harness summary: **first-read coverage 0/6; coverage anywhere 5/6; corrected by re-ask 1; errors
+0; exact proxy-caveat phrase 0/6; infinite-cover claims 0.** The exact-phrase metric is narrower
+than the answers. Manual reading found **1 of the 5 grounded answers** explicitly stating that
+stock-out includes sales, usage, damage or write-offs; three named the stock-out/outflow basis
+without that boundary, and `stock-coverage` omitted the estimate entirely. The new evaluator
+uses a semantic detector: on this artifact it counts that one Samsung answer as a proxy caveat,
+while preserving the recorded exact-phrase figure above. The artifact predates the new
+succeeded/used row fields, so those are unknown/null when it is recomputed; only selection and the
+semantic caveat are reconstructable. Calls per turn were 3–5 and latency was 5.6–45.8 seconds.
+
+**Findings.** At the time of the run, first-choice selection was structurally unlikely for name
+questions because `getProductStockCoverage` accepted only an id, SKU or barcode; every live question
+named a product, so the model had to search first. Coverage selection is not answer utilization: `stock-coverage`
+read the tool and then stored a quantity-only answer. One correction can fail (`how-long`) and the
+turn then correctly degrades. The movement-proxy caveat is not reliably repeated by the model. The
+run is one six-question sample, not a selection-rate guarantee or a statistical benchmark.
+
+**Resulting priorities.** (1) deterministic coverage answer/finalizer — **implemented in the
+follow-up**; (2) a name-resolving one-call coverage path — **implemented**; (3) enforced proxy
+caveat at the answer boundary — **implemented**; (4) catalogue-wide run-out ranking; (5) two-product
+and current-versus-minimum comparison; (6) repeated bounded selection ledger — the harness now
+records selected/succeeded/finalized-used and semantic caveats, but repeat runs remain pending;
+(7) search/page within the previous answer; (8) supplier/PO-aware restock. Confirmed sale reasons
+and scheduled digests remain later because they need a schema, scheduler or delivery surface. The full reasoning and benefit statement is in
+[`AI_ASSISTANT_IMPROVEMENT_ROADMAP.md`](AI_ASSISTANT_IMPROVEMENT_ROADMAP.md) §6.
+
+**Follow-up implementation (working tree, not deployed).** The recorded artifact remains unchanged;
+re-reading it confirms 0/6 first, 5/6 anywhere, 1 correction, 0 errors, 14/22/30 fixture counts,
+$0.007846 cost and 5.6–45.8 s latency. `getProductStockCoverage` now accepts exactly one id, SKU,
+barcode or exact recorded name; `productService.listByExactName` is business-scoped and anchored,
+returns at most two candidates, and reports ambiguity instead of choosing. A successful coverage
+result is captured by the turn loop and rebuilt by `stockCoverageAnswer`, so the stored answer
+states the estimate (or explicit no-rate outcome), window and proxy caveat; a later failed coverage
+call clears the earlier summary. Q7b/Q7c remain, Q8 remains the null-cover case, and Q7d/Q7e cover
+missing-estimate and missing-caveat drafts. The evaluator records selected, succeeded and
+finalized/used coverage separately and uses a semantic caveat detector; no paid run was made. The
+full implementation record is §27KQ.

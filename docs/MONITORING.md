@@ -10,13 +10,20 @@ prints a secret, a token, a prompt, an answer, a tenant id or a member's identit
 
 ---
 
-## 1. The three health endpoints
+## 1. The health endpoints
 
 | Endpoint | Answers | Status | Database |
 | --- | --- | --- | --- |
 | `GET /api/health` | Which process is answering, in which posture, with what response counters | Always `200` while the process is up | Reported, not required |
 | `GET /api/health/live` | Is the process alive? | Always `200` | Never consulted |
 | `GET /api/health/ready` | Can MongoDB be reached right now? | `200` ready, `503` not ready | Checked |
+
+`GET /health` and `GET /ready` are backward-compatible aliases of the two `api` paths. They run
+the **same handlers** and return the same bodies and status codes; they are not a second
+implementation. There is deliberately no bare `/health/live` alias, so the compatibility surface is
+exactly the two paths older monitors may already use. New monitoring should prefer the canonical
+`/api/health*` paths. A readiness `503` on either path is counted as a server error; a stale
+`/api/health/integrity` `503` remains monitoring-only.
 
 `GET /api/health` also carries the build identity and the OPS-2 pulse:
 
@@ -38,6 +45,8 @@ prints a secret, a token, a prompt, an answer, a tenant id or a member's identit
     "status": "available",
     "requests": 12,
     "cacheHits": 7,
+    "negativeCacheHits": 2,
+    "coalescedRequests": 3,
     "verified": 4,
     "sameCurrency": 1,
     "stale": 0,
@@ -54,8 +63,10 @@ prints a secret, a token, a prompt, an answer, a tenant id or a member's identit
 `exchangeRates` is the existing process-local `exchangeRateAvailability()` snapshot. It is
 informational only: `/api/health/ready` and `/api/health/live` do not read it, and a stale or missing
 ECB rate never becomes a guessed conversion. Its `status` is `unused`, `available`, `degraded` or
-`unavailable`. It carries aggregate counts and timestamps, not a pair, a URL, tenant data or a
-provider body. It resets on restart, like the response counters.
+`unavailable`. `negativeCacheHits` counts lookups suppressed by the bounded failure cache, and
+`coalescedRequests` counts callers that joined one in-flight provider request. It carries aggregate
+counts and timestamps, not a pair, a URL, tenant data or a provider body. It resets on restart, like
+the response counters.
 
 Every response also carries `X-Instance-ID`, the per-boot identity the port guard uses. It is not a
 credential and it changes on restart. It is how a stale process on the same port is detected.
@@ -172,6 +183,52 @@ touching production; a manual run uses the production defaults unless inputs ove
 never emitted a scheduled run for v2, and its unused schedule trigger was removed during the
 2026-11-11 cleanup. UptimeRobot is the primary automatic path; use
 `gh workflow run production-health-watch-v2.yml` for a controlled manual probe or issue-path test.
+
+### Post-deployment SHA verification (read-only)
+
+`scripts/verify-production-deploy.mjs` is the read-only release check. It polls the public
+`/api/health` until the deployed `commit` matches the expected merged `main` SHA, then requires
+`/api/health/ready` to be `200` with `status: ready` and `db: connected`, and `/api/health/live` to
+be `200`. It never authenticates, writes, deploys or prints a response body.
+
+```sh
+cd C:/Users/jeffe/inventory-ai
+node scripts/verify-production-deploy.mjs --sha="$(git rev-parse HEAD)"
+gh workflow run verify-production-deploy.yml -f sha="$(git rev-parse HEAD)"
+```
+
+The workflow runs automatically on every `server/`-scoped push to `main` (including a merge
+commit) and can be dispatched for a specific SHA. It uses a ten-minute polling budget and fails with a distinct
+`sha_mismatch`, `health_check_failed` or `timeout` reason. Exit `0` means the expected build is
+serving and ready; exit `1` is a failed verification; exit `2` is invalid configuration. A failure
+does not roll back or redeploy — Render's normal deploy and the protected release workflow remain the
+only deployment paths.
+
+The 2026-11-20 check verified production `7d112cc22f66a7c871d22e2c573313df1f493427` on the first
+attempt: health `200`, readiness `200`, liveness `200`, database `connected`.
+
+### 2026-11-20 startup 5xx review
+
+The deploy of `7d112cc` exposed one 5xx and then no further failure:
+
+- merge committed at **18:18:21Z**; the serving process's counters began at approximately
+  **18:19:01Z**;
+- the only 5xx was at **18:19:18.513Z**, about 17 seconds after that start;
+- by **19:24Z** the same process had served **1,031** responses — **988 `2xx`**, **34 `3xx`**,
+  **8 `4xx`** and **1 `5xx`** — and `/api/health/ready`, `/api/health/live` and `/api/health` were
+  all healthy.
+
+**Classification:** this is consistent with a transient readiness/startup probe, not a genuine
+startup failure. A process that failed to start would not have served the next 1,000 requests; a
+readiness `503` is intentionally counted in `serverErrors`, which is the exact signature observed.
+The process counter publishes only the status and timestamp, not the path, and the Render log/API was
+not available to this review (no Render API token; the local CLI is blocked), so the specific request
+path is **not proven**. This limitation is recorded rather than converted into a claim.
+
+The regression coverage is `server/test/POST-DEPLOY-verification.test.mjs`: it pins the startup
+signature (a readiness `503` counted while `/api/health` and `/live` remain `200`) and the alias
+equivalence. No startup code was changed: making `/ready` answer `200` before the database/index
+checks pass would weaken the gate, and the observed process recovered without intervention.
 
 ### Windows fallback (disabled)
 
@@ -565,6 +622,9 @@ grep "AI turn" <log> | grep -oE "model=[^ ]+ tier=[^ ]+" | sort | uniq -c
 - **`/api/health` is public.** It publishes a commit id, a posture name, counts and the aggregate
   exchange-rate availability snapshot. It never publishes a path, a tenant, a member, a duration, a
   message, a currency pair, a provider URL or a credential.
+- **The SHA verifier proves the build and the current probes, not the deployment mechanism.** It
+  cannot see a deploy that never started, and it does not roll back. It also cannot prove the request
+  path of a past 5xx because the process pulse deliberately stores no path.
 
 ---
 
@@ -573,6 +633,7 @@ grep "AI turn" <log> | grep -oE "model=[^ ]+ tier=[^ ]+" | sort | uniq -c
 | Piece | File |
 | --- | --- |
 | Health endpoints | `server/src/routes/health.routes.ts` |
+| Bare health aliases | `server/src/app.ts` (`GET /health`, `GET /ready`) |
 | OPS-2 counters | `server/src/config/operationalCounters.ts` |
 | Request ids and access log | `server/src/middlewares/` |
 | AI turn formatters | `server/src/services/ai/aiMonitor.ts` |
@@ -592,6 +653,8 @@ grep "AI turn" <log> | grep -oE "model=[^ ]+ tier=[^ ]+" | sort | uniq -c
 | Counters tests | `server/test/OPS2-operational-counters.test.mjs` |
 | Exchange-rate availability and health exposure tests | `server/test/currency-required-and-marketplace.test.mjs`, `server/test/phase07d-production-config.test.mjs` |
 | External uptime probe | `scripts/check-production-health.mjs` |
+| Post-deploy SHA verifier | `scripts/verify-production-deploy.mjs` |
+| Post-deploy verification workflow | `.github/workflows/verify-production-deploy.yml` |
 | External watch workflow | `.github/workflows/production-health-watch-v2.yml` |
 | External scheduler wrapper | `scripts/trigger-production-health-watch.ps1` |
 | External scheduler registration | `scripts/register-production-health-scheduler.ps1` |
@@ -605,4 +668,5 @@ grep "AI turn" <log> | grep -oE "model=[^ ]+ tier=[^ ]+" | sort | uniq -c
 | Integrity-operations task | `scripts/run-integrity-ops.ps1`, `scripts/register-integrity-ops-scheduler.ps1` |
 | Transfer-ledger migration | `server/scripts/migrate-transfer-ledger-index.mjs`, `server/src/services/transferLedgerMigration.service.ts` |
 | Probe tests | `server/test/ops-production-health.test.mjs` |
+| Alias and SHA-verifier tests | `server/test/POST-DEPLOY-verification.test.mjs` |
 | Recorded design | `docs/DEVELOPMENT_ROADMAP.md` §27DI (the pulse), §27HU–§27HX (AI-99 through the external watch), §27IA (the integrity monitor) |

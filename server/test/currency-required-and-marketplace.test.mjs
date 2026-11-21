@@ -24,7 +24,9 @@ import { PRODUCT_CURRENCY_CODES } from '../src/constants/currencies.ts';
 import { validateProduct } from '../src/utils/validate.ts';
 import { executeTool } from '../src/services/ai/tools.ts';
 import {
+  EXCHANGE_RATE_BACKOFF_MAX_MS,
   EXCHANGE_RATE_MAX_AGE_MS,
+  EXCHANGE_RATE_NEGATIVE_TTL_MS,
   exchangeRateAvailability,
   fetchVerifiedExchangeRate,
   resetExchangeRateState,
@@ -36,6 +38,7 @@ import {
 } from '../src/services/ai/marketPrices.ts';
 import Product from '../src/models/product.model.ts';
 import AuditLog from '../src/models/auditLog.model.ts';
+import { productService } from '../src/services/product.service.ts';
 import { productCurrencyAuditReport } from '../src/services/productCurrencyAudit.service.ts';
 import {
   MAX_CURRENCY_RESOLUTION_ENTRIES,
@@ -112,6 +115,21 @@ unitSuite('Currency contract — ISO 4217 list and request validation', () => {
       const cleared = validateProduct({ currency: value }, { partial: true });
       assert.ok(cleared.problems.some((problem) => problem.field === 'currency'), `clearing ${String(value)} must fail`);
     }
+  });
+
+  it('★ the list service refuses a raw price comparison without one recorded currency', async () => {
+    await assert.rejects(
+      productService.list('64f000000000000000000001', { sort: 'price_asc', skip: 0, limit: 1 }),
+      (err) => err?.code === 'PRICE_CURRENCY_REQUIRED',
+    );
+    await assert.rejects(
+      productService.list('64f000000000000000000001', {
+        maxSellingPrice: 100,
+        skip: 0,
+        limit: 1,
+      }),
+      (err) => err?.code === 'PRICE_CURRENCY_REQUIRED',
+    );
   });
 });
 
@@ -327,6 +345,119 @@ unitSuite('Exchange-rate cache — dated, bounded and never guessed', () => {
     assert.equal(calls, 0);
     assert.equal(exchangeRateAvailability().sameCurrency, 1);
   });
+
+  it('★ coalesces concurrent identical lookups into one provider request', async () => {
+    resetExchangeRateState();
+    const cache = new Map();
+    const negativeCache = new Map();
+    const inFlight = new Map();
+    let calls = 0;
+    let release;
+    const gate = new Promise((resolve) => {
+      release = resolve;
+    });
+    const fetchImpl = async () => {
+      calls += 1;
+      await gate;
+      return payload();
+    };
+
+    const requests = [1, 2, 3].map(() =>
+      fetchVerifiedExchangeRate('USD', 'PHP', {
+        fetchImpl,
+        now,
+        cache,
+        negativeCache,
+        inFlight,
+      }),
+    );
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.equal(calls, 1, 'only the leader may call the provider');
+    release();
+    const quotes = await Promise.all(requests);
+    assert.ok(quotes.every((quote) => quote?.rate === 58.5));
+    assert.equal(calls, 1);
+    assert.equal(exchangeRateAvailability().coalescedRequests, 2);
+    assert.equal(exchangeRateAvailability().verified, 1);
+  });
+
+  it('★ negative-caches a failure briefly and never serves a guessed number', async () => {
+    resetExchangeRateState();
+    const cache = new Map();
+    const negativeCache = new Map();
+    const inFlight = new Map();
+    let calls = 0;
+    const fetchImpl = async () => {
+      calls += 1;
+      throw new Error('provider down');
+    };
+    const first = await fetchVerifiedExchangeRate('USD', 'PHP', {
+      fetchImpl,
+      now,
+      cache,
+      negativeCache,
+      inFlight,
+    });
+    const second = await fetchVerifiedExchangeRate('USD', 'PHP', {
+      fetchImpl,
+      now: new Date(now.getTime() + 1_000),
+      cache,
+      negativeCache,
+      inFlight,
+    });
+    assert.equal(first, null);
+    assert.equal(second, null);
+    assert.equal(calls, 1, 'a repeated lookup inside the negative window must not hit the provider');
+    const availability = exchangeRateAvailability();
+    assert.equal(availability.negativeCacheHits, 1);
+    assert.equal(availability.unavailable, 1);
+    assert.equal(availability.status, 'unavailable');
+  });
+
+  it('★ backs off exponentially, recovers, and clears the negative entry on success', async () => {
+    resetExchangeRateState();
+    const cache = new Map();
+    const negativeCache = new Map();
+    const inFlight = new Map();
+    let calls = 0;
+    const fetchImpl = async () => {
+      calls += 1;
+      if (calls <= 2) throw new Error('provider down');
+      return payload();
+    };
+    const options = (at) => ({ fetchImpl, now: at, cache, negativeCache, inFlight });
+
+    assert.equal(await fetchVerifiedExchangeRate('USD', 'PHP', options(now)), null);
+    assert.equal(
+      await fetchVerifiedExchangeRate('USD', 'PHP', options(new Date(now.getTime() + EXCHANGE_RATE_NEGATIVE_TTL_MS))),
+      null,
+    );
+    assert.equal(calls, 2, 'the first retry is allowed at the end of the first negative window');
+    assert.equal(
+      await fetchVerifiedExchangeRate(
+        'USD',
+        'PHP',
+        options(new Date(now.getTime() + EXCHANGE_RATE_NEGATIVE_TTL_MS * 3 - 1_000)),
+      ),
+      null,
+    );
+    assert.equal(calls, 2, 'the second failure doubles the window');
+
+    const recoveredAt = new Date(now.getTime() + EXCHANGE_RATE_NEGATIVE_TTL_MS * 3);
+    const recovered = await fetchVerifiedExchangeRate('USD', 'PHP', options(recoveredAt));
+    assert.equal(recovered?.rate, 58.5);
+    assert.equal(calls, 3);
+    assert.equal(negativeCache.size, 0);
+    assert.ok(EXCHANGE_RATE_BACKOFF_MAX_MS >= EXCHANGE_RATE_NEGATIVE_TTL_MS);
+
+    const cached = await fetchVerifiedExchangeRate(
+      'USD',
+      'PHP',
+      options(new Date(recoveredAt.getTime() + 1_000)),
+    );
+    assert.equal(cached?.rate, 58.5);
+    assert.equal(calls, 3, 'a recovered quote is served from the positive cache');
+  });
 });
 
 dbSuite('Currency contract — API, legacy rows, audit and assistant output', dbOk, () => {
@@ -359,7 +490,7 @@ dbSuite('Currency contract — API, legacy rows, audit and assistant output', db
     assert.equal(valid.json.currency, 'PHP');
   });
 
-  it('★ audits a legacy missing currency and resolves it only through an explicit PATCH', async () => {
+  it('★ blocks ordinary PATCH currency changes and resolves a legacy row through the audited correction endpoint', async () => {
     const name = uniqueName('Legacy product');
     const inserted = await Product.collection.insertOne({
       businessId: new mongoose.Types.ObjectId(owner.businessId),
@@ -384,13 +515,137 @@ dbSuite('Currency contract — API, legacy rows, audit and assistant output', db
     assert.equal(blocked.status, 400, JSON.stringify(blocked.json));
     assert.equal(blocked.json.code, 'CURRENCY_REQUIRED');
 
-    const resolved = await api('PATCH', `/api/products/${inserted.insertedId}`, {
+    const ordinaryChange = await api('PATCH', `/api/products/${inserted.insertedId}`, {
       token: owner.token,
       body: { currency: 'PHP' },
+    });
+    assert.equal(ordinaryChange.status, 400, JSON.stringify(ordinaryChange.json));
+    assert.equal(ordinaryChange.json.code, 'CURRENCY_CORRECTION_REQUIRED');
+
+    const missingFields = await api('POST', `/api/products/${inserted.insertedId}/currency-correction`, {
+      token: owner.token,
+      body: { currency: 'PHP' },
+    });
+    assert.equal(missingFields.status, 400, JSON.stringify(missingFields.json));
+    assert.ok(missingFields.json.fields.some((field) => field.field === 'reason'));
+    assert.ok(missingFields.json.fields.some((field) => field.field === 'priceReconfirmed'));
+
+    const unconfirmed = await api('POST', `/api/products/${inserted.insertedId}/currency-correction`, {
+      token: owner.token,
+      body: { currency: 'PHP', reason: 'Supplier invoice correction', priceReconfirmed: false },
+    });
+    assert.equal(unconfirmed.status, 400, JSON.stringify(unconfirmed.json));
+    assert.ok(unconfirmed.json.fields.some((field) => field.field === 'priceReconfirmed'));
+
+    const resolved = await api('POST', `/api/products/${inserted.insertedId}/currency-correction`, {
+      token: owner.token,
+      body: {
+        currency: 'PHP',
+        reason: 'Supplier invoice correction',
+        priceReconfirmed: true,
+      },
     });
     assert.equal(resolved.status, 200, JSON.stringify(resolved.json));
     assert.equal(resolved.json.currency, 'PHP');
     assert.equal(resolved.json.sellingPrice, 20, 'the original monetary values were preserved');
+
+    const correctionAudit = await AuditLog.findOne({
+      businessId: owner.businessId,
+      entityId: String(inserted.insertedId),
+      action: 'PRODUCT_CURRENCY_CORRECTED',
+    });
+    assert.ok(correctionAudit, 'the correction must write a distinct audit event');
+    assert.equal(correctionAudit.metadata.previousCurrency, null);
+    assert.equal(correctionAudit.metadata.currency, 'PHP');
+    assert.equal(correctionAudit.metadata.reason, 'Supplier invoice correction');
+    assert.equal(correctionAudit.metadata.priceReconfirmed, true);
+
+    const again = await api('POST', `/api/products/${inserted.insertedId}/currency-correction`, {
+      token: owner.token,
+      body: { currency: 'PHP', reason: 'Repeat attempt', priceReconfirmed: true },
+    });
+    assert.equal(again.status, 400, JSON.stringify(again.json));
+    assert.equal(again.json.code, 'CURRENCY_CORRECTION_NOT_APPLICABLE');
+  });
+
+  it('★ an ordinary edit cannot use correction fields to change a valid code; the explicit endpoint records both codes', async () => {
+    const name = uniqueName('Explicit correction');
+    const created = await api('POST', '/api/products', {
+      token: owner.token,
+      body: { name, sellingPrice: 10, currency: 'USD' },
+    });
+    assert.equal(created.status, 201, JSON.stringify(created.json));
+    const id = created.json.id;
+
+    const ordinaryChange = await api('PATCH', `/api/products/${id}`, {
+      token: owner.token,
+      body: {
+        currency: 'PHP',
+        currencyCorrectionReason: 'Not the explicit endpoint',
+        priceReconfirmed: true,
+      },
+    });
+    assert.equal(ordinaryChange.status, 400, JSON.stringify(ordinaryChange.json));
+    assert.equal(ordinaryChange.json.code, 'CURRENCY_CORRECTION_REQUIRED');
+    assert.equal((await Product.findById(id)).currency, 'USD');
+
+    const sameCurrency = await api('PATCH', `/api/products/${id}`, {
+      token: owner.token,
+      body: { name: `${name} renamed`, currency: 'USD' },
+    });
+    assert.equal(sameCurrency.status, 200, JSON.stringify(sameCurrency.json));
+    assert.equal(sameCurrency.json.currency, 'USD');
+
+    const corrected = await api('POST', `/api/products/${id}/currency-correction`, {
+      token: owner.token,
+      body: {
+        currency: 'PHP',
+        sellingPrice: 560,
+        reason: 'Supplier pricing was quoted in PHP',
+        priceReconfirmed: true,
+      },
+    });
+    assert.equal(corrected.status, 200, JSON.stringify(corrected.json));
+    assert.equal(corrected.json.currency, 'PHP');
+    assert.equal(corrected.json.sellingPrice, 560);
+
+    const audit = await AuditLog.findOne({
+      businessId: owner.businessId,
+      entityId: id,
+      action: 'PRODUCT_CURRENCY_CORRECTED',
+    });
+    assert.ok(audit);
+    assert.equal(audit.metadata.previousCurrency, 'USD');
+    assert.equal(audit.metadata.currency, 'PHP');
+    assert.equal(audit.metadata.reason, 'Supplier pricing was quoted in PHP');
+    assert.equal(audit.metadata.priceReconfirmed, true);
+    assert.ok(audit.metadata.updated.includes('sellingPrice'));
+
+    const sameCorrection = await api('POST', `/api/products/${id}/currency-correction`, {
+      token: owner.token,
+      body: { currency: 'PHP', reason: 'Already PHP', priceReconfirmed: true },
+    });
+    assert.equal(sameCorrection.status, 400, JSON.stringify(sameCorrection.json));
+    assert.equal(sameCorrection.json.code, 'CURRENCY_CORRECTION_NOT_APPLICABLE');
+  });
+
+  it('★ the correction endpoint is tenant-scoped', async () => {
+    const otherBusinessId = new mongoose.Types.ObjectId();
+    const foreign = await Product.collection.insertOne({
+      businessId: otherBusinessId,
+      name: uniqueName('Foreign currency row'),
+      sellingPrice: 10,
+      currency: 'USD',
+      status: 'ACTIVE',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    const response = await api('POST', `/api/products/${foreign.insertedId}/currency-correction`, {
+      token: owner.token,
+      body: { currency: 'PHP', reason: 'Cross-tenant attempt', priceReconfirmed: true },
+    });
+    assert.equal(response.status, 404, JSON.stringify(response.json));
+    assert.equal((await Product.findById(foreign.insertedId)).currency, 'USD');
   });
 
   it('★ a dry-run evidence file writes nothing; applying it resolves legacy rows once and audits them', async () => {

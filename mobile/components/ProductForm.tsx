@@ -1,9 +1,10 @@
 import { useRef, useState } from 'react';
 import { router } from 'expo-router';
-import { StyleSheet } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
 import Banner from './Banner';
 import Button from './Button';
+import Chip from './Chip';
 import Input from './Input';
 import type { InputHandle } from './Input';
 import Screen from './Screen';
@@ -23,6 +24,7 @@ import { normaliseCurrencyCode, PRODUCT_CURRENCIES } from '../lib/currencies';
 import { useSession } from '../lib/auth';
 import { useActiveRef } from '../hooks/useReferences';
 import { spacing } from '../lib/theme';
+import { useTheme } from '../lib/theme-context';
 
 const CURRENCY_OPTIONS: SelectOption[] = PRODUCT_CURRENCIES.map(({ code, name }) => ({
   value: code,
@@ -64,6 +66,7 @@ function toWhole(text: string | null | undefined): ParsedNumber {
  */
 export default function ProductForm({ initial }: { initial?: ApiResponse }) {
   const { token, user } = useSession();
+  const { colors } = useTheme();
   const isEdit = Boolean(initial);
   const categories = useActiveRef(token, categoriesApi);
 
@@ -85,6 +88,14 @@ export default function ProductForm({ initial }: { initial?: ApiResponse }) {
   // the right currency instead of guessing. An edit of a legacy row with no code must
   // supply one here; the field is never silently cleared.
   const [currency, setCurrency] = useState<string>(initial?.currency ?? '');
+  // The server accepts only the EXACT stored code on an ordinary edit. Comparing
+  // a normalised selection with a normalised legacy `php` (or padded) value would
+  // hide the correction the server requires, so compare against the raw value.
+  const initialCurrency = typeof initial?.currency === 'string' ? initial.currency : '';
+  const selectedCurrency = normaliseCurrencyCode(currency);
+  const currencyNeedsCorrection = isEdit && selectedCurrency !== initialCurrency;
+  const [currencyCorrectionReason, setCurrencyCorrectionReason] = useState('');
+  const [priceReconfirmed, setPriceReconfirmed] = useState(false);
   const [minimumStock, setMinimumStock] = useState<string>(
     initial?.minimumStock != null && initial.minimumStock !== 0 ? String(initial.minimumStock) : ''
   );
@@ -117,6 +128,14 @@ export default function ProductForm({ initial }: { initial?: ApiResponse }) {
     const code = normaliseCurrencyCode(currency);
     if (!code) {
       problems.currency = 'Currency is required. Use a valid ISO 4217 code, e.g. PHP';
+    }
+    if (isEdit && currencyNeedsCorrection) {
+      if (currencyCorrectionReason.trim().length < 3) {
+        problems.reason = 'Explain why the recorded currency is changing (at least 3 characters).';
+      }
+      if (!priceReconfirmed) {
+        problems.priceReconfirmed = 'Confirm that both price values were rechecked in the selected currency.';
+      }
     }
     if (Object.keys(problems).length) {
       setFieldErrors(problems);
@@ -162,7 +181,17 @@ export default function ProductForm({ initial }: { initial?: ApiResponse }) {
             label: `Product: ${payload.name || 'new product'}`,
             request: { method: 'POST', path: '/api/products', body: payload },
           });
-      if (isEdit) await productsApi.update(token as string, initial.id, payload);
+      if (isEdit) {
+        if (currencyNeedsCorrection) {
+          await productsApi.correctCurrency(token as string, initial.id, {
+            ...payload,
+            reason: currencyCorrectionReason.trim(),
+            priceReconfirmed: true,
+          });
+        } else {
+          await productsApi.update(token as string, initial.id, payload);
+        }
+      }
       else await productsApi.create(token as string, payload, idempotencyKey);
       if (idempotencyKey) await completeOperation('product.create', idempotencyKey, user?.id);
       router.back();
@@ -227,6 +256,31 @@ export default function ProductForm({ initial }: { initial?: ApiResponse }) {
         searchable
         testID="currency-picker"
       />
+      {currencyNeedsCorrection ? (
+        <View style={styles.correction}>
+          <Input
+            name="reason"
+            label="Currency correction reason"
+            value={currencyCorrectionReason}
+            onChangeText={setCurrencyCorrectionReason}
+            error={fieldErrors.reason}
+            required
+            helper="Required and audited: explain the verified source for the replacement code."
+          />
+          <Text style={[styles.correctionLabel, { color: colors.text }]}>Price reconfirmation</Text>
+          <Chip
+            label="I reconfirmed cost and selling prices"
+            selected={priceReconfirmed}
+            onPress={() => {
+              setPriceReconfirmed((value) => !value);
+              setFieldErrors((current) => ({ ...current, priceReconfirmed: undefined }));
+            }}
+          />
+          {fieldErrors.priceReconfirmed ? (
+            <Text style={[styles.fieldError, { color: colors.danger }]}>{fieldErrors.priceReconfirmed}</Text>
+          ) : null}
+        </View>
+      ) : null}
       <Input name="unit" label="Unit" value={unit} onChangeText={setUnit} error={fieldErrors.unit} placeholder="e.g. box, kg, litre" autoCapitalize="none" />
       <Input name="minimumStock" label="Minimum stock" value={minimumStock} onChangeText={setMinimumStock} keyboardType="number-pad" error={fieldErrors.minimumStock} helper="Alert when available stock drops to this level (0 = disabled)" />
       <Input name="imageUrl" label="Image URL" value={imageUrl} onChangeText={setImageUrl} error={fieldErrors.imageUrl} placeholder="Optional https://…" autoCapitalize="none" />
@@ -237,4 +291,7 @@ export default function ProductForm({ initial }: { initial?: ApiResponse }) {
 
 const styles = StyleSheet.create({
   content: { paddingBottom: spacing.huge },
+  correction: { marginBottom: spacing.lg },
+  correctionLabel: { marginBottom: spacing.xs + 2 },
+  fieldError: { marginTop: 6 },
 });

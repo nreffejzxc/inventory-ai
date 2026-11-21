@@ -19,16 +19,30 @@ export type ExchangeRateFetcher = (
 
 type CachedRate = { quote: ExchangeRateQuote; cachedAt: number };
 
+type NegativeCacheEntry = {
+  failure: ExchangeRateFailure;
+  retryAt: number;
+  failures: number;
+};
+
 /** The default maximum age of a usable ECB reference date. */
 export const EXCHANGE_RATE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 /** A verified quote is reused for this long; the rate date is still re-checked. */
 export const EXCHANGE_RATE_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
+/** The first suppressed retry after a failure; doubles up to the cap. */
+export const EXCHANGE_RATE_NEGATIVE_TTL_MS = 30 * 1000;
+/** Bound a repeated outage without making recovery wait for a full day. */
+export const EXCHANGE_RATE_BACKOFF_MAX_MS = 5 * 60 * 1000;
+/** Keys are bounded because this cache is process-local and caller-driven. */
+export const EXCHANGE_RATE_MAX_NEGATIVE_ENTRIES = 256;
 
 export type ExchangeRateAvailability = {
   /** Process-local since boot; not a cluster-wide counter. */
   status: 'unused' | 'available' | 'degraded' | 'unavailable';
   requests: number;
   cacheHits: number;
+  negativeCacheHits: number;
+  coalescedRequests: number;
   verified: number;
   sameCurrency: number;
   stale: number;
@@ -52,10 +66,14 @@ const RATE_SOURCE = 'European Central Bank reference rates via Frankfurter';
 const DEFAULT_TIMEOUT_MS = 4_000;
 
 const defaultCache = new Map<string, CachedRate>();
+const defaultNegativeCache = new Map<string, NegativeCacheEntry>();
+const defaultInFlight = new Map<string, Promise<ExchangeRateQuote | null>>();
 
 let monitoring = {
   requests: 0,
   cacheHits: 0,
+  negativeCacheHits: 0,
+  coalescedRequests: 0,
   verified: 0,
   sameCurrency: 0,
   stale: 0,
@@ -124,9 +142,13 @@ export function exchangeRateAvailability(): ExchangeRateAvailability {
 /** Test-only reset; production code never calls this. */
 export function resetExchangeRateState() {
   defaultCache.clear();
+  defaultNegativeCache.clear();
+  defaultInFlight.clear();
   monitoring = {
     requests: 0,
     cacheHits: 0,
+    negativeCacheHits: 0,
+    coalescedRequests: 0,
     verified: 0,
     sameCurrency: 0,
     stale: 0,
@@ -135,6 +157,104 @@ export function resetExchangeRateState() {
     lastRateDate: null,
     lastFailureAt: null,
     lastFailure: null,
+  };
+}
+
+/** Record one failed pair and set the next permitted retry. */
+function recordNegativeFailure(
+  key: string,
+  failure: ExchangeRateFailure,
+  now: Date,
+  negativeCache: Map<string, NegativeCacheEntry>,
+) {
+  const previous = negativeCache.get(key);
+  const failures = (previous?.failures ?? 0) + 1;
+  const multiplier = 2 ** Math.min(failures - 1, 8);
+  const delay = Math.min(EXCHANGE_RATE_NEGATIVE_TTL_MS * multiplier, EXCHANGE_RATE_BACKOFF_MAX_MS);
+  negativeCache.set(key, { failure, retryAt: now.getTime() + delay, failures });
+  // The cache is bounded independently of the request path. Delete the oldest
+  // insertion when a caller has supplied more pairs than the cap allows.
+  while (negativeCache.size > EXCHANGE_RATE_MAX_NEGATIVE_ENTRIES) {
+    const oldest = negativeCache.keys().next().value;
+    if (oldest === undefined) break;
+    negativeCache.delete(oldest);
+  }
+}
+
+type FetchOutcome =
+  | { quote: ExchangeRateQuote }
+  | { failure: ExchangeRateFailure; detail?: string };
+
+async function fetchQuote(
+  from: string,
+  to: string,
+  {
+    fetchImpl,
+    timeoutMs,
+    now,
+    maxAgeMs,
+  }: {
+    fetchImpl: typeof fetch;
+    timeoutMs: number;
+    now: Date;
+    maxAgeMs: number;
+  },
+): Promise<FetchOutcome> {
+  const sourceUrl = `${FRANKFURTER_URL}?base=${encodeURIComponent(from)}&symbols=${encodeURIComponent(to)}`;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  let response: Response;
+  try {
+    response = await fetchImpl(sourceUrl, {
+      headers: { accept: 'application/json' },
+      signal: controller.signal,
+    });
+  } catch (err) {
+    const timedOut = (err as { name?: string })?.name === 'AbortError';
+    return { failure: timedOut ? 'timeout' : 'http' };
+  } finally {
+    clearTimeout(timer);
+  }
+  if (!response.ok) {
+    return { failure: 'http', detail: `status ${response.status}` };
+  }
+
+  let payload: unknown;
+  try {
+    payload = await response.json();
+  } catch {
+    return { failure: 'malformed' };
+  }
+  if (!payload || typeof payload !== 'object') {
+    return { failure: 'malformed' };
+  }
+  const record = payload as { base?: unknown; date?: unknown; rates?: unknown };
+  if (record.base !== from) {
+    return { failure: 'pair-mismatch' };
+  }
+  if (typeof record.date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(record.date)) {
+    return { failure: 'malformed' };
+  }
+  if (!usableRateDate(record.date, now, maxAgeMs)) {
+    return { failure: 'stale', detail: `rate date ${record.date}` };
+  }
+  if (!record.rates || typeof record.rates !== 'object') {
+    return { failure: 'missing-rate' };
+  }
+  const rate = (record.rates as Record<string, unknown>)[to];
+  if (typeof rate !== 'number' || !Number.isFinite(rate) || rate <= 0) {
+    return { failure: 'missing-rate' };
+  }
+
+  return {
+    quote: {
+      rate,
+      from,
+      to,
+      rateDate: record.date,
+      rateSource: RATE_SOURCE,
+      sourceUrl,
+    },
   };
 }
 
@@ -149,9 +269,11 @@ export function resetExchangeRateState() {
  * A verified quote is cached for six hours, but every cache hit re-validates
  * the ECB date against the maximum age. A stale or undated quote is discarded,
  * never served. Any failure — unsupported pair, timeout, malformed payload,
- * non-positive number, missing rate or stale date — returns null. There is
- * deliberately no fallback rate: an invented conversion is worse than saying no
- * verified rate was available.
+ * non-positive number, missing rate or stale date — returns null. Failures are
+ * negatively cached with bounded exponential backoff, and concurrent callers
+ * for one pair share a single provider request. There is deliberately no
+ * fallback rate: an invented conversion is worse than saying no verified rate
+ * was available.
  */
 export async function fetchVerifiedExchangeRate(
   fromInput: string,
@@ -162,12 +284,16 @@ export async function fetchVerifiedExchangeRate(
     now = new Date(),
     maxAgeMs = EXCHANGE_RATE_MAX_AGE_MS,
     cache = defaultCache,
+    negativeCache = defaultNegativeCache,
+    inFlight = defaultInFlight,
   }: {
     fetchImpl?: typeof fetch;
     timeoutMs?: number;
     now?: Date;
     maxAgeMs?: number;
     cache?: Map<string, CachedRate>;
+    negativeCache?: Map<string, NegativeCacheEntry>;
+    inFlight?: Map<string, Promise<ExchangeRateQuote | null>>;
   } = {}
 ): Promise<ExchangeRateQuote | null> {
   const from = normaliseCurrencyCode(fromInput);
@@ -193,6 +319,7 @@ export async function fetchVerifiedExchangeRate(
     const dateFresh = usableRateDate(cached.quote.rateDate, now, maxAgeMs);
     if (cacheFresh && dateFresh) {
       monitoring.cacheHits += 1;
+      negativeCache.delete(key);
       noteVerified(cached.quote, now);
       return cached.quote;
     }
@@ -202,72 +329,39 @@ export async function fetchVerifiedExchangeRate(
     if (!dateFresh) monitoring.stale += 1;
   }
 
-  const sourceUrl = `${FRANKFURTER_URL}?base=${encodeURIComponent(from)}&symbols=${encodeURIComponent(to)}`;
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
-  let response: Response;
-  try {
-    response = await fetchImpl(sourceUrl, {
-      headers: { accept: 'application/json' },
-      signal: controller.signal,
-    });
-  } catch (err) {
-    const timedOut = (err as { name?: string })?.name === 'AbortError';
-    noteFailure(timedOut ? 'timeout' : 'http', now, from, to);
-    return null;
-  } finally {
-    clearTimeout(timer);
-  }
-  if (!response.ok) {
-    noteFailure('http', now, from, to, `status ${response.status}`);
+  const blocked = negativeCache.get(key);
+  if (blocked && now.getTime() < blocked.retryAt) {
+    monitoring.negativeCacheHits += 1;
     return null;
   }
 
-  let payload: unknown;
-  try {
-    payload = await response.json();
-  } catch {
-    noteFailure('malformed', now, from, to);
-    return null;
-  }
-  if (!payload || typeof payload !== 'object') {
-    noteFailure('malformed', now, from, to);
-    return null;
-  }
-  const record = payload as { base?: unknown; date?: unknown; rates?: unknown };
-  if (record.base !== from) {
-    noteFailure('pair-mismatch', now, from, to);
-    return null;
-  }
-  if (typeof record.date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(record.date)) {
-    noteFailure('malformed', now, from, to);
-    return null;
-  }
-  if (!usableRateDate(record.date, now, maxAgeMs)) {
-    noteFailure('stale', now, from, to, `rate date ${record.date}`);
-    return null;
-  }
-  if (!record.rates || typeof record.rates !== 'object') {
-    noteFailure('missing-rate', now, from, to);
-    return null;
-  }
-  const rate = (record.rates as Record<string, unknown>)[to];
-  if (typeof rate !== 'number' || !Number.isFinite(rate) || rate <= 0) {
-    noteFailure('missing-rate', now, from, to);
-    return null;
+  // One request per pair at a time. A concurrent caller waits for the leader's
+  // result and never launches a second provider request or records a second
+  // failure for the same outage.
+  const pending = inFlight.get(key);
+  if (pending) {
+    monitoring.coalescedRequests += 1;
+    return pending;
   }
 
-  const quote: ExchangeRateQuote = {
-    rate,
-    from,
-    to,
-    rateDate: record.date,
-    rateSource: RATE_SOURCE,
-    sourceUrl,
-  };
-  cache.set(key, { quote, cachedAt: now.getTime() });
-  noteVerified(quote, now);
-  return quote;
+  const pendingRequest = (async () => {
+    try {
+      const outcome = await fetchQuote(from, to, { fetchImpl, timeoutMs, now, maxAgeMs });
+      if ('failure' in outcome) {
+        noteFailure(outcome.failure, now, from, to, outcome.detail);
+        recordNegativeFailure(key, outcome.failure, now, negativeCache);
+        return null;
+      }
+      negativeCache.delete(key);
+      cache.set(key, { quote: outcome.quote, cachedAt: now.getTime() });
+      noteVerified(outcome.quote, now);
+      return outcome.quote;
+    } finally {
+      inFlight.delete(key);
+    }
+  })();
+  inFlight.set(key, pendingRequest);
+  return pendingRequest;
 }
 
 export default { fetchVerifiedExchangeRate, exchangeRateAvailability };

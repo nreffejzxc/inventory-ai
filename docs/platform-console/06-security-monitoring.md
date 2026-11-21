@@ -19,7 +19,7 @@ AI operational signals that affect the console. Tenant application monitoring re
 | Signal | Where it lives | What it can answer | What it cannot do today |
 | --- | --- | --- | --- |
 | Platform audit events | `platform_audit_events`, append-only at the model layer | Who signed in, MFA/WebAuthn result, recovery use, capability denial, administrator changes, audit/support reads, route/IP/request id | It is a pull-only trail; nobody is notified. Outer-gate 401s are not audited; CSRF refusals are already audited as `platform.access.denied` with a bounded reason. |
-| API health | `/api/health`, `/api/health/ready`, `/api/health/integrity` | Process, database, production posture, commit, integrity heartbeat | The health probe is liveness/readiness, not security detection. |
+| API health | `/api/health` (and `/health`), `/api/health/ready` (and `/ready`), `/api/health/integrity` | Process, database, production posture, commit, integrity heartbeat | The health probe is liveness/readiness, not security detection. The bare aliases use the same handlers; there is no bare `/live` alias. |
 | UptimeRobot | Two five-minute monitors plus the integrity monitor | Readiness and database-posture alert to the owner's email; test delivery was verified | It does not read platform security events or AI spend. |
 | Durable 5xx events | `ops_error_events` | Counts, status, bounded route and recent error events | No alert rule or owned recipient is attached to the collection. |
 | Process counters | `/api/platform/operations` and health | 5xx counts and process observations | Reset on restart; host CPU/memory and Atlas metrics are unavailable. |

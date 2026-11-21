@@ -11,6 +11,7 @@ import requestId from './middlewares/requestId.ts';
 import requestLogger from './middlewares/httpLogger.ts';
 import recordFeatureUsage from './middlewares/featureUsage.ts';
 import healthRoutes from './routes/health.routes.ts';
+import { createHealthHandlers } from './routes/health.routes.ts';
 import { createAuthRouter } from './routes/auth.routes.ts';
 import authActionRoutes from './routes/authAction.routes.ts';
 import privacyRoutes from './routes/privacy.routes.ts';
@@ -172,6 +173,14 @@ export function createApp({
 
   // API routes
   app.use('/api/health', healthRoutes);
+  // Backward-compatible monitor aliases. They are the SAME handlers as the
+  // canonical endpoints, not a second implementation: `/health` is the legacy
+  // process/build view and `/ready` is the readiness gate. `/live` deliberately
+  // has no bare alias so the public surface stays exactly the two paths older
+  // monitors may already use.
+  const healthAliases = createHealthHandlers();
+  app.get('/health', healthAliases.health);
+  app.get('/ready', healthAliases.ready);
   // The landing page for Firebase password-reset emails. Deliberately outside `/api`:
   // it is a browser-facing HTML page (2026-10-20, see pages/resetPasswordLink.ts), not
   // a JSON endpoint, and its path is the one configured in the Firebase console.

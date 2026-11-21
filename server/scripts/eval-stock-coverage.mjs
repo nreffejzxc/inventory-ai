@@ -5,7 +5,9 @@
 // not that the configured live model chooses `getProductStockCoverage` for real paraphrases.
 // This harness runs the real `runAiChat` loop against the CURRENT configured model and a
 // disposable development tenant. It records each turn's first tool, all tools used, whether
-// coverage was selected and whether the corrective re-ask fired.
+// coverage was selected, succeeded and actually finalized into the answer, and whether the
+// corrective re-ask fired. Proxy-caveat outcomes are judged semantically by the pure metrics
+// module rather than by one exact phrase.
 //
 // WHAT IT DOES NOT DO. It never changes a model id, fallback list, reasoning setting or
 // other AI configuration. It does not run in CI and does not touch a real tenant: it starts
@@ -38,6 +40,7 @@ import { aiConfig } from '../src/services/ai/aiConfig.ts';
 import { runAiChat } from '../src/services/ai/ai.service.ts';
 import { asksForStockCoverage } from '../src/services/ai/answerCompletion.ts';
 import { simpleInventoryIntent } from '../src/services/ai/simpleInventory.ts';
+import { hasStockOutProxyCaveat, summarizeStockCoverageRows } from './eval-stock-coverage-metrics.mjs';
 import {
   DEMO_CATEGORIES,
   DEMO_LOCATIONS,
@@ -245,6 +248,9 @@ async function runTurn(question, { business, user }) {
   const tools = Array.isArray(result?.toolsUsed) ? result.toolsUsed : [];
   const coverageSelected = tools.includes('getProductStockCoverage');
   const coverageFirst = tools[0] === 'getProductStockCoverage';
+  const coverageRead = result?.coverageRead;
+  const coverageSucceeded = coverageRead?.succeeded === true;
+  const coverageUsed = coverageRead?.finalized === true;
   const answer = result?.content ?? '';
   return {
     id: question.id,
@@ -257,6 +263,9 @@ async function runTurn(question, { business, user }) {
     firstTool: tools[0] ?? null,
     coverageSelected,
     coverageFirst,
+    coverageSucceeded,
+    coverageUsed,
+    selectedButUnused: coverageSelected && !coverageUsed,
     selection: coverageFirst ? 'selected-first' : coverageSelected ? 'selected-later' : 'not-selected',
     corrected: lines.some((line) => line.includes('answered without getProductStockCoverage')),
     route: metrics.route,
@@ -266,7 +275,7 @@ async function runTurn(question, { business, user }) {
     iterations: metrics.iterations,
     totalMs,
     degraded: result?.degraded ?? null,
-    answerMentionsProxyCaveat: /movement proxy|not confirmed sales/i.test(answer),
+    answerMentionsProxyCaveat: hasStockOutProxyCaveat(answer),
     answerClaimsInfiniteCover: /\b(?:forever|infinite|infinity)\b/i.test(answer),
     answerExcerpt: answer.slice(0, 500),
     turnLine,
@@ -391,27 +400,15 @@ try {
   }
 }
 
-const errors = rows.filter((row) => row.error).length;
-const selectedFirst = rows.filter((row) => row.coverageFirst).length;
-const selectedAny = rows.filter((row) => row.coverageSelected).length;
-const corrected = rows.filter((row) => row.corrected).length;
-const summary = {
-  questions: rows.length,
-  errors,
-  selectedFirst,
-  selectedAny,
-  corrected,
-  selectionRateFirst: rows.length ? selectedFirst / rows.length : null,
-  selectionRateAny: rows.length ? selectedAny / rows.length : null,
-  proxyCaveatAnswers: rows.filter((row) => row.answerMentionsProxyCaveat).length,
-  infiniteCoverClaims: rows.filter((row) => row.answerClaimsInfiniteCover).length,
-};
+const summary = summarizeStockCoverageRows(rows);
 
 console.log('\n[stock-coverage-live] RESULTS');
 console.log(
-  `[stock-coverage-live] first-read coverage ${selectedFirst}/${rows.length}; ` +
-    `coverage anywhere ${selectedAny}/${rows.length}; corrected by re-ask ${corrected}; ` +
-    `errors ${errors}; proxy caveat ${summary.proxyCaveatAnswers}/${rows.length}; ` +
+  `[stock-coverage-live] first-read coverage ${summary.selectedFirst}/${rows.length}; ` +
+    `coverage anywhere ${summary.selectedAny}/${rows.length}; ` +
+    `succeeded ${summary.succeededAny}/${rows.length}; finalized ${summary.usedAny}/${rows.length}; ` +
+    `selected-but-unused ${summary.selectedButUnused}; corrected by re-ask ${summary.corrected}; ` +
+    `errors ${summary.errors}; semantic proxy caveat ${summary.proxyCaveatAnswers}/${rows.length}; ` +
     `infinite claims ${summary.infiniteCoverClaims}`,
 );
 
@@ -431,5 +428,7 @@ const artifact = {
 fs.writeFileSync(OUT, `${JSON.stringify(artifact, null, 2)}\n`, 'utf8');
 console.log(`[stock-coverage-live] artifact: ${OUT.pathname}`);
 
-if (errors > 0 || selectedAny < rows.length) exitCode = 1;
+if (summary.errors > 0 || summary.selectedAny < rows.length || summary.usedAny < summary.selectedAny) {
+  exitCode = 1;
+}
 process.exitCode = exitCode;

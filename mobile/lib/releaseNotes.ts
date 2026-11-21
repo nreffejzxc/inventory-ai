@@ -45,6 +45,19 @@ export interface ReleaseNote {
  */
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    id: '2026-11-21-currency-and-stock-cover',
+    date: '2026-11-21',
+    kind: 'feature',
+    title: 'Correct a currency and see how long stock will last',
+    summary:
+      'Change a product currency safely, keep different currencies apart, and ask how long one product will last.',
+    points: [
+      'Changing a recorded currency now asks for a reason and confirms both prices were rechecked.',
+      'Price comparisons only compare products recorded in the same currency.',
+      'A stock-cover answer states its window and treats stock-out movements as a guide, not confirmed sales.',
+    ],
+  },
+  {
     id: '2026-11-10-ai-answer-reference',
     date: '2026-11-10',
     kind: 'feature',

@@ -324,3 +324,38 @@ suites**, both exit 0 with no failures or skips; server/mobile typecheck, focuse
 documentation checks passed. No production data, migration, live-model call or maintenance command
 was touched by the verification. Render auto-deploy is scoped to `server/`, so the release PR is
 the deploy trigger; merge and Render evidence are in the final release report.
+
+The run-out follow-up is §27KO: Q7b proves a first draft with no tool call receives the single
+coverage re-ask and then answers from `getProductStockCoverage`; Q7c proves a second miss stores
+the exact ungrounded sentence; Q7 and Q8 remain intact. The approved six-paraphrase live run on
+the configured `openai/gpt-oss-20b` selected coverage somewhere in **5/6** turns, first in **0/6**,
+corrected one wrong-tool draft, left one corrected turn ungrounded, and exposed one turn where the
+selected estimate was omitted from the answer. Phase 06 passed **16/16**; the run made no production
+change and did not change model configuration.
+
+The deployment follow-up is §27KP: `GET /health` and `GET /ready` are exact aliases of the existing
+health handlers, and the route inventory moved to **126** routes / **33 public**. A read-only
+`verify-production-deploy.mjs` and its `main`-push workflow now wait for the merged SHA before
+checking readiness, liveness and `db: connected`; production `7d112cc` verified on the first attempt.
+The one startup 5xx was reviewed and classified as a transient readiness/startup probe rather than a
+genuine startup failure; the exact request path remains unproven because Render logs were not
+available. No production write, commit or deployment was made.
+
+The stock-coverage follow-up is §27KQ: a successful coverage read now produces a deterministic
+answer with the days-of-cover estimate (or explicit no-rate outcome) and movement-proxy caveat;
+`getProductStockCoverage` accepts an exact recorded name and refuses partial/duplicate names; and
+`eval:stock-coverage` separates selected, succeeded and finalized/used coverage with a semantic
+caveat judgement. Q7/Q8 remain intact; Q7d/Q7e cover missing estimates and caveats, and the
+recorded live artifact was re-verified as 0/6 first, 5/6 anywhere, 1 correction, 0 errors and
+$0.007846. AI-118 DB **9/9**, unit **5/5**, Phase 06 **18/18**, metrics **4/4**; no paid run, model
+change, production data, commit or deployment was made.
+
+The currency-hardening follow-up is §27KR: ordinary product PATCH now refuses a currency replacement
+and the dedicated correction route requires a reason plus `priceReconfirmed: true` while recording
+both codes; assistant price ceilings and rankings require one recorded currency, refuse
+mixed/unrecorded groups and accept an explicit ISO code as scope; and failed FX lookups coalesce in
+flight, negative-cache for 30 seconds with bounded exponential backoff and clear on success, keeping
+the existing health counters and adding negative-cache/coalesced counts. Currency unit **17 pass / 1
+skipped**, DB **8 pass / 3 skipped**, AI-45 DB **14 pass / 1 skipped**, Phase 23/docs guards
+**41/41**, mobile typecheck and focused form suite **5/5**; no production data, commit or deployment
+was made.
