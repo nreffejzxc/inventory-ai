@@ -17,11 +17,14 @@
  * does not try to be a general YAML validator. The files it checks are the four
  * workflows in this repository, which use consistent two-/four-space job structure.
  * A workflow that changes that structure will produce a finding rather than a silent
- * pass, which is the intended failure mode.
+ * pass, which is the intended failure mode. `--root=<dir>` points the scan at another
+ * repository-shaped tree; the committed fixture test uses it to prove each rule fails.
+ * A normal run always reads this checkout.
  *
  * USAGE
  *   node scripts/check-workflow-invariants.mjs
  *   node scripts/check-workflow-invariants.mjs --self-test
+ *   node scripts/check-workflow-invariants.mjs --root=<fixture-repo>
  *
  * The self-test runs first on every invocation, so a rule that stopped matching
  * cannot report a clean tree. Exit codes: 0 clean, 1 finding or failed self-test,
@@ -32,8 +35,8 @@ import { readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const WORKFLOW_DIR = path.join(REPO_ROOT, '.github', 'workflows');
+const DEFAULT_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+let REPO_ROOT = DEFAULT_ROOT;
 const FULL_SHA = /^[0-9a-f]{40}$/i;
 const JOB_LINE = /^  ([A-Za-z0-9_-]+):\s*(?:#.*)?$/;
 const TIMEOUT_LINE = /^    timeout-minutes:\s*(\d+)\s*(?:#.*)?$/;
@@ -44,7 +47,7 @@ function read(relativePath) {
 }
 
 function workflowFiles() {
-  return readdirSync(WORKFLOW_DIR)
+  return readdirSync(path.join(REPO_ROOT, '.github', 'workflows'))
     .filter((name) => /\.ya?ml$/i.test(name))
     .sort()
     .map((name) => path.join('.github', 'workflows', name));
@@ -137,6 +140,16 @@ function firstMajor(value) {
 
 function expect(condition, label) {
   if (!condition) throw new Error(label);
+}
+
+const rootArgument = process.argv.find((argument) => argument.startsWith('--root='));
+if (rootArgument) {
+  const root = rootArgument.slice('--root='.length);
+  if (!root) {
+    console.error('[workflow-invariants] --root requires a directory');
+    process.exit(2);
+  }
+  REPO_ROOT = path.resolve(root);
 }
 
 /** Positive and negative controls for every rule; runs before the real scan. */

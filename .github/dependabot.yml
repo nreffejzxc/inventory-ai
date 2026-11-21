@@ -11,10 +11,14 @@ version: 2
 # WHAT THIS KEEPS: minor and patch updates, grouped per package, at most two open pull requests per
 # package, on the same weekly schedule — a queue that should normally be empty or trivially green.
 #
-# WHAT SECURITY UPDATES DO: they are unaffected. GitHub's reference states that security-update pull
-# requests are not subject to `open-pull-requests-limit` and do not count toward it, and that
-# `update-types` filters version updates. A vulnerability fix therefore still arrives as its own
-# pull request, immediately, regardless of the `ignore` rule below.
+# WHAT SECURITY UPDATES DO: they run on a separate track. The npm and GitHub Actions entries below
+# each declare one `<ecosystem>-security` group with `applies-to: security-updates`. GitHub states
+# that a group never mixes security with version updates, that security pull requests are not
+# subject to `open-pull-requests-limit`, and that they are triggered by an advisory rather than by
+# the weekly schedule. A fix therefore still arrives immediately. The group name appears in the pull
+# request title and branch, which is how it is identified without labelling every routine update as
+# security; the repository's Dependabot alerts remain the authoritative queue. Docker Compose has no
+# Dependabot security-update path, so that entry has no security group.
 #
 # TO TAKE A MAJOR DELIBERATELY: remove the `ignore` entry (or re-open the closed PR) for the upgrade
 # being planned. Issue #32 lists each one with the CI failure that made it blocked. The same applies to
@@ -37,11 +41,19 @@ updates:
     labels:
       - dependencies
     groups:
+      # Routine version updates: one weekly pull request.
       server-minor-and-patch:
         applies-to: version-updates
         update-types:
           - minor
           - patch
+      # Security updates: one pull request of their own, never mixed with the
+      # routine group. The identifier is the visible marker in the PR title and
+      # branch; there is no per-group label option.
+      server-security:
+        applies-to: security-updates
+        patterns:
+          - "*"
     ignore:
       - dependency-name: "*"
         update-types:
@@ -58,11 +70,19 @@ updates:
     labels:
       - dependencies
     groups:
+      # Routine version updates: one weekly pull request.
       mobile-minor-and-patch:
         applies-to: version-updates
         update-types:
           - minor
           - patch
+      # Security updates: one pull request of their own, never mixed with the
+      # routine group. The Expo pin and Firebase freezes still describe what may
+      # move routinely; a security advisory takes its own path here.
+      mobile-security:
+        applies-to: security-updates
+        patterns:
+          - "*"
     ignore:
       - dependency-name: "*"
         update-types:
@@ -163,11 +183,19 @@ updates:
     labels:
       - dependencies
     groups:
+      # Routine version updates: one weekly pull request.
       actions-minor-and-patch:
         applies-to: version-updates
         update-types:
           - minor
           - patch
+      # Security updates: one pull request of their own. GitHub Actions is a
+      # supported security-update ecosystem, and a patched action still has to
+      # arrive as a full commit SHA for the workflow invariant guard to pass.
+      actions-security:
+        applies-to: security-updates
+        patterns:
+          - "*"
     ignore:
       - dependency-name: "*"
         update-types:
@@ -186,6 +214,9 @@ updates:
     open-pull-requests-limit: 2
     labels:
       - dependencies
+    # No security group: GitHub's supported-ecosystems table lists Docker Compose
+    # as not applicable for security updates. The image pin is still protected by
+    # the workflow invariant parity check.
     ignore:
       - dependency-name: "mongo"
         update-types:
