@@ -533,9 +533,9 @@ when the gate itself cannot be read, rather than treating that as deferred, and 
 dependency. Start it by hand with `gh workflow run typescript-7-watch.yml`; the exact issue title and
 the #32 ledger live in the workflow.
 
-The **production health watch** runs every five minutes from GitHub Actions, outside Render and this
-laptop. It probes `/api/health/ready` and `/api/health`; two consecutive failures open one GitHub issue
-(the external notification), and recovery closes it. The same check can be run by hand:
+The **production health watch** is primarily UptimeRobot's two five-minute probes, outside Render and
+this laptop. It probes `/api/health/ready` and `/api/health`; two consecutive failures open one GitHub
+issue when the GitHub fallback is dispatched, and recovery closes it. The same check can be run by hand:
 
 ```bash
 cd C:/Users/jeffe/inventory-ai
@@ -549,6 +549,20 @@ of names, paths, users or messages. GitHub can delay scheduled runs, so this is 
 five-minute SLA. GitHub has not emitted a scheduled run for v2 as of 2026-11-11, so dispatch
 `production-health-watch-v2.yml` by hand with the command above; it uses the same probe and alert
 path.
+
+After a merge, verify that Render is actually serving the merged `main` commit before treating the
+deploy as complete. The check is read-only and polls until the expected SHA appears, then checks
+readiness, liveness and database connectivity:
+
+```bash
+cd C:/Users/jeffe/inventory-ai
+node scripts/verify-production-deploy.mjs --sha="$(git rev-parse HEAD)"
+gh workflow run verify-production-deploy.yml -f sha="$(git rev-parse HEAD)"
+```
+
+The `verify-production-deploy.yml` workflow also runs on every `server/`-scoped push to `main`
+(Render's auto-deploy scope). It exits non-zero on a SHA mismatch, a readiness/liveness failure or the
+ten-minute timeout; it never deploys or rolls back.
 
 A separate **inventory-integrity** watch runs daily at **07:30 local** from the current-user task
 `InventoryAI Inventory Integrity Audit`. It runs the read-only audit against production, compares it

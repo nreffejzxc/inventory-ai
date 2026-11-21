@@ -1,0 +1,51 @@
+name: Verify production deployment
+
+# POST-DEPLOY — read-only. A push to main (including a merge commit) polls the
+# public Render service until its reported commit matches github.sha, then checks
+# readiness and liveness. It never deploys, authenticates or writes anything.
+# A manual dispatch can verify a specific merged SHA after a dashboard deploy.
+
+on:
+  push:
+    branches: [main]
+    # Render auto-deploy is scoped to `server/`; a docs-only merge has no new
+    # deployment to verify and must not wait for a SHA that will never appear.
+    paths:
+      - 'server/**'
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: Expected merged main SHA (7–40 hex characters)
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-deployment-verification
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out the verifier
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Wait for the merged SHA and verify health
+        env:
+          EXPECTED_SHA: ${{ inputs.sha || github.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/verify-production-deploy.mjs \
+            --sha="$EXPECTED_SHA" \
+            --timeout-ms=600000 \
+            --interval-ms=10000 \
+            --request-timeout-ms=15000 \
+            | tee "$RUNNER_TEMP/production-deploy-verification.txt"
+          cat "$RUNNER_TEMP/production-deploy-verification.txt" >> "$GITHUB_STEP_SUMMARY"

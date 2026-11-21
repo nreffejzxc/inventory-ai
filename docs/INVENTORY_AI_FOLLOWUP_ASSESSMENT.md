@@ -1,9 +1,12 @@
 # Inventory AI — free-first follow-up opportunities
 
-**Status:** **PLANNING ONLY. NO IMPLEMENTATION, PAID SERVICE OR PRODUCTION CHANGE IS AUTHORIZED.**
-This is a follow-up to the merged whole-product assessment, not a replacement for it.
+**Status:** planning assessment. The three assistant accuracy items below — coverage finalizer,
+exact-name coverage resolution and deterministic proxy caveat — plus the evaluator's
+selected/succeeded/used split were implemented in §27KQ. The remaining recommendations are
+planning only; no paid service or production change is authorized. This is a follow-up to the
+merged whole-product assessment, not a replacement for it.
 
-**Reviewed:** 2026-11-17
+**Reviewed:** 2026-11-17; post-deployment refresh 2026-11-20
 **Funding constraint:** Inventory AI has no paying customers. The owner's current budget is already
 committed to the coding agent and the OpenRouter gateway, with ordinary living costs alongside them.
 Every recommendation below must be deliverable with **$0 incremental recurring spend** and existing
@@ -83,6 +86,70 @@ Ranking uses business value, security impact, reliability impact, effort and the
 - **Do while improving reliability:** IA-23 (offline), IA-24 (free-tier quotas), IA-26 (a11y/localization).
 - **Do when the team or evidence need grows:** IA-27 (SBOM), IA-28 (privacy-safe signals), IA-29
   (residency decision).
+
+### 2026-11-20 post-deployment refresh — new candidates and revised order
+
+This refresh extends, rather than replaces, the existing 29-item product list and the assistant
+roadmap. The new candidates use `PD-01`–`PD-04` so they cannot collide with the later `IA-19`–`IA-45`
+ranking. The three assistant accuracy items and the evaluator split are implemented in §27KQ; the
+remaining recommendations are not. The read-only release check named under PD-03 exists from the
+deployment work but is not yet a required gate.
+
+| Rank | Improvement | New? | Value | Dependency / guard |
+| ---: | --- | --- | --- | --- |
+| 1 | **Deterministic coverage answer/finalizer.** **Implemented 2026-11-20 (§27KQ).** Build or verify the answer from the coverage payload, and reject a response that selected coverage but omits the estimate. | Existing AI priority | The 2026-11-20 live run found a turn that selected the coverage tool but never showed its result. A finalizer makes the evidence the answer instead of a suggestion to the model. | Existing `forecast`/availability payload; no new model call. |
+| 2 | **Name-resolving one-call coverage route.** **Implemented 2026-11-20 (§27KQ).** Accept an exact product name with ambiguity refusal, or resolve it server-side before calling coverage. | Existing AI priority | The same run selected coverage first on **0/6** name questions because the tool accepted only id/SKU/barcode; the search-first workaround cost calls and seconds. | Existing product resolver and coverage service; never resolve a name on the client. |
+| 3 | **Catalogue-wide run-out ranking.** One bounded aggregate over ACTIVE products with a minimum-movement rule and an explicit stock-out proxy. | Existing AI priority | Answers “what will run out first?” as an operational list without N+1 reads or invented seasonality. | A business-wide aggregation and a fixed movement window; no lead-time guess. |
+| 4 | **PD-01 — Answer provenance and scope envelope.** Every assistant answer states the data as-of time, business/location scope, currency basis, tools read and any limitation, in addition to today's support `Ref:`. | **New** | Makes a plausible answer auditable: a member can see what was read and what was not, and support can distinguish a stale scope from a wrong number without replaying the turn. | A response envelope and mobile rendering; store only the same bounded metadata as the turn record. Never expose another tenant's scope. |
+| 5 | **PD-02 — Pre-answer data-quality gate.** Before a price, stock-value or coverage answer, detect unresolved product currency, missing prices/costs and missing inventory rows, and label the answer incomplete rather than omitting the gap. | **New** | The assistant is read-only but confident; an unresolved currency or absent price can turn an otherwise correct total into a misleading one. This reuses the existing read-only audits and makes the limitation explicit. | Existing `audit:product-currency`, price-quality reads and tool payloads; no inferred currency and no write path. |
+| 6 | **Deterministic stock-out proxy caveat.** **Implemented 2026-11-20 (§27KQ).** Append the sales/usage/damage/write-off caveat whenever a coverage estimate is present without it. | Existing AI priority | Only one of five grounded live answers stated the proxy; prompt wording alone did not hold. The caveat is part of the meaning of “days of cover”, not optional copy. | Existing answer finalizer; no schema change. |
+| 7 | **PD-03 — Make deployment verification a required release gate.** Keep the new read-only SHA/readiness verifier, but make a failed `main` verification block or explicitly flag the release, and route repeated failures to the existing alert owner. | **New follow-up; verifier exists** | The script proves the build after the fact, but a failed workflow that nobody watches is still a stale-build risk. A required check or alert turns the evidence into a release control. | A repository branch-protection/required-check decision and an owner; no deploy automation or rollback. |
+| 8 | **Two-product and current-versus-minimum comparison.** One scoped read/finalizer labels both sides, missing fields and the comparison basis. | Existing AI priority | Removes the last common model-composed arithmetic shape and keeps currencies separate. | Existing product, availability and `unitsBelowMinimum` reads; verified rate only for cross-currency display. |
+| 9 | **Repeated bounded selection ledger.** **Metric split implemented 2026-11-20 (§27KQ); repeat runs remain.** Record selected/succeeded/finalized-used tool choice, correction outcome and latency across repeat runs without putting paid calls in CI. | Existing AI priority | One six-question run cannot establish a trend; a repeatable ledger would show whether the coverage repairs actually work. | The existing harness and turn records; explicit approval for live calls and no production model change. |
+| 10 | **PD-04 — Unit-of-measure and pack metadata.** Record whether a product is stocked in pieces, boxes, cases or weight, with an explicit conversion and display unit. | **New** | “How many boxes?” currently has no authoritative answer; the assistant and stock totals can silently treat packs as pieces. This is a data-model improvement that prevents a whole class of plausible wrong answers. | Product schema, import/export, stock movements and mobile display; migration with historical rows left unknown, never relabelled. |
+
+**Why this order.** The first three items were the assistant accuracy tranche supported by the
+live run and are now implemented: selection and use of the coverage evidence came before adding
+more answer shapes. PD-01
+and PD-02 are the trust controls that make every later answer auditable; PD-03 is the release control
+that makes the deployment fact checkable. Comparison, repeated evidence and unit metadata follow
+because they need a product/data decision or a larger schema. Existing supplier/PO-aware restock,
+search within a previous answer, confirmed stock-out reason and scheduled digest remain valid
+candidates below this top ten.
+
+**Explicitly not proposed here:** a write-capable assistant, automatic currency conversion without a
+verified dated rate, a tenant-detail support window, a paid pager/observability service, or a model
+change made to improve an evaluation score. Those cross the read-only, privacy or free-first
+boundaries recorded elsewhere.
+
+### 2026-11-21 stock-coverage refresh — ranked remaining candidates
+
+Scope: the complete server unit and DB suites were run against the §27KQ stock-coverage tree, and
+the coverage tool, its tests and the earlier live audit were reviewed. Nothing below is
+implemented. Ranking uses operational value, evidence quality, effort and the free-first rule;
+**New** means the candidate is not already recorded in this file or the AI roadmap.
+
+| Rank | Candidate | New? | Value | Dependency / guard |
+| ---: | --- | --- | --- | --- |
+| 1 | **Coverage evidence and confidence gate.** Require a minimum number of stock-out movements (and active movement days) before a precise estimate, otherwise return `insufficient evidence` or a low-confidence range. | **New** | A single stock-out currently produces a confident-looking `daysOfCover`; an evidence gate stops one damage write-off from becoming a purchasing decision. | Existing coverage payload and window; no new collection. State the threshold and the refused case in the answer. |
+| 2 | **Days-to-minimum and reorder trigger.** Report days until stock reaches the recorded `minimumStock`, plus the current units below minimum, alongside days to zero. | **New** | “When do I need to reorder?” is the operational question; days-to-zero alone arrives after the reorder point. Uses a field the product model already has. | Existing `minimumStock` and availability; no schema change. Still a movement proxy, not lead-time-aware. |
+| 3 | **Catalogue-wide run-out ranking.** One bounded aggregate over ACTIVE products with a minimum-movement rule and an explicit stock-out proxy. | Existing AI priority | Answers “what will run out first?” as a ranked operational list without N+1 reads or invented seasonality. Highest day-to-day value of the remaining items. | Business-wide aggregation over a fixed window; guard the product cap and never present a zero-movement product as infinite cover. |
+| 4 | **Stockout-censored demand correction.** Account for days when available stock was zero; otherwise the observed outflow understates demand and overstates cover. | **New** | A product that was empty for half the window looks slow-moving. Expose a corrected upper bound or a lower-confidence label instead of a precise estimate. | Needs stock-level history or reliable zero-stock reconstruction; keep the uncorrected number visible when the correction is speculative. |
+| 5 | **Outlier-resistant estimator.** Trim or flag one-off bulk issues, damage and write-offs, and compare the two halves of the window to detect accelerating or decelerating demand. | **New** | One large issue can dominate a 30-day average. A trimmed rate and a half-window comparison make the estimate honest without a forecasting model. | Existing movement rows; state the trim rule and show the excluded events rather than hiding them. |
+| 6 | **Intermittent-demand handling.** Classify slow movers with ADI/CV² or a Croston-style estimate instead of a simple daily average. | **New** | One sale in 30 days currently yields hundreds of days of cover, which reads as “no risk”. Intermittent-demand treatment prevents that false comfort. | Pure computation over the existing movement window; no new dependency required. Label the method used. |
+| 7 | **Transfer-aware location coverage.** For a location-scoped product, show availability at the business's other locations and a read-only transfer opportunity. | **New** | A location can appear out of stock while the same business holds the product elsewhere; today the answer omits that context. | Existing per-location stock reads; no automatic transfer and no cross-tenant data. Respect the member's location permissions. |
+| 8 | **Coverage outcome ledger and backtesting.** Record redacted inputs and estimates for coverage answers, then compare them with later actual stock-outs to calibrate confidence. | **New** | There is no evidence today that a 14-day estimate is accurate. A local, free ledger turns future runs into calibration evidence instead of another one-off sample. | Turn records plus a scheduled comparison; no paid service, no production model change, and no tenant-identifying export. |
+| 9 | **Supplier/PO-aware restock.** Include supplier lead time, inbound purchase-order ETA and minimum order quantity in a restock recommendation. | Existing AI priority | Days of cover is only actionable next to when replenishment can actually arrive. | Supplier and purchase-order data must be recorded and scoped first; recommendations stay read-only. |
+| 10 | **Controlled stock-out reason codes.** Distinguish sale, internal usage, damage and write-off when recording `STOCK_OUT`. | Existing AI priority | Would turn today's movement proxy into actual demand and make every estimate above more trustworthy. | Product/movement schema, mobile and web entry work; historical rows stay unknown and must never be relabelled. |
+
+**Why this order.** Evidence quality comes first: ranks 1, 4, 5 and 6 all make the existing
+one-product estimate less misleading without adding a new answer shape, and rank 2 answers the
+question members actually act on. The catalogue-wide ranking (3) is the highest-value new shape but
+should ship after the per-product estimate has an evidence gate. Ranks 7–10 need broader data or
+schema work and remain planning only.
+
+**Small later quick win.** Render the projected run-out date in the business's local calendar next
+to `daysOfCover`; it is presentation-only and must use the recorded timezone, not the server's.
 
 ## 4. Details
 

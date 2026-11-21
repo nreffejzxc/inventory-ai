@@ -40,9 +40,80 @@ at the end of every development session, newest entry first.
 
 ## Current position
 
-**Updated:** 2026-11-20
+**Updated:** 2026-11-21
 **Goal:** finish and harden Inventory AI **V1** through production testing. No Play Store or App
 Store release is being prepared.
+
+**Currency code review and complete-suite proof (2026-11-21):** reviewed every uncommitted currency
+change and corrected three client/tool mismatches without weakening a server guard: the mobile
+correction now sends top-level `reason`/`priceReconfirmed` (the documented endpoint shape), a legacy
+raw code such as `php` now triggers the correction UI because the server accepts only the exact
+stored code, and an empty `findProducts` price search reports “No products matched” rather than a
+currency ambiguity. The controller's three duplicated product-field projections now share one
+helper. The complete server suite passed **3,334/3,334 tests across 538 suites — 0 failed, 0
+skipped, 0 cancelled**, exit **0**, **1,877,787.3521 ms**; the first pass's only failure was the
+AI-18 page-return count guard, updated for the new empty-result path before the complete rerun.
+Server and mobile typecheck and the focused mobile form tests **6/6** pass. `check-docs` **71 active
+/ 48 living**, docs suites **31/31**, `git diff --check` clean. The ranked currency/FX
+recommendations are in [`PRODUCT_CURRENCY.md`](PRODUCT_CURRENCY.md) §6; none was implemented. No
+production data, model configuration, commit, push, merge or deployment was made.
+
+**Stock-coverage suite proof and ranked candidates (2026-11-21):** the complete unit suite passed
+**2,321 tests across 472 suites — 2,244 passed, 77 deliberately skipped, 0 failed** (exit **0**,
+**59,565.0832 ms**); the DB suite reported **1,231 tests across 271 suites — 1,110 passed, 120
+skipped, 1 failed** (exit **1**, **817,686.5622 ms**). The single DB failure was the timing-sensitive
+phase07b per-IP rate-limit window test (`skipSuccessfulRequests survives a window reset on the
+per-IP bucket`, final relock `401 !== 429`); rerun alone in DB mode it passed **27/27** (exit **0**,
+**66,690.5835 ms**), so it is a load-timing flake, not a coverage regression, and no source change
+was made. Unit and DB modes both include the mixed files, so their totals are not additive to the
+538-suite full-suite figure. The coverage tool, its tests and the earlier live audit were reviewed;
+ten remaining candidates are ranked in
+[`INVENTORY_AI_FOLLOWUP_ASSESSMENT.md`](INVENTORY_AI_FOLLOWUP_ASSESSMENT.md) §3. `check-docs`
+reported **71 active / 48 living** and the five documentation suites passed **31/31**. No live-model
+rerun, model/fallback/reasoning configuration, production data, migration, commit, push, merge or
+deployment was made. Details: §27KQ and the assessment's 2026-11-21 refresh.
+
+**Currency correction, mixed-currency comparisons and bounded FX retry (2026-11-20):** ordinary
+product PATCH now refuses an actual currency change; `POST /api/products/:id/currency-correction`
+requires a 3–500-character reason and literal `priceReconfirmed: true`, saves the corrected fields
+and records `PRODUCT_CURRENCY_CORRECTED` with both codes. Assistant price ceilings/rankings scope to
+one recorded currency, block mixed/unrecorded sets and accept an explicit ISO code; unrecorded
+prices are never ranked as zero. FX lookups coalesce per pair, negative-cache failures for 30 s with
+exponential backoff capped at 5 min and clear the entry on success, preserving the existing health
+counters and adding `negativeCacheHits`/`coalescedRequests`. Currency unit **17 pass / 1 skipped**,
+DB **8 pass / 3 skipped**; AI-45 DB **14 pass / 1 skipped**; INTEGRITY-RECOVERY **17/17**; phase04
+catalog plus phase20 filter/pagination **47/47**; Phase 23/docs guards **41/41**; audit-label parity
+**8/8**; server typecheck and focused ESLint pass; mobile
+typecheck, focused form Jest **5/5**, audit-label Jest **4/4** and focused ESLint pass; `check-docs`
+**71 active / 48 living**; `git diff --check` clean. The full server suite was not rerun. No
+production data, migration, commit, push, merge or deployment was made. Details: §27KR.
+
+**Run-out regression and live coverage audit (2026-11-20):** added Q7b, which proves a first draft
+with no tool call receives the one coverage-specific re-ask and then answers from
+`getProductStockCoverage`, and Q7c, which proves a second miss ships the exact `UNGROUNDED_ANSWER`
+sentence; Q7 and Q8 remain unchanged. The approved six-paraphrase live run used the configured
+`openai/gpt-oss-20b` primary with two fallbacks and a disposable development tenant, changed no
+configuration and removed the tenant. Coverage was selected **5/6 anywhere but 0/6 first**; one
+wrong-tool draft was corrected, one corrected turn still ended ungrounded, and one turn selected
+coverage but stored a quantity-only answer. The harness exited **1 by design** for the 5/6 selection
+result, with **0 errors** and no infinite-cover claims; the exact caveat phrase was **0/6**, while
+manual reading found only **1/5 grounded answers** explicitly explaining the movement proxy. Phase
+06 passed **16/16**; the complete suite was not rerun. No production data, model configuration,
+commit, push, merge or deployment was touched. Details and the ranked follow-ups: §27KO.
+
+**Deterministic stock coverage, exact-name resolution and semantic evaluation (2026-11-20):**
+added a finalizer that rebuilds a successful `getProductStockCoverage` answer from the returned
+quantity, window, units out, movement count, average rate and `daysOfCover`, always including the
+movement-proxy caveat (or the explicit no-rate outcome for a null estimate). `getProductStockCoverage`
+now accepts an exact recorded product name, scoped to the business, and refuses partial or
+duplicate names with candidates rather than choosing one. Q7b/Q7c were re-read and retained; Q7d
+and Q7e prove missing-estimate and missing-caveat repair. The evaluator now separates selected,
+succeeded and finalized/used coverage, and judges the proxy caveat semantically: the old exact
+phrase count was 0/6, while the recorded artifact's Samsung answer is correctly 1/6. The recorded
+artifact matches §27KO exactly (0/6 first, 5/6 anywhere, 1 correction, 0 errors, $0.007846, 5.6–45.8
+seconds); no paid evaluation was rerun. AI-118 DB **9/9**, unit **5/5**, Phase 06 **18/18**, metrics
+**4/4**, focused AI-2 read-only scan, typecheck and ESLint pass. No model/fallback/reasoning/web
+configuration, production data, commit, push, merge or deployment was changed. Details: §27KQ.
 
 **Release candidate gate for AI coverage, currency, receipts and Pending Operations (2026-11-20):**
 reviewed and assembled §27KJ–§27KM into PR #358. A fresh review closed a stored-retry boundary in
@@ -61,8 +132,12 @@ path is PR #358 through all seven required checks. Details: §27KN.
 `unresolvedCurrencyCandidates()` returns **5,000** of **5,001** unresolved rows with `truncated:
 true`; reviewed the CLI refactor, narrowed its template projection to `name`, removed unused parser
 assertions and exports, and made evidence-mode-only flags fail instead of being ignored. Focused
-currency, CLI, typecheck, ESLint and documentation checks pass; no complete suite was rerun in this
-follow-up.
+currency, CLI, typecheck, ESLint and documentation checks pass. The complete server suite now
+passed **3,314/3,314 tests across 538 suites**, with **0 failures, 0 skips and 0 cancelled**, exit
+**0**, duration **1,826,533.4359 ms**; the cap case passed in **6,859.8979 ms**. The log recorded
+**107** transient `MongoDB connection lost` notices and **106** reconnects, with no
+`MongooseServerSelectionError` and no failed assertions. The workflow review and ranked new ideas
+are in [`PRODUCT_CURRENCY.md`](PRODUCT_CURRENCY.md) §6; none is implemented.
 
 **Run-out correction and bounded live selection evaluation (2026-11-20):** added a narrow
 `asksForStockCoverage()` intent guard and one corrective re-ask, so a run-out answer cannot ship
@@ -930,6 +1005,196 @@ Known limits, checked before spending one of them:
 
 ---
 
+## 2026-11-21 — currency code review and complete-suite verification
+
+**Scope.** Reviewed all uncommitted currency changes — product service/controller/routes, validation,
+audit action, mobile form/API/labels, the AI price-comparison tool and the FX service — and
+simplified or corrected only what was provably wrong or duplicated. No server safeguard, audit
+field, currency scope rule or no-fallback FX rule changed, and no recommendation was implemented.
+
+**Review findings and corrections.**
+1. The mobile edit form sent `currencyCorrection: { reason, priceReconfirmed }` while the endpoint
+   reads top-level fields, so a real correction from the app would have failed validation. The form
+   and API wrapper now send top-level `reason` and `priceReconfirmed: true`, matching
+   [`PRODUCT_CURRENCY.md`](PRODUCT_CURRENCY.md) and the server tests; the focused test asserts it.
+2. A legacy row holding a non-canonical code such as `php` was normalised to `PHP` by the form, so
+   the UI hid the correction the server requires for the raw value. The comparison now uses the
+   exact stored code, and a new mobile test proves the reason/reconfirmation fields appear.
+3. `findProducts` returned a currency-ambiguity note when a price-ranked search simply matched no
+   products. It now returns a plain “No products matched this search” page, and AI45 covers the
+   empty case. AI-18's page-return count guard was updated (17 → 18) for the third `findProducts`
+   page path.
+4. Create, ordinary edit and currency correction built the same 13-field product payload three
+   times. They now share `productWritePayload(v)`; no field or validation changed.
+
+**Verification.** Server `npm run typecheck` and mobile `npm run typecheck` pass; the focused mobile
+form suite passes **6/6**. The first complete run reported **3,334 tests / 538 suites, 3,333 passed,
+1 failed, 0 skipped**, exit **1**, **1,921,771.2591 ms**; the sole failure was the stale AI-18 count
+guard, not a product regression. After updating it, AI-18 unit passed **3 pass / 1 DB-suite skip**,
+and the complete suite was rerun on the final tree: **3,334/3,334 passed across 538 suites, 0 failed,
+0 skipped, 0 cancelled**, exit **0**, **1,877,787.3521 ms**. The log recorded **107** transient fixture
+`MongoDB connection lost` notices and **0** `MongooseServerSelectionError` entries; all currency and
+FX suites passed. `check-docs` reports **71 active / 48 living**, the five documentation suites pass
+**31/31**, and `git diff --check` is clean.
+
+**Recommendations and limits.** Six new and six existing candidates are ranked in
+[`PRODUCT_CURRENCY.md`](PRODUCT_CURRENCY.md) §6 (2026-11-21): immutable currency/price snapshots,
+dependency-aware correction, FX age bands, correction evidence, rounding policy and opt-in converted
+comparison are new. Only the focused mobile form suite was run, not all mobile Jest; no live FX or
+provider call was made. No production data, migration, model configuration, commit, push, merge or
+deployment was touched.
+
+## 2026-11-21 — stock-coverage suite proof and ranked remaining candidates
+
+**Scope.** Ran the complete server unit and DB suites on the current stock-coverage tree (§27KQ),
+without editing source while they ran, then reviewed `getProductStockCoverage`, its tests and the
+earlier live audit. No genuine regression was found, and no runtime source or model, fallback or
+reasoning configuration was changed.
+
+**Unit suite.** `cd server && npm run test:unit` → **2,321 tests across 472 suites: 2,244 passed,
+77 deliberately skipped, 0 failed**, exit **0**, **59,565.0832 ms**. The 77 skips are the DB-backed
+suites inside mixed files, skipped visibly by `TEST_MODE=unit`.
+
+**DB suite.** `npm run test:db` → **1,231 tests across 271 suites: 1,110 passed, 120 skipped,
+1 failed**, exit **1**, **817,686.5622 ms**. The failure was
+`phase07b-auth-security.test.mjs` → “skipSuccessfulRequests survives a window reset on the per-IP
+bucket”: the final relock returned 401 instead of 429 because the 5-second per-IP window expired
+between the two post-reset failures on the loaded machine. Rerun alone with `TEST_MODE=db` it
+passed **27/27**, exit **0**, **66,690.5835 ms**. No coverage suite failed: AI-118 and the semantic
+metrics suite passed in both applicable modes, and the Phase 06 turn regressions passed in DB mode.
+The DB log also carries the expected fixture `MongoDB connection lost` notices; they produced no
+failed assertion. Unit and DB modes both include the mixed files, so their sums are not comparable
+to a one-pass full-suite total.
+
+**Coverage review and ranked candidates.** `getProductStockCoverage` remains a one-product,
+one-window estimate over `STOCK_OUT`, using current available quantity and returning a null
+estimate with no movement; it is a movement proxy, not confirmed sales. The ten remaining
+candidates and their order are recorded in
+[`INVENTORY_AI_FOLLOWUP_ASSESSMENT.md`](INVENTORY_AI_FOLLOWUP_ASSESSMENT.md) §3 (2026-11-21
+refresh): an evidence/confidence gate, days-to-minimum, catalogue-wide run-out ranking,
+stockout-censored demand correction, outlier-resistant estimation, intermittent-demand handling,
+transfer-aware location coverage, a coverage outcome ledger, supplier/PO-aware restock and
+controlled stock-out reason codes. Ranks 1, 2, 4, 5, 6, 7 and 8 are new; 3, 9 and 10 were already
+recorded. Nothing was implemented.
+
+**Documentation and checks.** Added the ranked section to the follow-up assessment, added the
+pointer in [`AI_ASSISTANT_IMPROVEMENT_ROADMAP.md`](AI_ASSISTANT_IMPROVEMENT_ROADMAP.md) §6 and
+recorded this session here. `node scripts/check-docs.mjs` reported **71 active / 48 living** and
+the five documentation suites passed **31/31**. `git diff --check` is clean.
+
+**Limits and remaining work.** The six-question live coverage evaluation was not rerun, so the
+current live selection/use rate is still unproven; a repeat ledger remains necessary. The phase07b
+per-IP window test is still timing-sensitive under a fully loaded DB suite and should be stabilised
+separately if it recurs. No production data, migration, model configuration, commit, push, merge or
+deployment was touched.
+
+## 2026-11-20 — currency correction, mixed-currency comparisons and bounded FX retry
+
+**Currency hardening, server/mobile/tests/docs.** Completed the three requested follow-ups without
+changing the unrelated AI-118, release or reliability work.
+
+**Currency edit guard.** `product.service.update()` now separates the stored exact code from the
+requested code. An ordinary PATCH can omit `currency` while a valid code exists or repeat that exact
+code; a different code is refused with `CURRENCY_CORRECTION_REQUIRED`. Clearing and a legacy row
+with no valid code are refused as before. The new correction controller validates a partial product
+payload plus a 3–500-character reason and literal `priceReconfirmed: true`, then calls the same
+service with a `ProductCurrencyCorrection`. The service independently re-checks reason/reconfirmation
+(for direct callers), refuses a same-code correction with `CURRENCY_CORRECTION_NOT_APPLICABLE`, and
+records `PRODUCT_CURRENCY_CORRECTED` with `previousCurrency`, `currency`, `reason`, `priceReconfirmed`
+and changed fields. The route is `POST /api/products/:id/currency-correction`, requires
+`products.manage` and is tenant-scoped.
+
+**Mobile correction flow.** `ProductForm` compares the selected code with the initial product. An
+ordinary edit still calls `productsApi.update`; a changed code reveals a reason field and a
+reconfirmation chip, refuses to submit without both, then calls `productsApi.correctCurrency` with
+the edited fields and correction metadata. The legacy product with no code follows the same
+correction path. `ProductInput.currencyCorrection` and the API wrapper were added; the existing form
+test mock and expectation were updated.
+
+**Mixed-currency ranking and filtering.** `productService.priceCurrencies()` groups the whole
+matching set by exact stored code, including `null`. `findProducts` uses the named ISO code when the
+member supplied one; otherwise it uses the single unambiguous code or blocks the comparison,
+returning `priceRankBlocked` / `priceFilterBlocked`, the groups and no items. `productService.list()`
+also refuses a price ceiling or ranking without exactly one recorded currency, so direct service
+callers cannot bypass it. Unrecorded prices stay `null`, are excluded from rankings and never match
+a ceiling. An explicit code scopes both the ceiling and the ranking and returns
+`priceFilterCurrency`/`priceFilterNote`.
+
+**FX retry.** `exchangeRates.ts` adds a per-pair in-flight map, a 256-entry negative cache starting
+at 30 seconds and doubling to a 5-minute cap, and counters `negativeCacheHits` and
+`coalescedRequests`. A successful quote deletes the negative entry; a failure returns `null` and
+never a guessed number. The existing six-hour positive cache, seven-day rate-age check, structured
+warning and `/api/health.exchangeRates` publication are intact; `/ready` and `/live` do not depend on
+FX state.
+
+**Tests and verification.** Currency unit mode passed **17/18 with the DB suite skipped** (0 failed);
+DB mode passed **8/11 with the unit suite skipped** (0 failed). AI-45 DB passed **14/15 with the unit
+suite skipped**; the mixed-currency case proves a PHP/USD/unrecorded set blocks both a ceiling and a
+ranking, while an explicit PHP or USD code returns only that currency. Phase 23 and documentation
+guards passed **41/41**, including the route inventory's **127 = 70 + 24 + 33 + 0** split and the
+record-count/index checks. INTEGRITY-RECOVERY passed **17/17**; phase04 catalog plus phase20
+filter/pagination passed **47/47**. Audit-label parity passed **8/8** after
+`mobile/lib/auditLabels.json` gained "Currency corrected"; the mobile audit-label suite passed
+**4/4**. Server `tsc --noEmit` and focused ESLint pass. Mobile typecheck, the focused product-form
+Jest suite **5/5** and focused ESLint pass. `check-docs` reports **71 active / 48 living**, and
+`git diff --check` is clean. Documentation was updated in
+`PRODUCT_CURRENCY.md`, `INTEGRITY_RECOVERY.md`, `SYSTEM_SPECIFICATION.md`, the Firebase auth design
+§2.6, `CLAUDE.md` and `PHASE_HISTORY.md`.
+
+**Limitations.** No full server suite was run in this session. Mixed-currency blocking deliberately
+ignores `inStockOnly`, so an out-of-stock other-currency row can still block; an explicit code scopes
+around it. The ordinary product list has no price sort, so a future list-level price control must
+reuse the same single-currency guard. FX failure state remains process-local, with no durable alert
+or second provider. No production data, migration, live FX outage, commit, push, merge or deployment
+was touched.
+
+## 2026-11-20 — run-out regressions and live coverage audit
+
+**AI-118 follow-up, tests/docs/live evaluation.** Added **Q7b** (no tool call on the first draft) and
+**Q7c** (a second failed coverage attempt) to `phase06-ai-behavior.test.mjs`. Q7b asserts the one
+corrective re-ask, the coverage call and the 6-unit/4-unit/15-day stored answer with only
+`getProductStockCoverage` used. Q7c asserts the correction is issued once, the turn stops after the
+second draft, and the stored text is exactly the existing ungrounded sentence with no quantity or
+forecast. Q7 and Q8 were not edited. The focused suite passed **16/16**.
+
+**Live run.** `AI_TEST_ALLOW_PAID_MODELS=true npm run eval:stock-coverage` ran the six fixed
+paraphrases against the current OpenRouter configuration (`openai/gpt-oss-20b`, two fallbacks) and a
+disposable development tenant seeded with 14 products, 22 stock rows and 30 movements. The tenant
+was removed in `finally`; no model, fallback, reasoning or web setting was changed and no production
+data was read. The script exited **1 by design** because coverage was not selected in every turn;
+there were **0 errors** and no infinite-cover claims.
+
+| Question | First tool | All tools | Coverage | Corrected | Outcome |
+| --- | --- | --- | --- | --- | --- |
+| `how-long` | `searchProducts` | `searchProducts` | not selected | yes | ungrounded after one correction |
+| `days-of-cover` | `findProducts` | `findProducts`, `getProductStockCoverage` | later | no | 45 days |
+| `run-out-soon` | `findProducts` | `findProducts`, `getInventory`, `getProductStockCoverage` | later | no | about 100 days |
+| `stock-coverage` | `searchProducts` | `searchProducts`, `getProductStockCoverage`, `getInventory` | later | no | quantity only; estimate and caveat omitted |
+| `until-runs-out` | `searchProducts` | `searchProducts`, `getProductStockCoverage` | later | no | about 120 days |
+| `longer-at-rate` | `findProducts` | `findProducts`, `getProductStockCoverage` | later | no | about 120 days; explicit stock-out caveat |
+
+Summary: **0/6 first-read coverage, 5/6 coverage anywhere, 1 correction, 0 errors, 0 exact
+proxy-caveat phrases, 0 infinite claims**. Manual reading found **1/5 grounded answers** explicitly
+saying stock-out includes sales, usage, damage or write-offs; three named the stock-out/outflow
+basis without that boundary, and `stock-coverage` omitted the estimate entirely. The run used 3–5
+calls per turn, 5.6–45.8 seconds, and recorded about **$0.007846** of turn cost. It is one sample,
+not a selection-rate guarantee.
+
+**Findings.** First-choice selection is structurally unlikely for name questions because the tool
+accepts only id/SKU/barcode; the model must search first. A successful coverage read does not
+guarantee the answer uses it (`stock-coverage`). The one correction can fail (`how-long`) and then
+correctly degrades. The proxy caveat is not reliably repeated by the model. These are ranked as
+recommendations in §27KO and in
+[`AI_ASSISTANT_IMPROVEMENT_ROADMAP.md`](AI_ASSISTANT_IMPROVEMENT_ROADMAP.md) §6; none is
+implemented in this pass.
+
+**Verification and limitations.** Phase 06 **16/16**; AI-118 unit **5 pass / 1 skipped** and DB
+**8 pass / 1 skipped**, both 0 failed; `npm run typecheck`; focused ESLint; documentation tests
+**31/31**; `check-docs` **71 active / 48 living**; `git diff --check`. The complete server suite was
+not rerun. The six-question run is evidence from one configured model and one development seed; it
+does not prove production selection, reliability under other phrasings or answer quality in every
+language. No production data, migration, commit, push, merge or deployment was performed.
+
 ## 2026-11-20 — run-out correction and bounded live selection evaluation
 
 **AI-118 follow-up, server/tests/scripts/docs.** Completed the three requested follow-ups without
@@ -968,10 +1233,11 @@ skipped**. Phase 06 behavior passed **14/14**, including Q7 and Q8. `eval:stock-
 --validate-only` passed for **6/6** paraphrases with no provider call. Documentation guards passed
 **31/31**. The complete server suite passed **3,311/3,311 tests across 538 suites**, with **0 failures, 0 skips and 0 cancelled** (exit 0, `--test-concurrency=2`, 1,840,452.9 ms).
 
-**Limitations.** No live-model run was executed, so the harness proves its bounded setup and the
-scripted correction path, not the configured model's real selection rate. A live run spends quota
-and needs separate approval. The disposable tenant is removed in `finally`; a hard kill can leave it
-for inspection. No production data, migration, commit, push, merge or deployment was performed.
+**Limitations.** No live-model run was executed at that point, so the harness proved its bounded
+setup and the scripted correction path, not the configured model's real selection rate. A live run
+spends quota and needs separate approval. The disposable tenant is removed in `finally`; a hard kill
+can leave it for inspection. No production data, migration, commit, push, merge or deployment was
+performed. The approved live run and the new Q7b/Q7c regressions are recorded in §27KO.
 
 ## 2026-11-20 — currency follow-up review, AUTH-03 stabilization and full-suite proof
 
@@ -5345,3 +5611,35 @@ Render deploy (the server merge `ad8426e`); zero OTA publications.
 4. Decide whether the assistant should group the two legs of one transfer before more members see
    the current wording.
 5. Keep this log's *Current position* updated at the start and end of the next session.
+
+## 2026-11-20 — Deployment verification, health aliases and follow-up refresh
+
+**Complete. No production data, commit, push, merge or deployment.** The follow-up to the
+`7d112cc` release added four things:
+
+- **Startup 5xx review.** The merge landed at 18:18:21Z and the serving process began at about
+  18:19:01Z. Its one 5xx was at 18:19:18.513Z; by 19:24Z the same process had served 1,031
+  responses (988 `2xx`, 34 `3xx`, 8 `4xx`, 1 `5xx`) and all three health signals were green. This
+  is consistent with a transient readiness/startup probe, not a genuine startup failure. The
+  process counter has no path and Render logs were unavailable, so the exact path is unproven. No
+  startup code changed; the regression suite pins the readiness-503 signature.
+- **Post-deploy SHA verifier.** `scripts/verify-production-deploy.mjs` polls `/api/health` for the
+  expected SHA, then requires readiness `200` / `ready` / `db: connected` and liveness `200` /
+  `live`. It is read-only and reports distinct `sha_mismatch`, `health_check_failed` and `timeout`
+  failures. The `verify-production-deploy.yml` workflow runs it on `server/`-scoped `main` pushes
+  and manual dispatch. The live check verified `7d112cc22f66a7c871d22e2c573313df1f493427` in 361 ms; an
+  all-zero control failed in 1,083 ms with the observed commit named.
+- **Bare aliases.** `GET /health` and `GET /ready` now use `createHealthHandlers()`, the same
+  implementation as `/api/health` and `/api/health/ready`; there is no `/health/live` or
+  `/health/ready` alias. The route inventory is 126 routes / 33 public, and the Phase 23 public
+  contract declares both.
+- **Ranked refresh.** `docs/INVENTORY_AI_FOLLOWUP_ASSESSMENT.md` §3 now has a 2026-11-20 top-ten
+  list, adding answer provenance/scope (`PD-01`), a pre-answer data-quality gate (`PD-02`), a
+  required deployment-verification gate (`PD-03`) and unit-of-measure/pack metadata (`PD-04`).
+  Planning only; none is implemented.
+
+**Verification.** New POST-DEPLOY test 5/5; Phase 23 authorization contract 21/21; OPS-2 unit
+9/9 (DB suite skipped); route inventory 11/11; typecheck passed; focused ESLint on `app.ts` and
+`health.routes.ts` passed; live verifier passed and mismatch control failed as designed;
+documentation tests 31/31 and `check-docs` 71 active / 48 living passed; `git diff --check` passed.
+No complete-suite run was made for this follow-up.

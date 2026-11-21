@@ -1116,6 +1116,35 @@ export function validateProduct(body: Body, { partial = false }: PartialOption =
   };
 }
 
+/**
+ * The explicit fields that authorise replacing a recorded product currency.
+ * They are deliberately separate from `validateProduct`: an ordinary edit never
+ * supplies them, and the service refuses a changed code without them. A boolean
+ * string is not confirmation; only the literal `true` is accepted.
+ */
+export function validateCurrencyCorrection(body: Body) {
+  const problems = [];
+  const reason = requiredString(body?.reason, 'reason', 500);
+  problems.push(...reason.problems);
+  if (reason.value && reason.value.trim().length < 3) {
+    problems.push({ field: 'reason', message: 'reason must be at least 3 characters' });
+  }
+
+  const priceReconfirmed = body?.priceReconfirmed;
+  if (priceReconfirmed !== true) {
+    problems.push({
+      field: 'priceReconfirmed',
+      message: 'Confirm that cost and selling prices were rechecked in the replacement currency.',
+    });
+  }
+
+  return {
+    problems,
+    reason: reason.value?.trim() ?? '',
+    priceReconfirmed: priceReconfirmed === true,
+  };
+}
+
 const REASON_MAX = 500;
 const REFERENCE_MAX = 200;
 

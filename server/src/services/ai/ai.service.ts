@@ -32,6 +32,7 @@ import {
   routeLowStockReads,
   asksForLowStockShare,
   asksForStockCoverage,
+  stockCoverageAnswer,
   asksForRevenue,
   statesUnqualifiedMoney,
   withRevenueQualifier,
@@ -87,7 +88,13 @@ import {
   asksForRestockCount,
   restockCountAnswer,
 } from './answerCompletion.ts';
-import type { CatalogueFact, ProductLink, StockValueSummary, TopOutFact } from './answerCompletion.ts';
+import type {
+  CatalogueFact,
+  ProductLink,
+  StockCoverageSummary,
+  StockValueSummary,
+  TopOutFact,
+} from './answerCompletion.ts';
 import { locationService } from '../reference.service.ts';
 import { aiConfig } from './aiConfig.ts';
 import { languageDirective, replyLanguageOf } from './language.ts';
@@ -344,6 +351,12 @@ interface ChatResult {
   answerActions?: AnswerActions;
   /** AI-116 — what this answer read, for the footer and the next follow-up. */
   answerContext: AnswerContext;
+  /** AI-118 follow-up — whether a successful coverage read shaped the stored answer. */
+  coverageRead?: {
+    succeeded: boolean;
+    finalized: boolean;
+    daysOfCover: number | null;
+  };
   usage?: ProviderUsage;
   iterations: number;
   /**
@@ -560,7 +573,7 @@ export function systemPrompt(
     // AI-118 — a run-out estimate is a server-calculated rate, not a model guess. The
     // tool exists because the roadmap required an explicit window and rule before any
     // forecast-shaped answer could be shown.
-    '43. For how long stock will last, run-out, stock cover, demand or a forecast, first identify the ONE product the member means, then call getProductStockCoverage once with its id (or exact SKU/barcode), the location if one was named, and a bounded `days` window when the member gave one. Quote its current available quantity, the window, units out and the average daily rate exactly. Call daysOfCover an estimate based on recorded stock-out movements, not sales or a guarantee; stock-out can be usage, damage or a write-off. When daysOfCover is null, say the window had no stock-out and no rate can be estimated — never say the stock will last forever, and never invent seasonality or supplier lead time. This tool is for one product, not a catalogue-wide ranking.',
+    '43. For how long stock will last, run-out, stock cover, demand or a forecast, first identify the ONE product the member means, then call getProductStockCoverage once with its id, exact SKU/barcode, or exact recorded product name, the location if one was named, and a bounded `days` window when the member gave one. A whole-name match is enough; do not search first just to turn a name into an id. If the tool reports ambiguous matches, ask which product the member means and never choose one. Quote its current available quantity, the window, units out and the average daily rate exactly. Call daysOfCover an estimate based on recorded stock-out movements, not sales or a guarantee; stock-out can be usage, damage or a write-off. When daysOfCover is null, say the window had no stock-out and no rate can be estimated — never say the stock will last forever, and never invent seasonality or supplier lead time. This tool is for one product, not a catalogue-wide ranking.',
     ...(sourceRestricted
       ? [
           '39. INVENTORY-ONLY SOURCE LOCK: This question must be answered from the business\'s own recorded data only. Do not search the web, fetch a page, call researchInventoryProducts or researchMarketPrices, or use any external price, supplier, review, rating or quality information. You have no supplier or purchase-order tool on this turn. Use inventory tool output for product names, recorded selling prices, currency, stock and movements. If a market price, cost price, supplier term, lead time, external review or quality rating is not in a tool result, say that it is not available from the inventory tools; do not substitute web data or fill the gap from memory. Do not present an external brand or product as a recommendation. This rule supersedes rules 21, 23, 35 and 36.',
@@ -852,6 +865,12 @@ export async function runAiChat({
   // named tool contract, and a second failure ships the honest ungrounded sentence instead
   // of a plausible quantity with no coverage estimate.
   let stockCoverageReasked = false;
+  // AI-118 follow-up — the last successful coverage read, kept for the deterministic
+  // answer finalizer. Selection is not use: a model can call the tool and then answer
+  // only the current quantity. This summary is the server's copy of the facts the
+  // answer must state.
+  let stockCoverageSummary: StockCoverageSummary | null = null;
+  let stockCoverageFinalized = false;
   // AI-116 — the last row-shaped read whose rows the answer can build actions from. Its
   // product IDs become the membership set for a follow-up; its timestamp and filters are
   // the footer's provenance. The output itself is never stored here.
@@ -2126,7 +2145,7 @@ export async function runAiChat({
               content:
                 'This is a run-out or stock-cover question, and your draft did not use the ' +
                 'coverage read. Call getProductStockCoverage once now, with exactly one of the ' +
-                'product id, SKU or barcode, the location if the member named one, and the ' +
+                'product id, exact SKU/barcode or exact recorded name, the location if the member named one, and the ' +
                 'bounded days window if one was given. Answer only from that result: quote the ' +
                 'current available quantity, the stock-out rate and window, and the days-of-cover ' +
                 'estimate, and keep the movement-proxy caveat. Do not estimate from a plain stock ' +
@@ -2869,6 +2888,48 @@ export async function runAiChat({
         // feeding it into a page-row finalizer would make one product look like a list.
         const fact = factFrom(resultRecord?.product);
         if (fact) productFacts.push(fact);
+        // Only the LAST coverage call may shape the answer. A later ambiguous/failed
+        // read must not leave an earlier product's numbers in the finalizer.
+        stockCoverageSummary = null;
+        // The finalizer needs the values, not the model's prose. Capture only a
+        // successful result; a failed/ambiguous read must not become a forecast.
+        const productRow = resultRecord?.product as Record<string, unknown> | undefined;
+        const currentRow = resultRecord?.current as Record<string, unknown> | undefined;
+        const movementRow = resultRecord?.movement as Record<string, unknown> | undefined;
+        const forecastRow = resultRecord?.forecast as Record<string, unknown> | undefined;
+        const scopeRow = resultRecord?.scope as Record<string, unknown> | undefined;
+        const productName = typeof productRow?.name === 'string' ? productRow.name.trim() : '';
+        const availableQuantity = Number(currentRow?.availableQuantity);
+        const days = Number(scopeRow?.days);
+        const unitsOut = Number(movementRow?.unitsOut);
+        const stockOutMovements = Number(movementRow?.stockOutMovements);
+        const averageDailyUnitsOut = Number(forecastRow?.averageDailyUnitsOut);
+        const daysOfCoverRaw = forecastRow?.daysOfCover;
+        const daysOfCover =
+          daysOfCoverRaw === null ? null : Number(daysOfCoverRaw);
+        if (
+          resultRecord?.found === true &&
+          productName &&
+          Number.isFinite(availableQuantity) &&
+          Number.isFinite(days) &&
+          days > 0 &&
+          Number.isFinite(unitsOut) &&
+          Number.isFinite(stockOutMovements) &&
+          Number.isFinite(averageDailyUnitsOut) &&
+          (daysOfCover === null || Number.isFinite(daysOfCover))
+        ) {
+          stockCoverageSummary = {
+            productName,
+            availableQuantity,
+            days,
+            unitsOut,
+            stockOutMovements,
+            averageDailyUnitsOut,
+            daysOfCover,
+            locationName:
+              typeof scopeRow?.locationName === 'string' ? scopeRow.locationName : null,
+          };
+        }
       }
       if (name === 'getInventory') {
         // AI-99 — only the LAST inventory read describes the answer being written. Mixing
@@ -3217,6 +3278,20 @@ export async function runAiChat({
       console.warn('AI restock answer completed from the returned rows');
     }
   }
+  // AI-118 follow-up — a successful coverage read must produce the estimate and the
+  // proxy caveat in the stored answer. The live audit found a quantity-only answer after
+  // the tool had returned daysOfCover, so this runs after the model's prose and replaces
+  // it with the tool's own facts. It also covers an OUTPUT_LIMIT draft because those
+  // facts are complete in the result.
+  if (stockCoverageSummary && asksForStockCoverage(message)) {
+    const computed = stockCoverageAnswer(stockCoverageSummary, cfg.maxMessageChars);
+    if (computed) {
+      finalText = computed;
+      degraded = null;
+      stockCoverageFinalized = true;
+      console.warn('AI coverage answer finalized from the returned estimate');
+    }
+  }
   if (degraded) {
     // AI-2 — the first time a degraded turn is visible anywhere. Before this, a turn
     // that produced no usable answer returned HTTP 201 and left NO trace, so the
@@ -3339,6 +3414,13 @@ export async function runAiChat({
     answerActions:
       finalAnswerActions.screens.length || finalAnswerActions.list ? finalAnswerActions : undefined,
     answerContext,
+    coverageRead: stockCoverageSummary
+      ? {
+          succeeded: true,
+          finalized: stockCoverageFinalized,
+          daysOfCover: stockCoverageSummary.daysOfCover,
+        }
+      : undefined,
     usage: usage ?? undefined,
     iterations: steps,
     degraded: degraded ?? undefined,

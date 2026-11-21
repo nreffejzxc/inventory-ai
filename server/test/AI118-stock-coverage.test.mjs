@@ -1,14 +1,14 @@
 // AI-118 — run-out estimates from recorded movements, with the rule stated in the data.
 //
 // WHAT THIS SUITE PINS:
-//   * the tool exists, is read-only, takes exactly one product identifier, and cannot
-//     receive a tenant id or an unbounded window;
+//   * the tool exists, is read-only, takes exactly one product identifier (including an
+//     exact recorded name), and cannot receive a tenant id or an unbounded window;
 //   * stock-out units are summed over the whole matching ledger, while transfers and
 //     stock-in are excluded;
 //   * current stock is summed over every matching inventory row, not one page of them;
 //   * a location scope changes both sides of the calculation consistently;
 //   * no movements means daysOfCover is null, never "infinite";
-//   * missing, foreign, archived and ambiguous products/locations are refused honestly;
+//   * missing, foreign, archived, partial and ambiguous products/locations are refused honestly;
 //   * `getProductsByLocation` does not present archived products as current stock.
 
 import { it, before, after } from 'node:test';
@@ -116,6 +116,7 @@ unitSuite('AI-118 the coverage read is one product, bounded, and read-only', () 
     assert.ok(validateToolArgs(tool, { days: 6 }).problems.length > 0);
     assert.ok(validateToolArgs(tool, { days: 366 }).problems.length > 0);
     assert.equal(validateToolArgs(tool, { days: 7 }).problems.length, 0);
+    assert.equal(validateToolArgs(tool, { name: 'MX Keys S' }).problems.length, 0);
 
     const ctx = { businessId: '64b000000000000000000001', userId: 'u', role: ROLES.OWNER };
     const none = await ok('getProductStockCoverage', {}, ctx);
@@ -283,6 +284,69 @@ dbSuite('AI-118 coverage uses whole-set stock and stock-out movements only', dbO
       10 * 24 * 60 * 60 * 1000,
       'the echoed window and asOf must come from one clock',
     );
+  });
+
+  it('★ an exact recorded name resolves coverage, refuses partials and duplicates, and stays in the tenant', async () => {
+    const namedName = uniqueName('Coverage Named');
+    const named = await newProduct(A, {
+      name: namedName,
+      sku: uniqueName('COV-NAME'),
+    });
+    await stockIn(A, named.id, main.id, 5);
+
+    const byName = await ok(
+      'getProductStockCoverage',
+      { name: `  ${namedName.toUpperCase()}  `, days: 10 },
+      ctxOf(A),
+    );
+    assert.equal(byName.found, true);
+    assert.equal(byName.product.id, named.id);
+    assert.equal(byName.product.name, named.name);
+
+    const partial = await ok(
+      'getProductStockCoverage',
+      { name: namedName.slice(0, -1), days: 10 },
+      ctxOf(A),
+    );
+    assert.equal(partial.found, false);
+    assert.match(partial.error, /exact recorded name/i);
+
+    const foreignByName = await ok(
+      'getProductStockCoverage',
+      { name: foreignProduct.name, days: 10 },
+      ctxOf(A),
+    );
+    assert.equal(foreignByName.found, false);
+
+    const duplicateName = uniqueName('Coverage Duplicate');
+    const first = await newProduct(A, {
+      name: duplicateName,
+      sku: uniqueName('COV-DUP-A'),
+    });
+    const second = await newProduct(A, {
+      name: duplicateName,
+      sku: uniqueName('COV-DUP-B'),
+    });
+    const ambiguous = await ok(
+      'getProductStockCoverage',
+      { name: duplicateName, days: 10 },
+      ctxOf(A),
+    );
+    assert.equal(ambiguous.found, false);
+    assert.equal(ambiguous.ambiguous, true);
+    assert.equal(ambiguous.matches.length, 2);
+    assert.deepEqual(
+      ambiguous.matches.map((match) => match.id).sort(),
+      [first.id, second.id].sort(),
+    );
+
+    const both = await ok(
+      'getProductStockCoverage',
+      { id: named.id, name: namedName, days: 10 },
+      ctxOf(A),
+    );
+    assert.equal(both.found, false);
+    assert.match(both.error, /exactly one/i);
   });
 
   it('★ no movement is null cover, not an infinite forecast', async () => {

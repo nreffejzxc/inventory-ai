@@ -1,7 +1,17 @@
 import type { Request, Response } from 'express';
 
 import { parsePagination, pageResult } from '../utils/pagination.ts';
-import { isObjectId, optionalObjectId, optionalSearch, optionalEnum, requiredString, validateProduct, ACTIVE_ARCHIVED_STATUSES, CODE_MAX } from '../utils/validate.ts';
+import {
+  isObjectId,
+  optionalObjectId,
+  optionalSearch,
+  optionalEnum,
+  requiredString,
+  validateCurrencyCorrection,
+  validateProduct,
+  ACTIVE_ARCHIVED_STATUSES,
+  CODE_MAX,
+} from '../utils/validate.ts';
 import { throwValidation, invalidId } from '../utils/errors.ts';
 import { productService } from '../services/product.service.ts';
 
@@ -77,6 +87,25 @@ function parseQueryList(req: AuthenticatedRequest) {
   };
 }
 
+/** The one validated field projection shared by create, edit and currency correction. */
+function productWritePayload(v: ReturnType<typeof validateProduct>) {
+  return {
+    name: v.name,
+    brand: v.brand,
+    sku: v.sku,
+    barcode: v.barcode,
+    description: v.description,
+    specifications: v.specifications,
+    categoryId: v.categoryId,
+    costPrice: v.costPrice,
+    sellingPrice: v.sellingPrice,
+    currency: v.currency,
+    unit: v.unit,
+    minimumStock: v.minimumStock,
+    imageUrl: v.imageUrl,
+  };
+}
+
 const productsController = {
   async list(req: AuthenticatedRequest, res: Response) {
     const parsed = parseQueryList(req);
@@ -124,21 +153,7 @@ const productsController = {
   async create(req: AuthenticatedRequest, res: Response) {
     const v = validateProduct(req.body ?? {});
     if (v.problems.length) throwValidation(v.problems);
-    const doc = await productService.create(req.user!.businessId, req.user!.id, {
-      name: v.name,
-      brand: v.brand,
-      sku: v.sku,
-      barcode: v.barcode,
-      description: v.description,
-      specifications: v.specifications,
-      categoryId: v.categoryId,
-      costPrice: v.costPrice,
-      sellingPrice: v.sellingPrice,
-      currency: v.currency,
-      unit: v.unit,
-      minimumStock: v.minimumStock,
-      imageUrl: v.imageUrl,
-    });
+    const doc = await productService.create(req.user!.businessId, req.user!.id, productWritePayload(v));
     res.status(201).json(productService.toProductDTO(doc));
   },
 
@@ -146,21 +161,33 @@ const productsController = {
     const id = paramId(req);
     const v = validateProduct(req.body ?? {}, { partial: true });
     if (v.problems.length) throwValidation(v.problems);
-    const doc = await productService.update(req.user!.businessId, id, req.user!.id, {
-      name: v.name,
-      brand: v.brand,
-      sku: v.sku,
-      barcode: v.barcode,
-      description: v.description,
-      specifications: v.specifications,
-      categoryId: v.categoryId,
-      costPrice: v.costPrice,
-      sellingPrice: v.sellingPrice,
-      currency: v.currency,
-      unit: v.unit,
-      minimumStock: v.minimumStock,
-      imageUrl: v.imageUrl,
-    });
+    const doc = await productService.update(req.user!.businessId, id, req.user!.id, productWritePayload(v));
+    res.json(productService.toProductDTO(doc));
+  },
+
+  /**
+   * The only path that may replace a product's recorded currency. It accepts the
+   * normal product fields so the price edit and its corrected interpretation save
+   * together, plus a reason and an explicit price reconfirmation. The ordinary
+   * PATCH handler deliberately ignores these fields.
+   */
+  async correctCurrency(req: AuthenticatedRequest, res: Response) {
+    const id = paramId(req);
+    const v = validateProduct(req.body ?? {}, { partial: true });
+    const correction = validateCurrencyCorrection(req.body ?? {});
+    const problems = [...v.problems, ...correction.problems];
+    if (v.currency === undefined) {
+      problems.push({ field: 'currency', message: 'currency is required for a correction' });
+    }
+    if (problems.length) throwValidation(problems);
+
+    const doc = await productService.update(
+      req.user!.businessId,
+      id,
+      req.user!.id,
+      productWritePayload(v),
+      { reason: correction.reason, priceReconfirmed: true },
+    );
     res.json(productService.toProductDTO(doc));
   },
 

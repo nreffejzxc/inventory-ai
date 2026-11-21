@@ -183,6 +183,7 @@ interface StockCoverageArgs extends ToolArguments, LocationRef {
   id?: string;
   sku?: string;
   barcode?: string;
+  name?: string;
   days?: number;
 }
 
@@ -1053,35 +1054,69 @@ const tools: Tool[] = [
         return empty;
       }
       const pageLimit = Math.min(args.limit ?? 15, 25);
-      // A price ranking is only meaningful inside one recorded currency. First
-      // discover which currency groups the MATCHING catalogue carries, then
-      // either narrow to the one the member named / the only recorded one, or
-      // refuse to rank and say why. This runs before the page query, so a page
-      // cannot hide a second currency from the check.
+      // A price ceiling and a price ranking are both numeric comparisons, so each
+      // is meaningful only inside one recorded currency. Discover the currency
+      // groups across the WHOLE matching set first (never apply the ceiling to the
+      // group discovery, or the check would see only rows the unguarded filter
+      // already admitted). Then either narrow to the one code the member named /
+      // the only recorded code, or refuse the ambiguous comparison instead of
+      // ranking PHP against USD (or against an unrecorded price).
+      const priceFilterRequested = maxSellingPrice !== undefined;
+      const priceComparisonRequested = Boolean(args.sort) || priceFilterRequested;
       let priceCurrency: string | undefined = requestedCurrency ?? undefined;
       let priceRankBlocked = false;
+      let priceFilterBlocked = false;
       let priceCurrencyGroups: Array<{ currency: string | null; count: number }> = [];
-      if (args.sort) {
+      if (priceComparisonRequested) {
         priceCurrencyGroups = await productService.priceCurrencies(ctx.businessId, {
           terms,
           includeDescription: true,
           status: 'ACTIVE',
           categoryId: category.id,
-          maxSellingPrice,
-          maxSellingPriceInclusive,
         });
         if (!requestedCurrency) {
           // `null` is its own group, not "unknown currency that can share a
           // numeric order". One known group plus an unrecorded group is mixed
           // just as surely as PHP plus USD.
           const populated = priceCurrencyGroups.filter((group) => group.count > 0);
-          if (populated.length > 1) priceRankBlocked = true;
-          else if (populated.length === 1 && populated[0]!.currency) {
+          if (populated.length === 0) {
+            // No matches at all is not a currency ambiguity. Say what happened
+            // rather than sending the model a refusal it could misreport.
+            return page(0, [], {
+              ...(priceFilterRequested
+                ? {
+                    maxSellingPrice,
+                    ...(maxSellingPriceInclusive ? { maxSellingPriceInclusive: true } : {}),
+                  }
+                : {}),
+              priceCurrencies: [],
+              note: 'No products matched this search.',
+            });
+          }
+          if (populated.length > 1 || !populated[0]!.currency) {
+            priceRankBlocked = Boolean(args.sort);
+            priceFilterBlocked = priceFilterRequested;
+          } else {
             priceCurrency = populated[0]!.currency!;
           }
         }
       }
       const effectiveSort = priceRankBlocked ? undefined : args.sort;
+      if (priceFilterBlocked) {
+        return page(0, [], {
+          ...(priceRankBlocked ? { priceRankBlocked: true } : {}),
+          ...(priceFilterBlocked ? { priceFilterBlocked: true } : {}),
+          ...(priceFilterRequested
+            ? {
+                maxSellingPrice,
+                ...(maxSellingPriceInclusive ? { maxSellingPriceInclusive: true } : {}),
+              }
+            : {}),
+          priceCurrencies: priceCurrencyGroups,
+          note:
+            'No price comparison was applied. A numeric ceiling or ranking needs one recorded currency, and these matches do not have one unambiguous recorded currency. Name a currency (for example "under PHP 5,000") or ask for the products without a price comparison.',
+        });
+      }
       const search = (searchTerms: string[]) =>
         productService.list(ctx.businessId, {
           terms: searchTerms,
@@ -1201,6 +1236,13 @@ const tools: Tool[] = [
           : {}),
         ...(maxSellingPrice !== undefined ? { maxSellingPrice } : {}),
         ...(maxSellingPriceInclusive ? { maxSellingPriceInclusive: true } : {}),
+        ...(maxSellingPrice !== undefined && priceCurrency
+          ? {
+              priceFilterCurrency: priceCurrency,
+              priceFilterNote:
+                `The price ceiling applies only to products whose recorded currency is ${priceCurrency}. Products in other currencies or with no recorded currency are excluded; never compare the numbers across currencies.`,
+            }
+          : {}),
         ...(args.sort && !priceRankBlocked
           ? {
               priceRank: args.sort,
@@ -1214,7 +1256,7 @@ const tools: Tool[] = [
               priceRankBlocked: true,
               priceCurrencies: priceCurrencyGroups,
               priceRankNote:
-                'These matches carry more than one recorded currency, so there is no single cheapest or most expensive product across them. Report each currency separately; do not compare the numbers or call one row the overall cheapest.',
+                'These matches do not share one recorded currency, so there is no single cheapest or most expensive product across them. Report each currency separately; do not compare the numbers or call one row the overall cheapest.',
             }
           : {}),
         ...(categories
@@ -1286,7 +1328,7 @@ const tools: Tool[] = [
   {
     name: 'getProductStockCoverage',
     description:
-      'Estimate how long ONE recorded product\'s current stock will last from its recorded STOCK_OUT movements in a lookback window. Pass exactly one of id, sku, or barcode; optionally scope it to a location and choose `days` (default 30, 7–365). It returns current available quantity, stock-out units and movement count, the simple average daily stock-out rate, days of cover and a 30-day run-rate projection. STOCK_OUT is a movement proxy: it can be a sale, usage, damage or a write-off, and stock-in, transfers and adjustments are deliberately excluded. This is not a sales figure, a supplier lead time or a guarantee, and a zero-movement window returns daysOfCover null rather than infinity. Use it for "how long will this product last", run-out, stock-cover and demand questions; never use it to rank the whole catalogue or to invent seasonality.',
+      'Estimate how long ONE recorded product\'s current stock will last from its recorded STOCK_OUT movements in a lookback window. Pass exactly one of id, sku, barcode, or the exact recorded product name; optionally scope it to a location and choose `days` (default 30, 7–365). It returns current available quantity, stock-out units and movement count, the simple average daily stock-out rate, days of cover and a 30-day run-rate projection. STOCK_OUT is a movement proxy: it can be a sale, usage, damage or a write-off, and stock-in, transfers and adjustments are deliberately excluded. This is not a sales figure, a supplier lead time or a guarantee, and a zero-movement window returns daysOfCover null rather than infinity. A name resolves only when the whole recorded name matches one product; if more than one product has that name, the tool returns ambiguous matches instead of choosing. Use it for "how long will this product last", run-out, stock-cover and demand questions; never use it to rank the whole catalogue or to invent seasonality.',
     permission: PERMISSIONS.INVENTORY_HISTORY_VIEW,
     parameters: {
       type: 'object',
@@ -1295,6 +1337,12 @@ const tools: Tool[] = [
         id: objectId,
         sku: { type: 'string', maxLength: 100, description: 'Exact SKU.' },
         barcode: { type: 'string', maxLength: 100, description: 'Exact barcode.' },
+        name: {
+          type: 'string',
+          maxLength: 200,
+          description:
+            'Exact recorded product name, case- and surrounding-whitespace-insensitive. Use only when the member named the product and no id/SKU/barcode is known; a partial or ambiguous name is refused.',
+        },
         locationId: objectId,
         location: {
           type: 'string',
@@ -1308,14 +1356,14 @@ const tools: Tool[] = [
           description: 'Lookback window in days (default 30).',
         },
       },
-      description: 'Provide exactly one of id, sku, or barcode.',
+      description: 'Provide exactly one of id, sku, barcode, or name.',
     },
     async executor(ctx: ToolContext, args: StockCoverageArgs) {
-      const identifiers = [args.id, args.sku, args.barcode].filter(
+      const identifiers = [args.id, args.sku, args.barcode, args.name].filter(
         (value) => typeof value === 'string' && value.trim().length > 0
       );
       if (identifiers.length !== 1) {
-        return { found: false, error: 'Provide exactly one of id, sku, or barcode.' };
+        return { found: false, error: 'Provide exactly one of id, sku, barcode, or name.' };
       }
 
       const location = await resolveLocation(ctx, args, { required: false });
@@ -1336,11 +1384,35 @@ const tools: Tool[] = [
         }
       }
 
-      const product = await productService.getByIdentifier(ctx.businessId, {
-        id: args.id,
-        sku: args.sku,
-        barcode: args.barcode,
-      });
+      let product;
+      if (args.name) {
+        const matches = await productService.listByExactName(ctx.businessId, args.name);
+        if (matches.length === 0) {
+          return {
+            found: false,
+            error: 'No product in this business has that exact recorded name.',
+          };
+        }
+        if (matches.length > 1) {
+          return {
+            found: false,
+            ambiguous: true,
+            error: `More than one product is named "${args.name.trim()}". Ask which product the member means; do not choose one.`,
+            matches: matches.map((match) => ({
+              id: String(match._id),
+              name: String(match.name),
+              sku: match.sku ? String(match.sku) : null,
+            })),
+          };
+        }
+        product = matches[0];
+      } else {
+        product = await productService.getByIdentifier(ctx.businessId, {
+          id: args.id,
+          sku: args.sku,
+          barcode: args.barcode,
+        });
+      }
       if (!product) {
         return {
           found: false,

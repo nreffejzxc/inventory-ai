@@ -21,6 +21,12 @@ router.get('/reorder', requireAuth, requirePermission(PERMISSIONS.PRODUCTS_VIEW)
 router.get('/barcode', requireAuth, requirePermission(PERMISSIONS.PRODUCTS_VIEW), productsController.byBarcode);
 router.get('/:id', requireAuth, requirePermission(PERMISSIONS.PRODUCTS_VIEW), productsController.get);
 router.patch('/:id', requireAuth, requirePermission(PERMISSIONS.PRODUCTS_MANAGE), productsController.update);
+router.post(
+  '/:id/currency-correction',
+  requireAuth,
+  requirePermission(PERMISSIONS.PRODUCTS_MANAGE),
+  productsController.correctCurrency
+);
 router.post('/:id/archive', requireAuth, requirePermission(PERMISSIONS.PRODUCTS_MANAGE), productsController.archive);
 router.post('/:id/restore', requireAuth, requirePermission(PERMISSIONS.PRODUCTS_MANAGE), productsController.restore);
 router.post('/:id/generate-barcode', requireAuth, requirePermission(PERMISSIONS.PRODUCTS_MANAGE), productsController.generateBarcode);

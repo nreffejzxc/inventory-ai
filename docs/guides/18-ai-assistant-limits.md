@@ -137,7 +137,7 @@ It never falls back after streamed text, after a quota/rate/auth refusal, or aft
 | Empty-completion retry | Once | **env** `AI_EMPTY_RETRY_MAX` (`1`) | A 2xx with neither text nor a tool call is retried once. The retry consumes an iteration. |
 | Grounding re-asks | `2` | **fixed** `MAX_GROUNDING_RETRIES` | If a recorded-data answer arrives with no successful read, the model is sent back at most twice. After that, a canned honest sentence is stored instead of the invented answer. |
 | Simple-route re-asks | `1` free re-ask, then `1` paid escalation | fixed | A simple stock/restock answer must contain its required read. The first failure stays on the free model; the second escalates to the configured primary (subject to the daily budget). Both count toward the same two grounding retries. |
-| Run-out coverage re-asks | `1` | fixed | A run-out/stock-cover answer that did not succeed with `getProductStockCoverage` is discarded and re-asked once with that tool, its exact-one-identifier rule, the optional location and the bounded window. A second miss stores the honest ungrounded sentence; no forecast is shipped from a plain stock read. |
+| Run-out coverage re-asks | `1` | fixed | A run-out/stock-cover answer that did not succeed with `getProductStockCoverage` is discarded and re-asked once with that tool, its exact-one-identifier/exact-name rule, the optional location and the bounded window. A second miss stores the honest ungrounded sentence; no forecast is shipped from a plain stock read. Once coverage succeeds, the answer finalizer builds the estimate and proxy caveat from the tool result. |
 | Tool iterations | `6` default | **env** `AI_MAX_TOOL_ITERATIONS` | Provider calls per turn, not tool calls alone. The final iteration withholds tools so the model must answer from what it already gathered. |
 | Research iterations | `min(default + 2, 8)` | fixed formula | Research questions get up to 8 provider calls. With the default this means 8 iterations; ordinary turns get 6. |
 | Tool-result payload | `12,000` characters | **env** `AI_MAX_TOOL_RESULT_CHARS` | Oversized results are shortened structurally: rows are dropped from the largest array and a `truncated` flag/note is added, keeping valid JSON. A tool's nominal page size can therefore be reduced further by this cap. |
@@ -196,17 +196,27 @@ Additional tool ceilings:
 - `getHighestStockProducts` ranks ACTIVE products by available quantity and returns the top page
   plus a `count` of every product with positive stock in scope. `location`/`locationId` narrows the
   ranking; archived products are excluded.
-- `getProductStockCoverage` takes exactly one product id, SKU or barcode, an optional location and
+- `getProductStockCoverage` takes exactly one product id, exact SKU/barcode or exact recorded name,
+  an optional location and
   a 7–365 day window (default 30). It sums availability over every matching inventory row and
   `STOCK_OUT` units over the same scope, returning `daysOfCover` and a 30-day run-rate projection.
   Transfers, stock-in and adjustments are excluded. Stock-out is a movement proxy, never confirmed
-  sales; no movement returns `daysOfCover: null` rather than an infinite estimate.
-  The Phase 06 DB-backed turn test uses a scripted provider to prove the tool is offered, executed
-  and persisted with that caveat. `Q7` now starts with a wrong `getProduct` choice and proves the
-  turn loop's single corrective re-ask runs `getProductStockCoverage` before the answer is stored;
-  a second miss ships the honest ungrounded sentence. `npm run eval:stock-coverage` is the bounded,
-  opt-in live check of selection across six paraphrases; it records first/all tool choices and never
-  changes the configured model. A live run is evidence, not a prompt guarantee.
+  sales; no movement returns `daysOfCover: null` rather than an infinite estimate. An exact name is
+  anchored to the whole recorded name in the caller's business; duplicate names return candidates
+  for a disambiguation question instead of a guessed product. A successful coverage result is
+  finalized deterministically, so the stored answer always carries the estimate (or the explicit
+  no-rate outcome) and the proxy caveat even when the model's draft omits one.
+  The Phase 06 DB-backed turn tests use a scripted provider to prove the tool is offered, executed
+  and persisted with that caveat. `Q7` starts with a wrong `getProduct` choice and proves the turn
+  loop's single corrective re-ask runs `getProductStockCoverage` before the answer is stored; `Q7b`
+  does the same for a first draft with no tool call; `Q7c` proves a second miss ships the honest
+  ungrounded sentence; Q8 keeps the no-history null-cover path. `npm run eval:stock-coverage` is the
+  bounded, opt-in live check of selection across six paraphrases; it records first/all tool choices
+  and never changes the configured model. The 2026-11-20 run found 0/6 first-choice and 5/6 coverage
+  anywhere, with one corrected draft still ungrounded. The harness now distinguishes selected,
+  succeeded and finalized/used coverage, and judges the proxy caveat semantically; the old exact
+  phrase metric missed the one answer that named sales, usage, damage and write-offs without the
+  words "movement proxy". A live run is evidence, not a prompt guarantee.
 
 **Purpose:** each page is sized to answer a normal question without flooding the model's context,
 while the hard maximum stops a model from asking for the entire catalogue. The 12,000-character

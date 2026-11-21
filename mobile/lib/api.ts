@@ -752,11 +752,17 @@ export interface ProductInput {
   unit?: string | null;
   costPrice?: number | null;
   sellingPrice?: number | null;
-  /** Required ISO 4217 code of the prices, e.g. PHP. PATCH may omit it only when the product already has one. */
+  /** Required ISO 4217 code of the prices. Ordinary PATCH may omit/repeat the current code; only `correctCurrency` may replace it. */
   currency?: string | null;
   minimumStock?: number | null;
   imageUrl?: string | null;
 }
+
+/** The correction fields are top-level, matching the documented endpoint contract. */
+export type ProductCurrencyCorrectionInput = ProductInput & {
+  reason: string;
+  priceReconfirmed: true;
+};
 
 export const productsApi = {
   /** Paginated { items, page, limit, total, totalPages }. */
@@ -771,6 +777,9 @@ export const productsApi = {
     apiFetch('/api/products', { token, method: 'POST', body: payload, idempotencyKey }),
   update: (token: string, id: string, payload: ProductInput): Promise<ApiResponse> =>
     apiFetch(`/api/products/${id}`, { token, method: 'PATCH', body: payload }),
+  /** Replace a recorded currency with a reason and confirmed prices; ordinary PATCH rejects the change. */
+  correctCurrency: (token: string, id: string, payload: ProductCurrencyCorrectionInput): Promise<ApiResponse> =>
+    apiFetch(`/api/products/${id}/currency-correction`, { token, method: 'POST', body: payload }),
   archive: (token: string, id: string): Promise<ApiResponse> => apiFetch(`/api/products/${id}/archive`, { token, method: 'POST' }),
   restore: (token: string, id: string): Promise<ApiResponse> => apiFetch(`/api/products/${id}/restore`, { token, method: 'POST' }),
   /**

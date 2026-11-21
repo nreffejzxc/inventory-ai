@@ -235,6 +235,8 @@ const PUBLIC_ROUTES = [
   { route: 'GET /api/health', why: 'liveness/readiness must answer without a token' },
   { route: 'GET /api/health/live', why: 'liveness probe' },
   { route: 'GET /api/health/ready', why: 'readiness probe' },
+  { route: 'GET /health', why: 'backward-compatible alias of GET /api/health for older monitors; same public process/build payload' },
+  { route: 'GET /ready', why: 'backward-compatible alias of GET /api/health/ready for older monitors; same readiness gate' },
   {
     route: 'GET /api/health/integrity',
     why: 'hosted freshness probe for the external uptime monitor: it must answer without a token, and it publishes only the read-only audit timestamp, age, status and aggregate counts — no tenant, product, location, user, inventory or ledger data',

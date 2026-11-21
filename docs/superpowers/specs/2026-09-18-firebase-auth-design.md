@@ -174,7 +174,7 @@ set.
 
 ## 2.6 Route inventory
 
-Phase 23 classifies **124 routes**: **69 permission-gated**, **24 authenticated**, **31 public**, **0 role-gated**. The `PUBLIC` and `AUTHENTICATED` buckets are explicit lists that each carry a
+Phase 23 classifies **127 routes**: **70 permission-gated**, **24 authenticated**, **33 public**, **0 role-gated**. The `PUBLIC` and `AUTHENTICATED` buckets are explicit lists that each carry a
 written reason; a route in no bucket fails the guard, and a declared exemption that has stopped being
 true also fails. The guard deliberately asserts **no route count** — a route is *declared* or it is not,
 and the number is derived from the declarations — so the figure above is pinned separately, by
@@ -322,6 +322,13 @@ fails if the two disagree.
 > change and recovery-code generation are authenticated self-service. The four administrator
 > lifecycle routes require `platform.admin.manage` (SUPERADMIN only). No tenant route, permission
 > or credential changed.
+
+> **Currency correction (2026-11-20) added one permission-gated route —
+> 126 + 1 gated = **127** (70 permission-gated, 24 authenticated, 33 public, 0 role-gated).**
+> `POST /api/products/:id/currency-correction` requires `products.manage` and is the only product
+> path that may replace a recorded ISO 4217 code. It records the previous and new code, a reason
+> and explicit price reconfirmation; ordinary `PATCH` remains currency-neutral. The route is
+> tenant-scoped and the Phase 23 guard counts it from the router declaration.
 
 The auth surface (`server/src/routes/auth.routes.ts`):
 

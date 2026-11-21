@@ -24,7 +24,8 @@ proof around them; it does **not** turn multi-document work into a MongoDB trans
 | Abandoned PO claim | A stale claim is reconciled from its stock-in transaction: a receipted movement releases only the reservation, an exact movement is undone and removed, an untouched claim is released, and anything unprovable is flagged. | A claim whose inventory row moved after its stock-in is not undone. |
 | Category archive | Archiving a category with ACTIVE products is refused with `CATEGORY_HAS_ACTIVE_PRODUCTS`; archived products do not block. | The check is not a transaction against a product being created concurrently. |
 | Audit write failure | The business write still succeeds. The gap becomes a durable `audit_failures` row with a sanitized class and an `[audit-gap]` log line, retained for 90 days by TTL. | Monitoring is best-effort; if the monitor write also fails, the log is the only record. |
-| AI price ranking | Ranking happens inside one recorded currency. Mixed known currencies, or a known currency plus unrecorded prices, block a single ranking and return the currency groups instead. Ties break by name then `_id`. | Zero and missing prices are excluded from rankings. A currency is not converted. |
+| Product currency edit | An ordinary `PATCH /api/products/:id` may only keep the exact recorded code. Replacing it requires `POST /api/products/:id/currency-correction`, a 3–500-character reason and `priceReconfirmed: true`; the change writes `PRODUCT_CURRENCY_CORRECTED` with both codes and the reason. | There is no automatic conversion; the operator must re-check both prices in the replacement currency. The audit write remains best-effort, like other product events. |
+| AI price ranking | Ranking happens inside one recorded currency. A named ISO code scopes the comparison; otherwise mixed known currencies, or a known currency plus unrecorded prices, block a single ranking and return the currency groups instead. Ties break by name then `_id`. | Zero and missing prices are excluded from rankings. A currency is not converted. |
 | Price quality | The report counts missing price, zero price, missing currency and malformed currency, and samples rows to fix. It never writes. | It checks the ISO-4217 **shape** (three uppercase letters), not the full official code list. |
 
 ## 2. Transfer journal
@@ -287,8 +288,10 @@ next successful run recomputes the signature from GitHub's open issues.
 
 `audit:failures`, `audit:price-quality` and `audit:product-currency` are reports, not repairs.
 `audit:product-currency` never assigns a code: verify the product's actual currency, then resolve it
-with `PATCH /api/products/:id { "currency": "PHP" }` (or the mobile edit form). A legacy product
-with no valid code must receive one before any other edit is accepted. `recover:integrity` writes
+through `POST /api/products/:id/currency-correction` with a reason and price reconfirmation (or the
+mobile edit form), or the audited resolver flow in `PRODUCT_CURRENCY.md`. A legacy product with no
+valid code must receive one through that correction path before any other edit is accepted;
+ordinary `PATCH` refuses a replacement with `CURRENCY_CORRECTION_REQUIRED`. `recover:integrity` writes
 only the actions in §2 and §5. A `REQUIRES_ATTENTION` row stays in the database for manual
 investigation; there is no automatic unflag command. `triage:integrity` is the read-only view for
 that investigation. Its database reads live in `server/scripts/lib/triage-read.mjs`, separate from
@@ -398,7 +401,8 @@ attempting the index read.
   replay; only rows written after this change carry a fingerprint.
 - **Conservative currency block.** The group check ignores `inStockOnly`, so an out-of-stock
   product in another currency can block a ranking even when the in-stock set is single-currency.
-  This is deliberately safe; it can be narrowed later.
+  This is deliberately safe; it can be narrowed later. An explicit ISO code in the question scopes
+  the comparison and avoids the block when that is the operator's intent.
 - **Currency detection is keyword-based.** The assistant recognizes common ISO codes in the
   question and the ₱ sign. It does not convert or infer a currency from a price.
 - **Category archive race.** A product created concurrently with the archive check can still
@@ -418,6 +422,13 @@ attempting the index read.
 - audit-gap sanitization and tenant scoping;
 - price-quality problems and write-free reporting;
 - AI price tie order and mixed-currency blocking.
+
+`server/test/currency-required-and-marketplace.test.mjs` additionally covers the ordinary-PATCH
+currency refusal, the dedicated correction (including cross-tenant refusal and the audit event),
+and the service-level price-comparison guard. Its FX cases cover one provider request for three
+simultaneous lookups, a short negative cache that never serves a guessed rate, exponential backoff
+and immediate recovery after a successful quote. `server/test/AI45-natural-product-search.test.mjs`
+covers mixed/unrecorded currency blocking and an explicit-code-scoped filter and ranking.
 
 `server/test/MOVEMENT-RECEIPT-RECOVERY.test.mjs` covers 8 DB-backed cases: a dry run that writes
 nothing followed by a ledger-proven apply with an audit row; exact `INVENTORY_WRITTEN` snapshot

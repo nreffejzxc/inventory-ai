@@ -80,13 +80,15 @@ unitSuite('AI-18 the page marker cannot be dropped, and the prompt explains it',
   });
 
   it('★ every advertised list tool declares itself through the helper', () => {
-    // Nine lists, nine `page(` calls. A new list tool added without one fails here rather
-    // than on the next device run.
+    // Fourteen lists, at least one `page(` call each. A new list tool added without one
+    // fails here rather than on the next device run.
     const calls = TOOLS_SOURCE.match(/return page\(/g) ?? [];
     // getInventory has three page paths: a catalogue search, the exact-SKU miss, and a
-    // product's stock rows. Every other listed tool has one, so the source has two more
-    // paged returns than there are distinct list tools.
-    assert.equal(calls.length, PAGED_TOOLS.length + 2, `expected ${PAGED_TOOLS.length + 2} paged returns, found ${calls.length}`);
+    // product's stock rows. findProducts has three: its normal result, the plain empty
+    // result when nothing matches, and the refusal when a price comparison spans
+    // currencies. Every other listed tool has one, so the source has four more paged
+    // returns than there are distinct list tools.
+    assert.equal(calls.length, PAGED_TOOLS.length + 4, `expected ${PAGED_TOOLS.length + 4} paged returns, found ${calls.length}`);
     for (const name of PAGED_TOOLS) {
       assert.ok(aiToolsById.has(name), `${name} is no longer in the tool table`);
     }

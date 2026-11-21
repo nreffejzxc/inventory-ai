@@ -79,13 +79,14 @@ jest.mock('../hooks/useReferences', () => ({
 }));
 
 jest.mock('../lib/api', () => ({
-  productsApi: { create: jest.fn(), update: jest.fn() },
+  productsApi: { create: jest.fn(), update: jest.fn(), correctCurrency: jest.fn() },
   categoriesApi: { list: jest.fn() },
 }));
 
 const mockedUseSession = useSession as jest.Mock;
 const create = productsApi.create as jest.Mock;
 const update = productsApi.update as jest.Mock;
+const correctCurrency = productsApi.correctCurrency as jest.Mock;
 
 async function selectCurrency(
   view: Awaited<ReturnType<typeof render>>,
@@ -192,11 +193,44 @@ describe('ProductForm — create idempotency', () => {
     await fireEvent.press(view.getByText('Save changes'));
     await waitFor(() => expect(view.getByText('Currency is required. Use a valid ISO 4217 code, e.g. PHP')).toBeTruthy());
     expect(update).not.toHaveBeenCalled();
+    expect(correctCurrency).not.toHaveBeenCalled();
 
     await selectCurrency(view, 'USD', 'USD — US Dollar');
     await fireEvent.press(view.getByText('Save changes'));
 
-    await waitFor(() => expect(update).toHaveBeenCalledTimes(1));
-    expect(update.mock.calls[0][2]).toMatchObject({ currency: 'USD' });
+    await waitFor(() => expect(view.getByText('Explain why the recorded currency is changing (at least 3 characters).')).toBeTruthy());
+    expect(correctCurrency).not.toHaveBeenCalled();
+
+    await fireEvent.changeText(
+      view.getByTestId('input-Currency correction reason'),
+      'Supplier invoice shows USD',
+    );
+    await fireEvent.press(view.getByText('I reconfirmed cost and selling prices'));
+    await fireEvent.press(view.getByText('Save changes'));
+
+    await waitFor(() => expect(correctCurrency).toHaveBeenCalledTimes(1));
+    expect(correctCurrency.mock.calls[0][2]).toMatchObject({
+      currency: 'USD',
+      reason: 'Supplier invoice shows USD',
+      priceReconfirmed: true,
+    });
+    expect(correctCurrency.mock.calls[0][2].currencyCorrection).toBeUndefined();
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it('★ treats a non-canonical legacy code as needing an explicit correction', async () => {
+    const view = await render(
+      <ThemeProvider>
+        <ProductForm initial={{ id: 'legacy-2', name: 'Kettle', currency: 'php' }} />
+      </ThemeProvider>
+    );
+
+    expect(view.getByText('Currency correction reason')).toBeTruthy();
+    await fireEvent.press(view.getByText('Save changes'));
+    await waitFor(() =>
+      expect(view.getByText('Explain why the recorded currency is changing (at least 3 characters).')).toBeTruthy()
+    );
+    expect(update).not.toHaveBeenCalled();
+    expect(correctCurrency).not.toHaveBeenCalled();
   });
 });

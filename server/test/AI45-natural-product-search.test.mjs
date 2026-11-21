@@ -21,12 +21,14 @@
 
 import { it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
+import mongoose from 'mongoose';
 
 import { startServer, makeApi, createTracker, registerOwner, uniqueName, disconnectDb } from './support.mjs';
 import { dbSuite, unitSuite } from './testEnv.mjs';
 import { ROLES } from '../src/constants/roles.ts';
 import { aiToolsById, executeTool } from '../src/services/ai/tools.ts';
 import { systemPrompt } from '../src/services/ai/ai.service.ts';
+import Product from '../src/models/product.model.ts';
 
 const { dbOk, baseUrl, server } = await startServer();
 const api = makeApi(baseUrl);
@@ -317,6 +319,66 @@ dbSuite('AI-45 natural product discovery', dbOk, () => {
     assert.deepEqual(result.items.map((row) => row.sellingPrice), [50, 40]);
     assert.equal(result.items.some((row) => row.id === unpricedId), false);
     assert.equal(result.priceRank, 'price_desc');
+  });
+
+  it('★ price filters and rankings refuse mixed or unrecorded currencies, and an explicit code scopes both', async () => {
+    const prefix = uniqueName('Mixed currency');
+    const php = await api('POST', '/api/products', {
+      token: A.token,
+      body: { name: `${prefix} PHP`, sellingPrice: 100, currency: 'PHP' },
+    });
+    assert.equal(php.status, 201, JSON.stringify(php.json));
+    const usd = await api('POST', '/api/products', {
+      token: A.token,
+      body: { name: `${prefix} USD`, sellingPrice: 10, currency: 'USD' },
+    });
+    assert.equal(usd.status, 201, JSON.stringify(usd.json));
+    await Product.collection.insertOne({
+      businessId: new mongoose.Types.ObjectId(A.businessId),
+      name: `${prefix} legacy`,
+      sellingPrice: 50,
+      status: 'ACTIVE',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    const ctx = ctxOf(A);
+
+    const blockedFilter = await ok('findProducts', { keywords: `${prefix} under 500` }, ctx);
+    assert.equal(blockedFilter.priceFilterBlocked, true);
+    assert.equal(blockedFilter.count, 0);
+    assert.ok(blockedFilter.priceCurrencies.some((group) => group.currency === null));
+    assert.ok(blockedFilter.priceCurrencies.some((group) => group.currency === 'PHP'));
+    assert.ok(blockedFilter.priceCurrencies.some((group) => group.currency === 'USD'));
+
+    const phpFilter = await ok('findProducts', { keywords: `${prefix} under PHP 500` }, ctx);
+    assert.equal(phpFilter.priceFilterBlocked, undefined);
+    assert.equal(phpFilter.priceFilterCurrency, 'PHP');
+    assert.deepEqual(phpFilter.items.map((row) => row.id), [php.json.id]);
+
+    const usdFilter = await ok('findProducts', { keywords: `${prefix} under USD 500` }, ctx);
+    assert.equal(usdFilter.priceFilterCurrency, 'USD');
+    assert.deepEqual(usdFilter.items.map((row) => row.id), [usd.json.id]);
+
+    const blockedRank = await ok('findProducts', { keywords: prefix, sort: 'price_asc' }, ctx);
+    assert.equal(blockedRank.priceRankBlocked, true);
+    assert.equal(blockedRank.priceCurrency, undefined);
+    assert.ok(blockedRank.priceCurrencies.some((group) => group.currency === null));
+
+    const phpRank = await ok('findProducts', { keywords: `${prefix} PHP`, sort: 'price_asc' }, ctx);
+    assert.equal(phpRank.priceRankBlocked, undefined);
+    assert.equal(phpRank.priceCurrency, 'PHP');
+    assert.deepEqual(phpRank.items.map((row) => row.id), [php.json.id]);
+  });
+
+  it('★ an empty price-ranked search reports no matches, not a currency block', async () => {
+    const result = await ok(
+      'findProducts',
+      { keywords: 'zzzz-no-such-product', sort: 'price_asc' },
+      ctxOf(A),
+    );
+    assert.equal(result.count, 0);
+    assert.equal(result.priceRankBlocked, undefined);
+    assert.match(result.note, /no products matched/i);
   });
 
   it('★ availability survives a price ranking and excludes unstocked matches', async () => {
