@@ -68,6 +68,15 @@ because its only change is the deliberate negative-control edit, not shipped wor
 remains: #32 tracks the TypeScript 7 upgrade, blocked by the `@typescript-eslint` peer range rather
 than by this repository. No new feature review was started.
 
+**Server dependency patch and production verification (2026-11-21):** Dependabot PR #362 merged as
+`fe646c1f3714ffc0a9b6087df0946a279d4a4df5`. It updates **Mongoose 9.12.1 → 9.12.2** (query sanitizer
+and projection hardening) and **typescript-eslint 8.72.2 → 8.73.0** (development tooling only). All
+seven required checks passed. Render reached the merged SHA on attempt 7 (**61.3 s**); health,
+readiness and liveness returned **200** with the database connected. The installed Android app then
+loaded the authenticated dashboard through the updated backend with the expected **113 active
+products / 26,975 on-hand** figures. This is a server dependency change only; the existing OTA is
+unchanged and no new APK is needed.
+
 **Currency code review and complete-suite proof (2026-11-21):** reviewed every uncommitted currency
 change and corrected three client/tool mismatches without weakening a server guard: the mobile
 correction now sends top-level `reason`/`priceReconfirmed` (the documented endpoint shape), a legacy
@@ -1026,6 +1035,21 @@ Known limits, checked before spending one of them:
   space that a backup or an index change would explain.
 - **Brevo** — used for verification codes, reset codes and invitations. Do not send test mail in
   bulk; a delivery failure is not a code regression until the provider log says so.
+
+---
+
+## 2026-11-21 — server dependency patch and production verification
+
+**Dependabot PR #362, merged as `fe646c1f3714ffc0a9b6087df0946a279d4a4df5`.** The server-minor-and-patch
+group moved Mongoose **9.12.1 → 9.12.2** and typescript-eslint **8.72.2 → 8.73.0**. Mongoose 9.12.2
+includes query sanitizer/projection hardening and connection-retry fixes; typescript-eslint is
+development tooling only. No application source changed.
+
+**Verification.** All seven required checks passed. `node scripts/verify-production-deploy.mjs
+--sha=fe646c1…` returned `verified: true` after **7** attempts and **61.3 s**: health/readiness/liveness
+**200**, database `connected`, exact commit. The installed Android app loaded the authenticated
+dashboard through the updated backend with **113** active products and **26,975** on-hand quantity.
+No mobile or native change was made, so the existing OTA remains current and no APK rebuild was needed.
 
 ---
 
