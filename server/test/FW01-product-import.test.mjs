@@ -154,6 +154,59 @@ dbSuite('FW-01 product import over real HTTP', dbOk, () => {
     assert.equal(await InventoryTransaction.countDocuments({ businessId: owner.businessId }), 0);
   });
 
+  it('reports a partial receipt when a retry fails validation after writes', async () => {
+    const key = uniqueName('partial-validation');
+    const fileName = 'partial-validation.csv';
+    const sku = uniqueName('PARTIAL-SKU');
+    const productId = new ObjectId();
+    const body = {
+      fileName,
+      csv: csv([
+        `Already imported,${sku},,${mainCategory.name},PHP,5,10,2,${mainLocation.name},0`,
+        `Bad row,BAD-1,,${mainCategory.name},NOT-A-CURRENCY,1,2,0,${mainLocation.name},0`,
+      ]),
+      dryRun: false,
+    };
+    const fingerprint = crypto
+      .createHash('sha256')
+      .update(JSON.stringify({ fileName, csv: body.csv }))
+      .digest('hex');
+
+    await Product.create({
+      _id: productId,
+      businessId: new ObjectId(owner.businessId),
+      name: 'Already imported',
+      sku,
+      currency: 'PHP',
+    });
+    const receipt = await ProductImport.create({
+      businessId: new ObjectId(owner.businessId),
+      key,
+      fingerprint,
+      fileName,
+      status: 'PARTIAL',
+      totalRows: 2,
+      createdProducts: [{ line: 2, productId }],
+    });
+
+    const res = await postImport(owner, body, key);
+    assert.equal(res.status, 409, JSON.stringify(res.json));
+    assert.equal(res.json.code, 'IMPORT_PARTIAL');
+    assert.match(res.json.message, /Part of the import was applied/);
+    assert.equal(res.json.completed.length, 1);
+    assert.equal(res.json.completed[0].line, 2);
+    assert.equal(res.json.stock.length, 0);
+    assert.ok(res.json.errors.some((e) => e.line === 3 && e.code === 'CURRENCY_INVALID'));
+
+    const stored = await ProductImport.findById(receipt._id).lean();
+    assert.equal(stored.status, 'PARTIAL');
+    assert.ok(stored.failures.some((e) => e.line === 3));
+
+    // Keep the next test's tenant-wide product count independent of this fixture.
+    await ProductImport.deleteOne({ _id: receipt._id });
+    await Product.deleteOne({ _id: productId, businessId: new ObjectId(owner.businessId) });
+  });
+
   it('applies products and opening stock once, then replays from the durable receipt', async () => {
     const key = uniqueName('import-key');
     const body = {

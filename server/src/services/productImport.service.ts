@@ -584,11 +584,31 @@ export const productImportService = {
     const alreadyCreated = createdByLine(receipt);
     const validation = await validateImport(businessId, request, alreadyCreated);
     if (validation.errors.length > 0) {
+      // A receipt can already contain rows when a retry no longer validates, for
+      // example because another product took a later row's SKU after the first
+      // attempt was interrupted. Saying "nothing was written" in that case would
+      // hide the completed products and stock. Only a receipt with no applied
+      // work is a clean validation refusal.
+      const completedStock = receipt?.stockOperations ?? [];
+      const hasAppliedWork = alreadyCreated.size > 0 || completedStock.length > 0;
       if (receipt) {
         await markReceipt(receipt._id, {
-          status: receipt.createdProducts?.length ? 'PARTIAL' : 'FAILED',
+          status: hasAppliedWork ? 'PARTIAL' : 'FAILED',
           failures: validation.errors,
         });
+      }
+      if (hasAppliedWork) {
+        return {
+          status: 409,
+          body: {
+            code: 'IMPORT_PARTIAL',
+            message: 'Part of the import was applied. Retry with the same key to finish it.',
+            errors: validation.errors,
+            fields: validation.errors.map((e) => ({ field: `line ${e.line}`, message: e.message })),
+            completed: [...alreadyCreated.entries()].map(([line, productId]) => ({ line, productId })),
+            stock: completedStock.map((op) => ({ line: op.line, quantity: op.quantity })),
+          },
+        };
       }
       return {
         status: 422,
