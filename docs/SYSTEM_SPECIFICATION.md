@@ -948,8 +948,11 @@ unless a location is selected. The exact implementation must account for the
 selected location.
 
 Dashboard statistics must use consistent definitions, and each summary count
-must equal the total of the product-level list that opens from it. Inventory-row
-lists are not a substitute: one product can have a row at every location. The
+must equal the total of the product-level list that opens from it. A list opened
+from an Overview card is pinned to ACTIVE products and offers no All/Archived
+switch until the stock filter is cleared, so the displayed total cannot drift
+from the card. Inventory-row lists are not a substitute: one product can have a
+row at every location. The
 Inventory screen's row-level low filter is deliberately broader (it may include
 an out-of-stock row, whose OUT badge takes precedence); that per-location list is
 not the product-level list behind an Overview card.

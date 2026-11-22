@@ -64,7 +64,7 @@ lint findings are the three pre-existing `set-state-in-effect` resolver errors
 [`evidence/ui-review-2026-11-22/`](evidence/ui-review-2026-11-22/README.md).
 
 
-**Overview stock-count parity (2026-11-21):** the four Overview cards now use one product-level,
+**Overview stock-count parity (2026-11-22):** the four Overview cards now use one product-level,
 mutually exclusive classification: IN = available > minimum, LOW = 0 < available <= minimum, OUT =
 available <= 0, and Active = every ACTIVE product. This fixes three separate mismatches. The cards
 counted products across all locations, but Low/Out opened the inventory-row list, where a product
@@ -81,8 +81,11 @@ recheck also passed **16/16** across the SCALE and Phase 20D suites, including r
 `stockStatus`; unit suites
 passed 32 / 0 failed / 1 mode-skipped. Server and mobile typecheck pass. The dashboard screen lints clean; the
 products screen retains its two pre-existing `set-state-in-effect` errors in the named-category and
-named-location resolvers. No device or production UI inspection was performed, and no deployment or
-production data change occurred.
+named-location resolvers. The review added route/API tests for all four product cards (**9/9**); the focused mobile run is
+**20/20**. It also pinned stock-status views to ACTIVE, ignored the legacy low/out flags there, and
+computed availability once in the dashboard aggregation. Server and mobile typecheck pass; server
+lint is clean and mobile lint reports only the three pre-existing resolver errors. PR **#364** is open
+from `fix/overview-stock-filters`; it is not merged or deployed, and production data was not changed.
 
 **Bulk import, draft-from-restock and FW-03 plan (2026-11-21):** local feature work only; no push,
 deploy, OTA/APK publication or production data change. FW-01 adds an OWNER/ADMIN CSV dry run and
@@ -1087,6 +1090,66 @@ Known limits, checked before spending one of them:
   bulk; a delivery failure is not a code regression until the provider log says so.
 
 ---
+
+## 2026-11-22 — Overview stock filters: review, route tests and PR #364
+
+**Purpose.** Review the committed-but-unmerged Overview stock-count fix across the dashboard, product
+filters and mobile navigation, simplify it where it repeats itself, fix issues without weakening the
+mutually exclusive classification, and prepare a focused PR. No merge, deployment or production data
+change.
+
+**Review changes.**
+
+- Extracted `productListRoute()` so the four product cards share one ACTIVE-pinned route builder, and
+  corrected the Total on-hand tile's hint (it opens Inventory, not a product list).
+- The Products screen parses `stockStatus` through one label map. While a canonical status is active
+  the list is pinned to ACTIVE and the All/Active/Archived chips are replaced by an "Active products"
+  scope label; the legacy broad `lowStock`/`outOfStock` flags are ignored. Previously a member could
+  switch a Low-stock view to Archived and see a count that was no longer the Overview card's count.
+- The dashboard aggregation computes `available = quantity - reserved` once per product instead of
+  repeating the expression in both stock conditions. OUT stays `<= 0`, LOW stays
+  `0 < available <= minimum`; no classification was broadened or collapsed.
+- Added `mobile/__tests__/overview-stock-filters.test.tsx`: all four product cards push the exact
+  product route, the three statuses send the matching `stockStatus` with `status=ACTIVE`, Active sends
+  none, and the pinned-ACTIVE/legacy-flag regression is covered.
+
+**Verification.** Server and mobile typecheck pass. Focused DB suites (`SCALE-dashboard-counts`,
+`phase04-inventory`, `phase11-intelligence`) are **33 pass / 0 fail / 1 mode-skip**. Focused mobile
+Jest (`overview-stock-filters`, `profile-reachability`, `screen-focus-load`) is **20/20**. Server lint
+on the touched files is clean; mobile lint reports only the three pre-existing
+`set-state-in-effect` resolver errors (`products/index.tsx:89,99`, `inventory.tsx:61`). The complete
+server suite was not rerun.
+
+**PR.** [#364](https://github.com/nreffejzxc/inventory-ai/pull/364), `fix/overview-stock-filters` →
+`main`, commits `ad0b874`, `5593854`, `9d6b819` plus this documentation. Open only; not merged or
+deployed.
+
+**Ranked follow-ups (planning only; none implemented).**
+
+1. **Import progress/status for large files** — the earlier 3.5-minute apply still outlives the mobile
+   timeout. A status endpoint keyed by the existing operation id would turn a timeout into progress
+   or a safe resume; highest user impact from the recent device work.
+2. **Rename or tighten the Inventory Low filter** — it is a row-level `available <= minimum` filter
+   that includes zero-stock rows, so "Low stock" means a broader set than the product-level LOW card.
+   Either exclude zero rows (canonical 0 < available <= minimum) or label it "At or below minimum".
+   This is the largest remaining consistency trap in the same surface.
+3. **Combined "Needs attention" product filter** — add one product-level low-or-out filter with a
+   count, so triage does not require switching between two cards; the API currently exposes only the
+   two disjoint statuses.
+4. **Zero-row bridge on Inventory** — when the Out chip finds no rows but products are out of stock,
+   show "N products have no stock row" with a link to Products → Out of stock. The demo tenant
+   already demonstrates this mismatch and the current empty copy only partly explains it.
+5. **Persist all product filters in the URL** — category, location, search and status currently
+   initialize from params but are not written back, so back/refresh/share loses the working context.
+6. **Per-chip counts** — return low/out facet counts with the inventory list so the chips show 11/0
+   before a tap and an empty result is predictable.
+7. **Share the stock classifier with the aggregation** — the product list and dashboard use the same
+   rules but express them separately. A tested pipeline/expression helper (or a parity fixture) would
+   stop future drift without changing the classification.
+8. **Router test helper for query-string navigation** — Expo Router's test navigator kept its location
+   after a push and did not unwind with back/replace in this suite. A documented helper would make
+   future route tests less brittle; this suite avoids the issue by testing the route contract and the
+   Products API payload separately.
 
 ## 2026-11-22 — Inventory and Overview action clarity
 
