@@ -167,6 +167,7 @@ interface HealthTile {
   key: string;
   label: string;
   value: string;
+  sub?: string;
   tone: StatTone;
   route: string;
 }
@@ -325,8 +326,8 @@ function DashboardView() {
   // not match. Low and out are mutually exclusive statuses.
   const healthTiles: HealthTile[] = [
     { key: 'in', label: 'In stock', value: formatNumber(summary?.inStockProducts), tone: 'success', route: '/products?status=ACTIVE&stockStatus=IN_STOCK' },
-    { key: 'low', label: 'Low stock', value: formatNumber(summary?.lowStockProducts), tone: 'warning', route: '/products?status=ACTIVE&stockStatus=LOW_STOCK' },
-    { key: 'out', label: 'Out of stock', value: formatNumber(summary?.outOfStockProducts), tone: 'danger', route: '/products?status=ACTIVE&stockStatus=OUT_OF_STOCK' },
+    { key: 'low', label: 'Low stock', value: formatNumber(summary?.lowStockProducts), sub: 'Review products', tone: 'warning', route: '/products?status=ACTIVE&stockStatus=LOW_STOCK' },
+    { key: 'out', label: 'Out of stock', value: formatNumber(summary?.outOfStockProducts), sub: 'Restock products', tone: 'danger', route: '/products?status=ACTIVE&stockStatus=OUT_OF_STOCK' },
     { key: 'active', label: 'Active products', value: formatNumber(summary?.totalProducts), tone: 'primary', route: '/products?status=ACTIVE' },
     { key: 'onhand', label: 'Total on-hand qty', value: formatNumber(summary?.totalInventoryQuantity), tone: 'default', route: '/inventory' },
   ];
@@ -410,9 +411,13 @@ function DashboardView() {
                 onPress={() => router.push(tile.route)}
                 accessibilityRole="button"
                 accessibilityLabel={`${tile.label}: ${tile.value}`}
+                accessibilityHint="Opens the matching product list"
                 style={styles.healthCell}
               >
-                <StatCard label={tile.label} value={tile.value} tone={tile.tone} />
+                <StatCard label={tile.label} value={tile.value} sub={tile.sub} tone={tile.tone} />
+                <View pointerEvents="none" style={styles.healthChevron}>
+                  <Icon name="chevronRight" color={colors.textMuted} size={16} />
+                </View>
               </Pressable>
             ))}
           </View>
@@ -535,7 +540,8 @@ const createStyles = (colors: Palette) =>
     staleText: { ...type.caption, color: colors.warning, fontWeight: '600' },
     section: { marginTop: spacing.xxl },
     healthGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
-    healthCell: { flexGrow: 1, flexBasis: '46%', minWidth: '46%' },
+    healthCell: { flexGrow: 1, flexBasis: '46%', minWidth: '46%', position: 'relative' },
+    healthChevron: { position: 'absolute', right: spacing.md, bottom: spacing.md },
     quickGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
     quickButton: { flexGrow: 1, flexBasis: '46%' },
     rowList: { gap: spacing.sm },

@@ -126,18 +126,11 @@ export default function ProductsScreen() {
 
   const header = (
     <View>
-      <Button
-        title="Scan a barcode"
-        icon="scan"
-        variant="secondary"
-        full
-        onPress={() => router.push('/scan')}
-        style={styles.scanBtn}
-      />
       <SearchField
         value={q}
         onChangeText={setQ}
         placeholder="Search by name, brand, SKU or barcode…"
+        onScanPress={() => router.push('/scan')}
         style={styles.search}
       />
       {stockStatus && !list.loading ? (
@@ -234,7 +227,6 @@ const styles = StyleSheet.create({
   stockCount: { flexShrink: 1, fontWeight: '700' },
   clearStock: { minHeight: 44, justifyContent: 'center', paddingLeft: spacing.md },
   clearStockText: { fontWeight: '700' },
-  scanBtn: { marginBottom: spacing.lg },
   search: { marginBottom: spacing.lg },
   filterRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: spacing.sm },
   newBtn: { marginLeft: 'auto' },

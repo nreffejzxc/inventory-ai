@@ -4,7 +4,6 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import type { ListRenderItem } from 'react-native';
 
 import Badge from '../../components/Badge';
-import Button, { ButtonRow } from '../../components/Button';
 import { PressableCard } from '../../components/Card';
 import Chip from '../../components/Chip';
 import { Icon } from '../../components/icons';
@@ -17,6 +16,7 @@ import type { ApiResponse } from '../../lib/api';
 import { useSession } from '../../lib/auth';
 import type { QueryParams } from '../../lib/client';
 import { formatNumber } from '../../lib/format';
+import { canViewPurchaseOrders } from '../../lib/permissions';
 import useDebounced from '../../hooks/useDebounced';
 import { useActiveRef } from '../../hooks/useReferences';
 import usePagedList from '../../hooks/usePagedList';
@@ -33,7 +33,7 @@ function str(v: string | string[] | undefined): string {
 export default function InventoryScreen() {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const { token, signOut } = useSession();
+  const { token, user, signOut } = useSession();
   const locations = useActiveRef(token, locationsApi);
 
   // Dashboard stat cards deep-link here with ?status=low|out. The backend's
@@ -79,45 +79,111 @@ export default function InventoryScreen() {
 
   const locOptions = [{ value: '', label: 'All locations' }, ...locations.items.map((l) => ({ value: l.id, label: l.name }))];
 
+  const clearFilters = () => {
+    setLow(false);
+    setOut(false);
+  };
+
+  // The row-level flags are mutually exclusive in the API: a row is either low
+  // (0 < available <= minimum) or out (0 available), so asking for both returns
+  // nothing. The chips therefore act as one choice, with the Restock list as the
+  // combined product-level view.
+  const selectLow = () => {
+    if (low) {
+      setLow(false);
+      return;
+    }
+    setLow(true);
+    setOut(false);
+  };
+
+  const selectOut = () => {
+    if (out) {
+      setOut(false);
+      return;
+    }
+    setOut(true);
+    setLow(false);
+  };
+
+  const filterLabel = low ? 'low on stock' : 'out of stock';
+
   const header = (
     <View>
-      <ButtonRow style={styles.actionRow}>
-        <Button title="Scan" icon="scan" variant="secondary" style={styles.flexBtn} onPress={() => router.push('/scan')} />
-        <Button
-          title="Purchase Orders"
-          icon="receipt"
-          variant="secondary"
-          style={styles.flexBtn}
-          onPress={() => router.push('/purchase-orders')}
-        />
-      </ButtonRow>
       <SearchField
         value={q}
         onChangeText={setQ}
         placeholder="Search by product name, SKU or barcode…"
+        onScanPress={() => router.push('/scan')}
         style={styles.search}
       />
       <View style={styles.chipRow}>
+        <Chip label="All" selected={!low && !out} onPress={clearFilters} />
         {/* NOTE (MOD-02): tone="warning" is not a ChipTone — Chip renders
             anything other than 'danger' as primary, so the prop was already
             inert. Omitted (default is 'primary') to keep the chip identical. */}
-        <Chip label="Low stock" selected={low} onPress={() => setLow((v) => !v)} />
-        <Chip label="Out of stock" tone="danger" selected={out} onPress={() => setOut((v) => !v)} />
+        <Chip label="Low stock" selected={low} onPress={selectLow} />
+        <Chip label="Out of stock" tone="danger" selected={out} onPress={selectOut} />
       </View>
+      {low || out ? (
+        <View style={styles.filterBanner}>
+          <Text testID="inventory-filter-count" style={styles.filterCount}>
+            {list.loading
+              ? 'Checking stock…'
+              : `${formatNumber(list.total)} stock ${list.total === 1 ? 'row' : 'rows'} ${filterLabel}`}
+          </Text>
+          <Pressable
+            onPress={clearFilters}
+            accessibilityRole="button"
+            accessibilityLabel="Clear stock filters"
+            style={styles.clearFilters}
+          >
+            <Text style={styles.clearFiltersText}>Clear</Text>
+          </Pressable>
+        </View>
+      ) : null}
       <SelectField label="Location" placeholder="Filter by location…" options={locOptions} value={locationId} onChange={setLocationId} />
-      {/* §27CR — this screen lists stock ROWS (per location); the restock list is the
-          product-level one, and STAFF land here after sign-in with no dashboard to
-          reach it from. Without this line the newest screen had no route in for the
-          role that does the restocking. */}
-      <Pressable onPress={() => router.push('/restock')} accessibilityRole="button" style={styles.restockRow}>
-        <Text style={styles.restockLink}>Restock list →</Text>
-      </Pressable>
+      {/* Shortcuts keep the routes STAFF need from their home screen; the restock
+          list is product-level while this screen lists per-location stock ROWS. */}
+      <Text style={styles.shortcutLabel}>Shortcuts</Text>
+      <View style={styles.shortcutList}>
+        <PressableCard
+          onPress={() => router.push('/restock')}
+          accessibilityRole="button"
+          accessibilityLabel="Open restock list"
+          style={styles.shortcutCard}
+        >
+          <ListRow
+            leading={<Icon name="warning" color={colors.warning} size={22} />}
+            title="Restock list"
+            subtitle="Products at or below minimum"
+            right={<Icon name="chevronRight" color={colors.textMuted} size={18} />}
+          />
+        </PressableCard>
+        {canViewPurchaseOrders(user) ? (
+          <PressableCard
+            onPress={() => router.push('/purchase-orders')}
+            accessibilityRole="button"
+            accessibilityLabel="Open purchase orders"
+            style={styles.shortcutCard}
+          >
+            <ListRow
+              leading={<Icon name="receipt" color={colors.primary} size={22} />}
+              title="Purchase orders"
+              subtitle="Receive and manage orders"
+              right={<Icon name="chevronRight" color={colors.textMuted} size={18} />}
+            />
+          </PressableCard>
+        ) : null}
+      </View>
     </View>
   );
 
   function emptyMessage(): string {
-    if (low && !out) return 'No low-stock rows match your filters right now.';
-    if (out) return 'Nothing is out of stock right now.';
+    if (low) return 'No stock rows are low on stock right now.';
+    if (out) {
+      return 'No stock rows are out of stock. A product with no stock at any location has no row here — open Products → Out of stock to review it.';
+    }
     if (q) return `Nothing matches “${q}”.`;
     return 'No stock records yet — stock in a product at a location to create one.';
   }
@@ -174,12 +240,20 @@ export default function InventoryScreen() {
 
 const createStyles = (colors: Palette) =>
   StyleSheet.create({
-    actionRow: { marginBottom: spacing.lg },
-    flexBtn: { flex: 1 },
     search: { marginBottom: spacing.lg },
-    chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.lg },
+    chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.md },
+    filterBanner: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: spacing.md,
+    },
+    filterCount: { ...type.body, color: colors.text, fontWeight: '700', flexShrink: 1 },
+    clearFilters: { minHeight: 44, justifyContent: 'center', paddingLeft: spacing.md },
+    clearFiltersText: { ...type.body, color: colors.primary, fontWeight: '700' },
+    shortcutLabel: { ...type.label, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.4, marginTop: spacing.sm, marginBottom: spacing.sm },
+    shortcutList: { gap: spacing.sm, marginBottom: spacing.lg },
+    shortcutCard: { paddingVertical: spacing.md },
     quantity: { ...type.body, color: colors.textSecondary, fontVariant: ['tabular-nums'] },
-    restockRow: { alignSelf: 'flex-start', marginBottom: spacing.lg },
-    restockLink: { ...type.body, color: colors.primary, fontWeight: '700' },
     badges: { alignItems: 'flex-end', gap: spacing.xs },
   });

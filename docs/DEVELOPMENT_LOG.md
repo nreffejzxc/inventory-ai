@@ -40,9 +40,29 @@ at the end of every development session, newest entry first.
 
 ## Current position
 
-**Updated:** 2026-11-21
+**Updated:** 2026-11-22
 **Goal:** finish and harden Inventory AI **V1** through production testing. No Play Store or App
 Store release is being prepared.
+
+**Inventory and Overview action clarity (2026-11-22):** reviewed the Scan/Purchase Orders placement
+and the Low/Out actions and changed the hierarchy rather than adding controls. **Dashboard:** the
+five Overview tiles are count drill-downs; Scan and New PO stay in **Quick actions**, and Purchase
+orders has its **Procurement** section, so no action buttons were added to Overview. The tiles now
+carry a chevron and an accessibility hint, and Low/Out add "Review products" / "Restock products"
+subtitles. **Inventory:** the heavy Scan + Purchase Orders button row was removed; scanning is now
+the barcode action inside the search field, and Restock list and Purchase orders are full shortcut
+rows with subtitles and chevrons. Both routes stay available because STAFF use Inventory as home and
+cannot open the Dashboard. **Filters:** added an **All** choice, a live count with **Clear**, and made
+Low/Out mutually exclusive — the API's row flags cannot both be true, so selecting both previously
+returned an empty list. **Products:** the standalone scan button uses the same in-search action.
+Device-verified on the CPH1969: Overview Low → **4 products low stock**, Out → **1 product out of
+stock**, Inventory Low → **11 stock rows low on stock**, Out → 0 rows with an empty state explaining
+that a zero-stock product has no inventory row (Products is the product-level view), and the search
+barcode action opens **Scan Barcode**. Mobile typecheck passes, screen suites **11/11**, and the only
+lint findings are the three pre-existing `set-state-in-effect` resolver errors
+(`inventory.tsx:61`, `products/index.tsx:89/99`). No server, deployment or production change. Evidence:
+[`evidence/ui-review-2026-11-22/`](evidence/ui-review-2026-11-22/README.md).
+
 
 **Overview stock-count parity (2026-11-21):** the four Overview cards now use one product-level,
 mutually exclusive classification: IN = available > minimum, LOW = 0 < available <= minimum, OUT =
@@ -1067,6 +1087,36 @@ Known limits, checked before spending one of them:
   bulk; a delivery failure is not a code regression until the provider log says so.
 
 ---
+
+## 2026-11-22 — Inventory and Overview action clarity
+
+**Purpose.** Review whether Scan and Purchase Orders belong in the Dashboard Overview or beside the
+Low/Out filters, evaluate the Low/Out actions themselves, and make only the changes that improve
+everyday stock work. No server, deployment or production change.
+
+**Decisions and changes.**
+
+| Area | Change | Why |
+| --- | --- | --- |
+| Dashboard Overview | Kept the five count tiles as drill-downs; added a chevron and an accessibility hint, plus "Review products" / "Restock products" subtitles on Low and Out. | Scan and New PO already sit in Quick actions and Purchase orders has Procurement; adding them to Overview would duplicate actions and crowd the counts. The hint makes the existing drill-down discoverable. |
+| Inventory actions | Removed the top Scan + Purchase Orders button row. Scan is now the barcode action inside the search field; Restock list and Purchase orders are shortcut rows with subtitles and chevrons. | Search-first layout, one obvious way to scan, and both STAFF-needed routes preserved — STAFF cannot open the Dashboard, so removing them entirely would strand them. |
+| Inventory filters | Added an **All** choice, a live "N stock rows …" count with **Clear**, and made Low/Out mutually exclusive. | The row flags cannot both be true (low is 0 < available ≤ minimum; out is 0), so selecting both previously returned an empty list. The Restock list remains the combined product-level view. |
+| Inventory out empty state | Explains that a product with no stock at any location has no inventory row, and points to Products → Out of stock. | The demo tenant has one out-of-stock product but no out-of-stock row; the old "Nothing is out of stock" message contradicted the Dashboard. |
+| Products | Replaced the standalone "Scan a barcode" button with the same in-search action. | Consistency with Inventory and less vertical chrome. |
+| Shared search field | Optional `onScanPress` action with a 44 px target and accessibility label. | One reusable control; no new screen or route. |
+
+**Verification.** Mobile typecheck passes. Jest screen suites **11/11** (`profile-reachability`,
+`screen-focus-load`). On the CPH1969 development build: Dashboard Low → **4 products low stock**;
+Out → **1 product out of stock**; Inventory Low → **11 stock rows low on stock**; Out → **0 rows**
+with the explanatory empty state; the search barcode action opens **Scan Barcode**. ESLint reports
+only the three pre-existing `set-state-in-effect` resolver errors (`inventory.tsx:61`,
+`products/index.tsx:89/99`); none was introduced here. Evidence:
+[`evidence/ui-review-2026-11-22/`](evidence/ui-review-2026-11-22/README.md).
+
+**Not completed / follow-ups.** No combined row-level "low or out" filter: the API exposes two
+mutually exclusive row flags, so it would need a new `needsAttention` query parameter; the Restock
+list is the combined view today. The filter summary is text, not per-chip counts. No server, merge,
+deploy or production change was made.
 
 ## 2026-11-21 — server dependency patch and production verification
 

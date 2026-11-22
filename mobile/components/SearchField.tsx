@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { StyleSheet, TextInput, View } from 'react-native';
+import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 import type { StyleProp, TextInputProps, ViewStyle } from 'react-native';
 import { radius, spacing, type } from '../lib/theme';
 import type { Palette } from '../lib/theme';
@@ -23,6 +23,13 @@ const createStyles = (colors: Palette) =>
       color: colors.text,
       paddingVertical: 11,
     },
+    scanButton: {
+      width: 44,
+      height: 44,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginRight: -spacing.sm,
+    },
   });
 
 export interface SearchFieldProps {
@@ -31,6 +38,8 @@ export interface SearchFieldProps {
   placeholder?: string;
   autoCapitalize?: TextInputProps['autoCapitalize'];
   autoFocus?: boolean;
+  /** Shows a barcode-scan action at the end of the field. */
+  onScanPress?: () => void;
   style?: StyleProp<ViewStyle>;
 }
 
@@ -46,6 +55,7 @@ function SearchField({
   placeholder = 'Search…',
   autoCapitalize = 'none',
   autoFocus,
+  onScanPress,
   style,
 }: SearchFieldProps) {
   const { colors } = useTheme();
@@ -64,6 +74,17 @@ function SearchField({
         autoFocus={autoFocus}
         returnKeyType="search"
       />
+      {onScanPress ? (
+        <Pressable
+          onPress={onScanPress}
+          accessibilityRole="button"
+          accessibilityLabel="Scan a barcode"
+          hitSlop={8}
+          style={({ pressed }) => [styles.scanButton, pressed && { opacity: 0.7 }]}
+        >
+          <Icon name="scan" size={20} color={colors.primary} />
+        </Pressable>
+      ) : null}
     </View>
   );
 }
