@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import type { ListRenderItem } from 'react-native';
@@ -24,6 +24,12 @@ import useRefetchOnFocus from '../../../hooks/useRefetchOnFocus';
 import { canManageProducts } from '../../../lib/permissions';
 import { spacing } from '../../../lib/theme';
 import { useTheme } from '../../../lib/theme-context';
+
+const STOCK_FILTERS = [
+  { value: 'IN_STOCK', label: 'In stock' },
+  { value: 'LOW_STOCK', label: 'Low stock' },
+  { value: 'OUT_OF_STOCK', label: 'Out of stock' },
+] as const;
 
 const STOCK_FILTER_LABELS = {
   IN_STOCK: 'in stock',
@@ -71,51 +77,61 @@ export default function ProductsScreen() {
   // it is active the status stays pinned to ACTIVE, otherwise switching to
   // Archived would apply the stock filter to a different population and the
   // count beside the filter would no longer be the card's count.
-  const stockStatus = parseStockFilter(str(params.stockStatus).toUpperCase());
+  const requestedStockStatus = parseStockFilter(str(params.stockStatus).toUpperCase());
+  // Older links used the broad lowStock/outOfStock flags. They still open a
+  // visible canonical filter instead of silently doing nothing: OUT wins when
+  // both were present, matching the old intersection and §19's precedence.
+  const legacyStockStatus = parseStockFilter(
+    str(params.outOfStock) === 'true'
+      ? 'OUT_OF_STOCK'
+      : str(params.lowStock) === 'true'
+        ? 'LOW_STOCK'
+        : '',
+  );
+  const stockStatus = requestedStockStatus || legacyStockStatus;
   const stockStatusLabel = stockStatus ? STOCK_FILTER_LABELS[stockStatus] : '';
   const effectiveStatus = stockStatus ? 'ACTIVE' : status;
   const [categoryId, setCategoryId] = useState(() => str(params.categoryId));
   const [locationId, setLocationId] = useState(() => str(params.locationId));
-  const [low, setLow] = useState(() => str(params.lowStock) === 'true');
-  const [out, setOut] = useState(() => str(params.outOfStock) === 'true');
-  const resolvedNamedCategory = useRef(false);
-  const resolvedNamedLocation = useRef(false);
+  const [categoryTouched, setCategoryTouched] = useState(false);
+  const [locationTouched, setLocationTouched] = useState(false);
 
-  useEffect(() => {
-    if (resolvedNamedCategory.current || categoryId || !paramCategoryName) return;
-    const match = categories.items.find(
-      (category) => category.name.toLowerCase() === paramCategoryName.toLowerCase(),
+  // Named filters arrive from assistant links before the reference lists do.
+  // Resolve them during render rather than writing state from an effect; once
+  // the person touches a selector, that choice (including "All") wins.
+  const effectiveCategoryId = useMemo(() => {
+    if (categoryTouched || categoryId || !paramCategoryName) return categoryId;
+    return (
+      categories.items.find(
+        (category) => category.name.toLowerCase() === paramCategoryName.toLowerCase(),
+      )?.id ?? ''
     );
-    if (!match) return;
-    resolvedNamedCategory.current = true;
-    setCategoryId(match.id);
-  }, [categories.items, categoryId, paramCategoryName]);
+  }, [categories.items, categoryId, categoryTouched, paramCategoryName]);
 
-  useEffect(() => {
-    if (resolvedNamedLocation.current || locationId || !paramLocationName) return;
-    const match = locations.items.find(
-      (location) => location.name.toLowerCase() === paramLocationName.toLowerCase(),
+  const effectiveLocationId = useMemo(() => {
+    if (locationTouched || locationId || !paramLocationName) return locationId;
+    return (
+      locations.items.find(
+        (location) => location.name.toLowerCase() === paramLocationName.toLowerCase(),
+      )?.id ?? ''
     );
-    if (!match) return;
-    resolvedNamedLocation.current = true;
-    setLocationId(match.id);
-  }, [locationId, locations.items, paramLocationName]);
+  }, [locations.items, locationId, locationTouched, paramLocationName]);
 
   const queryParams = useCallback((): QueryParams => {
     const p: QueryParams = {
       page: undefined,
       q: debouncedQ || undefined,
       status: effectiveStatus === 'ALL' ? undefined : effectiveStatus,
-      categoryId: categoryId || undefined,
-      locationId: locationId || undefined,
+      categoryId: effectiveCategoryId || undefined,
+      locationId: effectiveLocationId || undefined,
       stockStatus: stockStatus || undefined,
     };
-    // The legacy flags are broad at-or-below-minimum filters; they must not
-    // narrow or contradict the canonical status the Overview card opened.
-    if (!stockStatus && low) p.lowStock = true;
-    if (!stockStatus && out) p.outOfStock = true;
+    // The old lowStock/outOfStock query flags are deliberately not sent from
+    // this screen: they are broad at-or-below-minimum filters and can contradict
+    // the canonical, mutually exclusive status selected here. The API keeps them
+    // for existing clients; the product UI uses only stockStatus.
     return p;
-  }, [debouncedQ, effectiveStatus, categoryId, locationId, stockStatus, low, out]);
+  }, [debouncedQ, effectiveStatus, effectiveCategoryId, effectiveLocationId, stockStatus]);
 
   const fetcher = useCallback(
     (page: number, limit: number) => productsApi.list(token as string, { ...queryParams(), page, limit }),
@@ -125,6 +141,13 @@ export default function ProductsScreen() {
   const list = usePagedList(fetcher, { params: queryParams(), onSessionError: signOut });
   // Reload when returning from /products/new or a product detail/edit screen.
   useRefetchOnFocus(list.reload);
+
+  /** Selecting a stock status pins the population to ACTIVE and replaces any other status. */
+  const selectStockFilter = (next: StockFilter) => {
+    const value = stockStatus === next ? '' : next;
+    setStatus('ACTIVE');
+    router.setParams({ status: 'ACTIVE', stockStatus: value });
+  };
 
   const catOptions = [{ value: '', label: 'All categories' }, ...categories.items.map((c) => ({ value: c.id, label: c.name }))];
   const locOptions = [{ value: '', label: 'All locations' }, ...locations.items.map((l) => ({ value: l.id, label: l.name }))];
@@ -138,19 +161,29 @@ export default function ProductsScreen() {
         onScanPress={() => router.push('/scan')}
         style={styles.search}
       />
-      {stockStatus && !list.loading ? (
+      {!list.loading && (stockStatus || status !== 'ALL') ? (
         <View style={styles.stockBanner}>
-          <Text testID="product-stock-count" style={[styles.stockCount, { color: colors.text }]}>
-            {formatNumber(list.total)} {list.total === 1 ? 'product' : 'products'} {stockStatusLabel}
-          </Text>
-          <Pressable
-            onPress={() => router.setParams({ stockStatus: '' })}
-            accessibilityRole="button"
-            accessibilityLabel="Clear stock status filter"
-            style={styles.clearStock}
+          <Text
+            testID={stockStatus ? 'product-stock-count' : 'product-status-count'}
+            style={[styles.stockCount, { color: colors.text }]}
           >
-            <Text style={[styles.clearStockText, { color: colors.primary }]}>Clear</Text>
-          </Pressable>
+            {stockStatus
+              ? `${formatNumber(list.total)} ${list.total === 1 ? 'product' : 'products'} ${stockStatusLabel}`
+              : `${formatNumber(list.total)} ${status === 'ACTIVE' ? 'active' : 'archived'} ${list.total === 1 ? 'product' : 'products'}`}
+          </Text>
+          {stockStatus ? (
+            <Pressable
+              onPress={() => {
+                setStatus('ACTIVE');
+                router.setParams({ status: 'ACTIVE', stockStatus: '' });
+              }}
+              accessibilityRole="button"
+              accessibilityLabel="Clear stock status filter"
+              style={styles.clearStock}
+            >
+              <Text style={[styles.clearStockText, { color: colors.primary }]}>Clear</Text>
+            </Pressable>
+          ) : null}
         </View>
       ) : null}
       <View style={styles.filterRow}>
@@ -172,21 +205,37 @@ export default function ProductsScreen() {
           />
         ) : null}
       </View>
-      {/* The legacy low/out flags are broad at-or-below-minimum filters (low
-          includes out). They would contradict an exact Overview status, so they
-          are hidden while that status is active. */}
-      {!stockStatus ? (
-        <View style={styles.chipRow}>
-          {/* NOTE (MOD-02): this chip carried tone="warning", which is not a
-              ChipTone — Chip renders anything other than 'danger' as primary, so
-              the prop was already inert. Omitted (default is 'primary') to keep
-              the rendered chip identical. */}
-          <Chip label="Low stock" selected={low} onPress={() => setLow((v) => !v)} />
-          <Chip label="Out of stock" tone="danger" selected={out} onPress={() => setOut((v) => !v)} />
-        </View>
-      ) : null}
-      <SelectField label="Category" placeholder="Filter by category…" options={catOptions} value={categoryId} onChange={setCategoryId} />
-      <SelectField label="Location" placeholder="Filter by location…" options={locOptions} value={locationId} onChange={setLocationId} />
+      <View style={styles.chipRow}>
+        {STOCK_FILTERS.map(({ value, label }) => (
+          <Chip
+            key={value}
+            label={label}
+            tone={value === 'OUT_OF_STOCK' ? 'danger' : 'primary'}
+            selected={stockStatus === value}
+            onPress={() => selectStockFilter(value)}
+          />
+        ))}
+      </View>
+      <SelectField
+        label="Category"
+        placeholder="Filter by category…"
+        options={catOptions}
+        value={effectiveCategoryId}
+        onChange={(id) => {
+          setCategoryTouched(true);
+          setCategoryId(id);
+        }}
+      />
+      <SelectField
+        label="Location"
+        placeholder="Filter by location…"
+        options={locOptions}
+        value={effectiveLocationId}
+        onChange={(id) => {
+          setLocationTouched(true);
+          setLocationId(id);
+        }}
+      />
     </View>
   );
 

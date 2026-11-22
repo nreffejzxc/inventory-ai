@@ -25,10 +25,11 @@ import ProductsScreen from '../app/(app)/products/index';
  */
 
 const mockPush = jest.fn();
+const mockSetParams = jest.fn();
 let mockParams: Record<string, string> = {};
 
 jest.mock('expo-router', () => ({
-  router: { push: (href: string) => mockPush(href), setParams: jest.fn() },
+  router: { push: (href: string) => mockPush(href), setParams: (params: Record<string, string>) => mockSetParams(params) },
   useLocalSearchParams: () => mockParams,
   useFocusEffect: jest.fn(),
 }));
@@ -149,5 +150,47 @@ describe('Products route applies the Overview filter', () => {
     expect(paramsOfLastProductCall().outOfStock).toBeUndefined();
     expect(view.getByText('Active products')).toBeTruthy();
     expect(view.queryByText('Archived')).toBeNull();
+  });
+
+  it('maps a legacy lowStock-only link onto the visible canonical filter', async () => {
+    mockParams = { lowStock: 'true' };
+
+    const view = await renderProducts();
+
+    expect(paramsOfLastProductCall()).toMatchObject({ stockStatus: 'LOW_STOCK' });
+    expect(paramsOfLastProductCall().lowStock).toBeUndefined();
+    expect(view.getByText('4 products low stock')).toBeTruthy();
+    expect(view.getByText('Active products')).toBeTruthy();
+  });
+
+  it('shows In, Low and Out chips and pins ACTIVE when one is chosen', async () => {
+    mockParams = {};
+
+    const view = await renderProducts();
+    expect(view.getByText('In stock')).toBeTruthy();
+    expect(view.getByText('Low stock')).toBeTruthy();
+    expect(view.getByText('Out of stock')).toBeTruthy();
+
+    fireEvent.press(view.getByText('Low stock'));
+
+    expect(mockSetParams).toHaveBeenCalledWith({ status: 'ACTIVE', stockStatus: 'LOW_STOCK' });
+  });
+
+  it('clears a selected stock chip while keeping ACTIVE pinned', async () => {
+    mockParams = { status: 'ACTIVE', stockStatus: 'LOW_STOCK' };
+
+    const view = await renderProducts();
+    fireEvent.press(view.getByText('Clear'));
+
+    expect(mockSetParams).toHaveBeenCalledWith({ status: 'ACTIVE', stockStatus: '' });
+  });
+
+  it('shows the Active products tile count on the list it opens', async () => {
+    mockParams = { status: 'ACTIVE' };
+    productsList.mockResolvedValue({ items: [], total: 314 });
+
+    const view = await renderProducts();
+
+    expect(view.getByTestId('product-status-count')).toHaveTextContent('314 active products');
   });
 });
