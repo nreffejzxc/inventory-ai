@@ -74,7 +74,8 @@ OTAs and APKs were not touched.
   DB suite **9/9** (one parser mode-skip), server typecheck and focused ESLint pass. No duplicate
   products or movements: the existing device run counted **300 products / 300 opening-stock
   transactions / one COMPLETED receipt** after a timeout and resume
-  ([`evidence/fw01-device-resume-2026-11-22/`](evidence/fw01-device-resume-2026-11-22/README.md)).
+  ([`evidence/fw01-device-resume-2026-11-22/`](evidence/fw01-device-resume-2026-11-22/README.md)). The mobile audit
+  label table now covers `PRODUCTS_IMPORTED` and `PRODUCT_IMPORT`; the parity guard passes **8/8**.
 - **Review:** dashboard aggregation is one grouped pass and its three stock buckets are disjoint;
   availability uses summed quantity minus reserved; product lists apply the same canonical
   classifier. The two resolver effects and the inert legacy low/out state were removed. Residual
@@ -83,7 +84,7 @@ OTAs and APKs were not touched.
   draft-PO hardening remains on the local stack, not this PR.
 - **Checks:** server and mobile typecheck pass; Q68 **21/21**; FW-01 parser **2/2** and DB **9/9**;
   dashboard/product DB suites **33 pass / 0 fail / 1 mode-skip**; Phase 22/23 **32/32**, Phase 24 DB
-  **10/10**; Overview/Products mobile **13/13**; complete mobile suite **115 suites / 1,349 tests**
+  **10/10**; audit-label parity **8/8**; Overview/Products mobile **13/13**; complete mobile suite **115 suites / 1,349 tests**
   pass; five documentation guards pass after updating the module count to **248** and the route
   inventory to **129 / 72 gated / 24 authenticated / 33 public**. Focused server ESLint is clean; the
   repository-wide server lint still reports seven pre-existing errors in ignored `.scratch` scripts,
