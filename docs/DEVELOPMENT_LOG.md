@@ -1140,17 +1140,21 @@ deployed.
 3. **Combined "Needs attention" product filter** — add one product-level low-or-out filter with a
    count, so triage does not require switching between two cards; the API currently exposes only the
    two disjoint statuses.
-4. **Zero-row bridge on Inventory** — when the Out chip finds no rows but products are out of stock,
+4. **Visible canonical stock filter on Products** — today the exact In/Low/Out status arrives only
+   from an Overview deep link, and the only other control is Clear. Expose it as a chip or select so
+   members can change the filter without going back to the Dashboard; this also makes the ACTIVE pin
+   explicit instead of an invisible rule.
+5. **Zero-row bridge on Inventory** — when the Out chip finds no rows but products are out of stock,
    show "N products have no stock row" with a link to Products → Out of stock. The demo tenant
    already demonstrates this mismatch and the current empty copy only partly explains it.
-5. **Persist all product filters in the URL** — category, location, search and status currently
+6. **Persist all product filters in the URL** — category, location, search and status currently
    initialize from params but are not written back, so back/refresh/share loses the working context.
-6. **Per-chip counts** — return low/out facet counts with the inventory list so the chips show 11/0
+7. **Per-chip counts** — return low/out facet counts with the inventory list so the chips show 11/0
    before a tap and an empty result is predictable.
-7. **Share the stock classifier with the aggregation** — the product list and dashboard use the same
+8. **Share the stock classifier with the aggregation** — the product list and dashboard use the same
    rules but express them separately. A tested pipeline/expression helper (or a parity fixture) would
    stop future drift without changing the classification.
-8. **Router test helper for query-string navigation** — Expo Router's test navigator kept its location
+9. **Router test helper for query-string navigation** — Expo Router's test navigator kept its location
    after a push and did not unwind with back/replace in this suite. A documented helper would make
    future route tests less brittle; this suite avoids the issue by testing the route contract and the
    Products API payload separately.
