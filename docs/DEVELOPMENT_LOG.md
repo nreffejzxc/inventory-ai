@@ -1117,8 +1117,12 @@ change.
 `phase04-inventory`, `phase11-intelligence`) are **33 pass / 0 fail / 1 mode-skip**. Focused mobile
 Jest (`overview-stock-filters`, `profile-reachability`, `screen-focus-load`) is **20/20**. Server lint
 on the touched files is clean; mobile lint reports only the three pre-existing
-`set-state-in-effect` resolver errors (`products/index.tsx:89,99`, `inventory.tsx:61`). The complete
-server suite was not rerun.
+`set-state-in-effect` resolver errors (`products/index.tsx:89,99`, `inventory.tsx:61`). CI ran the
+complete server suite: **3,335 tests / 538 suites — 3,334 pass, 1 fail, 0 skipped**. The only
+failure is the inherited Q68 assertion (`ai-stress-assertions.test.mjs:61`, `false !== true`); that
+test file and its fixtures are unchanged from `main`, so it is pre-existing and was not weakened.
+The other six PR checks pass (mobile, compose-mongo, webauthn-e2e, secret-guard, attribution-guard,
+dependency-review); the server check stays red only on Q68.
 
 **PR.** [#364](https://github.com/nreffejzxc/inventory-ai/pull/364), `fix/overview-stock-filters` →
 `main`, commits `ad0b874`, `5593854`, `9d6b819` plus this documentation. Open only; not merged or
