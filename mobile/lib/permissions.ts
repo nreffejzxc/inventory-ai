@@ -27,6 +27,7 @@ export const PERMISSIONS = Object.freeze({
   LOCATIONS_MANAGE: 'locations.manage',
   CATEGORIES_MANAGE: 'categories.manage',
   PRODUCTS_MANAGE: 'products.manage',
+  PRODUCTS_IMPORT: 'products.import',
   PRODUCTS_VIEW: 'products.view',
   SUPPLIERS_MANAGE: 'suppliers.manage',
   SUPPLIERS_VIEW: 'suppliers.view',
@@ -69,6 +70,7 @@ export const ROLE_PERMISSIONS: Readonly<Record<Role, readonly Permission[]>> = O
     PERMISSIONS.LOCATIONS_MANAGE,
     PERMISSIONS.CATEGORIES_MANAGE,
     PERMISSIONS.PRODUCTS_MANAGE,
+    PERMISSIONS.PRODUCTS_IMPORT,
     PERMISSIONS.PRODUCTS_VIEW,
     PERMISSIONS.SUPPLIERS_MANAGE,
     PERMISSIONS.SUPPLIERS_VIEW,
@@ -134,6 +136,10 @@ export const canManageLocations = (u: PermissionSubject | null | undefined): boo
   can(u, PERMISSIONS.LOCATIONS_MANAGE);
 export const canManageProducts = (u: PermissionSubject | null | undefined): boolean =>
   can(u, PERMISSIONS.PRODUCTS_MANAGE);
+// FW-01 uses its own capability, held by OWNER and ADMIN only: a whole-file
+// catalogue import is an onboarding operation, narrower than products.manage.
+export const canImportProducts = (u: PermissionSubject | null | undefined): boolean =>
+  can(u, PERMISSIONS.PRODUCTS_IMPORT);
 export const canManageSuppliers = (u: PermissionSubject | null | undefined): boolean =>
   can(u, PERMISSIONS.SUPPLIERS_MANAGE);
 export const canViewSuppliers = (u: PermissionSubject | null | undefined): boolean =>

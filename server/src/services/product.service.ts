@@ -155,6 +155,8 @@ type ProductReorderFilters = {
   q?: string;
   status?: string;
   categoryId?: string;
+  /** FW-01 follow-on: a draft PO receives into one location, so restock can be scoped to it. */
+  locationId?: string;
   skip?: number;
   limit?: number;
 };
@@ -612,7 +614,15 @@ export const productService = {
     return category;
   },
 
-  async create(businessId: IdLike, userId: IdLike, payload: ProductWritePayload) {
+  async create(
+    businessId: IdLike,
+    userId: IdLike,
+    payload: ProductWritePayload,
+    // FW-01 groups a whole file into one PRODUCTS_IMPORTED audit event. The
+    // per-row PRODUCT_CREATED event would duplicate the operator, file and counts
+    // and would put the imported row's name/SKU into the trail once per line.
+    { audit = true, id }: { audit?: boolean; id?: string } = {},
+  ) {
     await this.assertCategoryOfBusiness(businessId, payload.categoryId);
 
     const data = {
@@ -641,20 +651,26 @@ export const productService = {
 
     let doc;
     try {
-      doc = await Product.create(data);
+      // FW-01 reserves this id in the import receipt before creating the row, so
+      // a process death between the product write and the receipt update can be
+      // recovered by recreating the same id on the same-key retry. Ordinary
+      // creates pass no id and keep Mongo's generated `_id`.
+      doc = await Product.create(id ? { ...data, _id: new mongoose.Types.ObjectId(id) } : data);
     } catch (err) {
       if (isDuplicateKey(err)) throw mapDuplicateKey(err);
       throw err;
     }
 
-    await safeProductAudit({
-      businessId,
-      userId,
-      action: AUDIT_ACTIONS.PRODUCT_CREATED,
-      entityType: AUDIT_ENTITY_TYPES.PRODUCT,
-      entityId: doc._id,
-      metadata: { name: doc.name, sku: doc.sku, categoryId: doc.categoryId ? String(doc.categoryId) : null },
-    });
+    if (audit) {
+      await safeProductAudit({
+        businessId,
+        userId,
+        action: AUDIT_ACTIONS.PRODUCT_CREATED,
+        entityType: AUDIT_ENTITY_TYPES.PRODUCT,
+        entityId: doc._id,
+        metadata: { name: doc.name, sku: doc.sku, categoryId: doc.categoryId ? String(doc.categoryId) : null },
+      });
+    }
     return doc;
   },
 
@@ -1226,7 +1242,7 @@ export const productService = {
    */
   async listReorder(
     businessId: IdLike,
-    { q, status = 'ACTIVE', categoryId, skip = 0, limit = 20 }: ProductReorderFilters
+    { q, status = 'ACTIVE', categoryId, locationId, skip = 0, limit = 20 }: ProductReorderFilters
   ) {
     const bizOid = new ObjectId(businessId);
     // Loose filter document: keys are added conditionally below.
@@ -1241,7 +1257,7 @@ export const productService = {
 
     const pipeline: PipelineStage[] = [
       { $match: match },
-      ...availabilityIdStages(bizOid),
+      ...availabilityIdStages(bizOid, locationId),
       { $match: { $expr: { $lte: ['$available', '$minimumStock'] } } },
       {
         $facet: {

@@ -783,6 +783,16 @@ export const productsApi = {
   archive: (token: string, id: string): Promise<ApiResponse> => apiFetch(`/api/products/${id}/archive`, { token, method: 'POST' }),
   restore: (token: string, id: string): Promise<ApiResponse> => apiFetch(`/api/products/${id}/restore`, { token, method: 'POST' }),
   /**
+   * Validate (`dryRun: true`) or apply an OWNER/ADMIN CSV import. Apply needs a
+   * stable Idempotency-Key; a retry with the same key resumes/resends the same
+   * file rather than creating a second catalogue.
+   */
+  importProducts: (token: string, payload: ProductImportInput, idempotencyKey?: string): Promise<ApiResponse> =>
+    apiFetch('/api/products/import', { token, method: 'POST', body: payload, idempotencyKey }),
+  /** Progress for the key of an import whose HTTP answer was lost. */
+  importStatus: (token: string, key: string): Promise<ProductImportStatus> =>
+    apiFetch(`/api/products/import/${encodeURIComponent(key)}`, { token }),
+  /**
    * Issue an internal EAN-13 barcode for a product that has none (Phase 12D).
    * Returns the updated product DTO. PRODUCTS_MANAGE; 409 if the product already
    * has a barcode or is archived. Never overwrites an existing code.
@@ -794,6 +804,31 @@ export const productsApi = {
 // ---------------------------------------------------------------------------
 // Inventory
 // ---------------------------------------------------------------------------
+
+/** FW-01 bulk catalogue import body. The server validates the whole CSV before writing. */
+export interface ProductImportInput {
+  fileName: string;
+  csv: string;
+  dryRun: boolean;
+}
+
+/** `GET /api/products/import/:key` — durable progress while the client polls. */
+export interface ProductImportStatus {
+  key: string;
+  status: 'IN_PROGRESS' | 'PARTIAL' | 'COMPLETED' | 'FAILED';
+  fileName: string;
+  totalRows: number;
+  createdCount: number;
+  openingStockCount: number;
+  openingStockUnits: number;
+  failures: { line: number; field?: string | null; code: string; message: string }[];
+  finishedAt: string | null;
+  result: {
+    createdCount?: number;
+    openingStockCount?: number;
+    openingStockUnits?: number;
+  } | null;
+}
 
 /** A stock-in / stock-out / adjust body, assembled by MovementForm. */
 export interface MovementInput {

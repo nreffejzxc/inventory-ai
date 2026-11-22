@@ -49,6 +49,7 @@ export default function AppLayout() {
       <Stack.Screen name="dashboard" options={{ headerShown: false }} />
       <Stack.Screen name="products/index" options={{ title: 'Products' }} />
       <Stack.Screen name="products/new" options={{ title: 'New Product' }} />
+      <Stack.Screen name="products/import" options={{ title: 'Import Products' }} />
       <Stack.Screen name="products/[id]/index" options={{ title: 'Product' }} />
       <Stack.Screen name="products/[id]/edit" options={{ title: 'Edit Product' }} />
       <Stack.Screen name="scan" options={{ title: 'Scan Barcode' }} />

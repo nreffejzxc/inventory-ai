@@ -21,7 +21,7 @@ import useDebounced from '../../../hooks/useDebounced';
 import { useActiveRef } from '../../../hooks/useReferences';
 import usePagedList from '../../../hooks/usePagedList';
 import useRefetchOnFocus from '../../../hooks/useRefetchOnFocus';
-import { canManageProducts } from '../../../lib/permissions';
+import { canImportProducts, canManageProducts } from '../../../lib/permissions';
 import { spacing } from '../../../lib/theme';
 import { useTheme } from '../../../lib/theme-context';
 
@@ -59,6 +59,7 @@ export default function ProductsScreen() {
   const { colors } = useTheme();
   const { token, user, signOut } = useSession();
   const manage = canManageProducts(user);
+  const canImport = canImportProducts(user);
   const categories = useActiveRef(token, categoriesApi);
   const locations = useActiveRef(token, locationsApi);
   const params = useLocalSearchParams();
@@ -204,6 +205,15 @@ export default function ProductsScreen() {
             style={styles.newBtn}
           />
         ) : null}
+        {canImport ? (
+          <Button
+            title="Import CSV"
+            icon="document"
+            variant="secondary"
+            onPress={() => router.push('/products/import')}
+            style={styles.importBtn}
+          />
+        ) : null}
       </View>
       <View style={styles.chipRow}>
         {STOCK_FILTERS.map(({ value, label }) => (
@@ -291,5 +301,6 @@ const styles = StyleSheet.create({
   search: { marginBottom: spacing.lg },
   filterRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: spacing.sm },
   newBtn: { marginLeft: 'auto' },
+  importBtn: { marginLeft: spacing.sm },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.sm },
 });

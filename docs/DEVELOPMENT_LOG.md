@@ -44,6 +44,55 @@ at the end of every development session, newest entry first.
 **Goal:** finish and harden Inventory AI **V1** through production testing. No Play Store or App
 Store release is being prepared.
 
+**FW-01 import timeout/progress, Q68 and stack review (2026-11-22):** local-only work on
+`fix/fw01-import-resume`; no push, merge, deploy, OTA/APK publication or production access.
+
+- **Q68 was a stale test expectation, not a parser defect.** `node --test
+test/ai-stress-assertions.test.mjs` passed **21/21** on `main` and failed **1/21** on the feature
+stack; the assertion still required the old “5 products are low” text while the corrected fixture
+summary had **4 LOW + 1 OUT**. The test now derives both figures from `expectedSummary()` and passes
+**21/21** on the stack branch.
+- **Long import UX:** added `GET /api/products/import/:key`, scoped to the authenticated business,
+with `Cache-Control: no-store` and `404 IMPORT_NOT_FOUND` for an unknown or foreign key. The mobile
+screen polls it after an ambiguous timeout and shows created/total rows and opening-stock progress;
+the file and key stay locked until the result is terminal, with **Resume import** for a partial or
+failed receipt. The import route's transport claim now lasts **ten minutes** instead of 60 seconds, so
+a timeout retry cannot start a second writer while the first is still creating products. The
+product-create/receipt gap is closed by reserving a deterministic product id in the receipt before the
+create and recreating/recognising that id on the same-key retry.
+- **Draft PO review:** the restock path was already tenant-scoped, revalidated the location snapshot
+and created only one `DRAFT`. Two genuine defects were fixed: an ambiguous retry could change the
+supplier, location or selected rows while reusing the key, so those controls now lock until the
+operation has a definite result; and `unitCost: product.costPrice || undefined` discarded a legitimate
+zero cost, which now stays as `0`.
+- **Device proof (2026-11-22, CPH1969, development build 1.0.2 code 10):** a fresh 300-row CSV
+previewed **300 products / 300 movements / 300 units**. The apply started at **09:59:54 UTC**,
+outlived the 15 s client budget, and the screen showed the timeout message, locked the picker and
+polled the status route. The captured state at **10:00:16 UTC** was **84/300 products, 0 stock**; it
+completed at **10:04:28 UTC** with **300/300** and the alert “300 product(s) created; 300
+opening-stock movement(s) recorded.” Database counts were **300 products**, **300 opening-stock
+transactions** and one `COMPLETED` receipt (300 created / 300 stock) — **no duplicate**. Evidence:
+[`evidence/fw01-device-resume-2026-11-22`](evidence/fw01-device-resume-2026-11-22/README.md).
+- **Checks run:** server typecheck; mobile typecheck; FW-01 import DB suite **9/9 with one
+mode-skipped parser suite**; Draft PO DB suite **5/5**; Phase 22/23 **32/32**; route-inventory guard
+**11/11**; Q68 **21/21**. The route inventory is now **130 / 73 gated / 24 authenticated / 33 public /
+0 role-gated**. The first complete mobile run exposed the FW-01 native additions at one patch above
+  the installed SDK's own ranges (`expo-document-picker` and `expo-file-system`); the manifest now
+  matches `bundledNativeModules.json`, both names are in the Dependabot ignore list, and the focused
+  pin guard passes **8/8**. The complete mobile suite then passed **114 suites / 1,337 tests** with the
+  import-screen changes and the corrected hook order. The complete server suite ran **3,351 tests in 541
+  suites: 3,349 passed, 2 failed, 0 skipped**. Both failures were the two `OPS7` PLAT-1 fixed-window
+  aggregation assertions immediately after the runner logged `[db] MongoDB connection lost`; an
+  isolated `TEST_MODE=db` rerun of that file passed **14/16 with 2 mode skips and 0 failures**. No failure
+  touched the FW-01 routes, import receipt or Draft PO path.
+- **Task 4:** `docs/fw-03-stocktake-plan` was at `7f583a3`, fully contained in the current stack and
+identical to the current FW-03 plan file; the local branch was retired with `git branch -d` (no
+content loss).
+
+Remaining: persist the selected CSV/import key if cross-restart resume is required; the status route
+and receipt are ready for it, but a fresh app launch cannot re-read the picked file. The draft-PO
+attempt key is still screen-session scoped. No production or deployment action was taken.
+
 **Inventory and Overview action clarity (2026-11-22):** reviewed the Scan/Purchase Orders placement
 and the Low/Out actions and changed the hierarchy rather than adding controls. **Dashboard:** the
 five Overview tiles are count drill-downs; Scan and New PO stay in **Quick actions**, and Purchase

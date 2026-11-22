@@ -10,6 +10,7 @@ import Category from './category.model.ts';
 import Supplier from './supplier.model.ts';
 import PurchaseOrder from './purchaseOrder.model.ts';
 import Product from './product.model.ts';
+import ProductImport from './productImport.model.ts';
 import Inventory from './inventory.model.ts';
 import InventoryTransaction from './inventoryTransaction.model.ts';
 import AuditLog from './auditLog.model.ts';
@@ -44,6 +45,7 @@ export {
   Supplier,
   PurchaseOrder,
   Product,
+  ProductImport,
   Inventory,
   InventoryTransaction,
   AuditLog,
@@ -80,6 +82,7 @@ export const models = [
   Supplier,
   PurchaseOrder,
   Product,
+  ProductImport,
   Inventory,
   InventoryTransaction,
   AuditLog,

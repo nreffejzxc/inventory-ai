@@ -139,6 +139,7 @@ export function createTracker(dbOk) {
       await deleteByBusiness('stock_transfer_operations');
       await deleteByBusiness('inventory');
       await deleteByBusiness('products');
+      await deleteByBusiness('product_imports');
       await deleteByBusiness('categories');
       await deleteByBusiness('locations');
       await deleteByBusiness('audit_logs');

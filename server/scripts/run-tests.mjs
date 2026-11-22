@@ -219,6 +219,7 @@ const MIXED = [
   'phase12a-barcode.test.mjs', // db: barcode lookup endpoint (success, isolation, duplicate, archived, RBAC)
   'phase12d-barcode-generation.test.mjs', // db: POST /:id/generate-barcode (generate, no-overwrite, lookup, isolation, archived, RBAC)
   'phase13-suppliers.test.mjs', // db: suppliers CRUD over /api/suppliers (extra contact fields, RBAC, isolation, archive)
+  'FW01-product-import.test.mjs', // FW-01: parser unit cases + DB-backed dry-run, row errors, tenant isolation, opening-stock ledger, durable replay and audit hygiene
   'phase13-purchase-orders.test.mjs', // db: PO create/list/get/DRAFT-edit/issue/cancel (numbering, lifecycle, RBAC, isolation, no stock writes)
   'phase13-receiving.test.mjs', // db: PO receiving into the ledger (partial/full, auto-RECEIVED, over-receive 409, concurrency, full precise undo, RBAC/isolation)
   'phase14-users.test.mjs', // db: user management over /api/users (create/list/role+status, RBAC, OWNER/ADMIN/self protections, dup email, disabled, isolation, audit)
