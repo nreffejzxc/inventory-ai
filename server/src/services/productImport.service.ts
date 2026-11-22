@@ -644,7 +644,10 @@ export const productImportService = {
         // id instead of treating the committed row as an unexplained duplicate.
         await ProductImport.updateOne(
           { _id: receipt._id },
-          { $push: { createdProducts: { line: row.line, productId: intendedId } } },
+          // `$addToSet`, not `$push`: a second same-key delivery can reach this
+          // branch after the receipt write committed but its acknowledgement was
+          // lost. The reservation is identical, so it must not be counted twice.
+          { $addToSet: { createdProducts: { line: row.line, productId: intendedId } } },
         );
         created.set(row.line, intendedId);
       } else {
@@ -773,7 +776,10 @@ export const productImportService = {
         await ProductImport.updateOne(
           { _id: receipt._id },
           {
-            $push: {
+            // The movement is already guarded by its deterministic receipt key.
+            // `$addToSet` additionally stops a duplicate progress entry when a
+            // concurrent same-key delivery appends the same completed line.
+            $addToSet: {
               stockOperations: {
                 line: row.line,
                 quantity: row.openingQuantity,

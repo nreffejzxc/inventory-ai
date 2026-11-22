@@ -797,12 +797,48 @@ dbSuite('PLAT-1 platform administrator access control', dbOk, () => {
 dbSuite('PLAT-1 cross-tenant aggregation (fixed window)', dbOk, () => {
   const now = new Date('2019-01-07T12:00:00.000Z');
   const inside = new Date('2019-01-03T10:00:00.000Z');
+  const feedbackAId = new mongoose.Types.ObjectId();
+  const feedbackBId = new mongoose.Types.ObjectId();
+  const errorAId = new mongoose.Types.ObjectId();
+  const errorBId = new mongoose.Types.ObjectId();
+  const errorNoTenantId = new mongoose.Types.ObjectId();
 
   let businessA;
   let businessB;
   let memberA;
   let memberB;
   let otherOwner;
+
+  /**
+   * The fixed-window suite is a fixture, not the product write path. A transient
+   * MongoDB disconnect must not silently drop one of its rows and turn a correct
+   * aggregation into a false failure. The monitoring writers return `false` when
+   * the connection is down; wait for it and retry, and make direct fixture writes
+   * idempotent with fixed ids so a lost acknowledgement cannot duplicate them.
+   */
+  const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+  async function fixtureWrite(label, write) {
+    let lastError = null;
+    for (let attempt = 1; attempt <= 50; attempt += 1) {
+      if (mongoose.connection.readyState !== 1) {
+        await sleep(200);
+        continue;
+      }
+      try {
+        const result = await write();
+        if (result !== false) return result;
+        lastError = new Error(`${label} writer returned false`);
+      } catch (err) {
+        lastError = err;
+      }
+      await sleep(200);
+    }
+    assert.fail(
+      `${label} fixture write did not persist after 50 attempts: ${
+        lastError instanceof Error ? lastError.message : 'MongoDB did not reconnect'
+      }`,
+    );
+  }
 
   before(async () => {
     // One real tenant registered through the API, plus raw rows for a second.
@@ -813,94 +849,142 @@ dbSuite('PLAT-1 cross-tenant aggregation (fixed window)', dbOk, () => {
     memberB = new mongoose.Types.ObjectId();
 
     // AI: two turns, one per tenant, in the fixed window.
-    await recordAiTurnMetric(
-      metricInput({
-        turnId: 'plat-fixed-a',
-        businessId: String(businessA),
-        userId: String(memberA),
-        startedAt: new Date(inside.getTime() - 1000),
-        completedAt: inside,
-        outcome: 'ok',
-      }),
+    await fixtureWrite('AI turn A', () =>
+      recordAiTurnMetric(
+        metricInput({
+          turnId: 'plat-fixed-a',
+          businessId: String(businessA),
+          userId: String(memberA),
+          startedAt: new Date(inside.getTime() - 1000),
+          completedAt: inside,
+          outcome: 'ok',
+        }),
+      ),
     );
-    await recordAiTurnMetric(
-      metricInput({
-        turnId: 'plat-fixed-b',
-        businessId: String(businessB),
-        userId: String(memberB),
-        startedAt: new Date(inside.getTime() - 1000),
-        completedAt: inside,
-        outcome: 'failed',
-        failovers: 1,
-      }),
+    await fixtureWrite('AI turn B', () =>
+      recordAiTurnMetric(
+        metricInput({
+          turnId: 'plat-fixed-b',
+          businessId: String(businessB),
+          userId: String(memberB),
+          startedAt: new Date(inside.getTime() - 1000),
+          completedAt: inside,
+          outcome: 'failed',
+          failovers: 1,
+        }),
+      ),
     );
 
-    // Feedback: one per tenant, one down reason each.
-    await AiFeedback.create([
-      {
-        businessId: businessA,
-        conversationId: new mongoose.Types.ObjectId(),
-        messageId: new mongoose.Types.ObjectId(),
-        userId: memberA,
-        rating: 'DOWN',
-        reason: 'INCORRECT_DATA',
-        status: 'OPEN',
-        createdAt: inside,
-        updatedAt: inside,
-      },
-      {
-        businessId: businessB,
-        conversationId: new mongoose.Types.ObjectId(),
-        messageId: new mongoose.Types.ObjectId(),
-        userId: memberB,
-        rating: 'DOWN',
-        reason: 'MISSING_INFORMATION',
-        status: 'OPEN',
-        createdAt: inside,
-        updatedAt: inside,
-      },
-    ]);
+    // Feedback: one per tenant, one down reason each. Fixed ids make the upsert
+    // safe to retry if the insert commits but its acknowledgement is lost.
+    await fixtureWrite('feedback A', () =>
+      AiFeedback.updateOne(
+        { _id: feedbackAId },
+        {
+          $setOnInsert: {
+            businessId: businessA,
+            conversationId: new mongoose.Types.ObjectId(),
+            messageId: new mongoose.Types.ObjectId(),
+            userId: memberA,
+            rating: 'DOWN',
+            reason: 'INCORRECT_DATA',
+            status: 'OPEN',
+            createdAt: inside,
+            updatedAt: inside,
+          },
+        },
+        { upsert: true, timestamps: false },
+      ),
+    );
+    await fixtureWrite('feedback B', () =>
+      AiFeedback.updateOne(
+        { _id: feedbackBId },
+        {
+          $setOnInsert: {
+            businessId: businessB,
+            conversationId: new mongoose.Types.ObjectId(),
+            messageId: new mongoose.Types.ObjectId(),
+            userId: memberB,
+            rating: 'DOWN',
+            reason: 'MISSING_INFORMATION',
+            status: 'OPEN',
+            createdAt: inside,
+            updatedAt: inside,
+          },
+        },
+        { upsert: true, timestamps: false },
+      ),
+    );
 
     // Feature presence: two members on one tenant and one on the other.
-    await recordFeatureUse({
-      businessId: String(businessA),
-      userId: String(memberA),
-      feature: 'products',
-      at: inside,
-    });
-    await recordFeatureUse({
-      businessId: String(businessB),
-      userId: String(memberB),
-      feature: 'inventory',
-      at: inside,
-    });
+    await fixtureWrite('feature A', () =>
+      recordFeatureUse({
+        businessId: String(businessA),
+        userId: String(memberA),
+        feature: 'products',
+        at: inside,
+      }),
+    );
+    await fixtureWrite('feature B', () =>
+      recordFeatureUse({
+        businessId: String(businessB),
+        userId: String(memberB),
+        feature: 'inventory',
+        at: inside,
+      }),
+    );
 
-    // Errors: one per tenant at a fixed instant.
-    await recordOperationalError({
-      businessId: String(businessA),
-      status: 503,
-      code: 'AI_UNAVAILABLE',
-      method: 'POST',
-      path: '/api/ai/chat',
-      now: inside,
-    });
-    await recordOperationalError({
-      businessId: String(businessB),
-      status: 500,
-      code: 'INTERNAL_ERROR',
-      method: 'GET',
-      path: '/api/products/507f1f77bcf86cd799439011',
-      now: inside,
-    });
+    // Errors: one per tenant at a fixed instant. Build the same bounded row the
+    // writer would store, with a fixed id, so a retry is an idempotent upsert.
+    await fixtureWrite('error A', () =>
+      OpsErrorEvent.updateOne(
+        { _id: errorAId },
+        {
+          $setOnInsert: buildOpsErrorEvent({
+            businessId: String(businessA),
+            status: 503,
+            code: 'AI_UNAVAILABLE',
+            method: 'POST',
+            path: '/api/ai/chat',
+            now: inside,
+          }),
+        },
+        { upsert: true },
+      ),
+    );
+    await fixtureWrite('error B', () =>
+      OpsErrorEvent.updateOne(
+        { _id: errorBId },
+        {
+          $setOnInsert: buildOpsErrorEvent({
+            businessId: String(businessB),
+            status: 500,
+            code: 'INTERNAL_ERROR',
+            method: 'GET',
+            path: '/api/products/507f1f77bcf86cd799439011',
+            now: inside,
+          }),
+        },
+        { upsert: true },
+      ),
+    );
     // A pre-authentication 5xx has no tenant. It must count in the platform
     // total and must NOT inflate the affected-tenant count.
-    await recordOperationalError({
-      status: 500,
-      code: 'INTERNAL_ERROR',
-      method: 'GET',
-      path: '/api/health',
-      now: inside,
-    });
+    await fixtureWrite('error without tenant', () =>
+      OpsErrorEvent.updateOne(
+        { _id: errorNoTenantId },
+        {
+          $setOnInsert: buildOpsErrorEvent({
+            status: 500,
+            code: 'INTERNAL_ERROR',
+            method: 'GET',
+            path: '/api/health',
+            now: inside,
+          }),
+        },
+        { upsert: true },
+      ),
+    );
   });
 
   it('counts both tenants in one report and never one tenant’s rows only', async () => {
