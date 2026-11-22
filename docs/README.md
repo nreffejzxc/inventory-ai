@@ -87,6 +87,7 @@ Guide 6; no rule, command or safety procedure was removed.
 | [`PLATFORM_NEXT_IMPROVEMENTS_BEYOND_NY07.md`](PLATFORM_NEXT_IMPROVEMENTS_BEYOND_NY07.md) | Next ranked tranche beyond NY-07: CodeQL, dependency review, deploy rollback, workflow audit, Android manifest privacy, privacy-policy drift and App Check; recommendations only |
 | [`PLATFORM_NEXT_IMPROVEMENTS_BEYOND_DEV09.md`](PLATFORM_NEXT_IMPROVEMENTS_BEYOND_DEV09.md) | Future improvements beyond DEV-09: six open ranked capabilities (bulk import, tenant query guard, stocktake, PO transmission, query deadline, digest pin), the already-shipped FW-07 request reference, and the still-open carry-forward items; recommendations only |
 | [`FW_IMPLEMENTATION_PLANS_2026-11-19.md`](FW_IMPLEMENTATION_PLANS_2026-11-19.md) | Code-accurate plans for FW-04 (corrected PO transmission), FW-07 (mobile request reference), FW-05 (non-AI database deadline), linked stock-movement reversal and supplier replenishment terms; planning only |
+| [`FW_01_BULK_IMPORT_IMPLEMENTATION.md`](FW_01_BULK_IMPORT_IMPLEMENTATION.md) | The implemented CSV catalogue import: API, bounds, durable receipt/resume contract, opening stock, status route, audit and device verification; the draft-PO section remains local-only |
 | [`../README.md`](../README.md) | The front door: stack, layout, how to run each half, deployment |
 
 ### Platform Operations console
@@ -163,6 +164,7 @@ Reference documents are consulted rather than read once, so they are reviewed on
 | [`PLATFORM_NEXT_IMPROVEMENTS_BEYOND_NY07.md`](PLATFORM_NEXT_IMPROVEMENTS_BEYOND_NY07.md) | 90 days | 2026-11-17 |
 | [`PLATFORM_NEXT_IMPROVEMENTS_BEYOND_DEV09.md`](PLATFORM_NEXT_IMPROVEMENTS_BEYOND_DEV09.md) | 90 days | 2026-11-19 |
 | [`FW_IMPLEMENTATION_PLANS_2026-11-19.md`](FW_IMPLEMENTATION_PLANS_2026-11-19.md) | 90 days | 2026-11-19 |
+| [`FW_01_BULK_IMPORT_IMPLEMENTATION.md`](FW_01_BULK_IMPORT_IMPLEMENTATION.md) | 90 days | 2026-11-22 |
 | [`../README.md`](../README.md) | 90 days | 2026-11-09 |
 
 The 2026-11-07 date starts each clock at adoption: it records when the cadence began, not that every
