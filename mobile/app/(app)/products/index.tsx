@@ -147,7 +147,9 @@ export default function ProductsScreen() {
   const selectStockFilter = (next: StockFilter) => {
     const value = stockStatus === next ? '' : next;
     setStatus('ACTIVE');
-    router.setParams({ status: 'ACTIVE', stockStatus: value });
+    // Drop the legacy flags as well: otherwise clearing a chip opened from an
+    // old lowStock/outOfStock link would immediately map them back to a filter.
+    router.setParams({ status: 'ACTIVE', stockStatus: value, lowStock: '', outOfStock: '' });
   };
 
   const catOptions = [{ value: '', label: 'All categories' }, ...categories.items.map((c) => ({ value: c.id, label: c.name }))];
@@ -176,7 +178,7 @@ export default function ProductsScreen() {
             <Pressable
               onPress={() => {
                 setStatus('ACTIVE');
-                router.setParams({ status: 'ACTIVE', stockStatus: '' });
+                router.setParams({ status: 'ACTIVE', stockStatus: '', lowStock: '', outOfStock: '' });
               }}
               accessibilityRole="button"
               accessibilityLabel="Clear stock status filter"

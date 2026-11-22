@@ -173,7 +173,12 @@ describe('Products route applies the Overview filter', () => {
 
     fireEvent.press(view.getByText('Low stock'));
 
-    expect(mockSetParams).toHaveBeenCalledWith({ status: 'ACTIVE', stockStatus: 'LOW_STOCK' });
+    expect(mockSetParams).toHaveBeenCalledWith({
+      status: 'ACTIVE',
+      stockStatus: 'LOW_STOCK',
+      lowStock: '',
+      outOfStock: '',
+    });
   });
 
   it('clears a selected stock chip while keeping ACTIVE pinned', async () => {
@@ -182,7 +187,12 @@ describe('Products route applies the Overview filter', () => {
     const view = await renderProducts();
     fireEvent.press(view.getByText('Clear'));
 
-    expect(mockSetParams).toHaveBeenCalledWith({ status: 'ACTIVE', stockStatus: '' });
+    expect(mockSetParams).toHaveBeenCalledWith({
+      status: 'ACTIVE',
+      stockStatus: '',
+      lowStock: '',
+      outOfStock: '',
+    });
   });
 
   it('shows the Active products tile count on the list it opens', async () => {

@@ -44,7 +44,52 @@ at the end of every development session, newest entry first.
 **Goal:** finish and harden Inventory AI **V1** through production testing. No Play Store or App
 Store release is being prepared.
 
-**FW-01 import timeout/progress, Q68 and stack review (2026-11-22):** local-only work on
+**PR #364: Q68, Overview evidence, resumable import and visible stock filters (2026-11-22):**
+committed and pushed to `fix/overview-stock-filters`; **not merged or deployed**. Production data,
+OTAs and APKs were not touched.
+
+- **Q68:** reproduced on the PR branch as **20 pass / 1 fail** at
+  `server/test/ai-stress-assertions.test.mjs:61` (`false !== true`). The fixture classification is
+  **4 LOW + 1 OUT**; the old assertion still required **5 LOW + 1 OUT**. The test now derives both
+  figures from `expectedSummary()` and retains the swapped-value negative assertion. The focused run
+  passed **21/21** on the final PR branch.
+- **Device evidence:** on CPH1969 the four tiles read In **309**, Low **4**, Out **1**, Active **314**
+  and on-hand **436**; **309 + 4 + 1 = 314**. Each stock tile opened its Product list with the same
+  total and the **Active products** scope. The Active tile previously opened the list without a
+  total; it now reads **314 active products**. Canonical archived-plus-legacy links still pinned
+  ACTIVE; a legacy-only `lowStock=true` link now maps to the visible **Low stock** chip. Screenshots:
+  [`evidence/overview-stock-filters-2026-11-22/`](evidence/overview-stock-filters-2026-11-22/README.md).
+- **Products filters:** added visible, mutually exclusive **In stock / Low stock / Out of stock**
+  chips. Selecting one sets `status=ACTIVE` and `stockStatus`, hides the status switch while the
+  filter is active, and shows the returned count; **Clear** returns to the ACTIVE list. Legacy
+  low/out params are cleared on selection/clear so a link cannot re-apply itself. The named
+  category/location resolvers now derive their effective ids during render; this removed the two
+  pre-existing `react-hooks/set-state-in-effect` lint errors. Focused mobile tests **13/13**, mobile
+  typecheck and focused ESLint pass.
+- **Import progress and resume:** the FW-01 CSV stack was brought onto the PR branch without the
+  unrelated draft-PO/stocktake work. It adds bounded CSV parsing, dry-run preview, `POST
+  /api/products/import` with a **ten-minute** transport claim, tenant-scoped `GET
+  /api/products/import/:key`, deterministic product reservations, per-line stock receipt keys and
+  the mobile timeout → poll → same-key resume flow. Focused parser **2/2** (one DB mode-skip), FW-01
+  DB suite **9/9** (one parser mode-skip), server typecheck and focused ESLint pass. No duplicate
+  products or movements: the existing device run counted **300 products / 300 opening-stock
+  transactions / one COMPLETED receipt** after a timeout and resume
+  ([`evidence/fw01-device-resume-2026-11-22/`](evidence/fw01-device-resume-2026-11-22/README.md)).
+- **Review:** dashboard aggregation is one grouped pass and its three stock buckets are disjoint;
+  availability uses summed quantity minus reserved; product lists apply the same canonical
+  classifier. The two resolver effects and the inert legacy low/out state were removed. Residual
+  risks: a direct API `stockStatus` request without `status=ACTIVE` is not server-pinned (the mobile
+  route always pins); the selected CSV/key is not persisted across an app restart; and the earlier
+  draft-PO hardening remains on the local stack, not this PR.
+- **Checks:** server and mobile typecheck pass; Q68 **21/21**; FW-01 parser **2/2** and DB **9/9**;
+  dashboard/product DB suites **33 pass / 0 fail / 1 mode-skip**; Phase 22/23 **32/32**, Phase 24 DB
+  **10/10**; Overview/Products mobile **13/13**; complete mobile suite **115 suites / 1,349 tests**
+  pass; five documentation guards pass after updating the module count to **248** and the route
+  inventory to **129 / 72 gated / 24 authenticated / 33 public**. Focused server ESLint is clean; the
+  repository-wide server lint still reports seven pre-existing errors in ignored `.scratch` scripts,
+  not in changed source. CI and the final head are checked after the push.
+
+**Earlier local FW-01 import timeout/progress work (2026-11-22):** local-only work on
 `fix/fw01-import-resume`; no push, merge, deploy, OTA/APK publication or production access.
 
 - **Q68 was a stale test expectation, not a parser defect.** `node --test

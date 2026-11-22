@@ -919,8 +919,8 @@ Filters:
 - Category
 - Location
 - Active/Archived
-- Low stock
-- Out of stock
+- In stock, Low stock, Out of stock (the canonical, mutually exclusive `stockStatus`)
+- Low stock and Out of stock legacy flags, kept for existing API clients
 
 Search results must support pagination.
 
@@ -956,6 +956,13 @@ row at every location. The
 Inventory screen's row-level low filter is deliberately broader (it may include
 an out-of-stock row, whose OUT badge takes precedence); that per-location list is
 not the product-level list behind an Overview card.
+
+The Products screen exposes In, Low and Out as visible, mutually exclusive chips. Choosing one
+pins the list to ACTIVE and replaces the All/Active/Archived switch with the scope label, so the
+total beside the filter remains the card's count. Clearing the chip returns to the ACTIVE list and
+shows its total. An old `lowStock`/`outOfStock` deep link maps to the matching visible canonical
+chip; when a canonical `stockStatus` is also present, the canonical value wins and the legacy flags
+are ignored.
 
 ---
 

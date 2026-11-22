@@ -1,8 +1,9 @@
 # FW-01 — Bulk CSV import and restock-to-draft-order: implementation record
 
-**Status:** implemented locally on the feature branch; not merged, deployed or OTA-published. It was
-exercised on a physical Android development build on 2026-11-22 (section 4). Planning and acceptance
-criteria remain in
+**Status:** the CSV import path is committed on PR **#364** (`fix/overview-stock-filters`) and was
+exercised on a physical Android development build on 2026-11-22 (section 4); it is **not merged,
+deployed or OTA-published**. The draft purchase-order section remains local-only and is not part of
+that PR. Planning and acceptance criteria remain in
 [`PLATFORM_NEXT_IMPROVEMENTS_BEYOND_DEV09.md`](PLATFORM_NEXT_IMPROVEMENTS_BEYOND_DEV09.md) §FW-01.
 **Date:** 2026-11-21; timeout/resume follow-up 2026-11-22.
 
@@ -157,8 +158,8 @@ Idempotency-Key required
 
 | Check | Result |
 | --- | --- |
-| `cd server && npm run typecheck` | pass |
-| Focused ESLint on changed server files | pass |
+| PR #364 `cd server && npm run typecheck` | pass after integrating the import path with the stock-filter branch |
+| PR #364 focused ESLint on changed server files | pass |
 | `TEST_MODE=db node --test test/FW01-product-import.test.mjs` | **9/9 pass, 1 mode-skipped** parser suite; includes a >100 KiB CSV proving the route transport cap, durable-receipt replay with the transport row removed, a reserved product id recovered after the receipt landed before the create, tenant/RBAC status checks and a 90-second-old import claim that is **not** taken over |
 | `TEST_MODE=db node --test test/FW01-draft-po-from-restock.test.mjs` | **5/5 pass**, including an explicit zero unit cost preserved on the draft line |
 | `cd mobile && npm run typecheck` | pass |
@@ -167,10 +168,10 @@ Idempotency-Key required
 | Valid CSV on the phone | Preview 3 products / 3 opening-stock movements / 10 units; apply returned 201; alert "3 product(s) created; 3 opening-stock movement(s) recorded." |
 | Partial retry on the phone | A 300-row import with a SKU conflict injected after validation produced a `PARTIAL` receipt (299 created, 0 stock, line 301); after the SKU was freed, the same file and key resumed to `COMPLETED` 300 created / 300 stock, and the replayed response showed "300 product(s) created; 300 opening-stock movement(s) recorded." The apply outlived the client timeout; the screen kept the key and the retry resumed. |
 | Timeout → live progress on the phone (2026-11-22 follow-up) | A fresh 300-row file (`import-resume-1795341399.csv`, unique SKU prefix) previewed 300 products / 300 movements / 300 units. The apply at **09:59:54 UTC** outlived the 15 s budget; the screen showed the timeout message, locked the picker and polled `GET /api/products/import/op-mwro142n-rdl9ra4vw7e9hf1z`. The captured state at **10:00:16 UTC** was **84/300 products, 0 stock**; it completed at **10:04:28 UTC** with **300/300** and the alert "300 product(s) created; 300 opening-stock movement(s) recorded." Database proof: **300** products with the run prefix, **300** opening-stock transactions, receipt `COMPLETED` with 300 created / 300 stock — no duplicate. Screenshots: [`evidence/fw01-device-resume-2026-11-22`](evidence/fw01-device-resume-2026-11-22/README.md). |
-| Route inventory / authorization after the status route | `phase-docs-route-inventory` **11/11**; Phase 22/23 **32/32**; route count is now **130 / 73 gated / 24 authenticated / 33 public / 0 role-gated** |
+| Route inventory / authorization after the status route | `phase-docs-route-inventory` **11/11**; PR #364 route count is **129 / 72 gated / 24 authenticated / 33 public / 0 role-gated** |
 | Q68 stress assertions | `node --test test/ai-stress-assertions.test.mjs` **21/21**; the expectation now derives LOW/OUT from the fixture summary instead of hard-coding the old count |
-| Complete mobile suite | **114 suites / 1,337 tests pass** after the import and Draft PO changes and the Expo pin correction |
-| Complete server suite | **3,351 tests / 541 suites: 3,349 pass, 2 fail, 0 skipped**. Both failures were `OPS7` PLAT-1 fixed-window assertions immediately after the runner logged a lost MongoDB connection; an isolated `TEST_MODE=db` rerun passed **14/16 with 2 mode skips and 0 failures**. No FW-01 route or receipt assertion failed. |
+| Earlier local-stack complete mobile suite (before PR #364 integration) | **114 suites / 1,337 tests pass** after the import and Draft PO changes and the Expo pin correction |
+| Earlier local-stack complete server suite (before PR #364 integration) | **3,351 tests / 541 suites: 3,349 pass, 2 fail, 0 skipped**. Both failures were `OPS7` PLAT-1 fixed-window assertions immediately after the runner logged a lost MongoDB connection; an isolated `TEST_MODE=db` rerun passed **14/16 with 2 mode skips and 0 failures**. No FW-01 route or receipt assertion failed. The PR #364 focused import and filter checks are recorded in `DEVELOPMENT_LOG.md`. |
 
 The parser suite is registered for the full (non-db) run. The focused DB suites cover tenant scope,
 dry-run no-write, duplicate/row errors, one-key replay, opening stock, stale restock rejection, one
@@ -184,7 +185,7 @@ DRAFT order and no issue/send side effect. No production data, deployment or OTA
    on 2026-11-22. ~~A long import outlives the mobile request timeout, so it needs a status endpoint
    or a progress/resume UX instead of a bare timeout message~~ addressed by the status endpoint and
    polling/resume flow; the follow-up device run is recorded in section 4.
-2. Merge the server work. The complete suite was run on 2026-11-22: **3,351 tests, 3,349 pass, 2 fail**.
+2. Merge the server work. The import path is now on PR #364; the earlier local-stack complete suite was run on 2026-11-22: **3,351 tests, 3,349 pass, 2 fail**.
    Both failures were `OPS7` PLAT-1 aggregation assertions immediately after a lost MongoDB connection;
    the same file passed **14/16 with 2 mode skips** when rerun alone, so this is a harness/environment
    sensitivity rather than an FW-01 regression. The earlier two audit-label gaps are fixed (parity
