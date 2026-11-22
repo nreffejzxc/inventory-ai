@@ -88,7 +88,8 @@ OTAs and APKs were not touched.
   pass; five documentation guards pass after updating the module count to **248** and the route
   inventory to **129 / 72 gated / 24 authenticated / 33 public**. Focused server ESLint is clean; the
   repository-wide server lint still reports seven pre-existing errors in ignored `.scratch` scripts,
-  not in changed source. CI and the final head are checked after the push.
+  not in changed source. CI run `45017494538` at `ed1a245` passed **7/7** checks; this log-only
+  update follows that verified code head. PR #364 is updated and remains unmerged.
 
 **Earlier local FW-01 import timeout/progress work (2026-11-22):** local-only work on
 `fix/fw01-import-resume`; no push, merge, deploy, OTA/APK publication or production access.
