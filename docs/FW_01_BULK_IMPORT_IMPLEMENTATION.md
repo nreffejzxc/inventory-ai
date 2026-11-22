@@ -60,10 +60,13 @@ GET  /api/products/import/:key   OWNER or ADMIN
 3. Reserve a deterministic product id in the receipt, then create the product through
    `productService.create` with per-product audit disabled. If the process dies between the receipt
    reservation and the product write, the same-key retry sees the reservation and creates that exact
-   id; a lost create acknowledgement is checked against the same id. One import-level
-   `PRODUCTS_IMPORTED` audit is recorded after the file completes.
+   id; a lost create acknowledgement is checked against the same id. Receipt reservations use
+   `$addToSet`, so a concurrent or lost-acknowledgement delivery of the same line cannot append a
+   second copy of the reservation. One import-level `PRODUCTS_IMPORTED` audit is recorded after the
+   file completes.
 4. Apply opening stock through `inventoryService.stockIn` using a deterministic per-line receipt key.
-   Each quantity has a stock transaction; no negative stock is possible.
+   Each quantity has a stock transaction; no negative stock is possible. The receipt's stock marker
+   also uses `$addToSet` for the same duplicate-progress reason.
 5. The durable `product_imports` receipt stores the key, file name, created products, stock operations,
    failures and result. It is unique on `(businessId, key)`.
 6. The import route's transport idempotency claim is held for **ten minutes**, not the default 60
@@ -73,8 +76,11 @@ GET  /api/products/import/:key   OWNER or ADMIN
 
 Products are archive-only, so a runtime failure after some creates cannot delete what already exists.
 The response is explicitly `IMPORT_PARTIAL`; retrying with the same key resumes only the missing
-products and opening-stock lines. A validation error remains a clean all-or-nothing refusal. This is
-the documented partial-failure contract, not a silent success.
+products and opening-stock lines. A validation error before any write remains a clean all-or-nothing
+refusal. If a same-key retry no longer validates after earlier rows landed (for example because
+another product claimed a later SKU), the response is `409 IMPORT_PARTIAL` with the completed
+products and stock markers; it is never reported as “nothing was written.” This is the documented
+partial-failure contract, not a silent success.
 
 ### Audit
 
@@ -160,7 +166,7 @@ Idempotency-Key required
 | --- | --- |
 | PR #364 `cd server && npm run typecheck` | pass after integrating the import path with the stock-filter branch |
 | PR #364 focused ESLint on changed server files | pass |
-| `TEST_MODE=db node --test test/FW01-product-import.test.mjs` | **9/9 pass, 1 mode-skipped** parser suite; includes a >100 KiB CSV proving the route transport cap, durable-receipt replay with the transport row removed, a reserved product id recovered after the receipt landed before the create, tenant/RBAC status checks and a 90-second-old import claim that is **not** taken over |
+| `TEST_MODE=db node --test test/FW01-product-import.test.mjs` | **10/10 pass, 1 mode-skipped** parser suite; includes a >100 KiB CSV proving the route transport cap, durable-receipt replay with the transport row removed, a reserved product id recovered after the receipt landed before the create, a retry that fails validation after a completed row returning `409 IMPORT_PARTIAL`, tenant/RBAC status checks and a 90-second-old import claim that is **not** taken over |
 | `TEST_MODE=db node --test test/FW01-draft-po-from-restock.test.mjs` | **5/5 pass**, including an explicit zero unit cost preserved on the draft line |
 | `cd mobile && npm run typecheck` | pass |
 | Mobile screen/flow, 2026-11-22 | Development APK `888d0228-0a9b-42cc-b32c-a0b91cb3c0f4` (1.0.2, versionCode 10) installed with `adb install -r`; picker, both previews, apply and the partial retry were exercised |
@@ -168,6 +174,7 @@ Idempotency-Key required
 | Valid CSV on the phone | Preview 3 products / 3 opening-stock movements / 10 units; apply returned 201; alert "3 product(s) created; 3 opening-stock movement(s) recorded." |
 | Partial retry on the phone | A 300-row import with a SKU conflict injected after validation produced a `PARTIAL` receipt (299 created, 0 stock, line 301); after the SKU was freed, the same file and key resumed to `COMPLETED` 300 created / 300 stock, and the replayed response showed "300 product(s) created; 300 opening-stock movement(s) recorded." The apply outlived the client timeout; the screen kept the key and the retry resumed. |
 | Timeout → live progress on the phone (2026-11-22 follow-up) | A fresh 300-row file (`import-resume-1795341399.csv`, unique SKU prefix) previewed 300 products / 300 movements / 300 units. The apply at **09:59:54 UTC** outlived the 15 s budget; the screen showed the timeout message, locked the picker and polled `GET /api/products/import/op-mwro142n-rdl9ra4vw7e9hf1z`. The captured state at **10:00:16 UTC** was **84/300 products, 0 stock**; it completed at **10:04:28 UTC** with **300/300** and the alert "300 product(s) created; 300 opening-stock movement(s) recorded." Database proof: **300** products with the run prefix, **300** opening-stock transactions, receipt `COMPLETED` with 300 created / 300 stock — no duplicate. Screenshots: [`evidence/fw01-device-resume-2026-11-22`](evidence/fw01-device-resume-2026-11-22/README.md). |
+| Repeat 300-row import on `f143252` (2026-11-22) | A second fresh 300-row file (`import-verify-1795349900.csv`, 42,427 bytes, new SKU prefix) was imported on the exact commit. Preview **300/300/300** at **11:50:49 UTC**; apply started **11:51:26 UTC**, timed out, progressed from **111/300 with 0 stock** to **300/300**, and completed by **11:54:32 UTC**. Receipt `COMPLETED` 300 created / 300 stock; **300 products, 300 unique SKUs, 300 transactions**, zero duplicate SKUs/products/receipt stock lines, and **0/300 deterministic-id mismatches** against `sha256("product-import:<receipt>:<line>").slice(0,24)`. Focused DB suite on `f143252` **9 pass / 0 fail / 1 mode-skip**; the current branch adds the partial-validation test and runs **10 pass / 0 fail / 1 mode-skip**. Evidence: [`evidence/fw01-f143252-reimport-2026-11-22`](evidence/fw01-f143252-reimport-2026-11-22/README.md). |
 | Route inventory / authorization after the status route | `phase-docs-route-inventory` **11/11**; PR #364 route count is **129 / 72 gated / 24 authenticated / 33 public / 0 role-gated** |
 | Q68 stress assertions | `node --test test/ai-stress-assertions.test.mjs` **21/21**; the expectation now derives LOW/OUT from the fixture summary instead of hard-coding the old count |
 | Earlier local-stack complete mobile suite (before PR #364 integration) | **114 suites / 1,337 tests pass** after the import and Draft PO changes and the Expo pin correction |

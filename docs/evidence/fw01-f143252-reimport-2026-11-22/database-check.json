@@ -1,0 +1,22 @@
+{
+  "commit": "f14325298a07d4bdd4744a0d08e981dc0d30aa98",
+  "fixture": "import-verify-1795349900.csv",
+  "runAt": "2026-11-22T11:51:26Z",
+  "receiptId": "6b02d73e261dce601dce7497",
+  "importKey": "op-mwrs0iql-rb4b11wlmawo73v5",
+  "status": "COMPLETED",
+  "totalRows": 300,
+  "createdProducts": 300,
+  "stockOperations": 300,
+  "products": 300,
+  "uniqueSkus": 300,
+  "duplicateSkus": 0,
+  "transactions": 300,
+  "duplicateTransactionProducts": 0,
+  "duplicateReceiptStockLines": 0,
+  "deterministicIdMismatches": 0,
+  "deterministicIdSample": {
+    "line2": "c94b1f9a5b6e113b45a089a4",
+    "line301": "6296a01bc3860e48d726c0f4"
+  }
+}

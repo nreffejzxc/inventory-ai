@@ -45,8 +45,9 @@ at the end of every development session, newest entry first.
 Store release is being prepared.
 
 **PR #364: Q68, Overview evidence, resumable import and visible stock filters (2026-11-22):**
-committed and pushed to `fix/overview-stock-filters`; **not merged or deployed**. Production data,
-OTAs and APKs were not touched.
+pushed at `25e2f62` on `fix/overview-stock-filters`; three local commits (`15f859c`,
+`af22f00`, and a docs commit) follow it and are **not pushed**. **Not merged or deployed.**
+Production data, OTAs and APKs were not touched.
 
 - **Q68:** reproduced on the PR branch as **20 pass / 1 fail** at
   `server/test/ai-stress-assertions.test.mjs:61` (`false !== true`). The fixture classification is
@@ -90,6 +91,38 @@ OTAs and APKs were not touched.
   repository-wide server lint still reports seven pre-existing errors in ignored `.scratch` scripts,
   not in changed source. CI run `45017494538` at `ed1a245` passed **7/7** checks; this log-only
   update follows that verified code head. PR #364 is updated and remains unmerged.
+
+**Local review and repeat-device hardening (2026-11-22, not pushed):** `15f859c` hardens the OPS7
+fixtures and import progress appends; `af22f00` fixes partial-validation reporting; the docs commit
+records the evidence. No push, merge, deploy, OTA/APK publication or production access.
+
+- **OPS7 fixture stability:** the fixed-window suite now waits for the MongoDB connection before a
+  fixture write, retries a transient disconnect for up to 10 s, and uses fixed-id upserts for direct
+  fixture rows. The focused suite passed **14 pass / 0 fail / 2 mode-skip**. This removes the
+  failure mode where a correct aggregation was reported as wrong immediately after a lost
+  connection, without weakening any assertion.
+- **Import review:** tenant scope is enforced on receipt lookup, status, product/category/location
+  checks and stock writes; deterministic product ids are reserved before create and recovered after
+  a lost acknowledgement; partial stock failures remain explicit and same-key resumable. Two
+  genuine concurrency/reporting gaps were fixed locally: receipt reservations and stock-progress
+  markers now use `$addToSet` instead of `$push` (a duplicate delivery cannot append the same line
+  twice), and a retry that fails validation after earlier rows landed now returns **409
+  `IMPORT_PARTIAL`** with the completed rows/stock instead of the false “Nothing was written” 422.
+  The focused FW-01 suite passes **10 pass / 0 fail / 1 mode-skip**, including a new partial-retry
+  test; the exact `f143252` tree passes **9 pass / 0 fail / 1 mode-skip**.
+- **Repeat device run on `f143252`:** a fresh 300-row file (`import-verify-1795349900.csv`, 42,427
+  bytes, unique SKU prefix) previewed **300 products / 300 movements / 300 units** at **11:50:49 UTC**.
+  The apply started **11:51:26 UTC**, outlived the 15 s client budget with the file and key locked,
+  progressed from **111/300 with 0 stock** to **300/300**, and reached the completion alert by
+  **11:54:32 UTC**. Database proof: receipt `COMPLETED` with 300 created / 300 stock, **300 products,
+  300 unique SKUs, 300 transactions**, zero duplicate SKUs/products/receipt stock lines, and
+  **0/300 deterministic-id mismatches**. Evidence:
+  [`evidence/fw01-f143252-reimport-2026-11-22/`](evidence/fw01-f143252-reimport-2026-11-22/README.md).
+- **Checks:** full server suite at `af22f00` passed **3,347 tests / 540 suites, 3,347 pass, 0 fail,
+  0 skipped** in 840.8 s; server typecheck and focused ESLint pass. The device run itself did not
+  crash mid-apply; recovery of a reserved row is covered by the focused DB test. Residual risks: an
+  import that exceeds the **ten-minute** transport claim can overlap a takeover, and the selected
+  CSV/key is still not persisted across an app restart.
 
 **Earlier local FW-01 import timeout/progress work (2026-11-22):** local-only work on
 `fix/fw01-import-resume`; no push, merge, deploy, OTA/APK publication or production access.
