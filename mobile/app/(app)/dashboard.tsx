@@ -162,6 +162,18 @@ function HeaderLink({ label, onPress }: { label: string; onPress: () => void }) 
   );
 }
 
+type ProductStockStatus = 'IN_STOCK' | 'LOW_STOCK' | 'OUT_OF_STOCK';
+
+/**
+ * The Overview product cards all open the same product list, pinned to ACTIVE
+ * products. Only the canonical, mutually exclusive stock status varies, so the
+ * route is built in one place instead of four near-identical strings.
+ */
+function productListRoute(stockStatus?: ProductStockStatus): string {
+  const base = '/products?status=ACTIVE';
+  return stockStatus ? `${base}&stockStatus=${stockStatus}` : base;
+}
+
 /** One "Overview" tile. */
 interface HealthTile {
   key: string;
@@ -325,10 +337,10 @@ function DashboardView() {
   // list, where one product would appear once per location and the total would
   // not match. Low and out are mutually exclusive statuses.
   const healthTiles: HealthTile[] = [
-    { key: 'in', label: 'In stock', value: formatNumber(summary?.inStockProducts), tone: 'success', route: '/products?status=ACTIVE&stockStatus=IN_STOCK' },
-    { key: 'low', label: 'Low stock', value: formatNumber(summary?.lowStockProducts), sub: 'Review products', tone: 'warning', route: '/products?status=ACTIVE&stockStatus=LOW_STOCK' },
-    { key: 'out', label: 'Out of stock', value: formatNumber(summary?.outOfStockProducts), sub: 'Restock products', tone: 'danger', route: '/products?status=ACTIVE&stockStatus=OUT_OF_STOCK' },
-    { key: 'active', label: 'Active products', value: formatNumber(summary?.totalProducts), tone: 'primary', route: '/products?status=ACTIVE' },
+    { key: 'in', label: 'In stock', value: formatNumber(summary?.inStockProducts), tone: 'success', route: productListRoute('IN_STOCK') },
+    { key: 'low', label: 'Low stock', value: formatNumber(summary?.lowStockProducts), sub: 'Review products', tone: 'warning', route: productListRoute('LOW_STOCK') },
+    { key: 'out', label: 'Out of stock', value: formatNumber(summary?.outOfStockProducts), sub: 'Restock products', tone: 'danger', route: productListRoute('OUT_OF_STOCK') },
+    { key: 'active', label: 'Active products', value: formatNumber(summary?.totalProducts), tone: 'primary', route: productListRoute() },
     { key: 'onhand', label: 'Total on-hand qty', value: formatNumber(summary?.totalInventoryQuantity), tone: 'default', route: '/inventory' },
   ];
 
@@ -411,7 +423,7 @@ function DashboardView() {
                 onPress={() => router.push(tile.route)}
                 accessibilityRole="button"
                 accessibilityLabel={`${tile.label}: ${tile.value}`}
-                accessibilityHint="Opens the matching product list"
+                accessibilityHint={tile.route.startsWith('/products') ? 'Opens the matching product list' : 'Opens inventory'}
                 style={styles.healthCell}
               >
                 <StatCard label={tile.label} value={tile.value} sub={tile.sub} tone={tile.tone} />

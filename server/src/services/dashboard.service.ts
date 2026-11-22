@@ -273,6 +273,16 @@ export const dashboardService = {
               __minimumStock: { $max: '$minimumStock' },
               __quantity: { $max: '$__quantity' },
               __reserved: { $max: '$__reserved' },
+              // Availability is computed once here; both stock conditions below
+              // read it instead of repeating quantity - reserved in every branch.
+              __available: {
+                $max: {
+                  $subtract: [
+                    { $ifNull: ['$__quantity', 0] },
+                    { $ifNull: ['$__reserved', 0] },
+                  ],
+                },
+              },
               __isProduct: { $max: '$__isProduct' },
             },
           },
@@ -292,28 +302,8 @@ export const dashboardService = {
                     {
                       $and: [
                         { $eq: ['$__isProduct', 1] },
-                        {
-                          $gt: [
-                            {
-                              $subtract: [
-                                { $ifNull: ['$__quantity', 0] },
-                                { $ifNull: ['$__reserved', 0] },
-                              ],
-                            },
-                            0,
-                          ],
-                        },
-                        {
-                          $lte: [
-                            {
-                              $subtract: [
-                                { $ifNull: ['$__quantity', 0] },
-                                { $ifNull: ['$__reserved', 0] },
-                              ],
-                            },
-                            { $ifNull: ['$__minimumStock', 0] },
-                          ],
-                        },
+                        { $gt: ['$__available', 0] },
+                        { $lte: ['$__available', { $ifNull: ['$__minimumStock', 0] }] },
                       ],
                     },
                     1,
@@ -327,17 +317,7 @@ export const dashboardService = {
                     {
                       $and: [
                         { $eq: ['$__isProduct', 1] },
-                        {
-                          $lte: [
-                            {
-                              $subtract: [
-                                { $ifNull: ['$__quantity', 0] },
-                                { $ifNull: ['$__reserved', 0] },
-                              ],
-                            },
-                            0,
-                          ],
-                        },
+                        { $lte: ['$__available', 0] },
                       ],
                     },
                     1,

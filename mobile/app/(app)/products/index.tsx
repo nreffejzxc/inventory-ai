@@ -25,6 +25,18 @@ import { canManageProducts } from '../../../lib/permissions';
 import { spacing } from '../../../lib/theme';
 import { useTheme } from '../../../lib/theme-context';
 
+const STOCK_FILTER_LABELS = {
+  IN_STOCK: 'in stock',
+  LOW_STOCK: 'low stock',
+  OUT_OF_STOCK: 'out of stock',
+} as const;
+
+type StockFilter = keyof typeof STOCK_FILTER_LABELS;
+
+function parseStockFilter(value: string): StockFilter | '' {
+  return value === 'IN_STOCK' || value === 'LOW_STOCK' || value === 'OUT_OF_STOCK' ? value : '';
+}
+
 /** Route params are `string | string[]` (a key repeated in the link yields an array). */
 function str(v: string | string[] | undefined): string {
   return Array.isArray(v) ? (v[0] ?? '') : (v ?? '');
@@ -55,22 +67,13 @@ export default function ProductsScreen() {
   );
   // The Overview cards deep-link with a canonical, mutually exclusive product
   // status. It is applied together with ACTIVE so the list's total is exactly
-  // the card's count (the old links opened per-location inventory rows).
-  const requestedStockStatus = str(params.stockStatus).toUpperCase();
-  const stockStatus =
-    requestedStockStatus === 'IN_STOCK' ||
-    requestedStockStatus === 'LOW_STOCK' ||
-    requestedStockStatus === 'OUT_OF_STOCK'
-      ? requestedStockStatus
-      : '';
-  const stockStatusLabel =
-    stockStatus === 'IN_STOCK'
-      ? 'in stock'
-      : stockStatus === 'LOW_STOCK'
-        ? 'low stock'
-        : stockStatus === 'OUT_OF_STOCK'
-          ? 'out of stock'
-          : '';
+  // the card's count (the old links opened per-location inventory rows). While
+  // it is active the status stays pinned to ACTIVE, otherwise switching to
+  // Archived would apply the stock filter to a different population and the
+  // count beside the filter would no longer be the card's count.
+  const stockStatus = parseStockFilter(str(params.stockStatus).toUpperCase());
+  const stockStatusLabel = stockStatus ? STOCK_FILTER_LABELS[stockStatus] : '';
+  const effectiveStatus = stockStatus ? 'ACTIVE' : status;
   const [categoryId, setCategoryId] = useState(() => str(params.categoryId));
   const [locationId, setLocationId] = useState(() => str(params.locationId));
   const [low, setLow] = useState(() => str(params.lowStock) === 'true');
@@ -102,15 +105,17 @@ export default function ProductsScreen() {
     const p: QueryParams = {
       page: undefined,
       q: debouncedQ || undefined,
-      status: status === 'ALL' ? undefined : status,
+      status: effectiveStatus === 'ALL' ? undefined : effectiveStatus,
       categoryId: categoryId || undefined,
       locationId: locationId || undefined,
       stockStatus: stockStatus || undefined,
     };
-    if (low) p.lowStock = true;
-    if (out) p.outOfStock = true;
+    // The legacy flags are broad at-or-below-minimum filters; they must not
+    // narrow or contradict the canonical status the Overview card opened.
+    if (!stockStatus && low) p.lowStock = true;
+    if (!stockStatus && out) p.outOfStock = true;
     return p;
-  }, [debouncedQ, status, categoryId, locationId, stockStatus, low, out]);
+  }, [debouncedQ, effectiveStatus, categoryId, locationId, stockStatus, low, out]);
 
   const fetcher = useCallback(
     (page: number, limit: number) => productsApi.list(token as string, { ...queryParams(), page, limit }),
@@ -149,9 +154,15 @@ export default function ProductsScreen() {
         </View>
       ) : null}
       <View style={styles.filterRow}>
-        <Chip label="All" selected={status === 'ALL'} onPress={() => setStatus('ALL')} />
-        <Chip label="Active" selected={status === 'ACTIVE'} onPress={() => setStatus('ACTIVE')} />
-        <Chip label="Archived" selected={status === 'ARCHIVED'} onPress={() => setStatus('ARCHIVED')} />
+        {stockStatus ? (
+          <Text style={[styles.stockScope, { color: colors.textMuted }]}>Active products</Text>
+        ) : (
+          <>
+            <Chip label="All" selected={status === 'ALL'} onPress={() => setStatus('ALL')} />
+            <Chip label="Active" selected={status === 'ACTIVE'} onPress={() => setStatus('ACTIVE')} />
+            <Chip label="Archived" selected={status === 'ARCHIVED'} onPress={() => setStatus('ARCHIVED')} />
+          </>
+        )}
         {manage ? (
           <Button
             title="New product"
@@ -225,6 +236,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   stockCount: { flexShrink: 1, fontWeight: '700' },
+  stockScope: { fontWeight: '700' },
   clearStock: { minHeight: 44, justifyContent: 'center', paddingLeft: spacing.md },
   clearStockText: { fontWeight: '700' },
   search: { marginBottom: spacing.lg },
