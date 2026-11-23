@@ -34,7 +34,10 @@ jest.mock('../lib/api', () => ({
   locationsApi: { list: jest.fn() },
 }));
 
-jest.mock('../hooks/useReferences', () => ({ useActiveRef: jest.fn() }));
+jest.mock('../hooks/useReferences', () => ({
+  ...jest.requireActual('../hooks/useReferences'),
+  useActiveRef: jest.fn(),
+}));
 
 jest.mock('../hooks/useInventoryRow', () => ({
   __esModule: true,

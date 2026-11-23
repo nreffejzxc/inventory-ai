@@ -79,8 +79,37 @@ beforeEach(() => {
   reorder.mockResolvedValue({ items: [] });
   poList.mockResolvedValue({ items: [], total: 0 });
   productsList.mockResolvedValue({ items: [], total: 4 });
-  categoriesList.mockResolvedValue({ items: [] });
-  locationsList.mockResolvedValue({ items: [] });
+  categoriesList.mockResolvedValue({ items: [], total: 0, totalPages: 1 });
+  locationsList.mockResolvedValue({ items: [], total: 0, totalPages: 1 });
+});
+
+describe('Products filters repair archived references', () => {
+  it('★ omits an archived category and location from the query', async () => {
+    mockParams = { categoryId: 'cat-archived', locationId: 'loc-archived' };
+    categoriesList.mockResolvedValue({
+      items: [{ id: 'cat-active', name: 'Active category' }],
+      total: 1,
+      totalPages: 1,
+    });
+    locationsList.mockResolvedValue({
+      items: [{ id: 'loc-active', name: 'Active location' }],
+      total: 1,
+      totalPages: 1,
+    });
+
+    const view = await render(
+      <ThemeProvider>
+        <ProductsScreen />
+      </ThemeProvider>
+    );
+
+    await waitFor(() => expect(view.getByTestId('product-filter-unavailable')).toBeTruthy());
+    await waitFor(() => {
+      const params = paramsOfLastProductCall();
+      expect(params.categoryId).toBeUndefined();
+      expect(params.locationId).toBeUndefined();
+    });
+  });
 });
 
 describe('Overview card navigation', () => {

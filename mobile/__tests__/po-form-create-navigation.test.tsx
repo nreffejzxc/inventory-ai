@@ -82,9 +82,9 @@ const flush = () => new Promise((resolve) => setImmediate(resolve));
 beforeEach(() => {
   jest.clearAllMocks();
   mockedUseSession.mockReturnValue({ user: { id: 'u1', role: 'MANAGER' }, token: 'token-1', signOut: jest.fn() });
-  (suppliersApi.list as jest.Mock).mockResolvedValue({ items: [SUPPLIER] });
-  (locationsApi.list as jest.Mock).mockResolvedValue({ items: [LOCATION] });
-  (productsApi.list as jest.Mock).mockResolvedValue({ items: [PRODUCT] });
+  (suppliersApi.list as jest.Mock).mockResolvedValue({ items: [SUPPLIER], total: 1, totalPages: 1 });
+  (locationsApi.list as jest.Mock).mockResolvedValue({ items: [LOCATION], total: 1, totalPages: 1 });
+  (productsApi.list as jest.Mock).mockResolvedValue({ items: [PRODUCT], total: 1, totalPages: 1 });
 });
 
 /**
@@ -201,5 +201,38 @@ describe('PO form — server errors reach the member as copy', () => {
       expect(view.getByText('Could not allocate a unique order number. Please try again.')).toBeTruthy(),
     );
     expect(view.queryByText('PO_NUMBER_CONFLICT')).toBeNull();
+  });
+});
+
+describe('PO form — archived references on a saved draft', () => {
+  it('★ refuses the archived receiving location and repairs it with an active one', async () => {
+    update.mockResolvedValue({ ...CREATED, location: LOCATION });
+    const archivedLocation = { id: 'loc-archived', name: 'Closed warehouse' };
+    const view = await withTheme(
+      <PoForm initial={{ ...CREATED, location: archivedLocation }} />
+    );
+
+    await waitFor(() => expect(view.getByTestId('po-reference-unavailable')).toBeTruthy());
+    expect(
+      view.getByText(
+        'A selected supplier or receiving location is archived. Choose an active replacement before saving.'
+      )
+    ).toBeTruthy();
+
+    await fireEvent.press(view.getByText('Save changes'));
+    await waitFor(() =>
+      expect(
+        view.getByText('The selected location is archived. Choose an active location.')
+      ).toBeTruthy()
+    );
+    expect(update).not.toHaveBeenCalled();
+
+    await fireEvent.press(view.getByText('Clear archived location'));
+    await fireEvent.press(view.getByText('Where stock will land…'));
+    await fireEvent.press(await view.findByText('Shop Front'));
+    await fireEvent.press(view.getByText('Save changes'));
+
+    await waitFor(() => expect(update).toHaveBeenCalledTimes(1));
+    expect(update.mock.calls[0][2]).toMatchObject({ locationId: 'loc-1' });
   });
 });

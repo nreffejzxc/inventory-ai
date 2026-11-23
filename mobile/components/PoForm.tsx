@@ -23,7 +23,7 @@ import {
 import { errorRequestId } from '../lib/errors';
 import { useSession } from '../lib/auth';
 import { alert } from '../lib/confirm';
-import { useActiveRef } from '../hooks/useReferences';
+import { referenceAvailability, useActiveRef } from '../hooks/useReferences';
 import { spacing, type } from '../lib/theme';
 import type { Palette } from '../lib/theme';
 import { useTheme } from '../lib/theme-context';
@@ -145,9 +145,9 @@ export default function PoForm({ initial }: PoFormProps) {
   const isEdit = Boolean(initial);
 
   // Active reference lists for the pickers (products/locations/suppliers).
-  const suppliers = useActiveRef(token, suppliersApi);
-  const locations = useActiveRef(token, locationsApi);
-  const products = useActiveRef(token, productsApi);
+  const suppliers = useActiveRef(token, suppliersApi, { allPages: true });
+  const locations = useActiveRef(token, locationsApi, { allPages: true });
+  const products = useActiveRef(token, productsApi, { allPages: true });
 
   const [supplierId, setSupplierId] = useState<string>(initial?.supplier?.id ?? '');
   const [locationId, setLocationId] = useState<string>(initial?.location?.id ?? '');
@@ -172,23 +172,40 @@ export default function PoForm({ initial }: PoFormProps) {
 
   const submitting = useRef(false);
 
+  const supplierAvailability = referenceAvailability(supplierId, suppliers);
+  const locationAvailability = referenceAvailability(locationId, locations);
+  const supplierMissing = supplierAvailability === 'missing';
+  const locationMissing = locationAvailability === 'missing';
+
   const supplierOptions = useMemo(() => {
     const list: SelectOption[] = suppliers.items.map((s) => ({ value: s.id, label: s.name }));
-    // Editing a DRAFT whose supplier was archived since: keep the snapshot in
-    // the picker (the server will reject a submit if it is truly unusable).
-    if (isEdit && initial?.supplier?.id && initial?.supplier?.name && !list.some((o) => o.value === initial.supplier.id)) {
+    // An archived supplier is offered as a repair notice, not as a selectable
+    // value: submitting it would only be refused by the server.
+    if (
+      !supplierMissing &&
+      isEdit &&
+      initial?.supplier?.id &&
+      initial?.supplier?.name &&
+      !list.some((o) => o.value === initial.supplier.id)
+    ) {
       list.unshift({ value: initial.supplier.id, label: initial.supplier.name });
     }
     return list;
-  }, [suppliers.items, isEdit, initial]);
+  }, [isEdit, initial, supplierMissing, suppliers.items]);
 
   const locationOptions = useMemo(() => {
     const list: SelectOption[] = locations.items.map((l) => ({ value: l.id, label: l.name }));
-    if (isEdit && initial?.location?.id && initial?.location?.name && !list.some((o) => o.value === initial.location.id)) {
+    if (
+      !locationMissing &&
+      isEdit &&
+      initial?.location?.id &&
+      initial?.location?.name &&
+      !list.some((o) => o.value === initial.location.id)
+    ) {
       list.unshift({ value: initial.location.id, label: initial.location.name });
     }
     return list;
-  }, [locations.items, isEdit, initial]);
+  }, [initial, isEdit, locationMissing, locations.items]);
 
   // The callback's return type is named so the pair is checked against
   // SelectOption rather than asserted into it (mirrors locationOptions above).
@@ -228,6 +245,12 @@ export default function PoForm({ initial }: PoFormProps) {
     const problems: PoProblem[] = [];
     if (!supplierId) problems.push({ field: 'supplierId', message: 'Supplier is required.' });
     if (!locationId) problems.push({ field: 'locationId', message: 'Location is required.' });
+    if (supplierMissing) {
+      problems.push({ field: 'supplierId', message: 'The selected supplier is archived. Choose an active supplier.' });
+    }
+    if (locationMissing) {
+      problems.push({ field: 'locationId', message: 'The selected location is archived. Choose an active location.' });
+    }
     const et = expectedAt.trim();
     if (et && !isGoodDate(et)) problems.push({ field: 'expectedAt', message: 'Use YYYY-MM-DD for the expected date.' });
     if (notes.trim().length > PO_NOTES_MAX) problems.push({ field: 'notes', message: `Notes must be at most ${PO_NOTES_MAX} characters.` });
@@ -348,7 +371,7 @@ export default function PoForm({ initial }: PoFormProps) {
         label="Supplier"
         placeholder="Choose a supplier…"
         options={supplierOptions}
-        value={supplierId}
+        value={supplierMissing ? '' : supplierId}
         onChange={setSupplierId}
         error={fieldErrors.supplierId}
         required
@@ -358,12 +381,42 @@ export default function PoForm({ initial }: PoFormProps) {
         label="Receiving location"
         placeholder="Where stock will land…"
         options={locationOptions}
-        value={locationId}
+        value={locationMissing ? '' : locationId}
         onChange={setLocationId}
         error={fieldErrors.locationId}
         required
         searchable
       />
+      {supplierMissing || locationMissing ? (
+        <View style={styles.repair} testID="po-reference-unavailable">
+          <Banner
+            type="warn"
+            text="A selected supplier or receiving location is archived. Choose an active replacement before saving."
+          />
+          {supplierMissing ? (
+            <Button
+              title="Clear archived supplier"
+              variant="secondary"
+              full
+              onPress={() => {
+                setSupplierId('');
+                setFieldErrors((current) => ({ ...current, supplierId: undefined }));
+              }}
+            />
+          ) : null}
+          {locationMissing ? (
+            <Button
+              title="Clear archived location"
+              variant="secondary"
+              full
+              onPress={() => {
+                setLocationId('');
+                setFieldErrors((current) => ({ ...current, locationId: undefined }));
+              }}
+            />
+          ) : null}
+        </View>
+      ) : null}
       <Input
         name="expectedAt"
         label="Expected date (optional)"
@@ -439,6 +492,7 @@ const createStyles = (colors: Palette) =>
   sectionTitle: { marginTop: spacing.xl },
   lineList: { gap: spacing.md },
   removeBtn: { marginBottom: spacing.lg },
+  repair: { marginBottom: spacing.lg, gap: spacing.sm },
   // No pinned lineHeight: the type token's proportional height is what keeps
   // this line from clipping once the system font scale grows.
   hint: { ...type.caption, color: colors.textMuted, textAlign: 'center', marginTop: spacing.lg },

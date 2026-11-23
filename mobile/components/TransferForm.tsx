@@ -22,7 +22,7 @@ import { errorRequestId } from '../lib/errors';
 import { useSession } from '../lib/auth';
 import { alert } from '../lib/confirm';
 import { formatNumber } from '../lib/format';
-import { useActiveRef } from '../hooks/useReferences';
+import { referenceAvailability, useActiveRef } from '../hooks/useReferences';
 import useInventoryRow from '../hooks/useInventoryRow';
 import { spacing, type } from '../lib/theme';
 import type { Palette } from '../lib/theme';
@@ -62,8 +62,8 @@ export default function TransferForm({
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { token, user } = useSession();
 
-  const products = useActiveRef(token, productsApi);
-  const locations = useActiveRef(token, locationsApi);
+  const products = useActiveRef(token, productsApi, { allPages: true });
+  const locations = useActiveRef(token, locationsApi, { allPages: true });
 
   const [productId, setProductId] = useState(initialProductId ?? '');
   const [fromLocationId, setFromLocationId] = useState(initialLocationId ?? '');
@@ -79,10 +79,17 @@ export default function TransferForm({
 
   const submitting = useRef(false);
 
+  const fromAvailability = referenceAvailability(fromLocationId, locations);
+  const toAvailability = referenceAvailability(toLocationId, locations);
+  const fromMissing = fromAvailability === 'missing';
+  const toMissing = toAvailability === 'missing';
+  const effectiveFromLocationId = fromMissing ? '' : fromLocationId;
+  const effectiveToLocationId = toMissing ? '' : toLocationId;
+
   const { row: source, loading: loadingSource, loaded: loadedSource } = useInventoryRow(
     token,
     productId,
-    fromLocationId
+    effectiveFromLocationId
   );
 
   const productOptions = useMemo(() => {
@@ -95,11 +102,16 @@ export default function TransferForm({
 
   const locationOptions = useMemo(() => {
     const list: SelectOption[] = locations.items.map((l) => ({ value: l.id, label: l.name }));
-    if (initialLocationId && initialLocationName && !list.some((o) => o.value === initialLocationId)) {
+    if (
+      !fromMissing &&
+      initialLocationId &&
+      initialLocationName &&
+      !list.some((o) => o.value === initialLocationId)
+    ) {
       list.unshift({ value: initialLocationId, label: initialLocationName });
     }
     return list;
-  }, [locations.items, initialLocationId, initialLocationName]);
+  }, [fromMissing, locations.items, initialLocationId, initialLocationName]);
 
   const selectedProduct = productOptions.find((o) => o.value === productId);
   const fromLabel = locationOptions.find((o) => o.value === fromLocationId)?.label;
@@ -109,11 +121,13 @@ export default function TransferForm({
 
   // The source needs an existing row — a transfer moves stock, it never creates it.
   let sourceState: 'loading' | 'missing' | 'ready' | null = null; // null = not requested
-  if (productId && fromLocationId) {
+  if (productId && effectiveFromLocationId) {
     sourceState = loadingSource || !loadedSource ? 'loading' : source ? 'ready' : 'missing';
   }
 
-  const sameLocation = Boolean(fromLocationId && toLocationId && fromLocationId === toLocationId);
+  const sameLocation = Boolean(
+    effectiveFromLocationId && effectiveToLocationId && effectiveFromLocationId === effectiveToLocationId,
+  );
   const qtyNum = quantity.trim() === '' ? null : Number(quantity);
   const qtyOk = qtyNum != null && qtyNum >= 1 && Number.isInteger(qtyNum);
 
@@ -122,8 +136,10 @@ export default function TransferForm({
 
   const canSubmit = Boolean(
     productId &&
-      fromLocationId &&
-      toLocationId &&
+      effectiveFromLocationId &&
+      effectiveToLocationId &&
+      !fromMissing &&
+      !toMissing &&
       qtyOk &&
       !sameLocation &&
       !warnOver &&
@@ -133,6 +149,10 @@ export default function TransferForm({
 
   async function submit(): Promise<void> {
     if (submitting.current) return;
+    if (fromMissing || toMissing) {
+      setFormError('A selected location is archived or unavailable. Choose active locations.');
+      return;
+    }
     submitting.current = true;
     setBusy(true);
     setFormError(null);
@@ -198,6 +218,13 @@ export default function TransferForm({
     <Screen scroll contentStyle={styles.content}>
       <Banner type="error" text={formError} requestId={formRequestId} />
 
+      {fromMissing || toMissing ? (
+        <Banner
+          type="warn"
+          text="A selected location is archived or unavailable. Choose active source and destination locations."
+        />
+      ) : null}
+
       {sourceState === 'loading' ? <Banner type="info" text="Checking stock at the source location…" /> : null}
       {sourceState === 'missing' ? (
         <Banner type="warn" text="No stock record for this product at the source location — use Stock In to create one." />
@@ -226,7 +253,7 @@ export default function TransferForm({
         label="From location"
         placeholder="Choose the source…"
         options={locationOptions}
-        value={fromLocationId}
+        value={effectiveFromLocationId}
         onChange={setFromLocationId}
         error={fieldErrors.fromLocationId}
         required
@@ -239,7 +266,7 @@ export default function TransferForm({
         label="To location"
         placeholder="Choose the destination…"
         options={locationOptions}
-        value={toLocationId}
+        value={effectiveToLocationId}
         onChange={setToLocationId}
         error={fieldErrors.toLocationId}
         required

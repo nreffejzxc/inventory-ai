@@ -163,6 +163,31 @@ describe('usePagedList — pagination', () => {
     expect(result.current.items).toEqual([{ id: 'p1' }, { id: 'p2' }]);
   });
 
+  it('keeps page-1 counts while paging and clears them when a reload omits them', async () => {
+    let includeCounts = true;
+    const fetcher = jest.fn(async (targetPage: number) => ({
+      ...page([`p${targetPage}`], 2),
+      ...(targetPage === 1 && includeCounts
+        ? { counts: { all: 2, needsAttention: 1, low: 1, out: 0 } }
+        : {}),
+    }));
+    const { result } = await renderHook(() => usePagedList<Item>(fetcher, { limit: 1 }));
+
+    await waitFor(() => expect(result.current.counts).toEqual({ all: 2, needsAttention: 1, low: 1, out: 0 }));
+    await act(async () => {
+      result.current.loadMore();
+    });
+    await waitFor(() => expect(result.current.page).toBe(2));
+    expect(result.current.counts).toEqual({ all: 2, needsAttention: 1, low: 1, out: 0 });
+
+    includeCounts = false;
+    await act(async () => {
+      result.current.reload();
+    });
+    await waitFor(() => expect(result.current.page).toBe(1));
+    expect(result.current.counts).toBeNull();
+  });
+
   it('does not page past the last page', async () => {
     const fetcher = jest.fn(async () => page(['only'], 1));
     const { result } = await renderHook(() => usePagedList<Item>(fetcher, { limit: 20 }));

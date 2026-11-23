@@ -18,7 +18,7 @@ import { useSession } from '../../../lib/auth';
 import type { QueryParams } from '../../../lib/client';
 import { formatNumber } from '../../../lib/format';
 import useDebounced from '../../../hooks/useDebounced';
-import { useActiveRef } from '../../../hooks/useReferences';
+import { referenceAvailability, useActiveRef } from '../../../hooks/useReferences';
 import usePagedList from '../../../hooks/usePagedList';
 import useRefetchOnFocus from '../../../hooks/useRefetchOnFocus';
 import { canImportProducts, canManageProducts } from '../../../lib/permissions';
@@ -60,8 +60,8 @@ export default function ProductsScreen() {
   const { token, user, signOut } = useSession();
   const manage = canManageProducts(user);
   const canImport = canImportProducts(user);
-  const categories = useActiveRef(token, categoriesApi);
-  const locations = useActiveRef(token, locationsApi);
+  const categories = useActiveRef(token, categoriesApi, { allPages: true });
+  const locations = useActiveRef(token, locationsApi, { allPages: true });
   const params = useLocalSearchParams();
   const paramCategoryName = str(params.category);
   const paramLocationName = str(params.location);
@@ -100,23 +100,37 @@ export default function ProductsScreen() {
   // Named filters arrive from assistant links before the reference lists do.
   // Resolve them during render rather than writing state from an effect; once
   // the person touches a selector, that choice (including "All") wins.
-  const effectiveCategoryId = useMemo(() => {
-    if (categoryTouched || categoryId || !paramCategoryName) return categoryId;
+  const resolvedCategoryId = useMemo(() => {
+    if (!paramCategoryName) return '';
     return (
       categories.items.find(
         (category) => category.name.toLowerCase() === paramCategoryName.toLowerCase(),
       )?.id ?? ''
     );
-  }, [categories.items, categoryId, categoryTouched, paramCategoryName]);
-
-  const effectiveLocationId = useMemo(() => {
-    if (locationTouched || locationId || !paramLocationName) return locationId;
+  }, [categories.items, paramCategoryName]);
+  const resolvedLocationId = useMemo(() => {
+    if (!paramLocationName) return '';
     return (
       locations.items.find(
         (location) => location.name.toLowerCase() === paramLocationName.toLowerCase(),
       )?.id ?? ''
     );
-  }, [locations.items, locationId, locationTouched, paramLocationName]);
+  }, [locations.items, paramLocationName]);
+
+  const selectedCategoryId = categoryTouched ? categoryId : categoryId || resolvedCategoryId;
+  const selectedLocationId = locationTouched ? locationId : locationId || resolvedLocationId;
+  const categoryAvailability = referenceAvailability(selectedCategoryId, categories);
+  const locationAvailability = referenceAvailability(selectedLocationId, locations);
+  const categoryMissing = categoryAvailability === 'missing';
+  const locationMissing = locationAvailability === 'missing';
+  const categoryNameUnresolved = Boolean(
+    paramCategoryName && !categoryTouched && !categoryId && categories.complete && !resolvedCategoryId,
+  );
+  const locationNameUnresolved = Boolean(
+    paramLocationName && !locationTouched && !locationId && locations.complete && !resolvedLocationId,
+  );
+  const effectiveCategoryId = categoryMissing ? '' : selectedCategoryId;
+  const effectiveLocationId = locationMissing ? '' : selectedLocationId;
 
   const queryParams = useCallback((): QueryParams => {
     const p: QueryParams = {
@@ -248,6 +262,17 @@ export default function ProductsScreen() {
           setLocationId(id);
         }}
       />
+      {categoryMissing || categoryNameUnresolved || locationMissing || locationNameUnresolved ? (
+        <View
+          style={[styles.filterNotice, { backgroundColor: colors.warningSoft }]}
+          testID="product-filter-unavailable"
+        >
+          <Text style={[styles.filterNoticeText, { color: colors.warning }]}>
+            A selected category or location is archived or unavailable. The list is showing all
+            matching products until another filter is chosen.
+          </Text>
+        </View>
+      ) : null}
     </View>
   );
 
@@ -305,4 +330,10 @@ const styles = StyleSheet.create({
   newBtn: { marginLeft: 'auto' },
   importBtn: { marginLeft: spacing.sm },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.sm },
+  filterNotice: {
+    marginTop: spacing.md,
+    padding: spacing.sm + 2,
+    borderRadius: 8,
+  },
+  filterNoticeText: { fontWeight: '600' },
 });

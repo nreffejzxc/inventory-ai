@@ -43,7 +43,11 @@ function SectionHeader({ title, subtitle, action, style }: SectionHeaderProps) {
   return (
     <View style={[styles.row, style]}>
       <View style={{ flex: 1 }}>
-        {title ? <Text style={styles.title}>{title}</Text> : null}
+        {title ? (
+          <Text style={styles.title} accessibilityRole="header">
+            {title}
+          </Text>
+        ) : null}
         {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
       </View>
       {action ? <View style={styles.action}>{action}</View> : null}

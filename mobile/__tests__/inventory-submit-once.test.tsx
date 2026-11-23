@@ -56,6 +56,7 @@ jest.mock('expo-router', () => ({
 }));
 
 jest.mock('../hooks/useReferences', () => ({
+  ...jest.requireActual('../hooks/useReferences'),
   useActiveRef: () => ({
     items: [
       { id: 'p1', name: 'Compact Kettle' },
