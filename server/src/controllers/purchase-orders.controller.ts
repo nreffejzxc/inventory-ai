@@ -1,7 +1,13 @@
 import type { Request, Response } from 'express';
 
 import { parsePagination, pageResult } from '../utils/pagination.ts';
-import { isObjectId, validatePurchaseOrder, validateReceive, validatePurchaseOrderList } from '../utils/validate.ts';
+import {
+  isObjectId,
+  validatePurchaseOrder,
+  validateReceive,
+  validatePurchaseOrderList,
+  validateDraftFromRestock,
+} from '../utils/validate.ts';
 import { throwValidation, invalidId } from '../utils/errors.ts';
 import { PURCHASE_ORDER_STATUSES } from '../models/purchaseOrder.model.ts';
 import { purchaseOrderService } from '../services/purchase-orders.service.ts';
@@ -94,6 +100,33 @@ export const purchaseOrdersController = {
     // `inventory.controller.ts` documents the same boundary; it happens to build
     // its payload field by field because the original did.
     const po = await purchaseOrderService.create(req.user!.businessId, req.user!.id, v as CreatePayload);
+    res.status(201).json(po);
+  },
+
+  /**
+   * Create exactly one DRAFT from selected restock rows. The service re-reads
+   * the location-scoped rows and refuses stale values; this handler never calls
+   * issue or any supplier/transmission path.
+   */
+  async createFromRestock(req: AuthenticatedRequest, res: Response) {
+    // This route always creates a durable document, so the key is part of the
+    // contract rather than an optional retry convenience. Without it, a lost
+    // response would make the client's next delivery a second DRAFT.
+    if (!req.idempotencyKey) {
+      throw new ApiError(
+        400,
+        'An Idempotency-Key header is required to create a draft from restock',
+        'IDEMPOTENCY_KEY_REQUIRED'
+      );
+    }
+    const v = validateDraftFromRestock(req.body ?? {});
+    if (v.problems.length) throwValidation(v.problems);
+    const po = await purchaseOrderService.createFromRestock(
+      req.user!.businessId,
+      req.user!.id,
+      v as Parameters<typeof purchaseOrderService.createFromRestock>[2],
+      req.idempotencyKey,
+    );
     res.status(201).json(po);
   },
 

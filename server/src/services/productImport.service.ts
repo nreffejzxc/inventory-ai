@@ -7,8 +7,7 @@ import Location from '../models/location.model.ts';
 import ProductImport from '../models/productImport.model.ts';
 import { productService } from './product.service.ts';
 import { inventoryService } from './inventory.service.ts';
-import { recordAudit } from './audit.service.ts';
-import { AUDIT_ACTIONS, AUDIT_ENTITY_TYPES } from '../constants/audit.ts';
+import { enqueueAndDeliverProductImportAudit } from './productImportAudit.service.ts';
 import { isProductCurrencyCode } from '../constants/currencies.ts';
 import ApiError from '../utils/ApiError.ts';
 import { throwValidation } from '../utils/errors.ts';
@@ -87,7 +86,9 @@ type ValidationResult = {
 
 type ReceiptLike = {
   _id: unknown;
+  fingerprint: string;
   status?: string;
+  userId?: unknown;
   createdProducts?: Array<{ line: number; productId: unknown }>;
   stockOperations?: Array<{ line: number; quantity: number; inventoryTransactionId?: unknown }>;
   result?: unknown;
@@ -444,8 +445,8 @@ function importProductId(importId: unknown, line: number): mongoose.Types.Object
   return new ObjectId(hex);
 }
 
-async function receiptFor(businessId: string, key: string) {
-  return ProductImport.findOne({ businessId: new ObjectId(businessId), key });
+async function receiptFor(businessId: string, key: string): Promise<ReceiptLike | null> {
+  return ProductImport.findOne({ businessId: new ObjectId(businessId), key }).lean<ReceiptLike>();
 }
 
 function createdByLine(receipt: ReceiptLike | null): Map<number, string> {
@@ -454,11 +455,102 @@ function createdByLine(receipt: ReceiptLike | null): Map<number, string> {
   return out;
 }
 
-async function markReceipt(
+function stockByLine(
+  operations: Array<{ line: number; quantity: number }> | undefined,
+): Map<number, number> {
+  const out = new Map<number, number>();
+  for (const item of operations ?? []) out.set(item.line, item.quantity);
+  return out;
+}
+
+/**
+ * Every receipt status write goes through this conditional transition. Once a
+ * receipt is COMPLETED it is terminal: a late validation failure, product-create
+ * failure or opening-stock failure from a concurrent delivery must not rewrite
+ * the durable result (or its finishedAt) back to PARTIAL/FAILED/IN_PROGRESS.
+ *
+ * Returns the updated receipt, or null when the receipt was already completed
+ * (or no longer exists). Callers that need a response read the current receipt
+ * and replay it.
+ */
+export async function markReceiptUnlessCompleted(
   receiptId: unknown,
   update: Record<string, unknown>,
+): Promise<ReceiptLike | null> {
+  return ProductImport.findOneAndUpdate(
+    { _id: receiptId, status: { $ne: 'COMPLETED' } },
+    { $set: update },
+    { returnDocument: 'after' },
+  ).lean<ReceiptLike>();
+}
+
+async function receiptAfterCompletion(
+  receiptId: unknown,
+): Promise<ImportResponse> {
+  const current = await ProductImport.findById(receiptId).lean<ReceiptLike>();
+  if (!current || current.status !== 'COMPLETED') {
+    throw new ApiError(
+      409,
+      'The import receipt changed state before it could be replayed',
+      'IMPORT_RECEIPT_STATE_CHANGED',
+    );
+  }
+  return completedResponse(current, true);
+}
+
+/**
+ * Reserve one CSV line on the durable receipt before its product create. The
+ * write is `$addToSet`, not `$push`: two same-key deliveries can both reach this
+ * line, and the reservation is identical in both, so it must stay one entry.
+ */
+export async function reserveImportProduct(
+  receiptId: unknown,
+  line: number,
+  productId: string,
 ) {
-  await ProductImport.updateOne({ _id: receiptId }, { $set: update });
+  await ProductImport.updateOne(
+    { _id: receiptId, status: { $ne: 'COMPLETED' } },
+    { $addToSet: { createdProducts: { line, productId } } },
+  );
+}
+
+/**
+ * Record opening-stock progress after the ledger movement committed. The
+ * deterministic movement key prevents a second movement; `$addToSet` prevents a
+ * concurrent same-key delivery from appending a second identical progress row.
+ */
+export async function recordImportStockProgress(
+  receiptId: unknown,
+  line: number,
+  quantity: number,
+  inventoryTransactionId: unknown,
+) {
+  await ProductImport.updateOne(
+    { _id: receiptId, status: { $ne: 'COMPLETED' } },
+    {
+      $addToSet: {
+        stockOperations: { line, quantity, inventoryTransactionId },
+      },
+    },
+  );
+}
+
+function partialResponse(
+  errors: RowError[],
+  completed: Map<number, string>,
+  stock: Map<number, number>,
+): ImportResponse {
+  return {
+    status: 409,
+    body: {
+      code: 'IMPORT_PARTIAL',
+      message: 'Part of the import was applied. Retry with the same key to finish it.',
+      errors,
+      fields: errors.map((e) => ({ field: `line ${e.line}`, message: e.message })),
+      completed: [...completed.entries()].map(([line, productId]) => ({ line, productId })),
+      stock: [...stock.entries()].map(([line, quantity]) => ({ line, quantity })),
+    },
+  };
 }
 
 function completedResponse(receipt: ReceiptLike, replayed: boolean): ImportResponse {
@@ -571,7 +663,7 @@ export const productImportService = {
 
     const fileName = normaliseFileName(request.fileName);
     const fingerprint = receiptFingerprint(fileName, request.csv);
-    let receipt = await receiptFor(businessId, key);
+    let receipt: ReceiptLike | null = await receiptFor(businessId, key);
     if (receipt && receipt.fingerprint !== fingerprint) {
       throw new ApiError(
         422,
@@ -589,27 +681,16 @@ export const productImportService = {
       // attempt was interrupted. Saying "nothing was written" in that case would
       // hide the completed products and stock. Only a receipt with no applied
       // work is a clean validation refusal.
-      const completedStock = receipt?.stockOperations ?? [];
-      const hasAppliedWork = alreadyCreated.size > 0 || completedStock.length > 0;
+      const completedStock = stockByLine(receipt?.stockOperations);
+      const hasAppliedWork = alreadyCreated.size > 0 || completedStock.size > 0;
       if (receipt) {
-        await markReceipt(receipt._id, {
+        const updated = await markReceiptUnlessCompleted(receipt._id, {
           status: hasAppliedWork ? 'PARTIAL' : 'FAILED',
           failures: validation.errors,
         });
+        if (!updated) return receiptAfterCompletion(receipt._id);
       }
-      if (hasAppliedWork) {
-        return {
-          status: 409,
-          body: {
-            code: 'IMPORT_PARTIAL',
-            message: 'Part of the import was applied. Retry with the same key to finish it.',
-            errors: validation.errors,
-            fields: validation.errors.map((e) => ({ field: `line ${e.line}`, message: e.message })),
-            completed: [...alreadyCreated.entries()].map(([line, productId]) => ({ line, productId })),
-            stock: completedStock.map((op) => ({ line: op.line, quantity: op.quantity })),
-          },
-        };
-      }
+      if (hasAppliedWork) return partialResponse(validation.errors, alreadyCreated, completedStock);
       return {
         status: 422,
         body: {
@@ -627,6 +708,7 @@ export const productImportService = {
           key,
           fingerprint,
           fileName,
+          userId: new ObjectId(userId),
           status: 'IN_PROGRESS',
           totalRows: validation.totalRows,
         });
@@ -644,15 +726,16 @@ export const productImportService = {
         if (receipt.status === 'COMPLETED') return completedResponse(receipt, true);
       }
     }
-    await markReceipt(receipt._id, {
+    const opened = await markReceiptUnlessCompleted(receipt._id, {
       status: 'IN_PROGRESS',
       totalRows: validation.totalRows,
       failures: [],
     });
+    if (!opened) return receiptAfterCompletion(receipt._id);
+    receipt = opened;
 
     const created = new Map<number, string>(createdByLine(receipt));
-    const stockDone = new Map<number, number>();
-    for (const op of receipt.stockOperations ?? []) stockDone.set(op.line, op.quantity);
+    const stockDone = stockByLine(receipt.stockOperations);
 
     for (const row of validation.rows) {
       const reserved = created.has(row.line);
@@ -662,13 +745,7 @@ export const productImportService = {
         // Reserve before creating. If the create commits but this process dies,
         // the next same-key attempt sees the reservation and recreates the same
         // id instead of treating the committed row as an unexplained duplicate.
-        await ProductImport.updateOne(
-          { _id: receipt._id },
-          // `$addToSet`, not `$push`: a second same-key delivery can reach this
-          // branch after the receipt write committed but its acknowledgement was
-          // lost. The reservation is identical, so it must not be counted twice.
-          { $addToSet: { createdProducts: { line: row.line, productId: intendedId } } },
-        );
+        await reserveImportProduct(receipt._id, row.line, intendedId);
         created.set(row.line, intendedId);
       } else {
         const exists = await Product.exists({
@@ -676,8 +753,8 @@ export const productImportService = {
           businessId: new ObjectId(businessId),
         });
         if (exists) continue;
-        // The reservation outlived its product: a crash between the receipt push
-        // and the create, or a create that failed after the reservation landed.
+        // The reservation outlived its product: a crash between the receipt
+        // reservation and the create, or a create that failed after it landed.
       }
 
       try {
@@ -713,7 +790,7 @@ export const productImportService = {
         // Do not leave a reservation that will never become a product. Earlier
         // rows stay recorded; this row is the explicit failure in the receipt.
         await ProductImport.updateOne(
-          { _id: receipt._id },
+          { _id: receipt._id, status: { $ne: 'COMPLETED' } },
           { $pull: { createdProducts: { line: row.line } } },
         );
         created.delete(row.line);
@@ -744,18 +821,12 @@ export const productImportService = {
         // stays in the catalogue; the receipt makes the partial result explicit
         // and a same-key retry resumes after it. This is never reported as a
         // successful whole-file import.
-        await markReceipt(receipt._id, { status: 'PARTIAL', failures: errors });
-        return {
-          status: 409,
-          body: {
-            code: 'IMPORT_PARTIAL',
-            message: 'Part of the import was applied. Retry with the same key to finish it.',
-            errors,
-            fields: errors.map((e) => ({ field: `line ${e.line}`, message: e.message })),
-            completed: [...created.entries()].map(([line, productId]) => ({ line, productId })),
-            stock: [...stockDone.entries()].map(([line, quantity]) => ({ line, quantity })),
-          },
-        };
+        const updated = await markReceiptUnlessCompleted(receipt._id, {
+          status: 'PARTIAL',
+          failures: errors,
+        });
+        if (!updated) return receiptAfterCompletion(receipt._id);
+        return partialResponse(errors, created, stockDone);
       }
     }
 
@@ -770,18 +841,12 @@ export const productImportService = {
             'openingLocation is required when openingQuantity is greater than 0.',
           ),
         ];
-        await markReceipt(receipt._id, { status: 'PARTIAL', failures: errors });
-        return {
-          status: 409,
-          body: {
-            code: 'IMPORT_PARTIAL',
-            message: 'Part of the import was applied. Retry with the same key to finish it.',
-            errors,
-            fields: errors.map((e) => ({ field: `line ${e.line}`, message: e.message })),
-            completed: [...created.entries()].map(([line, productId]) => ({ line, productId })),
-            stock: [...stockDone.entries()].map(([line, quantity]) => ({ line, quantity })),
-          },
-        };
+        const updated = await markReceiptUnlessCompleted(receipt._id, {
+          status: 'PARTIAL',
+          failures: errors,
+        });
+        if (!updated) return receiptAfterCompletion(receipt._id);
+        return partialResponse(errors, created, stockDone);
       }
       try {
         const out = await inventoryService.stockIn(businessId, userId, {
@@ -793,20 +858,11 @@ export const productImportService = {
           idempotencyKey: importStockKey(receipt._id, row.line),
         });
         stockDone.set(row.line, row.openingQuantity);
-        await ProductImport.updateOne(
-          { _id: receipt._id },
-          {
-            // The movement is already guarded by its deterministic receipt key.
-            // `$addToSet` additionally stops a duplicate progress entry when a
-            // concurrent same-key delivery appends the same completed line.
-            $addToSet: {
-              stockOperations: {
-                line: row.line,
-                quantity: row.openingQuantity,
-                inventoryTransactionId: (out.transaction as { id?: unknown } | undefined)?.id,
-              },
-            },
-          },
+        await recordImportStockProgress(
+          receipt._id,
+          row.line,
+          row.openingQuantity,
+          (out.transaction as { id?: unknown } | undefined)?.id,
         );
       } catch (err) {
         const errCode = (err as { code?: unknown } | null | undefined)?.code;
@@ -824,18 +880,12 @@ export const productImportService = {
               : 'The opening stock movement could not be applied. Retry with the same key.',
           ),
         ];
-        await markReceipt(receipt._id, { status: 'PARTIAL', failures: errors });
-        return {
-          status: 409,
-          body: {
-            code: 'IMPORT_PARTIAL',
-            message: 'Part of the import was applied. Retry with the same key to finish it.',
-            errors,
-            fields: errors.map((e) => ({ field: `line ${e.line}`, message: e.message })),
-            completed: [...created.entries()].map(([line, productId]) => ({ line, productId })),
-            stock: [...stockDone.entries()].map(([line, quantity]) => ({ line, quantity })),
-          },
-        };
+        const updated = await markReceiptUnlessCompleted(receipt._id, {
+          status: 'PARTIAL',
+          failures: errors,
+        });
+        if (!updated) return receiptAfterCompletion(receipt._id);
+        return partialResponse(errors, created, stockDone);
       }
     }
 
@@ -854,34 +904,35 @@ export const productImportService = {
       openingStockUnits: [...stockDone.values()].reduce((sum, quantity) => sum + quantity, 0),
       products: productRows,
     };
-    await markReceipt(receipt._id, {
+    // The receipt is the single-winner claim for this import. Two concurrent
+    // same-key deliveries can both reach this point after reading the same
+    // IN_PROGRESS receipt; only the caller that changes the status hands the
+    // audit event to the durable outbox. The loser returns the durable result as
+    // a replay instead of appending a second audit entry.
+    const completed = await markReceiptUnlessCompleted(receipt._id, {
       status: 'COMPLETED',
       result,
       failures: [],
       finishedAt: new Date(),
     });
-
-    try {
-      await recordAudit({
-        businessId,
-        userId,
-        action: AUDIT_ACTIONS.PRODUCTS_IMPORTED,
-        entityType: AUDIT_ENTITY_TYPES.PRODUCT_IMPORT,
-        entityId: receipt._id,
-        metadata: {
-          fileName,
-          totalRows: validation.totalRows,
-          createdCount: result.createdCount,
-          openingStockCount: result.openingStockCount,
-          openingStockUnits: result.openingStockUnits,
-        },
-      });
-    } catch (err) {
-      // Audit is append-only evidence, not part of the product write. A failed
-      // audit insert must not turn a durable import into a 500 that invites a
-      // second file; the gap is logged without any row contents.
-      console.error(`[product-import] audit write failed after commit: ${String((err as { message?: unknown })?.message)}`);
+    if (!completed) {
+      return receiptAfterCompletion(receipt._id);
     }
+
+    // The outbox row is written before the AuditLog insert. A crash after this
+    // point leaves either a PENDING row that the recovery pass delivers, or a
+    // completed receipt with no auditEnqueuedAt that the repair scan enqueues.
+    // The import response is not turned into a failure by an audit outage.
+    await enqueueAndDeliverProductImportAudit({
+      _id: String(receipt._id),
+      businessId,
+      userId,
+      fileName,
+      totalRows: validation.totalRows,
+      createdCount: result.createdCount,
+      openingStockCount: result.openingStockCount,
+      openingStockUnits: result.openingStockUnits,
+    });
 
     return { status: 201, body: { ...result, replayed: false } };
   },

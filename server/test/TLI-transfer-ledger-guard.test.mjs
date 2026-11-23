@@ -182,6 +182,13 @@ dbSuite('TLI — recovery lease', dbOk, () => {
           return { scanned: 0, released: 0, undone: 0, receipted: 0, flagged: 0, failed: 0 };
         },
         recoverMovements: async () => ({ scanned: 0, completed: 0, flagged: 0, blocked: 0, failed: 0 }),
+        // Keep this lease test from delivering another concurrent suite's
+        // outbox/import-repair rows in the shared test database.
+        recoverMovementAudits: async () => ({ scanned: 0, enqueued: 0, delivered: 0, failed: 0, skipped: 0 }),
+        recoverPoAudits: async () => ({ scanned: 0, groups: 0, enqueued: 0, delivered: 0, failed: 0, skipped: 0 }),
+        recoverImportAudits: async () => ({ scanned: 0, enqueued: 0, delivered: 0, failed: 0 }),
+        flushOutbox: async () => ({ scanned: 0, delivered: 0, failed: 0 }),
+        monitorHealth: null,
       });
       assert.equal(skipped.skipped, 'lease-held');
       assert.equal(skipped.lease?.acquired, false);
@@ -202,6 +209,11 @@ dbSuite('TLI — recovery lease', dbOk, () => {
         return { scanned: 0, released: 0, undone: 0, receipted: 0, flagged: 0, failed: 0 };
       },
       recoverMovements: async () => ({ scanned: 0, completed: 0, flagged: 0, blocked: 0, failed: 0 }),
+      recoverMovementAudits: async () => ({ scanned: 0, enqueued: 0, delivered: 0, failed: 0, skipped: 0 }),
+      recoverPoAudits: async () => ({ scanned: 0, groups: 0, enqueued: 0, delivered: 0, failed: 0, skipped: 0 }),
+      recoverImportAudits: async () => ({ scanned: 0, enqueued: 0, delivered: 0, failed: 0 }),
+      flushOutbox: async () => ({ scanned: 0, delivered: 0, failed: 0 }),
+      monitorHealth: null,
     });
     assert.equal(ran.skipped, undefined);
     assert.equal(ran.lease?.acquired, true);

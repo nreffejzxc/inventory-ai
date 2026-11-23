@@ -381,6 +381,81 @@ dbSuite('INTEGRITY — transfer journal recovery', dbOk, () => {
     assert.equal((await inventoryRow(product.id, from.id)).quantity, 8);
     assert.equal((await inventoryRow(product.id, to.id)).quantity, 2);
   });
+
+  it('★ keeps a COMPLETED journal terminal even when its response is missing', async () => {
+    const { product, from, to, source } = await makeTransferFixture(10);
+    const journal = transferJournal({ product, from, to, source, quantity: 2, state: 'COMPLETED' });
+    await journal.create;
+
+    const recovered = await recoverTransferOperation(journal.operationId);
+    assert.equal(recovered.action, 'noop');
+    const stored = await StockTransferOperation.findById(journal.operationId);
+    assert.equal(stored.state, 'COMPLETED');
+    assert.equal(stored.response, undefined);
+    assert.equal(
+      await AuditLog.countDocuments({
+        businessId: oid(owner.businessId),
+        action: 'INVENTORY_TRANSFERRED',
+        'metadata.reference': stored.reference,
+      }),
+      0,
+      'a terminal no-op is not a recovery event'
+    );
+    assert.equal((await inventoryRow(product.id, from.id)).quantity, 10);
+  });
+
+  it('★ concurrent recovery of one transfer completes once and audits once', async () => {
+    const { product, from, to, source } = await makeTransferFixture(10);
+    const journal = transferJournal({ product, from, to, source, quantity: 4, state: 'DESTINATION_CREDITED' });
+    await journal.create;
+    await Inventory.updateOne(
+      { _id: source._id, businessId: oid(owner.businessId) },
+      { $inc: { quantity: -4 }, $addToSet: { transferOperationIds: journal.operationId } }
+    );
+    const destination = await Inventory.findOneAndUpdate(
+      { businessId: oid(owner.businessId), productId: oid(product.id), locationId: oid(to.id) },
+      { $inc: { quantity: 4 }, $addToSet: { transferOperationIds: journal.operationId } },
+      { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true }
+    );
+    await StockTransferOperation.updateOne(
+      { _id: journal.operationId },
+      {
+        $set: {
+          destinationRowId: destination._id,
+          destinationPreviousQuantity: 0,
+          destinationNewQuantity: 4,
+          destinationCreated: true,
+        },
+      }
+    );
+
+    await Promise.all([
+      recoverTransferOperation(journal.operationId),
+      recoverTransferOperation(journal.operationId),
+      recoverTransferOperation(journal.operationId),
+    ]);
+
+    const stored = await StockTransferOperation.findById(journal.operationId);
+    assert.equal(stored.state, 'COMPLETED');
+    assert.ok(stored.response);
+    assert.equal(
+      await InventoryTransaction.countDocuments({
+        businessId: oid(owner.businessId),
+        transferOperationId: journal.operationId,
+        type: 'TRANSFER',
+      }),
+      2
+    );
+    assert.equal(
+      await AuditLog.countDocuments({
+        businessId: oid(owner.businessId),
+        action: 'INVENTORY_TRANSFERRED',
+        'metadata.reference': stored.reference,
+      }),
+      1,
+      'the synchronous and recovery paths share one deterministic audit key'
+    );
+  });
 });
 
 dbSuite('INTEGRITY — abandoned PO receive claims', dbOk, () => {
@@ -453,6 +528,31 @@ dbSuite('INTEGRITY — abandoned PO receive claims', dbOk, () => {
     assert.ok(summary.undone >= 1);
     assert.equal((await inventoryRow(product.id, location.id)).quantity, 4);
     assert.equal(await InventoryTransaction.countDocuments({ _id: txn._id }), 0);
+    const afterPo = await PurchaseOrder.findById(po._id);
+    assert.equal(afterPo.claims.length, 0);
+    assert.equal(afterPo.items[0].quantityCommitted, 0);
+    assert.equal(
+      await AuditLog.countDocuments({
+        businessId: oid(owner.businessId),
+        action: 'PURCHASE_ORDER_CLAIM_RECOVERED',
+        'metadata.claimId': String(claimId),
+      }),
+      1
+    );
+  });
+
+  it('★ concurrent recovery of the same claim appends one recovery audit', async () => {
+    const { po, claimId } = await poFixture({
+      committed: 2,
+      phase: 'CLAIMED',
+      quantity: 2,
+    });
+    await Promise.all([
+      recoverStalePurchaseOrderClaims({ olderThanMs: 60_000 }),
+      recoverStalePurchaseOrderClaims({ olderThanMs: 60_000 }),
+      recoverStalePurchaseOrderClaims({ olderThanMs: 60_000 }),
+    ]);
+
     const afterPo = await PurchaseOrder.findById(po._id);
     assert.equal(afterPo.claims.length, 0);
     assert.equal(afterPo.items[0].quantityCommitted, 0);

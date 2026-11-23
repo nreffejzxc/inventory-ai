@@ -35,6 +35,9 @@ export const STEP_VERBS = Object.freeze([
   'expectClean', // wait until the screen is not loading, and fail if it is showing an error
   'findProduct', // open a product by SKU through the app's own search — no internal id in the run
   'pick', // open a picker and choose one option by its visible label
+  'expectStopped', // the logging proxy has recorded the request and the app process is gone
+  'relaunch', // cold-start the bundle, then open this route
+  'verifyDraftResume', // exactly one DRAFT exists for the captured request key/body
 ]);
 
 /** Elements a node's visible label may come from. The app uses both. */
@@ -711,6 +714,32 @@ export function validateJourneys(journeys) {
           deltas.every((n) => Number.isInteger(n)) &&
           Object.keys(value).every((key) => key === 'deltas');
         if (!valid) problems.push(`${at}: movement needs { deltas: [...] } of whole numbers`);
+      }
+
+      if (verb === 'expectStopped') {
+        const valid =
+          value !== null &&
+          typeof value === 'object' &&
+          typeof value.package === 'string' &&
+          value.package.trim() !== '' &&
+          typeof value.proxyLog === 'string' &&
+          value.proxyLog.trim() !== '' &&
+          Object.keys(value).every((key) => key === 'package' || key === 'proxyLog');
+        if (!valid) problems.push(`${at}: expectStopped needs { package, proxyLog }`);
+      }
+
+      if (verb === 'relaunch' && (typeof value !== 'string' || !value.trim())) {
+        problems.push(`${at}: relaunch needs a route`);
+      }
+
+      if (verb === 'verifyDraftResume') {
+        const valid =
+          value !== null &&
+          typeof value === 'object' &&
+          typeof value.database === 'string' &&
+          value.database.trim() !== '' &&
+          Object.keys(value).every((key) => key === 'database');
+        if (!valid) problems.push(`${at}: verifyDraftResume needs { database }`);
       }
 
       if (verb === 'type') {

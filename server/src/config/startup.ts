@@ -37,6 +37,11 @@ import type { ConfigProblem } from './validateConfig.ts';
 import { recordPlatformDeployment } from '../services/platformDeployments.service.ts';
 import { INSTANCE_ID } from './instanceIdentity.ts';
 import { checkModelCatalogue } from '../services/ai/modelCheck.ts';
+import {
+  checkRequiredIndexes,
+  REQUIRED_INDEX_SPECS,
+} from './indexReadiness.ts';
+import type { RequiredIndexesReadiness } from './indexReadiness.ts';
 import type { CatalogueResult } from '../services/ai/modelCheck.ts';
 import { refreshModelCapabilities, declaresToolSupport } from '../services/ai/modelCapabilities.ts';
 import { aiConfig } from '../services/ai/aiConfig.ts';
@@ -133,6 +138,12 @@ type StartServerOptions = {
    * The watchdog only sends endpoint-health GETs, so starting it costs no completion quota.
    */
   healthWatch?: ((options: { nodeEnv: string; logger: Logger }) => HealthWatchHandle) | null;
+  /**
+   * Required-index inspection for the boot log. Defaults to the real readiness
+   * checker in production; `null` disables it. Injectable so a startup suite can
+   * prove missing indexes are reported without a database.
+   */
+  indexCheck?: (() => Promise<RequiredIndexesReadiness>) | null;
 };
 
 /**
@@ -172,6 +183,7 @@ export async function startServer({
   capabilities,
   healthGate,
   healthWatch,
+  indexCheck,
 }: StartServerOptions = {}): Promise<{
   server: ShutdownServer;
   shutdown: ShutdownHandler;
@@ -277,6 +289,40 @@ export async function startServer({
         'up for diagnostics, but readiness will report not ready and database requests will ' +
         'return 503. Restart once MongoDB is reachable.'
     );
+  }
+
+  // Startup visibility for the write guards, outbox TTL and repair indexes that
+  // durable audit recovery depends on. `/api/health/ready` fails closed on the
+  // same checker; this line makes a missing index visible in the boot log even
+  // before the first readiness poll.
+  // It is unawaited so a wedged database cannot delay the HTTP listener.
+  const resolvedIndexCheck =
+    indexCheck === undefined
+      ? nodeEnv === 'production'
+        ? checkRequiredIndexes
+        : null
+      : indexCheck;
+  if (connected && resolvedIndexCheck) {
+    void resolvedIndexCheck()
+      .then((result) => {
+        if (result.ready) {
+          logger.log(
+            `[startup] required database indexes verified (${REQUIRED_INDEX_SPECS.length})`
+          );
+          return;
+        }
+        logger.error(
+          '[startup] required database indexes are NOT ready — /api/health/ready will answer 503 until they are fixed:'
+        );
+        for (const failure of result.failures) {
+          logger.error(`[startup] index ${failure.name}: ${failure.reason}`);
+        }
+      })
+      .catch(() => {
+        logger.error(
+          '[startup] required database indexes could not be inspected — /api/health/ready will answer 503 until the check succeeds.'
+        );
+      });
   }
 
   type BootServer = {

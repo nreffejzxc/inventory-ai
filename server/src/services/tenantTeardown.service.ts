@@ -36,6 +36,7 @@ import AiFeedback from '../models/aiFeedback.model.ts';
 import OpsErrorEvent from '../models/opsErrorEvent.model.ts';
 import OpsFeatureUsage from '../models/opsFeatureUsage.model.ts';
 import AuditFailure from '../models/auditFailure.model.ts';
+import AuditOutbox from '../models/auditOutbox.model.ts';
 import StockTransferOperation from '../models/stockTransferOperation.model.ts';
 import AuditLog from '../models/auditLog.model.ts';
 import Business from '../models/business.model.ts';
@@ -47,6 +48,7 @@ import Location from '../models/location.model.ts';
 import PasswordResetChallenge from '../models/passwordResetChallenge.model.ts';
 import PasswordResetToken from '../models/passwordResetToken.model.ts';
 import Product from '../models/product.model.ts';
+import ProductImport from '../models/productImport.model.ts';
 import PurchaseOrder from '../models/purchaseOrder.model.ts';
 import Session from '../models/session.model.ts';
 import Supplier from '../models/supplier.model.ts';
@@ -78,11 +80,16 @@ export const TENANT_DATA_COLLECTIONS: Array<[string, TenantModel]> = [
   ['inventory_transactions', InventoryTransaction],
   ['stock_transfer_operations', StockTransferOperation],
   ['purchase_orders', PurchaseOrder],
+  // FW-01 — the durable import receipt carries businessId, the operator and the
+  // file fingerprint. It is tenant data: without this entry a tenant teardown
+  // leaves a replay handle (and the file name) behind after the catalogue is gone.
+  ['product_imports', ProductImport],
   ['products', Product],
   ['categories', Category],
   ['locations', Location],
   ['suppliers', Supplier],
   ['audit_logs', AuditLog],
+  ['audit_outbox', AuditOutbox],
   ['audit_failures', AuditFailure],
   // AI-102 — one operational row per assistant turn. It carries businessId, so a tenant
   // teardown must remove it with the rest of that tenant's data rather than leave metrics

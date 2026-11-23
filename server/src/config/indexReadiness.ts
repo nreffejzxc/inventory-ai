@@ -1,16 +1,28 @@
+import AuditLog, { AUDIT_DEDUPE_INDEX } from '../models/auditLog.model.ts';
+import AuditOutbox, {
+  AUDIT_OUTBOX_DELIVERED_TTL_INDEX,
+} from '../models/auditOutbox.model.ts';
 import InventoryTransaction, {
   TRANSFER_LEDGER_INDEX,
 } from '../models/inventoryTransaction.model.ts';
+import PurchaseOrder, {
+  PURCHASE_ORDER_RECEIVE_AUDIT_REPAIR_INDEX,
+  PURCHASE_ORDER_REQUEST_KEY_INDEX,
+} from '../models/purchaseOrder.model.ts';
+import StockMovementOperation, {
+  MOVEMENT_AUDIT_REPAIR_INDEX,
+} from '../models/stockMovementOperation.model.ts';
 
 /**
- * Fail-closed readiness for the unique transfer-ledger guard.
+ * Fail-closed readiness for the indexes durable writes and recovery depend on.
  *
  * `/api/health/ready` is what an orchestrator uses to decide whether this
- * process may receive traffic. The ledger guard is a correctness boundary for
- * transfer recovery, so a reachable database is not enough: the exact unique
- * partial index must be present too. A missing, non-unique, differently-keyed
- * or differently-filtered index is reported as not ready instead of being
- * mistaken for a healthy deployment.
+ * process may receive traffic. A reachable database is not enough: the exact
+ * unique partial indexes that guard replayable writes must be present, and the
+ * retention/repair indexes that keep the outbox bounded and recovery cheap must
+ * exist too. A missing, differently-keyed, differently-filtered, wrongly unique
+ * or wrongly expiring index is reported as not ready instead of being mistaken
+ * for a healthy deployment.
  *
  * The checker only reads `listIndexes`; it never creates, drops or repairs an
  * index. That keeps readiness safe to poll and leaves index changes to the
@@ -27,6 +39,29 @@ export type RequiredIndexesReadiness = {
   ready: boolean;
   failures: Array<{ name: string; reason: string }>;
 };
+
+/**
+ * The exact shape a required index must have in MongoDB. `unique`, the partial
+ * filter and the TTL are optional so one evaluator can cover a write guard, a
+ * partial TTL and a plain repair scan without weakening any of them.
+ */
+export type RequiredIndexSpec = {
+  readonly name: string;
+  readonly key: Readonly<Record<string, number>>;
+  readonly unique?: true;
+  readonly partialFilterExpression?: Readonly<Record<string, unknown>>;
+  readonly expireAfterSeconds?: number;
+};
+
+/** Used by the boot line so the count cannot drift from the checks below. */
+export const REQUIRED_INDEX_SPECS: readonly RequiredIndexSpec[] = [
+  TRANSFER_LEDGER_INDEX,
+  PURCHASE_ORDER_REQUEST_KEY_INDEX,
+  AUDIT_DEDUPE_INDEX,
+  AUDIT_OUTBOX_DELIVERED_TTL_INDEX,
+  MOVEMENT_AUDIT_REPAIR_INDEX,
+  PURCHASE_ORDER_RECEIVE_AUDIT_REPAIR_INDEX,
+];
 
 /** A readiness probe must not wait indefinitely on a wedged database. */
 export const INDEX_INSPECTION_TIMEOUT_MS = 2_500;
@@ -56,6 +91,7 @@ type IndexDescription = {
   key?: unknown;
   unique?: unknown;
   partialFilterExpression?: unknown;
+  expireAfterSeconds?: unknown;
 };
 
 type IndexModel = {
@@ -82,7 +118,7 @@ function canonical(value: unknown): string {
     .join(',')}}`;
 }
 
-function keyEquals(actual: unknown, expected: Record<string, number>): boolean {
+function keyEquals(actual: unknown, expected: Readonly<Record<string, number>>): boolean {
   const entries = Object.entries(record(actual) ?? {});
   const expectedEntries = Object.entries(expected);
   return (
@@ -94,113 +130,233 @@ function keyEquals(actual: unknown, expected: Record<string, number>): boolean {
   );
 }
 
-function sameFieldSet(actual: unknown, expected: Record<string, number>): boolean {
+function sameFieldSet(actual: unknown, expected: Readonly<Record<string, number>>): boolean {
   const fields = Object.keys(record(actual) ?? {}).sort();
   return fields.join(',') === Object.keys(expected).sort().join(',');
 }
 
-function reasonForCandidate(index: IndexDescription): string {
+function samePartialFilter(index: IndexDescription, spec: RequiredIndexSpec): boolean {
+  return (
+    canonical(index.partialFilterExpression ?? null) ===
+    canonical(spec.partialFilterExpression ?? null)
+  );
+}
+
+function sameUniqueness(index: IndexDescription, spec: RequiredIndexSpec): boolean {
+  return spec.unique === true ? index.unique === true : index.unique !== true;
+}
+
+function sameTtl(index: IndexDescription, spec: RequiredIndexSpec): boolean {
+  return spec.expireAfterSeconds === undefined
+    ? index.expireAfterSeconds === undefined
+    : index.expireAfterSeconds === spec.expireAfterSeconds;
+}
+
+function matchesSpec(index: IndexDescription, spec: RequiredIndexSpec): boolean {
+  return (
+    sameUniqueness(index, spec) &&
+    samePartialFilter(index, spec) &&
+    sameTtl(index, spec)
+  );
+}
+
+function requiredIndexLabel(spec: RequiredIndexSpec): string {
+  const qualifiers = [
+    spec.unique === true ? 'unique' : null,
+    spec.partialFilterExpression !== undefined ? 'partial' : null,
+  ].filter((value): value is string => value !== null);
+  const kind = spec.expireAfterSeconds !== undefined ? 'TTL index' : 'index';
+  return `required ${qualifiers.length > 0 ? `${qualifiers.join(' ')} ` : ''}${kind}`;
+}
+
+function reasonForCandidate(index: IndexDescription, spec: RequiredIndexSpec): string {
   const name = String(index.name ?? '(unnamed)');
   const problems: string[] = [];
-  if (index.unique !== true) problems.push('is not unique');
-  if (
-    canonical(index.partialFilterExpression ?? null) !==
-    canonical(TRANSFER_LEDGER_INDEX.partialFilterExpression)
-  ) {
-    problems.push('has a different partial filter');
+  if (spec.unique === true && index.unique !== true) problems.push('is not unique');
+  if (spec.unique !== true && index.unique === true) problems.push('is unexpectedly unique');
+  if (!samePartialFilter(index, spec)) {
+    problems.push(
+      spec.partialFilterExpression !== undefined
+        ? 'has a different partial filter'
+        : 'has an unexpected partial filter'
+    );
+  }
+  if (!sameTtl(index, spec)) {
+    problems.push(
+      spec.expireAfterSeconds !== undefined
+        ? 'has a different TTL'
+        : 'has an unexpected TTL'
+    );
   }
   return `index "${name}" ${problems.join(' and ') || 'does not match the required index'}`;
 }
 
 /**
- * Evaluate the already-listed index descriptions. Pure, so every rejection
- * branch can be pinned without a database.
+ * Evaluate already-listed index descriptions against one required spec. Pure,
+ * so every rejection branch can be pinned without a database.
  */
-export function evaluateTransferLedgerIndex(indexes: unknown[]): IndexReadiness {
+export function evaluateRequiredIndex(
+  indexes: unknown[],
+  spec: RequiredIndexSpec
+): IndexReadiness {
   const descriptions = (Array.isArray(indexes) ? indexes : [])
     .map(record)
     .filter((index): index is IndexDescription => index != null);
-  const exactKey = descriptions.filter((index) =>
-    keyEquals(index.key, TRANSFER_LEDGER_INDEX.key)
-  );
-  const compatible = exactKey.find(
-    (index) =>
-      index.unique === true &&
-      canonical(index.partialFilterExpression ?? null) ===
-        canonical(TRANSFER_LEDGER_INDEX.partialFilterExpression)
-  );
+  const exactKey = descriptions.filter((index) => keyEquals(index.key, spec.key));
+  const compatible = exactKey.find((index) => matchesSpec(index, spec));
   if (compatible) {
     return {
       ready: true,
-      name: String(compatible.name ?? TRANSFER_LEDGER_INDEX.name),
+      name: String(compatible.name ?? spec.name),
       reason: null,
     };
   }
   if (exactKey.length > 0) {
     return {
       ready: false,
-      name: TRANSFER_LEDGER_INDEX.name,
-      reason: reasonForCandidate(exactKey[0]!),
+      name: spec.name,
+      reason: reasonForCandidate(exactKey[0]!, spec),
     };
   }
-  const sameFields = descriptions.some((index) =>
-    sameFieldSet(index.key, TRANSFER_LEDGER_INDEX.key)
-  );
+  const sameFields = descriptions.some((index) => sameFieldSet(index.key, spec.key));
   return {
     ready: false,
-    name: TRANSFER_LEDGER_INDEX.name,
+    name: spec.name,
     reason: sameFields
-      ? `index "${TRANSFER_LEDGER_INDEX.name}" has the required fields in the wrong order`
-      : `required unique partial index "${TRANSFER_LEDGER_INDEX.name}" is missing`,
+      ? `index "${spec.name}" has the required fields in the wrong order`
+      : `${requiredIndexLabel(spec)} "${spec.name}" is missing`,
   };
 }
 
-/** Read the live index list. Any inspection failure is not ready, never ready. */
-export async function checkTransferLedgerIndex({
-  model = InventoryTransaction,
-}: {
-  model?: IndexModel;
-} = {}): Promise<IndexReadiness> {
+/** Backward-compatible named evaluator for the original ledger guard. */
+export function evaluateTransferLedgerIndex(indexes: unknown[]): IndexReadiness {
+  return evaluateRequiredIndex(indexes, TRANSFER_LEDGER_INDEX);
+}
+
+/** Inspect one model's live index list. Any inspection failure is not ready. */
+export async function checkRequiredIndex(
+  model: IndexModel,
+  spec: RequiredIndexSpec
+): Promise<IndexReadiness> {
   try {
     const indexes = await withTimeout(
       model.collection.indexes(),
       INDEX_INSPECTION_TIMEOUT_MS
     );
-    return evaluateTransferLedgerIndex(indexes);
+    return evaluateRequiredIndex(indexes, spec);
   } catch (err) {
     if ((err as { codeName?: unknown } | null)?.codeName === 'NamespaceNotFound') {
       return {
         ready: false,
-        name: TRANSFER_LEDGER_INDEX.name,
-        reason: `required unique partial index "${TRANSFER_LEDGER_INDEX.name}" is missing`,
+        name: spec.name,
+        reason: `${requiredIndexLabel(spec)} "${spec.name}" is missing`,
       };
     }
     return {
       ready: false,
-      name: TRANSFER_LEDGER_INDEX.name,
-      reason: 'the transfer-ledger index could not be inspected',
+      name: spec.name,
+      reason: `the ${spec.name} index could not be inspected`,
     };
   }
 }
 
+export async function checkTransferLedgerIndex({
+  model = InventoryTransaction,
+}: {
+  model?: IndexModel;
+} = {}): Promise<IndexReadiness> {
+  return checkRequiredIndex(model, TRANSFER_LEDGER_INDEX);
+}
+
+export async function checkPurchaseOrderRequestKeyIndex({
+  model = PurchaseOrder,
+}: {
+  model?: IndexModel;
+} = {}): Promise<IndexReadiness> {
+  return checkRequiredIndex(model, PURCHASE_ORDER_REQUEST_KEY_INDEX);
+}
+
+export async function checkAuditDedupeIndex({
+  model = AuditLog,
+}: {
+  model?: IndexModel;
+} = {}): Promise<IndexReadiness> {
+  return checkRequiredIndex(model, AUDIT_DEDUPE_INDEX);
+}
+
+export async function checkAuditOutboxTtlIndex({
+  model = AuditOutbox,
+}: {
+  model?: IndexModel;
+} = {}): Promise<IndexReadiness> {
+  return checkRequiredIndex(model, AUDIT_OUTBOX_DELIVERED_TTL_INDEX);
+}
+
+export async function checkMovementAuditRepairIndex({
+  model = StockMovementOperation,
+}: {
+  model?: IndexModel;
+} = {}): Promise<IndexReadiness> {
+  return checkRequiredIndex(model, MOVEMENT_AUDIT_REPAIR_INDEX);
+}
+
+export async function checkPoReceiveAuditRepairIndex({
+  model = PurchaseOrder,
+}: {
+  model?: IndexModel;
+} = {}): Promise<IndexReadiness> {
+  return checkRequiredIndex(model, PURCHASE_ORDER_RECEIVE_AUDIT_REPAIR_INDEX);
+}
+
+type RequiredIndexCheck = {
+  spec: RequiredIndexSpec;
+  check: () => Promise<IndexReadiness>;
+};
+
 /**
- * Every required readiness index. Today there is one; the shape is a list so a
- * second guard can be added without changing the route contract.
+ * Every required readiness index. The checks run in parallel so all bounded
+ * inspections cost one timeout, not one per index.
  */
 export async function checkRequiredIndexes({
   checkTransferLedger = checkTransferLedgerIndex,
+  checkPurchaseOrderRequestKey = checkPurchaseOrderRequestKeyIndex,
+  checkAuditDedupe = checkAuditDedupeIndex,
+  checkAuditOutboxTtl = checkAuditOutboxTtlIndex,
+  checkMovementAuditRepair = checkMovementAuditRepairIndex,
+  checkPoReceiveAuditRepair = checkPoReceiveAuditRepairIndex,
 }: {
   checkTransferLedger?: () => Promise<IndexReadiness>;
+  checkPurchaseOrderRequestKey?: () => Promise<IndexReadiness>;
+  checkAuditDedupe?: () => Promise<IndexReadiness>;
+  checkAuditOutboxTtl?: () => Promise<IndexReadiness>;
+  checkMovementAuditRepair?: () => Promise<IndexReadiness>;
+  checkPoReceiveAuditRepair?: () => Promise<IndexReadiness>;
 } = {}): Promise<RequiredIndexesReadiness> {
-  const failures: Array<{ name: string; reason: string }> = [];
-  try {
-    const result = await checkTransferLedger();
-    if (!result.ready) failures.push({ name: result.name, reason: result.reason ?? 'not ready' });
-  } catch {
-    failures.push({
-      name: TRANSFER_LEDGER_INDEX.name,
-      reason: 'the transfer-ledger index check could not run',
-    });
-  }
+  const checks: RequiredIndexCheck[] = [
+    { spec: TRANSFER_LEDGER_INDEX, check: checkTransferLedger },
+    { spec: PURCHASE_ORDER_REQUEST_KEY_INDEX, check: checkPurchaseOrderRequestKey },
+    { spec: AUDIT_DEDUPE_INDEX, check: checkAuditDedupe },
+    { spec: AUDIT_OUTBOX_DELIVERED_TTL_INDEX, check: checkAuditOutboxTtl },
+    { spec: MOVEMENT_AUDIT_REPAIR_INDEX, check: checkMovementAuditRepair },
+    { spec: PURCHASE_ORDER_RECEIVE_AUDIT_REPAIR_INDEX, check: checkPoReceiveAuditRepair },
+  ];
+  const results = await Promise.all(
+    checks.map(async ({ spec, check }): Promise<{ name: string; reason: string } | null> => {
+      try {
+        const result = await check();
+        return result.ready
+          ? null
+          : { name: result.name, reason: result.reason ?? 'not ready' };
+      } catch {
+        return {
+          name: spec.name,
+          reason: `the ${spec.name} index check could not run`,
+        };
+      }
+    })
+  );
+  const failures = results.filter(
+    (failure): failure is { name: string; reason: string } => failure !== null
+  );
   return { ready: failures.length === 0, failures };
 }

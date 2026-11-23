@@ -4,6 +4,15 @@ import { INSTANCE_ID } from '../config/instanceIdentity.ts';
 import { recoverStaleTransferOperations } from './stockTransferRecovery.service.ts';
 import { recoverStalePurchaseOrderClaims } from './purchaseOrderClaimRecovery.service.ts';
 import { recoverStaleMovementReceipts } from './stockMovementReceiptRecovery.service.ts';
+import { recoverMovementAudits } from './stockMovementAudit.service.ts';
+import { recoverPoReceiveAudits } from './purchaseOrderReceiveAudit.service.ts';
+import { recoverProductImportAudits } from './productImportAudit.service.ts';
+import { flushAuditOutbox } from './auditOutbox.service.ts';
+import {
+  monitorAuditHealth,
+  recordAuditRepairPass,
+  type AuditHealthSnapshot,
+} from './auditHealth.service.ts';
 import {
   acquireIntegrityRecoveryLease,
   DEFAULT_INTEGRITY_RECOVERY_LEASE_MS,
@@ -21,6 +30,16 @@ export type IntegrityRecoveryTotals = {
   transfers: Awaited<ReturnType<typeof recoverStaleTransferOperations>> | null;
   claims: Awaited<ReturnType<typeof recoverStalePurchaseOrderClaims>> | null;
   movements: Awaited<ReturnType<typeof recoverStaleMovementReceipts>> | null;
+  /** Completed keyed movements that never got a durable audit hand-off. */
+  movementAudits: Awaited<ReturnType<typeof recoverMovementAudits>> | null;
+  /** Finalized PO receipts that never got a durable audit hand-off. */
+  poAudits: Awaited<ReturnType<typeof recoverPoReceiveAudits>> | null;
+  /** Completed imports that never got a durable audit hand-off. */
+  importAudits: Awaited<ReturnType<typeof recoverProductImportAudits>> | null;
+  /** Pending, failed or abandoned audit-outbox deliveries. */
+  auditOutbox: Awaited<ReturnType<typeof flushAuditOutbox>> | null;
+  /** Aggregate outbox/repair health and any overdue alerts for this pass. */
+  auditHealth: AuditHealthSnapshot | null;
   lease: { acquired: boolean; owner?: string; expiresAt?: string } | null;
   /** Set when the pass deliberately did nothing; never a claim that recovery is clean. */
   skipped?: 'not-connected' | 'lease-held';
@@ -43,20 +62,52 @@ export async function runIntegrityRecoveryPass({
   recoverTransfers = recoverStaleTransferOperations,
   recoverClaims = recoverStalePurchaseOrderClaims,
   recoverMovements = recoverStaleMovementReceipts,
+  recoverMovementAudits: recoverMovementAuditsFn = recoverMovementAudits,
+  recoverPoAudits = recoverPoReceiveAudits,
+  recoverImportAudits = recoverProductImportAudits,
+  flushOutbox = flushAuditOutbox,
+  monitorHealth = monitorAuditHealth,
 }: {
   owner?: string;
   leaseTtlMs?: number;
   recoverTransfers?: typeof recoverStaleTransferOperations;
   recoverClaims?: typeof recoverStalePurchaseOrderClaims;
   recoverMovements?: typeof recoverStaleMovementReceipts;
+  recoverMovementAudits?: typeof recoverMovementAudits;
+  recoverPoAudits?: typeof recoverPoReceiveAudits;
+  recoverImportAudits?: typeof recoverProductImportAudits;
+  flushOutbox?: typeof flushAuditOutbox;
+  monitorHealth?: typeof monitorAuditHealth | null;
 } = {}): Promise<IntegrityRecoveryTotals> {
   if (mongoose.connection.readyState !== 1) {
-    return { transfers: null, claims: null, movements: null, lease: null, skipped: 'not-connected' };
+    return {
+      transfers: null,
+      claims: null,
+      movements: null,
+      movementAudits: null,
+      poAudits: null,
+      importAudits: null,
+      auditOutbox: null,
+      auditHealth: null,
+      lease: null,
+      skipped: 'not-connected',
+    };
   }
 
   const lease = await acquireIntegrityRecoveryLease({ owner, ttlMs: leaseTtlMs });
   if (!lease) {
-    return { transfers: null, claims: null, movements: null, lease: { acquired: false }, skipped: 'lease-held' };
+    return {
+      transfers: null,
+      claims: null,
+      movements: null,
+      movementAudits: null,
+      poAudits: null,
+      importAudits: null,
+      auditOutbox: null,
+      auditHealth: null,
+      lease: { acquired: false },
+      skipped: 'lease-held',
+    };
   }
 
   const heartbeat = setInterval(() => {
@@ -78,6 +129,11 @@ export async function runIntegrityRecoveryPass({
   let transfers: IntegrityRecoveryTotals['transfers'] = null;
   let claims: IntegrityRecoveryTotals['claims'] = null;
   let movements: IntegrityRecoveryTotals['movements'] = null;
+  let movementAudits: IntegrityRecoveryTotals['movementAudits'] = null;
+  let poAudits: IntegrityRecoveryTotals['poAudits'] = null;
+  let importAudits: IntegrityRecoveryTotals['importAudits'] = null;
+  let auditOutbox: IntegrityRecoveryTotals['auditOutbox'] = null;
+  let auditHealth: IntegrityRecoveryTotals['auditHealth'] = null;
   try {
     try {
       transfers = await recoverTransfers();
@@ -98,6 +154,34 @@ export async function runIntegrityRecoveryPass({
     } catch (err) {
       console.error(
         `[integrity-recovery] movement receipt pass failed: ${err instanceof Error ? err.message : 'unknown error'}`,
+      );
+    }
+    try {
+      movementAudits = await recoverMovementAuditsFn({ limit: 20 });
+    } catch (err) {
+      console.error(
+        `[integrity-recovery] movement audit repair failed: ${err instanceof Error ? err.message : 'unknown error'}`,
+      );
+    }
+    try {
+      poAudits = await recoverPoAudits({ limit: 20 });
+    } catch (err) {
+      console.error(
+        `[integrity-recovery] PO receive audit repair failed: ${err instanceof Error ? err.message : 'unknown error'}`,
+      );
+    }
+    try {
+      importAudits = await recoverImportAudits({ limit: 20 });
+    } catch (err) {
+      console.error(
+        `[integrity-recovery] import audit repair failed: ${err instanceof Error ? err.message : 'unknown error'}`,
+      );
+    }
+    try {
+      auditOutbox = await flushOutbox({ limit: 50 });
+    } catch (err) {
+      console.error(
+        `[integrity-recovery] audit outbox pass failed: ${err instanceof Error ? err.message : 'unknown error'}`,
       );
     }
 
@@ -132,10 +216,50 @@ export async function runIntegrityRecoveryPass({
         `[integrity-recovery] movement receipts scanned=${movements?.scanned ?? 0} completed=${movements?.completed ?? 0} flagged=${movements?.flagged ?? 0} blocked=${movements?.blocked ?? 0} failed=${movements?.failed ?? 0}`,
       );
     }
+    if ((movementAudits?.enqueued ?? 0) > 0 || (movementAudits?.failed ?? 0) > 0) {
+      console.log(
+        `[integrity-recovery] movement audits scanned=${movementAudits?.scanned ?? 0} enqueued=${movementAudits?.enqueued ?? 0} delivered=${movementAudits?.delivered ?? 0} failed=${movementAudits?.failed ?? 0}`,
+      );
+    }
+    if ((poAudits?.enqueued ?? 0) > 0 || (poAudits?.failed ?? 0) > 0) {
+      console.log(
+        `[integrity-recovery] PO receive audits scanned=${poAudits?.scanned ?? 0} groups=${poAudits?.groups ?? 0} enqueued=${poAudits?.enqueued ?? 0} delivered=${poAudits?.delivered ?? 0} failed=${poAudits?.failed ?? 0}`,
+      );
+    }
+    if ((importAudits?.enqueued ?? 0) > 0 || (importAudits?.failed ?? 0) > 0) {
+      console.log(
+        `[integrity-recovery] import audits scanned=${importAudits?.scanned ?? 0} enqueued=${importAudits?.enqueued ?? 0} delivered=${importAudits?.delivered ?? 0} failed=${importAudits?.failed ?? 0}`,
+      );
+    }
+    if ((auditOutbox?.delivered ?? 0) > 0 || (auditOutbox?.failed ?? 0) > 0) {
+      console.log(
+        `[integrity-recovery] audit outbox scanned=${auditOutbox?.scanned ?? 0} delivered=${auditOutbox?.delivered ?? 0} failed=${auditOutbox?.failed ?? 0}`,
+      );
+    }
+    recordAuditRepairPass({
+      movementAudits,
+      poAudits,
+      importAudits,
+      auditOutbox,
+    });
+    if (monitorHealth) {
+      try {
+        auditHealth = await monitorHealth();
+      } catch (err) {
+        console.error(
+          `[integrity-recovery] audit health check failed: ${err instanceof Error ? err.message : 'unknown error'}`,
+        );
+      }
+    }
     return {
       transfers,
       claims,
       movements,
+      movementAudits,
+      poAudits,
+      importAudits,
+      auditOutbox,
+      auditHealth,
       lease: { acquired: true, owner: lease.owner, expiresAt: lease.expiresAt.toISOString() },
     };
   } finally {

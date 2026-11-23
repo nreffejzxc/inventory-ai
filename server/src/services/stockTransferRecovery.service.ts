@@ -4,7 +4,7 @@ import Inventory from '../models/inventory.model.ts';
 import InventoryTransaction from '../models/inventoryTransaction.model.ts';
 import StockTransferOperation from '../models/stockTransferOperation.model.ts';
 import { AUDIT_ACTIONS, AUDIT_ENTITY_TYPES } from '../constants/audit.ts';
-import { recordAudit } from './audit.service.ts';
+import { recordAuditOnce } from './audit.service.ts';
 import { monitorAuditFailure } from './auditFailure.service.ts';
 
 export const TRANSFER_RECOVERY_AFTER_MS = 60_000;
@@ -294,8 +294,13 @@ export async function recoverTransferOperation(id: unknown): Promise<{
 } | null> {
   const op = (await StockTransferOperation.findById(id).lean()) as unknown as Journal | null;
   if (!op) return null;
-  if (op.state === 'COMPLETED' && op.response) {
-    return { state: op.state, action: 'completed', response: op.response };
+  // COMPLETED is terminal even if the stored response is missing. Without this
+  // guard a late recovery pass could re-prove the journal from changed rows and
+  // mark a completed transfer REQUIRES_ATTENTION or overwrite its response.
+  if (op.state === 'COMPLETED') {
+    return op.response
+      ? { state: op.state, action: 'completed', response: op.response }
+      : { state: op.state, action: 'noop' };
   }
   if (op.state === 'COMPENSATED') return { state: op.state, action: 'compensated' };
   if (op.state === 'REQUIRES_ATTENTION') return { state: op.state, action: 'flagged' };
@@ -343,7 +348,7 @@ export async function recoverTransferOperation(id: unknown): Promise<{
       }
       const response = completedResponse(op, txns);
       await StockTransferOperation.updateOne(
-        { _id: op._id },
+        { _id: op._id, state: { $nin: ['COMPLETED', 'COMPENSATED', 'REQUIRES_ATTENTION'] } },
         { $set: { state: 'COMPLETED', response, failure: undefined, reconciledAt: new Date() } }
       );
       return { state: 'COMPLETED', action: 'completed', response };
@@ -352,7 +357,7 @@ export async function recoverTransferOperation(id: unknown): Promise<{
       return markAttention(op, 'ledger rows exist without inventory operation markers');
     }
     await StockTransferOperation.updateOne(
-      { _id: op._id },
+      { _id: op._id, state: { $nin: ['COMPLETED', 'COMPENSATED', 'REQUIRES_ATTENTION'] } },
       { $set: { state: 'COMPENSATED', reconciledAt: new Date() } }
     );
     return { state: 'COMPENSATED', action: 'compensated' };
@@ -372,7 +377,7 @@ export async function recoverTransferOperation(id: unknown): Promise<{
       return markAttention(op, 'both legs present but ledger could not be completed');
     }
     await StockTransferOperation.updateOne(
-      { _id: op._id },
+      { _id: op._id, state: { $nin: ['COMPLETED', 'COMPENSATED', 'REQUIRES_ATTENTION'] } },
       {
         $set: {
           state: 'LEDGER_WRITTEN',
@@ -384,7 +389,10 @@ export async function recoverTransferOperation(id: unknown): Promise<{
     const response = completedResponse(op, txns);
     await clearMarkers(op);
     try {
-      await recordAudit({
+      // The synchronous transfer path uses this same key. Whichever path wins,
+      // the business event exists exactly once; a recovery never appends a
+      // second INVENTORY_TRANSFERRED row for the same journal.
+      await recordAuditOnce({
         businessId: op.businessId,
         userId: op.createdBy,
         action: AUDIT_ACTIONS.INVENTORY_TRANSFERRED,
@@ -400,6 +408,7 @@ export async function recoverTransferOperation(id: unknown): Promise<{
           quantity: op.quantity,
           recovered: true,
         },
+        dedupeKey: `transfer:${String(op._id)}:completed`,
       });
     } catch (err) {
       await monitorAuditFailure({
@@ -411,7 +420,7 @@ export async function recoverTransferOperation(id: unknown): Promise<{
       });
     }
     await StockTransferOperation.updateOne(
-      { _id: op._id },
+      { _id: op._id, state: { $nin: ['COMPLETED', 'COMPENSATED', 'REQUIRES_ATTENTION'] } },
       { $set: { state: 'COMPLETED', response, failure: undefined, reconciledAt: new Date() } }
     );
     return { state: 'COMPLETED', action: 'completed', response };
@@ -425,7 +434,7 @@ export async function recoverTransferOperation(id: unknown): Promise<{
     const undone = await undoInventoryLegs(op);
     if (!undone) return markAttention(op, 'source debit could not be undone exactly');
     await StockTransferOperation.updateOne(
-      { _id: op._id },
+      { _id: op._id, state: { $nin: ['COMPLETED', 'COMPENSATED', 'REQUIRES_ATTENTION'] } },
       { $set: { state: 'COMPENSATED', reconciledAt: new Date() } }
     );
     return { state: 'COMPENSATED', action: 'compensated' };

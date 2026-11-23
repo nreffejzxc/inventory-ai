@@ -68,6 +68,13 @@ function parseQueryList(req: AuthenticatedRequest) {
 
   const lowStock = parseFlag(req.query.lowStock);
   const outOfStock = parseFlag(req.query.outOfStock);
+  const needsAttention = parseFlag(req.query.needsAttention);
+  const includeCounts = parseFlag(req.query.includeCounts);
+  const stockStatus = optionalEnum(req.query.stockStatus, 'stockStatus', [
+    'LOW_STOCK',
+    'OUT_OF_STOCK',
+  ], { message: 'stockStatus must be LOW_STOCK or OUT_OF_STOCK' });
+  problems.push(...stockStatus.problems);
 
   return {
     q: search.value,
@@ -76,6 +83,9 @@ function parseQueryList(req: AuthenticatedRequest) {
     locationId: locationId.value,
     lowStock,
     outOfStock,
+    needsAttention,
+    stockStatus: stockStatus.value,
+    includeCounts,
     page,
     limit,
     skip,
@@ -152,8 +162,11 @@ const inventoryController = {
   async list(req: AuthenticatedRequest, res: Response) {
     const parsed = parseQueryList(req);
     if (parsed.problems.length) throwValidation(parsed.problems);
-    const { items, total } = await inventoryService.listRows(req.user!.businessId, parsed);
-    res.json(pageResult(items, total, parsed.page, parsed.limit));
+    const { items, total, counts } = await inventoryService.listRows(req.user!.businessId, parsed);
+    res.json({
+      ...pageResult(items, total, parsed.page, parsed.limit),
+      ...(counts ? { counts } : {}),
+    });
   },
 
   async get(req: AuthenticatedRequest, res: Response) {

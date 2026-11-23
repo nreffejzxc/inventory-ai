@@ -29,8 +29,16 @@ import Product from '../src/models/product.model.ts';
 import Inventory from '../src/models/inventory.model.ts';
 import InventoryTransaction from '../src/models/inventoryTransaction.model.ts';
 import AuditLog from '../src/models/auditLog.model.ts';
+import AuditOutbox from '../src/models/auditOutbox.model.ts';
 import IdempotencyRecord from '../src/models/idempotencyRecord.model.ts';
 import ProductImport from '../src/models/productImport.model.ts';
+import {
+  markReceiptUnlessCompleted,
+  recordImportStockProgress,
+  reserveImportProduct,
+} from '../src/services/productImport.service.ts';
+import productImportService from '../src/services/productImport.service.ts';
+import { recordAudit, recordAuditOnce } from '../src/services/audit.service.ts';
 import { ROLES } from '../src/constants/roles.ts';
 
 const { ObjectId } = mongoose.Types;
@@ -205,6 +213,355 @@ dbSuite('FW-01 product import over real HTTP', dbOk, () => {
     // Keep the next test's tenant-wide product count independent of this fixture.
     await ProductImport.deleteOne({ _id: receipt._id });
     await Product.deleteOne({ _id: productId, businessId: new ObjectId(owner.businessId) });
+  });
+
+  it('★ keeps one reservation and one stock-progress row under concurrent same-key writes', async () => {
+    const receipt = await ProductImport.create({
+      businessId: new ObjectId(owner.businessId),
+      key: uniqueName('concurrent-progress'),
+      fingerprint: 'concurrent-progress-fingerprint',
+      fileName: 'concurrent-progress.csv',
+      status: 'IN_PROGRESS',
+      totalRows: 1,
+    });
+    const productId = new ObjectId();
+    const transactionId = new ObjectId();
+
+    // Both writes are the exact duplicate a second same-key delivery performs.
+    // `$push` would append 40 copies; `$addToSet` must keep one.
+    await Promise.all(
+      Array.from({ length: 40 }, () =>
+        reserveImportProduct(receipt._id, 2, String(productId)),
+      ),
+    );
+    await Promise.all(
+      Array.from({ length: 40 }, () =>
+        recordImportStockProgress(receipt._id, 2, 5, String(transactionId)),
+      ),
+    );
+
+    const stored = await ProductImport.findById(receipt._id).lean();
+    assert.equal(stored.createdProducts.length, 1);
+    assert.equal(stored.stockOperations.length, 1);
+    assert.equal(String(stored.createdProducts[0].productId), String(productId));
+    assert.equal(stored.stockOperations[0].quantity, 5);
+    assert.equal(String(stored.stockOperations[0].inventoryTransactionId), String(transactionId));
+
+    await ProductImport.deleteOne({ _id: receipt._id });
+  });
+
+  it('★ concurrent duplicate same-key deliveries leave one catalogue and one receipt', async () => {
+    // A dedicated tenant keeps this test's eight products out of the fixture
+    // counts the older single-import tests assert on the shared owner.
+    const importOwner = await registerOwner(api, tracker);
+    const importLocation = await newLocation(importOwner);
+    const importCategory = await newCategory(importOwner);
+    const key = uniqueName('concurrent-http');
+    const fileName = 'concurrent-http.csv';
+    const skus = Array.from({ length: 8 }, (_, i) => uniqueName(`CONCURRENT-${i}`));
+    const body = {
+      fileName,
+      csv: csv(
+        skus.map((sku) => `Concurrent ${sku},${sku},,${importCategory.name},PHP,1,2,0,${importLocation.name},1`),
+      ),
+      dryRun: false,
+    };
+
+    const replies = await Promise.all([postImport(importOwner, body, key), postImport(importOwner, body, key)]);
+    for (const reply of replies) {
+      assert.ok([200, 201, 409].includes(reply.status), JSON.stringify(reply.json));
+    }
+    assert.ok(
+      replies.some((reply) => reply.status === 200 || reply.status === 201),
+      `no delivery applied the import: ${JSON.stringify(replies.map((reply) => reply.json))}`,
+    );
+
+    let status;
+    for (let attempt = 0; attempt < 50; attempt += 1) {
+      status = await getImportStatus(importOwner, key);
+      assert.equal(status.status, 200, JSON.stringify(status.json));
+      if (status.json.status === 'COMPLETED' || status.json.status === 'PARTIAL') break;
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+    assert.equal(status.json.status, 'COMPLETED', JSON.stringify(status.json));
+    assert.equal(status.json.createdCount, skus.length);
+    assert.equal(status.json.openingStockCount, skus.length);
+
+    const receipt = await ProductImport.findOne({
+      businessId: new ObjectId(importOwner.businessId),
+      key,
+    }).lean();
+    assert.equal(receipt.createdProducts.length, skus.length);
+    assert.equal(receipt.stockOperations.length, skus.length);
+    assert.equal(new Set(receipt.createdProducts.map((row) => row.line)).size, skus.length);
+    assert.equal(new Set(receipt.createdProducts.map((row) => String(row.productId))).size, skus.length);
+    assert.equal(new Set(receipt.stockOperations.map((row) => row.line)).size, skus.length);
+
+    const products = await Product.find({
+      businessId: new ObjectId(importOwner.businessId),
+      sku: { $in: skus },
+    }).lean();
+    assert.equal(products.length, skus.length);
+    const productIds = products.map((product) => product._id);
+    assert.equal(
+      await Inventory.countDocuments({
+        businessId: new ObjectId(importOwner.businessId),
+        productId: { $in: productIds },
+      }),
+      skus.length,
+    );
+    assert.equal(
+      await InventoryTransaction.countDocuments({
+        businessId: new ObjectId(importOwner.businessId),
+        productId: { $in: productIds },
+        type: 'STOCK_IN',
+      }),
+      skus.length,
+    );
+
+    // The transport row is not the only idempotency guard: a replay after it is
+    // removed must return the durable receipt without writing another row.
+    await IdempotencyRecord.deleteMany({ businessId: new ObjectId(importOwner.businessId), key });
+    const replay = await postImport(importOwner, body, key);
+    assert.equal(replay.status, 200, JSON.stringify(replay.json));
+    assert.equal(replay.json.replayed, true);
+    assert.equal(replay.json.createdCount, skus.length);
+    assert.equal(
+      await Product.countDocuments({ businessId: new ObjectId(importOwner.businessId), sku: { $in: skus } }),
+      skus.length,
+    );
+  });
+
+  it('★ direct concurrent service applies write exactly one import audit row', async () => {
+    // The HTTP test above also has the transport idempotency row. Call the service
+    // directly, with an already-applied receipt reset to IN_PROGRESS, so two
+    // callers race only on finalization: both see every product and stock row as
+    // done and both try to close the same key. Only one may append the audit.
+    const importOwner = await registerOwner(api, tracker);
+    const importLocation = await newLocation(importOwner);
+    const importCategory = await newCategory(importOwner);
+    const key = uniqueName('concurrent-service');
+    const fileName = 'concurrent-service.csv';
+    const skus = [uniqueName('SERVICE-A'), uniqueName('SERVICE-B')];
+    const request = {
+      fileName,
+      csv: csv(
+        skus.map((sku) => `Service ${sku},${sku},,${importCategory.name},PHP,1,2,0,${importLocation.name},1`),
+      ),
+      dryRun: false,
+    };
+
+    const first = await productImportService.apply(importOwner.businessId, importOwner.userId, key, request);
+    assert.equal(first.status, 201, JSON.stringify(first.body));
+    const businessFilter = { businessId: new ObjectId(importOwner.businessId) };
+    await AuditLog.deleteMany({ ...businessFilter, action: 'PRODUCTS_IMPORTED' });
+    // This deliberately rewinds a terminal receipt, so its already-DELIVERED
+    // outbox hand-off is rewound too; otherwise the re-finalization has no new
+    // event to append and the test would not exercise the audit race.
+    await AuditOutbox.deleteMany({ ...businessFilter });
+    await ProductImport.updateOne(
+      { ...businessFilter, key },
+      { $set: { status: 'IN_PROGRESS', finishedAt: null, result: null, auditEnqueuedAt: null } },
+    );
+
+    const replies = await Promise.all([
+      productImportService.apply(importOwner.businessId, importOwner.userId, key, request),
+      productImportService.apply(importOwner.businessId, importOwner.userId, key, request),
+    ]);
+    const applied = replies.filter((reply) => reply.status === 201);
+    const replayed = replies.filter((reply) => reply.status === 200);
+    assert.equal(replies.length, 2);
+    assert.equal(applied.length, 1, JSON.stringify(replies.map((reply) => reply.body)));
+    assert.equal(replayed.length, 1, JSON.stringify(replies.map((reply) => reply.body)));
+
+    const stored = await ProductImport.findOne({ ...businessFilter, key }).lean();
+    const audits = await AuditLog.find({
+      ...businessFilter,
+      action: 'PRODUCTS_IMPORTED',
+      entityId: String(stored._id),
+    }).lean();
+    assert.equal(audits.length, 1, `expected one audit row, got ${audits.length}`);
+    assert.equal(audits[0].dedupeKey, `product-import:${String(stored._id)}:completed`);
+    assert.equal(audits[0].metadata.fileName, fileName);
+    assert.equal(audits[0].metadata.createdCount, skus.length);
+    assert.equal(audits[0].metadata.openingStockCount, skus.length);
+
+    assert.equal(await Product.countDocuments({ ...businessFilter, sku: { $in: skus } }), skus.length);
+    assert.equal(
+      await InventoryTransaction.countDocuments({
+        ...businessFilter,
+        type: 'STOCK_IN',
+        reference: `CSV import: ${fileName}`,
+      }),
+      skus.length,
+    );
+    assert.equal(stored.status, 'COMPLETED');
+    assert.equal(stored.createdProducts.length, skus.length);
+    assert.equal(stored.stockOperations.length, skus.length);
+  });
+
+  it('★ a completed receipt is terminal under late failure transitions', async () => {
+    const importOwner = await registerOwner(api, tracker);
+    const key = uniqueName('terminal-receipt');
+    const receipt = await ProductImport.create({
+      businessId: new ObjectId(importOwner.businessId),
+      key,
+      fingerprint: 'terminal-receipt-fingerprint',
+      fileName: 'terminal.csv',
+      status: 'IN_PROGRESS',
+      totalRows: 3,
+    });
+    const result = {
+      dryRun: false,
+      fileName: 'terminal.csv',
+      totalRows: 3,
+      createdCount: 3,
+      openingStockCount: 2,
+      openingStockUnits: 7,
+      products: [{ line: 2, id: String(new ObjectId()), name: 'One', sku: 'T-1' }],
+    };
+    const completed = await markReceiptUnlessCompleted(receipt._id, {
+      status: 'COMPLETED',
+      result,
+      failures: [],
+      finishedAt: new Date(),
+    });
+    assert.ok(completed, 'the first completion must win the receipt');
+
+    // These are the exact late branches that used to overwrite a completed
+    // receipt: validation failure, product-create failure and retry startup.
+    // Running them together proves none can reopen the terminal state.
+    const late = await Promise.all([
+      markReceiptUnlessCompleted(receipt._id, {
+        status: 'PARTIAL',
+        failures: [{ line: 3, code: 'LATE_FAILURE', message: 'late' }],
+      }),
+      markReceiptUnlessCompleted(receipt._id, {
+        status: 'FAILED',
+        failures: [{ line: 4, code: 'LATE_FAILURE', message: 'late' }],
+      }),
+      markReceiptUnlessCompleted(receipt._id, {
+        status: 'IN_PROGRESS',
+        totalRows: 99,
+        failures: [],
+      }),
+    ]);
+    assert.deepEqual(late, [null, null, null]);
+
+    const stored = await ProductImport.findById(receipt._id).lean();
+    assert.equal(stored.status, 'COMPLETED');
+    assert.equal(stored.totalRows, 3);
+    assert.deepEqual(stored.failures, []);
+    assert.deepEqual(stored.result, result);
+    assert.ok(stored.finishedAt instanceof Date);
+  });
+
+  it('★ a completed receipt is terminal against late progress writes', async () => {
+    const importOwner = await registerOwner(api, tracker);
+    const receipt = await ProductImport.create({
+      businessId: new ObjectId(importOwner.businessId),
+      key: uniqueName('terminal-progress'),
+      fingerprint: 'terminal-progress-fingerprint',
+      fileName: 'terminal-progress.csv',
+      status: 'IN_PROGRESS',
+      totalRows: 2,
+    });
+    const productId = new ObjectId();
+    const transactionId = new ObjectId();
+    await reserveImportProduct(receipt._id, 2, String(productId));
+    await recordImportStockProgress(receipt._id, 2, 4, String(transactionId));
+    const completed = await markReceiptUnlessCompleted(receipt._id, {
+      status: 'COMPLETED',
+      result: { dryRun: false, createdCount: 1, openingStockCount: 1 },
+      failures: [],
+      finishedAt: new Date(),
+    });
+    assert.ok(completed);
+
+    await reserveImportProduct(receipt._id, 3, String(new ObjectId()));
+    await recordImportStockProgress(receipt._id, 3, 9, String(new ObjectId()));
+
+    const stored = await ProductImport.findById(receipt._id).lean();
+    assert.equal(stored.status, 'COMPLETED');
+    assert.equal(stored.createdProducts.length, 1);
+    assert.equal(stored.stockOperations.length, 1);
+    assert.equal(stored.stockOperations[0].line, 2);
+  });
+
+  it('★ shared audit dedupe closes the replay window across businesses', async () => {
+    await AuditLog.init();
+    const importOwner = await registerOwner(api, tracker);
+    const dedupeKey = uniqueName('audit-dedupe');
+    const event = {
+      businessId: importOwner.businessId,
+      userId: importOwner.userId,
+      action: 'PRODUCTS_IMPORTED',
+      entityType: 'PRODUCT_IMPORT',
+      entityId: String(new ObjectId()),
+      metadata: { replay: true },
+      dedupeKey,
+    };
+
+    const raced = await Promise.all(
+      Array.from({ length: 12 }, () => recordAuditOnce(event)),
+    );
+    assert.equal(new Set(raced.map((row) => String(row._id))).size, 1);
+    assert.equal(
+      await AuditLog.countDocuments({ businessId: importOwner.businessId, dedupeKey }),
+      1,
+    );
+
+    // A replay key is tenant-scoped: another business may use the same opaque
+    // value without being treated as the first business's duplicate.
+    await recordAuditOnce({ ...event, businessId: other.businessId, userId: other.userId });
+    assert.equal(await AuditLog.countDocuments({ businessId: other.businessId, dedupeKey }), 1);
+
+    // Ordinary events keep their historical append-only behaviour.
+    const noKey = { ...event, dedupeKey: undefined };
+    await recordAudit(noKey);
+    await recordAudit(noKey);
+    assert.equal(
+      await AuditLog.countDocuments({ businessId: importOwner.businessId, action: 'PRODUCTS_IMPORTED' }),
+      // The dedupe test wrote one, and the two ordinary writes are distinct events.
+      3,
+    );
+  });
+
+  it('★ completion wins a concurrent failure/completion transition', async () => {
+    const importOwner = await registerOwner(api, tracker);
+    const key = uniqueName('concurrent-completion');
+    const receipt = await ProductImport.create({
+      businessId: new ObjectId(importOwner.businessId),
+      key,
+      fingerprint: 'concurrent-completion-fingerprint',
+      fileName: 'concurrent-completion.csv',
+      status: 'IN_PROGRESS',
+      totalRows: 1,
+    });
+    const result = { dryRun: false, fileName: 'concurrent-completion.csv', createdCount: 1 };
+
+    const [failure, completion] = await Promise.all([
+      markReceiptUnlessCompleted(receipt._id, {
+        status: 'PARTIAL',
+        failures: [{ line: 2, code: 'LATE_FAILURE', message: 'late' }],
+      }),
+      markReceiptUnlessCompleted(receipt._id, {
+        status: 'COMPLETED',
+        result,
+        failures: [],
+        finishedAt: new Date(),
+      }),
+    ]);
+    assert.ok(completion, 'one completion must claim the receipt');
+    // If the failure ran first it may have written PARTIAL, but completion still
+    // overwrites it. If completion ran first, the failure sees a terminal row and
+    // returns null. In both orders the final state must be COMPLETED.
+    assert.ok(failure === null || failure.status === 'PARTIAL');
+
+    const stored = await ProductImport.findById(receipt._id).lean();
+    assert.equal(stored.status, 'COMPLETED');
+    assert.deepEqual(stored.failures, []);
+    assert.deepEqual(stored.result, result);
   });
 
   it('applies products and opening stock once, then replays from the durable receipt', async () => {

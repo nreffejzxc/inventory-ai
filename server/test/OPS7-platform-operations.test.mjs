@@ -817,26 +817,37 @@ dbSuite('PLAT-1 cross-tenant aggregation (fixed window)', dbOk, () => {
    * idempotent with fixed ids so a lost acknowledgement cannot duplicate them.
    */
   const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+  const FIXTURE_RETRY_MS = 200;
+  const FIXTURE_TIMEOUT_MS = 10_000;
   async function fixtureWrite(label, write) {
+    const deadline = Date.now() + FIXTURE_TIMEOUT_MS;
     let lastError = null;
-    for (let attempt = 1; attempt <= 50; attempt += 1) {
-      if (mongoose.connection.readyState !== 1) {
-        await sleep(200);
-        continue;
+    while (Date.now() < deadline) {
+      if (mongoose.connection.readyState === 1) {
+        try {
+          const result = await write();
+          if (result !== false) return result;
+          lastError = new Error(`${label} writer returned false`);
+        } catch (err) {
+          lastError = err;
+        }
       }
-      try {
-        const result = await write();
-        if (result !== false) return result;
-        lastError = new Error(`${label} writer returned false`);
-      } catch (err) {
-        lastError = err;
-      }
-      await sleep(200);
+      await sleep(FIXTURE_RETRY_MS);
     }
     assert.fail(
-      `${label} fixture write did not persist after 50 attempts: ${
+      `${label} fixture write did not persist within ${FIXTURE_TIMEOUT_MS}ms: ${
         lastError instanceof Error ? lastError.message : 'MongoDB did not reconnect'
       }`,
+    );
+  }
+
+  function fixtureUpsert(label, model, id, document, options = {}) {
+    return fixtureWrite(label, () =>
+      model.updateOne(
+        { _id: id },
+        { $setOnInsert: document },
+        { upsert: true, ...options },
+      ),
     );
   }
 
@@ -877,43 +888,39 @@ dbSuite('PLAT-1 cross-tenant aggregation (fixed window)', dbOk, () => {
 
     // Feedback: one per tenant, one down reason each. Fixed ids make the upsert
     // safe to retry if the insert commits but its acknowledgement is lost.
-    await fixtureWrite('feedback A', () =>
-      AiFeedback.updateOne(
-        { _id: feedbackAId },
-        {
-          $setOnInsert: {
-            businessId: businessA,
-            conversationId: new mongoose.Types.ObjectId(),
-            messageId: new mongoose.Types.ObjectId(),
-            userId: memberA,
-            rating: 'DOWN',
-            reason: 'INCORRECT_DATA',
-            status: 'OPEN',
-            createdAt: inside,
-            updatedAt: inside,
-          },
-        },
-        { upsert: true, timestamps: false },
-      ),
+    await fixtureUpsert(
+      'feedback A',
+      AiFeedback,
+      feedbackAId,
+      {
+        businessId: businessA,
+        conversationId: new mongoose.Types.ObjectId(),
+        messageId: new mongoose.Types.ObjectId(),
+        userId: memberA,
+        rating: 'DOWN',
+        reason: 'INCORRECT_DATA',
+        status: 'OPEN',
+        createdAt: inside,
+        updatedAt: inside,
+      },
+      { timestamps: false },
     );
-    await fixtureWrite('feedback B', () =>
-      AiFeedback.updateOne(
-        { _id: feedbackBId },
-        {
-          $setOnInsert: {
-            businessId: businessB,
-            conversationId: new mongoose.Types.ObjectId(),
-            messageId: new mongoose.Types.ObjectId(),
-            userId: memberB,
-            rating: 'DOWN',
-            reason: 'MISSING_INFORMATION',
-            status: 'OPEN',
-            createdAt: inside,
-            updatedAt: inside,
-          },
-        },
-        { upsert: true, timestamps: false },
-      ),
+    await fixtureUpsert(
+      'feedback B',
+      AiFeedback,
+      feedbackBId,
+      {
+        businessId: businessB,
+        conversationId: new mongoose.Types.ObjectId(),
+        messageId: new mongoose.Types.ObjectId(),
+        userId: memberB,
+        rating: 'DOWN',
+        reason: 'MISSING_INFORMATION',
+        status: 'OPEN',
+        createdAt: inside,
+        updatedAt: inside,
+      },
+      { timestamps: false },
     );
 
     // Feature presence: two members on one tenant and one on the other.
@@ -936,54 +943,45 @@ dbSuite('PLAT-1 cross-tenant aggregation (fixed window)', dbOk, () => {
 
     // Errors: one per tenant at a fixed instant. Build the same bounded row the
     // writer would store, with a fixed id, so a retry is an idempotent upsert.
-    await fixtureWrite('error A', () =>
-      OpsErrorEvent.updateOne(
-        { _id: errorAId },
-        {
-          $setOnInsert: buildOpsErrorEvent({
-            businessId: String(businessA),
-            status: 503,
-            code: 'AI_UNAVAILABLE',
-            method: 'POST',
-            path: '/api/ai/chat',
-            now: inside,
-          }),
-        },
-        { upsert: true },
-      ),
+    await fixtureUpsert(
+      'error A',
+      OpsErrorEvent,
+      errorAId,
+      buildOpsErrorEvent({
+        businessId: String(businessA),
+        status: 503,
+        code: 'AI_UNAVAILABLE',
+        method: 'POST',
+        path: '/api/ai/chat',
+        now: inside,
+      }),
     );
-    await fixtureWrite('error B', () =>
-      OpsErrorEvent.updateOne(
-        { _id: errorBId },
-        {
-          $setOnInsert: buildOpsErrorEvent({
-            businessId: String(businessB),
-            status: 500,
-            code: 'INTERNAL_ERROR',
-            method: 'GET',
-            path: '/api/products/507f1f77bcf86cd799439011',
-            now: inside,
-          }),
-        },
-        { upsert: true },
-      ),
+    await fixtureUpsert(
+      'error B',
+      OpsErrorEvent,
+      errorBId,
+      buildOpsErrorEvent({
+        businessId: String(businessB),
+        status: 500,
+        code: 'INTERNAL_ERROR',
+        method: 'GET',
+        path: '/api/products/507f1f77bcf86cd799439011',
+        now: inside,
+      }),
     );
     // A pre-authentication 5xx has no tenant. It must count in the platform
     // total and must NOT inflate the affected-tenant count.
-    await fixtureWrite('error without tenant', () =>
-      OpsErrorEvent.updateOne(
-        { _id: errorNoTenantId },
-        {
-          $setOnInsert: buildOpsErrorEvent({
-            status: 500,
-            code: 'INTERNAL_ERROR',
-            method: 'GET',
-            path: '/api/health',
-            now: inside,
-          }),
-        },
-        { upsert: true },
-      ),
+    await fixtureUpsert(
+      'error without tenant',
+      OpsErrorEvent,
+      errorNoTenantId,
+      buildOpsErrorEvent({
+        status: 500,
+        code: 'INTERNAL_ERROR',
+        method: 'GET',
+        path: '/api/health',
+        now: inside,
+      }),
     );
   });
 

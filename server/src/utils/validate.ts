@@ -1340,6 +1340,85 @@ export function validatePurchaseOrder(body: Body, { partial = false }: PartialOp
   };
 }
 
+/**
+ * FW-01 follow-on — create one DRAFT purchase order from selected restock rows.
+ * The client sends the row values it displayed; the service compares them with
+ * a fresh location-scoped read and refuses stale selections instead of ordering
+ * a quantity nobody reviewed. The order quantity itself is always recomputed on
+ * the server.
+ */
+export function validateDraftFromRestock(body: Body) {
+  const problems: Problem[] = [];
+
+  const supplierId = requiredRefId(body?.supplierId, 'supplierId');
+  problems.push(...supplierId.problems);
+  const locationId = requiredRefId(body?.locationId, 'locationId');
+  problems.push(...locationId.problems);
+  const expectedAt = optionalDate(body?.expectedAt, 'expectedAt');
+  problems.push(...expectedAt.problems);
+  const notes = optionalString(body?.notes, 'notes', PO_NOTES_MAX);
+  problems.push(...notes.problems);
+
+  const rawItems = body?.items;
+  let items:
+    | Array<{ productId: string; availableQuantity: number; minimumStock: number }>
+    | undefined;
+  if (!Array.isArray(rawItems)) {
+    problems.push({ field: 'items', message: 'items must be an array' });
+  } else if (rawItems.length === 0) {
+    problems.push({ field: 'items', message: 'items must not be empty' });
+  } else if (rawItems.length > PO_ITEMS_MAX) {
+    problems.push({ field: 'items', message: `items must have at most ${PO_ITEMS_MAX} entries` });
+  } else {
+    const seen = new Set<string>();
+    items = rawItems.map((line, idx) => {
+      const prefix = `items[${idx}]`;
+      const obj = (line && typeof line === 'object' ? line : {}) as Record<string, unknown>;
+      const productId = isObjectId(obj.productId) ? obj.productId : undefined;
+      if (!productId) {
+        problems.push({ field: `${prefix}.productId`, message: 'productId is required and must be a valid id' });
+      } else {
+        const key = productId.toLowerCase();
+        if (seen.has(key)) {
+          problems.push({ field: `${prefix}.productId`, message: 'duplicate productId in items' });
+        }
+        seen.add(key);
+      }
+      const availableQuantity = requiredNumber(obj.availableQuantity, 'availableQuantity', {
+        min: 0,
+        integer: true,
+      });
+      for (const p of availableQuantity.problems) {
+        problems.push({ field: `${prefix}.${p.field}`, message: p.message });
+      }
+      const minimumStock = requiredNumber(obj.minimumStock, 'minimumStock', { min: 0, integer: true });
+      for (const p of minimumStock.problems) {
+        problems.push({ field: `${prefix}.${p.field}`, message: p.message });
+      }
+      return {
+        productId: productId!,
+        availableQuantity: availableQuantity.value!,
+        minimumStock: minimumStock.value!,
+      };
+    });
+  }
+
+  return {
+    problems,
+    supplierId: supplierId.value,
+    locationId: locationId.value,
+    expectedAt: expectedAt.value,
+    notes: notes.value,
+    items,
+  };
+}
+
+/** The same required-id shape the PO validator uses, for the restock body. */
+function requiredRefId(value: unknown, fieldName: string) {
+  if (!value) return { value: undefined, problems: [{ field: fieldName, message: `${fieldName} is required` }] };
+  return optionalObjectId(value, fieldName);
+}
+
 function parseReceiveLine(line: unknown, idx: number, problems: Problem[], seenProductIds: Set<string>) {
   const prefix = `lines[${idx}]`;
   // Same treatment as parsePoLine: an untrusted array element read as a bag of

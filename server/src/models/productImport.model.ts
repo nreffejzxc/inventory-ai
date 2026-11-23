@@ -47,6 +47,8 @@ const productImportSchema = new Schema(
     businessId: { type: Schema.Types.ObjectId, ref: 'Business', required: true, index: true },
     key: { type: String, required: true, trim: true },
     fingerprint: { type: String, required: true },
+    /** The operator who started the import; retained for audit repair after a crash. */
+    userId: { type: Schema.Types.ObjectId, ref: 'User' },
     fileName: { type: String, required: true, trim: true },
     status: {
       type: String,
@@ -62,12 +64,19 @@ const productImportSchema = new Schema(
     failures: { type: [importErrorSchema], default: [] },
     result: { type: Schema.Types.Mixed },
     finishedAt: { type: Date },
+    /**
+     * Set only after the durable audit outbox row exists. Recovery scans
+     * completed receipts where this is still null, which is the crash window
+     * between the business commit and the audit hand-off.
+     */
+    auditEnqueuedAt: { type: Date },
   },
   { collection: 'product_imports', timestamps: true },
 );
 
 productImportSchema.index({ businessId: 1, key: 1 }, { unique: true });
 productImportSchema.index({ businessId: 1, createdAt: -1 });
+productImportSchema.index({ status: 1, auditEnqueuedAt: 1, updatedAt: 1 });
 
 const ProductImport = mongoose.model('ProductImport', productImportSchema);
 

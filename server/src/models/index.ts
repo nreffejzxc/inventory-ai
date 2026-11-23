@@ -19,6 +19,7 @@ import StockTransferOperation from './stockTransferOperation.model.ts';
 import StockMovementOperation from './stockMovementOperation.model.ts';
 import IntegrityRecoveryLease from './integrityRecoveryLease.model.ts';
 import AuditFailure from './auditFailure.model.ts';
+import AuditOutbox from './auditOutbox.model.ts';
 import AIConversation from './aiConversation.model.ts';
 import AIMessage from './aiMessage.model.ts';
 import AiTurnMetric from './aiTurnMetric.model.ts';
@@ -54,6 +55,7 @@ export {
   StockMovementOperation,
   IntegrityRecoveryLease,
   AuditFailure,
+  AuditOutbox,
   AIConversation,
   AIMessage,
   AiTurnMetric,
@@ -91,6 +93,7 @@ export const models = [
   StockMovementOperation,
   IntegrityRecoveryLease,
   AuditFailure,
+  AuditOutbox,
   AIConversation,
   AIMessage,
   AiTurnMetric,

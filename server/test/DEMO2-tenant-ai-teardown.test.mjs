@@ -31,6 +31,7 @@ import Location from '../src/models/location.model.ts';
 import PasswordResetChallenge from '../src/models/passwordResetChallenge.model.ts';
 import PasswordResetToken from '../src/models/passwordResetToken.model.ts';
 import Product from '../src/models/product.model.ts';
+import ProductImport from '../src/models/productImport.model.ts';
 import PurchaseOrder from '../src/models/purchaseOrder.model.ts';
 import Session from '../src/models/session.model.ts';
 import Supplier from '../src/models/supplier.model.ts';
@@ -39,6 +40,7 @@ import AIConversation from '../src/models/aiConversation.model.ts';
 import AIMessage from '../src/models/aiMessage.model.ts';
 import AiTurnMetric from '../src/models/aiTurnMetric.model.ts';
 import AuditFailure from '../src/models/auditFailure.model.ts';
+import AuditOutbox from '../src/models/auditOutbox.model.ts';
 import StockTransferOperation from '../src/models/stockTransferOperation.model.ts';
 import OpsErrorEvent from '../src/models/opsErrorEvent.model.ts';
 import OpsFeatureUsage from '../src/models/opsFeatureUsage.model.ts';
@@ -192,6 +194,40 @@ async function seedEveryCleanupCollection(businessId, userId) {
       createdBy: userId,
     })),
   );
+  // The durable audit hand-off adds one more businessId-bearing collection to
+  // the shared teardown plan. Its count is distinct so a preview that paired
+  // the wrong collection with this number would fail.
+  await AuditOutbox.insertMany(
+    Array.from({ length: 18 }, (_, i) => ({
+      businessId,
+      dedupeKey: `preview-import:${i}:completed`,
+      action: 'PRODUCTS_IMPORTED',
+      entityType: 'PRODUCT_IMPORT',
+      entityId: `preview-import-${i}`,
+      userId,
+      status: 'DELIVERED',
+      attempts: 1,
+      availableAt: new Date(),
+      deliveredAt: new Date(),
+    })),
+  );
+
+  // FW-01 imports are tenant data too: the receipt keeps the operator key and
+  // file fingerprint, so a teardown that omits it leaves a resumable handle after
+  // the catalogue it described is gone. Its count (17) is distinct from every
+  // other fixture count, keeping the preview's collection/count pairing falsifiable.
+  await ProductImport.insertMany(
+    Array.from({ length: 17 }, (_, i) => ({
+      businessId,
+      key: `preview-import-${i}`,
+      fingerprint: `preview-import-fingerprint-${i}`,
+      fileName: `preview-import-${i}.csv`,
+      userId,
+      status: 'COMPLETED',
+      totalRows: i,
+      finishedAt: new Date(Date.now() - i * 1000),
+    })),
+  );
 
   await AiTurnMetric.insertMany(
     Array.from({ length: 12 }, (_, i) => ({
@@ -234,11 +270,13 @@ async function seedEveryCleanupCollection(businessId, userId) {
     inventory: 5,
     inventory_transactions: 2,
     purchase_orders: 6,
+    product_imports: 17,
     products: 4,
     categories: 8,
     locations: 9,
     suppliers: 10,
     audit_logs: 11,
+    audit_outbox: 18,
     audit_failures: 15,
     stock_transfer_operations: 16,
     invitations: 1,
@@ -329,7 +367,9 @@ async function resetDemo2() {
     User.deleteMany({ _id: { $in: userIds } }),
     Business.deleteMany({ _id: { $in: businessIds } }),
     Product.deleteMany({ businessId: { $in: businessIds } }),
+    ProductImport.deleteMany({ businessId: { $in: businessIds } }),
     AuditLog.deleteMany({ businessId: { $in: businessIds } }),
+    AuditOutbox.deleteMany({ businessId: { $in: businessIds } }),
     AuditFailure.deleteMany({ businessId: { $in: businessIds } }),
     StockTransferOperation.deleteMany({ businessId: { $in: businessIds } }),
     Category.deleteMany({ businessId: { $in: businessIds } }),

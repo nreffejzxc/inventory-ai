@@ -98,11 +98,20 @@ function inventoryServiceProblems(rawSrc) {
 
   const declared = src.match(/const filtersOnProduct = ([^;]+);/);
   if (!declared) problems.push('`filtersOnProduct` is missing');
-  else if (declared[1].includes('outOfStock')) {
+  else if (/(outOfStock|outFilter|canonicalOut)/.test(declared[1])) {
     problems.push('`outOfStock` is row-local and must not be routed through the product join');
   }
 
-  if (!src.includes('const rowLocalOutOfStock = Boolean(outOfStock) && !filtersOnProduct;')) {
+  const lowDeclared = src.match(/const lowFilter = ([^;]+);/);
+  if (!lowDeclared || /(outOfStock|outFilter|canonicalOut)/.test(lowDeclared[1])) {
+    problems.push('`lowFilter` must contain only low/attention conditions, never an out condition');
+  }
+
+  // The canonical Out status shares the same row-local route as the legacy flag.
+  if (!src.includes('const outFilter = Boolean(outOfStock) || canonicalOut;')) {
+    problems.push('the shared row-local out decision (`outFilter`) is missing');
+  }
+  if (!src.includes('const rowLocalOutOfStock = outFilter && !filtersOnProduct;')) {
     problems.push('the row-local `outOfStock` decision (`rowLocalOutOfStock`) is missing');
   }
   if (!src.includes('$lte: [rowAvailableExpr, 0]')) {
@@ -170,8 +179,8 @@ describe('each checker fails on the shape it exists to catch', () => {
   test('routing `outOfStock` back through the product join is reported', () => {
     const mutated = mutate(
       read(INVENTORY_SERVICE),
-      'const filtersOnProduct = productOnlyFilters || Boolean(lowStock);',
-      'const filtersOnProduct = productOnlyFilters || Boolean(lowStock) || Boolean(outOfStock);'
+      'const filtersOnProduct = productOnlyFilters || lowFilter;',
+      'const filtersOnProduct = productOnlyFilters || lowFilter || outFilter;'
     );
     const problems = inventoryServiceProblems(mutated);
     assert.ok(
@@ -214,11 +223,11 @@ describe('each checker fails on the shape it exists to catch', () => {
     const inventorySrc = read(INVENTORY_SERVICE);
     const routingMutation = mutate(
       inventorySrc,
-      'const filtersOnProduct = productOnlyFilters || Boolean(lowStock);',
-      'const filtersOnProduct = productOnlyFilters || Boolean(lowStock) || Boolean(outOfStock);'
+      'const filtersOnProduct = productOnlyFilters || lowFilter;',
+      'const filtersOnProduct = productOnlyFilters || lowFilter || outFilter;'
     );
     assert.notEqual(inventorySrc, routingMutation);
-    assert.match(codeOnly(routingMutation), /Boolean\(outOfStock\)/);
+    assert.match(codeOnly(routingMutation), /filtersOnProduct = productOnlyFilters \|\| lowFilter \|\| outFilter/);
     assert.notEqual(
       inventorySrc,
       mutate(

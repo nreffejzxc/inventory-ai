@@ -48,6 +48,7 @@ import mongoose from 'mongoose';
 import { startServer, disconnectDb } from './support.mjs';
 import { dbSuite } from './testEnv.mjs';
 import models from '../src/models/index.ts';
+import { checkRequiredIndexes } from '../src/config/indexReadiness.ts';
 
 const { dbOk, server } = await startServer();
 
@@ -146,6 +147,16 @@ dbSuite('Index integrity — declared indexes exist in the database', dbOk, () =
     }
 
     assert.deepEqual(report, [], `declaration/database disagreements:\n  - ${report.join('\n  - ')}`);
+  });
+
+  it('★ the readiness gate accepts all six live required indexes', async () => {
+    for (const name of ['InventoryTransaction', 'PurchaseOrder', 'AuditLog']) {
+      const model = models.find((candidate) => candidate.modelName === name);
+      assert.ok(model, `${name} must be exported by the barrel`);
+      await model.init();
+    }
+    const readiness = await checkRequiredIndexes();
+    assert.deepEqual(readiness, { ready: true, failures: [] });
   });
 
   it('★ the AI-3 inventory page index is DECLARED and EXISTS in the database', async () => {

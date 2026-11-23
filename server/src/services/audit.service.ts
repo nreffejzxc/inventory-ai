@@ -22,6 +22,8 @@ type AuditEvent = {
   entityType: string;
   entityId?: IdLike | null;
   metadata?: unknown;
+  /** Present only on a replayable event; unique within its business. */
+  dedupeKey?: string;
 };
 
 /**
@@ -69,7 +71,7 @@ const escapeRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
  * AuditLog. Must never include sensitive values (no credentials, no prices of
  * unrelated data, no internal errors).
  */
-export async function recordAudit({ businessId, userId, action, entityType, entityId, metadata }: AuditEvent) {
+export async function recordAudit({ businessId, userId, action, entityType, entityId, metadata, dedupeKey }: AuditEvent) {
   return AuditLog.create({
     businessId,
     userId: userId || null,
@@ -77,7 +79,28 @@ export async function recordAudit({ businessId, userId, action, entityType, enti
     entityType,
     entityId: entityId == null ? undefined : String(entityId),
     metadata,
+    dedupeKey: dedupeKey?.trim() || undefined,
   });
+}
+
+/**
+ * Records a replayable event at most once per business. The unique partial index
+ * on `{ businessId, dedupeKey }` is the arbiter, so two concurrent deliveries
+ * cannot both append: the loser reads and returns the winner's row. A duplicate
+ * error whose row cannot be found is rethrown rather than hidden, because that
+ * means the index refused something this helper does not understand.
+ */
+export async function recordAuditOnce(event: AuditEvent & { dedupeKey: string }) {
+  const dedupeKey = event.dedupeKey.trim();
+  if (!dedupeKey) throw new Error('recordAuditOnce requires a non-empty dedupeKey');
+  try {
+    return await recordAudit({ ...event, dedupeKey });
+  } catch (err) {
+    if ((err as { code?: unknown } | null | undefined)?.code !== 11000) throw err;
+    const existing = await AuditLog.findOne({ businessId: event.businessId, dedupeKey }).lean();
+    if (!existing) throw err;
+    return existing;
+  }
 }
 
 /**
@@ -137,4 +160,4 @@ export async function listAudit(businessId: string, { action, entityType, userId
   return { items: docs.map(toPublicAudit), total };
 }
 
-export default { recordAudit, listAudit, toPublicAudit };
+export default { recordAudit, recordAuditOnce, listAudit, toPublicAudit };

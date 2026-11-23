@@ -33,6 +33,12 @@ const { Schema } = mongoose;
  * a movement has exactly one committed outcome, so a second attempt under the same
  * key may replay or recover it but must never create a sibling.
  */
+/** Bounded repair scan for a completed receipt whose audit hand-off never ran. */
+export const MOVEMENT_AUDIT_REPAIR_INDEX = {
+  name: 'movement_audit_repair',
+  key: { state: 1, auditTracked: 1, auditEnqueuedAt: 1, updatedAt: 1 },
+} as const;
+
 const stockMovementOperationSchema = new Schema(
   {
     businessId: {
@@ -117,6 +123,19 @@ const stockMovementOperationSchema = new Schema(
       trim: true,
       maxlength: 1000,
     },
+    /**
+     * Set on receipts created after the durable audit hand-off. It fences the
+     * repair scan away from historical receipts whose plain audit row predates
+     * dedupe keys; those must not be replayed a second time.
+     */
+    auditTracked: {
+      type: Boolean,
+    },
+    /**
+     * Set only after the outbox row exists. A COMPLETED tracked receipt with no
+     * marker is the crash window between completion and the audit hand-off.
+     */
+    auditEnqueuedAt: { type: Date },
   },
   { collection: 'stock_movement_operations', timestamps: true }
 );
@@ -127,6 +146,10 @@ const stockMovementOperationSchema = new Schema(
 stockMovementOperationSchema.index({ businessId: 1, requestKey: 1 }, { unique: true });
 // Operational scans (attention triage, a future reaper) read unfinished rows.
 stockMovementOperationSchema.index({ state: 1, updatedAt: 1 });
+// Unnamed on purpose: databases that already built this key during the local
+// rollout carry Mongoose's auto-generated name. Readiness accepts the exact key
+// and shape regardless of name, so naming it here would only force a conflict.
+stockMovementOperationSchema.index(MOVEMENT_AUDIT_REPAIR_INDEX.key);
 
 const StockMovementOperation = mongoose.model(
   'StockMovementOperation',

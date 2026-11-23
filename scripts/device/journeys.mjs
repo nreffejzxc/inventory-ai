@@ -275,7 +275,46 @@ const transfer = {
   ],
 };
 
-export const JOURNEYS = Object.freeze([smoke, label, draft, stock, transfer]);
+/**
+ * The Draft PO force-stop proof, end to end.
+ *
+ * The local proxy force-stops the app after it has fully received the Draft PO request and before
+ * it forwards that request upstream. The journey then asserts the process is gone, cold-starts the
+ * dev bundle, proves the saved attempt was restored, resumes it, and checks the database for exactly
+ * one DRAFT carrying the captured key and body.
+ *
+ * Needs `--allow-writes`, `--supplier`, `--location`, `--product1`, `--product2`, `--proxy-log` and
+ * `--database`. The proxy must be running with `--kill-package=com.inventoryai.app`.
+ */
+const draftResume = {
+  id: 'draft-resume',
+  summary:
+    'Submit a Draft PO, force-stop after the request, cold relaunch, resume the same key/body, and prove one DRAFT.',
+  steps: [
+    { open: 'inventoryai://purchase-orders/from-restock' },
+    { expect: 'Draft purchase order from restock' },
+    { pick: { field: 'Choose a supplier…', sheet: 'Supplier', option: '{{supplier}}' } },
+    { pick: { field: 'Choose a location…', sheet: 'Receiving location', option: '{{location}}' } },
+    { expect: '{{product1}}' },
+    { tap: '{{product1}}' },
+    { tap: '{{product2}}' },
+    { scroll: 'down' },
+    { expect: 'Create draft order (2 items)' },
+    { tap: 'Create draft order (2 items)' },
+    { expectStopped: { package: 'com.inventoryai.app', proxyLog: '{{proxyLog}}' } },
+    { relaunch: 'inventoryai://purchase-orders/from-restock' },
+    { expect: 'An unfinished draft attempt was restored' },
+    { scroll: 'down' },
+    { expect: 'Resume draft creation (2 items)' },
+    { tap: 'Resume draft creation (2 items)' },
+    { expect: 'Purchase Order' },
+    { expect: 'PO-' },
+    { shot: 'draft-po-resumed' },
+    { verifyDraftResume: { database: '{{database}}' } },
+  ],
+};
+
+export const JOURNEYS = Object.freeze([smoke, label, draft, stock, transfer, draftResume]);
 
 /** Journeys that write to the tenant, and are therefore never part of `--all`. */
-export const WRITE_JOURNEYS = Object.freeze(['draft', 'stock', 'transfer']);
+export const WRITE_JOURNEYS = Object.freeze(['draft', 'stock', 'transfer', 'draft-resume']);

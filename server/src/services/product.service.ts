@@ -1099,7 +1099,8 @@ export const productService = {
    *                classifyStockStatus: IN (available > minimum), LOW
    *                (0 < available <= minimum), OUT (available <= 0). The
    *                Overview deep links use this so a product cannot appear in
-   *                two cards or be counted once per location.
+   *                two cards or be counted once per location. A stockStatus
+   *                query is pinned to ACTIVE regardless of the requested status.
    * (SYSTEM_SPECIFICATION.md §19 — availability, never total quantity.)
    */
   async listWithStock(
@@ -1130,7 +1131,15 @@ export const productService = {
     const bizOid = new ObjectId(businessId);
     // Loose filter document: keys are added conditionally below.
     const match: Record<string, unknown> = { businessId: bizOid };
-    if (status === 'ACTIVE' || status === 'ARCHIVED') match.status = status;
+    // A stock-status query is an ACTIVE-catalogue view. The mobile chips already
+    // send ACTIVE, but a direct API request could otherwise ask for ARCHIVED and
+    // receive archived rows in a canonical stock bucket. Pin it in the service so
+    // the guard holds for every caller; legacy lowStock/outOfStock keep their own
+    // historical status behaviour.
+    // A canonical stock query ignores an explicit status and is always ACTIVE;
+    // ordinary list filters keep their validated ACTIVE/ARCHIVED choice.
+    if (stockStatus) match.status = 'ACTIVE';
+    else if (status === 'ACTIVE' || status === 'ARCHIVED') match.status = status;
     if (categoryId) match.categoryId = new ObjectId(categoryId);
     const priceMatch = sellingPriceMatch(
       maxSellingPrice,

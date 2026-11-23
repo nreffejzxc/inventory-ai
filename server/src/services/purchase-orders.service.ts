@@ -2,6 +2,7 @@ import crypto from 'node:crypto';
 import mongoose from 'mongoose';
 
 import PurchaseOrder from '../models/purchaseOrder.model.ts';
+import Product from '../models/product.model.ts';
 import Supplier from '../models/supplier.model.ts';
 import Inventory from '../models/inventory.model.ts';
 import InventoryTransaction from '../models/inventoryTransaction.model.ts';
@@ -10,6 +11,7 @@ import { inventoryService } from './inventory.service.ts';
 import ApiError from '../utils/ApiError.ts';
 import { recordAudit } from './audit.service.ts';
 import { monitorAuditFailure } from './auditFailure.service.ts';
+import { enqueueAndDeliverPoReceiveAudit } from './purchaseOrderReceiveAudit.service.ts';
 import { AUDIT_ACTIONS, AUDIT_ENTITY_TYPES } from '../constants/audit.ts';
 
 const { ObjectId } = mongoose.Types;
@@ -96,6 +98,10 @@ type ReceiptSource = {
   reference?: unknown;
   requestKey?: unknown;
   requestFingerprint?: unknown;
+  /** Stable identity of the receive operation; absent on historical receipts. */
+  receiveId?: unknown;
+  /** Set once the durable audit outbox row exists. */
+  auditEnqueuedAt?: unknown;
   lines?: ReceiptLineSource[];
 };
 
@@ -177,6 +183,22 @@ type PoCreatePayload = {
   expectedAt?: Date;
   notes?: string;
   items: PoLineInput[];
+};
+
+/** One displayed restock row, as the client saw it. */
+type RestockSelection = {
+  productId: string;
+  availableQuantity: number;
+  minimumStock: number;
+};
+
+/** The validated create-from-restock payload (`validateDraftFromRestock`). */
+type DraftFromRestockPayload = {
+  supplierId: string;
+  locationId: string;
+  expectedAt?: Date;
+  notes?: string;
+  items: RestockSelection[];
 };
 
 /** The validated update payload (`validatePurchaseOrder` with `{ partial: true }`). */
@@ -445,11 +467,82 @@ async function resolveOperational(
   return { supplier, location, items };
 }
 
-/** Create a PO in DRAFT. Allocates a business-scoped number under the unique
- * index and retries on a duplicate-key race (bounded). Never writes stock. */
-async function create(businessId: IdLike, userId: IdLike, payload: PoCreatePayload) {
-  const refs = await resolveOperational(businessId, payload.supplierId, payload.locationId, payload.items);
+/** Stable hash of the restock selection, used to reject a reused key with a new body. */
+function restockDraftFingerprint(payload: DraftFromRestockPayload): string {
+  return crypto
+    .createHash('sha256')
+    .update(
+      JSON.stringify({
+        supplierId: String(payload.supplierId),
+        locationId: String(payload.locationId),
+        expectedAt: payload.expectedAt ? payload.expectedAt.toISOString() : null,
+        notes: payload.notes ?? null,
+        items: payload.items.map((line) => ({
+          productId: String(line.productId),
+          availableQuantity: line.availableQuantity,
+          minimumStock: line.minimumStock,
+        })),
+      })
+    )
+    .digest('hex');
+}
 
+/**
+ * Replay a DRAFT already committed under this key. This is the durable fence
+ * behind the HTTP idempotency claim: if the process dies after `create` but
+ * before the middleware records the response, a same-key retry finds the order
+ * here instead of allocating a second one.
+ */
+async function replayRestockDraft(
+  businessId: IdLike,
+  requestKey: string,
+  requestFingerprint: string,
+) {
+  const existing = await PurchaseOrder.findOne({ businessId: oid(businessId), requestKey })
+    .select('_id requestFingerprint')
+    .lean<{ _id?: unknown; requestFingerprint?: unknown }>();
+  if (!existing) return null;
+  if (
+    typeof existing.requestFingerprint === 'string' &&
+    existing.requestFingerprint !== requestFingerprint
+  ) {
+    throw new ApiError(
+      422,
+      'This idempotency key was already used for a different request',
+      'IDEMPOTENCY_KEY_REUSED',
+    );
+  }
+  return detailPublic(await fetchPo(businessId, existing._id as IdLike));
+}
+
+/**
+ * Create a PO in DRAFT. Allocates a business-scoped number under the unique
+ * index and retries on a duplicate-key race (bounded). Never writes stock and
+ * never issues or sends the order.
+ */
+async function createDraft(
+  businessId: IdLike,
+  userId: IdLike,
+  {
+    supplierId,
+    locationId,
+    expectedAt,
+    notes,
+    items,
+    source,
+    requestKey,
+    requestFingerprint,
+  }: {
+    supplierId: IdLike;
+    locationId: IdLike;
+    expectedAt?: Date;
+    notes?: string;
+    items: PoItemWrite[];
+    source?: 'RESTOCK';
+    requestKey?: string;
+    requestFingerprint?: string;
+  },
+) {
   for (let attempt = 0; attempt < PO_NUMBER_MAX_ATTEMPTS; attempt += 1) {
     const number = await nextPurchaseOrderNumber(businessId);
     let po;
@@ -457,26 +550,209 @@ async function create(businessId: IdLike, userId: IdLike, payload: PoCreatePaylo
       po = await PurchaseOrder.create({
         businessId: oid(businessId),
         number,
-        supplierId: oid(payload.supplierId),
-        locationId: oid(payload.locationId),
-        expectedAt: payload.expectedAt,
-        notes: payload.notes,
+        supplierId: oid(supplierId),
+        locationId: oid(locationId),
+        expectedAt,
+        notes,
         status: 'DRAFT',
-        items: refs.items,
+        items,
+        ...(requestKey ? { requestKey, requestFingerprint } : {}),
       });
     } catch (err) {
-      if (isDuplicateKey(err)) continue; // a concurrent create took this number
+      if (isDuplicateKey(err)) {
+        // The number may have been taken by a concurrent create, or this may be
+        // a concurrent delivery of the same restock key. The durable row wins.
+        if (requestKey) {
+          const replay = await replayRestockDraft(businessId, requestKey, requestFingerprint!);
+          if (replay) return replay;
+        }
+        continue;
+      }
       throw err;
     }
     await recordPoAudit(businessId, userId, AUDIT_ACTIONS.PURCHASE_ORDER_CREATED, po._id, {
       number: po.number,
-      supplierId: String(refs.supplier._id),
-      locationId: String(refs.location._id),
+      supplierId: String(supplierId),
+      locationId: String(locationId),
+      ...(source ? { source } : {}),
     });
     return detailPublic(await fetchPo(businessId, String(po._id)));
   }
 
   throw new ApiError(409, 'Could not allocate a unique purchase order number; retry the request', 'PO_NUMBER_CONFLICT');
+}
+
+async function create(businessId: IdLike, userId: IdLike, payload: PoCreatePayload) {
+  const refs = await resolveOperational(businessId, payload.supplierId, payload.locationId, payload.items);
+  return createDraft(businessId, userId, {
+    supplierId: refs.supplier._id as IdLike,
+    locationId: refs.location._id as IdLike,
+    expectedAt: payload.expectedAt,
+    notes: payload.notes,
+    items: refs.items,
+  });
+}
+
+/**
+ * Create exactly one DRAFT PO from selected restock rows (FW-01 follow-on).
+ *
+ * The client's displayed rows are a snapshot, not an instruction: availability
+ * and the product's minimum can move between rendering and submit. The service
+ * re-reads both inside the caller's business and selected location; any row
+ * whose values no longer match is refused as `RESTOCK_ROWS_STALE` before a PO
+ * is allocated. Recomputing the order quantity on the server also means a
+ * client cannot order an arbitrary amount through this path. This method calls
+ * only `createDraft` — it never calls `issue` or any transmission path.
+ */
+async function createFromRestock(
+  businessId: IdLike,
+  userId: IdLike,
+  payload: DraftFromRestockPayload,
+  idempotencyKey?: string,
+) {
+  const requestFingerprint = idempotencyKey ? restockDraftFingerprint(payload) : undefined;
+  if (idempotencyKey && requestFingerprint) {
+    const replay = await replayRestockDraft(businessId, idempotencyKey, requestFingerprint);
+    if (replay) return replay;
+  }
+  const supplier = await assertOperationalSupplier(businessId, payload.supplierId);
+  const location = await inventoryService.assertOperationalLocation(businessId, payload.locationId);
+  const productIds = payload.items.map((line) => line.productId);
+  const products = await Product.find({
+    businessId: oid(businessId),
+    _id: { $in: productIds.map((id) => oid(id)) },
+  })
+    .select('name sku costPrice minimumStock status')
+    .lean();
+  const productById = new Map(products.map((product) => [String(product._id), product]));
+
+  // Keep the ORIGINAL row index in the field path. Filtering first and mapping
+  // the filtered array would report `items[0]` for a bad second row whenever an
+  // earlier row is valid, sending the operator to the wrong line.
+  const missing = payload.items
+    .map((line, index) => ({ line, index }))
+    .filter(({ line }) => !productById.has(line.productId));
+  if (missing.length) {
+    const err = new ApiError(404, 'A selected product no longer exists', 'PRODUCT_NOT_FOUND');
+    err.fields = missing.map(({ index }) => ({
+      field: `items[${index}].productId`,
+      message: 'This product no longer exists in your business.',
+    }));
+    throw err;
+  }
+  const archived = payload.items
+    .map((line, index) => ({ line, index }))
+    .filter(({ line }) => productById.get(line.productId)?.status !== 'ACTIVE');
+  if (archived.length) {
+    const err = new ApiError(409, 'An archived product cannot be ordered', 'PRODUCT_ARCHIVED');
+    err.fields = archived.map(({ index }) => ({
+      field: `items[${index}].productId`,
+      message: 'This product is archived and cannot be ordered.',
+    }));
+    throw err;
+  }
+
+  const stockRows = await Inventory.aggregate<{
+    _id: unknown;
+    quantity: number;
+    reservedQuantity: number;
+  }>([
+    {
+      $match: {
+        businessId: oid(businessId),
+        locationId: oid(payload.locationId),
+        productId: { $in: productIds.map((id) => oid(id)) },
+      },
+    },
+    {
+      $group: {
+        _id: '$productId',
+        quantity: { $sum: '$quantity' },
+        reservedQuantity: { $sum: '$reservedQuantity' },
+      },
+    },
+  ]);
+  const stockById = new Map(stockRows.map((row) => [String(row._id), row]));
+
+  const stale: Array<{
+    index: number;
+    productId: string;
+    expectedAvailableQuantity: number;
+    currentAvailableQuantity: number;
+    expectedMinimumStock: number;
+    currentMinimumStock: number;
+    reason: 'CHANGED' | 'NO_LONGER_BELOW_MINIMUM';
+  }> = [];
+  const items: PoItemWrite[] = [];
+  payload.items.forEach((line, index) => {
+    const product = productById.get(line.productId)!;
+    const row = stockById.get(line.productId);
+    const currentAvailableQuantity = (row?.quantity ?? 0) - (row?.reservedQuantity ?? 0);
+    const currentMinimumStock = product.minimumStock ?? 0;
+    if (
+      currentAvailableQuantity !== line.availableQuantity ||
+      currentMinimumStock !== line.minimumStock
+    ) {
+      stale.push({
+        index,
+        productId: line.productId,
+        expectedAvailableQuantity: line.availableQuantity,
+        currentAvailableQuantity,
+        expectedMinimumStock: line.minimumStock,
+        currentMinimumStock,
+        reason: 'CHANGED',
+      });
+      return;
+    }
+    if (currentAvailableQuantity > currentMinimumStock) {
+      stale.push({
+        index,
+        productId: line.productId,
+        expectedAvailableQuantity: line.availableQuantity,
+        currentAvailableQuantity,
+        expectedMinimumStock: line.minimumStock,
+        currentMinimumStock,
+        reason: 'NO_LONGER_BELOW_MINIMUM',
+      });
+      return;
+    }
+    items.push({
+      productId: product._id,
+      productName: product.name,
+      sku: product.sku || undefined,
+      quantityOrdered: Math.max(currentMinimumStock - currentAvailableQuantity, 1),
+      quantityReceived: 0,
+      quantityCommitted: 0,
+      unitCost: product.costPrice || undefined,
+    });
+  });
+
+  if (stale.length) {
+    const err = new ApiError(
+      409,
+      'Restock values changed while you were selecting; refresh the list and try again',
+      'RESTOCK_ROWS_STALE',
+    );
+    err.fields = stale.map((row) => ({
+      field: `items[${row.index}].productId`,
+      message:
+        row.reason === 'NO_LONGER_BELOW_MINIMUM'
+          ? 'This product is no longer at or below its minimum; refresh the restock list.'
+          : `This row changed (now ${row.currentAvailableQuantity} available, minimum ${row.currentMinimumStock}); refresh the restock list.`,
+    }));
+    throw err;
+  }
+
+  return createDraft(businessId, userId, {
+    supplierId: supplier._id as IdLike,
+    locationId: location._id as IdLike,
+    expectedAt: payload.expectedAt,
+    notes: payload.notes,
+    items,
+    source: 'RESTOCK',
+    requestKey: idempotencyKey,
+    requestFingerprint,
+  });
 }
 
 /**
@@ -916,6 +1192,25 @@ async function receive(
         newQuantity: Number(line.newQuantity),
         inventoryTransactionId: String(line.inventoryTransactionId),
       }));
+      // A replay can be the only chance to repair the audit after a crash that
+      // landed the receipt but never reached the outbox. The stored receipt's
+      // receiveId makes this the same dedupe key as the original attempt.
+      const receiptReceiveId = ownReceipts.find((receipt) => receipt.receiveId)?.receiveId;
+      if (receiptReceiveId) {
+        await enqueueAndDeliverPoReceiveAudit({
+          businessId,
+          poId: po._id as IdLike,
+          number: po.number,
+          receiveId: receiptReceiveId as IdLike,
+          userId: (ownReceipts[0]?.userId as IdLike | undefined) ?? userId,
+          reference:
+            (ownReceipts.find((receipt) => receipt.reference)?.reference as string | undefined) ??
+            reference,
+          status: po.status === 'RECEIVED' ? 'RECEIVED' : 'OPEN',
+          partial: !allRequestedApplied,
+          applied,
+        });
+      }
       if (allRequestedApplied) {
         return {
           allReceived: po.items.every((item) => (item.quantityReceived || 0) >= item.quantityOrdered),
@@ -987,6 +1282,10 @@ async function receive(
 
   const oidBiz = oid(businessId);
   const poId = oid(id);
+  // One audit identity for this receive operation. It is stamped on every
+  // receipt finalized below, so a crash before the batch hand-off can still be
+  // rebuilt from the PO's own durable receipts.
+  const receiveAuditId = new ObjectId();
   // `fetchPo` populates `locationId`, so it is normally the location document; the
   // `oid(...)` fallback still covers the unpopulated-id case, exactly as before.
   const receivingAt = po.locationId && (po.locationId as LocationRefSource)._id ? oid((po.locationId as LocationRefSource)._id as IdLike) : oid(po.locationId as IdLike);
@@ -1003,16 +1302,16 @@ async function receive(
   // type-level assertion it needs instead.
   const throwPartial = async (): Promise<never> => {
     if (applied.length > 0) {
-      await recordPoAudit(businessId, userId, AUDIT_ACTIONS.PURCHASE_ORDER_RECEIVED, poId, {
+      await enqueueAndDeliverPoReceiveAudit({
+        businessId,
+        poId,
         number: po.number,
+        receiveId: receiveAuditId,
+        userId,
+        reference,
         status: 'OPEN',
         partial: true,
-        reference: reference || undefined,
-        receivedLines: applied.map((a) => ({
-          productId: a.productId,
-          quantity: a.quantity,
-          inventoryTransactionId: a.inventoryTransactionId,
-        })),
+        applied,
       });
     }
     const err = new ApiError(
@@ -1142,6 +1441,7 @@ async function receive(
           reference: reference || '',
           ...(idempotencyKey ? { requestKey: idempotencyKey } : {}),
           requestFingerprint,
+          receiveId: receiveAuditId,
           lines: [
             {
               productId,
@@ -1211,15 +1511,15 @@ async function receive(
     );
   }
 
-  await recordPoAudit(businessId, userId, AUDIT_ACTIONS.PURCHASE_ORDER_RECEIVED, poId, {
+  await enqueueAndDeliverPoReceiveAudit({
+    businessId,
+    poId,
     number: po.number,
+    receiveId: receiveAuditId,
+    userId,
+    reference,
     status: allReceived ? 'RECEIVED' : 'OPEN',
-    reference: reference || undefined,
-    receivedLines: applied.map((a) => ({
-      productId: a.productId,
-      quantity: a.quantity,
-      inventoryTransactionId: a.inventoryTransactionId,
-    })),
+    applied,
   });
 
   return { allReceived, applied, po: detailPublic(await fetchPo(businessId, id)) };
@@ -1227,6 +1527,7 @@ async function receive(
 
 export const purchaseOrderService = {
   create,
+  createFromRestock,
   list,
   get,
   update,

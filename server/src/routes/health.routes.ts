@@ -19,15 +19,18 @@ import { exchangeRateAvailability } from '../services/ai/exchangeRates.ts';
  *                          uptime.
  *   GET /api/health/live   200 always — process is alive. Never consults MongoDB.
  *   GET /api/health/ready  200 only when MongoDB is reachable right now AND the
- *                          exact unique partial transfer-ledger index is present
- *                          with its required options, else 503. This is the
- *                          operational readiness gate a load balancer /
+ *                          six exact required indexes are present: the transfer
+ *                          ledger, Draft PO request key and audit dedupe unique
+ *                          guards, the DELIVERED outbox TTL, and the movement and
+ *                          PO receive audit-repair indexes. Otherwise 503. This is
+ *                          the operational readiness gate a load balancer /
  *                          orchestrator should poll.
  *
  * None of these expose the MongoDB URI, credentials, driver internals, or stack
- * traces. `/ready` performs one bounded `listIndexes` read after the driver's
- * connection check, so a reachable database missing the ledger guard cannot be
- * mistaken for a ready deployment. It never creates or repairs an index.
+ * traces. `/ready` performs bounded `listIndexes` reads after the driver's
+ * connection check, so a reachable database missing any required write or
+ * audit-maintenance index cannot be mistaken for a ready deployment. It never
+ * creates or repairs an index.
  *
  * OPS-2 — WHY `/api/health` ALSO CARRIES COUNTERS, AND WHY THE OTHER TWO DO NOT.
  *
