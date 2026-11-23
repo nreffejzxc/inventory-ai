@@ -1,10 +1,11 @@
 # Audit durability and retention — ranked follow-ups
 
 **Date:** 2026-11-23
-**Status:** Implementation record for ranks 1–3, planning for the rest. The six required indexes now
+**Status:** Implementation record for ranks 1–5, planning for the rest. The six required indexes now
 include the `audit_outbox` TTL and both repair indexes in the readiness gate and
 `migrate:required-indexes` (§27LI); the bounded health snapshot and child-process crash harness also
-shipped in §27LI. Ranks 4–11 remain unimplemented.
+shipped in §27LI. The schema-derived tenant-teardown guard and a read-only FAILED triage shipped in
+§27LJ; named escalation ownership remains open. Ranks 6–18 remain unimplemented.
 **Context:** The durable audit outbox now covers Product Import, keyed stock movement completion and
 PO receive. `DELIVERED` rows have a 30-day TTL; abandoned `FAILED` rows are retained and retried.
 The implementation and verification are recorded in §27LF of
@@ -14,11 +15,15 @@ The implementation and verification are recorded in §27LF of
 This list ranks the next improvements by the size of the correctness, operational or governance gap
 they close, not by how interesting they are to build. Effort is a rough local estimate.
 
-**Local result (2026-11-23).** Ranks 1–3 were implemented and tested only on this machine: six-index
+**Local result (2026-11-23).** Ranks 1–5 were implemented and tested only on this machine: six-index
 readiness and rollout checks (42/42 across the focused index/readiness/rollout suites), a health
 snapshot with a 15-minute `FAILED` and 10-minute unmarked-receipt threshold (2/2), and a
 four-boundary child-process harness proving one audit and one `DELIVERED` outbox row per case (1/1).
-No index was applied, no deployment was made and no production database was inspected.
+The development database reports all six indexes `READY`; an explicit development `--apply` changed
+nothing. The schema-derived guard found and added `stock_movement_operations` and
+`idempotency_records` (coverage 3/3, DEMO-2 8/8), and the read-only FAILED triage passed 6/6 while
+reporting 0 FAILED rows in development. No production database was inspected and no deployment was
+made.
 
 ## Ranking summary
 
@@ -99,7 +104,7 @@ receipt before the hand-off, and the suite may still pass.
 **Effort:** M. Reuse the existing child-process and database-reset patterns; do not add a second
 durability mechanism.
 
-### 4. Schema-derived tenant-teardown coverage guard
+### 4. Schema-derived tenant-teardown coverage guard — **done locally (§27LJ)**
 
 **What:** Build a test that enumerates every model with a `businessId` field (and the account-scoped
 collections reached through users) and compares it with `TENANT_TEARDOWN_PLAN` or an explicit
@@ -115,7 +120,7 @@ multiply.
 **Effort:** S. The plan and model barrel already exist; the main decision is the platform-only
 allowlist for genuinely non-tenant rows.
 
-### 5. Automated `FAILED` triage and escalation
+### 5. Automated `FAILED` triage and escalation — **read-only triage done locally (§27LJ); named escalation remains**
 
 **What:** Define an operator runbook and a bounded triage query for rows whose `FAILED` age or
 attempts exceed a threshold: inspect only `lastError` (a class, not an upstream message), fix the
@@ -253,19 +258,19 @@ cross-window cases are not all pinned in one suite. Effort S.
 
 ## Recommended next three
 
-1. **Production index/TTL rollout gate** — the new retention is not real until it is deployed and
-   verified in the target database.
-2. **Outbox/repair-lag alerting** — makes both the new paths and the existing Product Import path
-   observable to an owner.
-3. **Real crash-injection proof** — turns the strongest local claim (“exactly one audit after a
-   crash”) from simulated deletion into observed process death.
+1. **Outbox the remaining durable finalizers** — PO state changes, product/reference mutations and
+   claim recovery still have a missing-audit window.
+2. **Audit chain or tamper-evident sealing** — presence is stronger; integrity against a direct
+   database edit is not covered.
+3. **Unified retention policy** — the per-collection TTLs still need one documented owner and
+   restore implication.
 
-The tenant-teardown coverage guard is a close fourth because it is small and directly prevents the
-class of omission found in this session.
+The read-only FAILED triage is useful only with a named owner; assign one and define the escalation
+threshold before treating rank 5 as complete.
 
 ## Explicit non-goals
 
 - No production data, configuration, deployment or index change was made for this document.
-- No follow-up here is implemented by the §27LF change set.
+- Ranks 1–5 are implemented locally; no follow-up beyond them is implemented by this change set.
 - The outbox is not a replacement for the AuditLog; it is a delivery mechanism. Retention of the
   outbox must never delete the audit row it delivered.

@@ -327,6 +327,12 @@ have usable price data, and whether any transfer journal or PO receive claim nee
   `REQUIRES_ATTENTION` journals, keyed movement receipts and `inventory_transaction_quarantine` rows
   with their reasons, snapshots and ledger evidence. It is read-only and exits `1` when rows need attention; it never
   repairs or unflags anything.
+- **FAILED outbox triage:** `cd server && npm run triage:audit-outbox -- --with-production` lists
+  only `FAILED` audit-outbox rows whose age is at least **15 minutes** or whose attempts reach **3**
+  (both configurable), scoped and bounded. It prints the event identity, attempts, age and stored
+  error class, never `metadata` or user ids, and never retries or deletes. Exit `1` means at least
+  one row crossed a threshold; use `--min-age-minutes`/`--min-attempts` deliberately rather than
+  treating a single fresh failure as permanent.
 - **Movement receipt maintenance:** the scheduled recovery pass also completes abandoned keyed
   stock-in/out/adjustment receipts from a matching ledger row or an exact `INVENTORY_WRITTEN`
   snapshot. Its counters are `movements.completed`, `movements.flagged`, `movements.blocked` and

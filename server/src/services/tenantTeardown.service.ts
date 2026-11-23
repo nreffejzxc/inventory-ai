@@ -38,12 +38,14 @@ import OpsFeatureUsage from '../models/opsFeatureUsage.model.ts';
 import AuditFailure from '../models/auditFailure.model.ts';
 import AuditOutbox from '../models/auditOutbox.model.ts';
 import StockTransferOperation from '../models/stockTransferOperation.model.ts';
+import StockMovementOperation from '../models/stockMovementOperation.model.ts';
 import AuditLog from '../models/auditLog.model.ts';
 import Business from '../models/business.model.ts';
 import Category from '../models/category.model.ts';
 import Inventory from '../models/inventory.model.ts';
 import InventoryTransaction from '../models/inventoryTransaction.model.ts';
 import Invitation from '../models/invitation.model.ts';
+import IdempotencyRecord from '../models/idempotencyRecord.model.ts';
 import Location from '../models/location.model.ts';
 import PasswordResetChallenge from '../models/passwordResetChallenge.model.ts';
 import PasswordResetToken from '../models/passwordResetToken.model.ts';
@@ -79,7 +81,16 @@ export const TENANT_DATA_COLLECTIONS: Array<[string, TenantModel]> = [
   ['inventory', Inventory],
   ['inventory_transactions', InventoryTransaction],
   ['stock_transfer_operations', StockTransferOperation],
+  // The keyed movement receipt carries businessId, the request fingerprint and
+  // the applied quantities. It is tenant data even after a completed movement;
+  // leaving it would keep a tenant's replay/evidence row after its ledger is gone.
+  ['stock_movement_operations', StockMovementOperation],
   ['purchase_orders', PurchaseOrder],
+  // The transport idempotency receipt carries businessId and the owner's
+  // response body. Its 24-hour TTL is not a teardown: a deleted tenant must not
+  // leave a replay handle (or a response containing its data) behind until the
+  // TTL monitor happens to sweep it.
+  ['idempotency_records', IdempotencyRecord],
   // FW-01 — the durable import receipt carries businessId, the operator and the
   // file fingerprint. It is tenant data: without this entry a tenant teardown
   // leaves a replay handle (and the file name) behind after the catalogue is gone.

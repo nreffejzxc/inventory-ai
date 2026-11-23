@@ -96,6 +96,7 @@ npm run audit:price-quality                            # missing/zero prices and
 npm run recover:integrity                              # one exact recovery pass; writes only proven repairs
 npm run recover:movement-receipts                       # DRY RUN: abandoned receipts + completed-retention report
 npm run triage:integrity                               # read-only: attention journals + movement receipts + quarantine rows
+npm run triage:audit-outbox                            # read-only: FAILED audit-outbox rows crossing age/attempt thresholds
 npm run migrate:required-indexes                       # read-only preflight for the six required indexes
 npm run migrate:transfer-ledger-index                  # read-only preflight for the unique ledger guard
 npm run test:audit-crash                               # child-process crash injection at four producer boundaries
@@ -615,6 +616,7 @@ the trigger. See [`INVENTORY_INTEGRITY.md`](../INVENTORY_INTEGRITY.md) and
 | `npm run recover:integrity` | one exact transfer-journal and PO-claim reconciliation pass | ⚠️ writes only proven repair actions |
 | `npm run recover:movement-receipts` | abandoned movement receipts plus completed-receipt retention; dry-run by default | ⚠️ `--apply` writes only proven recovery/pruning |
 | `npm run triage:integrity` | `REQUIRES_ATTENTION` journals, movement receipts and quarantined ledger rows, with reasons and evidence | ✅ reads; exit 1 when rows need attention |
+| `npm run triage:audit-outbox` | FAILED audit-outbox rows crossing a 15-minute-or-3-attempt threshold, with safe event identity only | ✅ reads; exit 1 when rows need attention |
 | `npm run migrate:required-indexes` | six required indexes (three unique guards, outbox TTL, two repair indexes); read-only preflight, `--apply` after duplicate review | ⚠️ apply creates only exact missing indexes; never deletes or drops |
 | `npm run test:audit-crash` | kills a child at each of four producer boundaries, then runs real recovery and asserts exactly one audit | ✅ reads/writes only `inventoryai_test_db` |
 | `npm run migrate:transfer-ledger-index` | unique operation/location ledger guard; read-only preflight, `--apply` after review | ⚠️ apply quarantines/removes exact duplicates and builds the index |

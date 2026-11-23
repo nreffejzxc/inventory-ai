@@ -44,6 +44,26 @@ at the end of every development session, newest entry first.
 **Goal:** finish and harden Inventory AI **V1** through production testing. No Play Store or App
 Store release is being prepared.
 
+**Schema-derived tenant coverage and read-only FAILED outbox triage (2026-11-23, local; §27LJ):**
+the new guard reads every registered `businessId` model and every `userId`-only model from the
+Mongoose schema set, then compares them with `TENANT_TEARDOWN_PLAN`. It found two real teardown
+gaps — keyed `stock_movement_operations` receipts and 24-hour `idempotency_records` — both now in
+`TENANT_DATA_COLLECTIONS`; DEMO-2 seeds distinct counts **20** and **19** and removes them in its
+reset. `readAuditOutboxTriage` and `npm run triage:audit-outbox` expose only FAILED rows crossing a
+**15-minute-or-3-attempt** threshold, scoped and bounded, with no metadata or user ids; they never
+retry, resolve or delete. A development run reported **0 FAILED / 0 matching**, exit **0**. A
+read-only and an explicit development `--apply` run both reported all six required indexes `READY`
+on `inventoryai_dev_db` with `changed=0`, exit **0**; production was not read or changed.
+
+Verification: server typecheck, focused ESLint, `check:extensions`, `check:specifiers`; schema
+coverage **3/3**, triage **6/6**, DEMO-2 **8/8**, perf-tenant **23/23**, CLI help exit **0** and the
+development triage exit **0**. The complete server suite passed **3,419 tests in 554 suites, 0
+failed, 0 skipped, 0 todo**, in **919,169.0855 ms (15 m 19.2 s)**. A first full run had two OPS7
+fixed-window failures with empty fixture reads; the file then passed **3/3** complete-file reruns
+and the next full run passed. The seven documentation/command guard files passed **43/43**, and
+`check-docs` indexed 79 active documents with 30 invariant rows and 56 living references within
+cadence. No merge, deployment or production change was made for this stage.
+
 **Six-index readiness, bounded audit health and a four-boundary crash harness (2026-11-23, local;
 §27LI):** the partial PO receive regression applies two of three lines in one request, replays the
 same key/body, then runs eight concurrent repair calls; both receipts keep one `receiveId` and the

@@ -143,6 +143,7 @@ export function createTracker(dbOk) {
       await deleteByBusiness('categories');
       await deleteByBusiness('locations');
       await deleteByBusiness('audit_logs');
+      await deleteByBusiness('idempotency_records');
       await deleteByBusiness('audit_outbox');
       await deleteByBusiness('audit_failures');
       await deleteByBusiness('ai_turn_metrics');
