@@ -11,6 +11,7 @@ import { fieldErrorsFrom } from '../../lib/authCopy';
 import { errorRequestId } from '../../lib/errors';
 import { isSessionError, useSession } from '../../lib/auth';
 import { DELETE_CONFIRMATION, deleteMyAccount } from '../../lib/accountDeletion';
+import { purgeProductImportDraft } from '../../lib/productImportDraft';
 import { spacing, type } from '../../lib/theme';
 import type { Palette } from '../../lib/theme';
 import { useTheme } from '../../lib/theme-context';
@@ -83,6 +84,13 @@ export default function DeleteAccountScreen() {
       // The server has already ended every session and deleted the credential. Clearing
       // locally is what stops the app rendering a signed-in shell for an account that no
       // longer exists; the sign-out request it makes is allowed to fail.
+      // The account-scoped import draft contains product data and has no owner after
+      // deletion. Best-effort: cleanup must not keep a deleted account signed in.
+      // Unlike completion and Discard, account deletion must not depend on a
+      // readable metadata record. The purge removes the account's CSV even when
+      // SecureStore metadata deletion fails; completion and Discard keep using
+      // the expected-key-protected clear.
+      await purgeProductImportDraft(user?.id).catch(() => false);
       await signOut();
       router.replace('/login');
     } catch (err) {

@@ -2,7 +2,7 @@ import { fireEvent, render, waitFor } from '@testing-library/react-native';
 import { router } from 'expo-router';
 import type { ReactNode } from 'react';
 
-import { productsApi } from '../lib/api';
+import { categoriesApi, productsApi } from '../lib/api';
 import { isSessionError, useSession } from '../lib/auth';
 import { ROLES } from '../lib/permissions';
 import { ThemeProvider } from '../lib/theme-context';
@@ -38,19 +38,23 @@ jest.mock('../lib/auth', () => ({
   isSessionError: jest.fn(() => false),
 }));
 
+let mockParams: Record<string, string> = {};
+
 jest.mock('expo-router', () => ({
   router: { push: jest.fn(), replace: jest.fn(), back: jest.fn() },
   useFocusEffect: () => {},
-  useLocalSearchParams: () => ({}),
+  useLocalSearchParams: () => mockParams,
 }));
 
 jest.mock('../lib/api', () => ({
   productsApi: { reorder: jest.fn() },
+  categoriesApi: { list: jest.fn() },
 }));
 
 const mockedUseSession = useSession as jest.Mock;
 const mockedIsSessionError = isSessionError as unknown as jest.Mock;
 const reorder = productsApi.reorder as jest.Mock;
+const categoriesList = categoriesApi.list as jest.Mock;
 const push = router.push as jest.Mock;
 
 const LOW_ROW = {
@@ -87,7 +91,33 @@ beforeEach(() => {
   jest.clearAllMocks();
   mockedIsSessionError.mockReturnValue(false);
   signIn();
+  mockParams = {};
   reorder.mockResolvedValue({ items: [OUT_ROW, LOW_ROW], total: 2 });
+  categoriesList.mockResolvedValue({ items: [], total: 0, totalPages: 1 });
+});
+
+describe('restock category filter lifecycle', () => {
+  it('★ ignores an archived deep-linked category and explains the repair', async () => {
+    mockParams = { categoryId: 'cat-archived' };
+    categoriesList.mockResolvedValue({
+      items: [{ id: 'cat-active', name: 'Active category' }],
+      total: 1,
+      totalPages: 1,
+    });
+
+    const { getByTestId, getByText } = await mount(<RestockScreen />);
+
+    await waitFor(() => expect(getByTestId('restock-category-unavailable')).toBeTruthy());
+    expect(
+      getByText('That category is archived or unavailable. Showing every category.')
+    ).toBeTruthy();
+    await waitFor(() =>
+      expect(reorder).toHaveBeenLastCalledWith(
+        'token-1',
+        expect.not.objectContaining({ categoryId: 'cat-archived' })
+      )
+    );
+  });
 });
 
 describe('restock list', () => {
@@ -127,6 +157,27 @@ describe('restock list', () => {
     fireEvent.press(getByText('Compact Kettle'));
 
     expect(push).toHaveBeenCalledWith('/products/p-low');
+  });
+
+  it('★ opens the multi-row draft purchase-order screen', async () => {
+    const { getByText } = await mount(<RestockScreen />);
+
+    await waitFor(() => expect(getByText('Create draft PO')).toBeTruthy());
+    fireEvent.press(getByText('Create draft PO'));
+
+    expect(push).toHaveBeenCalledWith('/purchase-orders/from-restock');
+  });
+
+  it('does not offer a draft purchase order to a role that cannot manage them', async () => {
+    mockedUseSession.mockReturnValue({
+      user: { id: 'u1', name: 'Test User', role: ROLES.STAFF },
+      token: 'token-1',
+      signOut: jest.fn(),
+    });
+    const { queryByText, getByText } = await mount(<RestockScreen />);
+
+    await waitFor(() => expect(getByText('Compact Kettle')).toBeTruthy());
+    expect(queryByText('Create draft PO')).toBeNull();
   });
 
   it('sends the search term to the endpoint rather than filtering on the client', async () => {

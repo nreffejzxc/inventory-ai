@@ -917,6 +917,22 @@ export interface PurchaseOrderLineInput {
   [field: string]: unknown;
 }
 
+/** One restock row as the operator saw it; the server rejects a stale snapshot. */
+export interface RestockSelectionInput {
+  productId: string;
+  availableQuantity: number;
+  minimumStock: number;
+}
+
+/** The body of POST /api/purchase-orders/from-restock. */
+export interface PurchaseOrderFromRestockInput {
+  supplierId: string;
+  locationId: string;
+  expectedAt?: string | null;
+  notes?: string | null;
+  items: RestockSelectionInput[];
+}
+
 /** A PO create/edit body assembled by PoForm. */
 export interface PurchaseOrderInput {
   supplierId?: string | null;
@@ -945,6 +961,16 @@ export const purchaseOrdersApi = {
    */
   create: (token: string, payload: PurchaseOrderInput, idempotencyKey?: string): Promise<ApiResponse> =>
     apiFetch('/api/purchase-orders', { token, method: 'POST', body: payload, idempotencyKey }),
+  /**
+   * Create exactly one DRAFT from selected restock rows. 409 RESTOCK_ROWS_STALE
+   * when the server's location-scoped values changed; refetch and reselect.
+   */
+  createFromRestock: (
+    token: string,
+    payload: PurchaseOrderFromRestockInput,
+    idempotencyKey?: string,
+  ): Promise<ApiResponse> =>
+    apiFetch('/api/purchase-orders/from-restock', { token, method: 'POST', body: payload, idempotencyKey }),
   /**
    * Edit a DRAFT only (PATCH). Any supplied reference is re-verified; a
    * supplied `items` array replaces the full line set. 409 PO_NOT_DRAFT /
