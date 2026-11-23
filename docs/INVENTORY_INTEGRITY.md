@@ -80,10 +80,13 @@ only exact, quantity-anchored journal recovery. They are scheduled through `ops:
 lock per command and one GitHub issue alert per command; a failed GitHub delivery is persisted and
 retried on the next run. `triage:integrity` is the read-only operator view of
 `REQUIRES_ATTENTION` journals, keyed movement receipts and quarantined ledger rows, with reasons
-and evidence. The unique
-transfer-ledger index is a migration prerequisite: `npm run migrate:transfer-ledger-index` is
-read-only until `--apply`, and a duplicate group is refused rather than guessed. The same exact
-index is now a readiness requirement: `/api/health/ready` answers `503` if it is missing or wrong. The full semantics and limits are in
+and evidence. Six indexes are readiness requirements: the unique partial
+transfer-operation/location, DRAFT `(businessId, requestKey)` and audit `(businessId, dedupeKey)`
+guards, plus the 30-day partial `DELIVERED` outbox TTL and the movement and PO receive repair
+indexes. `/api/health/ready` answers `503` if any is missing or has the wrong key, uniqueness,
+partial filter or expiry. `npm run migrate:required-indexes` is read-only until `--apply`; it
+refuses duplicate key groups before creating a unique index and never deletes a document. The specialized
+transfer duplicate-quarantine migration is `npm run migrate:transfer-ledger-index`. The full semantics and limits are in
 [`INTEGRITY_RECOVERY.md`](INTEGRITY_RECOVERY.md); the schedule is in
 [`MONITORING.md`](MONITORING.md).
 

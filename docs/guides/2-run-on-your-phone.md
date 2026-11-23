@@ -74,10 +74,18 @@ in its dashboard (Render → Environment), never in this project.
 ```bash
 cd C:/Users/jeffe/inventory-ai/mobile
 eas build --profile development --platform android
-adb install -r "C:\path\to\the-downloaded.apk"
+# Use the exact serial printed by: adb devices -l
+node ../scripts/device/install.mjs --serial=<serial> \
+  --apk="C:\path\to\the-downloaded.apk" --check
+node ../scripts/device/install.mjs --serial=<serial> \
+  --apk="C:\path\to\the-downloaded.apk" --apply
 ```
 
-- Installing it **replaces** the normal app and vice versa (same `com.inventoryai.app`); app data is kept.
+- `--check` is the default and installs nothing; `--apply` installs only after the checks pass. The
+  helper refuses automatic device selection and a debuggable APK that would replace the
+  non-debuggable production app. It never uninstalls or clears app data.
+- Installing a development build still **replaces** the normal app (same `com.inventoryai.app`), so
+  use the helper to keep the target explicit; app data is kept.
 - Do **not** use `npx expo run:android` — it creates a native `android/` folder this project keeps out
   of the repository.
 

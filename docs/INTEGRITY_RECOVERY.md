@@ -1,13 +1,17 @@
 # Inventory integrity, recovery and price quality
 
-**Last reviewed:** 2026-11-20
+**Last reviewed:** 2026-11-23
 **Scope:** durable transfer journals and reconciliation, the unique transfer-ledger guard and its
 migration, the cross-instance recovery lease, PO receive idempotency and request fingerprints,
 abandoned receive-claim recovery, the category archive policy, audit-failure monitoring, the
 read-only price-quality report, currency-safe AI price ranking, the scheduled operational runner
-for the three integrity commands, fail-closed readiness for the unique ledger index, and the
-read-only attention triage, and receipt retention/recovery. This is the operator and design
-reference; §27KG, §27KH and §27KK in `DEVELOPMENT_ROADMAP.md` record this work.
+for the three integrity commands, fail-closed readiness and rollout for the six required indexes
+(the three write guards plus the outbox TTL, movement audit-repair and PO receive audit-repair
+indexes), the read-only attention triage, receipt retention/recovery, replayable-audit
+deduplication, the durable audit outbox used by Product Import, keyed movement completion and PO
+receive, and bounded outbox/repair health monitoring. This is the operator and design reference;
+§27KG, §27KH, §27KK, §27KZ, §27LE, §27LF, §27LG and §27LI in `DEVELOPMENT_ROADMAP.md` record this
+work.
 
 ## 1. What is guaranteed
 
@@ -24,9 +28,55 @@ proof around them; it does **not** turn multi-document work into a MongoDB trans
 | Abandoned PO claim | A stale claim is reconciled from its stock-in transaction: a receipted movement releases only the reservation, an exact movement is undone and removed, an untouched claim is released, and anything unprovable is flagged. | A claim whose inventory row moved after its stock-in is not undone. |
 | Category archive | Archiving a category with ACTIVE products is refused with `CATEGORY_HAS_ACTIVE_PRODUCTS`; archived products do not block. | The check is not a transaction against a product being created concurrently. |
 | Audit write failure | The business write still succeeds. The gap becomes a durable `audit_failures` row with a sanitized class and an `[audit-gap]` log line, retained for 90 days by TTL. | Monitoring is best-effort; if the monitor write also fails, the log is the only record. |
+| Replayable audit event | `recordAuditOnce` takes a deterministic, tenant-scoped `dedupeKey`; a unique partial index on `(businessId, dedupeKey)` lets only one concurrent delivery append. The loser reads and returns the winner's row. Product Import, keyed movement completion and PO receive use the durable `audit_outbox`; movement-receipt, transfer and PO-claim recovery use deterministic keys. | Transport-only product/reference/PO create/update/issue/cancel mutations and transfer/PO-claim recovery still call plain `recordAudit` and have no outbox. Historical receipts without the new fences are deliberately skipped. |
 | Product currency edit | An ordinary `PATCH /api/products/:id` may only keep the exact recorded code. Replacing it requires `POST /api/products/:id/currency-correction`, a 3–500-character reason and `priceReconfirmed: true`; the change writes `PRODUCT_CURRENCY_CORRECTED` with both codes and the reason. | There is no automatic conversion; the operator must re-check both prices in the replacement currency. The audit write remains best-effort, like other product events. |
 | AI price ranking | Ranking happens inside one recorded currency. A named ISO code scopes the comparison; otherwise mixed known currencies, or a known currency plus unrecorded prices, block a single ranking and return the currency groups instead. Ties break by name then `_id`. | Zero and missing prices are excluded from rankings. A currency is not converted. |
 | Price quality | The report counts missing price, zero price, missing currency and malformed currency, and samples rows to fix. It never writes. | It checks the ISO-4217 **shape** (three uppercase letters), not the full official code list. |
+
+### 1.1 Replayable-audit deduplication
+
+`server/src/services/audit.service.ts` exports `recordAuditOnce`. It inserts normally and, on a
+MongoDB duplicate-key result, reads `{ businessId, dedupeKey }` and returns the committed row. The
+index is the arbiter, not a read-before-write check. `AuditLog` declares the key as optional and the
+index as unique **partial** on `{ dedupeKey: { $type: 'string' } }`, so ordinary events with no key
+and all historical rows remain append-only.
+
+The full replayable-surface inventory, key recipes, adoption order and the outbox design are in
+[`AUDIT_DEDUPLICATION_DESIGN_2026-11-23.md`](AUDIT_DEDUPLICATION_DESIGN_2026-11-23.md). Three
+producers now converge to **exactly one** audit row after a crash, replay or concurrent delivery:
+
+- **Product Import** writes an `audit_outbox` row before the AuditLog attempt, fences the completed
+  receipt with `auditEnqueuedAt`, and a bounded repair scan re-enqueues a completed receipt that
+  crashed before the hand-off (or only fences it when a pre-dedupe audit already exists).
+- **Keyed movement completion** uses `movement:<receiptId>:completed`. A tracked receipt's
+  completion and replay hand off through the outbox; `recoverMovementAudits` repairs a completed
+  receipt whose `auditEnqueuedAt` is still null after proving its ledger row.
+- **PO receive** uses `po-receive:<poId>:<receiveId>`. One `receiveId` is stamped on every receipt
+  finalized by the request; replay and `recoverPoReceiveAudits` rebuild the batch from those
+  receipts and enqueue the same key.
+
+Historical receipts without `auditTracked`/`receiveId` are skipped by repair, so a pre-dedupe audit
+is never appended twice. Movement-receipt, transfer and PO-claim recovery use deterministic keys,
+so concurrent or repeated recovery cannot append a second event; they do not yet have an outbox
+for a failed insert.
+
+### 1.1 Outbox and repair health
+
+`server/src/services/auditHealth.service.ts` reads a bounded snapshot after the scheduled recovery
+pass. It returns counts and the oldest row age for each `audit_outbox` status, unmarked completed
+Product Import, movement and PO receive receipts by producer, and the cumulative repair-pass totals
+recorded by that scheduler process. It raises two alert classes:
+
+- **`FAILED` overdue** — a `FAILED` outbox row whose `updatedAt` is older than **15 minutes**.
+- **Unmarked receipt overdue** — a completed import/movement/PO receipt with no audit marker whose
+  row `updatedAt` is older than **10 minutes**.
+
+The accumulated repair totals live in process memory: they reset when the server restarts, so they
+are a liveness signal, not a billing or capacity record. The snapshot is logged as one structured
+`auditHealth` line plus `logger.error` alert lines; there is no public health endpoint and no pager.
+A row that stops retrying entirely is therefore visible only in the serving host's log, and only
+while that host is running. The DB-backed checks are `server/test/AUDIT-HEALTH.test.mjs` and the
+relevant cases in `server/test/AUDIT-OUTBOX.test.mjs`.
 
 ## 2. Transfer journal
 
@@ -130,8 +180,9 @@ Receipt lifecycle:
 
 ## 3. When recovery runs
 
-`server/src/services/recoveryScheduler.ts` runs one transfer pass, one claim pass and one movement
-receipt pass:
+`server/src/services/recoveryScheduler.ts` runs one transfer pass, one claim pass, one movement
+receipt pass, the movement and PO-receive audit repair sweeps, the Product Import repair sweep and
+the audit-outbox flush:
 
 - 30 seconds after a serving process boots;
 - every 5 minutes thereafter;
@@ -140,10 +191,12 @@ receipt pass:
 - stopped before database shutdown.
 
 Only transfer journals and movement receipts older than **60 seconds**, and claims older than
-**10 minutes**, are candidates, so a healthy request is not stolen. A failed pass is logged and
-does not stop the API. The reapers are bounded to 50 rows per pass.
+**10 minutes**, are candidates, so a healthy request is not stolen. Audit repair uses the same
+60-second grace. A failed pass is logged and does not stop the API. The reapers are bounded to 50
+rows per pass; movement and PO audit repair scan **20** rows each, Product Import repair **20**, and
+the outbox flush **50**.
 
-Before either reaper runs, the pass acquires one MongoDB lease in
+Before the reapers run, the pass acquires one MongoDB lease in
 `integrity_recovery_leases` (fixed id `integrity-recovery`, default 10-minute expiry, renewed
 while the pass runs). A second serving instance gets no lease and returns `skipped: lease-held`
 rather than scanning the same rows. An expired lease is taken over immediately, so a crashed owner
@@ -223,7 +276,14 @@ npm run recover:movement-receipts -- --with-production --apply
 npm run triage:integrity
 npm run triage:integrity -- --business=<24-hex-id> --format=json
 
-# Migration: read-only preflight first, then apply after review.
+# Six required indexes: read-only first; --apply after duplicate review.
+npm run migrate:required-indexes
+npm run migrate:required-indexes -- --with-production --apply
+
+# Child-process crash injection at the four producer boundaries (test database only).
+npm run test:audit-crash
+
+# Specialized transfer duplicate quarantine, then its unique index.
 npm run migrate:transfer-ledger-index -- --with-production
 npm run migrate:transfer-ledger-index -- --with-production --apply
 
@@ -241,6 +301,7 @@ npm run ops:integrity -- --command=recover:integrity --with-production --notify
 | `recover:integrity` | pass ran, no row failed | at least one row failed to reconcile | not checked |
 | `recover:movement-receipts` | nothing to do, or an apply left no attention or failure | attention remains, a failure occurred, or a dry run found work | not checked |
 | `triage:integrity` | no attention journal, movement receipt or quarantine row | at least one attention/quarantine row | not checked |
+| `migrate:required-indexes` | all six required indexes ready, or created and verified | missing/wrong, duplicate-blocked, or failed | not checked |
 | `migrate:transfer-ledger-index` | clean, or applied successfully | duplicates need review, or ambiguity blocked apply | not checked |
 | `ops:integrity` | command clean, or another run held the lock | finding/attention | NOT CHECKED or runner error |
 
@@ -351,49 +412,87 @@ It connects with `autoIndex: false` and `autoCreate: false` and issues reads onl
 least one row needs attention, not that the command repaired anything. Use the documented
 `recover:integrity` actions only when they are provably safe; an ambiguous row is resolved by hand.
 
-### 7.3 Fail-closed ledger-index readiness
+### 7.3 Fail-closed required-index readiness and rollout
 
-`GET /api/health/ready` checks the database connection **and** the exact transfer-ledger index on
-every request. The index must have all of the following or the endpoint answers `503`:
+`GET /api/health/ready` checks the database connection **and** all three unique partial indexes that
+guard replayable writes. Each must have the exact key order, `unique: true` and partial filter below,
+or the endpoint answers `503`:
 
-- the key `(businessId, transferOperationId, locationId)` in that order;
-- `unique: true`;
-- the partial filter `{ transferOperationId: { $type: 'objectId' } }`, with no extra fields.
+| Collection | Index | Key | Partial filter | Guards |
+| --- | --- | --- | --- | --- |
+| `inventory_transactions` | `uniq_transfer_operation_location` | `(businessId, transferOperationId, locationId)` | `{ transferOperationId: { $type: 'objectId' } }` | Two recoverers cannot write the same transfer leg twice. |
+| `purchase_orders` | `uniq_purchase_order_request_key` | `(businessId, requestKey)` | `{ requestKey: { $type: 'string' } }` | A crash-safe DRAFT retry cannot create a second order under one key. |
+| `audit_logs` | `uniq_audit_business_dedupe_key` | `(businessId, dedupeKey)` | `{ dedupeKey: { $type: 'string' } }` | Concurrent or replayed deliveries append at most one audit row. |
 
-A missing index, a non-unique index, a reordered key or a different partial filter makes the
-process not ready. The check reads `listIndexes` with a 2.5-second bound; it never creates, drops or
-repairs an index. The response includes a short `reason` naming the broken requirement, never a
-connection string. A database that is down is reported by the existing connection branch without
-attempting the index read.
+A missing index, a non-unique index, a reordered key, an extra field or a different partial filter
+makes the process not ready. The checks run in parallel, each reading `listIndexes` with a
+2.5-second bound; they never create, drop or repair an index. The response includes a short `reason`
+naming the broken requirement, never a connection string. A database that is down is reported by the
+existing connection branch without attempting an index read.
+
+`npm run migrate:required-indexes` is the write path. It is **read-only by default**; without
+`--apply` it reports `READY`, `MISSING`, `WRONG_SHAPE` or `FAILED` for each target and changes
+nothing. The six targets include the transfer-operation/location, DRAFT request-key and audit
+dedupe unique guards, the 30-day partial TTL on `audit_outbox.deliveredAt`, and the movement/PO
+receive repair indexes on `(state, auditTracked, auditEnqueuedAt, updatedAt)` and
+`(receipts.receiveId, receipts.auditEnqueuedAt, updatedAt)`. The outbox `(status, updatedAt)` triage
+index stays declared but is not a readiness target. With `--apply`, each target is handled
+independently:
+
+1. list its indexes and accept an exact match;
+2. for a unique target, run a duplicate preflight whose `$match` is the index's own partial filter
+   and whose `$group` uses every key field; a target with **any** duplicate group becomes
+   `BLOCKED_DUPLICATES` and no index is created for it (the TTL and repair indexes are not unique,
+   so they skip this preflight);
+3. call `createIndex` for that one exact specification and re-inspect it.
+
+It never calls `syncIndexes()`, never drops an index and never deletes a document. Duplicate rows
+are a human data decision; resolve them, then run the command again. A conflicting index with the
+same key but the wrong options is reported as `FAILED` rather than replaced. Production apply
+also requires `REQUIRED_INDEXES_CONFIRM=ENSURE-REQUIRED-INDEXES`; the test database is refused and
+exit **2** means the run did not check anything.
+
+The specialized `migrate:transfer-ledger-index` remains the command for quarantining exact
+transfer-ledger duplicates. Use `migrate:required-indexes` when any of the other five required
+indexes is the gap.
+On 2026-11-23 the read-only rollout against `inventoryai_dev_db` reported the transfer index
+`READY` and both newer indexes `MISSING`, with exit **1**; it wrote nothing.
 
 ## 8. Limitations and remaining risks
 
 - **No multi-document transactions.** A crash can still leave an ambiguous state; the transfer
   journal, movement receipt, claim reaper and their recovery paths make it visible and usually
   repairable, not impossible.
-- **The index must exist in every environment.** Application auto-index is not a migration: a
-  database holding duplicate rows will reject the unique build. Run the preflight and apply before
-  deploying a server that expects the guard. This pass did not run either command against
-  production.
+- **The six required indexes must exist in every environment.** Application auto-index is not a
+  migration: a database holding duplicate rows will reject a unique build. Run
+  `migrate:required-indexes` (read-only first) and resolve any duplicate group before deploying a
+  server that expects the guards. The repair indexes are adopted under their existing auto-generated
+  names, while the TTL has a declared name; an option mismatch is reported as `WRONG_SHAPE`. This
+  pass did not run `--apply` in any environment, and did not inspect or change production.
 - **Lease expiry is time-based.** A pass that loses its lease may finish alongside a new owner. The
-  unique ledger guard and quantity-anchored recovery keep that safe, but a duplicate recovery audit
-  can still be written. The lease reduces this window; it does not make the audit idempotent.
+  unique ledger guard and quantity-anchored recovery keep that safe, and the deterministic recovery
+  audit keys (`movement-receipt:*`, `transfer:*:completed`, `po-claim:*`) make the audit insert
+  idempotent. The lease reduces duplicate work; it is not the correctness boundary.
 - **A flagged movement receipt still needs a person unless proof appears.** Retrying it under the
   same key answers `409 MOVEMENT_REQUIRES_ATTENTION`; `recover:movement-receipts --apply` can
   resolve it only when a matching ledger row or an exact `INVENTORY_WRITTEN` snapshot proves the
   move. An unprovable row remains visible to `triage:integrity`. Completed receipts are pruned
   after 30 days; abandoned and attention rows are never auto-deleted, so a permanently
   unprovable receipt remains until an operator investigates it.
-- **Recovery audit can duplicate.** If a process died after writing the recovery audit but before
-  marking `COMPLETED`, the next pass writes a second audit event. Inventory is unaffected.
+- **Some recovery audit inserts can still fail.** Keyed movement completion, PO receive and
+  Product Import now have a durable outbox, but a transfer or PO-claim recovery that crashes or
+  cannot insert its audit is still recorded only by `monitorAuditFailure`. Inventory is unaffected.
+  Transport-only product/reference/PO mutations remain outside the outbox until they have a durable
+  event or revision identity.
 - **Alert retries need a later run.** A failed GitHub delivery is durable in local history, but
   nothing wakes the machine to retry it; the next scheduled or manual `--notify` run does. A failed
   history write leaves no retry record. The outbox is local to one scheduler host: two hosts keeping
   separate histories can both comment on the same issue, though the issue title still deduplicates
   the issue itself.
-- **Readiness pays one index read.** Every `/ready` request performs a `listIndexes` after the
-  driver says the database is connected. It is bounded and read-only, but it is not the zero-I/O
-  local check the endpoint used to be.
+- **Readiness pays one bounded index read per guard.** Every `/ready` request performs six
+  parallel `listIndexes` reads after the driver says the database is connected (one timeout bound,
+  not six sequential waits). They are read-only, but this is not the zero-I/O local check the
+  endpoint used to be.
 - **The operational runner is single-host by default.** Its lock is a local file; the recovery
   lease is MongoDB-backed, but the read-only audit locks only suppress duplicate runs on one
   machine. The shipped Windows task wrapper has not been registered in this tranche.
@@ -412,11 +511,15 @@ attempting the index read.
 
 ## 9. Verification
 
-`server/test/INTEGRITY-RECOVERY.test.mjs` covers 17 DB-backed cases:
+`server/test/INTEGRITY-RECOVERY.test.mjs` covers the transfer, claim, receive-key, category, audit-gap
+and price-quality DB-backed cases, including the cases below:
 
 - transfer source-only undo, both-leg completion, inexact undo refusal, reused-key fingerprint
-  rejection, `REQUIRES_ATTENTION` blocking, and both marked and unmarked bad-ledger refusal;
-- claim stock-in undo, untouched release and moved-row flag;
+  rejection, `REQUIRES_ATTENTION` blocking, both marked and unmarked bad-ledger refusal, a
+  `COMPLETED` journal staying terminal without a response, and concurrent recovery appending one
+  audit;
+- claim stock-in undo, untouched release, moved-row flag, and concurrent recovery of one claim
+  appending one audit;
 - HTTP-required receive key and changed-request rejection;
 - category archive refusal and allowance;
 - audit-gap sanitization and tenant scoping;
@@ -430,13 +533,20 @@ simultaneous lookups, a short negative cache that never serves a guessed rate, e
 and immediate recovery after a successful quote. `server/test/AI45-natural-product-search.test.mjs`
 covers mixed/unrecorded currency blocking and an explicit-code-scoped filter and ranking.
 
-`server/test/MOVEMENT-RECEIPT-RECOVERY.test.mjs` covers 8 DB-backed cases: a dry run that writes
+`server/test/AUDIT-OUTBOX.test.mjs` covers **9** DB-backed cases: Product Import enqueue/delivery,
+stale `SENDING` reclaim, `FAILED` retry, concurrent delivery with one audit row, keyed movement
+completion/replay/concurrent recovery, PO receive/replay/concurrent recovery, and the DELIVERED
+30-day partial TTL plus the FAILED triage index. The full scheduler, movement-recovery, CLI and
+transfer-guard regression set passed **44/44** after the new passes were added.
+
+`server/test/MOVEMENT-RECEIPT-RECOVERY.test.mjs` covers 10 DB-backed cases: a dry run that writes
 nothing followed by a ledger-proven apply with an audit row; exact `INVENTORY_WRITTEN` snapshot
-recovery; a full batch of old attention rows not starving a newer unfinished receipt; an
-unprovable receipt flagged without deletion; attention resolved only by a matching ledger row
-while an ambiguous row stays blocked; a contradictory ledger row never resolving attention;
-completed-receipt retention with the dry run keeping the row; and a completed receipt whose
-ledger proof is missing being kept, not pruned.
+recovery; a completed receipt resisting late completion and late inventory-written writes; concurrent
+recovery completing once and auditing once; a full batch of old attention rows not starving a newer
+unfinished receipt; an unprovable receipt flagged without deletion; attention resolved only by a
+matching ledger row while an ambiguous row stays blocked; a contradictory ledger row never resolving
+attention; completed-receipt retention with the dry run keeping the row; and a completed receipt
+whose ledger proof is missing being kept, not pruned.
 
 `server/test/TLI-transfer-ledger-guard.test.mjs` covers the new guard in 5 DB-backed cases:
 
@@ -457,7 +567,43 @@ The focused checks are `npm run typecheck` and
 `TEST_MODE=db node --test test/INTEGRITY-RECOVERY.test.mjs test/TLI-transfer-ledger-guard.test.mjs`
 in `server/`. The operational runner's pure policy is `server/test/ops-integrity.test.mjs`; its CLI retry path is
 `server/test/ops-integrity-cli.test.mjs`. Index readiness is
-`server/test/transfer-ledger-index-readiness.test.mjs`, and the read-only report is
-`server/test/triage-integrity.test.mjs`. The related existing suites are Phase 19 transfers, Phase
+`server/test/transfer-ledger-index-readiness.test.mjs` (missing and correctly installed TTL/repair
+indexes, plus the six-check aggregation); rollout control flow is
+`server/test/required-index-rollout.test.mjs`, and the read-only report is
+`server/test/triage-integrity.test.mjs`. The combined index/readiness/rollout set passed **42/42 in
+8 suites** on 2026-11-23 after this increment. `npm run migrate:required-indexes -- --help`
+exited **0**, and the read-only development run named `inventoryai_dev_db` and exited **1** for the
+two missing indexes without writing. The related existing suites are Phase 19 transfers, Phase
 13 receiving, Phase 04 catalog and inventory idempotency. The complete DB-backed suite is `npm run test:db`; on a constrained Windows host use
 `npm run test:db -- --test-concurrency=4` to avoid exhausting the child-process budget.
+
+The replayable-audit dedupe is covered in `server/test/FW01-product-import.test.mjs`: 12 concurrent
+same-key `recordAuditOnce` calls leave one row and one id, a second business gets its own row, and two
+ordinary keyless `recordAudit` calls remain two rows. The same suite covers terminal import receipts:
+late failure transitions, late reservation/stock-progress writes and a failure/completion race all
+leave `COMPLETED` intact. On 2026-11-23 `TEST_MODE=db node --test
+test/FW01-product-import.test.mjs` passed **17 / 0 fail / 1 parser mode-skip**. The index guard and
+backup/restore guard passed **24/24**: `TEST_MODE=db node --test
+test/phase-index-integrity.test.mjs test/OPS1-backup-restore.test.mjs`.
+
+`server/test/AUDIT-OUTBOX.test.mjs` covers Product Import's durable hand-off plus movement and PO
+receive repair in **10 / 10** DB-backed cases: repair a completed receipt with no outbox row, fence
+a pre-dedupe completed import whose legacy audit exists without appending a second one, re-run after
+a lost receipt marker without a second audit, deliver an enqueued row after a crash before the
+AuditLog insert, reclaim a stale `SENDING` claim after the insert committed, retry a `FAILED` row,
+eight concurrent deliveries leaving one audit row and one outbox row, the movement and PO receive
+outbox/repair paths, and the declared DELIVERED TTL / FAILED triage indexes. A partial three-line PO
+receive that applies two lines is replayed and then recovered eight times concurrently; both
+receipts keep one `receiveId` and the tenant keeps exactly one audit containing exactly the two
+applied lines. The bounded health snapshot has its own DB-backed suite,
+`server/test/AUDIT-HEALTH.test.mjs` (**2 / 2**).
+
+The child-process harness `server/scripts/audit-crash-harness.mjs` kills one process at each of the
+four producer boundaries (`import-commit`, `movement-enqueued`, `po-receipt`, `audit-in-flight`)
+with exit **86**, then runs the real recovery/delivery path in the parent. It refuses any database
+other than `inventoryai_test_db`. `TEST_MODE=db node --test
+test/AUDIT-CRASH-HARNESS.test.mjs` passed **1 / 1** with exactly one audit and one `DELIVERED`
+outbox row per case. The standalone `npm run test:audit-crash` printed `4/4 boundaries passed`,
+with `child exit=86 audits=1` for each case, and exited **0**. The remaining replayable surfaces are
+inventoried in
+[`AUDIT_DEDUPLICATION_DESIGN_2026-11-23.md`](AUDIT_DEDUPLICATION_DESIGN_2026-11-23.md).

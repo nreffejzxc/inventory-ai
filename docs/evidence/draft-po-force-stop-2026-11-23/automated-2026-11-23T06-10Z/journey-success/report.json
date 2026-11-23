@@ -1,0 +1,63 @@
+{
+  "journey": "draft-resume",
+  "startedAt": "2026-11-23T06:26:58.059Z",
+  "runId": "2026-11-23T06-26-58-059Z",
+  "device": "sdk_gphone64_x86_64 · Android 15 (API 35) · emulator-5554",
+  "steps": [
+    {
+      "title": "open inventoryai://purchase-orders/from-restock",
+      "status": "pass",
+      "detail": "inventoryai://purchase-orders/from-restock",
+      "durationMs": 981
+    },
+    {
+      "title": "expect \"Draft purchase order from restock\"",
+      "status": "pass",
+      "detail": "seen after 2335ms",
+      "durationMs": 2336
+    },
+    {
+      "title": "choose \"Draft Proof Supplier 1795403412084\" from the \"Supplier\" picker",
+      "status": "pass",
+      "detail": "chose \"Draft Proof Supplier 1795403412084\"",
+      "durationMs": 11291
+    },
+    {
+      "title": "choose \"Draft Proof Bay 1795403412084\" from the \"Receiving location\" picker",
+      "status": "pass",
+      "detail": "chose \"Draft Proof Bay 1795403412084\"",
+      "durationMs": 11259
+    },
+    {
+      "title": "expect \"Draft Proof Gadget 1795403412084\"",
+      "status": "pass",
+      "detail": "seen after 2419ms",
+      "durationMs": 2419
+    },
+    {
+      "title": "tap \"Draft Proof Gadget 1795403412084\"",
+      "status": "pass",
+      "detail": "tapped Draft Proof Gadget 1795403412084, SKU DP-B-1795403412084 · 0 available · minimum 3 · out of stock at 540,1625",
+      "durationMs": 3101
+    },
+    {
+      "title": "tap \"Draft Proof Widget 1795403412084\"",
+      "status": "pass",
+      "detail": "tapped Draft Proof Widget 1795403412084, SKU DP-A-1795403412084 · 0 available · minimum 5 · out of stock at 540,1805",
+      "durationMs": 3132
+    },
+    {
+      "title": "scroll down",
+      "status": "pass",
+      "detail": "scrolled down",
+      "durationMs": 1009
+    },
+    {
+      "title": "expect \"Create draft order (2 items)\"",
+      "status": "fail",
+      "detail": "expected \"Create draft order (2 items)\" within 15000ms; screen showed: At a glance | Mon, Nov 23 | Home | Phone | Messages | Inventory AI | Chrome | Camera | Google search | Google app",
+      "durationMs": 15153
+    }
+  ],
+  "notes": "evidence: C:/Users/jeffe/inventory-ai/docs/evidence/draft-po-force-stop-2026-11-23/automated-2026-11-23T06-10Z/journey-success"
+}

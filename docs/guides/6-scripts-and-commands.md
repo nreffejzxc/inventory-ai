@@ -96,7 +96,9 @@ npm run audit:price-quality                            # missing/zero prices and
 npm run recover:integrity                              # one exact recovery pass; writes only proven repairs
 npm run recover:movement-receipts                       # DRY RUN: abandoned receipts + completed-retention report
 npm run triage:integrity                               # read-only: attention journals + movement receipts + quarantine rows
+npm run migrate:required-indexes                       # read-only preflight for the six required indexes
 npm run migrate:transfer-ledger-index                  # read-only preflight for the unique ledger guard
+npm run test:audit-crash                               # child-process crash injection at four producer boundaries
 npm run ops:integrity -- --command=audit:failures      # scheduler-facing wrapper: lock, history, optional alert
 ```
 
@@ -118,15 +120,28 @@ dry run that found work, remaining attention or a failure, and **2** when it cou
 Its batch reserves stale unfinished receipts before attention rows, so a large old attention backlog
 cannot delay newer unfinished receipts; an apply that flags a row also exits **1**.
 
-`migrate:transfer-ledger-index` is read-only until `--apply`; it refuses ambiguous duplicates and
-quarantines exact copies before deleting them. Production apply additionally needs
-`TRANSFER_LEDGER_MIGRATION_CONFIRM=MIGRATE-TRANSFER-LEDGER`. `ops:integrity` runs any of the three
+`migrate:required-indexes` is the rollout for all six indexes readiness checks: the
+transfer-operation/location index, the DRAFT `(businessId, requestKey)` index and the audit
+`(businessId, dedupeKey)` index, plus the 30-day partial `DELIVERED` outbox TTL and the movement and
+PO receive audit-repair indexes. It is read-only until `--apply`. An apply refuses a unique target
+with duplicate key groups before creating anything, uses targeted `createIndex`, never deletes
+documents and never calls `syncIndexes()`. Production apply additionally needs
+`REQUIRED_INDEXES_CONFIRM=ENSURE-REQUIRED-INDEXES`.
+
+`test:audit-crash` starts one child process per producer boundary, lets it commit durable state and
+exit **86** before the normal hand-off, then runs the real repair/delivery path in the parent. It
+refuses any database other than `inventoryai_test_db`; each case must leave exactly one audit and
+one `DELIVERED` outbox row.
+
+`migrate:transfer-ledger-index` remains the specialized transfer migration: it refuses ambiguous
+duplicates and quarantines exact copies before deleting them. Production apply additionally needs
+`TRANSFER_LEDGER_MIGRATION_CONFIRM=MIGRATE-TRANSFER-LEDGER`. `ops:integrity` runs the three integrity
 commands as a child, preserves its `0/1/2` meaning, prevents duplicate runs with a per-command lock,
 and with `--notify` maintains one GitHub issue per command. A failed GitHub create, comment or close
 is stored as an undelivered alert and retried by the next `--notify` run. The daily Windows task is
 registered by `scripts/register-integrity-ops-scheduler.ps1`; see [`MONITORING.md`](../MONITORING.md).
-`/api/health/ready` also returns `503` when the exact unique partial transfer-ledger index is
-missing or wrong; it checks `listIndexes` and never repairs the index.
+`/api/health/ready` returns `503` when any of the six exact required indexes is missing or wrong;
+it checks `listIndexes` and never repairs an index.
 
 ### Label barcode — does it decode?
 
@@ -174,6 +189,10 @@ node scripts/device/run.mjs --journey=stock --sku=SMOKE-1 --source="Smoke shelf"
 node scripts/device/run.mjs --journey=transfer --sku=SMOKE-1 \
   --source="Smoke shelf" --destination="Smoke" --allow-writes \
   --verify-ledger --verify-production
+
+# Safe APK install: exact serial required; --check is read-only and the default.
+node scripts/device/install.mjs --serial=<device> --apk=<file.apk> --check
+node scripts/device/install.mjs --serial=<device> --apk=<file.apk> --apply
 ```
 
 - Exit **0** all steps passed, **1** a step failed, **2** blocked (no device, no session, no debuggable
@@ -544,7 +563,7 @@ node scripts/check-production-health.mjs --attempts=2 --delay-ms=20000
 gh workflow run production-health-watch-v2.yml
 ```
 
-`/api/health/ready` answers 200 only when the database is reachable now; `/api/health` must also say
+`/api/health/ready` answers 200 only when the database is reachable now **and** all six required indexes (three unique guards, the outbox TTL and two repair indexes) are ready; `/api/health` must also say
 `status: ok` and `db: connected`. The counters remain per process (reset on restart), public, and free
 of names, paths, users or messages. GitHub can delay scheduled runs, so this is detection rather than a
 five-minute SLA. GitHub has not emitted a scheduled run for v2 as of 2026-11-11, so dispatch
@@ -596,6 +615,8 @@ the trigger. See [`INVENTORY_INTEGRITY.md`](../INVENTORY_INTEGRITY.md) and
 | `npm run recover:integrity` | one exact transfer-journal and PO-claim reconciliation pass | ⚠️ writes only proven repair actions |
 | `npm run recover:movement-receipts` | abandoned movement receipts plus completed-receipt retention; dry-run by default | ⚠️ `--apply` writes only proven recovery/pruning |
 | `npm run triage:integrity` | `REQUIRES_ATTENTION` journals, movement receipts and quarantined ledger rows, with reasons and evidence | ✅ reads; exit 1 when rows need attention |
+| `npm run migrate:required-indexes` | six required indexes (three unique guards, outbox TTL, two repair indexes); read-only preflight, `--apply` after duplicate review | ⚠️ apply creates only exact missing indexes; never deletes or drops |
+| `npm run test:audit-crash` | kills a child at each of four producer boundaries, then runs real recovery and asserts exactly one audit | ✅ reads/writes only `inventoryai_test_db` |
 | `npm run migrate:transfer-ledger-index` | unique operation/location ledger guard; read-only preflight, `--apply` after review | ⚠️ apply quarantines/removes exact duplicates and builds the index |
 | `npm run ops:integrity -- --command=…` | scheduler wrapper: one lock, local history and optional per-command GitHub issue | ⚠️ recovery command writes only proven repairs |
 | `npm run verify:transfer-ui` | one device transfer run's six rows and final stock | ✅ reads |
@@ -616,7 +637,8 @@ the trigger. See [`INVENTORY_INTEGRITY.md`](../INVENTORY_INTEGRITY.md) and
 **project root**: `node scripts/check-secrets.mjs`, `audit-access.mjs`, `check-upgrade-watches.mjs`,
 `verify-label-barcode.mjs --html|--pdf --expect=…`, `scripts/device/wireless.mjs` (wireless session;
 `--check` is read-only; `--stop` ends a managed session), `scripts/device/run.mjs` (device walk;
-`--journey=draft|stock|transfer --allow-writes` writes).
+`--journey=draft|draft-resume|stock|transfer --allow-writes` writes; `draft-resume` also needs
+`--serial`, `--proxy-log`, `--database` and the logging proxy), and `scripts/device/install.mjs` (explicit-serial APK install; check-only unless `--apply`).
 
 ## Part 9 — When a command refuses
 

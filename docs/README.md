@@ -62,7 +62,9 @@ Guide 6; no rule, command or safety procedure was removed.
 | [`DEVELOPING_ON_A_PHYSICAL_DEVICE.md`](DEVELOPING_ON_A_PHYSICAL_DEVICE.md) | The deep phone reference: verified commands, log reading, failure → fix |
 | [`INVENTORY_INTEGRITY.md`](INVENTORY_INTEGRITY.md) | The read-only orphan STOCK_IN / unreceipted-PO audit, its scheduled baseline/history monitor, its exit codes and what to do with a finding |
 | [`INVENTORY_INTEGRITY_AUDIT_REVIEW_2026-11-19.md`](INVENTORY_INTEGRITY_AUDIT_REVIEW_2026-11-19.md) | The audit follow-up record: the four integrity/catalog fixes, the transfer and receiving crash-recovery assessment, and ten ranked next improvements |
-| [`INTEGRITY_RECOVERY.md`](INTEGRITY_RECOVERY.md) | Durable transfer journals and recovery, unique ledger guard and migration, cross-instance recovery lease, PO receive keys/fingerprints, stale-claim repair, category archive policy, audit-gap monitoring, price-quality and product-currency commands, scheduled operational runner, limits and remaining risks |
+| [`INTEGRITY_RECOVERY.md`](INTEGRITY_RECOVERY.md) | Durable transfer journals and recovery, unique ledger guard and migration, cross-instance recovery lease, PO receive keys/fingerprints, stale-claim repair, category archive policy, audit-gap monitoring, replayable-audit deduplication, price-quality and product-currency commands, scheduled operational runner, limits and remaining risks |
+| [`AUDIT_DEDUPLICATION_DESIGN_2026-11-23.md`](AUDIT_DEDUPLICATION_DESIGN_2026-11-23.md) | The replayable-audit inventory (import, movements, transfers, PO receive, product/reference mutations, recovery jobs), the shared `recordAuditOnce`/unique-key design, key rules, adoption order, the three wired durable outboxes and the DELIVERED/FAILED retention policy |
+| [`AUDIT_DURABILITY_FOLLOWUPS_2026-11-23.md`](AUDIT_DURABILITY_FOLLOWUPS_2026-11-23.md) | Eighteen ranked follow-ups after the PO/movement outbox and outbox-retention work: production index/TTL rollout, alerting, real process-kill proof, teardown coverage, FAILED escalation and related ideas; recommendations only |
 | [`PRODUCT_CURRENCY.md`](PRODUCT_CURRENCY.md) | The ISO 4217 contract, read-only legacy audit, human-approved evidence file, idempotent bulk resolution, dated ECB rate cache, maximum-age refusal and conversion monitoring |
 | [`MONITORING.md`](MONITORING.md) | The operator's health endpoints, response pulse, AI turn records, alert rules and incident procedure |
 | [`INVENTORY_AI_IMPROVEMENT_ASSESSMENT.md`](INVENTORY_AI_IMPROVEMENT_ASSESSMENT.md) | The whole-product ranked improvement assessment: current strengths, risk register, next-work order and the new gaps beyond the existing roadmaps |
@@ -73,7 +75,7 @@ Guide 6; no rule, command or safety procedure was removed.
 | [`PLATFORM_SECURITY_NOTIFICATION_TEST_CHECKLIST.md`](PLATFORM_SECURITY_NOTIFICATION_TEST_CHECKLIST.md) | The one-page printable owner checklist for the two-contact test: both receipt timestamps, Cucumber’s written acknowledgement, evidence redaction and the final activation gate, with a verified one-page PDF |
 | [`PLATFORM_SECURITY_ALERT_DECISION_SHEET.md`](PLATFORM_SECURITY_ALERT_DECISION_SHEET.md) | Alert ownership, primary/backup record, free notification channels, instrumentation prerequisites and activation gates; planning only |
 | [`PLATFORM_FIREBASE_RECOVERY_DRILL_PLAN.md`](PLATFORM_FIREBASE_RECOVERY_DRILL_PLAN.md) | Isolated free Firebase outage/recovery drill: transient-vs-terminal behaviour, recovery paths, evidence, stop conditions and acceptance tests; planning only |
-| [`PLATFORM_DATABASE_RESTORE_DRILL_PLAN.md`](PLATFORM_DATABASE_RESTORE_DRILL_PLAN.md) | The disposable-database restore drill: RPO/RTO, safety stops, index gap, evidence and free-only secret escrow; planning only |
+| [`PLATFORM_DATABASE_RESTORE_DRILL_PLAN.md`](PLATFORM_DATABASE_RESTORE_DRILL_PLAN.md) | The disposable-database restore drill: RPO/RTO, safety stops, index gap, evidence and free-only secret escrow; a synthetic 16-document drill is recorded in §14, while production-sized and index/readiness checks remain planning only |
 | [`INVENTORY_AI_FOLLOWUP_ASSESSMENT.md`](INVENTORY_AI_FOLLOWUP_ASSESSMENT.md) | Free-first additive opportunities beyond IA-01–IA-18, the 2026-11-20 post-deployment refresh, duplicate exclusions and a ranked shortlist |
 | [`INVENTORY_AI_MULTI_CRITERIA_RANKING.md`](INVENTORY_AI_MULTI_CRITERIA_RANKING.md) | One 27-row, seven-criteria ranking of IA-19–IA-45 with joint ranks, equal-weight scores, rationale and a post-approval sequence; planning only |
 | [`PLATFORM_SECURITY_IMPROVEMENTS_BEYOND_IA45.md`](PLATFORM_SECURITY_IMPROVEMENTS_BEYOND_IA45.md) | Tenant-facing security review beyond IA-45: six ranked recommendations covering security notifications, access recertification, AI isolation canary, posture scorecard, tenant MFA and mail-domain anti-spoofing; recommendations only |
@@ -87,7 +89,11 @@ Guide 6; no rule, command or safety procedure was removed.
 | [`PLATFORM_NEXT_IMPROVEMENTS_BEYOND_NY07.md`](PLATFORM_NEXT_IMPROVEMENTS_BEYOND_NY07.md) | Next ranked tranche beyond NY-07: CodeQL, dependency review, deploy rollback, workflow audit, Android manifest privacy, privacy-policy drift and App Check; recommendations only |
 | [`PLATFORM_NEXT_IMPROVEMENTS_BEYOND_DEV09.md`](PLATFORM_NEXT_IMPROVEMENTS_BEYOND_DEV09.md) | Future improvements beyond DEV-09: six open ranked capabilities (bulk import, tenant query guard, stocktake, PO transmission, query deadline, digest pin), the already-shipped FW-07 request reference, and the still-open carry-forward items; recommendations only |
 | [`FW_IMPLEMENTATION_PLANS_2026-11-19.md`](FW_IMPLEMENTATION_PLANS_2026-11-19.md) | Code-accurate plans for FW-04 (corrected PO transmission), FW-07 (mobile request reference), FW-05 (non-AI database deadline), linked stock-movement reversal and supplier replenishment terms; planning only |
-| [`FW_01_BULK_IMPORT_IMPLEMENTATION.md`](FW_01_BULK_IMPORT_IMPLEMENTATION.md) | The implemented CSV catalogue import: API, bounds, durable receipt/resume contract, opening stock, status route, audit and device verification; the draft-PO section remains local-only |
+| [`FW_01_BULK_IMPORT_IMPLEMENTATION.md`](FW_01_BULK_IMPORT_IMPLEMENTATION.md) | The implemented CSV catalogue import: API, bounds, durable receipt-first resume, Discard/expiry/orphan cleanup, opening stock, status route, audit and device verification; the draft-PO section remains local-only |
+| [`INVENTORY_DASHBOARD_FOLLOWUPS_2026-11-22.md`](INVENTORY_DASHBOARD_FOLLOWUPS_2026-11-22.md) | The `c697943` review, canonical row statuses, four server counts, the Dashboard row-level action, per-user filter restoration and the remaining ranked Inventory/Dashboard improvements |
+| [`PR364_FOLLOWUP_IMPROVEMENTS_2026-11-22.md`](PR364_FOLLOWUP_IMPROVEMENTS_2026-11-22.md) | Eleven ranked improvements after PR #364; ranks 1 (durable Draft PO resume), 2 (import-draft lifecycle) and 10 (native restart proof) are now implemented locally, while repair UX, background progress, retention, throughput, cross-device visibility, filter policy and the Draft PO row cap remain open |
+| [`PROJECT_FOLLOWUP_REVIEW_2026-11-22.md`](PROJECT_FOLLOWUP_REVIEW_2026-11-22.md) | Revised whole-project follow-up review after the location-completeness and Dashboard-fallback fixes: fifteen ranked items, adding complete reference pagination, reference lifecycle repair and a Dashboard freshness contract alongside restore/alerting/audit/import/AI/release gaps; recommendations only |
+| [`DASHBOARD_REFERENCE_HISTORY_FOLLOWUPS_2026-11-23.md`](DASHBOARD_REFERENCE_HISTORY_FOLLOWUPS_2026-11-23.md) | The §27LD review: independent Dashboard section retries, one displayed summary timestamp, complete History product/location filters and the page-two saved-filter regression; sixteen ranked follow-ups (restore, alerts, index gates, History lifecycle, persistence, freshness and more), none implemented |
 | [`../README.md`](../README.md) | The front door: stack, layout, how to run each half, deployment |
 
 ### Platform Operations console
@@ -117,7 +123,7 @@ Reference documents are consulted rather than read once, so they are reviewed on
 | Document | Cadence | Last reviewed |
 | --- | --- | --- |
 | [`../CLAUDE.md`](../CLAUDE.md) | 90 days | 2026-11-20 |
-| [`SYSTEM_SPECIFICATION.md`](SYSTEM_SPECIFICATION.md) | 90 days | 2026-11-20 |
+| [`SYSTEM_SPECIFICATION.md`](SYSTEM_SPECIFICATION.md) | 90 days | 2026-11-23 |
 | [`AUTHENTICATION_AND_USER_VERIFICATION_TARGET_ARCHITECTURE.md`](AUTHENTICATION_AND_USER_VERIFICATION_TARGET_ARCHITECTURE.md) | 90 days | 2026-11-07 |
 | [`AUTH_SECURITY_MASTER_CHECKLIST.md`](AUTH_SECURITY_MASTER_CHECKLIST.md) | 90 days | 2026-11-07 |
 | [`SECURITY_DEPENDENCY_DECISIONS.md`](SECURITY_DEPENDENCY_DECISIONS.md) | 30 days | 2026-11-11 |
@@ -142,7 +148,8 @@ Reference documents are consulted rather than read once, so they are reviewed on
 | [`INVENTORY_AI_IMPROVEMENT_ASSESSMENT.md`](INVENTORY_AI_IMPROVEMENT_ASSESSMENT.md) | 90 days | 2026-11-17 |
 | [`AI_ASSISTANT_AUDIT_2026-11-20.md`](AI_ASSISTANT_AUDIT_2026-11-20.md) | 90 days | 2026-11-20 |
 | [`INVENTORY_INTEGRITY_AUDIT_REVIEW_2026-11-19.md`](INVENTORY_INTEGRITY_AUDIT_REVIEW_2026-11-19.md) | 90 days | 2026-11-19 |
-| [`INTEGRITY_RECOVERY.md`](INTEGRITY_RECOVERY.md) | 90 days | 2026-11-19 |
+| [`INTEGRITY_RECOVERY.md`](INTEGRITY_RECOVERY.md) | 90 days | 2026-11-23 |
+| [`AUDIT_DEDUPLICATION_DESIGN_2026-11-23.md`](AUDIT_DEDUPLICATION_DESIGN_2026-11-23.md) | 90 days | 2026-11-23 |
 | [`PRODUCT_CURRENCY.md`](PRODUCT_CURRENCY.md) | 90 days | 2026-11-20 |
 | [`PLATFORM_CLOUDFLARE_ACCESS_IMPLEMENTATION_PLAN.md`](PLATFORM_CLOUDFLARE_ACCESS_IMPLEMENTATION_PLAN.md) | 90 days | 2026-11-17 |
 | [`PLATFORM_SECURITY_CONTACTS.md`](PLATFORM_SECURITY_CONTACTS.md) | 90 days | 2026-11-17 |
@@ -150,7 +157,7 @@ Reference documents are consulted rather than read once, so they are reviewed on
 | [`PLATFORM_SECURITY_NOTIFICATION_TEST_CHECKLIST.md`](PLATFORM_SECURITY_NOTIFICATION_TEST_CHECKLIST.md) | 90 days | 2026-11-17 |
 | [`PLATFORM_SECURITY_ALERT_DECISION_SHEET.md`](PLATFORM_SECURITY_ALERT_DECISION_SHEET.md) | 90 days | 2026-11-17 |
 | [`PLATFORM_FIREBASE_RECOVERY_DRILL_PLAN.md`](PLATFORM_FIREBASE_RECOVERY_DRILL_PLAN.md) | 90 days | 2026-11-17 |
-| [`PLATFORM_DATABASE_RESTORE_DRILL_PLAN.md`](PLATFORM_DATABASE_RESTORE_DRILL_PLAN.md) | 90 days | 2026-11-17 |
+| [`PLATFORM_DATABASE_RESTORE_DRILL_PLAN.md`](PLATFORM_DATABASE_RESTORE_DRILL_PLAN.md) | 90 days | 2026-11-23 |
 | [`INVENTORY_AI_FOLLOWUP_ASSESSMENT.md`](INVENTORY_AI_FOLLOWUP_ASSESSMENT.md) | 90 days | 2026-11-17 |
 | [`INVENTORY_AI_MULTI_CRITERIA_RANKING.md`](INVENTORY_AI_MULTI_CRITERIA_RANKING.md) | 90 days | 2026-11-17 |
 | [`PLATFORM_SECURITY_IMPROVEMENTS_BEYOND_IA45.md`](PLATFORM_SECURITY_IMPROVEMENTS_BEYOND_IA45.md) | 90 days | 2026-11-17 |
@@ -164,7 +171,12 @@ Reference documents are consulted rather than read once, so they are reviewed on
 | [`PLATFORM_NEXT_IMPROVEMENTS_BEYOND_NY07.md`](PLATFORM_NEXT_IMPROVEMENTS_BEYOND_NY07.md) | 90 days | 2026-11-17 |
 | [`PLATFORM_NEXT_IMPROVEMENTS_BEYOND_DEV09.md`](PLATFORM_NEXT_IMPROVEMENTS_BEYOND_DEV09.md) | 90 days | 2026-11-19 |
 | [`FW_IMPLEMENTATION_PLANS_2026-11-19.md`](FW_IMPLEMENTATION_PLANS_2026-11-19.md) | 90 days | 2026-11-19 |
-| [`FW_01_BULK_IMPORT_IMPLEMENTATION.md`](FW_01_BULK_IMPORT_IMPLEMENTATION.md) | 90 days | 2026-11-22 |
+| [`FW_01_BULK_IMPORT_IMPLEMENTATION.md`](FW_01_BULK_IMPORT_IMPLEMENTATION.md) | 90 days | 2026-11-23 |
+| [`INVENTORY_DASHBOARD_FOLLOWUPS_2026-11-22.md`](INVENTORY_DASHBOARD_FOLLOWUPS_2026-11-22.md) | 90 days | 2026-11-22 |
+| [`PR364_FOLLOWUP_IMPROVEMENTS_2026-11-22.md`](PR364_FOLLOWUP_IMPROVEMENTS_2026-11-22.md) | 90 days | 2026-11-22 |
+| [`PROJECT_FOLLOWUP_REVIEW_2026-11-22.md`](PROJECT_FOLLOWUP_REVIEW_2026-11-22.md) | 90 days | 2026-11-22 |
+| [`DASHBOARD_REFERENCE_HISTORY_FOLLOWUPS_2026-11-23.md`](DASHBOARD_REFERENCE_HISTORY_FOLLOWUPS_2026-11-23.md) | 90 days | 2026-11-23 |
+| [`AUDIT_DURABILITY_FOLLOWUPS_2026-11-23.md`](AUDIT_DURABILITY_FOLLOWUPS_2026-11-23.md) | 90 days | 2026-11-23 |
 | [`../README.md`](../README.md) | 90 days | 2026-11-09 |
 
 The 2026-11-07 date starts each clock at adoption: it records when the cadence began, not that every

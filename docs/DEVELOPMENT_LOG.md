@@ -40,9 +40,439 @@ at the end of every development session, newest entry first.
 
 ## Current position
 
-**Updated:** 2026-11-22
+**Updated:** 2026-11-23
 **Goal:** finish and harden Inventory AI **V1** through production testing. No Play Store or App
 Store release is being prepared.
+
+**Six-index readiness, bounded audit health and a four-boundary crash harness (2026-11-23, local;
+§27LI):** the partial PO receive regression applies two of three lines in one request, replays the
+same key/body, then runs eight concurrent repair calls; both receipts keep one `receiveId` and the
+tenant keeps exactly one audit with exactly the two applied lines. The review found no duplicate
+audit defect, and the three producers now share `enqueueAndDeliverAudit` with an `onEnqueued`
+callback instead of repeating the outbox hand-off. Readiness and `migrate:required-indexes` now
+cover the 30-day `DELIVERED` TTL and the movement/PO receive repair indexes as well as the three
+unique guards; plain repair indexes adopt their auto-generated names and skip the unique duplicate
+preflight. `auditHealth.service.ts` records cumulative repair totals and logs outbox counts/oldest
+age by status, unmarked completed imports/movements/PO receipts, and alerts for a `FAILED` row over
+15 minutes or an unmarked receipt over 10 minutes. The child-process harness exits **86** at
+`import-commit`, `movement-enqueued`, `po-receipt` and `audit-in-flight`, then proves exactly one
+audit and one `DELIVERED` outbox row per case after real recovery; `npm run test:audit-crash` runs
+it against `inventoryai_test_db` only.
+
+Verification: server typecheck passed; pure readiness/rollout **28/28 in 5 suites**; combined
+index/readiness/rollout **42/42 in 8 suites**; `AUDIT-OUTBOX` **10/10**, `AUDIT-HEALTH` **2/2**,
+crash-harness suite **1/1** (four child exits **86**, 8.08 s) and standalone CLI **4/4, exit 0**;
+scheduler/movement/CLI/TLI **44/44 in 10 suites** (84.7 s). Documentation guards and `check-docs` are rerun after this entry. No index
+`--apply`, production read, deployment, commit, push or merge was made.
+
+**Dashboard/History cleanup, full mobile suite and required-index rollout (2026-11-23, local;
+§27LG):** History now resolves a name-only location parameter only after `useActiveRef` reports
+`locations.complete`; a page-one match no longer scopes the query while another page is still
+unread, and a focused test holds page two open to prove it. The secondary Dashboard sections lost
+the unused `error` field; only the summary keeps its rendered error and timestamp, and a no-token
+`reload` clears `refreshing`. The first full mobile run found one stale assertion after §27LD's
+copy change (**pull to retry** vs **tap to retry**) in `release-notes.test.tsx`; the stale
+expectations were corrected without changing app behavior. The final full mobile suite passed **126 suites /
+1,428 tests, 0 failed, 0 skipped, 51.733 s**.
+
+The readiness side already existed from §27LE. The missing deployment path is now
+`npm run migrate:required-indexes`: read-only by default, exact-spec inspection, duplicate-key
+preflight before any apply, targeted `createIndex`, re-inspection, and no `syncIndexes()` or deletes.
+It covers the transfer-operation/location, DRAFT request-key and audit dedupe indexes; production
+apply requires `REQUIRED_INDEXES_CONFIRM=ENSURE-REQUIRED-INDEXES`. The rollout tests passed **11/11**
+and the combined rollout/readiness/boot set **53/53 in 10 suites**. A read-only development run
+(`inventoryai_dev_db`) reported transfer `READY`, DRAFT and audit `MISSING`, and exited **1** without
+writing. `--apply` was not run anywhere and production was not inspected; duplicate keys remain a
+manual data decision. Server typecheck, focused ESLint, `check:extensions`, `check:specifiers` and
+`check-docs` pass, and the six documentation/command guards pass **32/32** (plus
+`git diff --check`). No commit, push, merge, deployment or production data/config change was made.
+
+**Resume-key gates, truthful cleanup and a serial-guarded install helper (2026-11-23, local;
+§27LH):** Draft PO submission now requires `saveRestockPurchaseOrderDraft` to succeed before
+`createFromRestock`; a failed save clears the in-memory attempt and sends nothing. A confirmed create
+retries its expected-key local clear once; if it still fails, the screen keeps **Resume draft creation**
+and says the server order exists but the local resume copy could not be removed, rather than silently
+navigating. Server replay is unchanged. The import review found the same save-failure warning on a new
+key and fixed it: a new import is not sent when its CSV/key cannot be saved, while a restored key is
+already durable. A completed import also retries its clear and keeps a truthful Resume path on failure.
+
+The device harness now rejects a force-stop proxy without `--serial`, refuses `draft-resume` without
+an explicit serial, ignores proxy entries older than the run, requires the matching
+`force-stop-before-forward` event, and checks the full restock fingerprint instead of only product ids.
+The new `scripts/device/install.mjs` is check-only by default, requires an exact attached serial,
+reads APK/package/debug state, refuses unreadable state, downgrades, wrong packages and a debuggable
+APK over non-debuggable `com.inventoryai.app`, and only calls `adb -s <serial> install -r` with
+`--apply`. No uninstall or data clear is performed.
+
+Verification: install safety **10/10**, device harness plus install **90/90**, the focused server set
+(index rollout/readiness plus device tests) **116/116 in 27 suites**, Draft PO resume **6/6**, import resume **12/12**; proxy without
+`--serial` exits **1**, install without serial/APK exits **2**, harness self-test **6 journeys / 142
+steps**; mobile typecheck and focused ESLint pass. Complete mobile **126 suites / 1,432 tests, 1,432
+passed, 0 failed, 0 skipped, 50.657 s**. The install helper was not run against a real APK/phone; full
+server suite not rerun, no index apply and no production read. No commit, push, merge, deployment or
+production data/config change was made.
+
+**Tenant receipt cleanup, PO/movement audit outboxes and bounded retention (2026-11-23, local;
+§27LF):** `product_imports` is now in `TENANT_DATA_COLLECTIONS`, and DEMO-2 seeds **17** distinct
+receipts so the preview/delete count is falsifiable. Keyed movement completion enqueues
+`movement:<receiptId>:completed`; new receipts carry `auditTracked`, and completion/replay plus a
+bounded repair scan close the crash window. PO receive stamps one `receiveId` per request on every
+receipt line and enqueues `po-receive:<poId>:<receiveId>`; replay and recovery reconstruct the batch
+from those receipts. Historical receipts without the new markers are skipped so pre-dedupe audits are
+never appended twice. `audit_outbox` now has a **30-day partial TTL** for `DELIVERED` rows and a
+`{status, updatedAt}` triage index; `FAILED` rows are retained, retried with capped backoff and
+triaged, not TTL-deleted. Focused `AUDIT-OUTBOX` **9/9**, DEMO-2 **8/8**, FW-01 **17 pass / 1 parser
+mode-skip**, Phase 13 receiving **17/17**, phase-index-integrity **14/14**, and the scheduler /
+movement-recovery / CLI / transfer-guard regression set **44/44**; server typecheck and focused ESLint
+pass. The eighteen-item ranking is in
+[`AUDIT_DURABILITY_FOLLOWUPS_2026-11-23.md`](AUDIT_DURABILITY_FOLLOWUPS_2026-11-23.md); production
+index/TTL rollout, outbox alerting and real process-kill proof are the top three. No complete server
+suite, commit, push, deployment, production read or production data/config change was made.
+
+**Full server suite, three-index readiness and an automated Draft PO restart proof (2026-11-23,
+local; §27LE):** `cd server && npm test -- --test-concurrency=8` passed **3,380 tests / 544 suites,
+3,380 pass, 0 fail, 0 skipped, 0 todo** in **1,017,508.3381 ms (16 m 57.5 s)**. The transfer-ledger,
+Draft PO request-key and audit-deduplication indexes now share exported specs with the readiness
+checker. `/api/health/ready` fails closed on any missing, non-unique, reordered or differently
+filtered index; the production boot logs the same result without delaying the listener; the checker
+only reads index metadata. Focused server **42/42 in 7 suites** and real-DB index **14/14 in 3
+suites** passed.
+
+Android was rebuilt from a clean prebuild with `com.inventoryai.app`, `versionName 1.0.2` and
+`versionCode 1`. The arm64 APK took **5 m 07 s** and the x86_64 APK **1 m 20 s**; both are 94 MB,
+debug-signed, and recorded with SHA-256 in the §27LE evidence. The build used the known `C:\iab`
+short-path copy and `CMAKE_OBJECT_PATH_MAX=250`. On the Android 15 emulator, the automated
+`draft-resume` journey passed **20/20, exit 0**: key `op-mwswjpgd-qxpii9119ib5in6h`, 251-byte body,
+force-stop after receipt and before forward, cold relaunch, restored form, resumed same key/body, and
+exactly one DRAFT `PO-0005`. The proxy now kills only the first request per key and logs
+`force-stop-skipped` on replay. `run.mjs --self-test` passes **6 journeys / 142 steps**.
+
+Review of the import guard added the confirmed **Discard unreadable saved import** escape hatch,
+removed a duplicate guard and stale restore message, and kept transient SecureStore failures
+blocking rather than treating them as “no draft.” Two pre-merge judgment calls remain flagged: a
+failed SecureStore save still allows the Draft PO submit (it warns, but a process death in that
+state loses the key), and a failed post-success local clear leaves a safe-but-stale saved attempt.
+During the first install one command omitted `-s`; ADB selected the physical CPH1969 after the
+emulator shut down, replaced the production app and cleared its local data. No server/production
+data or configuration changed. The prior production APK (versionCode 10, versionName 1.0.2, valid
+v2 signature) was recovered locally and reinstalled; the phone needs a new sign-in. Every later
+command used an explicit serial. Focused mobile import restore and Draft PO replay **4 suites / 26 tests** (import restore alone
+2 suites / 14 tests), mobile and server typechecks and focused ESLint pass. No full mobile suite rerun, commit, deployment, OTA/APK
+publication or production data change was made.
+
+**Dashboard freshness cleanup, complete History filters and a follow-up ranking (2026-11-23, local;
+§27LD):** the Dashboard section type now carries only `data`, `state` and `error`; only the summary
+adds the `updatedAt` the screen actually displays. The whole-summary `summaryRef` and both secondary
+timestamps were removed, and a restock retry now derives its attention count from the current
+summary. Section isolation is unchanged: a successful restock retry calls only the restock loader,
+and an open-order retry calls only the order loader. The summary shows **Last updated** from its
+accepted response, the stale banner says **tap to retry**, and the focused tests assert the timestamp,
+cleared retry controls and both request counts.
+
+`useActiveRef` now prefers the server's `totalPages` over arithmetic from the requested page size, so
+a server that caps pages smaller than `limit` can no longer stop the loop early with unseen rows and
+`complete: false`; the fallback to `total` remains when no page count is sent. The unused
+`useCatalogOptions` wrapper was removed, leaving `useActiveRef` and `referenceAvailability` as the
+only reference-lifecycle entry points. History's product and
+location filters now read every active page. A saved page-two product and location stay selected and
+in the `inventoryApi.history` query, and a name-only saved location resolves from the complete list.
+The old effect/once-only ref was replaced with a render-derived effective id, so clearing a location
+cannot be undone by the route name and the previous set-state-in-effect lint error is gone.
+
+The focused command
+`npx jest __tests__/dashboard-freshness.test.tsx __tests__/reference-pagination.test.tsx __tests__/history-filters.test.tsx --runInBand --silent`
+passed **3 suites / 18 tests**: Dashboard freshness 2, History page-two filters 2, reference
+pagination/availability/call-site guard 14. Mobile `npm run typecheck` passed; focused ESLint over
+both screens, both hooks and the three tests passed with **0 errors / 0 warnings**. The five
+documentation guard files passed **31/31** across six suites, `node scripts/check-docs.mjs` reports 78
+active documents and `git diff --check` is clean. The new sixteen-item ranking lives in
+[`DASHBOARD_REFERENCE_HISTORY_FOLLOWUPS_2026-11-23.md`](DASHBOARD_REFERENCE_HISTORY_FOLLOWUPS_2026-11-23.md);
+restore proof, named alert delivery and the schema/index readiness gate remain the top three. No
+device run, visual review, screenshot, full mobile suite, production read, commit, deployment or
+production data change was made.
+
+**Terminal recovery receipts, deterministic audit keys and a durable import outbox (2026-11-23, local;
+§27LC):** Movement receipts now accept completion and inventory-stage writes only while they are not
+`COMPLETED` (and not `REQUIRES_ATTENTION` for a late stage), so a delayed writer cannot replace the
+stored response. Transfer journals follow their declared progression; `FAILED`, `COMPENSATED`,
+`REQUIRES_ATTENTION` and `COMPLETED` are terminal against late synchronous writes, and recovery
+returns `noop` for a completed journal even when its response is missing. Focused regressions cover a
+completed receipt resisting late completion/stage writes, concurrent movement recovery (one ledger
+row, one audit), a response-less completed transfer, and concurrent transfer recovery (two ledger
+rows, one audit).
+
+Recovery audits now use deterministic keys: `movement-receipt:<receiptId>:recovered|pruned`,
+`transfer:<operationId>:completed` (shared by synchronous and recovery writers) and
+`po-claim:<poId>:<claimId>:recovered`. Concurrent recovery of one receipt, transfer or PO claim
+appends one audit row instead of racing. Product Import adds the durable half: an `audit_outbox` row
+is written before the AuditLog insert, the completed receipt is fenced with `auditEnqueuedAt`, and a
+bounded repair scan re-enqueues a receipt that crashed before the hand-off. The outbox claims rows
+atomically, reclaims a stale `SENDING` claim after 60 seconds, retries `FAILED` rows after backoff,
+and is flushed in the integrity recovery pass. Repair also fences a pre-dedupe completed import
+whose legacy audit exists, instead of appending a second historical event. `audit_outbox` is in the
+model barrel and in tenant teardown, and the DEMO-2 fixture seeds it. The focused `AUDIT-OUTBOX`
+suite passes **6/6** (repair, legacy-audit fence without duplication, replay after a lost marker,
+crash-before-insert delivery, stale-claim reclaim after the audit committed, `FAILED` retry, and
+eight concurrent deliveries leaving one row each). Movement recovery **10/10**,
+`INTEGRITY-RECOVERY` **21/21**, FW-01 **17 pass / 1 mode-skip**, TLI **5/5** and server typecheck all
+pass. The complete server suite passed **3,375 tests / 544 suites, 3,375 pass, 0 fail, 0 skipped, 0
+todo**, exit 0, in **929,908 ms (15 m 30 s)**, run as `npm test -- --test-concurrency=8` on Windows.
+`node scripts/check-docs.mjs` and `git diff --check` are clean. No production data, configuration,
+commit or deployment was touched.
+
+**Import-restore guard, crash-safe DRAFT keys, and an emulator force-stop proof (2026-11-23, local;
+§27LB):** the import screen no longer treats a temporary SecureStore failure as “no saved draft”.
+`readProductImportDraft` distinguishes `ok`, `missing` and `error`; `error` keeps the picker disabled
+behind **Check saved import first**, and only a confirmed `missing` unlocks a new file. The outer
+`finally` now clears `checking` even when the read throws. Focused mobile **28/28** (import draft
+9, resume 9, account deletion 10); the complete mobile suite passed **125 suites / 1,422 tests**.
+
+The Restock → Draft PO server window is closed durably: the DRAFT now stores its `requestKey` and a
+canonical `requestFingerprint`, with a unique partial `(businessId, requestKey)` index. A same-key
+retry replays the existing DRAFT before validation; a different body gets `422
+IDEMPOTENCY_KEY_REUSED`. The focused real-DB suite passed **6/6**, including a lost HTTP claim and
+the index assertion, and both typechecks plus focused ESLint passed.
+
+The physical CPH1969 disconnected and never returned to ADB, so the force-stop proof was run on the
+Android emulator `sdk_gphone64_x86_64` with a debug development build compiled from this tree. Key
+`op-mwsquuwv-w7fgh5se445ud204` created `PO-0001` at **04:06:48Z**; a watcher force-stopped the app as
+the request was logged. Cold relaunch restored both selected rows, **Resume draft creation** resent the
+identical key/body at **04:09:00.827Z**, and the test database still held exactly **one** DRAFT with
+no duplicate line. Requests, database output and screenshot:
+[`evidence/draft-po-force-stop-2026-11-23`](evidence/draft-po-force-stop-2026-11-23/README.md).
+This is explicitly emulator evidence, not a phone proof; a Firebase-unconfigured local login path
+was used, and the generated Android project's package/version mismatch is recorded there. The
+whole-project ranking was revised, with automating this proof still item 7. No production data,
+configuration, commit, deployment or publication was touched.
+
+**Complete reference lists, sectioned Dashboard freshness, and saved-reference repair (2026-11-23,
+local; §27LA):** the review fixed a real completeness bug before extending it. `useActiveRef` used to
+discard pages 1–N when page N+1 failed; it now keeps those options, marks the list incomplete, dedupes
+ids and ignores late answers from a superseded request. Inventory now validates a deep-linked
+`locationId` exactly like a saved one instead of treating the route as a user choice, so an archived
+deep link shows the repair notice and is omitted from the query.
+
+The named active-reference pickers now ask for all pages: Movement and Transfer
+(products/locations), PO form (suppliers/locations/products), Product form (categories), Products and
+Restock filters (categories/locations), and Restock → Draft PO (suppliers/locations). A source guard
+fails if any of those returns to a first-page-only call. The Dashboard now consumes
+`useDashboardOverview`, a three-section contract with independent `loading`/`ok`/`error` states,
+timestamps and retries. Summary and open orders load in parallel; the preview loads only after a
+summary with attention. A failed preview keeps the summary-backed row route, a failed order read
+shows a retry rather than nothing, and neither secondary retry re-reads the summary.
+
+Saved references are judged only after the complete active list is known. Locations, categories and
+PO suppliers that are missing are omitted from filters/payloads and shown with an explicit repair:
+Reset/another filter, choose an active replacement, remove an archived category, or — for a saved
+draft attempt whose key cannot legally change — check Purchase orders and Start over. The server
+still refuses a reference archived between the read and the write; no screen silently clears a value
+while the list is loading or failed.
+
+**Verification.** Mobile typecheck passed; focused ESLint on all changed files passed with 0 errors
+and 0 warnings. Focused Jest **14 suites / 95 tests** passed. The full mobile suite passed **125
+suites / 1,419 tests** in 52.0 s (`npx jest --runInBand --silent`). No device run, visual review,
+screenshot, production read or deployment was made. Remaining risks: the Dashboard is not an atomic
+server snapshot; all-page reads are serial and may be slow on a very large product catalogue;
+archived PO product lines still rely on server refusal; lifecycle detection stays `checking` on an
+endpoint without pagination metadata. Details and exact limitations are in §27LA.
+
+**Terminal import receipts, shared audit deduplication, and a disposable restore drill (2026-11-23, local):**
+All `ProductImport` status writes remain behind the conditional `markReceiptUnlessCompleted`
+(`status: { $ne: 'COMPLETED' }`). The fresh review found three ways a late worker could still change a
+completed receipt and closed them: the product-create failure `$pull`, `reserveImportProduct`, and
+`recordImportStockProgress` now require `status != COMPLETED`. `receiptAfterCompletion` also fails
+closed with `409 IMPORT_RECEIPT_STATE_CHANGED` if the receipt is absent or no longer completed,
+instead of replaying a null result. New regressions cover late failure transitions, late reservation
+and stock-progress writes, and a failure/completion race whose final state must be `COMPLETED` with
+the completion result intact.
+
+Audit writes now have a shared dedupe primitive. `AuditLog` has an optional `dedupeKey` and a unique
+partial index on `(businessId, dedupeKey)`; `recordAuditOnce` inserts and, on duplicate key `11000`,
+returns the committed winner. Product import is the first adopter with
+`product-import:<receiptId>:completed`. Twelve concurrent same-key writes produce one row and one id;
+the same key in a second business produces a second row; keyless ordinary events stay append-only.
+The remaining replayable surfaces (keyed movements, transfers, PO receive/recovery, transport-only
+product/reference/PO mutations) are inventoried with key recipes and an adoption order in
+[`AUDIT_DEDUPLICATION_DESIGN_2026-11-23.md`](AUDIT_DEDUPLICATION_DESIGN_2026-11-23.md). The guarantee
+is **at most one**, not exactly one: a crash after `COMPLETED` before the audit insert can still leave
+a missing row, and no pending-audit/outbox marker is implemented.
+
+A real backup/restore drill ran against a new synthetic source database,
+`inventoryai_restore_drill_src`, with **16 documents in 7 collections** (ObjectId, Date and
+Decimal128 included). The backup was written outside the repository and restored only into
+`inventoryai_test_db`; development and production were not opened or changed. The dry run verified
+all seven files and wrote nothing. The live restore wrote **16/16 documents in 3.032 s**;
+independent verification took **2.087 s**, giving **5.119 s end-to-end database RTO**. Every count
+matched; on-hand summed to **11**, the ledger to **{inflow 16, outflow 5, net 11}**, and the BSON
+types survived. The observed last-write-to-backup-finish gap was **4.931 s RPO**. This is a command
+path and fidelity proof, not a production-sized drill: no index rebuild, `/api/health/ready`, tenant
+smoke, off-host retrieval or secret-escrow walk was performed. The exact record is §14 of
+[`PLATFORM_DATABASE_RESTORE_DRILL_PLAN.md`](PLATFORM_DATABASE_RESTORE_DRILL_PLAN.md). The synthetic
+source database was dropped after evidence capture; the test database remains disposable.
+
+Server `npm run typecheck` and focused ESLint pass;
+`TEST_MODE=db node --test test/FW01-product-import.test.mjs` passed **17 / 0 fail / 1 parser
+mode-skip**. `TEST_MODE=db node --test test/phase-index-integrity.test.mjs
+ test/OPS1-backup-restore.test.mjs` passed **24/24**, including the new partial unique audit index
+and the backup/restore guards. No full server/mobile suite, device run, commit, push, merge,
+deployment, OTA/APK, production configuration or production data change was made.
+
+**Import-draft cleanup guard and durable Draft PO resume (2026-11-22, local):**
+`lib/productImportDraft.ts` now distinguishes `ok`, `missing`, `corrupt` and `error` metadata reads;
+cleanup aborts on a transient SecureStore failure instead of deleting a valid CSV, and save/load/
+cleanup/clear/purge share one serialization queue. Completion and Discard keep expected-key clears.
+Account deletion calls `purgeProductImportDraft`, which removes the account's CSV directory before a
+best-effort metadata delete, so a failed SecureStore delete cannot retain local product data. The
+review also removed two stale-state paths in the Restock draft screen: a location change clears the
+old rows/selection before a new restock read, and an account/attempt change clears the previous saved
+attempt before checking storage.
+
+The Restock → Draft PO attempt is now durable. `lib/restockPurchaseOrderDraft.ts` stores the exact
+request body, operation key and timestamp under an account digest; the screen saves before the first
+request, restores on a cold reopen, locks supplier/location/rows while unresolved, resends the stored
+body with the same key, and clears with the expected key only after success or a definite
+operation-ending refusal. A failed storage read blocks a new draft and offers **Check saved attempt
+again** rather than minting a second key. **Start over** removes only the local attempt after a
+confirmation. The server's `/api/purchase-orders/from-restock` now requires `Idempotency-Key`.
+
+Focused mobile Jest `restock-purchase-order-draft`, `draft-po-from-restock-resume`, `restock-screen`,
+`product-import-draft` and `account-deletion` passed **5 suites / 35 tests, 0 failures**. Mobile
+`npx tsc --noEmit` and focused ESLint passed. Server `npm run typecheck` and focused ESLint passed;
+`TEST_MODE=db node --test test/FW01-draft-po-from-restock.test.mjs` passed **5/5**, including the new
+missing-key refusal. Documentation was updated in the FW-01 record, the PR #364 ranking and §27KY. No
+full-suite rerun was made; no commit, push, merge, deployment, OTA/APK, production configuration or
+database data was changed. The Draft PO restart proof is unit/screen-level, not a physical
+force-stop.
+
+**Complete location lists, Dashboard fallback, and revised follow-ups (2026-11-22, local):**
+`useActiveRef` now exposes `complete` separately from `loading`. Inventory requests `allPages: true`,
+reads every active-location page, and only treats a saved location as deleted when the last page is
+confirmed and the collected total matches the server's. A failed page or a total mismatch leaves the
+saved id and query filter in place; duplicate ids across page boundaries are removed. The focused
+regression covers a saved location on page 2 of **101** active locations and a failed page-2 read.
+
+The Dashboard now keeps a route to Inventory's row-level Needs attention view when the optional
+restock preview fails. It renders the summary's low/out counts and the existing
+`/inventory?needsAttention=true` action instead of dropping the whole section. A focused test fails
+the preview request and verifies the route and counts.
+
+`npx jest __tests__/inventory-filters.test.tsx __tests__/dashboard-attention-link.test.tsx
+__tests__/dashboard-restock-fallback.test.tsx --runInBand` passed **3 suites / 15 tests, 0 failures**
+in **4.306 s**; mobile `tsc --noEmit` and focused ESLint passed. [`PROJECT_FOLLOWUP_REVIEW_2026-11-22.md`](PROJECT_FOLLOWUP_REVIEW_2026-11-22.md)
+was revised to **fifteen** ranked items, adding complete reference pagination in every picker,
+reference lifecycle repair, and a Dashboard freshness contract. **No follow-up was implemented.** No
+full suite, device render, commit, push, merge, deployment, OTA, APK publication, production
+configuration or database data was changed.
+
+**Full suites, import audit exactly-once, and whole-project follow-up review (2026-11-22, local):**
+`cd server && npm test -- --test-concurrency=4` passed **3,354 tests in 542 suites — 3,354 pass,
+0 fail, 0 skipped** in **1,125 s**. `cd mobile && npx jest --runInBand` passed **120 suites /
+1,381 tests, 0 fail** in **64 s**. No regression required a test change.
+
+The new direct service-level regression reset an applied import receipt to `IN_PROGRESS` and ran two
+`productImportService.apply` calls with the same key and no transport row. It found a real race: both
+finalizers returned **201** and each wrote a `PRODUCTS_IMPORTED` audit row. Receipt completion is now a
+conditional single-winner transition; the loser returns the durable result as **200 replayed**, and
+the database has one audit row. `FW01-product-import.test.mjs` passes **13/13 database tests with one
+parser mode-skip**; removing the conditional transition makes the new test fail.
+
+The whole-project review is [`PROJECT_FOLLOWUP_REVIEW_2026-11-22.md`](PROJECT_FOLLOWUP_REVIEW_2026-11-22.md).
+It ranks restore proof, security-alert delivery, audit exactly-once/failure durability, durable Draft
+PO resume, import execution bounds, import operator recovery, global AI spend control, AI accuracy,
+release readiness, receipt retention/cross-device visibility, tenant export/retention and mobile crash
+diagnostics. The audit and import-concurrency findings are new; **no follow-up was implemented**.
+
+**Superseded by the §27KX entry above:** the review now ranks fifteen items and adds complete
+reference pagination, reference lifecycle repair and a Dashboard freshness contract. Nothing in that
+new list was implemented either.
+
+**PR #364 follow-ups: archive-safe stock filters, import resume and ranked improvements (2026-11-22, local):**
+`GET /api/products?stockStatus=...` is now pinned to ACTIVE in `product.service.ts`; a direct request
+without `status`, or one asking for `status=ARCHIVED`, cannot return an archived product. Legacy
+`lowStock`/`outOfStock` and ordinary status filters keep their existing scope. The new DB guard suite
+passes **2/2**, and Phase 11 product/stock regressions pass **10 with 1 mode-skip, 0 failures**. Server
+typecheck and focused ESLint pass.
+
+The product import now saves its file name, CSV and operation key before the apply request. Metadata
+and key are in SecureStore under an account digest; the CSV is in an account-digest app-sandbox
+directory because SecureStore is not a safe 512 KiB container. A cold start restores the file and key
+and asks `GET /api/products/import/:key` immediately: **the server receipt controls resume, not a fresh
+dry run.** `PARTIAL` shows its counts and Resume, `IN_PROGRESS` polls, `COMPLETED` clears and opens
+Products, `FAILED` offers a confirmed Discard, and a `404`/status failure keeps the same-key Resume
+visible. This removes the dead end where already-applied rows made a restored dry run invalid. A
+completed receipt or definite refusal clears the draft; partial, failed and ambiguous outcomes keep it;
+a late completion cannot delete a newer key. The import workbench is keyed by account id, so an account
+switch remounts it instead of leaving the previous file/key/progress on screen. Drafts now carry a
+seven-day expiry, mount-time cleanup removes orphan CSVs and unreadable/expired metadata, Discard
+removes the device copy without changing the server receipt, and account deletion purges the
+account-scoped draft before sign-out. Ordinary sign-out keeps the draft for the same account.
+
+Import draft tests **5/5**, screen resume tests **7/7**, and account-deletion tests **9/9** pass; the
+focused mobile batch is **21/21**. Mobile typecheck and focused ESLint pass. Server typecheck and
+focused ESLint pass; the DB-backed stock-status guard remains **2/2** after simplifying the service
+branch to one explicit `stockStatus -> ACTIVE` decision.
+
+The same session added a deterministic concurrent same-key regression: 40 duplicate calls to each
+receipt write must leave one reservation and one stock-progress row, and two parallel HTTP deliveries
+of one 8-row file must leave one catalogue/receipt with no duplicate products, inventory rows or
+ledger transactions. A direct service-level race also proves one audit row and one completion;
+`FW01-product-import.test.mjs` now passes **13/13 with one mode-skip**. OPS7 fixture simplification
+reran **14 pass / 2 mode-skip / 0 fail**.
+
+The connected CPH1969 development build then proved the full lifecycle on a disposable local owner
+(0 products). A 300-row file with 300 opening-stock rows at `Resume Warehouse` previewed cleanly; a
+watcher archived that location as soon as product creation began. The phone showed **300 of 300
+product rows created; 0 opening-stock movements**, the partial message, a locked picker and
+operation key `op-mws30ap3-c61h0sb4698evfcq`. A real `am force-stop` and dev-client relaunch restored
+the CSV, the same key and the same counts; the server saw only the status `GET` for that key after
+relaunch, **not a dry run**. After the location was restored, Resume completed **300/300 products and
+300/300 stock movements**. Database read-back found **one** `COMPLETED` receipt with 300 unique created
+lines and 300 unique stock lines, 300 products/SKUs/names, 300 inventory rows (300 unique
+product+location pairs), and 300 ledger transactions (300 unique products, one reference). No
+duplicate. The 300-row catalogue, inventory, ledger rows, receipt and temporary location were removed
+from the local development tenant after read-back; no production or remote environment was touched.
+
+Eleven follow-ups were ranked in
+[`PR364_FOLLOWUP_IMPROVEMENTS_2026-11-22.md`](PR364_FOLLOWUP_IMPROVEMENTS_2026-11-22.md). Ranks 2
+(import-draft lifecycle) and 10 (native restart proof) are now implemented; the remaining top item is
+shared durable resume for long writes (Draft PO), followed by a repairable error-CSV workflow.
+
+The complete local server and mobile suites are green with the counts above. The direct audit test
+does not cover a process crash between the `COMPLETED` write and the audit insert, and other
+replayable services are not yet proved exactly-once. No commit, push, merge, deployment, production
+data, OTA or APK publication was made.
+
+**Inventory attention, four counts, Dashboard row action and saved filters (2026-11-22, local):**
+reviewed `c697943` against the current branch (it is not an ancestor) and ported the good parts. The
+review found a real defect: `needsAttention` used the same `available <= minimumStock` predicate as
+the legacy broad `lowStock`, so Low and Needs attention returned identical rows, and the commit's
+mobile test mocked totals the server could not produce. The fix adds canonical disjoint row statuses
+(`LOW_STOCK` = above zero but at/below minimum, `OUT_OF_STOCK` = zero or less) and keeps `lowStock`
+as the legacy broad API filter only. `includeCounts=true` now returns all four chip totals from one
+scoped aggregate; Low + Out equals Needs attention, and each total equals its filtered list. The
+mobile client requests them on page 1 only and preserves them while paging. The
+product-first search path now also applies an Out filter instead of ignoring it. Inventory shows the
+four server counts, restores each account's last location/status from SecureStore with route
+parameters winning per dimension, clears those route params once the person changes a filter, and
+has Reset that deletes the saved choice. The Dashboard keeps its product-level Restock link and adds
+**View stock rows needing attention**, now hidden when the restock preview is empty. A later deep
+link delivered while Inventory was already mounted used to be ignored; route-supplied status/location
+are now derived during render until the person acts, and a new `q` route replaces the search field.
+A saved location that is no longer in the loaded active list falls back to All locations with Reset
+available instead of querying the stale id. The new DB suites are registered in `run-tests.mjs`.
+
+Verified on the CPH1969 at 360 dp (`1080 / 480`): **All · 622 / Needs attention · 311 /
+Low stock · 311 / Out of stock · 0** in two rows, 44 dp chips, no clipping; every chip tap matched
+its list total. Demo Shop + Low survived force-stop/relaunch; a mounted `?needsAttention=true` link
+kept Demo Shop and changed to 6 attention rows; a named Warehouse + Out link won both dimensions
+(612 / 303 / 303 / 0); Reset cleared both filters and stayed cleared after relaunch; the Dashboard
+action opened 311 rows at All locations; a second mounted `?q=Demo` link changed the search field
+from “Import Verify” to “Demo”. Server attention **2/2**, archive-safe product stock **2/2**,
+Phase 04 inventory **20/20**, stock-query shape **7/7**; mobile focused Jest **41/41** across five
+suites; focused lint and both typechecks pass; `check-docs` and the five documentation guard files
+(**31/31**) pass. The Out chip was device-verified at zero/empty because the fixture has no out stock
+row; server fixtures cover non-zero. No commit, push, merge, deployment, production data or full-suite
+rerun.
 
 **PR #364: Q68, Overview evidence, resumable import and visible stock filters (2026-11-22):**
 pushed at `25e2f62` on `fix/overview-stock-filters`; three local commits (`15f859c`,
@@ -169,9 +599,9 @@ mode-skipped parser suite**; Draft PO DB suite **5/5**; Phase 22/23 **32/32**; r
 identical to the current FW-03 plan file; the local branch was retired with `git branch -d` (no
 content loss).
 
-Remaining: persist the selected CSV/import key if cross-restart resume is required; the status route
-and receipt are ready for it, but a fresh app launch cannot re-read the picked file. The draft-PO
-attempt key is still screen-session scoped. No production or deployment action was taken.
+Remaining at that point: persist the selected CSV/import key if cross-restart resume is required. That
+is now implemented in §27KT (SecureStore metadata/key plus a sandbox CSV). The draft-PO attempt key is
+still screen-session scoped. No production or deployment action was taken.
 
 **Inventory and Overview action clarity (2026-11-22):** reviewed the Scan/Purchase Orders placement
 and the Low/Out actions and changed the hierarchy rather than adding controls. **Dashboard:** the

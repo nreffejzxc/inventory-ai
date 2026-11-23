@@ -1,0 +1,57 @@
+{
+  "journey": "draft-resume",
+  "startedAt": "2026-11-23T06:25:21.035Z",
+  "runId": "2026-11-23T06-25-21-035Z",
+  "device": "sdk_gphone64_x86_64 · Android 15 (API 35) · emulator-5554",
+  "steps": [
+    {
+      "title": "open inventoryai://purchase-orders/from-restock",
+      "status": "pass",
+      "detail": "inventoryai://purchase-orders/from-restock",
+      "durationMs": 988
+    },
+    {
+      "title": "expect \"Draft purchase order from restock\"",
+      "status": "pass",
+      "detail": "seen after 2297ms",
+      "durationMs": 2297
+    },
+    {
+      "title": "choose \"Draft Proof Supplier 1795403412084\" from the \"Supplier\" picker",
+      "status": "pass",
+      "detail": "chose \"Draft Proof Supplier 1795403412084\"",
+      "durationMs": 11091
+    },
+    {
+      "title": "choose \"Draft Proof Bay 1795403412084\" from the \"Receiving location\" picker",
+      "status": "pass",
+      "detail": "chose \"Draft Proof Bay 1795403412084\"",
+      "durationMs": 11086
+    },
+    {
+      "title": "expect \"Draft Proof Gadget 1795403412084\"",
+      "status": "pass",
+      "detail": "seen after 2337ms",
+      "durationMs": 2337
+    },
+    {
+      "title": "tap \"Draft Proof Gadget 1795403412084\"",
+      "status": "pass",
+      "detail": "tapped Draft Proof Gadget 1795403412084, SKU DP-B-1795403412084 · 0 available · minimum 3 · out of stock at 540,1625",
+      "durationMs": 3111
+    },
+    {
+      "title": "tap \"Draft Proof Widget 1795403412084\"",
+      "status": "pass",
+      "detail": "tapped Draft Proof Widget 1795403412084, SKU DP-A-1795403412084 · 0 available · minimum 5 · out of stock at 540,1805",
+      "durationMs": 3117
+    },
+    {
+      "title": "expect \"Create draft order (2 items)\"",
+      "status": "fail",
+      "detail": "expected \"Create draft order (2 items)\" within 15000ms; screen showed: Tools | Navigate up | Draft From Restock | Draft purchase order from restock | Select the products to replenish. Quantities are calculated by the server from the selected location's current availability and each product's minimum stock. | Order details | Supplier * | Draft Proof Supplier 1795403412084, ▾ | Draft Proof Supplier 1795403412084 | ▾",
+      "durationMs": 16930
+    }
+  ],
+  "notes": "evidence: C:/Users/jeffe/inventory-ai/docs/evidence/draft-po-force-stop-2026-11-23/automated-2026-11-23T06-10Z/journey"
+}

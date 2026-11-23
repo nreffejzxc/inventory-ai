@@ -798,6 +798,17 @@ are never auto-deleted.
 The bounded recovery batch reserves stale unfinished receipts before attention rows, so an old
 `REQUIRES_ATTENTION` backlog cannot starve a newer unfinished receipt.
 
+## Idempotent Draft Purchase Orders
+
+`POST /api/purchase-orders/from-restock` requires an `Idempotency-Key` and stores that key and a
+canonical payload fingerprint on the created DRAFT itself. A unique partial index on
+`(businessId, requestKey)` is the durable fence. Before allocating a number, the service looks up the
+key and replays the existing DRAFT; a same-key retry therefore still succeeds if the HTTP idempotency
+claim was lost after the document committed but before the response was recorded. Reusing the key
+with a different supplier, location, notes or row selection answers `422
+IDEMPOTENCY_KEY_REUSED` instead of returning somebody else's order. Normal creates and historical
+orders carry no key and are not covered by the partial index.
+
 ## Stock Transfer
 
 A transfer moves quantity of one product from one location to another location
@@ -890,8 +901,24 @@ AuditLog
 ├── entityType
 ├── entityId
 ├── metadata
+├── dedupeKey        # optional; replayable once-only events
 └── createdAt
 ```
+
+`dedupeKey` is optional and unique within `(businessId, dedupeKey)` through a partial unique index.
+It is used by replayable operations whose audit must be written at most once: FW-01
+(`product-import:<receiptId>:completed`), movement-receipt recovery
+(`movement-receipt:<receiptId>:<recovered|pruned>`), transfer completion
+(`transfer:<operationId>:completed`) and PO-claim recovery
+(`po-claim:<poId>:<claimId>:recovered`). Ordinary events and historical rows carry no key and remain
+append-only. The key is evidence of one logical event, not a request id.
+
+Product Import additionally writes a durable `audit_outbox` row before its AuditLog insert. The
+completed receipt carries `auditEnqueuedAt` once that row exists. A bounded repair scan fences a
+pre-dedupe receipt whose legacy audit already exists, and otherwise re-enqueues a completed receipt
+that crashed before the hand-off; the recovery pass flushes pending, failed or abandoned `SENDING`
+outbox rows. The outbox states are `PENDING`, `SENDING`, `DELIVERED` and `FAILED`
+(with `FAILED` retried after backoff), so a committed import cannot permanently lose its audit row.
 
 Audit logs should provide enough information to understand:
 
@@ -922,7 +949,31 @@ Filters:
 - In stock, Low stock, Out of stock (the canonical, mutually exclusive `stockStatus`)
 - Low stock and Out of stock legacy flags, kept for existing API clients
 
+For the inventory-row endpoint `GET /api/inventory`, each predicate is evaluated on that row's own
+availability and its own product's minimum, never on a product total summed across locations:
+
+- `lowStock=true` is the legacy broad filter (`availableQuantity <= minimumStock`). It includes out
+  rows and remains only for existing API clients.
+- `outOfStock=true` is `availableQuantity <= 0`.
+- `needsAttention=true` is the union of canonical low and out.
+- `stockStatus=LOW_STOCK` is `0 < availableQuantity <= minimumStock`; `stockStatus=OUT_OF_STOCK` is
+  `availableQuantity <= 0`. These two are disjoint and are what the mobile Inventory chips use.
+- Every product query using `stockStatus` is an ACTIVE-catalogue view on the server. A missing
+  `status` is treated as ACTIVE, and an explicit `status=ARCHIVED` cannot widen the result to
+  archived products. Legacy `lowStock`/`outOfStock` and ordinary `status` filters keep their own
+  historical scope.
+- `includeCounts=true` adds `counts: { all, needsAttention, low, out }` for the same
+  search/location/product/status scope. Each total equals the `total` of the list opened by that
+  choice; counts do not depend on the page number or page size.
+
 Search results must support pagination.
+
+Mobile reference pickers request every page of the relevant ACTIVE list rather than only the first
+page. If a later page fails, the options already read remain usable and the list is marked
+incomplete; it is never treated as an empty catalogue. A saved or deep-linked id is classified as
+archived/deleted only after the complete active list is known. Until then the id is `checking` and
+must not be cleared. A missing id is omitted from the query or form payload and the screen offers an
+explicit repair (choose another active reference, clear the filter, or restart a saved draft attempt).
 
 Search should be optimized using appropriate MongoDB indexes.
 
@@ -952,10 +1003,18 @@ must equal the total of the product-level list that opens from it. A list opened
 from an Overview card is pinned to ACTIVE products and offers no All/Archived
 switch until the stock filter is cleared, so the displayed total cannot drift
 from the card. Inventory-row lists are not a substitute: one product can have a
-row at every location. The
-Inventory screen's row-level low filter is deliberately broader (it may include
-an out-of-stock row, whose OUT badge takes precedence); that per-location list is
-not the product-level list behind an Overview card.
+row at every location. The Inventory screen exposes the same canonical row
+statuses as the Products screen: **Low stock** is above zero but at/below the
+row's minimum, **Out of stock** is zero or less, and **Needs attention** is their
+union. The legacy row-level `lowStock` flag remains deliberately broader (it may
+include an out-of-stock row, whose OUT badge takes precedence), but the mobile
+screen does not use it for the Low chip. No row-level list is the product-level
+list behind an Overview card.
+
+The mobile Inventory screen remembers each account's last location and row-status
+choice across launches. A route parameter wins over the saved value for that
+dimension, so a deep link is never silently replaced; changing a filter clears the
+corresponding route parameter, and an explicit reset clears both saved choices.
 
 The Products screen exposes In, Low and Out as visible, mutually exclusive chips. Choosing one
 pins the list to ACTIVE and replaces the All/Active/Archived switch with the scope label, so the
@@ -963,6 +1022,13 @@ total beside the filter remains the card's count. Clearing the chip returns to t
 shows its total. An old `lowStock`/`outOfStock` deep link maps to the matching visible canonical
 chip; when a canonical `stockStatus` is also present, the canonical value wins and the legacy flags
 are ignored.
+
+A saved or deep-linked location/category that is absent from the complete ACTIVE list is not sent as
+a filter. The list shows the unfiltered population with a visible notice and a repair action. A form
+blocks a submit that still names an archived location, category or PO supplier; it never silently
+substitutes a different reference. A saved Restock → Draft PO attempt whose keyed payload names an
+archived supplier or location cannot be resumed; checking Purchase orders and starting over is the
+only safe repair.
 
 ---
 
@@ -975,6 +1041,15 @@ V1 dashboard should provide:
 - Low-stock products
 - Out-of-stock products
 - Recent inventory activity
+
+The **Needs attention** section keeps its product-level **Restock list** destination and also offers
+a clearly labelled row-level action that opens Inventory with `needsAttention=true`. The two
+populations stay distinct: one product can contribute several inventory rows.
+
+The summary, restock preview and open purchase orders are independent reads. Each has its own
+loading/ok/error state, failure copy, timestamp and retry. A failed preview keeps the summary-backed
+row-level action visible; a failed order read is not rendered as an empty order list. The client does
+not claim one atomic snapshot: the sections may have been read seconds apart.
 
 Future dashboard features may include:
 

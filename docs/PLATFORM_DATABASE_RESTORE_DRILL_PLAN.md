@@ -1,10 +1,12 @@
 # Database restore drill — safety and acceptance plan
 
-**Status:** **PLANNING ONLY. NO DATABASE OPERATION IS AUTHORIZED BY THIS DOCUMENT.** No backup was
-taken, no restore was run, no Atlas setting was changed, and no production database was touched. The
-commands below are a future procedure, not instructions to execute now.
+**Status:** **PRODUCTION DRILL REMAINS PLANNING ONLY.** A limited **synthetic, disposable** drill was
+executed on 2026-11-23 and is recorded in §14. It used a new local source database and restored only
+into `inventoryai_test_db`; no production database, backup, Atlas setting or production configuration
+was touched. A production-sized restore, index rebuild, app-readiness check and secret-recovery walk
+are still unproven. Do not treat §14 as authorization for a production restore.
 
-**Reviewed:** 2026-11-17
+**Reviewed:** 2026-11-17; disposable drill executed and recorded 2026-11-23
 **Scope:** The production MongoDB Atlas database used by Inventory AI and the `backup:db` /
 `restore:db` scripts. This is a restore drill and recovery plan, not a migration or a repair.
 **Funding constraint:** Use only free or already-owned resources. Do not create a paid Atlas tier,
@@ -20,6 +22,8 @@ to target production by name.
 What is still unproven:
 
 - A full restore of a **production-sized** backup into a disposable database has never been observed.
+- A **synthetic 16-document** backup has now been restored into `inventoryai_test_db`; that proves the
+  command path, not production capacity or production data semantics (§14).
 - A previous 525,750-document restore hit the free tier's 512 MB quota partway through.
 - The backup is data-only: it does **not** contain index definitions, collection validators or other
   collection options. A restored database is not complete until indexes are rebuilt and checked.
@@ -307,3 +311,64 @@ service. Paid backup/DR can be revisited when revenue exists.
   and [04 — Production readiness](./platform-console/04-production-readiness.md).
 - Atlas free-tier backup limitation: the comments and tests in the files above; verify the current
   Atlas tier in the console before the drill.
+
+## 14. Disposable synthetic drill — 2026-11-23
+
+**Result: PASS for the command path and document fidelity; NOT a production restore drill.**
+
+The drill created a dedicated source database, `inventoryai_restore_drill_src`, with 16 synthetic
+documents across seven collections. The source contained no tenant, account, email or production
+data. The backup was written to a temporary directory outside the repository. The restore target was
+`inventoryai_test_db`; `inventoryai_dev_db` and `inventoryai_prod_db` were not opened or changed.
+
+| Measurement | Observed |
+| --- | --- |
+| Source / target | `inventoryai_restore_drill_src` → `inventoryai_test_db` |
+| Collections / documents | 7 / 16 |
+| Backup size | 1.3 KB on disk; 4.8 KB to restore |
+| Manifest | format `inventory-ai-backup/1`, finished `2026-11-23T02:31:11.993Z` |
+| Dry run | verified 7 files; wrote nothing |
+| Restore command | 3.032 s, all 7 collections inserted |
+| Independent verification | 2.087 s |
+| End-to-end database RTO | **5.119 s** (command start through verification) |
+| Last source write → backup finish | **4.931 s observed RPO** |
+
+### Count verification
+
+| Collection | Restored | Manifest |
+| --- | ---: | ---: |
+| `audit_logs` | 2 | 2 |
+| `businesses` | 1 | 1 |
+| `drill_metadata` | 1 | 1 |
+| `inventory` | 3 | 3 |
+| `inventory_transactions` | 5 | 5 |
+| `locations` | 2 | 2 |
+| `products` | 2 | 2 |
+
+### Ledger and type verification
+
+- **On-hand inventory:** `5 + 2 + 4 = 11`; restored sum `11`.
+- **Ledger:** stock-in `10 + 4 = 14`, transfer legs `2 + 2` (net zero), stock-out `3`; signed inflow
+  `16`, signed outflow `5`, net **11**. Restored aggregate `{ total: 11, inflow: 16, outflow: 5 }`.
+- **BSON fidelity:** product `costPrice` remained `Decimal128`; `drill_metadata.seededAt` and ledger
+  `createdAt` remained `Date`. The source included an ObjectId/Date/Decimal128 mixture so a JSON
+  downgrade would have failed the check.
+
+### What this does and does not prove
+
+- **Proves:** the guard chose the disposable target; the manifest and every SHA-256 verified before
+  the first drop; all seven collection counts matched; ledger and on-hand arithmetic survived the
+  round trip; BSON types survived; the restore path completed in seconds on a local 16-document set.
+- **Does not prove:** production-sized throughput or free-tier capacity; index or collection-option
+  reconstruction (the backup is data-only); `/api/health/ready` or a tenant smoke against restored
+  data; secret escrow; a two-person sign-off. Those remain §7 and §10–§11 work.
+- **RPO caveat:** 4.931 s is the observed gap between the last synthetic write and this backup's
+  completion. It is not evidence that production is backed up every five seconds. The accepted
+  production RPO remains the cadence in §2 and §8.
+- **RTO caveat:** 5.119 s is database-only on a local test database. It excludes retrieving an
+  off-host copy, rebuilding indexes, starting the API, secrets recovery, smoke tests and operator
+  decision time. The §2 four-hour database target is not replaced by this number.
+
+The synthetic source and backup contain no real data; the source database was dropped after the
+evidence above was captured. The restored `inventoryai_test_db` remains disposable and is never a
+production recovery target.
