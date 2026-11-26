@@ -37,7 +37,7 @@ actions, the row-status counts and filter persistence) are **not** repeated here
 | OPS-13 | Run a dated incident tabletop and keep a postmortem template | OPS-6 routes an incident; nothing rehearses one, and no postmortem template exists. | S | NX-05 |
 | OPS-14 | Rehearse a last-known-good dependency rollback | Dependencies are pinned, but restoring the previous lockfile and configuration has never been practised. | S | NX-06 |
 | OPS-15 | Rehearse an application rollback without touching production | A bad deploy has no measured undo path; the restore drill (OPS-1) covers data, not code. | M | NZ-03 |
-| OPS-16 | Probe provider and AI readiness before a release | Firebase, Brevo and the configured model are proven only by a user request; a bounded read-only probe would catch a broken credential first. | S | IA-40 |
+| OPS-16 | Probe Firebase and Brevo readiness before a release | The AI model has a quota-free health watch (`npm run ai:health`); the Firebase project and the Brevo sender are proven only by a real user request, so a broken credential is found by a customer. | S | IA-40 |
 | OPS-17 | Publish performance budgets and watch for regressions | Measurements exist per increment; there is no standing p95, cold-start or first-token budget that fails a change. Distinct from OPS-5, which is alerting. | M | IA-31 |
 | OPS-18 | Add privacy-safe tenant activation signals | Onboarding decisions are made without aggregate signals, and a per-tenant view is deliberately absent. | M | IA-28 |
 
@@ -57,11 +57,9 @@ actions, the row-status counts and filter persistence) are **not** repeated here
 | INT-10 | Build cycle counting / stocktake sessions | Freeze a location or selection, count against expected, and produce an adjustment with evidence — the missing inventory-accuracy primitive. | L | FW-03 |
 | INT-11 | Add an offline-first movement queue | Stock in/out intent persisted locally and replayed with the existing key contract would make a dead zone survivable. | L | DASH-16 |
 | INT-12 | Cover the remaining state-changing writes with idempotency keys | Movement, PO and import paths replay; a route-by-route matrix of the rest does not exist. | L | NX-02 |
-| INT-13 | Add preventive inventory data-quality guards | Duplicate SKU/barcode and invalid quantities are found by audit, not refused at write time. | M | IA-32 |
 | INT-14 | Watch query plans for lost indexes | Index definitions are guarded, but a new collection scan stays invisible until a route slows down. | S | IA-37 |
 | INT-15 | Add an API contract-drift gate against the mobile client | A field, status or tenant-shape change can break an installed binary with no failing check. | M | IA-34 |
 | INT-16 | Export platform audit rows under database least privilege | Audit rows are retained in place; there is no export or external immutable sink, and the operator identity is not least-privilege. | M | SEC-05, CI-06 |
-| INT-17 | Give owners a bounded tenant activity view | Role changes, invitations and large movements are visible only as raw audit rows. | M | IA-44 |
 
 ## 3. Import, purchase orders and receiving
 
@@ -105,7 +103,7 @@ actions, the row-status counts and filter persistence) are **not** repeated here
 | # | Item | Why it matters | Effort | Origin |
 |---|---|---|---|---|
 | AI-1 | Catalogue-wide run-out ranking | The coverage tool answers one product; "which products will run out first" needs one bounded aggregate. | M | IA-20 |
-| AI-2 | Two-product and current-versus-minimum comparison | One scoped read that labels both sides removes an arithmetic answer nobody can check. | S–M | IA-22 |
+| AI-2 | Two-product and current-versus-minimum comparison | One scoped read that labels both sides removes an arithmetic answer nobody can check. | S–M | AI roadmap #2 (P1) |
 | AI-3 | Answer provenance and a scope envelope | Every answer states the data as-of, the population and the filters it used. | M | PD-01 |
 | AI-4 | Pre-answer data-quality gate | Refuse or qualify a price/stock-value/coverage answer when the underlying data is incomplete. | M | PD-02 |
 | AI-5 | Unit-of-measure and pack metadata | "12" is ambiguous when a pack, a case and a piece all exist. | M | PD-04 |
@@ -155,7 +153,7 @@ actions, the row-status counts and filter persistence) are **not** repeated here
 | SEC-28 | Add per-tenant abuse and fairness budgets | Only per-IP auth limiters exist; one tenant can exhaust AI, mail or export capacity. | M | RD-04 |
 | SEC-29 | Make the security-review gate part of the route and AI-tool process | Tenant scope, role check and input handling are reviewed by memory, not by a required checklist. | S | RD-03 |
 | SEC-30 | Move auth and invitation mail to a transactional outbox | Mail is sent in the request path or detached without durable retry or idempotency. | M | RD-02 |
-| SEC-31 | Add deployment-boundary attestation | Nothing proves the serving build matches the merged commit beyond the health SHA. | M | CI-07 |
+| SEC-31 | Add deployment-boundary attestation | `verify-production-deploy` compares the served SHA with the merged commit; nothing attests the build artifact itself (source, workflow run, digest). | M | CI-07 |
 | SEC-32 | Share limiter and lockout state across instances | Counters are process-local, so a second instance doubles the effective allowance. | M | CI-09 |
 | SEC-33 | Give support tickets SLAs and an escalation path | The console records tickets; nothing measures or escalates them. | M | CI-13 |
 | SEC-34 | Guard the Android manifest's privacy properties in release builds | `check-aab` covers packaging, not the manifest privacy flags. | S | NZ-05 |
