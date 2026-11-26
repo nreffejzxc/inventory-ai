@@ -56,6 +56,7 @@ and Guide 6 own the data commands.
 | [`SOURCE_PROTECTION.md`](SOURCE_PROTECTION.md) | What protects the source, what does not, and the public-window caveat |
 | [`ACCOUNT_MIGRATION_RUNBOOK.md`](ACCOUNT_MIGRATION_RUNBOOK.md) | The current owner and repository, the paused migration decision, provider anchors, read-only checks and approval gates |
 | [`FIREBASE_CREDENTIAL_RUNBOOK.md`](FIREBASE_CREDENTIAL_RUNBOOK.md) | The Firebase Admin credential: where it comes from, how it is stored, verified and rotated |
+| [`AGENT_ACCESS.md`](AGENT_ACCESS.md) | Which services the agent can verify alone, where each credential lives, and the one status-only command that proves it |
 | [`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md) | The mobile visual language: tokens, type, primitives, accessibility rules |
 | [`DEVELOPING_ON_A_PHYSICAL_DEVICE.md`](DEVELOPING_ON_A_PHYSICAL_DEVICE.md) | The deep phone reference: verified commands, log reading, failure → fix |
 | [`INVENTORY_INTEGRITY.md`](INVENTORY_INTEGRITY.md) | The read-only orphan STOCK_IN / unreceipted-PO audit, its scheduled monitor, exit codes and what to do with a finding |
@@ -96,6 +97,7 @@ Reference documents are consulted rather than read once, so they are reviewed on
 | [`SOURCE_PROTECTION.md`](SOURCE_PROTECTION.md) | 90 days | 2026-11-07 |
 | [`ACCOUNT_MIGRATION_RUNBOOK.md`](ACCOUNT_MIGRATION_RUNBOOK.md) | 90 days | 2026-11-11 |
 | [`FIREBASE_CREDENTIAL_RUNBOOK.md`](FIREBASE_CREDENTIAL_RUNBOOK.md) | 90 days | 2026-11-07 |
+| [`AGENT_ACCESS.md`](AGENT_ACCESS.md) | 90 days | 2026-11-26 |
 | [`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md) | 90 days | 2026-11-07 |
 | [`DEVELOPING_ON_A_PHYSICAL_DEVICE.md`](DEVELOPING_ON_A_PHYSICAL_DEVICE.md) | 90 days | 2026-11-07 |
 | [`INVENTORY_INTEGRITY.md`](INVENTORY_INTEGRITY.md) | 90 days | 2026-11-15 |

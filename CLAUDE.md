@@ -314,6 +314,10 @@ still needs the owner's explicit request. The delegation is not a general permis
 project files, and it does not authorize unrelated product changes, refactors, monitoring layers or
 key systems.
 
+The service access matrix — which credential each service uses, where it is stored, and the status-only
+command that proves every one of them — is `docs/AGENT_ACCESS.md`. Run `cd server && npm run
+access:check` before blaming a service, and update that document when a credential moves.
+
 Two limits are absolute:
 
 - **Credentials and MFA codes are never handled as content.** Do not print, commit, paste into chat or
