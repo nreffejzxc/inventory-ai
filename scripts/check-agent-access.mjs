@@ -10,14 +10,16 @@
 // keyring. See docs/AGENT_ACCESS.md for the full matrix.
 //
 // EXIT CODES
-//   0  every configured service answered
-//   1  a configured service failed (its line says which and why, safely)
+//   0  every configured service answered and the two environments agree on names
+//   1  a configured service failed, or the Render/local variable NAMES differ
 //   2  nothing was configured to check
 import { createPrivateKey, sign } from 'node:crypto';
 import { execFile } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { promisify } from 'node:util';
 
 const run = promisify(execFile);
@@ -34,6 +36,107 @@ try {
 
 const results = [];
 const record = (service, status, detail) => results.push({ service, status, detail });
+
+/* ------------------------------------------------------------------------------------------------
+ * Environment-variable NAME comparison (Render vs the local server/.env).
+ *
+ * Names only. A value is never read into a variable here, never returned, never logged and never
+ * compared: `parseEnvNames` stops at the `=`, and `fetchRenderEnvNames` keeps `envVar.key` and drops
+ * `envVar.value` on the same line it maps the response. There is deliberately no code path that can
+ * print a value, because the function that would hold one never produces one.
+ * ---------------------------------------------------------------------------------------------- */
+
+/** Every variable name defined in a dotenv file. Values are discarded at the `=`. */
+export function parseEnvNames(text) {
+  const names = new Set();
+  for (const line of String(text ?? '').split(/\r?\n/)) {
+    const match = line.match(/^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=/);
+    if (match) names.add(match[1]);
+  }
+  return [...names].sort();
+}
+
+/** Set comparison of two name lists; no value ever participates. */
+export function compareEnvNames(localNames, remoteNames) {
+  const local = new Set(Array.isArray(localNames) ? localNames : []);
+  const remote = new Set(Array.isArray(remoteNames) ? remoteNames : []);
+  const localOnly = [...local].filter((name) => !remote.has(name)).sort();
+  const remoteOnly = [...remote].filter((name) => !local.has(name)).sort();
+  return {
+    consistent: localOnly.length === 0 && remoteOnly.length === 0,
+    localOnly,
+    remoteOnly,
+    localCount: local.size,
+    remoteCount: remote.size,
+  };
+}
+
+/** Render API/CLI refusals, phrased so nothing from the credential can reach the message. */
+export class RenderAccessError extends Error {}
+
+/**
+ * The names configured on one Render service.
+ *
+ * The Render CLI has no environment-variable command, so this is the REST endpoint. A value is present
+ * in the response and is dropped here: only `envVar.key` survives the map, which is why no later line
+ * can print one.
+ */
+export async function fetchRenderEnvNames({ apiKey, serviceId, fetchImpl = fetch } = {}) {
+  if (!apiKey) throw new RenderAccessError('no Render API key');
+  if (!serviceId) throw new RenderAccessError('no Render service id');
+  const response = await fetchImpl(
+    `https://api.render.com/v1/services/${encodeURIComponent(serviceId)}/env-vars?limit=100`,
+    {
+      headers: { authorization: `Bearer ${apiKey}`, accept: 'application/json' },
+      signal: AbortSignal.timeout(20_000),
+    },
+  );
+  if (response.status === 401 || response.status === 403) {
+    throw new RenderAccessError(`the Render API key was refused (${response.status})`);
+  }
+  if (response.status === 404) {
+    throw new RenderAccessError('that service id was not found for this API key');
+  }
+  if (!response.ok) throw new RenderAccessError(`the Render API answered ${response.status}`);
+  const rows = await response.json().catch(() => null);
+  if (!Array.isArray(rows)) throw new RenderAccessError('the Render API returned an unexpected body');
+  return rows
+    .map((row) => row?.envVar?.key)
+    .filter((key) => typeof key === 'string' && key.length > 0)
+    .sort();
+}
+
+/**
+ * Which service the check inspects: RENDER_SERVICE_ID when set, otherwise the authenticated CLI's own
+ * list narrowed to this repository. The CLI is already a service this check verifies, so reusing its
+ * session adds no credential; only a name and an id are read from it.
+ */
+export function pickRenderService(entries, repoHint = 'inventory-ai') {
+  const services = (Array.isArray(entries) ? entries : [])
+    .map((entry) => entry?.service ?? entry)
+    .filter((service) => service && typeof service.id === 'string');
+  const web = services.filter((service) => (service.type ?? '') === 'web_service');
+  const pool = web.length > 0 ? web : services;
+  const match =
+    pool.find((service) => String(service.repo ?? '').toLowerCase().includes(repoHint)) ?? pool[0];
+  return match ? { id: match.id, name: match.name ?? match.id } : null;
+}
+
+/** One line, names only, truncated so a large drift cannot flood the terminal. */
+export function describeEnvDrift(comparison, serviceName, limit = 6) {
+  const list = (names) =>
+    names.length === 0
+      ? 'none'
+      : `${names.slice(0, limit).join(', ')}${names.length > limit ? `, +${names.length - limit} more` : ''}`;
+  const { localOnly, remoteOnly, localCount, remoteCount, consistent } = comparison;
+  if (consistent) {
+    return `${localCount} names match between server/.env and ${serviceName}`;
+  }
+  return (
+    `${localCount} local / ${remoteCount} on ${serviceName} — ` +
+    `local-only: ${list(localOnly)}; Render-only: ${list(remoteOnly)}`
+  );
+}
 
 /** A configured value is present when the variable is set to something. Never printed. */
 const has = (name) => typeof process.env[name] === 'string' && process.env[name].trim() !== '';
@@ -174,22 +277,93 @@ async function main() {
     }
   }
 
-  /* ---- UptimeRobot (read-only account details) ---- */
+  /* ---- UptimeRobot (getMonitors — the v2 method a read-only key is allowed to call) ---- */
   if (!has('UPTIMEROBOT_API_KEY')) {
     record('UptimeRobot', 'SKIP', 'UPTIMEROBOT_API_KEY is not set — add it to server/.env (read-only monitor key)');
   } else {
     try {
-      const response = await fetch('https://api.uptimerobot.com/v2/getAccountDetails', {
+      // A read-only API key may only call the get* methods. getAccountDetails is NOT one of them: it
+      // answers `not_authorized` for a perfectly valid read-only key, which reads as a rejected
+      // credential if you do not know the rule. getMonitors is the method the key is issued for.
+      const response = await fetch('https://api.uptimerobot.com/v2/getMonitors', {
         method: 'POST',
         headers: { 'content-type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({ api_key: process.env.UPTIMEROBOT_API_KEY, format: 'json' }).toString(),
+        body: new URLSearchParams({
+          api_key: process.env.UPTIMEROBOT_API_KEY,
+          format: 'json',
+          limit: '1',
+        }).toString(),
         signal: AbortSignal.timeout(20_000),
       });
-      const body = await response.json();
-      if (body?.stat !== 'ok') throw new Error('refused');
-      record('UptimeRobot', 'OK', `monitor account read (${body?.account?.monitor_limit ?? '?'} monitor limit)`);
+      const body = await response.json().catch(() => ({}));
+      const failure = body?.error?.type ?? 'no stat field';
+      if (response.ok && body?.stat === 'ok') {
+        const total = body?.pagination?.total ?? (Array.isArray(body?.monitors) ? body.monitors.length : 1);
+        record('UptimeRobot', 'OK', `read ${total} monitor(s) with the read-only key — no changes made`);
+      } else if (failure === 'not_authorized') {
+        record('UptimeRobot', 'FAIL', 'the key is valid but this method is not allowed for it — a read-only key may only call the get* methods');
+      } else {
+        record('UptimeRobot', 'FAIL', `key rejected (${failure}) — regenerate the read-only key`);
+      }
     } catch {
-      record('UptimeRobot', 'FAIL', 'key rejected — use a read-only monitor key');
+      record('UptimeRobot', 'FAIL', 'UptimeRobot could not be reached');
+    }
+  }
+
+  /* ---- Render environment variable NAMES (values are never read, held or printed) ---- */
+  if (!has('RENDER_API_KEY')) {
+    record(
+      'Render env names',
+      'SKIP',
+      'RENDER_API_KEY is not set — add a Render API key to server/.env to compare variable names',
+    );
+  } else {
+    let localNames = null;
+    try {
+      localNames = parseEnvNames(readFileSync(join(serverDir, '.env'), 'utf8'));
+    } catch {
+      record('Render env names', 'FAIL', 'server/.env could not be read, so there is nothing to compare');
+    }
+
+    let service = has('RENDER_SERVICE_ID')
+      ? { id: process.env.RENDER_SERVICE_ID, name: 'the configured service' }
+      : null;
+    let serviceProblem = null;
+    if (localNames && !service) {
+      try {
+        const { stdout } = await run('render services --output json', {
+          timeout: 20_000,
+          windowsHide: true,
+          shell: true,
+        });
+        service = pickRenderService(JSON.parse(stdout));
+        if (!service) serviceProblem = 'no Render web service was found in the active workspace';
+      } catch {
+        serviceProblem = 'the Render service list could not be read — set RENDER_SERVICE_ID to pin the service';
+      }
+    }
+
+    if (localNames && serviceProblem) {
+      record('Render env names', 'FAIL', serviceProblem);
+    } else if (localNames && service) {
+      try {
+        const renderNames = await fetchRenderEnvNames({
+          apiKey: process.env.RENDER_API_KEY,
+          serviceId: service.id,
+        });
+        const comparison = compareEnvNames(localNames, renderNames);
+        record(
+          'Render env names',
+          comparison.consistent ? 'OK' : 'DRIFT',
+          describeEnvDrift(comparison, service.name),
+        );
+      } catch (error) {
+        record(
+          'Render env names',
+          'FAIL',
+          error instanceof RenderAccessError ? error.message : 'the Render environment could not be read',
+        );
+      }
     }
   }
 
@@ -208,11 +382,21 @@ async function main() {
   }
   const configured = results.filter((r) => r.status !== 'SKIP');
   const failed = results.filter((r) => r.status === 'FAIL');
+  const drifted = results.filter((r) => r.status === 'DRIFT');
   console.log(`\n${configured.length - failed.length}/${configured.length} configured services answered; ${results.length - configured.length} not configured.`);
-  process.exit(failed.length > 0 ? 1 : configured.length === 0 ? 2 : 0);
+  if (drifted.length > 0) {
+    console.log(`${drifted.length} environment-name mismatch(es) reported — names only, no values were read.`);
+  }
+  process.exit(failed.length > 0 || drifted.length > 0 ? 1 : configured.length === 0 ? 2 : 0);
 }
 
-main().catch(() => {
-  console.error('access:check could not run');
-  process.exit(2);
-});
+// Only run when executed directly, so the pure helpers above can be imported by the test suite.
+const invokedDirectly =
+  process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href;
+
+if (invokedDirectly) {
+  main().catch(() => {
+    console.error('access:check could not run');
+    process.exit(2);
+  });
+}
