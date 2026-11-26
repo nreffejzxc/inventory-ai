@@ -5,7 +5,7 @@ import { buildInfo } from '../config/deploymentReadiness.ts';
 import { getDatabaseState, isDatabaseReady } from '../config/db.ts';
 import { operationalCounters } from '../config/operationalCounters.ts';
 import { readIntegrityHeartbeat } from '../services/integrityHeartbeat.service.ts';
-import { checkRequiredIndexes } from '../config/indexReadiness.ts';
+import { readRequiredIndexes } from '../config/indexReadiness.ts';
 import { exchangeRateAvailability } from '../services/ai/exchangeRates.ts';
 
 /**
@@ -100,8 +100,11 @@ function timestamp() {
  *        The hosted freshness signal. Injectable so the 200/503 branches can be
  *        pinned without writing a heartbeat or waiting for a scheduled task.
  * @param {() => Promise<{ready: boolean, failures: Array<{name: string, reason: string}>}>} [options.checkIndexes]
- *        Fail-closed required-index readiness. Injectable so the route can be
- *        pinned against a missing/incorrect index without a database.
+ *        Fail-closed required-index readiness. The default answers from the newest
+ *        verdict and refreshes it in the background, so polling does not re-read six
+ *        index lists per request nor wait on Atlas latency; a confirmed failure is
+ *        served at once and only a newer success replaces it. Injectable so the
+ *        route can be pinned against a missing/incorrect index without a database.
  * @param {() => ExchangeRateAvailability} [options.exchangeRates]
  *        Process-local exchange-rate availability. Published on the legacy
  *        endpoint as inert operational context; it is never a readiness input.
@@ -113,7 +116,7 @@ export function createHealthHandlers({
   counters = operationalCounters,
   environment = () => env.nodeEnv,
   readIntegrity = readIntegrityHeartbeat,
-  checkIndexes = checkRequiredIndexes,
+  checkIndexes = readRequiredIndexes,
   exchangeRates = exchangeRateAvailability,
 } = {}) {
   return {
