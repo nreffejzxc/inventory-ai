@@ -19,6 +19,15 @@ router.get('/', requireAuth, requirePermission(PERMISSIONS.PURCHASE_ORDERS_VIEW)
 // `Idempotency-Key` replays the first answer instead of creating a second DRAFT or
 // a second receipt; a request without the header is untouched.
 router.post('/', requireAuth, requirePermission(PERMISSIONS.PURCHASE_ORDERS_MANAGE), idempotent(), purchaseOrdersController.create);
+// Static path before /:id. Selected restock rows are a snapshot; the service
+// revalidates them and creates one DRAFT. It never issues or sends the order.
+router.post(
+  '/from-restock',
+  requireAuth,
+  requirePermission(PERMISSIONS.PURCHASE_ORDERS_MANAGE),
+  idempotent(),
+  purchaseOrdersController.createFromRestock
+);
 router.get('/:id', requireAuth, requirePermission(PERMISSIONS.PURCHASE_ORDERS_VIEW), purchaseOrdersController.get);
 router.patch('/:id', requireAuth, requirePermission(PERMISSIONS.PURCHASE_ORDERS_MANAGE), purchaseOrdersController.update);
 router.post('/:id/issue', requireAuth, requirePermission(PERMISSIONS.PURCHASE_ORDERS_MANAGE), purchaseOrdersController.issue);

@@ -6,6 +6,8 @@ import type { ApiResponse } from '../lib/api';
 export interface PageEnvelope<T> {
   items?: T[] | null;
   total?: number | null;
+  /** Optional server-computed totals for the screen's filter choices. */
+  counts?: Record<string, number> | null;
 }
 
 /**
@@ -24,6 +26,8 @@ export interface UsePagedListOptions {
 export interface PagedList<T = ApiResponse> {
   items: T[];
   total: number;
+  /** Server-computed filter totals, when the endpoint sends them. */
+  counts: Record<string, number> | null;
   totalPages: number;
   page: number;
   loading: boolean;
@@ -56,6 +60,7 @@ export default function usePagedList<T = ApiResponse>(
 
   const [items, setItems] = useState<T[]>([]);
   const [total, setTotal] = useState(0);
+  const [counts, setCounts] = useState<Record<string, number> | null>(null);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -88,12 +93,19 @@ export default function usePagedList<T = ApiResponse>(
         const next: T[] = res?.items ?? [];
         setItems((prev) => (target === 1 ? next : [...prev, ...next]));
         setTotal(res?.total ?? 0);
+        // Page 1 carries the fresh totals; later pages keep them. A first-page
+        // response without counts clears stale totals rather than showing them.
+        if (res?.counts) setCounts(res.counts);
+        else if (target === 1) setCounts(null);
         setPage(target);
         setError(null);
       } catch (err) {
         if (id !== runRef.current) return;
         setError(err);
-        if (target === 1) setItems([]);
+        if (target === 1) {
+          setItems([]);
+          setCounts(null);
+        }
         if (isSessionError(err)) onSessionErrorRef.current?.();
       } finally {
         if (id === runRef.current) {
@@ -147,5 +159,5 @@ export default function usePagedList<T = ApiResponse>(
     void fetchPage(page + 1, { more: true });
   }, [loading, loadingMore, refreshing, page, totalPages, fetchPage]);
 
-  return { items, total, totalPages, page, loading, refreshing, loadingMore, error, reload, refresh, loadMore };
+  return { items, total, counts, totalPages, page, loading, refreshing, loadingMore, error, reload, refresh, loadMore };
 }

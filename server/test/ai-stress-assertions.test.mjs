@@ -6,6 +6,7 @@ import {
   assessStressResult,
 } from '../scripts/ai-stress-assertions.mjs';
 import { STRESS_QUESTIONS } from '../scripts/ai-stress-questions.mjs';
+import { expectedSummary } from '../scripts/demo/fixture.mjs';
 
 const question = (id) => STRESS_QUESTIONS[id - 1];
 const check = (id, content, toolsUsed = []) =>
@@ -58,8 +59,21 @@ test('multi-part values must be attached to their own labels', () => {
   assert.equal(check(61, 'Demo Warehouse has 12 units and 99 products.').ok, false);
   assert.equal(check(63, 'Demo Shop has 8 products and 36 units.').ok, false);
 
-  assert.equal(check(68, '5 products are low on stock and 1 is out of stock.').ok, true);
-  assert.equal(check(68, '1 product is low on stock and 5 are out of stock.').ok, false);
+  // Q68 must follow the fixture's classification, not a hardcoded count. OUT
+  // takes precedence over LOW, so the old 5-low fixture became 4 low + 1 out
+  // when the dashboard/product lists stopped double-counting the out product.
+  const summary = expectedSummary();
+  const low = summary.lowStockProducts;
+  const out = summary.outOfStockProducts;
+  const product = (n) => `${n} product${n === 1 ? '' : 's'}`;
+  assert.equal(
+    check(68, `${product(low)} ${low === 1 ? 'is' : 'are'} low on stock and ${product(out)} ${out === 1 ? 'is' : 'are'} out of stock.`).ok,
+    true,
+  );
+  assert.equal(
+    check(68, `${product(out)} ${out === 1 ? 'is' : 'are'} low on stock and ${product(low)} ${low === 1 ? 'is' : 'are'} out of stock.`).ok,
+    false,
+  );
 });
 
 test('complete sets reject a missing product even when every count is right', () => {

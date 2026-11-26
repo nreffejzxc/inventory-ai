@@ -34,6 +34,7 @@ export const PERMISSIONS = Object.freeze({
   LOCATIONS_MANAGE: 'locations.manage',
   CATEGORIES_MANAGE: 'categories.manage',
   PRODUCTS_MANAGE: 'products.manage',
+  PRODUCTS_IMPORT: 'products.import', // OWNER + ADMIN: whole-file catalogue onboarding (FW-01)
   PRODUCTS_VIEW: 'products.view',
   SUPPLIERS_MANAGE: 'suppliers.manage',
   SUPPLIERS_VIEW: 'suppliers.view',
@@ -93,6 +94,7 @@ export const ROLE_PERMISSIONS = Object.freeze({
     PERMISSIONS.LOCATIONS_MANAGE,
     PERMISSIONS.CATEGORIES_MANAGE,
     PERMISSIONS.PRODUCTS_MANAGE,
+    PERMISSIONS.PRODUCTS_IMPORT,
     PERMISSIONS.PRODUCTS_VIEW,
     PERMISSIONS.SUPPLIERS_MANAGE,
     PERMISSIONS.SUPPLIERS_VIEW,

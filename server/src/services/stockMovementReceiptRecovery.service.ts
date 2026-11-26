@@ -3,7 +3,7 @@ import mongoose from 'mongoose';
 import { AUDIT_ACTIONS, AUDIT_ENTITY_TYPES } from '../constants/audit.ts';
 import StockMovementOperation from '../models/stockMovementOperation.model.ts';
 import { monitorAuditFailure } from './auditFailure.service.ts';
-import { recordAudit } from './audit.service.ts';
+import { recordAuditOnce } from './audit.service.ts';
 import {
   assessMovementReceiptById,
   recoverMovementReceiptById,
@@ -87,7 +87,7 @@ async function auditRecovery(
   result: { transactionId?: string; evidence: MovementReceiptAssessment['evidence'] | 'already-completed' },
 ): Promise<void> {
   try {
-    await recordAudit({
+    await recordAuditOnce({
       businessId: receipt.businessId,
       // A recovery is a system action, not the member's action.
       userId: null,
@@ -100,6 +100,9 @@ async function auditRecovery(
         evidence: result.evidence,
         recoveredBy: 'integrity-recovery',
       },
+      // One recovered event per receipt, even when two recovery passes saw the
+      // same unfinished row and both proved the same ledger outcome.
+      dedupeKey: `movement-receipt:${String(receipt._id)}:recovered`,
     });
   } catch (err) {
     await monitorAuditFailure({
@@ -114,7 +117,7 @@ async function auditRecovery(
 
 async function auditPrune(receipt: MovementReceiptRecord): Promise<void> {
   try {
-    await recordAudit({
+    await recordAuditOnce({
       businessId: receipt.businessId,
       userId: null,
       action: AUDIT_ACTIONS.MOVEMENT_RECEIPT_PRUNED,
@@ -128,6 +131,7 @@ async function auditPrune(receipt: MovementReceiptRecord): Promise<void> {
           : null,
         completedAt: iso(receipt.updatedAt),
       },
+      dedupeKey: `movement-receipt:${String(receipt._id)}:pruned`,
     });
   } catch (err) {
     await monitorAuditFailure({

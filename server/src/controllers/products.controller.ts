@@ -14,6 +14,9 @@ import {
 } from '../utils/validate.ts';
 import { throwValidation, invalidId } from '../utils/errors.ts';
 import { productService } from '../services/product.service.ts';
+import { productImportService } from '../services/productImport.service.ts';
+import { isIdempotencyKey } from '../utils/idempotencyKey.ts';
+import { STOCK_STATUS_VALUES } from '../constants/stockStatus.ts';
 
 /**
  * The request context this controller reads. Local and structural, following
@@ -32,7 +35,10 @@ import { productService } from '../services/product.service.ts';
  * silently pass `undefined` on where the code would previously have thrown,
  * which is a behaviour change.
  */
-type AuthenticatedRequest = Request & { user?: { id: string; businessId: string } };
+type AuthenticatedRequest = Request & {
+  user?: { id: string; businessId: string };
+  idempotencyKey?: string;
+};
 
 function paramId(req: AuthenticatedRequest) {
   // `req.params` is Express's `{ [key: string]: string | string[] }`, so the
@@ -72,6 +78,10 @@ function parseQueryList(req: AuthenticatedRequest) {
 
   const lowStock = parseFlag(req.query.lowStock);
   const outOfStock = parseFlag(req.query.outOfStock);
+  const stockStatus = optionalEnum(req.query.stockStatus, 'stockStatus', STOCK_STATUS_VALUES, {
+    message: 'stockStatus must be IN_STOCK, LOW_STOCK or OUT_OF_STOCK',
+  });
+  problems.push(...stockStatus.problems);
 
   return {
     q: search.value,
@@ -80,6 +90,7 @@ function parseQueryList(req: AuthenticatedRequest) {
     locationId: locationId.value,
     lowStock,
     outOfStock,
+    stockStatus: stockStatus.value,
     page,
     limit,
     skip,
@@ -126,6 +137,7 @@ const productsController = {
       q: parsed.q,
       status: parsed.status ?? 'ACTIVE',
       categoryId: parsed.categoryId,
+      locationId: parsed.locationId,
       skip: parsed.skip,
       limit: parsed.limit,
     });
@@ -155,6 +167,42 @@ const productsController = {
     if (v.problems.length) throwValidation(v.problems);
     const doc = await productService.create(req.user!.businessId, req.user!.id, productWritePayload(v));
     res.status(201).json(productService.toProductDTO(doc));
+  },
+
+  /**
+   * FW-01 — validate (`dryRun: true`) or apply a bounded CSV. The whole file is
+   * validated before any write; apply requires an Idempotency-Key and uses the
+   * durable import receipt to resume a partial attempt. OWNER/ADMIN only: this
+   * is a bulk catalogue write, not an ordinary product edit.
+   */
+  async importProducts(req: AuthenticatedRequest, res: Response) {
+    const request = productImportService.validateRequest(req.body);
+    const result = request.dryRun
+      ? await productImportService.preview(req.user!.businessId, request)
+      : await productImportService.apply(
+          req.user!.businessId,
+          req.user!.id,
+          req.idempotencyKey,
+          request,
+        );
+    res.status(result.status).json(result.body);
+  },
+
+  /**
+   * FW-01 progress for one import key. The transport timeout can expire long
+   * before a large import finishes; this answer says whether the durable receipt
+   * is still moving, completed, or needs the same-key retry. Tenant-scoped by
+   * `req.user.businessId`; the response is never cacheable.
+   */
+  async importStatus(req: AuthenticatedRequest, res: Response) {
+    const raw = req.params.key;
+    const key = typeof raw === 'string' ? raw.trim() : '';
+    if (!isIdempotencyKey(key)) {
+      throwValidation([{ field: 'key', message: 'key is not a valid idempotency key' }]);
+    }
+    const status = await productImportService.status(req.user!.businessId, key);
+    res.set('Cache-Control', 'no-store');
+    res.json(status);
   },
 
   async update(req: AuthenticatedRequest, res: Response) {

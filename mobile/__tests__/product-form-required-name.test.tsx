@@ -23,6 +23,7 @@ import { ThemeProvider } from '../lib/theme-context';
 
 const mockNameFocus = jest.fn();
 const mockSecureStore = new Map<string, string>();
+const mockUseActiveRef = jest.fn();
 
 jest.mock('expo-secure-store', () => ({
   getItemAsync: jest.fn(async (key: string) => mockSecureStore.get(key) ?? null),
@@ -75,7 +76,8 @@ jest.mock('expo-router', () => ({
 }));
 
 jest.mock('../hooks/useReferences', () => ({
-  useActiveRef: () => ({ items: [], loading: false, reload: jest.fn() }),
+  ...jest.requireActual('../hooks/useReferences'),
+  useActiveRef: (...args: unknown[]) => mockUseActiveRef(...args),
 }));
 
 jest.mock('../lib/api', () => ({
@@ -104,6 +106,7 @@ beforeEach(() => {
   jest.clearAllMocks();
   mockSecureStore.clear();
   mockedUseSession.mockReturnValue({ token: 'token-1', user: { id: 'u1' }, signOut: jest.fn() });
+  mockUseActiveRef.mockReturnValue({ items: [], loading: false, complete: true, reload: jest.fn() });
 });
 
 describe('ProductForm — required name', () => {
@@ -232,5 +235,48 @@ describe('ProductForm — create idempotency', () => {
     );
     expect(update).not.toHaveBeenCalled();
     expect(correctCurrency).not.toHaveBeenCalled();
+  });
+});
+
+describe('ProductForm — archived category lifecycle', () => {
+  it('★ does not silently submit an archived category and offers a safe repair', async () => {
+    mockUseActiveRef.mockReturnValue({
+      items: [{ id: 'cat-active', name: 'Active category' }],
+      loading: false,
+      complete: true,
+      reload: jest.fn(),
+    });
+    update.mockResolvedValue({ id: 'p1' });
+
+    const view = await render(
+      <ThemeProvider>
+        <ProductForm
+          initial={{
+            id: 'p1',
+            name: 'Kettle',
+            currency: 'PHP',
+            category: { id: 'cat-archived', name: 'Retired category' },
+          }}
+        />
+      </ThemeProvider>
+    );
+
+    expect(
+      view.getByText(
+        'This category is archived or unavailable. Choose an active category, or remove it before saving.'
+      )
+    ).toBeTruthy();
+
+    await fireEvent.press(view.getByText('Save changes'));
+    await waitFor(() =>
+      expect(view.getByText('Choose an active category, or remove the archived one.')).toBeTruthy()
+    );
+    expect(update).not.toHaveBeenCalled();
+
+    await fireEvent.press(view.getByText('Remove archived category'));
+    await fireEvent.press(view.getByText('Save changes'));
+
+    await waitFor(() => expect(update).toHaveBeenCalledTimes(1));
+    expect(update.mock.calls[0][2]).toMatchObject({ categoryId: null });
   });
 });

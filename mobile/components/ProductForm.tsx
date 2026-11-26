@@ -22,7 +22,7 @@ import {
 import { errorRequestId } from '../lib/errors';
 import { normaliseCurrencyCode, PRODUCT_CURRENCIES } from '../lib/currencies';
 import { useSession } from '../lib/auth';
-import { useActiveRef } from '../hooks/useReferences';
+import { referenceAvailability, useActiveRef } from '../hooks/useReferences';
 import { spacing } from '../lib/theme';
 import { useTheme } from '../lib/theme-context';
 
@@ -68,7 +68,7 @@ export default function ProductForm({ initial }: { initial?: ApiResponse }) {
   const { token, user } = useSession();
   const { colors } = useTheme();
   const isEdit = Boolean(initial);
-  const categories = useActiveRef(token, categoriesApi);
+  const categories = useActiveRef(token, categoriesApi, { allPages: true });
 
   const [name, setName] = useState<string>(initial?.name ?? '');
   const [brand, setBrand] = useState<string>(initial?.brand ?? '');
@@ -107,6 +107,9 @@ export default function ProductForm({ initial }: { initial?: ApiResponse }) {
   const [busy, setBusy] = useState(false);
   const nameRef = useRef<InputHandle>(null);
 
+  const categoryAvailability = referenceAvailability(categoryId, categories);
+  const categoryMissing = categoryAvailability === 'missing';
+
   const categoryOptions: SelectOption[] = [
     { value: '', label: 'No category' },
     ...categories.items.map((c) => ({ value: c.id, label: c.name })),
@@ -136,6 +139,9 @@ export default function ProductForm({ initial }: { initial?: ApiResponse }) {
       if (!priceReconfirmed) {
         problems.priceReconfirmed = 'Confirm that both price values were rechecked in the selected currency.';
       }
+    }
+    if (categoryMissing) {
+      problems.categoryId = 'Choose an active category, or remove the archived one.';
     }
     if (Object.keys(problems).length) {
       setFieldErrors(problems);
@@ -226,12 +232,29 @@ export default function ProductForm({ initial }: { initial?: ApiResponse }) {
         label="Category"
         placeholder="Choose a category…"
         options={categoryOptions}
-        value={categoryId}
+        value={categoryMissing ? '' : categoryId}
         onChange={setCategoryId}
         error={fieldErrors.categoryId}
         searchable
-        disabled={categories.items.length === 0}
+        disabled={categories.items.length === 0 && !categoryMissing}
       />
+      {categoryMissing ? (
+        <View style={styles.categoryRepair}>
+          <Banner
+            type="warn"
+            text="This category is archived or unavailable. Choose an active category, or remove it before saving."
+          />
+          <Button
+            title="Remove archived category"
+            variant="secondary"
+            full
+            onPress={() => {
+              setCategoryId('');
+              setFieldErrors((current) => ({ ...current, categoryId: undefined }));
+            }}
+          />
+        </View>
+      ) : null}
       <Input name="description" label="Description" value={description} onChangeText={setDescription} multiline error={fieldErrors.description} />
       <Input
         name="specifications"
@@ -292,6 +315,7 @@ export default function ProductForm({ initial }: { initial?: ApiResponse }) {
 const styles = StyleSheet.create({
   content: { paddingBottom: spacing.huge },
   correction: { marginBottom: spacing.lg },
+  categoryRepair: { marginBottom: spacing.lg, gap: spacing.sm },
   correctionLabel: { marginBottom: spacing.xs + 2 },
   fieldError: { marginTop: 6 },
 });

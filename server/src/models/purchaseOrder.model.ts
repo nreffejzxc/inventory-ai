@@ -5,6 +5,16 @@ const { Schema } = mongoose;
 export const PURCHASE_ORDER_STATUSES = ['DRAFT', 'OPEN', 'RECEIVED', 'CANCELED'];
 
 /**
+ * Bounded repair scan for receipts whose batch audit hand-off never ran. The
+ * query is the same embedded `$elemMatch` the repair service uses; the compound
+ * key lets MongoDB narrow it by receive identity and marker before `updatedAt`.
+ */
+export const PURCHASE_ORDER_RECEIVE_AUDIT_REPAIR_INDEX = {
+  name: 'po_receive_audit_repair',
+  key: { 'receipts.receiveId': 1, 'receipts.auditEnqueuedAt': 1, updatedAt: 1 },
+} as const;
+
+/**
  * One ordered product line. Snapshot productName/sku at order time so the PO
  * keeps its own record if the product is later renamed or archived. quantityReceived
  * starts at 0 and is only ever increased by receiving (Phase 13C) — never edited.
@@ -197,6 +207,19 @@ const receiptSchema = new Schema(
       trim: true,
       maxlength: 64,
     },
+    /**
+     * Stable identity of the receive operation that wrote this receipt. Every
+     * line finalized by one request shares it, so a crash after some lines but
+     * before the batch audit can still rebuild one event from the receipts.
+     * Historical receipts have no `receiveId` and are deliberately skipped by
+     * the repair scan, because their pre-dedupe audit rows cannot be identified
+     * safely as already delivered.
+     */
+    receiveId: {
+      type: Schema.Types.ObjectId,
+    },
+    /** Set only after the durable audit outbox row exists. */
+    auditEnqueuedAt: Date,
     lines: {
       type: [receiptLineSchema],
       default: [],
@@ -233,6 +256,23 @@ const purchaseOrderSchema = new Schema(
       enum: PURCHASE_ORDER_STATUSES,
       default: 'DRAFT',
     },
+    // The client's Idempotency-Key for a create-from-restock. It is stored on
+    // the DRAFT itself because the HTTP idempotency claim can be lost after the
+    // document commits but before its response is recorded (process death, DB
+    // failover). A same-key retry then finds this row and replays it instead of
+    // allocating a second DRAFT. Optional for normal creates and old rows.
+    requestKey: {
+      type: String,
+      trim: true,
+      maxlength: [200, 'requestKey must be at most 200 characters'],
+    },
+    // Canonical hash of the restock selection. A reused key with a different
+    // body must be refused, not answered with somebody else's order.
+    requestFingerprint: {
+      type: String,
+      trim: true,
+      maxlength: 64,
+    },
     expectedAt: {
       type: Date,
     },
@@ -268,6 +308,24 @@ purchaseOrderSchema.index({ businessId: 1, number: 1 }, { unique: true });
 purchaseOrderSchema.index({ businessId: 1, status: 1 });
 purchaseOrderSchema.index({ businessId: 1, supplierId: 1 });
 purchaseOrderSchema.index({ businessId: 1, locationId: 1 });
+// Unnamed on purpose: a repair scan has no uniqueness/TTL option to preserve,
+// and an auto-generated name lets the rollout create it without diverging from
+// the model declaration on a later boot.
+purchaseOrderSchema.index(PURCHASE_ORDER_RECEIVE_AUDIT_REPAIR_INDEX.key);
+// The durable idempotency fence for create-from-restock. Partial because most
+// rows (normal creates, historical orders) have no requestKey: a plain unique
+// compound index would treat all of them as the same null key. Exported so the
+// readiness gate checks the index the model actually declares.
+export const PURCHASE_ORDER_REQUEST_KEY_INDEX = {
+  key: { businessId: 1, requestKey: 1 },
+  name: 'uniq_purchase_order_request_key',
+  unique: true,
+  partialFilterExpression: { requestKey: { $type: 'string' } },
+} as const;
+purchaseOrderSchema.index(PURCHASE_ORDER_REQUEST_KEY_INDEX.key, {
+  unique: PURCHASE_ORDER_REQUEST_KEY_INDEX.unique,
+  partialFilterExpression: PURCHASE_ORDER_REQUEST_KEY_INDEX.partialFilterExpression,
+});
 
 // Phase 20G: the purchase-order list is read newest-first with a deterministic
 // tiebreaker — `sort({ createdAt: -1, _id: -1 })` over `{ businessId }` plus

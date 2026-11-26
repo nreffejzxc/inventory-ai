@@ -384,7 +384,10 @@ export async function verifyDemoTenant(businessId) {
     stockByProductName.set(name, (stockByProductName.get(name) ?? 0) + row.quantity);
   }
   const lowNames = products
-    .filter((p) => (stockByProductName.get(p.name) ?? 0) <= p.minimumStock)
+    .filter((p) => {
+      const available = stockByProductName.get(p.name) ?? 0;
+      return available > 0 && available <= p.minimumStock;
+    })
     .map((p) => p.name)
     .sort();
   const outNames = products

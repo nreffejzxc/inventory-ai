@@ -12,8 +12,16 @@ import express from 'express';
 import {
   checkRequiredIndexes,
   checkTransferLedgerIndex,
+  evaluateRequiredIndex,
   evaluateTransferLedgerIndex,
 } from '../src/config/indexReadiness.ts';
+import { AUDIT_DEDUPE_INDEX } from '../src/models/auditLog.model.ts';
+import { AUDIT_OUTBOX_DELIVERED_TTL_INDEX } from '../src/models/auditOutbox.model.ts';
+import {
+  PURCHASE_ORDER_RECEIVE_AUDIT_REPAIR_INDEX,
+  PURCHASE_ORDER_REQUEST_KEY_INDEX,
+} from '../src/models/purchaseOrder.model.ts';
+import { MOVEMENT_AUDIT_REPAIR_INDEX } from '../src/models/stockMovementOperation.model.ts';
 import { createHealthRouter } from '../src/routes/health.routes.ts';
 
 const EXPECTED = {
@@ -112,10 +120,144 @@ describe('transfer-ledger index readiness — evaluation', () => {
       checkTransferLedger: async () => {
         throw new Error('inspection crashed');
       },
+      checkPurchaseOrderRequestKey: async () => ({ ready: true, name: 'po', reason: null }),
+      checkAuditDedupe: async () => ({ ready: true, name: 'audit', reason: null }),
+      checkAuditOutboxTtl: async () => ({ ready: true, name: 'ttl', reason: null }),
+      checkMovementAuditRepair: async () => ({ ready: true, name: 'movement', reason: null }),
+      checkPoReceiveAuditRepair: async () => ({ ready: true, name: 'po-repair', reason: null }),
     });
     assert.equal(result.ready, false);
     assert.equal(result.failures.length, 1);
     assert.match(result.failures[0].reason, /could not run/);
+  });
+
+  it('★ requires the exact Draft PO request-key unique partial index', () => {
+    const exact = { ...PURCHASE_ORDER_REQUEST_KEY_INDEX, unique: true };
+    assert.equal(evaluateRequiredIndex([exact], PURCHASE_ORDER_REQUEST_KEY_INDEX).ready, true);
+
+    for (const candidate of [
+      [],
+      [{ ...exact, unique: false }],
+      [{ ...exact, partialFilterExpression: undefined }],
+      [{ ...exact, key: { requestKey: 1, businessId: 1 } }],
+    ]) {
+      const result = evaluateRequiredIndex(candidate, PURCHASE_ORDER_REQUEST_KEY_INDEX);
+      assert.equal(result.ready, false, JSON.stringify(candidate));
+    }
+  });
+
+  it('★ requires the exact audit dedupe unique partial index', () => {
+    const exact = { ...AUDIT_DEDUPE_INDEX };
+    assert.equal(evaluateRequiredIndex([exact], AUDIT_DEDUPE_INDEX).ready, true);
+
+    for (const candidate of [
+      [],
+      [{ ...exact, unique: false }],
+      [{ ...exact, partialFilterExpression: { dedupeKey: { $exists: true } } }],
+      [{ ...exact, key: { dedupeKey: 1, businessId: 1 } }],
+    ]) {
+      const result = evaluateRequiredIndex(candidate, AUDIT_DEDUPE_INDEX);
+      assert.equal(result.ready, false, JSON.stringify(candidate));
+    }
+  });
+
+  it('★ requires the exact audit-outbox TTL, movement repair and PO receipt repair indexes', () => {
+    const exactTtl = { ...AUDIT_OUTBOX_DELIVERED_TTL_INDEX };
+    assert.equal(
+      evaluateRequiredIndex([exactTtl], AUDIT_OUTBOX_DELIVERED_TTL_INDEX).ready,
+      true,
+    );
+    for (const candidate of [
+      [],
+      [{ ...exactTtl, expireAfterSeconds: 1 }],
+      [{ ...exactTtl, unique: true }],
+      [{ ...exactTtl, partialFilterExpression: undefined }],
+      [{ ...exactTtl, key: { status: 1 } }],
+    ]) {
+      const result = evaluateRequiredIndex(candidate, AUDIT_OUTBOX_DELIVERED_TTL_INDEX);
+      assert.equal(result.ready, false, JSON.stringify(candidate));
+    }
+
+    const exactMovement = { ...MOVEMENT_AUDIT_REPAIR_INDEX };
+    assert.equal(
+      evaluateRequiredIndex([exactMovement], MOVEMENT_AUDIT_REPAIR_INDEX).ready,
+      true,
+    );
+    for (const candidate of [
+      [],
+      [{ ...exactMovement, unique: true }],
+      [{ ...exactMovement, key: { updatedAt: 1, state: 1 } }],
+    ]) {
+      const result = evaluateRequiredIndex(candidate, MOVEMENT_AUDIT_REPAIR_INDEX);
+      assert.equal(result.ready, false, JSON.stringify(candidate));
+    }
+
+    const exactPoRepair = { ...PURCHASE_ORDER_RECEIVE_AUDIT_REPAIR_INDEX };
+    assert.equal(
+      evaluateRequiredIndex([exactPoRepair], PURCHASE_ORDER_RECEIVE_AUDIT_REPAIR_INDEX)
+        .ready,
+      true,
+    );
+    for (const candidate of [
+      [],
+      [{ ...exactPoRepair, unique: true }],
+      [
+        {
+          ...exactPoRepair,
+          key: {
+            updatedAt: 1,
+            'receipts.receiveId': 1,
+            'receipts.auditEnqueuedAt': 1,
+          },
+        },
+      ],
+    ]) {
+      const result = evaluateRequiredIndex(
+        candidate,
+        PURCHASE_ORDER_RECEIVE_AUDIT_REPAIR_INDEX,
+      );
+      assert.equal(result.ready, false, JSON.stringify(candidate));
+    }
+  });
+
+  it('★ reports all six missing or incorrect requirements in one readiness result', async () => {
+    const result = await checkRequiredIndexes({
+      checkTransferLedger: async () => ({
+        ready: false,
+        name: 'transfer',
+        reason: 'transfer missing',
+      }),
+      checkPurchaseOrderRequestKey: async () => ({
+        ready: false,
+        name: 'draft-po',
+        reason: 'draft-po missing',
+      }),
+      checkAuditDedupe: async () => ({
+        ready: false,
+        name: 'audit',
+        reason: 'audit missing',
+      }),
+      checkAuditOutboxTtl: async () => ({
+        ready: false,
+        name: 'outbox-ttl',
+        reason: 'outbox TTL missing',
+      }),
+      checkMovementAuditRepair: async () => ({
+        ready: false,
+        name: 'movement-repair',
+        reason: 'movement repair missing',
+      }),
+      checkPoReceiveAuditRepair: async () => ({
+        ready: false,
+        name: 'po-repair',
+        reason: 'PO repair missing',
+      }),
+    });
+    assert.equal(result.ready, false);
+    assert.deepEqual(
+      result.failures.map((failure) => failure.name),
+      ['transfer', 'draft-po', 'audit', 'outbox-ttl', 'movement-repair', 'po-repair'],
+    );
   });
 });
 
@@ -156,7 +298,11 @@ describe('transfer-ledger index readiness — /api/health/ready', () => {
     await withHealthApp({
       checkIndexes: async () => ({
         ready: false,
-        failures: [{ name: EXPECTED.name, reason: 'required unique partial index is missing' }],
+        failures: [
+          { name: EXPECTED.name, reason: 'required unique partial index is missing' },
+          { name: 'draft-po', reason: 'Draft PO request-key index is missing' },
+          { name: 'audit', reason: 'audit dedupe index is missing' },
+        ],
       }),
       run: async (origin) => {
         const res = await fetch(`${origin}/api/health/ready`);
@@ -164,6 +310,8 @@ describe('transfer-ledger index readiness — /api/health/ready', () => {
         const body = await res.json();
         assert.equal(body.status, 'not ready');
         assert.match(body.reason, /unique partial index is missing/);
+        assert.match(body.reason, /Draft PO request-key index is missing/);
+        assert.match(body.reason, /audit dedupe index is missing/);
         assert.doesNotMatch(JSON.stringify(body), /mongodb:|secret/i);
       },
     });

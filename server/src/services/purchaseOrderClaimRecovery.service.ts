@@ -5,7 +5,7 @@ import Inventory from '../models/inventory.model.ts';
 import InventoryTransaction from '../models/inventoryTransaction.model.ts';
 import AuditLog from '../models/auditLog.model.ts';
 import { AUDIT_ACTIONS, AUDIT_ENTITY_TYPES } from '../constants/audit.ts';
-import { recordAudit } from './audit.service.ts';
+import { recordAuditOnce } from './audit.service.ts';
 import { monitorAuditFailure } from './auditFailure.service.ts';
 import { releaseClaim } from './purchase-orders.service.ts';
 
@@ -58,6 +58,35 @@ export type ClaimRecoverySummary = {
 function asObjectId(value: unknown): mongoose.Types.ObjectId | null {
   if (value == null || !ObjectId.isValid(String(value))) return null;
   return new ObjectId(String(value));
+}
+
+async function auditClaimRecovery(
+  po: PoRow,
+  claimId: mongoose.Types.ObjectId,
+  userId: mongoose.Types.ObjectId | undefined,
+  metadata: Record<string, unknown>,
+) {
+  try {
+    await recordAuditOnce({
+      businessId: po.businessId,
+      userId,
+      action: AUDIT_ACTIONS.PURCHASE_ORDER_CLAIM_RECOVERED,
+      entityType: AUDIT_ENTITY_TYPES.PURCHASE_ORDER,
+      entityId: po._id,
+      metadata: { number: po.number, claimId: String(claimId), ...metadata },
+      // One claim can produce exactly one recovery outcome. Two reapers that
+      // both read the claim before either released it still append one event.
+      dedupeKey: `po-claim:${String(po._id)}:${String(claimId)}:recovered`,
+    });
+  } catch (err) {
+    await monitorAuditFailure({
+      businessId: po.businessId,
+      action: AUDIT_ACTIONS.PURCHASE_ORDER_CLAIM_RECOVERED,
+      entityType: AUDIT_ENTITY_TYPES.PURCHASE_ORDER,
+      entityId: po._id,
+      error: err,
+    });
+  }
 }
 
 async function flagClaim(
@@ -158,28 +187,11 @@ export async function recoverStalePurchaseOrderClaims({
             quantity,
             claimId,
           });
-          await recordAudit({
-            businessId: po.businessId,
-            userId: txn.userId,
-            action: AUDIT_ACTIONS.PURCHASE_ORDER_CLAIM_RECOVERED,
-            entityType: AUDIT_ENTITY_TYPES.PURCHASE_ORDER,
-            entityId: po._id,
-            metadata: {
-              number: po.number,
-              recovery: 'RECEIPT_ALREADY_EXISTS',
-              claimId: String(claimId),
-              productId: String(productId),
-              quantity,
-              inventoryTransactionId: String(txn._id),
-            },
-          }).catch(async (err) => {
-            await monitorAuditFailure({
-              businessId: po.businessId,
-              action: AUDIT_ACTIONS.PURCHASE_ORDER_CLAIM_RECOVERED,
-              entityType: AUDIT_ENTITY_TYPES.PURCHASE_ORDER,
-              entityId: po._id,
-              error: err,
-            });
+          await auditClaimRecovery(po, claimId, txn.userId, {
+            recovery: 'RECEIPT_ALREADY_EXISTS',
+            productId: String(productId),
+            quantity,
+            inventoryTransactionId: String(txn._id),
           });
           summary.receipted += 1;
           continue;
@@ -198,27 +210,10 @@ export async function recoverStalePurchaseOrderClaims({
             quantity,
             claimId,
           });
-          await recordAudit({
-            businessId: po.businessId,
-            userId: undefined,
-            action: AUDIT_ACTIONS.PURCHASE_ORDER_CLAIM_RECOVERED,
-            entityType: AUDIT_ENTITY_TYPES.PURCHASE_ORDER,
-            entityId: po._id,
-            metadata: {
-              number: po.number,
-              recovery: 'CLAIM_RELEASED',
-              claimId: String(claimId),
-              productId: String(productId),
-              quantity,
-            },
-          }).catch(async (err) => {
-            await monitorAuditFailure({
-              businessId: po.businessId,
-              action: AUDIT_ACTIONS.PURCHASE_ORDER_CLAIM_RECOVERED,
-              entityType: AUDIT_ENTITY_TYPES.PURCHASE_ORDER,
-              entityId: po._id,
-              error: err,
-            });
+          await auditClaimRecovery(po, claimId, undefined, {
+            recovery: 'CLAIM_RELEASED',
+            productId: String(productId),
+            quantity,
           });
           summary.released += 1;
           continue;
@@ -269,30 +264,13 @@ export async function recoverStalePurchaseOrderClaims({
           quantity,
             claimId,
         });
-        await recordAudit({
-          businessId: po.businessId,
-          userId: txn.userId,
-          action: AUDIT_ACTIONS.PURCHASE_ORDER_CLAIM_RECOVERED,
-          entityType: AUDIT_ENTITY_TYPES.PURCHASE_ORDER,
-          entityId: po._id,
-          metadata: {
-            number: po.number,
-            recovery: 'STOCK_IN_UNDONE',
-            claimId: String(claimId),
-            productId: String(productId),
-            quantity,
-            inventoryTransactionId: String(txn._id),
-            previousQuantity: txn.previousQuantity,
-            restoredQuantity: txn.previousQuantity,
-          },
-        }).catch(async (err) => {
-          await monitorAuditFailure({
-            businessId: po.businessId,
-            action: AUDIT_ACTIONS.PURCHASE_ORDER_CLAIM_RECOVERED,
-            entityType: AUDIT_ENTITY_TYPES.PURCHASE_ORDER,
-            entityId: po._id,
-            error: err,
-          });
+        await auditClaimRecovery(po, claimId, txn.userId, {
+          recovery: 'STOCK_IN_UNDONE',
+          productId: String(productId),
+          quantity,
+          inventoryTransactionId: String(txn._id),
+          previousQuantity: txn.previousQuantity,
+          restoredQuantity: txn.previousQuantity,
         });
         summary.undone += 1;
       } catch (err) {

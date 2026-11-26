@@ -1,0 +1,93 @@
+{
+  "journey": "draft-resume",
+  "startedAt": "2026-11-23T06:38:55.758Z",
+  "runId": "2026-11-23T06-38-55-758Z",
+  "device": "sdk_gphone64_x86_64 · Android 15 (API 35) · emulator-5554",
+  "steps": [
+    {
+      "title": "open inventoryai://purchase-orders/from-restock",
+      "status": "pass",
+      "detail": "inventoryai://purchase-orders/from-restock",
+      "durationMs": 987
+    },
+    {
+      "title": "expect \"Draft purchase order from restock\"",
+      "status": "pass",
+      "detail": "seen after 2322ms",
+      "durationMs": 2322
+    },
+    {
+      "title": "choose \"Draft Proof Supplier 1795403412084\" from the \"Supplier\" picker",
+      "status": "pass",
+      "detail": "chose \"Draft Proof Supplier 1795403412084\"",
+      "durationMs": 11263
+    },
+    {
+      "title": "choose \"Draft Proof Bay 1795403412084\" from the \"Receiving location\" picker",
+      "status": "pass",
+      "detail": "chose \"Draft Proof Bay 1795403412084\"",
+      "durationMs": 11263
+    },
+    {
+      "title": "expect \"Draft Proof Gadget 1795403412084\"",
+      "status": "pass",
+      "detail": "seen after 2341ms",
+      "durationMs": 2341
+    },
+    {
+      "title": "tap \"Draft Proof Gadget 1795403412084\"",
+      "status": "pass",
+      "detail": "tapped Draft Proof Gadget 1795403412084, SKU DP-B-1795403412084 · 0 available · minimum 3 · out of stock at 540,1625",
+      "durationMs": 3243
+    },
+    {
+      "title": "tap \"Draft Proof Widget 1795403412084\"",
+      "status": "pass",
+      "detail": "tapped Draft Proof Widget 1795403412084, SKU DP-A-1795403412084 · 0 available · minimum 5 · out of stock at 540,1805",
+      "durationMs": 3170
+    },
+    {
+      "title": "scroll down",
+      "status": "pass",
+      "detail": "scrolled down",
+      "durationMs": 1140
+    },
+    {
+      "title": "expect \"Create draft order (2 items)\"",
+      "status": "pass",
+      "detail": "seen after 12328ms",
+      "durationMs": 12328
+    },
+    {
+      "title": "tap \"Create draft order (2 items)\"",
+      "status": "pass",
+      "detail": "tapped Create draft order (2 items) at 540,1639",
+      "durationMs": 13280
+    },
+    {
+      "title": "force-stopped com.inventoryai.app after its Draft PO request",
+      "status": "pass",
+      "detail": "com.inventoryai.app stopped; captured op-mwswbsww-tqxh22gwmpw8szmr with the exact 251-byte body",
+      "durationMs": 207
+    },
+    {
+      "title": "cold relaunch and open inventoryai://purchase-orders/from-restock",
+      "status": "pass",
+      "detail": "cold-started the bundle, then opened inventoryai://purchase-orders/from-restock (retry 1)",
+      "durationMs": 31682
+    },
+    {
+      "title": "expect \"An unfinished draft attempt was restored\"",
+      "status": "pass",
+      "detail": "seen after 12373ms",
+      "durationMs": 12373
+    },
+    {
+      "title": "expect \"Resume draft creation (2 items)\"",
+      "status": "fail",
+      "detail": "expected \"Resume draft creation (2 items)\" within 15000ms; screen showed: Tools | Navigate up | Draft From Restock | Draft purchase order from restock | Select the products to replenish. Quantities are calculated by the server from the selected location's current availability and each product's minimum stock. | Order details | Supplier * | Draft Proof Supplier 1795403412084, ▾ | Draft Proof Supplier 1795403412084 | ▾",
+      "durationMs": 25569
+    }
+  ],
+  "notes": "evidence: C:/Users/jeffe/inventory-ai/docs/evidence/draft-po-force-stop-2026-11-23/automated-2026-11-23T06-38Z/journey"
+}

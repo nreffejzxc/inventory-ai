@@ -34,7 +34,7 @@
  */
 
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
 import * as device from './adb.mjs';
@@ -130,6 +130,27 @@ function parseArgs(argv) {
       case 'destination':
         args.destination = value;
         break;
+      case 'supplier':
+        args.supplier = value;
+        break;
+      case 'location':
+        args.location = value;
+        break;
+      case 'product1':
+        args.product1 = value;
+        break;
+      case 'product2':
+        args.product2 = value;
+        break;
+      case 'proxy-log':
+        args.proxyLog = value;
+        break;
+      case 'dev-server-url':
+        args.devServerUrl = value;
+        break;
+      case 'database':
+        args.database = value;
+        break;
       case 'out':
         args.out = value;
         break;
@@ -182,6 +203,9 @@ function titleOf(step, ctx) {
   if (verb === 'readCode') return 'read the barcode off the screen';
   if (verb === 'decodeLabel') return 'decode the printed PDF';
   if (verb === 'movement') return `check the movement arithmetic (${value?.deltas?.join(', ')})`;
+  if (verb === 'expectStopped') return `force-stopped ${value?.package} after its Draft PO request`;
+  if (verb === 'relaunch') return `cold relaunch and open ${value}`;
+  if (verb === 'verifyDraftResume') return 'verify exactly one DRAFT for the captured key/body';
   if (verb === 'expectData') return `expect ${value?.what ?? 'rows'} on screen`;
   if (verb === 'expectClean') return `expect ${value} to load without an error`;
   if (verb === 'findProduct') {
@@ -215,6 +239,12 @@ function templateVars(ctx) {
     productName: ctx.productName,
     source: ctx.source,
     destination: ctx.destination,
+    supplier: ctx.supplier,
+    location: ctx.location,
+    product1: ctx.product1,
+    product2: ctx.product2,
+    proxyLog: ctx.proxyLog,
+    database: ctx.database,
     runId: ctx.runId,
   };
 }
@@ -316,7 +346,7 @@ async function runStep(step, ctx) {
       let target = findTapTarget(screen.nodes, wanted);
       let scrolled = 0;
       while (!target && scrolled < 2) {
-        device.swipe(540, 1700, 540, 900, adbArgs);
+        device.swipe(540, 1500, 540, 700, adbArgs);
         await sleep(700);
         screen = await device.readScreen(adbArgs);
         target = findTapTarget(screen.nodes, wanted);
@@ -431,7 +461,7 @@ async function runStep(step, ctx) {
           field = fieldBelow(screen.nodes, spec.into);
         }
         if (!field) {
-          device.swipe(540, 1700, 540, 900, adbArgs);
+          device.swipe(540, 1500, 540, 700, adbArgs);
           await sleep(800);
           screen = await device.readScreen(adbArgs);
           field = fieldBelow(screen.nodes, spec.into);
@@ -500,7 +530,7 @@ async function runStep(step, ctx) {
 
     case 'scroll': {
       const direction = value === 'up' ? 1 : -1;
-      device.swipe(540, direction > 0 ? 1200 : 1900, 540, direction > 0 ? 1900 : 1200, adbArgs);
+      device.swipe(540, direction > 0 ? 700 : 1500, 540, direction > 0 ? 1500 : 700, adbArgs);
       await sleep(600);
       return { status: 'pass', detail: `scrolled ${value}` };
     }
@@ -852,7 +882,7 @@ async function runStep(step, ctx) {
       let trigger = findTapTarget(screen.nodes, want.field);
       let scrolled = 0;
       while (!trigger && scrolled < 2) {
-        device.swipe(540, 1700, 540, 900, adbArgs);
+        device.swipe(540, 1500, 540, 700, adbArgs);
         await sleep(700);
         screen = await device.readScreen(adbArgs);
         trigger = findTapTarget(screen.nodes, want.field);
@@ -951,6 +981,192 @@ async function runStep(step, ctx) {
       };
     }
 
+    case 'expectStopped': {
+      const spec = value ?? {};
+      const log = resolveStepText(spec.proxyLog, ctx);
+      if (log.missing) return { status: 'blocked', detail: `expectStopped ${spec.proxyLog} ${log.missing}` };
+      const requestKey = resolveStepText(spec.package, ctx);
+      if (requestKey.missing) return { status: 'blocked', detail: `expectStopped ${spec.package} ${requestKey.missing}` };
+
+      const journal = log.text;
+      const pkg = requestKey.text;
+      const since = Date.parse(ctx.startedAt ?? '');
+      if (!Number.isFinite(since)) {
+        return { status: 'blocked', detail: 'the run start time is unavailable; cannot rule out a stale proxy entry' };
+      }
+      const target = ctx.serial ? ['-s', ctx.serial] : [];
+      const deadline = Date.now() + Math.max(ctx.timeoutMs, 12_000);
+      let request = null;
+      let forceStop = null;
+      let pid = '';
+      let pidCheckError = null;
+
+      while (Date.now() < deadline) {
+        if (existsSync(journal)) {
+          const events = readFileSync(journal, 'utf8')
+            .split('\n')
+            .filter(Boolean)
+            .map((line) => {
+              try {
+                return JSON.parse(line);
+              } catch {
+                return null;
+              }
+            })
+            .filter(Boolean);
+          const inThisRun = events.filter((event) => {
+            const ts = Date.parse(event.ts);
+            return Number.isFinite(ts) && ts >= since;
+          });
+          request =
+            inThisRun
+              .filter((event) => event.event === 'request' && event.url === '/api/purchase-orders/from-restock')
+              .at(-1) ?? null;
+          forceStop = request
+            ? inThisRun
+                .filter(
+                  (event) =>
+                    event.event === 'force-stop-before-forward' && event.key === request.key,
+                )
+                .at(-1) ?? null
+            : null;
+        }
+
+        try {
+          pid = device.adb([...target, 'shell', 'pidof', pkg], adbArgs).trim();
+          pidCheckError = null;
+        } catch (err) {
+          // `pidof` exits 1, with no output, when the process is gone; that is the expected
+          // stopped result. Anything else means adb could not answer, and calling that "stopped"
+          // would report a kill that was never proved.
+          const stderr = String(err?.stderr ?? '').trim();
+          if (err?.status === 1 && !stderr) {
+            pid = '';
+            pidCheckError = null;
+          } else {
+            pid = '';
+            pidCheckError = stderr || String(err?.message ?? err);
+          }
+        }
+
+        if (request && !pid && !pidCheckError) break;
+        await sleep(300);
+      }
+
+      if (!request) {
+        return { status: 'fail', detail: `the proxy logged no Draft PO request in this run (journal ${journal})` };
+      }
+      if (!forceStop) {
+        return { status: 'fail', detail: 'the proxy did not record a force-stop for the captured key' };
+      }
+      if (pidCheckError) {
+        return { status: 'blocked', detail: `could not check whether ${pkg} stopped: ${pidCheckError}` };
+      }
+      if (pid) return { status: 'fail', detail: `${pkg} is still running (pid ${pid}) after the request` };
+      if (!request.key) return { status: 'fail', detail: 'the captured Draft PO request has no Idempotency-Key' };
+
+      ctx.restartRequest = request;
+      return {
+        status: 'pass',
+        detail: `${pkg} stopped; captured ${request.key} with the exact ${Buffer.byteLength(
+          JSON.stringify(request.body ?? {}),
+        )}-byte body`,
+      };
+    }
+
+    case 'relaunch': {
+      const resolved = resolveStepText(value, ctx);
+      if (resolved.missing) return { status: 'blocked', detail: `relaunch ${value} ${resolved.missing}` };
+      device.openDevClient({ adbPath: ctx.adbPath, serial: ctx.serial, devServerUrl: ctx.devServerUrl });
+
+      // A cold development build opens the Expo launcher first and loads the bundle from Metro.
+      // Opening the route before that finishes is a deep link into the launcher, not into the app.
+      let settled = false;
+      const deadline = Date.now() + Math.max(ctx.timeoutMs, 30_000);
+      while (Date.now() < deadline) {
+        await sleep(1000);
+        try {
+          settled = !looksAtDevLauncher((await device.readScreen(adbArgs)).nodes);
+        } catch {
+          settled = false;
+        }
+        if (settled) break;
+      }
+      if (!settled) {
+        return { status: 'fail', detail: 'the Expo dev launcher did not hand over to the app bundle' };
+      }
+
+      // A cold start can deliver the first route intent before the navigator is mounted; the app
+      // then sits on its default dashboard and the deep link is lost. Re-open it until the
+      // destination has actually rendered, instead of reporting pass after a blind sleep.
+      let landed = false;
+      let opened = 0;
+      while (!landed && opened < 4) {
+        device.openRoute(resolved.text, adbArgs);
+        await sleep(1800);
+        try {
+          const screen = await device.readScreen(adbArgs);
+          landed = findNodes(screen.nodes, 'Draft purchase order from restock').length > 0;
+        } catch {
+          landed = false;
+        }
+        opened += 1;
+        if (!landed) await sleep(800);
+      }
+      if (!landed) {
+        return {
+          status: 'fail',
+          detail: `opened ${resolved.text} ${opened} times but the destination never rendered`,
+        };
+      }
+      return {
+        status: 'pass',
+        detail: `cold-started the bundle, then opened ${resolved.text}` + (opened > 1 ? ` (retry ${opened - 1})` : ''),
+      };
+    }
+
+    case 'verifyDraftResume': {
+      const request = ctx.restartRequest;
+      if (!request) return { status: 'fail', detail: 'no captured request — expectStopped did not run first' };
+      const spec = value ?? {};
+      const database = resolveStepText(spec.database, ctx);
+      if (database.missing) {
+        return { status: 'blocked', detail: `verifyDraftResume ${spec.database} ${database.missing}` };
+      }
+
+      const body = request.body ?? {};
+      if (!Array.isArray(body.items) || !body.supplierId || !body.locationId) {
+        return { status: 'fail', detail: 'the captured body lacks supplierId, locationId or items' };
+      }
+
+      const script = join(ROOT, 'server', 'scripts', 'verify-draft-po-resume.mjs');
+      try {
+        const stdout = execFileSync(
+          process.execPath,
+          [
+            script,
+            `--database=${database.text}`,
+            `--key=${request.key}`,
+            `--body=${JSON.stringify(body)}`,
+            '--format=json',
+          ],
+          { cwd: join(ROOT, 'server'), encoding: 'utf8', timeout: 60_000 },
+        );
+        const payload = JSON.parse(stdout);
+        return { status: 'pass', detail: payload.detail };
+      } catch (err) {
+        let payload = null;
+        try {
+          payload = JSON.parse(err.stdout || '');
+        } catch {
+          payload = null;
+        }
+        const problems = Array.isArray(payload?.problems) ? payload.problems.join('; ') : '';
+        const detail = problems || String(err.stderr || err.stdout || err.message || err).trim().split('\n').at(-1);
+        return { status: err.status === 2 ? 'blocked' : 'fail', detail };
+      }
+    }
+
     case 'verifyTransfer': {
       if (!ctx.verifyLedger) {
         return { status: 'blocked', detail: 'the run did not ask for --verify-ledger' };
@@ -1045,12 +1261,20 @@ async function runJourney(journey, options) {
 
   const ctx = {
     outDir,
+    startedAt,
     serial: options.serial,
     adbPath: options.adbPath,
     sku: options.sku,
     productName: null,
     source: options.source,
     destination: options.destination,
+    supplier: options.supplier,
+    location: options.location,
+    product1: options.product1,
+    product2: options.product2,
+    proxyLog: options.proxyLog,
+    devServerUrl: options.devServerUrl ?? 'http://localhost:8081',
+    database: options.database,
     runId,
     verifyLedger: options.verifyLedger,
     verifyProduction: options.verifyProduction,
@@ -1239,6 +1463,13 @@ async function main() {
     console.error(
       `refusing to run ${blockedByWrites.map((j) => j.id).join(', ')}: it writes to the tenant. Pass --allow-writes.`,
     );
+    process.exit(2);
+  }
+  // This journey deliberately force-stops the app and writes a DRAFT. Do not
+  // let adb auto-select a phone for it; the install incident proved how costly
+  // an implicit "only connected device" can be.
+  if (journeys.some((j) => j.id === 'draft-resume') && !args.serial) {
+    console.error('refusing draft-resume without an explicit --serial=<device>; automatic selection is not allowed.');
     process.exit(2);
   }
 

@@ -125,6 +125,12 @@ updates:
       # dependency when the app gained its update runtime. The SDK pins it like the rest, so the pin
       # guard compared it and failed until it was listed here — the same guard doing the same job.
       #
+      # WHY TWO MORE WERE ADDED (2026-11-22, FW-01 CSV import).
+      # `expo-document-picker` and `expo-file-system` became direct dependencies for the
+      # bounded CSV picker/read path. Both are SDK-pinned, so the pin guard compared them
+      # and rejected the manifest until the declared ranges were aligned and both names
+      # were refused here. They move with the SDK, not on a patch bump.
+      #
       # WHY GOOGLE SIGN-IN IS HERE (2026-11-06). `@react-native-google-signin/google-signin`
       # is not Expo-pinned, but owner decision P-2 (FB-D-125) freezes it at 16.1.5 and
       # `__tests__/phase1-rnfirebase-foundation.test.ts` rejects every other version. PR #133
@@ -149,6 +155,8 @@ updates:
       - dependency-name: expo-camera
       - dependency-name: expo-constants
       - dependency-name: expo-dev-client
+      - dependency-name: expo-document-picker
+      - dependency-name: expo-file-system
       - dependency-name: expo-font
       - dependency-name: expo-linking
       - dependency-name: expo-print

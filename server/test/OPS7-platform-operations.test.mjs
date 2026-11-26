@@ -797,12 +797,59 @@ dbSuite('PLAT-1 platform administrator access control', dbOk, () => {
 dbSuite('PLAT-1 cross-tenant aggregation (fixed window)', dbOk, () => {
   const now = new Date('2019-01-07T12:00:00.000Z');
   const inside = new Date('2019-01-03T10:00:00.000Z');
+  const feedbackAId = new mongoose.Types.ObjectId();
+  const feedbackBId = new mongoose.Types.ObjectId();
+  const errorAId = new mongoose.Types.ObjectId();
+  const errorBId = new mongoose.Types.ObjectId();
+  const errorNoTenantId = new mongoose.Types.ObjectId();
 
   let businessA;
   let businessB;
   let memberA;
   let memberB;
   let otherOwner;
+
+  /**
+   * The fixed-window suite is a fixture, not the product write path. A transient
+   * MongoDB disconnect must not silently drop one of its rows and turn a correct
+   * aggregation into a false failure. The monitoring writers return `false` when
+   * the connection is down; wait for it and retry, and make direct fixture writes
+   * idempotent with fixed ids so a lost acknowledgement cannot duplicate them.
+   */
+  const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+  const FIXTURE_RETRY_MS = 200;
+  const FIXTURE_TIMEOUT_MS = 10_000;
+  async function fixtureWrite(label, write) {
+    const deadline = Date.now() + FIXTURE_TIMEOUT_MS;
+    let lastError = null;
+    while (Date.now() < deadline) {
+      if (mongoose.connection.readyState === 1) {
+        try {
+          const result = await write();
+          if (result !== false) return result;
+          lastError = new Error(`${label} writer returned false`);
+        } catch (err) {
+          lastError = err;
+        }
+      }
+      await sleep(FIXTURE_RETRY_MS);
+    }
+    assert.fail(
+      `${label} fixture write did not persist within ${FIXTURE_TIMEOUT_MS}ms: ${
+        lastError instanceof Error ? lastError.message : 'MongoDB did not reconnect'
+      }`,
+    );
+  }
+
+  function fixtureUpsert(label, model, id, document, options = {}) {
+    return fixtureWrite(label, () =>
+      model.updateOne(
+        { _id: id },
+        { $setOnInsert: document },
+        { upsert: true, ...options },
+      ),
+    );
+  }
 
   before(async () => {
     // One real tenant registered through the API, plus raw rows for a second.
@@ -813,30 +860,38 @@ dbSuite('PLAT-1 cross-tenant aggregation (fixed window)', dbOk, () => {
     memberB = new mongoose.Types.ObjectId();
 
     // AI: two turns, one per tenant, in the fixed window.
-    await recordAiTurnMetric(
-      metricInput({
-        turnId: 'plat-fixed-a',
-        businessId: String(businessA),
-        userId: String(memberA),
-        startedAt: new Date(inside.getTime() - 1000),
-        completedAt: inside,
-        outcome: 'ok',
-      }),
+    await fixtureWrite('AI turn A', () =>
+      recordAiTurnMetric(
+        metricInput({
+          turnId: 'plat-fixed-a',
+          businessId: String(businessA),
+          userId: String(memberA),
+          startedAt: new Date(inside.getTime() - 1000),
+          completedAt: inside,
+          outcome: 'ok',
+        }),
+      ),
     );
-    await recordAiTurnMetric(
-      metricInput({
-        turnId: 'plat-fixed-b',
-        businessId: String(businessB),
-        userId: String(memberB),
-        startedAt: new Date(inside.getTime() - 1000),
-        completedAt: inside,
-        outcome: 'failed',
-        failovers: 1,
-      }),
+    await fixtureWrite('AI turn B', () =>
+      recordAiTurnMetric(
+        metricInput({
+          turnId: 'plat-fixed-b',
+          businessId: String(businessB),
+          userId: String(memberB),
+          startedAt: new Date(inside.getTime() - 1000),
+          completedAt: inside,
+          outcome: 'failed',
+          failovers: 1,
+        }),
+      ),
     );
 
-    // Feedback: one per tenant, one down reason each.
-    await AiFeedback.create([
+    // Feedback: one per tenant, one down reason each. Fixed ids make the upsert
+    // safe to retry if the insert commits but its acknowledgement is lost.
+    await fixtureUpsert(
+      'feedback A',
+      AiFeedback,
+      feedbackAId,
       {
         businessId: businessA,
         conversationId: new mongoose.Types.ObjectId(),
@@ -848,6 +903,12 @@ dbSuite('PLAT-1 cross-tenant aggregation (fixed window)', dbOk, () => {
         createdAt: inside,
         updatedAt: inside,
       },
+      { timestamps: false },
+    );
+    await fixtureUpsert(
+      'feedback B',
+      AiFeedback,
+      feedbackBId,
       {
         businessId: businessB,
         conversationId: new mongoose.Types.ObjectId(),
@@ -859,48 +920,69 @@ dbSuite('PLAT-1 cross-tenant aggregation (fixed window)', dbOk, () => {
         createdAt: inside,
         updatedAt: inside,
       },
-    ]);
+      { timestamps: false },
+    );
 
     // Feature presence: two members on one tenant and one on the other.
-    await recordFeatureUse({
-      businessId: String(businessA),
-      userId: String(memberA),
-      feature: 'products',
-      at: inside,
-    });
-    await recordFeatureUse({
-      businessId: String(businessB),
-      userId: String(memberB),
-      feature: 'inventory',
-      at: inside,
-    });
+    await fixtureWrite('feature A', () =>
+      recordFeatureUse({
+        businessId: String(businessA),
+        userId: String(memberA),
+        feature: 'products',
+        at: inside,
+      }),
+    );
+    await fixtureWrite('feature B', () =>
+      recordFeatureUse({
+        businessId: String(businessB),
+        userId: String(memberB),
+        feature: 'inventory',
+        at: inside,
+      }),
+    );
 
-    // Errors: one per tenant at a fixed instant.
-    await recordOperationalError({
-      businessId: String(businessA),
-      status: 503,
-      code: 'AI_UNAVAILABLE',
-      method: 'POST',
-      path: '/api/ai/chat',
-      now: inside,
-    });
-    await recordOperationalError({
-      businessId: String(businessB),
-      status: 500,
-      code: 'INTERNAL_ERROR',
-      method: 'GET',
-      path: '/api/products/507f1f77bcf86cd799439011',
-      now: inside,
-    });
+    // Errors: one per tenant at a fixed instant. Build the same bounded row the
+    // writer would store, with a fixed id, so a retry is an idempotent upsert.
+    await fixtureUpsert(
+      'error A',
+      OpsErrorEvent,
+      errorAId,
+      buildOpsErrorEvent({
+        businessId: String(businessA),
+        status: 503,
+        code: 'AI_UNAVAILABLE',
+        method: 'POST',
+        path: '/api/ai/chat',
+        now: inside,
+      }),
+    );
+    await fixtureUpsert(
+      'error B',
+      OpsErrorEvent,
+      errorBId,
+      buildOpsErrorEvent({
+        businessId: String(businessB),
+        status: 500,
+        code: 'INTERNAL_ERROR',
+        method: 'GET',
+        path: '/api/products/507f1f77bcf86cd799439011',
+        now: inside,
+      }),
+    );
     // A pre-authentication 5xx has no tenant. It must count in the platform
     // total and must NOT inflate the affected-tenant count.
-    await recordOperationalError({
-      status: 500,
-      code: 'INTERNAL_ERROR',
-      method: 'GET',
-      path: '/api/health',
-      now: inside,
-    });
+    await fixtureUpsert(
+      'error without tenant',
+      OpsErrorEvent,
+      errorNoTenantId,
+      buildOpsErrorEvent({
+        status: 500,
+        code: 'INTERNAL_ERROR',
+        method: 'GET',
+        path: '/api/health',
+        now: inside,
+      }),
+    );
   });
 
   it('counts both tenants in one report and never one tenant’s rows only', async () => {

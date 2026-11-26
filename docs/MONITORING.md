@@ -148,7 +148,7 @@ dispatch and the GitHub issue path remain a fallback. The Windows task is disabl
 
 | Signal | Rule | Why it matters |
 | --- | --- | --- |
-| Readiness | `/api/health/ready` returns `503` twice, 20 s apart | The API cannot reach MongoDB, or the required unique transfer-ledger index is missing/incorrect; either way the process must not take traffic |
+| Readiness | `/api/health/ready` returns `503` twice, 20 s apart | The API cannot reach MongoDB, or one of the six required indexes is missing/incorrect; either way the process must not take traffic |
 | Server errors | `counters.serverErrors` increases by 2 or more within 5 minutes | Two consecutive 5xx answers are a failure, not a blip; the monitoring-only integrity `503` is excluded |
 | Posture | `environment` is not `production` on the production host | A deployment booted into the wrong posture and is probably using the wrong database |
 | Build | `commit` is not the commit that was merged | A stale build or a failed deploy is serving traffic |
@@ -327,6 +327,12 @@ have usable price data, and whether any transfer journal or PO receive claim nee
   `REQUIRES_ATTENTION` journals, keyed movement receipts and `inventory_transaction_quarantine` rows
   with their reasons, snapshots and ledger evidence. It is read-only and exits `1` when rows need attention; it never
   repairs or unflags anything.
+- **FAILED outbox triage:** `cd server && npm run triage:audit-outbox -- --with-production` lists
+  only `FAILED` audit-outbox rows whose age is at least **15 minutes** or whose attempts reach **3**
+  (both configurable), scoped and bounded. It prints the event identity, attempts, age and stored
+  error class, never `metadata` or user ids, and never retries or deletes. Exit `1` means at least
+  one row crossed a threshold; use `--min-age-minutes`/`--min-attempts` deliberately rather than
+  treating a single fresh failure as permanent.
 - **Movement receipt maintenance:** the scheduled recovery pass also completes abandoned keyed
   stock-in/out/adjustment receipts from a matching ledger row or an exact `INVENTORY_WRITTEN`
   snapshot. Its counters are `movements.completed`, `movements.flagged`, `movements.blocked` and
@@ -338,12 +344,25 @@ have usable price data, and whether any transfer journal or PO receive claim nee
 - **Writes:** the three audits and the triage view write nothing. `recover:integrity` performs only
   the exact, quantity-anchored actions in [`INTEGRITY_RECOVERY.md`](INTEGRITY_RECOVERY.md); an
   ambiguous row is flagged `REQUIRES_ATTENTION` for a human.
-- **Migration prerequisite:** the unique transfer-ledger index is applied with
-  `npm run migrate:transfer-ledger-index` (read-only preflight by default; `--apply` after review).
-  Run it before deploying a server that expects the guard. It was not run against production here.
-- **Readiness:** `/api/health/ready` now also requires that exact unique partial index. A missing,
-  non-unique, reordered or differently-filtered index answers `503` with a short reason; the check
-  only reads `listIndexes` and never repairs the index. Rely on this during the migration rollout.
+- **Required-index rollout:** `npm run migrate:required-indexes` is the readiness rollout for the
+  six indexes readiness checks: the transfer-operation/location, DRAFT request-key and audit dedupe
+  unique guards, the 30-day `DELIVERED` outbox TTL, and the movement/PO receive audit-repair
+  indexes. It is read-only by default; `--apply` refuses duplicate key groups before creating a
+  unique target and never deletes documents. `npm run migrate:transfer-ledger-index` remains the
+  specialized transfer duplicate-quarantine migration. Run the rollout before deploying a server
+  that expects the guards. Neither command was applied in any environment here.
+- **Readiness:** `/api/health/ready` requires all six exact indexes. A missing, non-unique,
+  non-TTL, reordered or differently-filtered index answers `503` with a short reason; the check
+  only reads `listIndexes` and never repairs an index. Rely on this during the rollout.
+- **Audit outbox and repair health:** the scheduled pass records cumulative movement, PO and import
+  repair plus outbox totals, and reads a bounded `auditHealth` snapshot: outbox counts and oldest
+  age per status, and unmarked completed receipts per producer (imports, movements, PO receipts).
+  It logs one structured line plus a `logger.error` `[audit-health]` line for each alert. A
+  `FAILED` row whose `updatedAt` is older than **15 minutes**, and an unmarked completed receipt
+  whose row `updatedAt` is older than **10 minutes**, alert; the snapshot does not page and repair
+  totals reset when the process restarts. The focused proof is `server/test/AUDIT-HEALTH.test.mjs`, and
+  the four producer boundaries are exercised by `npm run test:audit-crash` against the test database
+  only.
 
 **Limits.** The task trigger is a current-user Windows task, not a hosted pager; it runs only while
 this user is signed in and the laptop is awake and online. The file lock is per machine; the
@@ -666,6 +685,8 @@ grep "AI turn" <log> | grep -oE "model=[^ ]+ tier=[^ ]+" | sort | uniq -c
 | Inventory-integrity task | `scripts/run-integrity-audit.ps1`, `scripts/register-integrity-audit-scheduler.ps1` |
 | Integrity-operations runner | `server/scripts/ops-integrity.mjs`, `server/scripts/lib/ops-integrity.mjs` |
 | Integrity-operations task | `scripts/run-integrity-ops.ps1`, `scripts/register-integrity-ops-scheduler.ps1` |
+| Audit health snapshot | `server/src/services/auditHealth.service.ts`; logged by `recoveryScheduler.ts` |
+| Crash-injection harness | `server/scripts/audit-crash-harness.mjs`; `npm run test:audit-crash` |
 | Transfer-ledger migration | `server/scripts/migrate-transfer-ledger-index.mjs`, `server/src/services/transferLedgerMigration.service.ts` |
 | Probe tests | `server/test/ops-production-health.test.mjs` |
 | Alias and SHA-verifier tests | `server/test/POST-DEPLOY-verification.test.mjs` |

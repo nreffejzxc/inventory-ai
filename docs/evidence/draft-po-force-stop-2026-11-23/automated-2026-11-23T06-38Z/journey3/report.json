@@ -1,0 +1,129 @@
+{
+  "journey": "draft-resume",
+  "startedAt": "2026-11-23T06:45:05.232Z",
+  "runId": "2026-11-23T06-45-05-232Z",
+  "device": "sdk_gphone64_x86_64 · Android 15 (API 35) · emulator-5554",
+  "steps": [
+    {
+      "title": "open inventoryai://purchase-orders/from-restock",
+      "status": "pass",
+      "detail": "inventoryai://purchase-orders/from-restock",
+      "durationMs": 990
+    },
+    {
+      "title": "expect \"Draft purchase order from restock\"",
+      "status": "pass",
+      "detail": "seen after 2318ms",
+      "durationMs": 2318
+    },
+    {
+      "title": "choose \"Draft Proof Supplier 1795403412084\" from the \"Supplier\" picker",
+      "status": "pass",
+      "detail": "chose \"Draft Proof Supplier 1795403412084\"",
+      "durationMs": 11161
+    },
+    {
+      "title": "choose \"Draft Proof Bay 1795403412084\" from the \"Receiving location\" picker",
+      "status": "pass",
+      "detail": "chose \"Draft Proof Bay 1795403412084\"",
+      "durationMs": 11342
+    },
+    {
+      "title": "expect \"Draft Proof Gadget 1795403412084\"",
+      "status": "pass",
+      "detail": "seen after 2365ms",
+      "durationMs": 2365
+    },
+    {
+      "title": "tap \"Draft Proof Gadget 1795403412084\"",
+      "status": "pass",
+      "detail": "tapped Draft Proof Gadget 1795403412084, SKU DP-B-1795403412084 · 0 available · minimum 3 · out of stock at 540,1625",
+      "durationMs": 3128
+    },
+    {
+      "title": "tap \"Draft Proof Widget 1795403412084\"",
+      "status": "pass",
+      "detail": "tapped Draft Proof Widget 1795403412084, SKU DP-A-1795403412084 · 0 available · minimum 5 · out of stock at 540,1805",
+      "durationMs": 3116
+    },
+    {
+      "title": "scroll down",
+      "status": "pass",
+      "detail": "scrolled down",
+      "durationMs": 1077
+    },
+    {
+      "title": "expect \"Create draft order (2 items)\"",
+      "status": "pass",
+      "detail": "seen after 12189ms",
+      "durationMs": 12189
+    },
+    {
+      "title": "tap \"Create draft order (2 items)\"",
+      "status": "pass",
+      "detail": "tapped Create draft order (2 items) at 540,1639",
+      "durationMs": 12953
+    },
+    {
+      "title": "force-stopped com.inventoryai.app after its Draft PO request",
+      "status": "pass",
+      "detail": "com.inventoryai.app stopped; captured op-mwswjpgd-qxpii9119ib5in6h with the exact 251-byte body",
+      "durationMs": 189
+    },
+    {
+      "title": "cold relaunch and open inventoryai://purchase-orders/from-restock",
+      "status": "pass",
+      "detail": "cold-started the bundle, then opened inventoryai://purchase-orders/from-restock",
+      "durationMs": 31087
+    },
+    {
+      "title": "expect \"An unfinished draft attempt was restored\"",
+      "status": "pass",
+      "detail": "seen after 12222ms",
+      "durationMs": 12222
+    },
+    {
+      "title": "scroll down",
+      "status": "pass",
+      "detail": "scrolled down",
+      "durationMs": 1034
+    },
+    {
+      "title": "expect \"Resume draft creation (2 items)\"",
+      "status": "pass",
+      "detail": "seen after 12326ms",
+      "durationMs": 12326
+    },
+    {
+      "title": "tap \"Resume draft creation (2 items)\"",
+      "status": "pass",
+      "detail": "tapped Resume draft creation (2 items) at 540,1519",
+      "durationMs": 13298
+    },
+    {
+      "title": "expect \"Purchase Order\"",
+      "status": "pass",
+      "detail": "seen after 14028ms",
+      "durationMs": 14028
+    },
+    {
+      "title": "expect \"PO-\"",
+      "status": "pass",
+      "detail": "seen after 12486ms",
+      "durationMs": 12486
+    },
+    {
+      "title": "screenshot \"draft-po-resumed\"",
+      "status": "pass",
+      "detail": "C:\\Users\\jeffe\\inventory-ai\\docs\\evidence\\draft-po-force-stop-2026-11-23\\automated-2026-11-23T06-38Z\\journey3\\draft-po-resumed.png",
+      "durationMs": 424
+    },
+    {
+      "title": "verify exactly one DRAFT for the captured key/body",
+      "status": "pass",
+      "detail": "exactly one DRAFT (PO-0005) for op-mwswjpgd-qxpii9119ib5in6h",
+      "durationMs": 1192
+    }
+  ],
+  "notes": "evidence: C:/Users/jeffe/inventory-ai/docs/evidence/draft-po-force-stop-2026-11-23/automated-2026-11-23T06-38Z/journey3"
+}

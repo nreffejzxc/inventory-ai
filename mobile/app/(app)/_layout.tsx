@@ -49,6 +49,7 @@ export default function AppLayout() {
       <Stack.Screen name="dashboard" options={{ headerShown: false }} />
       <Stack.Screen name="products/index" options={{ title: 'Products' }} />
       <Stack.Screen name="products/new" options={{ title: 'New Product' }} />
+      <Stack.Screen name="products/import" options={{ title: 'Import Products' }} />
       <Stack.Screen name="products/[id]/index" options={{ title: 'Product' }} />
       <Stack.Screen name="products/[id]/edit" options={{ title: 'Edit Product' }} />
       <Stack.Screen name="scan" options={{ title: 'Scan Barcode' }} />
@@ -73,6 +74,7 @@ export default function AppLayout() {
       <Stack.Screen name="inventory/[id]" options={{ title: 'Stock Record' }} />
       <Stack.Screen name="restock" options={{ title: 'Restock' }} />
       <Stack.Screen name="purchase-orders/index" options={{ title: 'Purchase Orders' }} />
+      <Stack.Screen name="purchase-orders/from-restock" options={{ title: 'Draft From Restock' }} />
       <Stack.Screen name="purchase-orders/[id]/index" options={{ title: 'Purchase Order' }} />
       <Stack.Screen name="purchase-orders/[id]/receive" options={{ title: 'Receive Stock' }} />
       <Stack.Screen name="stock-in" options={{ title: 'Stock In' }} />

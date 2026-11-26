@@ -37,15 +37,19 @@ import { isIdempotencyKey } from '../utils/idempotencyKey.ts';
  * exception: it names work that landed, so it is recorded and replayed like a
  * success. See `appliedWork()`.
  *
- * AN ABANDONED CLAIM IS TAKEN OVER AFTER 60 s. If the process died mid-request no
- * answer is ever stored, and without this the key would block its own retry until
- * the TTL expired. The takeover is a conditional update on the same document, so
- * only one of several concurrent retries becomes the new owner; the request budget
- * is 15 s, so a minute-old claim cannot still be running healthy work.
+ * AN ABANDONED CLAIM IS TAKEN OVER AFTER 60 s BY DEFAULT. If the process died
+ * mid-request no answer is ever stored, and without this the key would block its
+ * own retry until the TTL expired. The takeover is a conditional update on the same
+ * document, so only one of several concurrent retries becomes the new owner; the
+ * request budget is 15 s, so a minute-old claim cannot still be running healthy
+ * work — EXCEPT on a route whose handler is deliberately long-running. FW-01's CSV
+ * import can take several minutes, so that route passes a longer `staleMs`; taking
+ * its claim over while the first delivery is still writing would let one file be
+ * imported twice.
  */
 
 /** A claim older than this owes an answer it will never produce. */
-const STALE_CLAIM_MS = 60_000;
+const DEFAULT_STALE_CLAIM_MS = 60_000;
 
 /** Only the authenticated context this middleware reads. `requireAuth` sets it first. */
 type AuthenticatedRequest = Request & {
@@ -143,7 +147,11 @@ function settle(claimId: unknown, status: number, body: unknown): Promise<void> 
   return null;
 }
 
-export function idempotent() {
+export function idempotent({ staleMs = DEFAULT_STALE_CLAIM_MS }: { staleMs?: number } = {}) {
+  // A route may widen the window, never remove it: an interval of zero or a
+  // negative value would let a concurrent delivery take over a live claim.
+  const claimStaleMs = Math.max(staleMs, 1_000);
+
   return async function idempotency(
     req: AuthenticatedRequest,
     res: Response,
@@ -216,7 +224,7 @@ export function idempotent() {
         return;
       }
 
-      if (Date.now() - claim.createdAt.getTime() < STALE_CLAIM_MS) {
+      if (Date.now() - claim.createdAt.getTime() < claimStaleMs) {
         stillProcessing(res, next);
         return;
       }
@@ -225,7 +233,7 @@ export function idempotent() {
         {
           _id: claim._id,
           state: 'IN_PROGRESS',
-          createdAt: { $lte: new Date(Date.now() - STALE_CLAIM_MS) },
+          createdAt: { $lte: new Date(Date.now() - claimStaleMs) },
         },
         { $set: { fingerprint, createdAt: new Date() } },
         { returnDocument: 'after' }

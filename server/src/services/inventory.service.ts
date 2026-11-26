@@ -10,8 +10,9 @@ import StockMovementOperation from '../models/stockMovementOperation.model.ts';
 import Product from '../models/product.model.ts';
 import Location from '../models/location.model.ts';
 import ApiError from '../utils/ApiError.ts';
-import { recordAudit } from './audit.service.ts';
+import { recordAudit, recordAuditOnce } from './audit.service.ts';
 import { monitorAuditFailure } from './auditFailure.service.ts';
+import { enqueueAndDeliverMovementAudit } from './stockMovementAudit.service.ts';
 import { recoverTransferOperation } from './stockTransferRecovery.service.ts';
 import { AUDIT_ACTIONS, AUDIT_ENTITY_TYPES } from '../constants/audit.ts';
 import { normaliseLookupText } from '../utils/lookupText.ts';
@@ -95,10 +96,25 @@ type InventoryListFilters = {
   locationId?: string;
   q?: string;
   status?: string;
+  /** Legacy broad row filter: available <= minimumStock (includes out). */
   lowStock?: boolean;
   outOfStock?: boolean;
+  /** Combined canonical row view: out OR low (0 < available <= minimum). */
+  needsAttention?: boolean;
+  /** Canonical, mutually exclusive row status. */
+  stockStatus?: string;
+  /** Requests the four chip counts from one scoped aggregate. */
+  includeCounts?: boolean;
   skip: number;
   limit: number;
+};
+
+/** The four Inventory chip totals, all scoped to the same search/location/status. */
+export type InventoryRowCounts = {
+  all: number;
+  needsAttention: number;
+  low: number;
+  out: number;
 };
 
 /** The movement recorded by `recordMovement`, before defaults are applied. */
@@ -116,6 +132,12 @@ type MovementRecord = {
   purchaseOrderClaimId?: IdLike;
   /** The durable movement receipt that owns this ledger row, when keyed. */
   movementOperationId?: IdLike;
+  /**
+   * True for a receipt created after the durable audit hand-off. The direct
+   * audit insert is skipped and `completeMovementReceipt`/replay enqueues the
+   * same event through the outbox. Historical receipts keep the direct insert.
+   */
+  auditViaOutbox?: boolean;
 };
 
 /**
@@ -335,6 +357,7 @@ async function recordMovement({
   reference,
   purchaseOrderClaimId,
   movementOperationId,
+  auditViaOutbox = false,
 }: MovementRecord) {
   const txn = await InventoryTransaction.create({
     businessId,
@@ -350,39 +373,41 @@ async function recordMovement({
     movementOperationId,
     userId,
   });
-  try {
-    await recordAudit({
-      businessId,
-      userId,
-      action: AUDIT_ACTION_BY_TYPE[type],
-      entityType: AUDIT_ENTITY_TYPES.INVENTORY_TRANSACTION,
-      entityId: txn._id,
-      metadata: {
-        productId: String(productId),
-        locationId: String(locationId),
-        // Link the audit row to the exact transaction so a compensation can
-        // delete precisely the audit it caused (Phase 13C receiving undo).
-        inventoryTransactionId: String(txn._id),
-        type,
-        quantity,
-        previousQuantity,
-        newQuantity,
-      },
-    });
-  } catch (err) {
-    // `${err.message}`, narrowed: a caught value is `unknown`, and the template
-    // stringifies it exactly as the untyped code did. `String()` is what the
-    // interpolation itself would have produced, for every value.
-    console.error(
-      `[inventory] audit record failed for ${type} transaction ${String(txn._id)} (movement preserved): ${String((err as { message?: unknown }).message)}`
-    );
-    await monitorAuditFailure({
-      businessId,
-      action: AUDIT_ACTION_BY_TYPE[type],
-      entityType: AUDIT_ENTITY_TYPES.INVENTORY_TRANSACTION,
-      entityId: txn._id,
-      error: err,
-    });
+  if (!auditViaOutbox) {
+    try {
+      await recordAudit({
+        businessId,
+        userId,
+        action: AUDIT_ACTION_BY_TYPE[type],
+        entityType: AUDIT_ENTITY_TYPES.INVENTORY_TRANSACTION,
+        entityId: txn._id,
+        metadata: {
+          productId: String(productId),
+          locationId: String(locationId),
+          // Link the audit row to the exact transaction so a compensation can
+          // delete precisely the audit it caused (Phase 13C receiving undo).
+          inventoryTransactionId: String(txn._id),
+          type,
+          quantity,
+          previousQuantity,
+          newQuantity,
+        },
+      });
+    } catch (err) {
+      // `${err.message}`, narrowed: a caught value is `unknown`, and the template
+      // stringifies it exactly as the untyped code did. `String()` is what the
+      // interpolation itself would have produced, for every value.
+      console.error(
+        `[inventory] audit record failed for ${type} transaction ${String(txn._id)} (movement preserved): ${String((err as { message?: unknown }).message)}`
+      );
+      await monitorAuditFailure({
+        businessId,
+        action: AUDIT_ACTION_BY_TYPE[type],
+        entityType: AUDIT_ENTITY_TYPES.INVENTORY_TRANSACTION,
+        entityId: txn._id,
+        error: err,
+      });
+    }
   }
   return txn;
 }
@@ -550,6 +575,8 @@ export type MovementReceiptRecord = {
   createdRow?: boolean | null;
   inventoryTransactionId?: mongoose.Types.ObjectId | null;
   response?: unknown;
+  auditTracked?: boolean;
+  auditEnqueuedAt?: Date | null;
   createdAt?: Date;
   updatedAt?: Date;
 };
@@ -650,15 +677,18 @@ function receiptResponse(receipt: MovementReceiptRecord, txn: TransactionSource)
   };
 }
 
-async function completeMovementReceipt(
+export async function completeMovementReceipt(
   receiptId: mongoose.Types.ObjectId | null,
   response: MovementResult,
   transactionId: unknown,
 ): Promise<void> {
   if (!receiptId) return;
   try {
+    // COMPLETED is terminal. A concurrent retry or recovery may have finished
+    // this receipt first; its stored response is the one the operator saw and
+    // must never be replaced by a late writer.
     await StockMovementOperation.updateOne(
-      { _id: receiptId },
+      { _id: receiptId, state: { $ne: 'COMPLETED' } },
       { $set: { state: 'COMPLETED', response, inventoryTransactionId: transactionId } },
     );
   } catch (err) {
@@ -668,6 +698,11 @@ async function completeMovementReceipt(
       `[inventory] movement receipt ${String(receiptId)} could not be completed: ${String((err as { message?: unknown }).message)}`,
     );
   }
+  // A tracked receipt hands its INVENTORY_* audit to the durable outbox. The
+  // helper reads the completed receipt, so a failed completion above simply
+  // leaves the recovery pass to finish it. It never throws into the caller: the
+  // movement and ledger row are already durable.
+  await enqueueAndDeliverMovementAudit(receiptId, response, transactionId);
 }
 
 /**
@@ -675,7 +710,7 @@ async function completeMovementReceipt(
  * inventory change that landed from one that never did. It is written before the
  * ledger row, and a failure here is compensated with the inventory write.
  */
-async function markMovementInventoryWritten(
+export async function markMovementInventoryWritten(
   receiptId: mongoose.Types.ObjectId | null,
   rowId: unknown,
   previousQuantity: number,
@@ -683,8 +718,11 @@ async function markMovementInventoryWritten(
   createdRow = false,
 ): Promise<void> {
   if (!receiptId) return;
+  // A late stage write must not downgrade a completed receipt or reopen an
+  // attention row. The ledger/complete writes that follow are independently
+  // guarded, so this no-op cannot turn a durable result into a regression.
   await StockMovementOperation.updateOne(
-    { _id: receiptId },
+    { _id: receiptId, state: { $nin: ['COMPLETED', 'REQUIRES_ATTENTION'] } },
     {
       $set: {
         state: 'INVENTORY_WRITTEN',
@@ -746,6 +784,13 @@ async function failMovementReceipt(
  */
 async function replayMovementReceipt(receipt: MovementReceiptRecord): Promise<MovementResult> {
   if (receipt.state === 'COMPLETED' && receipt.response) {
+    // A retry after a crash between completion and the audit hand-off repairs
+    // the same dedupe key instead of returning a success with a missing audit.
+    await enqueueAndDeliverMovementAudit(
+      receipt._id,
+      receipt.response as MovementResult,
+      receipt.inventoryTransactionId,
+    );
     return receipt.response as MovementResult;
   }
 
@@ -795,6 +840,7 @@ async function replayMovementReceipt(receipt: MovementReceiptRecord): Promise<Mo
           reason: receipt.reason ?? undefined,
           reference: receipt.reference ?? undefined,
           movementOperationId: receipt._id,
+          auditViaOutbox: receipt.auditTracked === true,
         })) as unknown as TransactionSource;
       } catch (err) {
         if (!isDuplicateKey(err)) throw err;
@@ -947,8 +993,11 @@ export async function recoverMovementReceiptById(id: unknown): Promise<{
 async function beginMovementReceipt(input: MovementReceiptRequest): Promise<{
   receiptId: mongoose.Types.ObjectId | null;
   replay: MovementResult | null;
+  auditTracked: boolean;
 }> {
-  if (!input.idempotencyKey) return { receiptId: null, replay: null };
+  if (!input.idempotencyKey) {
+    return { receiptId: null, replay: null, auditTracked: false };
+  }
 
   const fingerprint = movementFingerprint(input);
   try {
@@ -964,8 +1013,9 @@ async function beginMovementReceipt(input: MovementReceiptRequest): Promise<{
       quantity: input.quantity,
       reason: input.reason || undefined,
       reference: input.reference || undefined,
+      auditTracked: true,
     });
-    return { receiptId: doc._id, replay: null };
+    return { receiptId: doc._id, replay: null, auditTracked: true };
   } catch (err) {
     if (!isDuplicateKey(err)) throw err;
     const existing = await StockMovementOperation.findOne({
@@ -983,6 +1033,7 @@ async function beginMovementReceipt(input: MovementReceiptRequest): Promise<{
     return {
       receiptId: existing._id,
       replay: await replayMovementReceipt(existing as unknown as MovementReceiptRecord),
+      auditTracked: existing.auditTracked === true,
     };
   }
 }
@@ -1101,6 +1152,7 @@ export const inventoryService = {
         reference,
         purchaseOrderClaimId,
         movementOperationId: started.receiptId ?? undefined,
+        auditViaOutbox: started.auditTracked,
       });
       const response = {
         transaction: transactionPublic(txn),
@@ -1235,6 +1287,7 @@ export const inventoryService = {
         reason,
         reference,
         movementOperationId: started.receiptId ?? undefined,
+        auditViaOutbox: started.auditTracked,
       });
       const response = { transaction: transactionPublic(txn), previousQuantity, newQuantity };
       await completeMovementReceipt(started.receiptId, response, txn._id);
@@ -1435,7 +1488,7 @@ export const inventoryService = {
     }
     const srcNew = srcPrev.quantity - quantity;
     await StockTransferOperation.updateOne(
-      { _id: operationId },
+      { _id: operationId, state: 'PREPARED' },
       {
         $set: {
           state: 'SOURCE_DEBITED',
@@ -1493,7 +1546,7 @@ export const inventoryService = {
     const dstNew = dstPrevQty + quantity;
     const dstRow = dstPrev ?? (await Inventory.findOne(dstFilter).lean());
     await StockTransferOperation.updateOne(
-      { _id: operationId },
+      { _id: operationId, state: 'SOURCE_DEBITED' },
       {
         $set: {
           state: 'DESTINATION_CREDITED',
@@ -1561,7 +1614,7 @@ export const inventoryService = {
     }
 
     await StockTransferOperation.updateOne(
-      { _id: operationId },
+      { _id: operationId, state: 'DESTINATION_CREDITED' },
       {
         $set: {
           state: 'LEDGER_WRITTEN',
@@ -1573,7 +1626,7 @@ export const inventoryService = {
     // Once both ledger rows are durable the transfer stands, so an audit failure
     // is logged and swallowed — never compensated away (Phase 07A / H3).
     try {
-      await recordAudit({
+      await recordAuditOnce({
         businessId,
         userId,
         action: AUDIT_ACTIONS.INVENTORY_TRANSFERRED,
@@ -1595,6 +1648,9 @@ export const inventoryService = {
           toPreviousQuantity: dstPrevQty,
           toNewQuantity: dstNew,
         },
+        // The recovery path uses the same key, so a crash after the ledger
+        // rows but before the audit cannot append a second event.
+        dedupeKey: `transfer:${String(operationId)}:completed`,
       });
     } catch (err) {
       console.error(
@@ -1620,7 +1676,7 @@ export const inventoryService = {
     };
     await clearTransferMarkers(businessId, operationId, [srcPrev, dstPrev]);
     await StockTransferOperation.updateOne(
-      { _id: operationId },
+      { _id: operationId, state: 'LEDGER_WRITTEN' },
       { $set: { state: 'COMPLETED', response: result, reconciledAt: new Date() } }
     );
     return result;
@@ -1629,7 +1685,7 @@ export const inventoryService = {
       // journal deliberately records the failure and leaves recovery to prove
       // the final state; a process that dies here is handled the same way.
       await StockTransferOperation.updateOne(
-        { _id: operationId },
+        { _id: operationId, state: { $nin: ['COMPLETED', 'COMPENSATED', 'REQUIRES_ATTENTION'] } },
         {
           $set: {
             state: 'FAILED',
@@ -1741,6 +1797,7 @@ export const inventoryService = {
         reason,
         reference,
         movementOperationId: started.receiptId ?? undefined,
+        auditViaOutbox: started.auditTracked,
       });
       const response = { transaction: transactionPublic(txn), previousQuantity, newQuantity: target };
       await completeMovementReceipt(started.receiptId, response, txn._id);
@@ -1788,15 +1845,27 @@ export const inventoryService = {
 
   /**
    * Inventory rows for the business with optional product/location filters.
-   * `q` searches product name/sku/barcode; `status` filters product status;
-   * `lowStock`/`outOfStock` filter rows by per-row available quantity (per
-   * §19: low = available <= minimumStock, out = available <= 0).
+   * `q` searches product name/sku/barcode; `status` filters product status.
+   *
+   * ROW STATUS:
+   * - `lowStock` is the legacy broad filter (available <= minimumStock, includes out);
+   * - `outOfStock` is available <= 0;
+   * - `needsAttention` is the canonical union of out and low;
+   * - `stockStatus=LOW_STOCK` is 0 < available <= minimumStock and
+   *   `stockStatus=OUT_OF_STOCK` is available <= 0. These are disjoint, so the
+   *   mobile Low and Out chips cannot overlap and Needs attention is exactly
+   *   their sum.
+   *
+   * `includeCounts=true` adds the four chip totals. They are computed by ONE
+   * aggregate over the same search/location/product/status scope, before the
+   * selected stock filter, so each total is exactly the `total` the matching
+   * filtered list returns.
    *
    * TWO SHAPES, chosen by whether the request filters on the JOINED PRODUCT. Both
    * are business-scoped at every stage and return the same DTO; only the position
    * of the page window differs.
    */
-  async listRows(businessId: IdLike, { productId, locationId, q, status, lowStock, outOfStock, skip, limit }: InventoryListFilters) {
+  async listRows(businessId: IdLike, { productId, locationId, q, status, lowStock, outOfStock, needsAttention, stockStatus, includeCounts, skip, limit }: InventoryListFilters) {
     const bizOid = oid(businessId);
     const lookupQ = normaliseLookupText(q);
     // A MongoDB filter document whose keys are added conditionally below, so it
@@ -1850,6 +1919,16 @@ export const inventoryService = {
       $addFields: { availableQuantity: rowAvailableExpr },
     };
 
+    /** Canonical row statuses after `availableField`; OUT takes precedence. */
+    const lowRowExpr = {
+      $and: [
+        { $gt: ['$availableQuantity', 0] },
+        { $lte: ['$availableQuantity', { $ifNull: ['$product.minimumStock', 0] }] },
+      ],
+    };
+    const outRowExpr = { $lte: ['$availableQuantity', 0] };
+    const attentionRowExpr = { $or: [outRowExpr, lowRowExpr] };
+
     /** The location document the row DTO carries, scoped to the business — same shape and
      *  same tenant guard as {@link productLookup}, for the same measured reason. */
     const locationLookup: PipelineStage = {
@@ -1877,9 +1956,56 @@ export const inventoryService = {
      * predicate with no join is ~0.45 s and lands on the fast path below.
      */
     const productOnlyFilters = Boolean(q) || status === 'ACTIVE' || status === 'ARCHIVED';
-    const filtersOnProduct = productOnlyFilters || Boolean(lowStock);
-    /** `outOfStock` alone: row-local, so the page window stays above every join. */
-    const rowLocalOutOfStock = Boolean(outOfStock) && !filtersOnProduct;
+    const canonicalLow = stockStatus === 'LOW_STOCK';
+    const canonicalOut = stockStatus === 'OUT_OF_STOCK';
+    /** Legacy lowStock, canonical low and the attention union all need the product's minimum. */
+    const lowFilter = Boolean(lowStock) || canonicalLow || Boolean(needsAttention);
+    /** Legacy outOfStock and canonical out are row-local. */
+    const outFilter = Boolean(outOfStock) || canonicalOut;
+    const filtersOnProduct = productOnlyFilters || lowFilter;
+    /** `outFilter` alone: row-local, so the page window stays above every join. */
+    const rowLocalOutOfStock = outFilter && !filtersOnProduct;
+
+    /** The joined-product scope shared by the filtered page and the count aggregate. */
+    const joinedProductMatch: Record<string, unknown> = { 'product.0': { $exists: true } };
+    if (status === 'ACTIVE' || status === 'ARCHIVED') joinedProductMatch['product.status'] = status;
+    if (lookupQ) {
+      const re = { $regex: escapeRegExp(lookupQ), $options: 'i' };
+      joinedProductMatch.$or = [{ 'product.name': re }, { 'product.sku': re }, { 'product.barcode': re }];
+    }
+
+    /**
+     * One scoped aggregate for all four chip counts. It deliberately applies the
+     * search/location/product/status scope but NOT the selected stock filter:
+     * the counts describe the choices available from this screen state.
+     */
+    const countPromise: Promise<InventoryRowCounts | null> = includeCounts
+      ? Inventory.aggregate([
+          { $match: match },
+          productLookup,
+          productTenantGuard,
+          { $match: joinedProductMatch },
+          { $unwind: '$product' },
+          availableField,
+          {
+            $group: {
+              _id: null,
+              all: { $sum: 1 },
+              low: { $sum: { $cond: [lowRowExpr, 1, 0] } },
+              out: { $sum: { $cond: [outRowExpr, 1, 0] } },
+            },
+          },
+        ], { allowDiskUse: true }).then(([row]) => {
+          const low = row?.low ?? 0;
+          const out = row?.out ?? 0;
+          return {
+            all: row?.all ?? 0,
+            low,
+            out,
+            needsAttention: low + out,
+          };
+        })
+      : Promise.resolve(null);
 
     if (!filtersOnProduct) {
       // THE FAST PATH: page first, join the page.
@@ -1935,13 +2061,15 @@ export const inventoryService = {
       // unfiltered request sorts by index and never spills, while the row-local `outOfStock`
       // predicate above the window makes the sort re-order whatever survives it, which is a
       // set MongoDB sizes in memory.
-      const [rows, counted] = await Promise.all([
+      const [rows, counted, counts] = await Promise.all([
         Inventory.aggregate(pipeline, { allowDiskUse: true }),
         Inventory.aggregate([...scope, { $count: 'total' }]),
+        countPromise,
       ]);
       return {
         items: rows.map((row) => inventoryRowPublic(row)),
         total: counted[0]?.total ?? 0,
+        counts,
       };
     }
 
@@ -1965,7 +2093,7 @@ export const inventoryService = {
     // shape below rather than pretending to be a product-only filter. `outOfStock` is not on
     // this path either, and for the opposite reason — it needs no product at all, so it rides
     // the fast path above with one row-local predicate (§27DF).
-    if (!lowStock) {
+    if (!lowFilter) {
       const productFilter: Record<string, unknown> = { businessId: bizOid };
       if (status === 'ACTIVE' || status === 'ARCHIVED') productFilter.status = status;
       if (lookupQ) {
@@ -1973,10 +2101,15 @@ export const inventoryService = {
         productFilter.$or = [{ name: re }, { sku: re }, { barcode: re }];
       }
       const productIds = await Product.find(productFilter).select('_id').lean();
-      if (productIds.length === 0) return { items: [], total: 0 };
+      if (productIds.length === 0) {
+        return { items: [], total: 0, counts: await countPromise };
+      }
 
       const scoped: Record<string, unknown> = { ...match, productId: { $in: productIds.map((p) => p._id) } };
-      const [rows, counted] = await Promise.all([
+      // The row-local out predicate belongs here too. This branch is chosen by a
+      // product filter (q/status), so it used to accept outOfStock and ignore it.
+      if (outFilter) scoped.$expr = outRowExpr;
+      const [rows, counted, counts] = await Promise.all([
         Inventory.aggregate([
           { $match: scoped },
           { $sort: { updatedAt: -1, _id: -1 } },
@@ -1994,8 +2127,9 @@ export const inventoryService = {
         // The same scope the page used: rows whose product matched. A separate `$count` over an
         // indexed match, so the total does not pay for the page's joins.
         Inventory.countDocuments(scoped),
+        countPromise,
       ]);
-      return { items: rows.map((row) => inventoryRowPublic(row)), total: counted };
+      return { items: rows.map((row) => inventoryRowPublic(row)), total: counted, counts };
     }
 
     // THE FILTERED PATH: the join runs above the window because the filter needs the
@@ -2012,7 +2146,7 @@ export const inventoryService = {
     // 131 000-product tenant it keeps 147 225 of 261 918 rows out of the join.
     const pipeline: PipelineStage[] = [{ $match: match }];
 
-    if (lowStock) {
+    if (lowFilter) {
       const [threshold] = await Product.aggregate(
         [
           { $match: { businessId: bizOid } },
@@ -2027,18 +2161,16 @@ export const inventoryService = {
     }
 
     pipeline.push(productLookup, productTenantGuard);
-
-    const productMatch: Record<string, unknown> = { 'product.0': { $exists: true } };
-    if (status === 'ACTIVE' || status === 'ARCHIVED') productMatch['product.status'] = status;
-    if (lookupQ) {
-      const re = { $regex: escapeRegExp(lookupQ), $options: 'i' };
-      productMatch.$or = [{ 'product.name': re }, { 'product.sku': re }, { 'product.barcode': re }];
-    }
-    pipeline.push({ $match: productMatch });
+    pipeline.push({ $match: joinedProductMatch });
     pipeline.push({ $unwind: '$product' });
     pipeline.push(availableField);
-    if (outOfStock) pipeline.push({ $match: { $expr: { $lte: ['$availableQuantity', 0] } } });
+    if (outFilter) pipeline.push({ $match: { $expr: outRowExpr } });
+    // Legacy broad low (kept for API clients); disjoint canonical low; and the
+    // combined attention union. Adding any overlapping filter NARROWS, so a deep
+    // link carrying more than one still has the historical intersection meaning.
     if (lowStock) pipeline.push({ $match: { $expr: { $lte: ['$availableQuantity', '$product.minimumStock'] } } });
+    if (canonicalLow) pipeline.push({ $match: { $expr: lowRowExpr } });
+    if (needsAttention) pipeline.push({ $match: { $expr: attentionRowExpr } });
 
     // The location join is BELOW the page window, inside the data branch, because it
     // cannot change the result set: it augments a row with the location document and
@@ -2069,10 +2201,13 @@ export const inventoryService = {
     // evaluated with the row's own `availableQuantity` against its product's
     // `minimumStock`, so this scan is inherent to the semantics and the only lever left
     // is the sort's memory (§27DF).
-    const [result] = await Inventory.aggregate(pipeline, { allowDiskUse: true });
+    const [[result], counts] = await Promise.all([
+      Inventory.aggregate(pipeline, { allowDiskUse: true }),
+      countPromise,
+    ]);
     const items = (result?.data ?? []).map(inventoryRowPublic);
     const total = result?.metadata?.[0]?.total ?? 0;
-    return { items, total };
+    return { items, total, counts };
   },
 
   /**

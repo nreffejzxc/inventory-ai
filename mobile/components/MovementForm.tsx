@@ -25,7 +25,7 @@ import { errorRequestId } from '../lib/errors';
 import { useSession } from '../lib/auth';
 import { alert, confirm } from '../lib/confirm';
 import { formatNumber } from '../lib/format';
-import { useActiveRef } from '../hooks/useReferences';
+import { referenceAvailability, useActiveRef } from '../hooks/useReferences';
 import useInventoryRow from '../hooks/useInventoryRow';
 import { spacing, type } from '../lib/theme';
 import type { Palette } from '../lib/theme';
@@ -112,8 +112,8 @@ export default function MovementForm({
   // confirm they are moving the right product before submitting.
   const lockedProduct = lockProduct && Boolean(initialProductId);
 
-  const products = useActiveRef(token, productsApi);
-  const locations = useActiveRef(token, locationsApi);
+  const products = useActiveRef(token, productsApi, { allPages: true });
+  const locations = useActiveRef(token, locationsApi, { allPages: true });
 
   const [productId, setProductId] = useState(initialProductId ?? '');
   const [locationId, setLocationId] = useState(initialLocationId ?? '');
@@ -130,10 +130,14 @@ export default function MovementForm({
   // start a second request. `busy` is the UI's signal; this is the guard.
   const submitting = useRef(false);
 
+  const locationAvailability = referenceAvailability(locationId, locations);
+  const locationMissing = locationAvailability === 'missing';
+  const effectiveLocationId = locationMissing ? '' : locationId;
+
   const { row: current, loading: loadingCurrent, loaded: loadedCurrent } = useInventoryRow(
     token,
     cfg.showAvailable ? productId : null,
-    cfg.showAvailable ? locationId : null
+    cfg.showAvailable ? effectiveLocationId : null
   );
 
   const productOptions = useMemo(() => {
@@ -146,11 +150,16 @@ export default function MovementForm({
 
   const locationOptions = useMemo(() => {
     const list: SelectOption[] = locations.items.map((l) => ({ value: l.id, label: l.name }));
-    if (initialLocationId && initialLocationName && !list.some((o) => o.value === initialLocationId)) {
+    if (
+      !locationMissing &&
+      initialLocationId &&
+      initialLocationName &&
+      !list.some((o) => o.value === initialLocationId)
+    ) {
       list.unshift({ value: initialLocationId, label: initialLocationName });
     }
     return list;
-  }, [locations.items, initialLocationId, initialLocationName]);
+  }, [locationMissing, locations.items, initialLocationId, initialLocationName]);
 
   // A business with one location was still asked to pick it on every movement.
   // Preselect it once the list has loaded; a location the caller supplied (a
@@ -237,7 +246,8 @@ export default function MovementForm({
   const warnNoChange = kind === 'adjust' && availState === 'ready' && qtyOk && onHandQty != null && qtyNum === onHandQty;
   const canSubmit = Boolean(
     productId &&
-      locationId &&
+      effectiveLocationId &&
+      !locationMissing &&
       qtyOk &&
       reasonOk &&
       !busy &&
@@ -253,6 +263,10 @@ export default function MovementForm({
 
   async function submit(): Promise<void> {
     if (submitting.current) return;
+    if (locationMissing) {
+      setFormError('The selected location is archived or unavailable. Choose an active location.');
+      return;
+    }
     if (reasonRequired && !reason.trim()) {
       setFieldErrors({ reason: 'A reason is required for an adjustment.' });
       return;
@@ -355,6 +369,13 @@ export default function MovementForm({
     <Screen scroll contentStyle={styles.content}>
       <Banner type="error" text={formError} requestId={formRequestId} />
 
+      {locationMissing ? (
+        <Banner
+          type="warn"
+          text="The selected location is archived or unavailable. Choose an active location before saving."
+        />
+      ) : null}
+
       {availState === 'loading' ? <Banner type="info" text="Checking current stock…" /> : null}
       {availState === 'missing' ? (
         <Banner type="warn" text="No stock record for this product at this location yet — use Stock In to create one." />
@@ -389,7 +410,7 @@ export default function MovementForm({
         label="Location"
         placeholder="Choose a location…"
         options={locationOptions}
-        value={locationId}
+        value={effectiveLocationId}
         onChange={chooseLocation}
         error={fieldErrors.locationId}
         required

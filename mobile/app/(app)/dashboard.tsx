@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { router } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
@@ -18,9 +18,8 @@ import StatCard from '../../components/StatCard';
 import type { StatTone } from '../../components/StatCard';
 import WhatsNewCard from '../../components/WhatsNewCard';
 import { activityRouteParams } from '../../lib/activity';
-import { dashboardApi, productsApi, purchaseOrdersApi } from '../../lib/api';
 import type { ApiResponse } from '../../lib/api';
-import { isSessionError, useSession } from '../../lib/auth';
+import { useSession } from '../../lib/auth';
 import { confirm } from '../../lib/confirm';
 import { formatDate, formatDateTime, formatNumber } from '../../lib/format';
 import {
@@ -37,6 +36,7 @@ import {
   roleLabel,
 } from '../../lib/permissions';
 import useRefetchOnFocus from '../../hooks/useRefetchOnFocus';
+import { useDashboardOverview } from '../../hooks/useDashboardOverview';
 import { useReleaseNotes } from '../../hooks/useReleaseNotes';
 import { radius, spacing, type } from '../../lib/theme';
 import type { Palette } from '../../lib/theme';
@@ -63,6 +63,12 @@ function deltaTone(colors: Palette, t: ApiResponse): string {
   if (t.type === 'STOCK_IN') return colors.success;
   if (t.type === 'STOCK_OUT') return colors.danger;
   return colors.textSecondary;
+}
+
+/** A summary count is optional at the API boundary; never let it turn into NaN. */
+function count(value: unknown): number {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : 0;
 }
 
 /**
@@ -162,11 +168,24 @@ function HeaderLink({ label, onPress }: { label: string; onPress: () => void }) 
   );
 }
 
+type ProductStockStatus = 'IN_STOCK' | 'LOW_STOCK' | 'OUT_OF_STOCK';
+
+/**
+ * The Overview product cards all open the same product list, pinned to ACTIVE
+ * products. Only the canonical, mutually exclusive stock status varies, so the
+ * route is built in one place instead of four near-identical strings.
+ */
+function productListRoute(stockStatus?: ProductStockStatus): string {
+  const base = '/products?status=ACTIVE';
+  return stockStatus ? `${base}&stockStatus=${stockStatus}` : base;
+}
+
 /** One "Overview" tile. */
 interface HealthTile {
   key: string;
   label: string;
   value: string;
+  sub?: string;
   tone: StatTone;
   route: string;
 }
@@ -247,69 +266,32 @@ function DashboardView() {
   const { user, token, signOut } = useSession();
   // One card per published note, on the surface the person opens first (2026-10-25).
   const releaseNotes = useReleaseNotes();
-  const [summary, setSummary] = useState<ApiResponse>(null);
-  const [restock, setRestock] = useState<ApiResponse[] | null>(null);
-  const [openPos, setOpenPos] = useState<ApiResponse[] | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<unknown>(null);
 
   const canSeePos = canViewPurchaseOrders(user);
+  const overview = useDashboardOverview({ token, signOut, canSeePos });
+  const summary = overview.summary.data;
+  const restock = overview.restock.data;
+  const openPos = overview.openPos.data;
+  const loading = overview.loading;
+  const error = overview.summary.error;
+  const lowStockCount = count(summary?.lowStockProducts);
+  const outOfStockCount = count(summary?.outOfStockProducts);
+  const attentionCount = lowStockCount + outOfStockCount;
+  // The preview is optional, but the summary count is not: if the preview
+  // failed, the Overview still knows that stock needs attention and must keep a
+  // route to the row-level list. The preview's own state means this fallback is
+  // shown only after an error, never while it is still loading.
+  const restockUnavailable =
+    summary !== null && attentionCount > 0 && overview.restock.state === 'error';
+  const restockLoading =
+    summary !== null && attentionCount > 0 && overview.restock.state === 'loading';
   const firstName = user?.name?.split(' ')[0] ?? 'there';
   const greeting = `${greetingForHour(new Date().getHours())}, ${firstName}`;
-
-  const load = useCallback(async (): Promise<void> => {
-    if (!token) return;
-    setError(null);
-    setLoading(true);
-    try {
-      const data = await dashboardApi.summary(token);
-      setSummary(data);
-      // Restock preview is secondary and never blocks the summary — if it
-      // fails, the Overview tiles still tell the story. Only fetched when the
-      // summary itself reports something at or below minimum.
-      if ((data.lowStockProducts ?? 0) + (data.outOfStockProducts ?? 0) > 0) {
-        try {
-          const list = await productsApi.reorder(token, { limit: 5 });
-          setRestock(list.items ?? []);
-        } catch {
-          setRestock(null);
-        }
-      } else {
-        setRestock([]);
-      }
-      // Open-PO awareness is fire-and-forget (D): it never blocks the summary,
-      // and the section simply omits itself on failure or when unauthorized.
-      if (canSeePos) {
-        purchaseOrdersApi
-          .list(token, { status: 'OPEN', limit: 3 })
-          .then((res) => setOpenPos(res.items ?? []))
-          .catch(() => setOpenPos(null));
-      } else {
-        setOpenPos(null);
-      }
-    } catch (err) {
-      setError(err);
-      setRestock(null);
-      setOpenPos(null);
-      if (isSessionError(err)) await signOut();
-    } finally {
-      setLoading(false);
-    }
-  }, [token, signOut, canSeePos]);
-
-  // First load only. `load` sets `error`/`loading` synchronously before its first
-  // await on purpose: loading must be true at request start, and it cannot be
-  // derived from `summary` — a refresh deliberately keeps the previous summary
-  // visible, so an empty summary is not a loading state.
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    load();
-  }, [load]);
 
   // Refetch whenever the screen regains focus, so stock actions taken on other
   // screens are reflected here. The hook skips the mount focus, so the initial
   // load above is not duplicated.
-  useRefetchOnFocus(load);
+  useRefetchOnFocus(overview.reload);
 
   async function onSignOut(): Promise<void> {
     const ok = await confirm('Sign out', 'You will need to sign in again to manage inventory.', {
@@ -319,13 +301,15 @@ function DashboardView() {
     if (ok) await signOut();
   }
 
-  // Health tiles reuse the existing dashboardApi.summary (B) — only real fields,
-  // and the same deep links the previous dashboard offered.
+  // Health tiles reuse the existing dashboardApi.summary (B). Each product card
+  // opens the PRODUCT-level list behind its own count — never the inventory-row
+  // list, where one product would appear once per location and the total would
+  // not match. Low and out are mutually exclusive statuses.
   const healthTiles: HealthTile[] = [
-    { key: 'in', label: 'In stock', value: formatNumber(summary?.inStockProducts), tone: 'success', route: '/products' },
-    { key: 'low', label: 'Low stock', value: formatNumber(summary?.lowStockProducts), tone: 'warning', route: '/inventory?status=low' },
-    { key: 'out', label: 'Out of stock', value: formatNumber(summary?.outOfStockProducts), tone: 'danger', route: '/inventory?status=out' },
-    { key: 'active', label: 'Active products', value: formatNumber(summary?.totalProducts), tone: 'primary', route: '/products' },
+    { key: 'in', label: 'In stock', value: formatNumber(summary?.inStockProducts), tone: 'success', route: productListRoute('IN_STOCK') },
+    { key: 'low', label: 'Low stock', value: formatNumber(summary?.lowStockProducts), sub: 'Review products', tone: 'warning', route: productListRoute('LOW_STOCK') },
+    { key: 'out', label: 'Out of stock', value: formatNumber(summary?.outOfStockProducts), sub: 'Restock products', tone: 'danger', route: productListRoute('OUT_OF_STOCK') },
+    { key: 'active', label: 'Active products', value: formatNumber(summary?.totalProducts), tone: 'primary', route: productListRoute() },
     { key: 'onhand', label: 'Total on-hand qty', value: formatNumber(summary?.totalInventoryQuantity), tone: 'default', route: '/inventory' },
   ];
 
@@ -358,7 +342,7 @@ function DashboardView() {
   ).filter((item) => item.show);
 
   return (
-    <Screen scroll refreshing={loading} onRefresh={load}>
+    <Screen scroll refreshing={overview.refreshing} onRefresh={overview.reload}>
       <TopBar name={user?.name} role={user?.role} onSignOut={onSignOut} />
 
       {!summary && loading ? (
@@ -368,14 +352,24 @@ function DashboardView() {
           title="Couldn't load the dashboard"
           message={errorText(error)}
           requestId={errorRequestId(error)}
-          onRetry={load}
+          onRetry={overview.reload}
         />
       ) : summary ? (
         <>
           <Text style={styles.greeting}>{greeting}</Text>
+          {overview.summary.updatedAt !== null ? (
+            <Text testID="dashboard-summary-updated" style={styles.freshness}>
+              Last updated {formatDateTime(overview.summary.updatedAt)}
+            </Text>
+          ) : null}
           {error ? (
-            <Pressable style={styles.stale} onPress={load} accessibilityRole="button" accessibilityLabel="Retry loading">
-              <Text style={styles.staleText}>Showing earlier data — pull to retry.</Text>
+            <Pressable
+              style={styles.stale}
+              onPress={overview.reload}
+              accessibilityRole="button"
+              accessibilityLabel="Retry loading the dashboard"
+            >
+              <Text style={styles.staleText}>Showing earlier data — tap to retry.</Text>
             </Pressable>
           ) : null}
 
@@ -408,25 +402,61 @@ function DashboardView() {
                 onPress={() => router.push(tile.route)}
                 accessibilityRole="button"
                 accessibilityLabel={`${tile.label}: ${tile.value}`}
+                accessibilityHint={tile.route.startsWith('/products') ? 'Opens the matching product list' : 'Opens inventory'}
                 style={styles.healthCell}
               >
-                <StatCard label={tile.label} value={tile.value} tone={tile.tone} />
+                <StatCard label={tile.label} value={tile.value} sub={tile.sub} tone={tile.tone} />
+                <View pointerEvents="none" style={styles.healthChevron}>
+                  <Icon name="chevronRight" color={colors.textMuted} size={16} />
+                </View>
               </Pressable>
             ))}
           </View>
 
-          {restock !== null ? (
+          {restock !== null || restockUnavailable || restockLoading ? (
             <>
               <SectionHeader
                 title="Needs attention"
-                subtitle={restock.length ? 'At or below minimum stock' : 'Nothing below minimum stock right now'}
+                subtitle={
+                  restockUnavailable
+                    ? 'Preview unavailable — summary counts still available'
+                    : restockLoading
+                      ? 'Loading the restock preview…'
+                    : restock?.length
+                      ? 'At or below minimum stock'
+                      : 'Nothing below minimum stock right now'
+                }
                 style={styles.section}
                 /* §27CR — this used to read "View inventory" and open `/inventory`
                    unfiltered, so the five rows above were the whole list anyone could
                    reach. The products themselves have their own screen now. */
                 action={<HeaderLink label="View all" onPress={() => router.push('/restock')} />}
               />
-              {restock.length ? (
+              {restockUnavailable ? (
+                <Card>
+                  <EmptyState
+                    icon="warning"
+                    title="Restock preview unavailable"
+                    message={`The dashboard summary reports ${formatNumber(lowStockCount)} low and ${formatNumber(outOfStockCount)} out of stock. Open the stock rows to review them.`}
+                  />
+                  <Button
+                    title="Retry preview"
+                    variant="secondary"
+                    full
+                    testID="dashboard-retry-restock"
+                    onPress={overview.reloadRestock}
+                    style={styles.attentionAction}
+                  />
+                </Card>
+              ) : restockLoading ? (
+                <Card>
+                  <EmptyState
+                    icon="time"
+                    title="Loading restock preview"
+                    message="The summary is ready; the product preview is still loading."
+                  />
+                </Card>
+              ) : restock?.length ? (
                 <View style={styles.rowList}>
                   {restock.map((item) => (
                     <RestockRow key={item.id} item={item} />
@@ -441,6 +471,20 @@ function DashboardView() {
                   />
                 </Card>
               )}
+              {/* The product-level Restock list stays the section's primary action.
+                  This secondary route opens the per-location stock ROWS, where the
+                  combined Needs attention filter can be worked one row at a time. */}
+              {attentionCount > 0 ? (
+                <Button
+                  title="View stock rows needing attention"
+                  icon="cube"
+                  variant="secondary"
+                  full
+                  testID="dashboard-attention-rows"
+                  onPress={() => router.push('/inventory?needsAttention=true')}
+                  style={styles.attentionAction}
+                />
+              ) : null}
             </>
           ) : null}
 
@@ -466,7 +510,25 @@ function DashboardView() {
           {canSeePos ? (
             <>
               <SectionHeader title="Procurement" subtitle="Open orders & suppliers" style={styles.section} />
-              {openPos === null ? null : openPos.length ? (
+              {overview.openPos.state === 'error' ? (
+                <Card>
+                  <EmptyState
+                    icon="warning"
+                    title="Open purchase orders unavailable"
+                    message="Procurement data could not be loaded. The rest of the dashboard is still current."
+                  />
+                  <Button
+                    title="Retry purchase orders"
+                    variant="secondary"
+                    full
+                    testID="dashboard-retry-open-pos"
+                    onPress={overview.reloadOpenPos}
+                    style={styles.attentionAction}
+                  />
+                </Card>
+              ) : overview.openPos.state === 'loading' && openPos === null ? (
+                <Text style={styles.emptyInlineText}>Loading open purchase orders…</Text>
+              ) : openPos === null ? null : openPos.length ? (
                 <View style={styles.rowList}>
                   {openPos.map((item) => (
                     <OpenPoRow key={item.id} item={item} />
@@ -523,6 +585,7 @@ const createStyles = (colors: Palette) =>
     userName: { ...type.h3, color: colors.text, flexShrink: 1 },
     topBarActions: { flexDirection: 'row', gap: spacing.sm, alignItems: 'center' },
     greeting: { ...type.h1, color: colors.text },
+    freshness: { ...type.caption, color: colors.textMuted, marginTop: spacing.xs },
     stale: {
       marginTop: spacing.md,
       backgroundColor: colors.warningSoft,
@@ -533,7 +596,8 @@ const createStyles = (colors: Palette) =>
     staleText: { ...type.caption, color: colors.warning, fontWeight: '600' },
     section: { marginTop: spacing.xxl },
     healthGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
-    healthCell: { flexGrow: 1, flexBasis: '46%', minWidth: '46%' },
+    healthCell: { flexGrow: 1, flexBasis: '46%', minWidth: '46%', position: 'relative' },
+    healthChevron: { position: 'absolute', right: spacing.md, bottom: spacing.md },
     quickGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
     quickButton: { flexGrow: 1, flexBasis: '46%' },
     rowList: { gap: spacing.sm },
@@ -541,6 +605,7 @@ const createStyles = (colors: Palette) =>
     activityRight: { alignItems: 'flex-end', gap: spacing.xs },
     delta: { ...type.button, fontSize: 16 },
     headerLink: { minHeight: 44, justifyContent: 'center' },
+    attentionAction: { marginTop: spacing.md },
     headerLinkText: { ...type.label, color: colors.primary, fontWeight: '600' },
     emptyInline: { paddingVertical: spacing.sm },
     emptyInlineText: { ...type.body, color: colors.textMuted },

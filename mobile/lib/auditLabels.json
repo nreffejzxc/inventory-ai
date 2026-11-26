@@ -1,6 +1,7 @@
 {
   "actions": {
     "PRODUCT_CREATED": "Product created",
+    "PRODUCTS_IMPORTED": "Products imported",
     "PRODUCT_UPDATED": "Product updated",
     "PRODUCT_CURRENCY_CORRECTED": "Currency corrected",
     "PRODUCT_ARCHIVED": "Product archived",
@@ -42,6 +43,7 @@
   },
   "entityTypes": {
     "PRODUCT": "Product",
+    "PRODUCT_IMPORT": "Product import",
     "INVENTORY": "Inventory",
     "INVENTORY_TRANSACTION": "Transaction",
     "STOCK_MOVEMENT_OPERATION": "Stock movement operation",

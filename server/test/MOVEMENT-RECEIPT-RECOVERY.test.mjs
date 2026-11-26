@@ -13,6 +13,10 @@ import {
   runMovementReceiptMaintenance,
   MOVEMENT_RECEIPT_RETENTION_MS,
 } from '../src/services/stockMovementReceiptRecovery.service.ts';
+import {
+  completeMovementReceipt,
+  markMovementInventoryWritten,
+} from '../src/services/inventory.service.ts';
 
 const { dbOk, baseUrl, server } = await startServer();
 const tracker = createTracker(dbOk);
@@ -155,6 +159,65 @@ dbSuite('Movement receipt recovery — exact proof, dry run and retention', dbOk
     assert.equal(completed.state, 'COMPLETED');
     assert.equal(String(completed.inventoryTransactionId), String(ledger._id));
     assert.equal(await auditCount(business, receipt._id), 1);
+  });
+
+  it('★ COMPLETED is terminal against late completion and late inventory-written writes', async () => {
+    const productId = await product(business);
+    const { receipt } = await stockIn(business, productId, locationId, 5);
+    const completed = await mongoose.connection.db
+      .collection('stock_movement_operations')
+      .findOne({ _id: receipt._id });
+    assert.equal(completed.state, 'COMPLETED');
+    assert.equal(completed.response.newQuantity, 5);
+
+    // A stale request that finally reaches its bookkeeping after another
+    // delivery/recovery already completed the receipt must not replace the
+    // stored answer or regress the stage.
+    await completeMovementReceipt(
+      receipt._id,
+      { transaction: { id: new mongoose.Types.ObjectId() }, previousQuantity: 0, newQuantity: 999 },
+      new mongoose.Types.ObjectId(),
+    );
+    await markMovementInventoryWritten(
+      receipt._id,
+      new mongoose.Types.ObjectId(),
+      0,
+      999,
+      true,
+    );
+
+    const stored = await mongoose.connection.db
+      .collection('stock_movement_operations')
+      .findOne({ _id: receipt._id });
+    assert.equal(stored.state, 'COMPLETED');
+    assert.equal(stored.response.newQuantity, 5, 'a late writer must not replace the durable response');
+    assert.equal(String(stored.inventoryRowId), String(completed.inventoryRowId));
+    assert.equal(String(stored.inventoryTransactionId), String(completed.inventoryTransactionId));
+  });
+
+  it('★ concurrent recovery of one receipt completes once and audits once', async () => {
+    const productId = await product(business);
+    const { requestKey, receipt } = await stockIn(business, productId, locationId, 4);
+    await ageReceipt(receipt._id, { state: 'IN_PROGRESS' }, ['response', 'inventoryTransactionId']);
+
+    await Promise.all([
+      recoverStaleMovementReceipts({ olderThanMs: 0, businessId: business.businessId }),
+      recoverStaleMovementReceipts({ olderThanMs: 0, businessId: business.businessId }),
+      recoverStaleMovementReceipts({ olderThanMs: 0, businessId: business.businessId }),
+    ]);
+
+    const stored = await mongoose.connection.db
+      .collection('stock_movement_operations')
+      .findOne({ requestKey });
+    assert.equal(stored.state, 'COMPLETED');
+    assert.ok(stored.inventoryTransactionId);
+    assert.equal(
+      await mongoose.connection.db.collection('inventory_transactions').countDocuments({
+        movementOperationId: receipt._id,
+      }),
+      1,
+    );
+    assert.equal(await auditCount(business, receipt._id), 1, 'one receipt has one recovery event');
   });
 
   it('★ does not let a full batch of old attention rows starve a newer unfinished receipt', async () => {

@@ -37,7 +37,10 @@ jest.mock('../lib/api', () => ({
   locationsApi: { list: jest.fn() },
 }));
 
-jest.mock('../hooks/useReferences', () => ({ useActiveRef: jest.fn() }));
+jest.mock('../hooks/useReferences', () => ({
+  ...jest.requireActual('../hooks/useReferences'),
+  useActiveRef: jest.fn(),
+}));
 
 jest.mock('../hooks/useInventoryRow', () => ({
   __esModule: true,
@@ -97,8 +100,8 @@ beforeEach(() => {
   });
   mockUseActiveRef.mockImplementation((_token: string, api: unknown) =>
     api === productsApi
-      ? { items: [{ id: 'p1', name: 'Compact Kettle' }], loading: false, reload: jest.fn() }
-      : { items: locations, loading: false, reload: jest.fn() }
+      ? { items: [{ id: 'p1', name: 'Compact Kettle' }], loading: false, complete: true, reload: jest.fn() }
+      : { items: locations, loading: false, complete: true, reload: jest.fn() }
   );
   mockUseInventoryRow.mockReturnValue({
     row: { id: 'row1', quantity: 10, availableQuantity: 10 },
@@ -108,6 +111,30 @@ beforeEach(() => {
   mockConfirm.mockResolvedValue(true);
   adjust.mockResolvedValue({ previousQuantity: 10, newQuantity: 8, transaction: { id: 'txn-1' } });
   stockIn.mockResolvedValue({ previousQuantity: 0, newQuantity: 5, transaction: { id: 'txn-2' } });
+});
+
+describe('an archived deep-linked location is repaired before submission', () => {
+  it('★ blocks the stale location and sends the replacement', async () => {
+    locations = [{ id: 'l2', name: 'Active warehouse' }];
+    const view = await mount('stock-in', 'loc-archived');
+
+    await waitFor(() =>
+      expect(
+        view.getByText(
+          'The selected location is archived or unavailable. Choose an active location before saving.'
+        )
+      ).toBeTruthy()
+    );
+    await fireEvent.changeText(view.getByPlaceholderText('How many are you adding?'), '5');
+    expect(view.getByRole('button', { name: 'Add stock' }).props.accessibilityState?.disabled).toBe(true);
+
+    await fireEvent.press(view.getByText('Choose a location…'));
+    await fireEvent.press(await view.findByText('Active warehouse'));
+    await fireEvent.press(view.getByRole('button', { name: 'Add stock' }));
+
+    await waitFor(() => expect(stockIn).toHaveBeenCalledTimes(1));
+    expect(stockIn.mock.calls[0][1]).toMatchObject({ locationId: 'l2' });
+  });
 });
 
 describe('a single-location business does not have to choose its location', () => {

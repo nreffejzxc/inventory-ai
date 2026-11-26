@@ -55,6 +55,17 @@ type AppOptions = {
 };
 
 /**
+ * FW-01's CSV is capped at 512 KiB as raw text, but JSON escaping can double
+ * that before the parser sees a string. This one route therefore gets a larger
+ * transport cap; the import validator still enforces the 512 KiB CSV bound, and
+ * every other route keeps the configured (default 100 KiB) cap. A request path
+ * comparison is used because the global JSON parser runs before routing, so a
+ * route-level parser could not replace it.
+ */
+const BULK_JSON_PATH = '/api/products/import';
+const BULK_JSON_LIMIT = '2mb';
+
+/**
  * Build a fully wired Express app. Exported as a factory so tests can exercise
  * the real middleware chain (headers, CORS, body limit, trust proxy, auth rate
  * limiters) deterministically, without mutating process.env. The module's
@@ -157,7 +168,16 @@ export function createApp({
 
   // L2: explicit JSON body-size cap. Oversized bodies are rejected with a
   // clean 413 before any route logic runs (see errorHandler bodyError mapping).
-  app.use(express.json({ limit: jsonBodyLimit }));
+  // FW-01's import endpoint has its own bounded transport parser because its
+  // 512 KiB CSV can expand under JSON escaping; all other paths keep the small
+  // global cap.
+  const defaultJson = express.json({ limit: jsonBodyLimit });
+  const bulkJson = express.json({ limit: BULK_JSON_LIMIT });
+  app.use((req, res, next) => {
+    const path = (req.path.length > 1 ? req.path.replace(/\/+$/, '') : req.path) || '/';
+    const parser = req.method === 'POST' && path === BULK_JSON_PATH ? bulkJson : defaultJson;
+    parser(req, res, next);
+  });
 
   // Service info
   app.get('/', (req, res) => {

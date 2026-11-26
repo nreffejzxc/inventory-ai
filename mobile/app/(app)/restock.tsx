@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { router, useLocalSearchParams } from 'expo-router';
 import { StyleSheet, Text, View } from 'react-native';
 import type { ListRenderItem } from 'react-native';
 
 import Badge from '../../components/Badge';
+import Button from '../../components/Button';
 import { Icon } from '../../components/icons';
 import ListRow from '../../components/ListRow';
 import ListScreen from '../../components/ListScreen';
@@ -15,11 +16,12 @@ import type { ApiResponse } from '../../lib/api';
 import { useSession } from '../../lib/auth';
 import type { QueryParams } from '../../lib/client';
 import { formatNumber } from '../../lib/format';
+import { canManagePurchaseOrders } from '../../lib/permissions';
 import { spacing, type } from '../../lib/theme';
 import type { Palette } from '../../lib/theme';
 import { useTheme } from '../../lib/theme-context';
 import useDebounced from '../../hooks/useDebounced';
-import { useActiveRef } from '../../hooks/useReferences';
+import { referenceAvailability, useActiveRef } from '../../hooks/useReferences';
 import usePagedList from '../../hooks/usePagedList';
 import useRefetchOnFocus from '../../hooks/useRefetchOnFocus';
 
@@ -54,33 +56,45 @@ function str(v: string | string[] | undefined): string {
 export default function RestockScreen() {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const { token, signOut } = useSession();
+  const { token, user, signOut } = useSession();
+  const canDraftPurchaseOrder = canManagePurchaseOrders(user);
   const params = useLocalSearchParams();
-  const categories = useActiveRef(token, categoriesApi);
+  const categories = useActiveRef(token, categoriesApi, { allPages: true });
 
   const [q, setQ] = useState(() => str(params.q));
   const [categoryId, setCategoryId] = useState(() => str(params.categoryId));
+  const [categoryTouched, setCategoryTouched] = useState(false);
   const paramCategoryName = str(params.category);
-  const resolvedNamedCategory = useRef(false);
   const debouncedQ = useDebounced(q, 300);
 
-  useEffect(() => {
-    if (resolvedNamedCategory.current || categoryId || !paramCategoryName) return;
-    const match = categories.items.find(
-      (category) => category.name.toLowerCase() === paramCategoryName.toLowerCase(),
+  // A named-category route parameter is resolved from the loaded reference list
+  // without writing state in an effect. Once the member touches the picker, the
+  // route parameter no longer overrides their choice — including "All categories".
+  const resolvedParamCategoryId = useMemo(() => {
+    if (!paramCategoryName) return '';
+    return (
+      categories.items.find(
+        (category) => category.name.toLowerCase() === paramCategoryName.toLowerCase(),
+      )?.id ?? ''
     );
-    if (!match) return;
-    resolvedNamedCategory.current = true;
-    setCategoryId(match.id);
-  }, [categories.items, categoryId, paramCategoryName]);
+  }, [categories.items, paramCategoryName]);
+  const selectedCategoryId = categoryTouched
+    ? categoryId
+    : categoryId || resolvedParamCategoryId;
+  const categoryAvailability = referenceAvailability(selectedCategoryId, categories);
+  const categoryMissing = categoryAvailability === 'missing';
+  const categoryNameUnresolved = Boolean(
+    paramCategoryName && !categoryTouched && !categoryId && categories.complete && !resolvedParamCategoryId,
+  );
+  const activeCategoryId = categoryMissing ? '' : selectedCategoryId;
 
   const queryParams = useCallback(
     (): QueryParams => ({
       page: undefined,
       q: debouncedQ || undefined,
-      categoryId: categoryId || undefined,
+      categoryId: activeCategoryId || undefined,
     }),
-    [debouncedQ, categoryId],
+    [debouncedQ, activeCategoryId],
   );
 
   const fetcher = useCallback(
@@ -102,6 +116,16 @@ export default function RestockScreen() {
           {formatNumber(list.total)} {list.total === 1 ? 'product' : 'products'} at or below minimum stock, most urgent first
         </Text>
       ) : null}
+      {canDraftPurchaseOrder ? (
+        <Button
+          title="Create draft PO"
+          icon="receipt"
+          variant="secondary"
+          full
+          onPress={() => router.push('/purchase-orders/from-restock')}
+          style={styles.draftButton}
+        />
+      ) : null}
       <SearchField
         value={q}
         onChangeText={setQ}
@@ -115,9 +139,22 @@ export default function RestockScreen() {
           { value: '', label: 'All categories' },
           ...categories.items.map((category) => ({ value: category.id, label: category.name })),
         ]}
-        value={categoryId}
-        onChange={setCategoryId}
+        value={activeCategoryId}
+        onChange={(value) => {
+          setCategoryTouched(true);
+          setCategoryId(value);
+        }}
       />
+      {categoryMissing || categoryNameUnresolved ? (
+        <Text
+          testID="restock-category-unavailable"
+          style={[styles.notice, { color: colors.warning }]}
+        >
+          {categoryMissing
+            ? 'That category is archived or unavailable. Showing every category.'
+            : 'That category name is no longer active. Showing every category.'}
+        </Text>
+      ) : null}
     </View>
   );
 
@@ -188,4 +225,6 @@ const createStyles = (colors: Palette) =>
     count: { ...type.caption, color: colors.textSecondary, marginBottom: spacing.md },
     search: { marginBottom: spacing.lg },
     footer: { ...type.caption, color: colors.textSecondary, textAlign: 'center', marginTop: spacing.lg },
+    draftButton: { marginBottom: spacing.lg },
+    notice: { ...type.caption, fontWeight: '600', marginTop: spacing.sm },
   });

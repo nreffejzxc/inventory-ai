@@ -23,6 +23,7 @@ import { ApiError } from '../lib/client';
 import { useSession } from '../lib/auth';
 import { deleteAccount } from '../lib/api';
 import { currentFirebaseIdToken } from '../lib/firebase-auth';
+import { purgeProductImportDraft } from '../lib/productImportDraft';
 import { ThemeProvider } from '../lib/theme-context';
 
 import DeleteAccountScreen from '../app/(app)/delete-account';
@@ -50,9 +51,14 @@ jest.mock('../lib/firebase-auth', () => ({
   currentFirebaseIdToken: jest.fn(),
 }));
 
+jest.mock('../lib/productImportDraft', () => ({
+  purgeProductImportDraft: jest.fn(async () => true),
+}));
+
 const mockUseSession = useSession as jest.Mock;
 const mockDeleteAccount = deleteAccount as jest.Mock;
 const mockIdToken = currentFirebaseIdToken as jest.Mock;
+const mockPurgeDraft = purgeProductImportDraft as jest.Mock;
 
 function signIn({ firebase }: { firebase: boolean }) {
   const signOut = jest.fn().mockResolvedValue(undefined);
@@ -76,6 +82,7 @@ beforeEach(() => {
   jest.clearAllMocks();
   mockIdToken.mockResolvedValue('firebase-id-token');
   mockDeleteAccount.mockResolvedValue({ deleted: true, changed: true });
+  mockPurgeDraft.mockResolvedValue(true);
 });
 
 describe('delete account screen', () => {
@@ -132,6 +139,7 @@ describe('delete account screen', () => {
     // A Firebase account's path must not be used for a password account.
     expect(mockIdToken).not.toHaveBeenCalled();
     await waitFor(() => expect(signOut).toHaveBeenCalledTimes(1));
+    expect(mockPurgeDraft).toHaveBeenCalledWith('u1');
     expect(router.replace).toHaveBeenCalledWith('/login');
   });
 
@@ -152,6 +160,20 @@ describe('delete account screen', () => {
       idToken: 'firebase-id-token',
     });
     await waitFor(() => expect(signOut).toHaveBeenCalledTimes(1));
+  });
+
+  it('signs out even when the local import purge reports failure', async () => {
+    const signOut = signIn({ firebase: false });
+    mockPurgeDraft.mockResolvedValue(false);
+    const screen = await renderScreen();
+
+    await fireEvent.changeText(screen.getByPlaceholderText('Your current password'), 'Password123!');
+    await fireEvent.changeText(screen.getByPlaceholderText('DELETE'), 'DELETE');
+    await fireEvent.press(screen.getByText('Delete my account'));
+
+    await waitFor(() => expect(mockPurgeDraft).toHaveBeenCalledWith('u1'));
+    await waitFor(() => expect(signOut).toHaveBeenCalledTimes(1));
+    expect(router.replace).toHaveBeenCalledWith('/login');
   });
 
   it('refuses to send anything when the provider has no identity for this device', async () => {
@@ -188,6 +210,7 @@ describe('delete account screen', () => {
       expect(screen.getByText(/Other people still use this business/i)).toBeTruthy()
     );
     expect(signOut).not.toHaveBeenCalled();
+    expect(mockPurgeDraft).not.toHaveBeenCalled();
     expect(router.replace).not.toHaveBeenCalled();
   });
 

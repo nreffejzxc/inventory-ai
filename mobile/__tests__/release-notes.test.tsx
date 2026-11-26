@@ -453,11 +453,11 @@ describe('the dashboard', () => {
       await mockFocusRefetch.current?.();
     });
 
-    expect(await view.findByText('Showing earlier data — pull to retry.')).toBeTruthy();
+    expect(await view.findByText('Showing earlier data — tap to retry.')).toBeTruthy();
     // The figures may be old, but the change note is still reachable below the warning.
     expect(view.getByText(LATEST.title)).toBeTruthy();
 
-    await fireEvent.press(view.getByText('Showing earlier data — pull to retry.'));
-    await waitFor(() => expect(view.queryByText('Showing earlier data — pull to retry.')).toBeNull());
+    await fireEvent.press(view.getByText('Showing earlier data — tap to retry.'));
+    await waitFor(() => expect(view.queryByText('Showing earlier data — tap to retry.')).toBeNull());
   });
 });

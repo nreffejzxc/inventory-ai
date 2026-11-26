@@ -546,10 +546,11 @@ describe('DEP-1 the boot wiring', () => {
 
   const signalTarget = { on: () => {}, listeners: () => [] };
 
-  async function boot({ readiness, nodeEnv = 'development', events, proxyTrust = 1 }) {
+  async function boot({ readiness, nodeEnv = 'development', events, proxyTrust = 1, indexCheck }) {
     const exits = [];
     const result = await startServer({
       nodeEnv,
+      ...(indexCheck ? { indexCheck } : {}),
       // A boot that is not about the proxy warning declares a correctly configured
       // proxy, so its log assertions stay about the readiness report alone.
       proxyTrust,
@@ -570,6 +571,33 @@ describe('DEP-1 the boot wiring', () => {
     });
     return { result, exits };
   }
+
+  it('★ reports missing required indexes in the boot log without refusing to serve', async () => {
+    const events = [];
+    const { result, exits } = await boot({
+      events,
+      readiness: () => report({}),
+      indexCheck: async () => ({
+        ready: false,
+        failures: [
+          { name: 'uniq_purchase_order_request_key', reason: 'Draft PO index is missing' },
+          { name: 'uniq_audit_business_dedupe_key', reason: 'audit dedupe index is missing' },
+        ],
+      }),
+    });
+
+    try {
+      assert.ok(result && result.server, 'the HTTP server still starts');
+      assert.deepEqual(exits, [], 'readiness owns the traffic gate, not process exit');
+      await new Promise((resolve) => setImmediate(resolve));
+      const errors = events.filter((entry) => entry.channel === 'error').map((entry) => entry.message);
+      assert.ok(errors.some((line) => line.includes('required database indexes are NOT ready')));
+      assert.ok(errors.some((line) => line.includes('Draft PO index is missing')));
+      assert.ok(errors.some((line) => line.includes('audit dedupe index is missing')));
+    } finally {
+      if (result) await close(result.server);
+    }
+  });
 
   const close = (server) => new Promise((resolve) => server.close(resolve));
 

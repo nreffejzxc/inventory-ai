@@ -10,6 +10,7 @@ import Category from './category.model.ts';
 import Supplier from './supplier.model.ts';
 import PurchaseOrder from './purchaseOrder.model.ts';
 import Product from './product.model.ts';
+import ProductImport from './productImport.model.ts';
 import Inventory from './inventory.model.ts';
 import InventoryTransaction from './inventoryTransaction.model.ts';
 import AuditLog from './auditLog.model.ts';
@@ -18,6 +19,7 @@ import StockTransferOperation from './stockTransferOperation.model.ts';
 import StockMovementOperation from './stockMovementOperation.model.ts';
 import IntegrityRecoveryLease from './integrityRecoveryLease.model.ts';
 import AuditFailure from './auditFailure.model.ts';
+import AuditOutbox from './auditOutbox.model.ts';
 import AIConversation from './aiConversation.model.ts';
 import AIMessage from './aiMessage.model.ts';
 import AiTurnMetric from './aiTurnMetric.model.ts';
@@ -44,6 +46,7 @@ export {
   Supplier,
   PurchaseOrder,
   Product,
+  ProductImport,
   Inventory,
   InventoryTransaction,
   AuditLog,
@@ -52,6 +55,7 @@ export {
   StockMovementOperation,
   IntegrityRecoveryLease,
   AuditFailure,
+  AuditOutbox,
   AIConversation,
   AIMessage,
   AiTurnMetric,
@@ -80,6 +84,7 @@ export const models = [
   Supplier,
   PurchaseOrder,
   Product,
+  ProductImport,
   Inventory,
   InventoryTransaction,
   AuditLog,
@@ -88,6 +93,7 @@ export const models = [
   StockMovementOperation,
   IntegrityRecoveryLease,
   AuditFailure,
+  AuditOutbox,
   AIConversation,
   AIMessage,
   AiTurnMetric,

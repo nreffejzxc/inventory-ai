@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { router, useLocalSearchParams } from 'expo-router';
 import { StyleSheet, Text, View } from 'react-native';
 
@@ -100,8 +100,8 @@ export default function HistoryScreen() {
   const paramLocationId = str(p.locationId);
   const paramLocationName = str(p.locationName);
 
-  const products = useActiveRef(token, productsApi);
-  const locations = useActiveRef(token, locationsApi);
+  const products = useActiveRef(token, productsApi, { allPages: true });
+  const locations = useActiveRef(token, locationsApi, { allPages: true });
 
   const paramType = str(p.type);
   const [type, setType] = useState(() =>
@@ -109,17 +109,26 @@ export default function HistoryScreen() {
   );
   const [productId, setProductId] = useState(paramProductId ?? '');
   const [locationId, setLocationId] = useState(paramLocationId ?? '');
-  const resolvedNamedLocation = useRef(false);
+  const [locationNameDismissed, setLocationNameDismissed] = useState(false);
 
-  useEffect(() => {
-    if (resolvedNamedLocation.current || locationId || !paramLocationName) return;
-    const match = locations.items.find(
-      (location) => location.name.toLowerCase() === paramLocationName.toLowerCase(),
-    );
-    if (!match) return;
-    resolvedNamedLocation.current = true;
-    setLocationId(match.id);
-  }, [locationId, locations.items, paramLocationName]);
+  // A route can carry a location name without its id. Resolve it only after
+  // every active page has been read, so a partial list cannot select a
+  // same-named location before the complete list is known. Clearing the field
+  // explicitly must not let the route name immediately select it again.
+  const namedLocation =
+    !locationId && !locationNameDismissed && paramLocationName && locations.complete
+      ? locations.items.find(
+          (location) =>
+            typeof location.name === 'string' &&
+            location.name.toLowerCase() === paramLocationName.toLowerCase(),
+        )
+      : undefined;
+  const effectiveLocationId = locationId || namedLocation?.id || '';
+
+  function changeLocation(next: string): void {
+    setLocationId(next);
+    setLocationNameDismissed(next === '');
+  }
 
   const productOptions = useMemo(() => {
     const list = products.items.map((x) => ({ value: x.id, label: x.name }));
@@ -141,9 +150,9 @@ export default function HistoryScreen() {
     const q: QueryParams = { page: undefined };
     if (type !== 'ALL') q.type = type;
     if (productId) q.productId = productId;
-    if (locationId) q.locationId = locationId;
+    if (effectiveLocationId) q.locationId = effectiveLocationId;
     return q;
-  }, [type, productId, locationId]);
+  }, [type, productId, effectiveLocationId]);
 
   const fetcher = useCallback(
     (page: number, limit: number) => inventoryApi.history(token as string, { ...queryParams(), page, limit }),
@@ -160,7 +169,7 @@ export default function HistoryScreen() {
         ))}
       </View>
       <SelectField label="Product" placeholder="All products…" options={productOptions} value={productId} onChange={setProductId} searchable />
-      <SelectField label="Location" placeholder="All locations…" options={locationOptions} value={locationId} onChange={setLocationId} searchable />
+      <SelectField label="Location" placeholder="All locations…" options={locationOptions} value={effectiveLocationId} onChange={changeLocation} searchable />
       {list.total > 0 ? <Text style={styles.count}>{formatNumber(list.total)} movement{list.total === 1 ? '' : 's'}, newest first</Text> : null}
     </View>
   );

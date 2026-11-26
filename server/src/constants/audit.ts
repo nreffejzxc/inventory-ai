@@ -12,6 +12,10 @@ export const AUDIT_ACTIONS = Object.freeze({
   LOCATION_UPDATED: 'LOCATION_UPDATED',
   LOCATION_ARCHIVED: 'LOCATION_ARCHIVED',
   PRODUCT_CREATED: 'PRODUCT_CREATED',
+  // FW-01 — one event for a whole CSV import. Deliberately no row contents:
+  // the file name, row counts and operator are the reviewable facts, while the
+  // imported names/SKUs stay in the catalogue and out of the audit metadata.
+  PRODUCTS_IMPORTED: 'PRODUCTS_IMPORTED',
   PRODUCT_UPDATED: 'PRODUCT_UPDATED',
   // A currency code reinterprets every stored price number. Recorded separately
   // from an ordinary edit so the trail carries the previous/new code, the human
@@ -100,6 +104,7 @@ export const AUDIT_ENTITY_TYPES = Object.freeze({
   CATEGORY: 'CATEGORY',
   LOCATION: 'LOCATION',
   PRODUCT: 'PRODUCT',
+  PRODUCT_IMPORT: 'PRODUCT_IMPORT',
   SUPPLIER: 'SUPPLIER',
   PURCHASE_ORDER: 'PURCHASE_ORDER',
   INVENTORY: 'INVENTORY',

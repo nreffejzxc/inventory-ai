@@ -1,0 +1,27 @@
+{
+  "detail": "exactly one DRAFT (PO-0005) for op-mwswjpgd-qxpii9119ib5in6h",
+  "problems": [],
+  "count": 1,
+  "po": {
+    "id": "6b03e12e3e8eee646356cac7",
+    "number": "PO-0005",
+    "status": "DRAFT",
+    "requestKey": "op-mwswjpgd-qxpii9119ib5in6h",
+    "requestFingerprint": "a1cf27b08424dbe41aee967c1dc18e0f9b5df4c572692fd9f00a4bd5f0227476",
+    "supplierId": "6b03ae9518155bb28ee03ed2",
+    "locationId": "6b03ae9518155bb28ee03ed4",
+    "items": [
+      {
+        "productId": "6b03ae9618155bb28ee03ed8",
+        "productName": "Draft Proof Gadget 1795403412084",
+        "quantityOrdered": 3
+      },
+      {
+        "productId": "6b03ae9518155bb28ee03ed6",
+        "productName": "Draft Proof Widget 1795403412084",
+        "quantityOrdered": 5
+      }
+    ],
+    "createdAt": "2026-11-23T06:46:06.273Z"
+  }
+}

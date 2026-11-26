@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { router, useLocalSearchParams } from 'expo-router';
-import { StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import type { ListRenderItem } from 'react-native';
 
 import { StatusBadge } from '../../../components/Badge';
@@ -16,13 +16,32 @@ import { categoriesApi, locationsApi, productsApi } from '../../../lib/api';
 import type { ApiResponse } from '../../../lib/api';
 import { useSession } from '../../../lib/auth';
 import type { QueryParams } from '../../../lib/client';
+import { formatNumber } from '../../../lib/format';
 import useDebounced from '../../../hooks/useDebounced';
-import { useActiveRef } from '../../../hooks/useReferences';
+import { referenceAvailability, useActiveRef } from '../../../hooks/useReferences';
 import usePagedList from '../../../hooks/usePagedList';
 import useRefetchOnFocus from '../../../hooks/useRefetchOnFocus';
-import { canManageProducts } from '../../../lib/permissions';
+import { canImportProducts, canManageProducts } from '../../../lib/permissions';
 import { spacing } from '../../../lib/theme';
 import { useTheme } from '../../../lib/theme-context';
+
+const STOCK_FILTERS = [
+  { value: 'IN_STOCK', label: 'In stock' },
+  { value: 'LOW_STOCK', label: 'Low stock' },
+  { value: 'OUT_OF_STOCK', label: 'Out of stock' },
+] as const;
+
+const STOCK_FILTER_LABELS = {
+  IN_STOCK: 'in stock',
+  LOW_STOCK: 'low stock',
+  OUT_OF_STOCK: 'out of stock',
+} as const;
+
+type StockFilter = keyof typeof STOCK_FILTER_LABELS;
+
+function parseStockFilter(value: string): StockFilter | '' {
+  return value === 'IN_STOCK' || value === 'LOW_STOCK' || value === 'OUT_OF_STOCK' ? value : '';
+}
 
 /** Route params are `string | string[]` (a key repeated in the link yields an array). */
 function str(v: string | string[] | undefined): string {
@@ -40,8 +59,9 @@ export default function ProductsScreen() {
   const { colors } = useTheme();
   const { token, user, signOut } = useSession();
   const manage = canManageProducts(user);
-  const categories = useActiveRef(token, categoriesApi);
-  const locations = useActiveRef(token, locationsApi);
+  const canImport = canImportProducts(user);
+  const categories = useActiveRef(token, categoriesApi, { allPages: true });
+  const locations = useActiveRef(token, locationsApi, { allPages: true });
   const params = useLocalSearchParams();
   const paramCategoryName = str(params.category);
   const paramLocationName = str(params.location);
@@ -52,45 +72,81 @@ export default function ProductsScreen() {
   const [status, setStatus] = useState(() =>
     requestedStatus === 'ACTIVE' || requestedStatus === 'ARCHIVED' ? requestedStatus : 'ALL',
   );
+  // The Overview cards deep-link with a canonical, mutually exclusive product
+  // status. It is applied together with ACTIVE so the list's total is exactly
+  // the card's count (the old links opened per-location inventory rows). While
+  // it is active the status stays pinned to ACTIVE, otherwise switching to
+  // Archived would apply the stock filter to a different population and the
+  // count beside the filter would no longer be the card's count.
+  const requestedStockStatus = parseStockFilter(str(params.stockStatus).toUpperCase());
+  // Older links used the broad lowStock/outOfStock flags. They still open a
+  // visible canonical filter instead of silently doing nothing: OUT wins when
+  // both were present, matching the old intersection and §19's precedence.
+  const legacyStockStatus = parseStockFilter(
+    str(params.outOfStock) === 'true'
+      ? 'OUT_OF_STOCK'
+      : str(params.lowStock) === 'true'
+        ? 'LOW_STOCK'
+        : '',
+  );
+  const stockStatus = requestedStockStatus || legacyStockStatus;
+  const stockStatusLabel = stockStatus ? STOCK_FILTER_LABELS[stockStatus] : '';
+  const effectiveStatus = stockStatus ? 'ACTIVE' : status;
   const [categoryId, setCategoryId] = useState(() => str(params.categoryId));
   const [locationId, setLocationId] = useState(() => str(params.locationId));
-  const [low, setLow] = useState(() => str(params.lowStock) === 'true');
-  const [out, setOut] = useState(() => str(params.outOfStock) === 'true');
-  const resolvedNamedCategory = useRef(false);
-  const resolvedNamedLocation = useRef(false);
+  const [categoryTouched, setCategoryTouched] = useState(false);
+  const [locationTouched, setLocationTouched] = useState(false);
 
-  useEffect(() => {
-    if (resolvedNamedCategory.current || categoryId || !paramCategoryName) return;
-    const match = categories.items.find(
-      (category) => category.name.toLowerCase() === paramCategoryName.toLowerCase(),
+  // Named filters arrive from assistant links before the reference lists do.
+  // Resolve them during render rather than writing state from an effect; once
+  // the person touches a selector, that choice (including "All") wins.
+  const resolvedCategoryId = useMemo(() => {
+    if (!paramCategoryName) return '';
+    return (
+      categories.items.find(
+        (category) => category.name.toLowerCase() === paramCategoryName.toLowerCase(),
+      )?.id ?? ''
     );
-    if (!match) return;
-    resolvedNamedCategory.current = true;
-    setCategoryId(match.id);
-  }, [categories.items, categoryId, paramCategoryName]);
+  }, [categories.items, paramCategoryName]);
+  const resolvedLocationId = useMemo(() => {
+    if (!paramLocationName) return '';
+    return (
+      locations.items.find(
+        (location) => location.name.toLowerCase() === paramLocationName.toLowerCase(),
+      )?.id ?? ''
+    );
+  }, [locations.items, paramLocationName]);
 
-  useEffect(() => {
-    if (resolvedNamedLocation.current || locationId || !paramLocationName) return;
-    const match = locations.items.find(
-      (location) => location.name.toLowerCase() === paramLocationName.toLowerCase(),
-    );
-    if (!match) return;
-    resolvedNamedLocation.current = true;
-    setLocationId(match.id);
-  }, [locationId, locations.items, paramLocationName]);
+  const selectedCategoryId = categoryTouched ? categoryId : categoryId || resolvedCategoryId;
+  const selectedLocationId = locationTouched ? locationId : locationId || resolvedLocationId;
+  const categoryAvailability = referenceAvailability(selectedCategoryId, categories);
+  const locationAvailability = referenceAvailability(selectedLocationId, locations);
+  const categoryMissing = categoryAvailability === 'missing';
+  const locationMissing = locationAvailability === 'missing';
+  const categoryNameUnresolved = Boolean(
+    paramCategoryName && !categoryTouched && !categoryId && categories.complete && !resolvedCategoryId,
+  );
+  const locationNameUnresolved = Boolean(
+    paramLocationName && !locationTouched && !locationId && locations.complete && !resolvedLocationId,
+  );
+  const effectiveCategoryId = categoryMissing ? '' : selectedCategoryId;
+  const effectiveLocationId = locationMissing ? '' : selectedLocationId;
 
   const queryParams = useCallback((): QueryParams => {
     const p: QueryParams = {
       page: undefined,
       q: debouncedQ || undefined,
-      status: status === 'ALL' ? undefined : status,
-      categoryId: categoryId || undefined,
-      locationId: locationId || undefined,
+      status: effectiveStatus === 'ALL' ? undefined : effectiveStatus,
+      categoryId: effectiveCategoryId || undefined,
+      locationId: effectiveLocationId || undefined,
+      stockStatus: stockStatus || undefined,
     };
-    if (low) p.lowStock = true;
-    if (out) p.outOfStock = true;
+    // The old lowStock/outOfStock query flags are deliberately not sent from
+    // this screen: they are broad at-or-below-minimum filters and can contradict
+    // the canonical, mutually exclusive status selected here. The API keeps them
+    // for existing clients; the product UI uses only stockStatus.
     return p;
-  }, [debouncedQ, status, categoryId, locationId, low, out]);
+  }, [debouncedQ, effectiveStatus, effectiveCategoryId, effectiveLocationId, stockStatus]);
 
   const fetcher = useCallback(
     (page: number, limit: number) => productsApi.list(token as string, { ...queryParams(), page, limit }),
@@ -101,29 +157,62 @@ export default function ProductsScreen() {
   // Reload when returning from /products/new or a product detail/edit screen.
   useRefetchOnFocus(list.reload);
 
+  /** Selecting a stock status pins the population to ACTIVE and replaces any other status. */
+  const selectStockFilter = (next: StockFilter) => {
+    const value = stockStatus === next ? '' : next;
+    setStatus('ACTIVE');
+    // Drop the legacy flags as well: otherwise clearing a chip opened from an
+    // old lowStock/outOfStock link would immediately map them back to a filter.
+    router.setParams({ status: 'ACTIVE', stockStatus: value, lowStock: '', outOfStock: '' });
+  };
+
   const catOptions = [{ value: '', label: 'All categories' }, ...categories.items.map((c) => ({ value: c.id, label: c.name }))];
   const locOptions = [{ value: '', label: 'All locations' }, ...locations.items.map((l) => ({ value: l.id, label: l.name }))];
 
   const header = (
     <View>
-      <Button
-        title="Scan a barcode"
-        icon="scan"
-        variant="secondary"
-        full
-        onPress={() => router.push('/scan')}
-        style={styles.scanBtn}
-      />
       <SearchField
         value={q}
         onChangeText={setQ}
         placeholder="Search by name, brand, SKU or barcode…"
+        onScanPress={() => router.push('/scan')}
         style={styles.search}
       />
+      {!list.loading && (stockStatus || status !== 'ALL') ? (
+        <View style={styles.stockBanner}>
+          <Text
+            testID={stockStatus ? 'product-stock-count' : 'product-status-count'}
+            style={[styles.stockCount, { color: colors.text }]}
+          >
+            {stockStatus
+              ? `${formatNumber(list.total)} ${list.total === 1 ? 'product' : 'products'} ${stockStatusLabel}`
+              : `${formatNumber(list.total)} ${status === 'ACTIVE' ? 'active' : 'archived'} ${list.total === 1 ? 'product' : 'products'}`}
+          </Text>
+          {stockStatus ? (
+            <Pressable
+              onPress={() => {
+                setStatus('ACTIVE');
+                router.setParams({ status: 'ACTIVE', stockStatus: '', lowStock: '', outOfStock: '' });
+              }}
+              accessibilityRole="button"
+              accessibilityLabel="Clear stock status filter"
+              style={styles.clearStock}
+            >
+              <Text style={[styles.clearStockText, { color: colors.primary }]}>Clear</Text>
+            </Pressable>
+          ) : null}
+        </View>
+      ) : null}
       <View style={styles.filterRow}>
-        <Chip label="All" selected={status === 'ALL'} onPress={() => setStatus('ALL')} />
-        <Chip label="Active" selected={status === 'ACTIVE'} onPress={() => setStatus('ACTIVE')} />
-        <Chip label="Archived" selected={status === 'ARCHIVED'} onPress={() => setStatus('ARCHIVED')} />
+        {stockStatus ? (
+          <Text style={[styles.stockScope, { color: colors.textMuted }]}>Active products</Text>
+        ) : (
+          <>
+            <Chip label="All" selected={status === 'ALL'} onPress={() => setStatus('ALL')} />
+            <Chip label="Active" selected={status === 'ACTIVE'} onPress={() => setStatus('ACTIVE')} />
+            <Chip label="Archived" selected={status === 'ARCHIVED'} onPress={() => setStatus('ARCHIVED')} />
+          </>
+        )}
         {manage ? (
           <Button
             title="New product"
@@ -132,17 +221,58 @@ export default function ProductsScreen() {
             style={styles.newBtn}
           />
         ) : null}
+        {canImport ? (
+          <Button
+            title="Import CSV"
+            icon="document"
+            variant="secondary"
+            onPress={() => router.push('/products/import')}
+            style={styles.importBtn}
+          />
+        ) : null}
       </View>
       <View style={styles.chipRow}>
-        {/* NOTE (MOD-02): this chip carried tone="warning", which is not a
-            ChipTone — Chip renders anything other than 'danger' as primary, so
-            the prop was already inert. Omitted (default is 'primary') to keep
-            the rendered chip identical. */}
-        <Chip label="Low stock" selected={low} onPress={() => setLow((v) => !v)} />
-        <Chip label="Out of stock" tone="danger" selected={out} onPress={() => setOut((v) => !v)} />
+        {STOCK_FILTERS.map(({ value, label }) => (
+          <Chip
+            key={value}
+            label={label}
+            tone={value === 'OUT_OF_STOCK' ? 'danger' : 'primary'}
+            selected={stockStatus === value}
+            onPress={() => selectStockFilter(value)}
+          />
+        ))}
       </View>
-      <SelectField label="Category" placeholder="Filter by category…" options={catOptions} value={categoryId} onChange={setCategoryId} />
-      <SelectField label="Location" placeholder="Filter by location…" options={locOptions} value={locationId} onChange={setLocationId} />
+      <SelectField
+        label="Category"
+        placeholder="Filter by category…"
+        options={catOptions}
+        value={effectiveCategoryId}
+        onChange={(id) => {
+          setCategoryTouched(true);
+          setCategoryId(id);
+        }}
+      />
+      <SelectField
+        label="Location"
+        placeholder="Filter by location…"
+        options={locOptions}
+        value={effectiveLocationId}
+        onChange={(id) => {
+          setLocationTouched(true);
+          setLocationId(id);
+        }}
+      />
+      {categoryMissing || categoryNameUnresolved || locationMissing || locationNameUnresolved ? (
+        <View
+          style={[styles.filterNotice, { backgroundColor: colors.warningSoft }]}
+          testID="product-filter-unavailable"
+        >
+          <Text style={[styles.filterNoticeText, { color: colors.warning }]}>
+            A selected category or location is archived or unavailable. The list is showing all
+            matching products until another filter is chosen.
+          </Text>
+        </View>
+      ) : null}
     </View>
   );
 
@@ -172,16 +302,38 @@ export default function ProductsScreen() {
       loadingMore={list.loadingMore}
       loadingLabel="Loading products…"
       emptyTitle="No products found"
-      emptyMessage={q ? `Nothing matches “${q}”.` : 'Add your first product to start tracking stock.'}
+      emptyMessage={
+        q
+          ? `Nothing matches “${q}”.`
+          : stockStatus
+            ? `No active products are ${stockStatusLabel} right now.`
+            : 'Add your first product to start tracking stock.'
+      }
       emptyAction={manage && !q ? <Button title="Add product" onPress={() => router.push('/products/new')} /> : null}
     />
   );
 }
 
 const styles = StyleSheet.create({
-  scanBtn: { marginBottom: spacing.lg },
+  stockBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing.md,
+  },
+  stockCount: { flexShrink: 1, fontWeight: '700' },
+  stockScope: { fontWeight: '700' },
+  clearStock: { minHeight: 44, justifyContent: 'center', paddingLeft: spacing.md },
+  clearStockText: { fontWeight: '700' },
   search: { marginBottom: spacing.lg },
   filterRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: spacing.sm },
   newBtn: { marginLeft: 'auto' },
+  importBtn: { marginLeft: spacing.sm },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.sm },
+  filterNotice: {
+    marginTop: spacing.md,
+    padding: spacing.sm + 2,
+    borderRadius: 8,
+  },
+  filterNoticeText: { fontWeight: '600' },
 });
