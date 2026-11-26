@@ -11,6 +11,11 @@ An entry authorises no work by itself — `CLAUDE.md` §6.2 does. When an item s
 let the roadmap record be the evidence; do not rewrite this file as a history.
 
 **Conventions.** *Effort* is S (hours), M (a day), L (several days), XL (a project). *Origin* names the
+identifier the item had before consolidation, so a roadmap record can still be found by it. Items the
+retired documents already marked implemented (CSV import, Draft PO resume, audit outbox for imports,
+movements and PO receive, six-index readiness, FW-07 request references, step-up for destructive admin
+actions, the row-status counts, and the **Inventory** screen's filter persistence — which is not the
+History screen's, MOB-7) are **not** repeated here.
 
 **Origins that are a rank, not an identifier.** Several retired ranking documents numbered their rows
 but assigned no identifier, so those origins name the document and its rank: `coverage #N` is rank N
@@ -18,19 +23,26 @@ of the 2026-11-21 stock-coverage refresh in the retired `INVENTORY_AI_FOLLOWUP_A
 `AI roadmap #N` is improvement N of the live `docs/AI_ASSISTANT_IMPROVEMENT_ROADMAP.md`;
 `dashboard #N` is rank N of the retired `INVENTORY_DASHBOARD_FOLLOWUPS_2026-11-22.md` (8 ranks);
 `dashboard-ref #N` is rank N of the retired `DASHBOARD_REFERENCE_HISTORY_FOLLOWUPS_2026-11-23.md`
-(16 ranks); `project #N` is rank N of the retired `PROJECT_FOLLOWUP_REVIEW_2026-11-22.md`, which
-restarts numbering for a second list, so `project #6` is either its reference-snapshot rank 6 or its
-import-execution rank 6 — the row subject says which; `audit review #N` is rank N of the retired
-`INVENTORY_INTEGRITY_AUDIT_REVIEW_2026-11-19.md`; `audit durability #N` is item N of the retired
-`AUDIT_DURABILITY_FOLLOWUPS_2026-11-23.md`. Every other origin is an identifier: `IA-`, `TS-`, `NX-`,
-`NY-`, `NZ-`, `RD-`, `PD-` and `FW-0x` come from the retired improvement assessments, `PLAT-` from the
-roadmap records, and `PR364-` from the pull-request follow-up list. Two identifiers are ambiguous in
-their sources and the row subject settles each: `FW-06` is either the digest-pinned MongoDB image
-(platform supply-chain list) or stock-movement reversal (the FW plan series), and `PROJ-6` as above.
-identifier the item had before consolidation, so a roadmap record can still be found by it. Items the
-retired documents already marked implemented (CSV import, Draft PO resume, audit outbox for imports,
-movements and PO receive, six-index readiness, FW-07 request references, step-up for destructive admin
-actions, the row-status counts and filter persistence) are **not** repeated here.
+(16 ranks); `audit review #N` is rank N of the retired `INVENTORY_INTEGRITY_AUDIT_REVIEW_2026-11-19.md`;
+`audit durability #N` is item N of the retired `AUDIT_DURABILITY_FOLLOWUPS_2026-11-23.md`.
+
+**The project review renumbers its own material.** The retired `PROJECT_FOLLOWUP_REVIEW_2026-11-22.md`
+contains two ranked tables: the original 2026-11-22 ranking, and a re-ranking written the next day
+under “The remaining list is re-ranked for the next planning cycle”. The later table is the authority,
+so `project #N` — equivalently `PROJ-N` — is rank N of the **2026-11-23 re-ranking**, and
+`project22 #N` is rank N of the **original 2026-11-22 ranking**. Thus `PROJ-6` is one item: add a
+versioned reference snapshot/delta endpoint (INT-4). The original ranking's rank 6, bounding and
+recovering import execution, is `project22 #6` (IMP-7).
+
+**Every other origin is an identifier.** `IA-`, `TS-`, `NX-`, `NY-`, `NZ-`, `RD-`, `PD-` and `FW-0x`
+come from the retired improvement assessments, `PLAT-` from the roadmap records, and `PR364-` from the
+pull-request follow-up list. `FW-06` is one item too: rank 6 of the FW table in the retired
+`PLATFORM_NEXT_IMPROVEMENTS_BEYOND_DEV09.md`, the **digest-pinned MongoDB image**; the local and CI
+image is version-pinned today (`mongo:7.0.48` in `compose.yaml`), so the digest pin is the part that
+stays open. Stock-movement reversal is not an FW item — the retired FW plan document
+(`FW_IMPLEMENTATION_PLANS_2026-11-19.md`) carries FW-04, FW-07, FW-05, reversal and supplier terms and
+numbers none of them FW-06 — so that row cites `FW-PLAN-N`, section N of that document. No origin in
+this register has two meanings.
 
 ---
 
@@ -87,11 +99,11 @@ actions, the row-status counts and filter persistence) are **not** repeated here
 | IMP-4 | Measure and improve import throughput without weakening same-key replay | 300 rows took minutes; measure validation, create and opening stock separately before batching anything. | M–L | PR364-6 |
 | IMP-5 | Make an unfinished import discoverable on another device | The draft is device-local; an owner on a second phone cannot see or finish it. | M | PR364-7 |
 | IMP-6 | Handle preview-to-apply drift explicitly | Show which rows changed or disappeared between dry run and apply instead of a generic validation refusal. | M | PR364-9 |
-| IMP-7 | Bound concurrent imports per tenant | Two owners can start two large imports against one catalogue with nothing but the key contract between them. | M | project #6 |
+| IMP-7 | Bound concurrent imports per tenant | Two owners can start two large imports against one catalogue with nothing but the key contract between them. | M | project22 #6 |
 | IMP-8 | Lift the Draft PO 100-row selection cap | Paging and cross-page selection would let a real restock become one order. | M | PR364-11 |
 | IMP-9 | Transmit purchase orders to the supplier (FW-04) | Orders stop at DRAFT/OPEN with no delivery path; PDF plus mail attachment are prerequisites. | L | FW-04 |
 | IMP-10 | Add supplier replenishment terms | Lead time, minimum order and pack size are the inputs a restock decision still guesses. | M | FW-05 |
-| IMP-11 | Link stock-movement reversal | Corrections are new movements; a linked reversal would keep the audit story readable. | M | FW-06 |
+| IMP-11 | Link stock-movement reversal | Corrections are new movements; a linked reversal would keep the audit story readable. | M | FW-PLAN-4 |
 | IMP-12 | Speed up receiving with scanning, partial receipts and discrepancy capture | Receiving is the slowest real-world step and the one most likely to be entered wrong later. | L | project #10 |
 | IMP-13 | Deliver low-stock alerts with per-tenant rules | The dashboard shows the state; nobody is told when it changes. | M | dashboard-ref #8 |
 
@@ -104,8 +116,8 @@ actions, the row-status counts and filter persistence) are **not** repeated here
 | MOB-3 | Edit minimum stock where it is explained | The screen quotes "minimum N" and offers no way to correct it. | S | dashboard #7 |
 | MOB-4 | Compact the filter row for small screens | Four chips plus two selectors crowd a 360 dp screen. | S | dashboard #5 |
 | MOB-5 | Make freshness relative and age-aware | "Updated just now / 2 min ago" plus a refresh affordance beats an absolute timestamp. | S | dashboard-ref #15 |
-| MOB-6 | Complete the History filter lifecycle | Surface an incomplete or failed reference read instead of silently narrowing the list. | M | dashboard-ref #7 |
-| MOB-7 | Persist History filters per account | Inventory already restores its filters; History resets on every launch. | S–M | dashboard-ref #10 |
+| MOB-6 | Complete the History filter lifecycle | Surface an incomplete or failed reference read instead of silently narrowing the list. **Verified on a physical device 2026-11-26** (v1.0.2 development build): opening `history?productId=<id the catalogue does not contain>` leaves the Product selector reading “All products…” and the empty state reading “No movements yet”, while the request *is* filtered by that id — the filter is invisible and the empty state blames the data. A partial or failed reference read has the same shape, and this screen offers no retry for it (its only retry is the movement list's). | M | dashboard-ref #7 |
+| MOB-7 | Persist History filters per account | Inventory already restores its filters; History resets on every launch. **Verified on a physical device 2026-11-26**: a Location filter that had narrowed History to 15 movements was gone after a force-stop and relaunch (“All locations…”, 52 movements). `mobile/app/(app)/history.tsx` keeps every filter in `useState` seeded from route params and never calls `mobile/lib/inventoryFilters.ts`, so the persistence the register already counted belongs to the Inventory screen alone. | S–M | dashboard-ref #10 |
 | MOB-8 | Add stock-health trend and stocktake entry points | Seven/30-day counts turn a snapshot into a direction. | M | dashboard #8 |
 | MOB-9 | Add redacted crash/install telemetry and a support diagnostic | App version, device class, route and request reference would replace a screenshot conversation. | M | dashboard-ref #14 |
 | MOB-10 | Add a minimum supported app version gate | An old binary cannot be retired without a store review because nothing tells it to update. | S | IA-38 |
