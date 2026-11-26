@@ -6841,7 +6841,7 @@ unaffected by this removal; `scripts/audit-access.mjs` and `scripts/check-secret
 ## `CLAUDE.md` split
 
 `CLAUDE.md` is loaded into **every** agent session, and it carried ~87 KB of phase prose. That text was
-moved **verbatim** to [`docs/PHASE_HISTORY.md`](PHASE_HISTORY.md) — verified byte-identical against the
+moved **verbatim** to `docs/PHASE_HISTORY.md` — verified byte-identical against the
 previous revision — leaving **143 KB → 57 KB** (1,686 → 717 lines). The one-line-per-phase index stays
 in `CLAUDE.md`, because an agent needs to know what already exists before proposing work. A
 **proportional-records rule** replaced the blanket obligation: security, architecture, authorization,
@@ -24824,7 +24824,7 @@ budget has not been re-measured against this branch's research turns.
 **Evidence.** [AI-48 specifications](evidence/ai48-product-specifications-2026-11-04/README.md),
 [AI-49 market prices](evidence/ai49-market-price-research-2026-11-04/README.md), the
 [AI-54–AI-60 grounded-answer battery](evidence/ai54-60-grounded-answers-2026-11-05/README.md), and
-the [AI-61 tool audit](evidence/ai61-tool-audit-2026-11-05/README.md).
+the AI-61 tool audit.
 
 ---
 
@@ -24866,9 +24866,9 @@ AI-50. The work and tests are the merged content of PR #151, not a new run.
 | # | What changed | Pinned by |
 | --- | --- | --- |
 | AI-50 | The final tool round withholds tools and answers from the evidence already gathered; a repeated call carries `repeatNotice`; research turns get two extra rounds. A recorded price names its ISO currency, or says the currency was not recorded. | `AI50` |
-| AI-51 | The full tool audit decoded HTML entities in research titles, stopped mixing currencies in a brand range, reported the marketplaces actually checked, made `searchProducts` fall back to descriptions/specifications, keyed single-product research to that product, and ranked product-detail pages before listings. | `AI51`; [tool audit](evidence/ai51-tool-audit-2026-11-04/README.md) |
-| AI-52 | Keyless research falls back from DuckDuckGo to Bing, treats a 202/block page as unavailable rather than empty, filters unrelated results by the recorded name, anchors the retry with the recorded category, and accepts a labelled buy-box price. | `AI52`; [inventory assistant](evidence/ai52-inventory-assistant-2026-11-04/README.md) |
-| AI-53 | A refusal is read from visible text; a junk batch is a failed attempt; prices in structured metadata are read; instalments, loyalty points and cash-back are refused; a shop the member named is asked directly. | `AI53`; [brand research](evidence/ai53-brand-research-2026-11-04/README.md) |
+| AI-51 | The full tool audit decoded HTML entities in research titles, stopped mixing currencies in a brand range, reported the marketplaces actually checked, made `searchProducts` fall back to descriptions/specifications, keyed single-product research to that product, and ranked product-detail pages before listings. | `AI51`; tool audit |
+| AI-52 | Keyless research falls back from DuckDuckGo to Bing, treats a 202/block page as unavailable rather than empty, filters unrelated results by the recorded name, anchors the retry with the recorded category, and accepts a labelled buy-box price. | `AI52`; inventory assistant |
+| AI-53 | A refusal is read from visible text; a junk batch is a failed attempt; prices in structured metadata are read; instalments, loyalty points and cash-back are refused; a shop the member named is asked directly. | `AI53`; brand research |
 | AI-54 | Reasoning is disabled by default so hidden tokens cannot consume the answer budget; only an explicit `false` opts out. | `AI54` |
 
 **Grounding and completion.**
@@ -24884,7 +24884,7 @@ AI-50. The work and tests are the merged content of PR #151, not a new run.
 | AI-62 | The figure detector also catches counts, reorder thresholds, markdown table rows and worded absence; movement constants are humanised (`538 STOCK_OUT` becomes `538 Stock out`). | `AI60`; `AI26` |
 | AI-63 | A question about recorded stock, sales or movements with no tool read is re-asked even when the answer states no digit; app/how-to questions are excluded. | `AI60` |
 | AI-64 | A tool plan or `[awaiting tool response]` placeholder is detected and discarded for a re-ask, not accepted as the data answer. | `AI60` |
-| AI-65 | An empty history window also returns the newest matching movements outside it, first with the requested type then without it, so the answer can name what did happen. | `tools.ts`; [tool audit](evidence/ai61-tool-audit-2026-11-05/README.md) |
+| AI-65 | An empty history window also returns the newest matching movements outside it, first with the requested type then without it, so the answer can name what did happen. | `tools.ts`; tool audit |
 | AI-66 | A worded absence (`zero events`, `no units`) is a recorded-data claim; movement-out questions are routed to history. | `AI60` |
 | AI-67 | A `hasMore` page cannot support "no other location has it"; the turn re-reads the product's rows across locations. | `AI60` |
 | AI-68 | History totals begin with the scoped `$match`; `unitsSold` and `topOut` are computed over every matching movement, not the page, and the current question sets the scope. | `AI68` |
@@ -24908,7 +24908,7 @@ AI-50. The work and tests are the merged content of PR #151, not a new run.
 
 | # | What changed | Pinned by |
 | --- | --- | --- |
-| AI-74 | When a guard rewrites or discards streamed text, the server sends `reset`; the client clears the bubble and replays the stored answer before `done`. | `AI40`; [tool audit](evidence/ai61-tool-audit-2026-11-05/README.md) |
+| AI-74 | When a guard rewrites or discards streamed text, the server sends `reset`; the client clears the bubble and replays the stored answer before `done`. | `AI40`; tool audit |
 | AI-75 | A model failure notice is re-asked, then degraded; a reversed stock range is ordered ascending; brand/product nouns count as data claims. | `AI60` |
 | AI-76 | A brand-list answer is checked against every `listBrands` row; a pure list is rebuilt from those rows, so an omitted or invented brand cannot stand. | `AI60` |
 | AI-77 | An unrequested low-stock tail is removed from a stock-range answer, including its wrong count. | `AI60` |
@@ -24935,7 +24935,7 @@ recorded.
 
 **Evidence.** [PR #151](https://github.com/nreffejzxc/inventory-ai/pull/151), the
 [AI-54–AI-60 battery](evidence/ai54-60-grounded-answers-2026-11-05/README.md), the
-[AI-61 tool audit](evidence/ai61-tool-audit-2026-11-05/README.md), and the test files named above.
+AI-61 tool audit, and the test files named above.
 
 ---
 
@@ -24968,7 +24968,7 @@ No EAS build, OTA or Render deploy was made. The 20-question evidence still pred
 the next phone matrix must verify B4, T4, T6, B7 and T7 again.
 
 **Evidence.** [PR #193](https://github.com/nreffejzxc/inventory-ai/pull/193), the
-[2026-11-08 phone matrix](evidence/paid20-2026-11-08/README.md),
+2026-11-08 phone matrix,
 `AI91-product-identity-answer.test.mjs`, `AI92-product-stock-by-location.test.mjs`, and
 `git diff --check`.
 
@@ -25044,7 +25044,7 @@ change. The `AiOutputLimit` is a real, intermittent model reliability finding an
 allowance was already at zero. The evaluator runs only against a disposable development tenant;
 no production data or production server was involved. The one output-limit failure remains open.
 
-**Evidence.** [10k evidence README](evidence/simple-10k-2026-11-09/README.md),
+**Evidence.** 10k evidence README,
 `gate-2026-11-09T1519Z.json`, `gate-2026-11-09T1938Z.json`,
 `gate-2026-11-09T1948Z.json`, and `server/scripts/eval-simple-inventory-scale.mjs`.
 
@@ -25148,7 +25148,7 @@ truncation notice. After clearing only the app's local data through Android Sett
 back in through the existing Google account, the dashboard showed the newest
 **“What's new — More accurate totals and more grounded answers”** card; **Got it** removed it
 without layout clipping. Screenshots and the UI transcript are in
-[`evidence/task4-2026-11-11/README.md`](evidence/task4-2026-11-11/README.md).
+`evidence/task4-2026-11-11/README.md`.
 
 **Checks.** Server typecheck, lint, `check:extensions` and `check:specifiers` exit 0; the focused
 AI-105/AI-84/OPS-4 tests pass 12/12; mobile typecheck/lint pass and Jest is **102 suites / 1,208
@@ -25693,7 +25693,7 @@ OTA and the mirrored-OPPO pass followed: merged as **`396c3f7`**, production `/a
 **`06d16237-ee08-4c41-9419-b4760f54a918`** put the UI on the OPPO at `1.0.2`. On-device evidence:
 a 19-product freshness line and Inspect detail, an UP rating changed to DOWN with `Incorrect data`
 and a note, the OWNER queue showing the row and then `Reviewed` with `Open 0` / `Bad 1`. Evidence:
-[`ai115-ai116-2026-11-16`](evidence/ai115-ai116-2026-11-16/README.md).
+`ai115-ai116-2026-11-16`.
 
 **Limits.** Feedback is an opinion, not a correction to inventory. The review screen cannot reply
 to the member, and feedback does not train or automatically alter the model. Those would be new
@@ -25744,7 +25744,7 @@ the narrowing question from memory with `No data read`; `9f81e34` names the filt
 first provider call and counts a filtered read as inventory. Production serves that commit with
 `status: ok` / `db: connected`; the repeat on the same OPPO narrowed the fresh 19 products to **9**,
 and Inspect showed `Tools: Filtered previous results`, `Products: 9` and `Category: Keyboards and
-Mice`. Evidence: [`ai115-ai116-2026-11-16`](evidence/ai115-ai116-2026-11-16/README.md).
+Mice`. Evidence: `ai115-ai116-2026-11-16`.
 
 **Limits.** The handle is a flat id set, not a general cursor: it cannot page the old set, search
 inside it with free text, or carry a query across more than one prior answer. A turn with no
@@ -25795,7 +25795,7 @@ accounts were disabled afterwards. Follow-ups narrowed the fresh 19-product answ
 Shop Front and then **6** out of stock, with Inspect naming `Filtered previous results` and the
 location. The out-of-stock card also displayed “I could not read that from your records just now”
 beside the correct six zero-quantity rows; that contradiction is recorded as an open text finding,
-not a data leak. Evidence: [`ai117-2026-11-16`](evidence/ai117-2026-11-16/README.md).
+not a data leak. Evidence: `ai117-2026-11-16`.
 
 **Limits.** The preview is a bounded window, not the full conversation: six messages on each side
 is enough context for one report without turning the review surface into a transcript browser. It
@@ -26230,7 +26230,7 @@ without merging and its branch was deleted; no temporary code reached `main`.
 outer key is application-level protection, not network isolation. PR-09 (audit retention/database
 least privilege) and PR-15 (named security sign-off) remain open, and a second hardware security key
 is an operator step. The ranked long-term roadmap is
-[03 — Console improvements](./platform-console/03-console-improvements.md); it is recommendations only
+03 — Console improvements; it is recommendations only
 and was not implemented in this record. The two pre-existing AI-118 working-tree files remain
 uncommitted and were not part of PR #317.
 
@@ -26245,7 +26245,7 @@ this record.
 
 **Deliverables.**
 
-- [05 — Access layer](./platform-console/05-access-layer.md) compares the current
+- 05 — Access layer compares the current
   application gate, Cloudflare Access, Tailscale, Render inbound IP rules and a tunnel-only approach.
   It records the free/paid limits, the Render compatibility constraints, the direct-origin bypass and
   the recommended pilot. **Cloudflare Access is preferred for evaluation** because it provides named
@@ -26255,7 +26255,7 @@ this record.
   tailnet-only design requires a private Render service plus a subnet router, so it is not a fit for
   the current single public web service. Render web-service IP rules require Scale ($499/month plus
   compute), so they are not a low-cost option.
-- [06 — Security monitoring](./platform-console/06-security-monitoring.md) proposes alert IDs,
+- 06 — Security monitoring proposes alert IDs,
   starting thresholds, severity, channels, accountable roles, deduplication rules and response
   playbooks for authentication/recovery, WebAuthn, outer-gate/CSRF/authorization denials,
   administrator lifecycle, audit integrity, health/5xx, AI cost/model health, backup verification and
@@ -26263,7 +26263,7 @@ this record.
   refusals are, as `platform.access.denied` with a bounded reason), audit-write failure is a stderr log
   rather than a durable counter, administrator creation lacks an audit action, and there is no pager or
   24/7 rota.
-- [`INVENTORY_AI_IMPROVEMENT_ASSESSMENT.md`](INVENTORY_AI_IMPROVEMENT_ASSESSMENT.md) reviews the
+- `INVENTORY_AI_IMPROVEMENT_ASSESSMENT.md` reviews the
   product, console, security, AI monitoring/cost, reliability, support/developer operations and gaps
   beyond the existing CI/SEC/AI roadmaps. It ranks 18 recommendations; the top of the order is the
   access boundary, security alerting/ownership, audit retention/least privilege, a restore drill and
@@ -26303,19 +26303,19 @@ contractual requirement justifies them.
 
 **Deliverables.**
 
-- [`PLATFORM_CLOUDFLARE_ACCESS_IMPLEMENTATION_PLAN.md`](PLATFORM_CLOUDFLARE_ACCESS_IMPLEMENTATION_PLAN.md)
+- `PLATFORM_CLOUDFLARE_ACCESS_IMPLEMENTATION_PLAN.md`
   — conditional migration plan with a zero-spend gate, custom-domain prerequisite, origin JWT
   contract, WebAuthn re-enrollment, cutover order, rollback and 18 acceptance tests. It explicitly
   says to defer the migration if no controlled domain already exists and not to buy one now.
-- [`PLATFORM_SECURITY_ALERT_DECISION_SHEET.md`](PLATFORM_SECURITY_ALERT_DECISION_SHEET.md) — named
+- `PLATFORM_SECURITY_ALERT_DECISION_SHEET.md` — named
   primary/backup record, current single-owner/unassigned-backup reality, free first channels,
   instrumentation prerequisites, activation checklist and response/review cadence. No channel is live
   and no alert is implemented.
-- [`PLATFORM_DATABASE_RESTORE_DRILL_PLAN.md`](PLATFORM_DATABASE_RESTORE_DRILL_PLAN.md) — disposable
+- `PLATFORM_DATABASE_RESTORE_DRILL_PLAN.md` — disposable
   database only, free/local target, provisional RPO ≤24h and RTO ≤4h database / ≤8h full platform,
   hash/count/index verification, free secret escrow, evidence template and explicit stop conditions.
   It records that the backup is data-only and lacks index/collection-option metadata.
-- [`INVENTORY_AI_FOLLOWUP_ASSESSMENT.md`](INVENTORY_AI_FOLLOWUP_ASSESSMENT.md) — additive IA-19–IA-29
+- `INVENTORY_AI_FOLLOWUP_ASSESSMENT.md` — additive IA-19–IA-29
   opportunities with duplicate exclusions, free-first implementation notes and a ranked shortlist.
 
 **Documentation map.** `docs/README.md` indexes all four documents and their review cadence;
@@ -26347,17 +26347,17 @@ project and local/disposable database are the only drill resources; no paid plan
 
 **Deliverables.**
 
-- [`PLATFORM_SECURITY_CONTACTS.md`](PLATFORM_SECURITY_CONTACTS.md) — records `nreffejzxc` as the
+- `PLATFORM_SECURITY_CONTACTS.md` — records `nreffejzxc` as the
   primary security contact and leaves the backup **UNASSIGNED**. The activation gate requires a named
   backup, a tested contact path and written acknowledgement; until then security alerts are inactive.
   The primary email is the one already recorded in
   [`ACCOUNT_MIGRATION_RUNBOOK.md`](ACCOUNT_MIGRATION_RUNBOOK.md); no new mailbox is required.
-- [`PLATFORM_FIREBASE_RECOVERY_DRILL_PLAN.md`](PLATFORM_FIREBASE_RECOVERY_DRILL_PLAN.md) — isolated
+- `PLATFORM_FIREBASE_RECOVERY_DRILL_PLAN.md` — isolated
   free Firebase drill using a separate Spark project, local API and disposable test database. It covers
   transient vs terminal failure classes, credential/key/project/owner recovery, evidence collection,
   stop conditions, rollback/cleanup and 14 acceptance tests. No production Firebase or Render access
   is authorized.
-- [`INVENTORY_AI_MULTI_CRITERIA_RANKING.md`](INVENTORY_AI_MULTI_CRITERIA_RANKING.md) — seven-criterion,
+- `INVENTORY_AI_MULTI_CRITERIA_RANKING.md` — seven-criterion,
   equal-weight ranking (security, reliability, performance, UX, AI capabilities, operational
   efficiency, business value) of IA-19–IA-29 plus new IA-30–IA-33: support knowledge base, performance
   budgets, preventive data-quality guards and a feature-flag/kill-switch registry. The ranking is
@@ -26399,7 +26399,7 @@ commit, an issue or chat. **Security alerts remain inactive** because Cucumber h
 this record and no test notification has been shown to reach both contacts.
 
 **Firebase plan safety review.** Corrected four assumptions in
-[`PLATFORM_FIREBASE_RECOVERY_DRILL_PLAN.md`](PLATFORM_FIREBASE_RECOVERY_DRILL_PLAN.md):
+`PLATFORM_FIREBASE_RECOVERY_DRILL_PLAN.md`:
 
 - A deleted Google Cloud/Firebase project has a **30-day owner-restore window**, not immediate
   permanence; after that it is permanently deleted. Billing is not automatically reinstated, some
@@ -26415,7 +26415,7 @@ this record and no test notification has been shown to reach both contacts.
   environment; otherwise record transport failure as unproven. No host-wide change is authorized.
 
 **Second improvement set.** Added IA-34–IA-37 to
-[`INVENTORY_AI_MULTI_CRITERIA_RANKING.md`](INVENTORY_AI_MULTI_CRITERIA_RANKING.md): API contract-drift
+`INVENTORY_AI_MULTI_CRITERIA_RANKING.md`: API contract-drift
 gate, recovery/rotation freshness attestation, incident communication templates and query-plan/index
 regression watch. They are scored on the same seven criteria; IA-34 and IA-37 score 21/35, IA-35 and
 IA-36 score 20/35. No implementation is authorized.
@@ -26449,13 +26449,13 @@ in the owner's private record. It no longer claims the details were absent from 
 (`Cucumber`) and role are in the contact document; no email address or phone number is present.
 
 **Notification evidence added.**
-[`PLATFORM_SECURITY_NOTIFICATION_EVIDENCE.md`](PLATFORM_SECURITY_NOTIFICATION_EVIDENCE.md) records the
+`PLATFORM_SECURITY_NOTIFICATION_EVIDENCE.md` records the
 required channel type, delivery date/time, tester, primary confirmation, backup confirmation,
 acknowledgement and privacy check. Every delivery field is **PENDING**; the test has not been run, no
 delivery is claimed, and no alert may be activated from this record.
 
 **Ranking reconciled.**
-[`INVENTORY_AI_MULTI_CRITERIA_RANKING.md`](INVENTORY_AI_MULTI_CRITERIA_RANKING.md) now has one
+`INVENTORY_AI_MULTI_CRITERIA_RANKING.md` now has one
 23-row table with joint ranks. IA-31 and the other 21/35 entries share **rank 4**, not a separate
 sixth place. A script verified all 23 score sums and every joint-rank label; the next free rank after a
 tie group is used (1, 2, 4, 9, 14, 17, 19, 23).
@@ -26489,7 +26489,7 @@ performed. The final pull-request checks are recorded in
 **Documentation only.** No notification was sent, no security alert was activated, and no Firebase
 project, drill, database operation, deployment, domain or paid service was created.
 
-**Procedure added.** [`PLATFORM_SECURITY_NOTIFICATION_EVIDENCE.md`](PLATFORM_SECURITY_NOTIFICATION_EVIDENCE.md)
+**Procedure added.** `PLATFORM_SECURITY_NOTIFICATION_EVIDENCE.md`
 now starts with a ten-step owner-run procedure: use the private owner record; send a minimal test
 message to both contacts through existing owner-controlled channels; record channel type only; treat
 sent as different from delivered; collect both confirmations and Cucumber's written acknowledgement;
@@ -26539,7 +26539,7 @@ performed. The final pull-request checks are recorded in
 **Documentation only.** No notification was sent and no security alert was activated. No Firebase
 project, drill, database operation, deployment, domain or paid service was created.
 
-**Checklist added.** [`PLATFORM_SECURITY_NOTIFICATION_TEST_CHECKLIST.md`](PLATFORM_SECURITY_NOTIFICATION_TEST_CHECKLIST.md)
+**Checklist added.** `PLATFORM_SECURITY_NOTIFICATION_TEST_CHECKLIST.md`
 is a compact, one-page printable form for the owner. It records the test ID, UTC date, tester, channel
 type, separate primary and backup send/received timestamps, confirmation method, Cucumber's written
 acknowledgement, the evidence-redaction check and the final activation gate. It deliberately leaves
@@ -26578,7 +26578,7 @@ characters**. The checklist was tightened to ASCII separators so the PDF text ex
 rendered PDF is checked in beside the Markdown source.
 
 **Tenant security review.**
-[`PLATFORM_SECURITY_IMPROVEMENTS_BEYOND_IA45.md`](PLATFORM_SECURITY_IMPROVEMENTS_BEYOND_IA45.md)
+`PLATFORM_SECURITY_IMPROVEMENTS_BEYOND_IA45.md`
 adds six recommendations not covered by IA-01-IA-45 or SEC-01-SEC-12, scored 1-5 on impact,
 likelihood, blast radius, free feasibility, business value and time to value (maximum 30):
 
@@ -26612,7 +26612,7 @@ production check was performed for this documentation-only increment.
 **Documentation and local tooling only.** No notification was sent, no security alert was activated,
 and no production, DNS, database or paid-service change was made.
 
-**TS-01 plan.** [`PLATFORM_TENANT_SECURITY_NOTIFICATIONS_PLAN.md`](PLATFORM_TENANT_SECURITY_NOTIFICATIONS_PLAN.md)
+**TS-01 plan.** `PLATFORM_TENANT_SECURITY_NOTIFICATIONS_PLAN.md`
 documents the event matrix, server-derived recipient rules, privacy exclusions, dedupe/rate limits,
 Brevo delivery and failure behaviour, and acceptance checks. Two constraints are explicit: audit
 writes are not a trigger bus, and the existing client-supplied `deviceLabel` is not a trustworthy
@@ -26623,10 +26623,10 @@ renders it with pinned `marked@18.2.1` and Chrome at Letter size, extracts the P
 and **fails unless it is exactly one page with every required field and no replacement characters**.
 It only replaces the checked-in PDF after those checks pass and never edits the checklist. The
 free-tool procedure is in
-[`PLATFORM_SECURITY_NOTIFICATION_CHECKLIST_PRINTING.md`](PLATFORM_SECURITY_NOTIFICATION_CHECKLIST_PRINTING.md).
+`PLATFORM_SECURITY_NOTIFICATION_CHECKLIST_PRINTING.md`.
 The renderer was run successfully and regenerated the one-page PDF.
 
-**Next tranche.** [`PLATFORM_RELIABILITY_DOCS_IMPROVEMENTS.md`](PLATFORM_RELIABILITY_DOCS_IMPROVEMENTS.md)
+**Next tranche.** `PLATFORM_RELIABILITY_DOCS_IMPROVEMENTS.md`
 adds six recommendations beyond TS-06/IA-45, scored 1-5 on impact, likelihood, blast radius, free
 feasibility, business value and time to value (maximum 30): RD-01 dependency outage behaviour matrix
 (26), RD-03 security review gate (25), RD-02 notification outbox (24), RD-04 tenant fairness budgets
@@ -26656,9 +26656,9 @@ no production fault injection was performed, and no application, DNS, database o
 change was made.
 
 **Checklist restoration.** The `Regenerate:` line was removed from
-[`PLATFORM_SECURITY_NOTIFICATION_TEST_CHECKLIST.md`](PLATFORM_SECURITY_NOTIFICATION_TEST_CHECKLIST.md).
+`PLATFORM_SECURITY_NOTIFICATION_TEST_CHECKLIST.md`.
 The checklist is back to its intended content; printing instructions live only in
-[`PLATFORM_SECURITY_NOTIFICATION_CHECKLIST_PRINTING.md`](PLATFORM_SECURITY_NOTIFICATION_CHECKLIST_PRINTING.md).
+`PLATFORM_SECURITY_NOTIFICATION_CHECKLIST_PRINTING.md`.
 The generated PDF was rebuilt and verified as exactly one page, with no printing instruction in its text.
 
 **Path-safe renderer.** `scripts/render-notification-checklist.mjs` now passes the Windows `npx`
@@ -26668,13 +26668,13 @@ repository path **and** a `TEMP` directory both containing spaces regenerated a 
 existing one-page, required-field and replacement-character checks are unchanged, and the script still
 never edits the checklist.
 
-**RD-01 plan.** [`PLATFORM_DEPENDENCY_OUTAGE_PLAN.md`](PLATFORM_DEPENDENCY_OUTAGE_PLAN.md) covers
+**RD-01 plan.** `PLATFORM_DEPENDENCY_OUTAGE_PLAN.md` covers
 MongoDB Atlas, Firebase Admin/Auth, Brevo and the AI provider: user-visible states, stop conditions,
 recovery, cross-dependency ordering, the stable error-code contract and local drill scenarios D1-D9.
 It uses existing fake seams and a disposable local database; no production fault injection or live
 provider call is authorized.
 
-**Next tranche.** [`PLATFORM_NEXT_IMPROVEMENTS_BEYOND_RD06.md`](PLATFORM_NEXT_IMPROVEMENTS_BEYOND_RD06.md)
+**Next tranche.** `PLATFORM_NEXT_IMPROVEMENTS_BEYOND_RD06.md`
 ranks seven new recommendations beyond RD-06: NX-01 sensitive-data/log-redaction canary (27/30),
 NX-02 remaining-write idempotency (26), NX-03 cross-tenant non-AI route matrix (25), NX-04
 feature-flag/emergency-switch registry (24), NX-05 incident tabletop/postmortem (23), NX-06
@@ -26716,7 +26716,7 @@ first for authenticated requests, while the public Firebase exchange verifies Fi
 the local session. The matrix now has a §10 fact-check table with those sources. No fault was
 injected, no mail or provider call was made and no production change was touched.
 
-**NX-01 design.** [`PLATFORM_SENSITIVE_DATA_PROTECTION_DESIGN.md`](PLATFORM_SENSITIVE_DATA_PROTECTION_DESIGN.md)
+**NX-01 design.** `PLATFORM_SENSITIVE_DATA_PROTECTION_DESIGN.md`
 adds the missing whole-product sensitive-data design: S1-S4 classification, the approved-appearance
 rule, persistence and sink maps, the redaction boundary, a C1-C14 redaction canary and acceptance
 checks. The code review found nine concrete gaps rather than generic advice:
@@ -26742,7 +26742,7 @@ checks. The code review found nine concrete gaps rather than generic advice:
 The design does not change code. It names the future implementation sequence, the allowed and
 prohibited sinks, the negative control, the residual risks and the acceptance checks.
 
-**NY tranche.** [`PLATFORM_NEXT_IMPROVEMENTS_BEYOND_NX07.md`](PLATFORM_NEXT_IMPROVEMENTS_BEYOND_NX07.md)
+**NY tranche.** `PLATFORM_NEXT_IMPROVEMENTS_BEYOND_NX07.md`
 adds six new recommendations beyond NX-07, with a duplicate-exclusion table covering IA, TS, SEC, RD
 and NX:
 
@@ -26784,7 +26784,7 @@ regenerated and remains **99,872 bytes / exactly 1 page**.
 fault injection, rollback drill, database operation, deployment, DNS change, domain or paid service
 was created or performed.
 
-**New tranche.** [`PLATFORM_NEXT_IMPROVEMENTS_BEYOND_NY07.md`](PLATFORM_NEXT_IMPROVEMENTS_BEYOND_NY07.md)
+**New tranche.** `PLATFORM_NEXT_IMPROVEMENTS_BEYOND_NY07.md`
 ranks seven recommendations beyond NY-07 with the same six-criterion, 30-point method used by the
 NX and NY tranches:
 
@@ -26945,7 +26945,7 @@ No deployment, account creation or production write was performed.
 deployment or paid service is authorized. This record adds seven controls that are not
 already owned by SEC-01–12, CI-01–15, TS-01–06, NX-01–07, NY-01–07 or NZ-01–07. The
 full reasoning is
-[08 — Security roadmap](./platform-console/08-security-roadmap.md).
+08 — Security roadmap.
 
 **PR #336 CI status.** The PR head `6f61e11` is **CLEAN** and mergeable. All five required
 checks pass: `server`, `mobile`, `secret-guard`, `attribution-guard` and `webauthn-e2e`.
@@ -27082,7 +27082,7 @@ input. Address verification and `PENDING` activation remain the next NS-02 step.
 operator/source/target/grant fields, the absence of password material, and no second
 event on a duplicate creation. `tsc --noEmit`, ESLint and `git diff --check` pass.
 `check-docs` reports **64 active documents / 42 living references**; focused docs suites
-pass **31/31**. The new ranking is [09 — Remaining security priorities](./platform-console/09-remaining-security-priorities.md).
+pass **31/31**. The new ranking is 09 — Remaining security priorities.
 No deployment or production account was created.
 
 ---
@@ -27610,7 +27610,7 @@ a current guarantee, and the last full authenticated proof remains `e218bb0`/`74
 
 # 27KB. Five implementation plans — FW-04 correction, FW-07, FW-05, reversal and supplier terms (2026-11-19)
 
-**Scope.** Documentation only. Added [`docs/FW_IMPLEMENTATION_PLANS_2026-11-19.md`](FW_IMPLEMENTATION_PLANS_2026-11-19.md),
+**Scope.** Documentation only. Added `docs/FW_IMPLEMENTATION_PLANS_2026-11-19.md`,
 a code-accuracy review and five implementation plans. No source, schema, test, environment, account,
 database or deployment change was made. No email, PDF, migration or production operation was run.
 
@@ -27677,7 +27677,7 @@ this record and the new plan document as the corrected source.
 **Scope.** Code, tests and documentation. Fixed the four audit findings selected for this pass and
 recorded the whole-audit review, the transfer/receiving crash-recovery assessment and ten ranked
 next improvements in
-[`docs/INVENTORY_INTEGRITY_AUDIT_REVIEW_2026-11-19.md`](INVENTORY_INTEGRITY_AUDIT_REVIEW_2026-11-19.md).
+`docs/INVENTORY_INTEGRITY_AUDIT_REVIEW_2026-11-19.md`.
 No production data, deployment, account, permission, environment or configuration was changed.
 
 **AI catalogue reads.** `findProducts` now accepts `sort: "price_asc" | "price_desc"` and applies it
@@ -27723,7 +27723,7 @@ residual (rank 3). No deployment was attempted.
 # 27KD. FW-07 — mobile request reference, and follow-ups beyond the five plans (2026-11-19)
 
 **Scope.** Mobile-only code, tests and documentation. Implemented FW-07 exactly as approved in
-[`docs/FW_IMPLEMENTATION_PLANS_2026-11-19.md`](FW_IMPLEMENTATION_PLANS_2026-11-19.md): a failed
+`docs/FW_IMPLEMENTATION_PLANS_2026-11-19.md`: a failed
 request now carries the server's safe `X-Request-ID` into the shared error state as a copyable
 support reference. No server code, server configuration, schema, production data, account or
 deployment was changed. The other four FW plans remain planning-only.
@@ -28750,7 +28750,7 @@ push to `main` and on manual dispatch; it never deploys or rolls back. Against p
 `200`, liveness `200`, database `connected`. An all-zero mismatch control failed in **1,083 ms** with
 `sha_mismatch`, naming the observed commit, after six attempts.
 
-**Ranking.** [`INVENTORY_AI_FOLLOWUP_ASSESSMENT.md`](INVENTORY_AI_FOLLOWUP_ASSESSMENT.md) §3 now
+**Ranking.** `INVENTORY_AI_FOLLOWUP_ASSESSMENT.md` §3 now
 contains a 2026-11-20 top-ten refresh. The new candidates are answer provenance/scope (`PD-01`),
 pre-answer data-quality gating (`PD-02`), making deployment verification a required release gate
 (`PD-03`) and unit-of-measure/pack metadata (`PD-04`). They join the existing coverage finalizer,
@@ -28946,7 +28946,7 @@ printed one version group and one security group for `/server`, `/mobile` and `g
 none for `docker-compose`; the live alert API returned 0 open alerts. GitHub's own configuration
 validation runs from the default branch, so it is not observable from the pull request.
 
-**Future roadmap.** Added [`PLATFORM_NEXT_IMPROVEMENTS_BEYOND_DEV09.md`](PLATFORM_NEXT_IMPROVEMENTS_BEYOND_DEV09.md)
+**Future roadmap.** Added `PLATFORM_NEXT_IMPROVEMENTS_BEYOND_DEV09.md`
 and linked it from the documentation map, the review cadence and Guide 6. It records the 200-run
 workflow review, seven new ranked items (FW-01–FW-07) and seven carry-forward items that earlier
 records already own. It is recommendations only: no product feature, schema, route, dependency or
@@ -29027,7 +29027,7 @@ Counts are opt-in and add one scoped aggregate when requested; the page and coun
 reads, so a concurrent stock write can momentarily make them differ. Saved filters are best-effort
 SecureStore state (in-memory fallback for the current launch); a location that is missing from a
 successfully loaded active list falls back to All locations. Remaining ranked improvements are in
-[`INVENTORY_DASHBOARD_FOLLOWUPS_2026-11-22.md`](INVENTORY_DASHBOARD_FOLLOWUPS_2026-11-22.md).
+`INVENTORY_DASHBOARD_FOLLOWUPS_2026-11-22.md`.
 
 ---
 
@@ -29054,7 +29054,7 @@ and ambiguous outcomes keep it for the same-key Resume path; a definite 4xx ends
 clears it. Clearing takes an expected key, so a late completion cannot delete a newer attempt. The
 module is `mobile/lib/productImportDraft.ts`.
 
-**Follow-up ranking.** [`PR364_FOLLOWUP_IMPROVEMENTS_2026-11-22.md`](PR364_FOLLOWUP_IMPROVEMENTS_2026-11-22.md)
+**Follow-up ranking.** `PR364_FOLLOWUP_IMPROVEMENTS_2026-11-22.md`
 ranks eleven next steps. The top three are a shared durable-resume contract for long writes (the Draft
 PO path is still screen-session scoped), a complete import-draft lifecycle (Discard, expiry, orphan
 cleanup and account-deletion purge), and a repairable import error workflow (error CSV, row jump and
@@ -29202,7 +29202,7 @@ the durable result and returns `200 replayed`, so one call writes **one** audit 
 **13/13 database tests with one parser mode-skip**. The same test would fail if the conditional
 transition were removed.
 
-**Review.** [`PROJECT_FOLLOWUP_REVIEW_2026-11-22.md`](PROJECT_FOLLOWUP_REVIEW_2026-11-22.md) ranks
+**Review.** `PROJECT_FOLLOWUP_REVIEW_2026-11-22.md` ranks
 twelve follow-ups by irreversible-risk value: restore proof, security alert delivery, audit
 exactly-once/failure durability, durable Draft PO resume, import execution bounds, import operator
 recovery, global AI spend control, AI accuracy, release readiness, receipt retention/cross-device
@@ -29241,7 +29241,7 @@ passed. The new Inventory regressions cover a saved location on page 2 of **101*
 a failed page-2 read; the Dashboard regression fails the preview and verifies the summary-backed
 route. No full suite was rerun.
 
-**Review.** [`PROJECT_FOLLOWUP_REVIEW_2026-11-22.md`](PROJECT_FOLLOWUP_REVIEW_2026-11-22.md) has been
+**Review.** `PROJECT_FOLLOWUP_REVIEW_2026-11-22.md` has been
 revised to **fifteen** ranked items. It adds complete reference pagination in every picker, reference
 lifecycle repair, and a Dashboard partial-data/freshness contract to the prior restore, alerting,
 audit, Draft PO, import, AI, release and data-lifecycle work. This supersedes §27KW's twelve-item
@@ -29354,7 +29354,7 @@ matched the manifest; on-hand inventory summed to **11** and the ledger to **{in
 net 11}**; Decimal128 and Date survived. The observed last-write-to-backup-finish gap was **4.931 s
 RPO**. Source and backup contain no tenant data. This proves the command path and document fidelity,
 not production capacity, indexes/collection options, API readiness or secret recovery. The full
-record and caveats are in [`PLATFORM_DATABASE_RESTORE_DRILL_PLAN.md`](PLATFORM_DATABASE_RESTORE_DRILL_PLAN.md)
+record and caveats are in `PLATFORM_DATABASE_RESTORE_DRILL_PLAN.md`
 §14.
 
 **Verification.** Server `npm run typecheck` and focused ESLint pass. `TEST_MODE=db node --test
@@ -29477,7 +29477,7 @@ DRAFT, `PO-0001` (3 × Gadget, 5 × Widget, no duplicate line or order). Request
 screenshot evidence: [`evidence/draft-po-force-stop-2026-11-23`](evidence/draft-po-force-stop-2026-11-23/README.md).
 
 **Follow-up review.** The 2026-11-23 ranking revision in
-[`PROJECT_FOLLOWUP_REVIEW_2026-11-22.md`](PROJECT_FOLLOWUP_REVIEW_2026-11-22.md) records the new
+`PROJECT_FOLLOWUP_REVIEW_2026-11-22.md` records the new
 fence and proof. Item 7 remains the next step: automate this crash/restart proof in a release-candidate
 flow, because the emulator run was manual.
 
@@ -29583,7 +29583,7 @@ from the complete list. The old name-resolution effect and its once-only ref wer
 render-derived effective id; choosing or clearing a location is explicit, so clearing cannot be
 undone by the route name. The History call sites were added to the source guard.
 
-**Follow-up ranking.** [`DASHBOARD_REFERENCE_HISTORY_FOLLOWUPS_2026-11-23.md`](DASHBOARD_REFERENCE_HISTORY_FOLLOWUPS_2026-11-23.md)
+**Follow-up ranking.** `DASHBOARD_REFERENCE_HISTORY_FOLLOWUPS_2026-11-23.md`
 contains the review and a sixteen-item ranked list. The top three remain restore proof on the real
 database tier, alert delivery to a named owner/backup, and a schema/index rollout and readiness gate.
 New entries cover the incomplete/archived History filter lifecycle, per-account History filter
@@ -29724,7 +29724,7 @@ retried indefinitely with capped backoff, retained as the only durable evidence 
 and triaged by age rather than deleted. The policy and its operator steps are in
 [`AUDIT_DEDUPLICATION_DESIGN_2026-11-23.md`](AUDIT_DEDUPLICATION_DESIGN_2026-11-23.md) §5.2.
 
-**Follow-up ranking.** [`AUDIT_DURABILITY_FOLLOWUPS_2026-11-23.md`](AUDIT_DURABILITY_FOLLOWUPS_2026-11-23.md)
+**Follow-up ranking.** `AUDIT_DURABILITY_FOLLOWUPS_2026-11-23.md`
 ranks eighteen improvements. The top three are a production index/TTL rollout gate, outbox and
 repair-lag alerting, and a real crash-injection proof at each producer boundary; the next are a
 schema-derived tenant-teardown coverage guard and automated `FAILED` escalation. None is implemented.

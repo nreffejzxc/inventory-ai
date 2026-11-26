@@ -1,119 +1,85 @@
 # The `docs/` folder
 
-Four kinds of writing live here. Knowing which is which saves time:
+This is the whole documentation set, and it is deliberately small. Five kinds of writing live here:
 
 - **Guides** — written to be *followed*. They say what to type and what you should see.
 - **Reference** — written to be *consulted*. They state what the system is and must stay true.
-- **Records** — written *once*, dated, with evidence. They say what happened. They are long on
-  purpose, and **you never need to read them to use or change the project.**
-- **Status** — written to be *current*. It says what is being worked on, what is half-done, and
-  what comes next. It is the one document here that is edited every session.
+- **Open work** — one register of what is not built yet. Not a queue, not an authority.
+- **Records** — written *once*, dated, with evidence. They say what happened. **You never need to read
+  them to use or change the project.**
+- **Status** — written to be *current*: what was finished, what is blocked, what comes next.
 
-**Style:** keep documents short and task-first. State the purpose, the commands, the result and the
-limits; link to a roadmap record instead of repeating its history. This applies to new and edited
-documents.
+**Style:** short and task-first. State the purpose, the commands, the result and the limits; link to a
+roadmap record instead of repeating its history.
 
 ---
 
 ## 1. Start here — the plain-English guides
 
-[`guides/`](guides/README.md) is a small self-contained set for readers with limited technical
-background; terms are explained where they appear, and nothing there contradicts the reference
-documents.
+[`guides/`](guides/README.md) is a self-contained set for readers with limited technical background.
+Terms are explained where they appear, and nothing there contradicts the reference documents.
 
 | Guide | For |
 | --- | --- |
 | [guides/README.md](guides/README.md) | Which guide do I need? |
 | [1-run-on-your-laptop.md](guides/1-run-on-your-laptop.md) | Starting the backend and the app, and proving they work |
 | [2-run-on-your-phone.md](guides/2-run-on-your-phone.md) | Getting the app onto a real Android phone and mirroring it over USB |
-| [4-test-accounts-and-mock-data.md](guides/4-test-accounts-and-mock-data.md) | Which accounts exist, what data each one holds, and what the sample data contains |
+| [4-test-accounts-and-mock-data.md](guides/4-test-accounts-and-mock-data.md) | Which accounts exist, what data each holds, what the sample data contains |
 | [5-words-explained.md](guides/5-words-explained.md) | Glossary, A–Z |
 | [6-scripts-and-commands.md](guides/6-scripts-and-commands.md) | Every command that is not about data: start, check, measure, maintain |
 | [7-over-the-air-updates.md](guides/7-over-the-air-updates.md) | Publishing an update without a rebuild, and rolling one back |
 | [8-play-store-submission.md](guides/8-play-store-submission.md) | Building and submitting the Android release |
-| [9-seeding-development.md](guides/9-seeding-development.md) | Putting data into the development database: the commands, the database rule, the two phrases, verification |
+| [9-seeding-development.md](guides/9-seeding-development.md) | Putting data into the development database: commands, the database rule, the two phrases, verification |
 | [10-seeding-production.md](guides/10-seeding-production.md) | Putting data into the production database: the three phrases, the named tenants, what is refused |
-| [11-deleting-development.md](guides/11-deleting-development.md) | Taking data out of the development database: wipes and tenant cleanups, what is verified |
+| [11-deleting-development.md](guides/11-deleting-development.md) | Taking data out of the development database: wipes and tenant cleanups |
 | [12-deleting-production.md](guides/12-deleting-production.md) | Taking data out of the production database: the same rules, and the space a delete does not free |
 | [13-firebase-identities.md](guides/13-firebase-identities.md) | Which commands create logins, and how to delete one without locking an account out |
 | [15-wireless-phone-session.md](guides/15-wireless-phone-session.md) | Starting the app and mirroring it over Wi-Fi, including the one-command helper |
 | [16-openrouter-models.md](guides/16-openrouter-models.md) | Choosing a free or paid OpenRouter model, setting its reasoning, and proving it works |
-| [17-web-search-and-fetch.md](guides/17-web-search-and-fetch.md) | Enabling or disabling OpenRouter web search and web fetch independently, and proving the setting |
+| [17-web-search-and-fetch.md](guides/17-web-search-and-fetch.md) | Enabling or disabling OpenRouter web search and web fetch independently |
 | [18-ai-assistant-limits.md](guides/18-ai-assistant-limits.md) | Every AI limit, timeout, safeguard, and the verified production values |
 | [19-ai-assistant-error-codes.md](guides/19-ai-assistant-error-codes.md) | Every AI error code and the exact Android sentence shown for it |
 | [20-local-mongodb-with-docker.md](guides/20-local-mongodb-with-docker.md) | Optional local MongoDB 7 container for database tests and the browser E2E |
 
-The numbered filenames are stable links. Guides 3 and 14 were consolidated into Guide 2, Guides 9–13 and
-Guide 6; no rule, command or safety procedure was removed.
+The numbered filenames are stable links. Guides 3 and 14 were consolidated into Guide 2; Guides 9–13
+and Guide 6 own the data commands.
 
 ## 2. What the system is — reference
 
 | Document | Answers |
 | --- | --- |
-| [`../CLAUDE.md`](../CLAUDE.md) | The project's working contract: architecture rules, security rules, phase index |
+| [`../CLAUDE.md`](../CLAUDE.md) | The working contract: architecture rules, security rules, owner authorization, delivery workflow |
 | [`SYSTEM_SPECIFICATION.md`](SYSTEM_SPECIFICATION.md) | **The primary source of truth** for behaviour — data, rules, roles, APIs |
 | [`AUTHENTICATION_AND_USER_VERIFICATION_TARGET_ARCHITECTURE.md`](AUTHENTICATION_AND_USER_VERIFICATION_TARGET_ARCHITECTURE.md) | How identity, sessions, verification and recovery are meant to work |
-| [`AUTH_SECURITY_MASTER_CHECKLIST.md`](AUTH_SECURITY_MASTER_CHECKLIST.md) | The security invariants, control status, open decisions and gates |
+| [`AUTH_SECURITY_MASTER_CHECKLIST.md`](AUTH_SECURITY_MASTER_CHECKLIST.md) | The security invariants (the one invariant register), control status, open decisions and gates |
 | [`SECURITY_DEPENDENCY_DECISIONS.md`](SECURITY_DEPENDENCY_DECISIONS.md) | Advisories accepted rather than patched, and when that ends |
 | [`SOURCE_PROTECTION.md`](SOURCE_PROTECTION.md) | What protects the source, what does not, and the public-window caveat |
 | [`ACCOUNT_MIGRATION_RUNBOOK.md`](ACCOUNT_MIGRATION_RUNBOOK.md) | The current owner and repository, the paused migration decision, provider anchors, read-only checks and approval gates |
 | [`FIREBASE_CREDENTIAL_RUNBOOK.md`](FIREBASE_CREDENTIAL_RUNBOOK.md) | The Firebase Admin credential: where it comes from, how it is stored, verified and rotated |
 | [`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md) | The mobile visual language: tokens, type, primitives, accessibility rules |
 | [`DEVELOPING_ON_A_PHYSICAL_DEVICE.md`](DEVELOPING_ON_A_PHYSICAL_DEVICE.md) | The deep phone reference: verified commands, log reading, failure → fix |
-| [`INVENTORY_INTEGRITY.md`](INVENTORY_INTEGRITY.md) | The read-only orphan STOCK_IN / unreceipted-PO audit, its scheduled baseline/history monitor, its exit codes and what to do with a finding |
-| [`INVENTORY_INTEGRITY_AUDIT_REVIEW_2026-11-19.md`](INVENTORY_INTEGRITY_AUDIT_REVIEW_2026-11-19.md) | The audit follow-up record: the four integrity/catalog fixes, the transfer and receiving crash-recovery assessment, and ten ranked next improvements |
-| [`INTEGRITY_RECOVERY.md`](INTEGRITY_RECOVERY.md) | Durable transfer journals and recovery, unique ledger guard and migration, cross-instance recovery lease, PO receive keys/fingerprints, stale-claim repair, category archive policy, audit-gap monitoring, replayable-audit deduplication, price-quality and product-currency commands, scheduled operational runner, limits and remaining risks |
-| [`AUDIT_DEDUPLICATION_DESIGN_2026-11-23.md`](AUDIT_DEDUPLICATION_DESIGN_2026-11-23.md) | The replayable-audit inventory (import, movements, transfers, PO receive, product/reference mutations, recovery jobs), the shared `recordAuditOnce`/unique-key design, key rules, adoption order, the three wired durable outboxes and the DELIVERED/FAILED retention policy |
-| [`AUDIT_DURABILITY_FOLLOWUPS_2026-11-23.md`](AUDIT_DURABILITY_FOLLOWUPS_2026-11-23.md) | Eighteen ranked follow-ups after the PO/movement outbox and outbox-retention work: production index/TTL rollout, alerting, real process-kill proof, teardown coverage, FAILED escalation and related ideas; recommendations only |
-| [`PRODUCT_CURRENCY.md`](PRODUCT_CURRENCY.md) | The ISO 4217 contract, read-only legacy audit, human-approved evidence file, idempotent bulk resolution, dated ECB rate cache, maximum-age refusal and conversion monitoring |
-| [`MONITORING.md`](MONITORING.md) | The operator's health endpoints, response pulse, AI turn records, alert rules and incident procedure |
-| [`INVENTORY_AI_IMPROVEMENT_ASSESSMENT.md`](INVENTORY_AI_IMPROVEMENT_ASSESSMENT.md) | The whole-product ranked improvement assessment: current strengths, risk register, next-work order and the new gaps beyond the existing roadmaps |
-| [`AI_ASSISTANT_AUDIT_2026-11-20.md`](AI_ASSISTANT_AUDIT_2026-11-20.md) | The assistant audit record: every read-only tool, the feature matrix, the defects fixed, the bounded run-out feature with its corrective re-ask and no-tool/second-miss regressions, the six-paraphrase live selection result, the exact-name/finalizer follow-up and selected-versus-used metrics, remaining boundaries and manual checks |
-| [`PLATFORM_CLOUDFLARE_ACCESS_IMPLEMENTATION_PLAN.md`](PLATFORM_CLOUDFLARE_ACCESS_IMPLEMENTATION_PLAN.md) | The conditional Cloudflare Access migration plan: domain, origin JWT, WebAuthn migration, cutover, rollback and acceptance tests; free-tier/domain gate only, planning only |
-| [`PLATFORM_SECURITY_CONTACTS.md`](PLATFORM_SECURITY_CONTACTS.md) | The primary/backup security contact record: the owner as primary, Cucumber as named backup with private contact details, the pending test gate and review cadence; planning only |
-| [`PLATFORM_SECURITY_NOTIFICATION_EVIDENCE.md`](PLATFORM_SECURITY_NOTIFICATION_EVIDENCE.md) | The owner-run two-contact test procedure and pending evidence record: existing free channels, channel types, timestamps, tester, both delivery confirmations and acknowledgement, with no private contact details or secrets |
-| [`PLATFORM_SECURITY_NOTIFICATION_TEST_CHECKLIST.md`](PLATFORM_SECURITY_NOTIFICATION_TEST_CHECKLIST.md) | The one-page printable owner checklist for the two-contact test: both receipt timestamps, Cucumber’s written acknowledgement, evidence redaction and the final activation gate, with a verified one-page PDF |
-| [`PLATFORM_SECURITY_ALERT_DECISION_SHEET.md`](PLATFORM_SECURITY_ALERT_DECISION_SHEET.md) | Alert ownership, primary/backup record, free notification channels, instrumentation prerequisites and activation gates; planning only |
-| [`PLATFORM_FIREBASE_RECOVERY_DRILL_PLAN.md`](PLATFORM_FIREBASE_RECOVERY_DRILL_PLAN.md) | Isolated free Firebase outage/recovery drill: transient-vs-terminal behaviour, recovery paths, evidence, stop conditions and acceptance tests; planning only |
-| [`PLATFORM_DATABASE_RESTORE_DRILL_PLAN.md`](PLATFORM_DATABASE_RESTORE_DRILL_PLAN.md) | The disposable-database restore drill: RPO/RTO, safety stops, index gap, evidence and free-only secret escrow; a synthetic 16-document drill is recorded in §14, while production-sized and index/readiness checks remain planning only |
-| [`INVENTORY_AI_FOLLOWUP_ASSESSMENT.md`](INVENTORY_AI_FOLLOWUP_ASSESSMENT.md) | Free-first additive opportunities beyond IA-01–IA-18, the 2026-11-20 post-deployment refresh, duplicate exclusions and a ranked shortlist |
-| [`INVENTORY_AI_MULTI_CRITERIA_RANKING.md`](INVENTORY_AI_MULTI_CRITERIA_RANKING.md) | One 27-row, seven-criteria ranking of IA-19–IA-45 with joint ranks, equal-weight scores, rationale and a post-approval sequence; planning only |
-| [`PLATFORM_SECURITY_IMPROVEMENTS_BEYOND_IA45.md`](PLATFORM_SECURITY_IMPROVEMENTS_BEYOND_IA45.md) | Tenant-facing security review beyond IA-45: six ranked recommendations covering security notifications, access recertification, AI isolation canary, posture scorecard, tenant MFA and mail-domain anti-spoofing; recommendations only |
-| [`PLATFORM_TENANT_SECURITY_NOTIFICATIONS_PLAN.md`](PLATFORM_TENANT_SECURITY_NOTIFICATIONS_PLAN.md) | TS-01 planning only: explicit event triggers, server-resolved recipients, privacy rules, dedupe/rate limits, Brevo delivery/failure behaviour and acceptance checks |
-| [`PLATFORM_SECURITY_NOTIFICATION_CHECKLIST_PRINTING.md`](PLATFORM_SECURITY_NOTIFICATION_CHECKLIST_PRINTING.md) | Free-tool procedure for regenerating the printable checklist PDF with automatic one-page and required-field verification |
-| [`PLATFORM_RELIABILITY_DOCS_IMPROVEMENTS.md`](PLATFORM_RELIABILITY_DOCS_IMPROVEMENTS.md) | Next ranked tranche beyond TS-06/IA-45: dependency outage matrix, security review gate, notification outbox, tenant fairness budgets, config drift and command verification; recommendations only |
-| [`PLATFORM_DEPENDENCY_OUTAGE_PLAN.md`](PLATFORM_DEPENDENCY_OUTAGE_PLAN.md) | RD-01 planning only: MongoDB/Firebase/Brevo/AI outage behaviour, user-visible states, stop conditions, recovery and a free local drill with acceptance checks; code fact-checked 2026-11-17 |
-| [`PLATFORM_NEXT_IMPROVEMENTS_BEYOND_RD06.md`](PLATFORM_NEXT_IMPROVEMENTS_BEYOND_RD06.md) | Next ranked tranche beyond RD-06: sensitive-data/log canary, remaining-write idempotency, cross-tenant route matrix, emergency switches, incident tabletop, dependency rollback and header drift; recommendations only |
-| [`PLATFORM_SENSITIVE_DATA_PROTECTION_DESIGN.md`](PLATFORM_SENSITIVE_DATA_PROTECTION_DESIGN.md) | NX-01 design only: sensitive-field map, approved log appearances, the G1–G9 code findings, redaction boundary, C1–C14 canary and acceptance checks |
-| [`PLATFORM_NEXT_IMPROVEMENTS_BEYOND_NX07.md`](PLATFORM_NEXT_IMPROVEMENTS_BEYOND_NX07.md) | Next ranked tranche beyond NX-07: AI provider data-handling attestation, release-artifact secret/PII scan, runbook freshness, TTL effectiveness, audit tamper-evidence and external-link freshness; recommendations only |
-| [`PLATFORM_NEXT_IMPROVEMENTS_BEYOND_NY07.md`](PLATFORM_NEXT_IMPROVEMENTS_BEYOND_NY07.md) | Next ranked tranche beyond NY-07: CodeQL, dependency review, deploy rollback, workflow audit, Android manifest privacy, privacy-policy drift and App Check; recommendations only |
-| [`PLATFORM_NEXT_IMPROVEMENTS_BEYOND_DEV09.md`](PLATFORM_NEXT_IMPROVEMENTS_BEYOND_DEV09.md) | Future improvements beyond DEV-09: six open ranked capabilities (bulk import, tenant query guard, stocktake, PO transmission, query deadline, digest pin), the already-shipped FW-07 request reference, and the still-open carry-forward items; recommendations only |
-| [`FW_IMPLEMENTATION_PLANS_2026-11-19.md`](FW_IMPLEMENTATION_PLANS_2026-11-19.md) | Code-accurate plans for FW-04 (corrected PO transmission), FW-07 (mobile request reference), FW-05 (non-AI database deadline), linked stock-movement reversal and supplier replenishment terms; planning only |
-| [`FW_01_BULK_IMPORT_IMPLEMENTATION.md`](FW_01_BULK_IMPORT_IMPLEMENTATION.md) | The implemented CSV catalogue import: API, bounds, durable receipt-first resume, Discard/expiry/orphan cleanup, opening stock, status route, audit and device verification; the draft-PO section remains local-only |
-| [`INVENTORY_DASHBOARD_FOLLOWUPS_2026-11-22.md`](INVENTORY_DASHBOARD_FOLLOWUPS_2026-11-22.md) | The `c697943` review, canonical row statuses, four server counts, the Dashboard row-level action, per-user filter restoration and the remaining ranked Inventory/Dashboard improvements |
-| [`PR364_FOLLOWUP_IMPROVEMENTS_2026-11-22.md`](PR364_FOLLOWUP_IMPROVEMENTS_2026-11-22.md) | Eleven ranked improvements after PR #364; ranks 1 (durable Draft PO resume), 2 (import-draft lifecycle) and 10 (native restart proof) are now implemented locally, while repair UX, background progress, retention, throughput, cross-device visibility, filter policy and the Draft PO row cap remain open |
-| [`PROJECT_FOLLOWUP_REVIEW_2026-11-22.md`](PROJECT_FOLLOWUP_REVIEW_2026-11-22.md) | Revised whole-project follow-up review after the location-completeness and Dashboard-fallback fixes: fifteen ranked items, adding complete reference pagination, reference lifecycle repair and a Dashboard freshness contract alongside restore/alerting/audit/import/AI/release gaps; recommendations only |
-| [`DASHBOARD_REFERENCE_HISTORY_FOLLOWUPS_2026-11-23.md`](DASHBOARD_REFERENCE_HISTORY_FOLLOWUPS_2026-11-23.md) | The §27LD review: independent Dashboard section retries, one displayed summary timestamp, complete History product/location filters and the page-two saved-filter regression; sixteen ranked follow-ups (restore, alerts, index gates, History lifecycle, persistence, freshness and more), none implemented |
+| [`INVENTORY_INTEGRITY.md`](INVENTORY_INTEGRITY.md) | The read-only orphan STOCK_IN / unreceipted-PO audit, its scheduled monitor, exit codes and what to do with a finding |
+| [`INTEGRITY_RECOVERY.md`](INTEGRITY_RECOVERY.md) | Durable transfer journals and recovery, the unique ledger guard, the recovery lease, PO receive keys, audit-gap monitoring, replay deduplication, the operational runner and remaining risks |
+| [`AUDIT_DEDUPLICATION_DESIGN_2026-11-23.md`](AUDIT_DEDUPLICATION_DESIGN_2026-11-23.md) | The replayable-audit inventory, the shared `recordAuditOnce` design, key rules and the outbox retention policy |
+| [`PRODUCT_CURRENCY.md`](PRODUCT_CURRENCY.md) | The ISO 4217 contract, read-only legacy audit, human-approved evidence file, bulk resolution, dated ECB rate cache and conversion monitoring |
+| [`MONITORING.md`](MONITORING.md) | Health endpoints, the response pulse, AI turn records, alert rules and the incident procedure |
+| [`FW_01_BULK_IMPORT_IMPLEMENTATION.md`](FW_01_BULK_IMPORT_IMPLEMENTATION.md) | The CSV catalogue import: API, bounds, receipt-first resume, Discard/expiry/orphan cleanup, opening stock, status route and audit |
+| [`BACKLOG.md`](BACKLOG.md) | **The one open-work register** — every unshipped item, grouped, with effort and its original identifier |
 | [`../README.md`](../README.md) | The front door: stack, layout, how to run each half, deployment |
+| [`../CONTRIBUTING.md`](../CONTRIBUTING.md) | The delivery loop: branch, checks, pull request, merge, close-out |
+| [`../SECURITY.md`](../SECURITY.md) | Private vulnerability reporting, supported versions, scope and response expectations |
 
 ### Platform Operations console
-
-The console has its own document set in [`platform-console/`](platform-console/README.md).
-Start with its index; these are the direct pages.
 
 | Document | Answers |
 | --- | --- |
 | [`platform-console/README.md`](platform-console/README.md) | The console documentation index, reading order, boundaries and maintenance rules |
-| **[`00 — User guide`](platform-console/00-user-guide.md)** | **Start here:** access, MFA and recovery, Superadmin/support/developer accounts, daily operations and security |
+| [`00 — User guide`](platform-console/00-user-guide.md) | Access, MFA and recovery, administrator accounts, daily operations and security |
 | [`01 — Status and accounts`](platform-console/01-status-and-accounts.md) | Feature status, the dated production snapshot, AI monitoring, 5xx semantics and account creation |
 | [`02 — Accounts and credentials`](platform-console/02-accounts-and-credentials.md) | Platform and tenant roles, account lifecycle, every credential, storage, rotation, login and recovery |
-| [`03 — Console improvements`](platform-console/03-console-improvements.md) | Ranked console improvements and the next security/operational work; recommendations only |
 | [`04 — Production readiness`](platform-console/04-production-readiness.md) | The pre-exposure gates: HTTPS, network isolation, credentials, cookies/CORS, MFA, audit and sign-off |
-| [`05 — Access layer`](platform-console/05-access-layer.md) | The access-layer comparison, origin-bypass risk and the free-first pilot decision; planning only |
-| [`06 — Security monitoring`](platform-console/06-security-monitoring.md) | Proposed alert thresholds, channels, owners, incident procedure and coverage gaps; planning only |
-| [`07 — Security recommendations`](platform-console/07-security-recommendations.md) | The original prioritized platform security list, with rationale and P0–P2 ordering; recommendations only |
-| [`08 — Security roadmap`](platform-console/08-security-roadmap.md) | The additive NS-01–NS-07 roadmap after PLAT-21; NS-05 implemented, NS-02 audit portion implemented, the rest recommendations only |
-| [`09 — Remaining security priorities`](platform-console/09-remaining-security-priorities.md) | A recommendations-only ranking of the remaining console security work, including verified-operator grants, audit evidence and CLI hardening |
+
+Console improvements and the remaining security work now live in [`BACKLOG.md`](BACKLOG.md) §6.
 
 ### Review cadence
 
@@ -122,7 +88,7 @@ Reference documents are consulted rather than read once, so they are reviewed on
 
 | Document | Cadence | Last reviewed |
 | --- | --- | --- |
-| [`../CLAUDE.md`](../CLAUDE.md) | 90 days | 2026-11-20 |
+| [`../CLAUDE.md`](../CLAUDE.md) | 90 days | 2026-11-26 |
 | [`SYSTEM_SPECIFICATION.md`](SYSTEM_SPECIFICATION.md) | 90 days | 2026-11-23 |
 | [`AUTHENTICATION_AND_USER_VERIFICATION_TARGET_ARCHITECTURE.md`](AUTHENTICATION_AND_USER_VERIFICATION_TARGET_ARCHITECTURE.md) | 90 days | 2026-11-07 |
 | [`AUTH_SECURITY_MASTER_CHECKLIST.md`](AUTH_SECURITY_MASTER_CHECKLIST.md) | 90 days | 2026-11-07 |
@@ -133,56 +99,23 @@ Reference documents are consulted rather than read once, so they are reviewed on
 | [`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md) | 90 days | 2026-11-07 |
 | [`DEVELOPING_ON_A_PHYSICAL_DEVICE.md`](DEVELOPING_ON_A_PHYSICAL_DEVICE.md) | 90 days | 2026-11-07 |
 | [`INVENTORY_INTEGRITY.md`](INVENTORY_INTEGRITY.md) | 90 days | 2026-11-15 |
+| [`INTEGRITY_RECOVERY.md`](INTEGRITY_RECOVERY.md) | 90 days | 2026-11-23 |
+| [`AUDIT_DEDUPLICATION_DESIGN_2026-11-23.md`](AUDIT_DEDUPLICATION_DESIGN_2026-11-23.md) | 90 days | 2026-11-23 |
+| [`PRODUCT_CURRENCY.md`](PRODUCT_CURRENCY.md) | 90 days | 2026-11-20 |
 | [`MONITORING.md`](MONITORING.md) | 90 days | 2026-11-19 |
+| [`FW_01_BULK_IMPORT_IMPLEMENTATION.md`](FW_01_BULK_IMPORT_IMPLEMENTATION.md) | 90 days | 2026-11-23 |
+| [`BACKLOG.md`](BACKLOG.md) | 90 days | 2026-11-26 |
 | [`platform-console/README.md`](platform-console/README.md) | 90 days | 2026-11-19 |
 | [`00 — User guide`](platform-console/00-user-guide.md) | 90 days | 2026-11-19 |
 | [`01 — Status and accounts`](platform-console/01-status-and-accounts.md) | 90 days | 2026-11-19 |
 | [`02 — Accounts and credentials`](platform-console/02-accounts-and-credentials.md) | 90 days | 2026-11-18 |
-| [`03 — Console improvements`](platform-console/03-console-improvements.md) | 90 days | 2026-11-17 |
-| [`04 — Production readiness`](platform-console/04-production-readiness.md) | 90 days | 2026-11-18 |
-| [`05 — Access layer`](platform-console/05-access-layer.md) | 90 days | 2026-11-17 |
-| [`06 — Security monitoring`](platform-console/06-security-monitoring.md) | 90 days | 2026-11-17 |
-| [`07 — Security recommendations`](platform-console/07-security-recommendations.md) | 90 days | 2026-11-17 |
-| [`08 — Security roadmap`](platform-console/08-security-roadmap.md) | 90 days | 2026-11-18 |
-| [`09 — Remaining security priorities`](platform-console/09-remaining-security-priorities.md) | 90 days | 2026-11-18 |
-| [`INVENTORY_AI_IMPROVEMENT_ASSESSMENT.md`](INVENTORY_AI_IMPROVEMENT_ASSESSMENT.md) | 90 days | 2026-11-17 |
-| [`AI_ASSISTANT_AUDIT_2026-11-20.md`](AI_ASSISTANT_AUDIT_2026-11-20.md) | 90 days | 2026-11-20 |
-| [`INVENTORY_INTEGRITY_AUDIT_REVIEW_2026-11-19.md`](INVENTORY_INTEGRITY_AUDIT_REVIEW_2026-11-19.md) | 90 days | 2026-11-19 |
-| [`INTEGRITY_RECOVERY.md`](INTEGRITY_RECOVERY.md) | 90 days | 2026-11-23 |
-| [`AUDIT_DEDUPLICATION_DESIGN_2026-11-23.md`](AUDIT_DEDUPLICATION_DESIGN_2026-11-23.md) | 90 days | 2026-11-23 |
-| [`PRODUCT_CURRENCY.md`](PRODUCT_CURRENCY.md) | 90 days | 2026-11-20 |
-| [`PLATFORM_CLOUDFLARE_ACCESS_IMPLEMENTATION_PLAN.md`](PLATFORM_CLOUDFLARE_ACCESS_IMPLEMENTATION_PLAN.md) | 90 days | 2026-11-17 |
-| [`PLATFORM_SECURITY_CONTACTS.md`](PLATFORM_SECURITY_CONTACTS.md) | 90 days | 2026-11-17 |
-| [`PLATFORM_SECURITY_NOTIFICATION_EVIDENCE.md`](PLATFORM_SECURITY_NOTIFICATION_EVIDENCE.md) | 90 days | 2026-11-17 |
-| [`PLATFORM_SECURITY_NOTIFICATION_TEST_CHECKLIST.md`](PLATFORM_SECURITY_NOTIFICATION_TEST_CHECKLIST.md) | 90 days | 2026-11-17 |
-| [`PLATFORM_SECURITY_ALERT_DECISION_SHEET.md`](PLATFORM_SECURITY_ALERT_DECISION_SHEET.md) | 90 days | 2026-11-17 |
-| [`PLATFORM_FIREBASE_RECOVERY_DRILL_PLAN.md`](PLATFORM_FIREBASE_RECOVERY_DRILL_PLAN.md) | 90 days | 2026-11-17 |
-| [`PLATFORM_DATABASE_RESTORE_DRILL_PLAN.md`](PLATFORM_DATABASE_RESTORE_DRILL_PLAN.md) | 90 days | 2026-11-23 |
-| [`INVENTORY_AI_FOLLOWUP_ASSESSMENT.md`](INVENTORY_AI_FOLLOWUP_ASSESSMENT.md) | 90 days | 2026-11-17 |
-| [`INVENTORY_AI_MULTI_CRITERIA_RANKING.md`](INVENTORY_AI_MULTI_CRITERIA_RANKING.md) | 90 days | 2026-11-17 |
-| [`PLATFORM_SECURITY_IMPROVEMENTS_BEYOND_IA45.md`](PLATFORM_SECURITY_IMPROVEMENTS_BEYOND_IA45.md) | 90 days | 2026-11-17 |
-| [`PLATFORM_TENANT_SECURITY_NOTIFICATIONS_PLAN.md`](PLATFORM_TENANT_SECURITY_NOTIFICATIONS_PLAN.md) | 90 days | 2026-11-17 |
-| [`PLATFORM_SECURITY_NOTIFICATION_CHECKLIST_PRINTING.md`](PLATFORM_SECURITY_NOTIFICATION_CHECKLIST_PRINTING.md) | 90 days | 2026-11-17 |
-| [`PLATFORM_RELIABILITY_DOCS_IMPROVEMENTS.md`](PLATFORM_RELIABILITY_DOCS_IMPROVEMENTS.md) | 90 days | 2026-11-17 |
-| [`PLATFORM_DEPENDENCY_OUTAGE_PLAN.md`](PLATFORM_DEPENDENCY_OUTAGE_PLAN.md) | 90 days | 2026-11-17 |
-| [`PLATFORM_NEXT_IMPROVEMENTS_BEYOND_RD06.md`](PLATFORM_NEXT_IMPROVEMENTS_BEYOND_RD06.md) | 90 days | 2026-11-17 |
-| [`PLATFORM_SENSITIVE_DATA_PROTECTION_DESIGN.md`](PLATFORM_SENSITIVE_DATA_PROTECTION_DESIGN.md) | 90 days | 2026-11-17 |
-| [`PLATFORM_NEXT_IMPROVEMENTS_BEYOND_NX07.md`](PLATFORM_NEXT_IMPROVEMENTS_BEYOND_NX07.md) | 90 days | 2026-11-17 |
-| [`PLATFORM_NEXT_IMPROVEMENTS_BEYOND_NY07.md`](PLATFORM_NEXT_IMPROVEMENTS_BEYOND_NY07.md) | 90 days | 2026-11-17 |
-| [`PLATFORM_NEXT_IMPROVEMENTS_BEYOND_DEV09.md`](PLATFORM_NEXT_IMPROVEMENTS_BEYOND_DEV09.md) | 90 days | 2026-11-19 |
-| [`FW_IMPLEMENTATION_PLANS_2026-11-19.md`](FW_IMPLEMENTATION_PLANS_2026-11-19.md) | 90 days | 2026-11-19 |
-| [`FW_01_BULK_IMPORT_IMPLEMENTATION.md`](FW_01_BULK_IMPORT_IMPLEMENTATION.md) | 90 days | 2026-11-23 |
-| [`INVENTORY_DASHBOARD_FOLLOWUPS_2026-11-22.md`](INVENTORY_DASHBOARD_FOLLOWUPS_2026-11-22.md) | 90 days | 2026-11-22 |
-| [`PR364_FOLLOWUP_IMPROVEMENTS_2026-11-22.md`](PR364_FOLLOWUP_IMPROVEMENTS_2026-11-22.md) | 90 days | 2026-11-22 |
-| [`PROJECT_FOLLOWUP_REVIEW_2026-11-22.md`](PROJECT_FOLLOWUP_REVIEW_2026-11-22.md) | 90 days | 2026-11-22 |
-| [`DASHBOARD_REFERENCE_HISTORY_FOLLOWUPS_2026-11-23.md`](DASHBOARD_REFERENCE_HISTORY_FOLLOWUPS_2026-11-23.md) | 90 days | 2026-11-23 |
-| [`AUDIT_DURABILITY_FOLLOWUPS_2026-11-23.md`](AUDIT_DURABILITY_FOLLOWUPS_2026-11-23.md) | 90 days | 2026-11-23 |
+| [`04 — Production readiness`](platform-console/04-production-readiness.md) | 90 days | 2026-11-19 |
 | [`../README.md`](../README.md) | 90 days | 2026-11-09 |
+| [`../CONTRIBUTING.md`](../CONTRIBUTING.md) | 90 days | 2026-11-19 |
+| [`../SECURITY.md`](../SECURITY.md) | 90 days | 2026-11-19 |
 
-The 2026-11-07 date starts each clock at adoption: it records when the cadence began, not that every
-document was re-read that day. A review updates the date; a change that materially rewrites a document
-counts as its review. `SECURITY_DEPENDENCY_DECISIONS.md` is the one tighter row because advisories
-move weekly; the rest are quarterly.
+A review updates the date; a change that materially rewrites a document counts as its review.
+`SECURITY_DEPENDENCY_DECISIONS.md` is the one tighter row because advisories move weekly.
 
 ## 3. What happened — records
 
@@ -191,29 +124,24 @@ date they were written. **Read them for an audit, not for orientation.**
 
 | Document | Records |
 | --- | --- |
-| [`DEVELOPMENT_ROADMAP.md`](DEVELOPMENT_ROADMAP.md) | Every increment, in order, with its evidence — over 20,000 lines. Find a record by number; `CLAUDE.md` indexes all of them by title |
-| [`PHASE_HISTORY.md`](PHASE_HISTORY.md) | One line per phase, with the roadmap record it points to |
-| [`TS-MIGRATION-MANIFEST.md`](TS-MIGRATION-MANIFEST.md) | The completed TypeScript migration and the one module left in JavaScript |
-| [`AI_LANGUAGE_REVIEW_14_2026-11-06.md`](AI_LANGUAGE_REVIEW_14_2026-11-06.md) | The dated native-speaker review sheet for 14 assistant answers; scores stay blank until a reviewer fills them |
-| [`superpowers/`](superpowers/) | Dated plans and design specs written before work began |
-| [`superpowers/specs/2026-11-16-platform-admin-architecture.md`](superpowers/specs/2026-11-16-platform-admin-architecture.md) | Platform Operations architecture: the implemented separate platform-admin identity/session/capability plane, dedicated console, mandatory TOTP enrollment with optional WebAuthn, append-only audit trail, and the remaining support-grant and external-identity gates |
-| [`evidence/`](evidence/device-runs/README.md) | Device runs, scale measurements and captured output |
-| [`freebuff/`](freebuff/README.md) | An older agent-activity log. Forensic only — not architecture, history or specification, and its status statements are frozen at their dates |
+| [`DEVELOPMENT_ROADMAP.md`](DEVELOPMENT_ROADMAP.md) | Every increment in order, each named `§27…`, with its evidence and measurements. Find one by number; `CLAUDE.md` §7 indexes the identifiers |
+| [`AI_ASSISTANT_AUDIT_2026-11-20.md`](AI_ASSISTANT_AUDIT_2026-11-20.md) | The dated assistant audit: every read-only tool, the feature matrix, the defects fixed, the live selection result and the remaining boundaries |
+| [`superpowers/specs/2026-09-18-firebase-auth-design.md`](superpowers/specs/2026-09-18-firebase-auth-design.md) | The Firebase identity design authority (§14 / §14A / §14B) |
+| [`superpowers/specs/2026-10-20-password-reset-otp-design.md`](superpowers/specs/2026-10-20-password-reset-otp-design.md) | The decided password-recovery design: an in-app six-digit code, and why the Firebase email template could not be used |
+| [`superpowers/specs/2026-11-16-platform-admin-architecture.md`](superpowers/specs/2026-11-16-platform-admin-architecture.md) | The Platform Operations architecture: separate administrator identity, console, MFA and audit plane |
+| [`superpowers/plans/`](superpowers/plans/2026-09-11-phase-18c-core-list-screens.md) | Three dated plans: two kept as provenance by the security checklist §8 (protected paths) and the Platform Operations security plan |
+| [`evidence/`](evidence/) | Device runs, scale measurements and captured output still referenced by a record |
 
-At the repository root: [`../SECURITY.md`](../SECURITY.md) — private vulnerability reporting,
-supported versions, scope and response expectations.
-
-## 4. Where we are now — the living log
+## 4. Where we are now — status
 
 | Document | Answers |
 | --- | --- |
-| [`DEVELOPMENT_LOG.md`](DEVELOPMENT_LOG.md) | What is being worked on now, what each session finished and verified, what is blocked, what is next — plus the resource budgets (EAS builds, OTA, CI minutes) |
-| [`AI_ASSISTANT_IMPROVEMENT_ROADMAP.md`](AI_ASSISTANT_IMPROVEMENT_ROADMAP.md) | The permanent eight-item assistant roadmap: what already exists, what is missing, the delivery order, the release gates and the 2026-11-20 ranked follow-up list |
+| [`DEVELOPMENT_LOG.md`](DEVELOPMENT_LOG.md) | What the latest sessions finished and verified, what is blocked, what is next, and the resource budgets (EAS builds, OTA, CI minutes) |
+| [`AI_ASSISTANT_IMPROVEMENT_ROADMAP.md`](AI_ASSISTANT_IMPROVEMENT_ROADMAP.md) | The permanent eight-item assistant roadmap: what exists, what is missing, the delivery order and the release gates |
 
-It is newest-first and is updated at the end of every development session. It does **not** replace
-the roadmap: the roadmap records what shipped, with measurements; the log records what is true
-today. When the two disagree, the roadmap's newest record is the evidence and the log is corrected
-in a new entry.
+The log is newest-first and is updated at the end of a development session. It does not replace the
+roadmap: the roadmap records what shipped, with measurements; the log records what is true today. When
+they disagree, the roadmap's newest record is the evidence and the log is corrected in a new entry.
 
 ---
 
@@ -232,49 +160,34 @@ A change should update the document that owns the question, not every document t
 | A release, OTA or store step | Guides 7 and 8 |
 | A decision with a trade-off | a dated `DEVELOPMENT_ROADMAP.md` record; `CLAUDE.md` only if it binds future work |
 | Anything finished, blocked or next | `DEVELOPMENT_LOG.md`, in the same session |
+| Work that is planned but not built | `BACKLOG.md` — add a row, never a new document |
 
 The test for an edit: could a reader acting on this document be misled? If yes, fix it now. Delete a
 section when another document answers its question better; keep the **why** even when the code makes
 the **how** obvious.
 
-## The maintenance loop
-
-`node scripts/check-docs.mjs` is the map guard. It fails when a top-level `docs/*.md` page or a
-guide is not linked here, when a map link points at a missing file, or when an invariant row is
-declared outside the one register. It runs in the required `server` CI job before dependencies are
-installed, so a documentation-only change is checked without a database or a server install. It also
-fails when a living reference document is past the review cadence in §2. The same job runs
-`node scripts/check-workflow-invariants.mjs`, which checks action SHA pins, job timeouts, Mongo image
-parity with `compose.yaml` and `.nvmrc`/`engines.node` parity.
-`node scripts/test-workflow-invariants.mjs` proves the guard fails on each protected invariant using
-temporary fixture repositories.
-
-At the close of every session:
-
-1. Update `DEVELOPMENT_LOG.md` and the document that owns the change.
-2. Commit, push, open the pull request and wait for every required check (seven on `main` as of
-   2026-11-19).
-3. Squash-merge, then `git switch main && git pull --ff-only`.
-4. Run `node scripts/check-repo-state.mjs`; it must report a clean `main` level with `origin/main`.
-
-The full branch, commit, check and merge loop is [`../CONTRIBUTING.md`](../CONTRIBUTING.md). The pull
-request template asks for the documentation impact, so "no docs change" is a decision, not an
-omission.
-
 ## Two rules before you edit here
 
 1. **Five paths are protected and must not be edited**: `mobile/eas.json`,
    `server/src/services/ai/providers/http.ts`, `server/test/phase06-ai-wire.test.mjs` and two dated
-   plans under `superpowers/`. The list, with its git blob hashes, is in
+   plans under `superpowers/plans/`. The list, with its git blob hashes, is in
    [`AUTH_SECURITY_MASTER_CHECKLIST.md`](AUTH_SECURITY_MASTER_CHECKLIST.md) §8. **The check is
    manual** — no script verifies them — so re-check them yourself before and after meaningful work.
 2. **Dated records are append-only.** When reality changes, add a new entry; do not rewrite an old
    measurement. A later entry saying "superseded, see §27X" preserves the history; editing the
-   earlier text destroys it. The guides and the reference documents are ordinary prose and should be
-   reworded whenever they stop being clear — that is what this revision did.
+   earlier text destroys it. The guides, the reference documents and this map are ordinary prose and
+   should be reworded whenever they stop being clear.
+
+## The maintenance loop
+
+`node scripts/check-docs.mjs` is the map guard. It fails when a top-level `docs/*.md` page, a guide or
+a console page is not linked here, when a map link points at a missing file, when an invariant row is
+declared outside the one register, or when a living reference document is past its cadence. It runs in
+the required `server` CI job before dependencies are installed. `node scripts/check-repo-state.mjs`
+and the branch/check/merge loop are in [`../CONTRIBUTING.md`](../CONTRIBUTING.md).
 
 ## Reading rule
 
-Start with [`../README.md`](../README.md) for the shape of the system and the guides for a task. When
-a record and the code disagree, the code and the specification win, and the old record is corrected
-by a new entry rather than by editing it.
+Start with [`../README.md`](../README.md) for the shape of the system and the guides for a task. When a
+record and the code disagree, the code and the specification win, and the old record is corrected by a
+new entry rather than by editing it.

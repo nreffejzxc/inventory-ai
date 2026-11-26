@@ -356,7 +356,7 @@ match rather than moving the wrong product's stock.
 It needs the phone and both tunnels, and exits **2** ("could not check") when a precondition is
 missing — signed out, no debuggable build (the `label` journey reads the app's own PDFs), no product
 with that SKU, no barcode on it, or a picker with nothing to choose. Evidence lives in
-[`docs/evidence/device-runs`](evidence/device-runs/README.md).
+`docs/evidence/device-runs`.
 
 **The transfer journey now proves the refusal half too.** It checks the app's same-location warning
 and over-quantity warning, and each one is paired with `expectDisabled: 'Transfer stock'` — the

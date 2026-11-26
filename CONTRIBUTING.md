@@ -1,11 +1,28 @@
 # Contributing to Inventory AI
 
-The repository is the record. A change is not finished when it works on this computer; it is
-finished when the document that owns it is updated, the checks pass, the pull request is merged, and
-`main` is clean and level with `origin/main`.
+The repository is the record. A requested change is finished when the owner-authorized scope is
+complete and verified. When the owner explicitly requests a full delivery, the owning document (only
+if that documentation work was requested) is updated, the required checks pass, the pull request is
+merged, and `main` is clean and level with `origin/main`.
 
 [`docs/README.md`](docs/README.md) is the documentation map. This file is the delivery loop around
 it.
+
+> **BINDING OWNER-AUTHORIZATION GATE.** The owner's current request defines the entire scope. Nothing
+> in this file authorizes work: not a clean tree, a failing check, a stale doc, a roadmap item, a TODO,
+> a review comment or an obvious improvement. Do not start a branch, edit a file, add a test, update a
+> document, commit, open a pull request, merge or deploy unless the owner explicitly asked for that
+> specific action, except for the service/platform operations delegated in `CLAUDE.md` §6.9. When the
+> owner asks only to inspect, review, test or verify, make no changes. See `CLAUDE.md` §6; if this
+> file conflicts with it, `CLAUDE.md` wins.
+
+### Delegated platform operations
+
+Routine operations on GitHub, Firebase, MongoDB Atlas, OpenRouter, Render, Brevo, Expo, UptimeRobot
+and the project's Gmail accounts are delegated; `CLAUDE.md` §6.9 defines that scope and its limits,
+including the narrow deletion allowance for disposable test data. Report every service changed, keep
+secrets out of the repository and chat, confirm the exact target and effect before anything
+destructive or irreversible, and never create, copy or store MFA backup codes.
 
 ## 1. Start from a clean `main`
 
@@ -26,9 +43,15 @@ Use one branch per purpose. Useful prefixes are `feat/`, `fix/`, `test/`, `docs/
 Never commit directly to `main`, force-push a shared branch, or rewrite a branch someone else is
 reviewing.
 
-## 2. Change the code and the document that owns it
+## 2. Change only what the owner requested
 
-The full ownership table is in [`docs/README.md`](docs/README.md). The short version:
+The owner's request defines the files that may change. Do not add a test, document, refactor, cleanup,
+comment, dependency or configuration change merely because it is related. If the owner did not ask for
+a documentation update, do not make one. If an adjacent change is necessary, stop and ask before making
+it.
+
+The full ownership table is in [`docs/README.md`](docs/README.md). When the owner explicitly requests a
+change that alters one of these areas, update the owning document:
 
 | You changed | Update |
 | --- | --- |
@@ -48,9 +71,14 @@ Rules that keep the set maintainable:
 - **No documentation change is a decision, not an omission.** Say in the pull request why the change
   does not alter a document a reader relies on.
 
-## 3. Run the checks
+## 3. Run the checks required for the requested change
 
-The documentation guard is dependency-free and is the first check in the required `server` CI job:
+Run the smallest relevant checks for the exact change the owner requested. Do not expand into a broad
+audit, add tests or test infrastructure, or fix unrelated failures unless the owner asked for that
+work. A check run is evidence for the requested change, not permission to change more files.
+
+When a pull request is explicitly requested, the documentation guard is dependency-free and is the
+first check in the required `server` CI job:
 
 ```sh
 node scripts/check-docs.mjs
@@ -103,7 +131,10 @@ Dependabot alerts, edit a dependency or run `npm audit fix`. A browser limitatio
 
 Do not bypass a failing check to make a branch mergeable. Fix the cause, or report the blocker.
 
-## 4. Commit and open the pull request
+## 4. Commit and open the pull request — only when explicitly requested
+
+Do not commit, push or open a pull request on your own initiative. When the owner asks for that
+separate delivery step, use this sequence:
 
 ```sh
 git add <the files you changed>
@@ -126,7 +157,10 @@ and report the mismatch rather than changing it silently. See `CLAUDE.md` §16.
 The pull-request template asks for the documentation impact, the verification commands and the
 repository state. Fill it in; empty checkboxes are not a substitute for evidence.
 
-## 5. Wait for the checks, then merge
+## 5. Wait for the checks, then merge — only when explicitly requested
+
+Do not merge, delete a branch or deploy on your own initiative. When the owner explicitly asks for the
+merge, use this sequence:
 
 ```sh
 gh pr checks --watch
@@ -163,7 +197,10 @@ If work cannot be merged yet, **push the branch and open a pull request**. Do no
 working tree. Say in the pull request what is blocked and what would unblock it; a pushed branch is
 recoverable, an uncommitted folder is not.
 
-## Definition of done
+## Definition of done — only for an explicitly requested full delivery
+
+This checklist applies only when the owner asked for the complete branch → pull request → merge
+delivery. It does not authorize any step by itself.
 
 - [ ] The change is on a branch based on current `main`, with no unrelated edits.
 - [ ] The document that owns the change is updated, and `docs/DEVELOPMENT_LOG.md` records the session.

@@ -60,7 +60,7 @@ four sentences.
 | `4b133d62…` | 3 | passes | **0** | WRONG (exit 1) |
 | Metro export of `HEAD` | — | — | 4/4 | VERIFIED (exit 0) |
 
-Evidence: [`2026-10-24-release-aab`](../evidence/device-runs/2026-10-24-release-aab/README.md).
+Evidence: `2026-10-24-release-aab`.
 
 > **Both of those build records were deleted from EAS on 2026-10-26** (roadmap §27FN): their ids are
 > now dead pointers and their artifacts answer `400`. The table above is the *evidence that the gate
@@ -148,7 +148,7 @@ only; release refuses cleartext); deletion via the in-app flow and the public pa
 | `com.inventoryai.app.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION` | the app's own |
 
 No location, SMS, call log, contacts, microphone or all-files access. `SYSTEM_ALERT_WINDOW` was
-removed on 2026-10-24 ([evidence](../evidence/device-runs/2026-10-24-permission-trim/README.md)).
+removed on 2026-10-24 (evidence).
 
 ## 6. The Play requirements
 
