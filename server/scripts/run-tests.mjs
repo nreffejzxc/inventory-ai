@@ -150,6 +150,7 @@ const PURE_UNIT = [
   'triage-integrity.test.mjs', // the read-only attention view: REQUIRES_ATTENTION reasons + snapshots + ledger rows, quarantine reasons/keptId, argument bounds, and a source guard against every write
   'PLAT2-platform-console.test.mjs', // PLAT-2: the dedicated console's strict CSP (no inline script/style/eval, exact API origin, frame-ancestors none), no event-handler attributes, origin-only config, traversal refusal, RFC 6238 TOTP vectors, replay refusal and AES-GCM tamper detection — no browser, no database
 ];
+  'BACKUP-ENCRYPTED-SECURITY.test.mjs', // DB-free encrypted-backup security: protected temp-key generation with stdin passphrase preset, gpg-agent cache clearing, hostile archive member paths/types, and the gpgconf/gpg-connect-agent prerequisite refusals
 const PURE_DB = [
   'PRODUCTS-stock-status-active.test.mjs', // Canonical product stockStatus queries are ACTIVE-only on the server: direct requests without status, and requests that explicitly ask for ARCHIVED, return no archived product; legacy lowStock/outOfStock and ordinary status filters keep their historical scope
   'INVENTORY-needs-attention.test.mjs', // Row-level attention and four chip counts: canonical Low (0 < available <= minimum) and Out (available <= 0) are disjoint, Needs attention is their sum, one scoped aggregate matches each filtered total under search/location/pagination/tenant scope, legacy lowStock stays broad, and a product-first search now honours Out
@@ -199,6 +200,7 @@ const PURE_DB = [
   'AI101-ai-monitor.test.mjs', // AI-101: the assistant's monitoring record is complete and machine-readable — intent, route, model tier, the free/paid/legacy reasoning switches and their sources, the web-tool switches, duration in ms and seconds, status, upstream provider, tools, tokens, credits, retries/failovers/re-asks and iterations, with absence reported as `unknown` rather than a zero
 ];
 const MIXED = [
+  'BACKUP-ENCRYPTED.test.mjs', // the encrypted wrapper contract: the archive checksum sidecar matches its bytes, a tampered archive is refused before it is opened, creation needs only the PUBLIC key, a passphrase-protected key verifies and dry-run restores through gpg-agent without the wrapper ever receiving the passphrase, and no plaintext is left behind
   'AI115-ai-feedback.test.mjs', // AI-115: a member rates only a stored answer in their own thread, a changed rating updates one row, thread reload carries only the caller's rating, OWNER/ADMIN review is tenant-scoped, and the queue keeps bounded Q/A excerpts and all-time counts
   'AI117-ai-feedback-conversation.test.mjs', // AI-117: the preview returns the complete reported answer and a bounded window, only OWNER/ADMIN may read it, another business gets 404, and no email/product id crosses the boundary
   'AI118-stock-coverage.test.mjs', // AI-118: a run-out estimate is one identified product over a bounded window, stock is summed over every location, transfers and stock-in are excluded, no movement is null cover, foreign/missing identifiers are refused, archived products are not current location stock, and getProduct refuses two identifiers

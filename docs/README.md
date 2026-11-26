@@ -61,6 +61,7 @@ and Guide 6 own the data commands.
 | [`DEVELOPING_ON_A_PHYSICAL_DEVICE.md`](DEVELOPING_ON_A_PHYSICAL_DEVICE.md) | The deep phone reference: verified commands, log reading, failure → fix |
 | [`INVENTORY_INTEGRITY.md`](INVENTORY_INTEGRITY.md) | The read-only orphan STOCK_IN / unreceipted-PO audit, its scheduled monitor, exit codes and what to do with a finding |
 | [`INTEGRITY_RECOVERY.md`](INTEGRITY_RECOVERY.md) | Durable transfer journals and recovery, the unique ledger guard, the recovery lease, PO receive keys, audit-gap monitoring, replay deduplication, the operational runner and remaining risks |
+| [`BACKUP_ENCRYPTED_RUNBOOK.md`](BACKUP_ENCRYPTED_RUNBOOK.md) | The encrypted backup: the wrapper around `backup:db`, the GPG host prerequisite, archive/manifest verification, the read-only dry-run and what a checksum does not prove |
 | [`AUDIT_DEDUPLICATION_DESIGN_2026-11-23.md`](AUDIT_DEDUPLICATION_DESIGN_2026-11-23.md) | The replayable-audit inventory, the shared `recordAuditOnce` design, key rules and the outbox retention policy |
 | [`PRODUCT_CURRENCY.md`](PRODUCT_CURRENCY.md) | The ISO 4217 contract, read-only legacy audit, human-approved evidence file, bulk resolution, dated ECB rate cache and conversion monitoring |
 | [`MONITORING.md`](MONITORING.md) | Health endpoints, the response pulse, AI turn records, alert rules and the incident procedure |
@@ -102,6 +103,7 @@ Reference documents are consulted rather than read once, so they are reviewed on
 | [`DEVELOPING_ON_A_PHYSICAL_DEVICE.md`](DEVELOPING_ON_A_PHYSICAL_DEVICE.md) | 90 days | 2026-11-07 |
 | [`INVENTORY_INTEGRITY.md`](INVENTORY_INTEGRITY.md) | 90 days | 2026-11-15 |
 | [`INTEGRITY_RECOVERY.md`](INTEGRITY_RECOVERY.md) | 90 days | 2026-11-23 |
+| [`BACKUP_ENCRYPTED_RUNBOOK.md`](BACKUP_ENCRYPTED_RUNBOOK.md) | 90 days | 2026-11-26 |
 | [`AUDIT_DEDUPLICATION_DESIGN_2026-11-23.md`](AUDIT_DEDUPLICATION_DESIGN_2026-11-23.md) | 90 days | 2026-11-23 |
 | [`PRODUCT_CURRENCY.md`](PRODUCT_CURRENCY.md) | 90 days | 2026-11-20 |
 | [`MONITORING.md`](MONITORING.md) | 90 days | 2026-11-19 |
