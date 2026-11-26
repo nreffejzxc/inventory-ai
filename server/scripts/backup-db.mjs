@@ -27,6 +27,7 @@ import {
   assertConfirm,
   backupDirectoryName,
   createBackup,
+  formatBytes,
   removePartialBackup,
 } from './backup/lib.mjs';
 
@@ -42,12 +43,6 @@ function argValue(prefix) {
 function fail(message) {
   console.error(`[${COMMAND}] ${message}`);
   process.exit(1);
-}
-
-function formatBytes(bytes) {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 async function main() {

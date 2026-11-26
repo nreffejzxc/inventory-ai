@@ -65,3 +65,6 @@ Desktop.ini
 .platform-access-key.txt
 # One-time platform recovery codes generated during the forced ceremony. Never commit.
 .platform-recovery-codes.txt
+
+# Local test-database state and scratch output from the suites — never commit.
+server/.local/

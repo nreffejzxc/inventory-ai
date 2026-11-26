@@ -84,6 +84,13 @@ export class BackupIntegrityError extends BackupSafetyError {
   }
 }
 
+/** `512 B`, `11.3 KB`, `525.7 MB` — the CLI lines report sizes in these three units. */
+export function formatBytes(bytes) {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
 /** True for MongoDB's own bookkeeping collections, which are never dumped. */
 export function isSystemCollection(name) {
   return String(name ?? '').startsWith('system.');
@@ -533,6 +540,7 @@ export default {
   BackupSafetyError,
   BackupIntegrityError,
   isSystemCollection,
+  formatBytes,
   assertRestoreTarget,
   assertConfirm,
   assertBackupDir,
