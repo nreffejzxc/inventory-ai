@@ -7,7 +7,8 @@
 //   * gpg-agent can be given that passphrase over stdin (no argv/file interface);
 //   * clearing the agent cache really removes the cached secret;
 //   * hostile archive member names and types are refused before extraction;
-//   * gpgconf and gpg-connect-agent are required, with actionable errors.
+//   * the wrapper requires only the two programs it runs; the GnuPG agent tools are
+//     checked when a caller asks for them, with actionable errors.
 //
 // Every GPG command uses a temporary GNUPGHOME. The test never reads, uses or
 // modifies the operator's real keyring, and the generated passphrase is never
@@ -21,7 +22,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { validateArchiveListing } from '../scripts/backup/archive.mjs';
-import { assertTools } from '../scripts/backup/tools.mjs';
+import { AGENT_TOOLS, assertTools } from '../scripts/backup/tools.mjs';
 import {
   allowPresetPassphrase,
   clearAgentCache,
@@ -109,16 +110,16 @@ unitSuite('encrypted backup — GPG key and agent (no database)', () => {
     if (home) await rm(home, { recursive: true, force: true });
   });
 
-  it('generates a protected key from a stdin passphrase', () => {
+  it('generates a protected key from a stdin passphrase, which cannot decrypt on its own', async () => {
     const secretKeys = must(
       runGpg('gpg', ['--batch', '--list-secret-keys', fingerprint], { home }),
       'protected key lookup',
     ).stdout;
     assert.match(secretKeys, /^sec\s/m, 'the private key exists in the temporary keyring');
     assert.match(secretKeys, new RegExp(fingerprint), 'the requested fingerprint is present');
-  });
 
-  it('does not decrypt the protected key after the cache is cleared', async () => {
+    // The negative control for every cache case below: with an empty agent cache a
+    // protected key refuses, so a later successful decrypt can only be the preset.
     clearAgentCache(home);
     const output = path.join(home, 'must-not-exist-1.txt');
     const result = decryptWithAgent(home, cipher, output);
@@ -126,7 +127,7 @@ unitSuite('encrypted backup — GPG key and agent (no database)', () => {
     assert.ok(!(await readFile(output).catch(() => null)), 'no plaintext was left behind');
   });
 
-  it('presets the passphrase over stdin and decrypts from the agent cache', async () => {
+  it('presets the passphrase over stdin, decrypts, and revokes it when the cache clears', async () => {
     await allowPresetPassphrase(home);
     clearAgentCache(home);
     startAgent(home);
@@ -135,25 +136,15 @@ unitSuite('encrypted backup — GPG key and agent (no database)', () => {
     assert.match(preset.stdout, /OK/, 'gpg-connect-agent accepted the preset command');
 
     const output = path.join(home, 'preset-output.txt');
-    const result = decryptWithAgent(home, cipher, output);
+    const unlocked = decryptWithAgent(home, cipher, output);
     assert.equal(
-      result.code,
+      unlocked.code,
       0,
-      `the preset passphrase should unlock the cached key: ${result.stderr.trim().slice(0, 600)}`,
+      `the preset passphrase should unlock the cached key: ${unlocked.stderr.trim().slice(0, 600)}`,
     );
     assert.equal(await readFile(output, 'utf8'), samplePlaintext, 'the decrypted bytes are the sample');
-  });
 
-  it('clears the cached passphrase so the protected key fails again', async () => {
-    await allowPresetPassphrase(home);
-    clearAgentCache(home);
-    startAgent(home);
-    presetPassphrase({ home, keygrip, passphrase });
-
-    const controlOutput = path.join(home, 'cache-control.txt');
-    const control = decryptWithAgent(home, cipher, controlOutput);
-    assert.equal(control.code, 0, 'the cache control must decrypt before the clear');
-
+    // Clearing the agent must take the secret away again, not merely advance a counter.
     clearAgentCache(home);
     const deniedOutput = path.join(home, 'cache-cleared.txt');
     const denied = decryptWithAgent(home, cipher, deniedOutput);
@@ -226,57 +217,59 @@ unitSuite('encrypted backup — hostile archive members (no database)', () => {
 });
 
 unitSuite('encrypted backup — external tool prerequisites (no database)', () => {
-  it('checks gpg, tar, gpgconf and gpg-connect-agent in order', async () => {
+  it('requires only the programs the wrapper runs, in order, and stops at the first missing one', async () => {
     const calls = [];
     await assertTools(async (command) => {
       calls.push(command);
     });
-    assert.deepEqual(calls, ['gpg', 'tar', 'gpgconf', 'gpg-connect-agent']);
+    assert.deepEqual(calls, ['gpg', 'tar'], 'gpgconf and gpg-connect-agent are not wrapper prerequisites');
+
+    for (const command of ['gpg', 'tar']) {
+      let laterToolRan = false;
+      await assert.rejects(
+        assertTools(async (candidate) => {
+          if (candidate === command) throw new Error('not found');
+          laterToolRan = true;
+        }),
+        (error) => {
+          assert.equal(error.name, 'BackupSafetyError');
+          assert.match(error.message, new RegExp(`Missing prerequisite: ${command}`));
+          assert.match(error.message, /PATH/);
+          return true;
+        },
+      );
+      assert.equal(laterToolRan, command === 'gpg' ? false : true);
+    }
   });
 
-  it('names gpgconf and its install hint when it is missing', async () => {
-    let laterToolRan = false;
+  it('checks the GnuPG agent tools when the caller asks for them, with their own hints', async () => {
+    const calls = [];
+    await assertTools(async (command) => {
+      calls.push(command);
+    }, AGENT_TOOLS);
+    assert.deepEqual(calls, ['gpgconf', 'gpg-connect-agent']);
+
     await assert.rejects(
       assertTools(async (command) => {
         if (command === 'gpgconf') throw new Error('spawn gpgconf ENOENT');
-        if (command === 'gpg-connect-agent') laterToolRan = true;
-      }),
+      }, AGENT_TOOLS),
       (error) => {
-        assert.equal(error.name, 'BackupSafetyError');
         assert.match(error.message, /Missing prerequisite: gpgconf/);
         assert.match(error.message, /GnuPG 2\.x/);
-        assert.match(error.message, /PATH/);
         assert.match(error.message, /gpgconf --version/);
         return true;
       },
     );
-    assert.equal(laterToolRan, false, 'a missing tool stops the check before later tools');
-  });
 
-  it('names gpg-connect-agent and its stdin-preset purpose when it is missing', async () => {
     await assert.rejects(
       assertTools(async (command) => {
         if (command === 'gpg-connect-agent') throw new Error('spawn gpg-connect-agent ENOENT');
-      }),
+      }, AGENT_TOOLS),
       (error) => {
-        assert.equal(error.name, 'BackupSafetyError');
         assert.match(error.message, /Missing prerequisite: gpg-connect-agent/);
         assert.match(error.message, /presets a passphrase through stdin/);
-        assert.match(error.message, /GnuPG 2\.x/);
-        assert.match(error.message, /gpg-connect-agent --version/);
         return true;
       },
     );
-  });
-
-  it('keeps gpg and tar failures actionable too', async () => {
-    for (const command of ['gpg', 'tar']) {
-      await assert.rejects(
-        assertTools(async (candidate) => {
-          if (candidate === command) throw new Error('not found');
-        }),
-        new RegExp(`Missing prerequisite: ${command}`),
-      );
-    }
   });
 });

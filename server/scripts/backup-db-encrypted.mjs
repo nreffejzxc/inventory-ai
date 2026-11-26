@@ -23,10 +23,13 @@
 // target for the dry-run and forbids using this wrapper against production
 // during an unapproved drill.
 //
-// PREREQUISITES: Node (the repository's runtime), `gpg`, `gpgconf`,
-// `gpg-connect-agent`, and `tar`. The output directory must be outside the
-// repository, exactly as for `backup:db`. The GPG public key must already be
-// imported; only its fingerprint/key id is read.
+// PREREQUISITES: Node (the repository's runtime), `gpg` and `tar` — the only
+// programs this wrapper runs. A protected private key is unlocked by GnuPG's own
+// agent and pinentry, so a human present at the terminal needs nothing extra;
+// non-interactive verification additionally needs `gpgconf` and
+// `gpg-connect-agent`, which is what the runbook documents. The output directory
+// must be outside the repository, exactly as for `backup:db`. The GPG public key
+// must already be imported; only its fingerprint/key id is read.
 import { spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { mkdtemp, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises';
@@ -38,6 +41,7 @@ import { validateArchiveListing } from './backup/archive.mjs';
 import {
   BackupSafetyError,
   assertBackupDir,
+  formatBytes,
   readManifest,
   sha256File,
   verifyBackup,
@@ -84,12 +88,6 @@ function argValue(name) {
 function fail(message) {
   console.error(`[${COMMAND}] ${message}`);
   process.exitCode = 1;
-}
-
-function formatBytes(bytes) {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 /**
@@ -256,9 +254,11 @@ async function listArchive(archive) {
   return validateArchiveListing(details, entries);
 }
 
+/**
+ * Decrypt, list, extract and verify. The caller has already checked the archive's
+ * sidecar, so this does not hash the whole archive a second time.
+ */
 async function decryptAndVerify(archive, workParent) {
-  await readArchiveChecksum(archive);
-
   const decryptedTar = path.join(workParent, 'decrypted.tar.gz');
   await runGpgDecrypt([
     '--yes',

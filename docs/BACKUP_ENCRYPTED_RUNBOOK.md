@@ -32,9 +32,11 @@ service, paid plan, Render hook or Brevo setting is involved.
 
 ## Prerequisites
 
-1. Node at the repository version, plus `gpg`, `gpgconf`, `gpg-connect-agent` and
-   `tar` on `PATH`. See **GPG host prerequisite** below for the exact versions and
-   which tool does what.
+1. Node at the repository version, plus `gpg` and `tar` on `PATH` — the only two
+   programs the wrapper runs, and the two it refuses to start without. The
+   verification workflow and the suites also use `gpgconf` and
+   `gpg-connect-agent`; see **GPG host prerequisite** below for the exact versions
+   and which tool does what.
 2. A GPG key pair. Keep the private key offline or in the password manager; only
    the public key is needed to create a backup. `--verify` and
    `--dry-run-restore` need the private key. Use the full 40-character
@@ -74,12 +76,13 @@ so the host must have a full GnuPG 2.x installation, not a cut-down `gpg` binary
 | `gpg-connect-agent` | Ships with GnuPG ≥ 2.1. Needed only for a non-interactive `PRESET_PASSPHRASE`, which additionally requires `allow-preset-passphrase` in `$GNUPGHOME/gpg-agent.conf`. | Tests; unattended verification |
 | Writable `GNUPGHOME` | The agent's own home (`~/.gnupg` or `$GNUPGHOME`). No root, service account or system package is required. | Agent start, tests |
 
-`server/scripts/backup/tools.mjs` checks all four programs (each with a harmless
-`--version`) before a run, so a missing agent tool is one clear refusal instead of a
-failure halfway through archive creation. Two of them are therefore stricter than
-the wrapper's own minimum: a host that has only `gpg` and `tar` will be refused even
-though the wrapper would not call `gpgconf` or `gpg-connect-agent`. That is
-deliberate — the documented verify and negative-control steps need them.
+`server/scripts/backup/tools.mjs` checks a program list before a run with a harmless
+`--version`, so a missing tool is one clear refusal instead of a failure halfway
+through archive creation. The wrapper checks the two programs it runs, `gpg` and
+`tar`; `gpgconf` and `gpg-connect-agent` are a separate `AGENT_TOOLS` list that only
+the verification workflow and the suites ask for. A backup host therefore needs
+only `gpg` and `tar`, and a host without the agent tools still gets an actionable
+message the moment a verification step needs them.
 
 Windows note: in this repository's MSYS environment `tar` and `gpg` are MSYS
 programs, so the wrapper converts `C:\…` arguments to `/c/…` for those two commands

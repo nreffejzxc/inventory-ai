@@ -43,6 +43,15 @@ import { fileURLToPath } from 'node:url';
 import mongoose from 'mongoose';
 
 import { disconnectDb, ensureDb } from './helpers.mjs';
+import {
+  allowPresetPassphrase,
+  clearAgentCache,
+  createProtectedTestKey,
+  gpgPath,
+  must,
+  presetPassphrase,
+  startAgent,
+} from './gpgTestSupport.mjs';
 import { dbSuite, unitSuite } from './testEnv.mjs';
 import { DATABASE_NAMES } from '../src/config/env.ts';
 import { sha256File } from '../scripts/backup/lib.mjs';
@@ -53,12 +62,6 @@ const wrapperScript = path.join(serverRoot, 'scripts', 'backup-db-encrypted.mjs'
 const PROBE = 'backup_encrypted_probe';
 
 const dbOk = await ensureDb();
-
-/** MSYS gpg/tar read POSIX paths; Node and Windows gpg accept the drive form. */
-function gpgPath(value) {
-  if (process.platform !== 'win32') return value;
-  return path.resolve(value).replaceAll('\\', '/').replace(/^([A-Za-z]):/, (_, drive) => `/${drive.toLowerCase()}`);
-}
 
 function envFor(home) {
   const env = {
@@ -120,22 +123,6 @@ function sync(command, args, { home, input } = {}) {
   };
 }
 
-function must(result, label) {
-  assert.equal(
-    result.code,
-    0,
-    `${label} failed with exit ${result.code ?? result.signal}: ${result.stderr.trim().slice(0, 600)}`,
-  );
-  return result;
-}
-
-function firstField(output, record) {
-  return output
-    .split(/\r?\n/)
-    .find((line) => line.startsWith(`${record}:`))
-    ?.split(':')[9];
-}
-
 let tmpDir = '';
 let protectedHome = '';
 let publicHome = '';
@@ -160,37 +147,11 @@ before(async () => {
   must(sync('tar', ['--version']), 'tar availability');
 
   passphrase = randomBytes(24).toString('base64url');
-  // The passphrase is supplied on stdin, never written to a file or placed in
-  // argv. The temporary key is protected; only the test process and the pipe
-  // hold the secret.
-  must(
-    sync(
-      'gpg',
-      [
-        '--batch',
-        '--pinentry-mode',
-        'loopback',
-        '--passphrase-fd',
-        '0',
-        '--quick-generate-key',
-        'Inventory Backup Test <backup-test@example.invalid>',
-        'rsa2048',
-        'encr',
-        '0',
-      ],
-      { home: protectedHome, input: `${passphrase}\n` },
-    ),
-    'protected test key generation',
-  );
-
-  const keys = must(
-    sync('gpg', ['--batch', '--with-colons', '--with-keygrip', '--list-secret-keys'], {
-      home: protectedHome,
-    }),
-    'protected test key listing',
-  ).stdout;
-  fingerprint = firstField(keys, 'fpr') || '';
-  keygrip = firstField(keys, 'grp') || '';
+  // The passphrase is supplied on stdin, never written to a file or placed in argv.
+  ({ fingerprint, keygrip } = await createProtectedTestKey({
+    home: protectedHome,
+    passphrase,
+  }));
   assert.match(fingerprint, /^[0-9A-F]{40}$/, 'the test key has a full fingerprint');
   assert.match(keygrip, /^[0-9A-F]{40}$/, 'the test key has a keygrip');
 
@@ -236,29 +197,6 @@ async function assertCreatedArchive(dir) {
   return { archive: archivePath, sidecar: sidecarPath };
 }
 
-function clearAgentCache() {
-  // `gpgconf --kill` is the strongest cache clear available: it stops the agent
-  // and discards every cached passphrase. A live cache would let the negative
-  // control below decrypt a protected key and falsely look unprotected.
-  must(sync('gpgconf', ['--kill', 'gpg-agent'], { home: protectedHome }), 'gpg-agent cache clear');
-}
-
-async function presetPassphrase() {
-  await writeFile(path.join(protectedHome, 'gpg-agent.conf'), 'allow-preset-passphrase\n');
-  clearAgentCache();
-  must(sync('gpg-connect-agent', ['/bye'], { home: protectedHome }), 'gpg-agent start');
-  const hex = Buffer.from(passphrase, 'utf8').toString('hex');
-  // Send the preset over stdin. Passing it as an argument would expose the
-  // passphrase in the process table and any command logging.
-  must(
-    sync('gpg-connect-agent', [], {
-      home: protectedHome,
-      input: `PRESET_PASSPHRASE ${keygrip} -1 ${hex}\n/bye\n`,
-    }),
-    'gpg-agent passphrase preset',
-  );
-}
-
 dbSuite('encrypted backup wrapper', dbOk, () => {
   it('creates an archive whose sidecar matches its bytes', async () => {
     const outDir = path.join(tmpDir, 'protected-out');
@@ -273,23 +211,6 @@ dbSuite('encrypted backup wrapper', dbOk, () => {
 
     ({ archive, sidecar } = await assertCreatedArchive(outDir));
     assert.match(await readFile(sidecar, 'utf8'), /^[0-9a-f]{64}\s{2}\S+\n$/);
-  });
-
-  it('proves the test private key is passphrase-protected', async () => {
-    // Clear the agent first. Key generation may have left a cached passphrase,
-    // and a live cache would make this negative control succeed even though the
-    // key is protected.
-    clearAgentCache();
-    const out = path.join(tmpDir, 'uncached.tar.gz');
-    // `--pinentry-mode error` makes the no-passphrase case fail immediately
-    // instead of waiting for a pinentry that a test process cannot answer.
-    const result = sync(
-      'gpg',
-      ['--batch', '--pinentry-mode', 'error', '--yes', '--decrypt', '--output', out, archive],
-      { home: protectedHome },
-    );
-    assert.notEqual(result.code, 0, 'a protected private key must not decrypt without the passphrase');
-    assert.ok(!(await readFile(out).catch(() => null)), 'no plaintext was left behind');
   });
 
   it('refuses an archive whose checksum no longer matches, before opening it', async () => {
@@ -320,7 +241,12 @@ dbSuite('encrypted backup wrapper', dbOk, () => {
   });
 
   it('verifies and dry-run restores with a passphrase-protected key', async () => {
-    await presetPassphrase();
+    // Start from an empty cache and a running agent, then preset over stdin: the
+    // wrapper has no passphrase interface, so the agent is the only route in.
+    await allowPresetPassphrase(protectedHome);
+    clearAgentCache(protectedHome);
+    startAgent(protectedHome);
+    presetPassphrase({ home: protectedHome, keygrip, passphrase });
 
     // The wrapper has no passphrase flag: gpg-agent supplies the cached secret.
     const verified = await run(process.execPath, [wrapperScript, `--verify=${archive}`], {
