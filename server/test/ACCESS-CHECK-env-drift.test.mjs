@@ -23,7 +23,7 @@ describe('access:check — env name parsing', () => {
     const text = [
       '# a comment',
       '',
-      'MONGODB_URI=mongodb://user:secret@host/db',
+      'MONGODB_URI=value-one-that-must-not-print',
       'AI_MODEL_OPENROUTER=openai/gpt-oss-20b',
       '  JWT_SECRET = "not-read"',
       'export EXPORTED_NAME=value',
@@ -92,8 +92,8 @@ describe('access:check — env name comparison', () => {
 
 describe('access:check — Render env fetch', () => {
   const rows = [
-    { envVar: { key: 'MONGODB_URI', value: 'mongodb://user:super-secret@host/db' } },
-    { envVar: { key: 'BREVO_API_KEY', value: 'xkeysib-do-not-print' } },
+    { envVar: { key: 'MONGODB_URI', value: 'sentinel-value-one' } },
+    { envVar: { key: 'BREVO_API_KEY', value: 'sentinel-value-two' } },
     { envVar: { key: 'NO_VALUE' } },
     { envVar: { key: 42 } },
     { somethingElse: true },
@@ -113,7 +113,7 @@ describe('access:check — Render env fetch', () => {
     });
     assert.deepEqual(names, ['BREVO_API_KEY', 'MONGODB_URI', 'NO_VALUE']);
     const serialized = JSON.stringify(names);
-    assert.doesNotMatch(serialized, /super-secret|xkeysib|mongodb:\/\//);
+    assert.doesNotMatch(serialized, /sentinel-value/);
   });
 
   it('calls the documented endpoint with the key in a header, not the URL', async () => {
