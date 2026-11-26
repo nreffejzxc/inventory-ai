@@ -11,6 +11,22 @@ An entry authorises no work by itself — `CLAUDE.md` §6.2 does. When an item s
 let the roadmap record be the evidence; do not rewrite this file as a history.
 
 **Conventions.** *Effort* is S (hours), M (a day), L (several days), XL (a project). *Origin* names the
+
+**Origins that are a rank, not an identifier.** Several retired ranking documents numbered their rows
+but assigned no identifier, so those origins name the document and its rank: `coverage #N` is rank N
+of the 2026-11-21 stock-coverage refresh in the retired `INVENTORY_AI_FOLLOWUP_ASSESSMENT.md`;
+`AI roadmap #N` is improvement N of the live `docs/AI_ASSISTANT_IMPROVEMENT_ROADMAP.md`;
+`dashboard #N` is rank N of the retired `INVENTORY_DASHBOARD_FOLLOWUPS_2026-11-22.md` (8 ranks);
+`dashboard-ref #N` is rank N of the retired `DASHBOARD_REFERENCE_HISTORY_FOLLOWUPS_2026-11-23.md`
+(16 ranks); `project #N` is rank N of the retired `PROJECT_FOLLOWUP_REVIEW_2026-11-22.md`, which
+restarts numbering for a second list, so `project #6` is either its reference-snapshot rank 6 or its
+import-execution rank 6 — the row subject says which; `audit review #N` is rank N of the retired
+`INVENTORY_INTEGRITY_AUDIT_REVIEW_2026-11-19.md`; `audit durability #N` is item N of the retired
+`AUDIT_DURABILITY_FOLLOWUPS_2026-11-23.md`. Every other origin is an identifier: `IA-`, `TS-`, `NX-`,
+`NY-`, `NZ-`, `RD-`, `PD-` and `FW-0x` come from the retired improvement assessments, `PLAT-` from the
+roadmap records, and `PR364-` from the pull-request follow-up list. Two identifiers are ambiguous in
+their sources and the row subject settles each: `FW-06` is either the digest-pinned MongoDB image
+(platform supply-chain list) or stock-movement reversal (the FW plan series), and `PROJ-6` as above.
 identifier the item had before consolidation, so a roadmap record can still be found by it. Items the
 retired documents already marked implemented (CSV import, Draft PO resume, audit outbox for imports,
 movements and PO receive, six-index readiness, FW-07 request references, step-up for destructive admin
@@ -45,17 +61,16 @@ actions, the row-status counts and filter persistence) are **not** repeated here
 
 | # | Item | Why it matters | Effort | Origin |
 |---|---|---|---|---|
-| INT-1 | Extend exactly-once, failure-durable audit to every remaining replayable writer | Product import, keyed movements and PO receive have the outbox; a retried route elsewhere can still duplicate or lose an event. | M | AUDIT-DUR-3 |
-| INT-2 | Add a tamper-evident seal (hash chain or signed batches) over audit rows | Presence is stronger than before; integrity against an edit or delete is not. | L | AUDIT-DUR-7 |
-| INT-3 | Check TTL effectiveness and archive before retention deletion | A 30-day TTL on delivered outbox rows is declared, not measured; compliance may need the receipt after it expires. | S–M | AUDIT-DUR-13, 16 |
-| INT-4 | Add a versioned reference snapshot/delta endpoint | Every picker re-reads all pages; a `generation` token plus a delta would cut requests and make completeness provable. | M | PROJ-6 |
+| INT-1 | Extend exactly-once, failure-durable audit to every remaining replayable writer | Product import, keyed movements and PO receive have the outbox; a retried route elsewhere can still duplicate or lose an event. | M | audit durability #6 |
+| INT-2 | Add a tamper-evident seal (hash chain or signed batches) over audit rows | Presence is stronger than before; integrity against an edit or delete is not. | L | audit durability #7 |
+| INT-3 | Check TTL effectiveness and archive before retention deletion | A 30-day TTL on delivered outbox rows is declared, not measured; compliance may need the receipt after it expires. | S–M | audit durability #16 |
+| INT-4 | Add a versioned reference snapshot/delta endpoint | Every picker re-reads all pages; a `generation` token plus a delta would cut requests and make completeness provable. | M | project #6 |
 | INT-5 | Add a tenant-scope query guard at the model boundary | `businessId` is enforced by convention at every call site; one missing filter is a cross-tenant read. | L | FW-02 |
 | INT-6 | Add a cross-tenant route matrix test | Authorization is pinned per role; a foreign-`businessId` request per route is not. | M | NX-03 |
-| INT-7 | Decide and enforce the catalogue archive policy for categories with ACTIVE products | Archiving a parent leaves active children; the refusal exists on create but not as a stated policy everywhere. | S–M | AUD-5 |
-| INT-8 | Price-data quality pass and a resolution path | Products with no price, zero price or a missing currency are reported by a read-only audit and never resolved. | M | AUD-8 |
-| INT-9 | Add approval thresholds for high-risk changes | A second role for large adjustments, receives and deletions makes the worst mistake two-person. | M | DASH-13 |
+| INT-8 | Price-data quality pass and a resolution path | Products with no price, zero price or a missing currency are reported by a read-only audit and never resolved. | M | audit review #8 |
+| INT-9 | Add approval thresholds for high-risk changes | A second role for large adjustments, receives and deletions makes the worst mistake two-person. | M | dashboard-ref #13 |
 | INT-10 | Build cycle counting / stocktake sessions | Freeze a location or selection, count against expected, and produce an adjustment with evidence — the missing inventory-accuracy primitive. | L | FW-03 |
-| INT-11 | Add an offline-first movement queue | Stock in/out intent persisted locally and replayed with the existing key contract would make a dead zone survivable. | L | DASH-16 |
+| INT-11 | Add an offline-first movement queue | Stock in/out intent persisted locally and replayed with the existing key contract would make a dead zone survivable. | L | dashboard-ref #16 |
 | INT-12 | Cover the remaining state-changing writes with idempotency keys | Movement, PO and import paths replay; a route-by-route matrix of the rest does not exist. | L | NX-02 |
 | INT-14 | Watch query plans for lost indexes | Index definitions are guarded, but a new collection scan stays invisible until a route slows down. | S | IA-37 |
 | INT-15 | Add an API contract-drift gate against the mobile client | A field, status or tenant-shape change can break an installed binary with no failing check. | M | IA-34 |
@@ -71,27 +86,27 @@ actions, the row-status counts and filter persistence) are **not** repeated here
 | IMP-4 | Measure and improve import throughput without weakening same-key replay | 300 rows took minutes; measure validation, create and opening stock separately before batching anything. | M–L | PR364-6 |
 | IMP-5 | Make an unfinished import discoverable on another device | The draft is device-local; an owner on a second phone cannot see or finish it. | M | PR364-7 |
 | IMP-6 | Handle preview-to-apply drift explicitly | Show which rows changed or disappeared between dry run and apply instead of a generic validation refusal. | M | PR364-9 |
-| IMP-7 | Bound concurrent imports per tenant | Two owners can start two large imports against one catalogue with nothing but the key contract between them. | M | PROJ-6 |
+| IMP-7 | Bound concurrent imports per tenant | Two owners can start two large imports against one catalogue with nothing but the key contract between them. | M | project #6 |
 | IMP-8 | Lift the Draft PO 100-row selection cap | Paging and cross-page selection would let a real restock become one order. | M | PR364-11 |
 | IMP-9 | Transmit purchase orders to the supplier (FW-04) | Orders stop at DRAFT/OPEN with no delivery path; PDF plus mail attachment are prerequisites. | L | FW-04 |
 | IMP-10 | Add supplier replenishment terms | Lead time, minimum order and pack size are the inputs a restock decision still guesses. | M | FW-05 |
 | IMP-11 | Link stock-movement reversal | Corrections are new movements; a linked reversal would keep the audit story readable. | M | FW-06 |
-| IMP-12 | Speed up receiving with scanning, partial receipts and discrepancy capture | Receiving is the slowest real-world step and the one most likely to be entered wrong later. | L | DASH-10 |
-| IMP-13 | Deliver low-stock alerts with per-tenant rules | The dashboard shows the state; nobody is told when it changes. | M | DASH-8 |
+| IMP-12 | Speed up receiving with scanning, partial receipts and discrepancy capture | Receiving is the slowest real-world step and the one most likely to be entered wrong later. | L | project #10 |
+| IMP-13 | Deliver low-stock alerts with per-tenant rules | The dashboard shows the state; nobody is told when it changes. | M | dashboard-ref #8 |
 
 ## 4. Mobile experience
 
 | # | Item | Why it matters | Effort | Origin |
 |---|---|---|---|---|
-| MOB-1 | Show a per-location stock breakdown on the Dashboard | "Low at 1 of 3 locations" answers the question the single number raises. | M | DASH-3 |
-| MOB-2 | Order attention rows by severity server-side | Out before low, then largest shortfall, so the first row is the worst one. | S–M | DASH-4 |
-| MOB-3 | Edit minimum stock where it is explained | The screen quotes "minimum N" and offers no way to correct it. | S | DASH-7 |
-| MOB-4 | Compact the filter row for small screens | Four chips plus two selectors crowd a 360 dp screen. | S | DASH-5 |
-| MOB-5 | Make freshness relative and age-aware | "Updated just now / 2 min ago" plus a refresh affordance beats an absolute timestamp. | S | DASH-15 |
-| MOB-6 | Complete the History filter lifecycle | Surface an incomplete or failed reference read instead of silently narrowing the list. | M | DASH-7 |
-| MOB-7 | Persist History filters per account | Inventory already restores its filters; History resets on every launch. | S–M | DASH-10 |
-| MOB-8 | Add stock-health trend and stocktake entry points | Seven/30-day counts turn a snapshot into a direction. | M | DASH-8 |
-| MOB-9 | Add redacted crash/install telemetry and a support diagnostic | App version, device class, route and request reference would replace a screenshot conversation. | M | DASH-14 |
+| MOB-1 | Show a per-location stock breakdown on the Dashboard | "Low at 1 of 3 locations" answers the question the single number raises. | M | dashboard #3 |
+| MOB-2 | Order attention rows by severity server-side | Out before low, then largest shortfall, so the first row is the worst one. | S–M | dashboard #4 |
+| MOB-3 | Edit minimum stock where it is explained | The screen quotes "minimum N" and offers no way to correct it. | S | dashboard #7 |
+| MOB-4 | Compact the filter row for small screens | Four chips plus two selectors crowd a 360 dp screen. | S | dashboard #5 |
+| MOB-5 | Make freshness relative and age-aware | "Updated just now / 2 min ago" plus a refresh affordance beats an absolute timestamp. | S | dashboard-ref #15 |
+| MOB-6 | Complete the History filter lifecycle | Surface an incomplete or failed reference read instead of silently narrowing the list. | M | dashboard-ref #7 |
+| MOB-7 | Persist History filters per account | Inventory already restores its filters; History resets on every launch. | S–M | dashboard-ref #10 |
+| MOB-8 | Add stock-health trend and stocktake entry points | Seven/30-day counts turn a snapshot into a direction. | M | dashboard #8 |
+| MOB-9 | Add redacted crash/install telemetry and a support diagnostic | App version, device class, route and request reference would replace a screenshot conversation. | M | dashboard-ref #14 |
 | MOB-10 | Add a minimum supported app version gate | An old binary cannot be retired without a store review because nothing tells it to update. | S | IA-38 |
 | MOB-11 | Run an accessibility and localization QA pass | Contrast is measured; large text, screen-reader labels and the supported languages are not checked. | M | IA-26 |
 | MOB-12 | Ship in-app help and a support knowledge base | The failures that generate support (verification delay, invitation, first stock-in, barcode) have no self-service answer. | M | IA-30 |
@@ -102,20 +117,20 @@ actions, the row-status counts and filter persistence) are **not** repeated here
 
 | # | Item | Why it matters | Effort | Origin |
 |---|---|---|---|---|
-| AI-1 | Catalogue-wide run-out ranking | The coverage tool answers one product; "which products will run out first" needs one bounded aggregate. | M | IA-20 |
+| AI-1 | Catalogue-wide run-out ranking | The coverage tool answers one product; "which products will run out first" needs one bounded aggregate. | M | AI roadmap #3 (P1) |
 | AI-2 | Two-product and current-versus-minimum comparison | One scoped read that labels both sides removes an arithmetic answer nobody can check. | S–M | AI roadmap #2 (P1) |
 | AI-3 | Answer provenance and a scope envelope | Every answer states the data as-of, the population and the filters it used. | M | PD-01 |
 | AI-4 | Pre-answer data-quality gate | Refuse or qualify a price/stock-value/coverage answer when the underlying data is incomplete. | M | PD-02 |
 | AI-5 | Unit-of-measure and pack metadata | "12" is ambiguous when a pack, a case and a piece all exist. | M | PD-04 |
-| AI-6 | Coverage evidence and confidence gate | A coverage estimate from two movements should say so rather than present a number. | M | AIC-1 |
-| AI-7 | Days-to-minimum and reorder trigger | Turns a quantity into a date, which is what a buyer acts on. | M | AIC-2 |
-| AI-8 | Stockout-censored demand correction | Days at zero stock hide demand; the estimate is biased without it. | M | AIC-4 |
-| AI-9 | Outlier-resistant estimator | Trim or flag one-off bulk issues, damage and write-offs. | M | AIC-5 |
-| AI-10 | Intermittent-demand handling | Slow movers need a different estimator, not a worse average. | M | AIC-6 |
-| AI-11 | Transfer-aware location coverage | A location-scoped answer should say when stock is available elsewhere. | M | AIC-7 |
-| AI-12 | Coverage outcome ledger and backtesting | Record redacted inputs and estimates so accuracy can be judged later. | L | AIC-8 |
-| AI-13 | Supplier/PO-aware restock | Include lead time, inbound ETA and minimum order in the recommendation. | L | AIC-9 |
-| AI-14 | Controlled stock-out reason codes | Distinguish sale, internal use, damage and write-off instead of one silent deduction. | M | AIC-10 |
+| AI-6 | Coverage evidence and confidence gate | A coverage estimate from two movements should say so rather than present a number. | M | coverage #1 |
+| AI-7 | Days-to-minimum and reorder trigger | Turns a quantity into a date, which is what a buyer acts on. | M | coverage #2 |
+| AI-8 | Stockout-censored demand correction | Days at zero stock hide demand; the estimate is biased without it. | M | coverage #4 |
+| AI-9 | Outlier-resistant estimator | Trim or flag one-off bulk issues, damage and write-offs. | M | coverage #5 |
+| AI-10 | Intermittent-demand handling | Slow movers need a different estimator, not a worse average. | M | coverage #6 |
+| AI-11 | Transfer-aware location coverage | A location-scoped answer should say when stock is available elsewhere. | M | coverage #7 |
+| AI-12 | Coverage outcome ledger and backtesting | Record redacted inputs and estimates so accuracy can be judged later. | L | coverage #8 |
+| AI-13 | Supplier/PO-aware restock | Include lead time, inbound ETA and minimum order in the recommendation. | L | coverage #9 |
+| AI-14 | Controlled stock-out reason codes | Distinguish sale, internal use, damage and write-off instead of one silent deduction. | M | coverage #10 |
 | AI-15 | Retain and redact assistant conversations with owner review | Turns are stored without a retention, redaction or review rule. | M | IA-22 |
 | AI-16 | Bound AI web egress and canary prompt injection | Web search and fetch are on/off switches only; there is no egress boundary or injection canary. | M | NS-07 |
 
