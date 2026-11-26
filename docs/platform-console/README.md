@@ -15,13 +15,8 @@ separate from tenant, mobile, AI-assistant and general application documentation
 | **Start using the console: access, MFA, accounts, daily work and security** | **[00 — User guide](00-user-guide.md)** |
 | Understand what the console is, what it shows and what it deliberately cannot show | [01 — Status and accounts](01-status-and-accounts.md) |
 | See the roles, console-section access, account lifecycle and credential rules | [02 — Accounts and credentials](02-accounts-and-credentials.md) |
-| Plan the next console improvements | [03 — Console improvements](03-console-improvements.md) |
 | Check the production-exposure gates | [04 — Production readiness](04-production-readiness.md) |
-| Understand the access-layer decision | [05 — Access layer](05-access-layer.md) |
-| Review the proposed security alerts and monitoring | [06 — Security monitoring](06-security-monitoring.md) |
-| Review the original prioritized security list | [07 — Security recommendations](07-security-recommendations.md) |
-| Review the additive security roadmap after PLAT-21 | [08 — Security roadmap](08-security-roadmap.md) |
-| Prioritize the remaining console security work, including new ideas | [09 — Remaining security priorities](09-remaining-security-priorities.md) |
+| Plan the next console improvement, or check what is still unbuilt | [`../BACKLOG.md`](../BACKLOG.md) §6 |
 
 ## What belongs in this folder
 
@@ -29,8 +24,8 @@ separate from tenant, mobile, AI-assistant and general application documentation
 - Platform roles, capabilities, console-section access and platform/tenant account lifecycle.
 - Platform login, MFA, recovery codes, WebAuthn, sessions and break-glass recovery.
 - Platform credential and server-secret custody, rotation and revocation.
-- Console monitoring, health signals, error-counter semantics and alerting plans.
-- Console production-readiness, access-layer and security-improvement plans.
+- Console monitoring, health signals and error-counter semantics.
+- Console production-readiness and the production-exposure gates.
 
 ## What does **not** belong here
 
@@ -39,7 +34,7 @@ separate from tenant, mobile, AI-assistant and general application documentation
 | Tenant roles, inventory, products, purchase orders and tenant audit | [`../SYSTEM_SPECIFICATION.md`](../SYSTEM_SPECIFICATION.md) |
 | Mobile app behaviour and design | [`../DESIGN_SYSTEM.md`](../DESIGN_SYSTEM.md), [`../DEVELOPING_ON_A_PHYSICAL_DEVICE.md`](../DEVELOPING_ON_A_PHYSICAL_DEVICE.md) |
 | Whole-API health, AI-turn metrics and the external health watch | [`../MONITORING.md`](../MONITORING.md) |
-| Tenant-facing security recommendations | [`../PLATFORM_SECURITY_IMPROVEMENTS_BEYOND_IA45.md`](../PLATFORM_SECURITY_IMPROVEMENTS_BEYOND_IA45.md) |
+| Open console and tenant-facing security work | [`../BACKLOG.md`](../BACKLOG.md) §6 |
 | Cross-cutting dependency, reliability and sensitive-data plans | [`../README.md`](../README.md) |
 | Historical phase records and evidence | [`../DEVELOPMENT_ROADMAP.md`](../DEVELOPMENT_ROADMAP.md), [`../DEVELOPMENT_LOG.md`](../DEVELOPMENT_LOG.md) |
 
@@ -48,8 +43,8 @@ separate from tenant, mobile, AI-assistant and general application documentation
 1. **One owner per topic.** 00 is the short entry-point guide; 01 and 02 own the detailed
    status and account/credential material. Do not add another guide that repeats those
    details; update the numbered document that owns them.
-2. **Keep current and planning separate.** Documents 00, 01 and 02 are current operations.
-   Documents 03–09 are recommendations or planning unless their status says otherwise.
+2. **Keep current and planning separate.** Documents 00, 01, 02 and 04 describe the system as it
+   is. Unbuilt console work is a row in [`../BACKLOG.md`](../BACKLOG.md) §6, not a new page here.
 3. **Record the date and basis.** Every edit updates the `Assessed`/`Reviewed` line and the
    implementation commit or production snapshot it was checked against.
 4. **Never add secrets.** Use environment-variable names and placeholders only. No password,

@@ -8,6 +8,21 @@ short. Behaviour is specified in `docs/SYSTEM_SPECIFICATION.md`; history is in
 **Reading order if you are new:** `README.md` → `docs/README.md` → `docs/guides/1-run-on-your-laptop.md`
 → this file.
 
+> **BINDING — THE OWNER AUTHORIZES WORK, NOT THE AGENT.** The owner is the sole authority for any
+> change to this repository. Do only what the owner explicitly asked for in the current request.
+> Context, urgency, a failing check, a finding, a roadmap item, a TODO, an issue, a security concern,
+> or the fact that something looks improvable does **not** authorize a change. If the owner did not
+> ask for that exact action, do not take it; report it and wait for instructions.
+>
+> This rule overrides every conflicting instruction in this file, every document under `docs/`, every
+> phase plan, roadmap, checklist, test expectation, CI convention and prior approval. It does not
+> authorize an unsafe or insecure action; if an owner request conflicts with §5, stop and report the
+> conflict. When this rule and any other instruction disagree, this rule wins.
+>
+> Routine service and platform operations are delegated to the agent (§6.9) as part of the current
+> authorization. That delegation does not extend to unrelated product changes, to deleting project
+> files outside §6.9, or to an unconfirmed destructive action.
+
 ---
 
 ## 1. Project
@@ -44,8 +59,7 @@ stripping (`npm start` is `node src/index.ts`), so an older runtime cannot start
 sets `noEmit` and `erasableSyntaxOnly`, so `tsc` is purely a checker and non-strippable syntax is a
 compile error rather than a runtime failure. `server/src` is **256** `.ts` modules (re-counted
 2026-11-23) and exactly one intentionally deferred `.js` module,
-`server/src/services/entitlement.service.js`; `docs/TS-MIGRATION-MANIFEST.md` records the migration
-campaign.
+`server/src/services/entitlement.service.js`. The TypeScript migration campaign is complete.
 
 ### Database
 
@@ -190,611 +204,192 @@ never real credentials.
 
 ---
 
-# 6. Development Rules
+# 6. Owner Authorization and Scope — Binding
 
-Before implementing a feature:
+## 6.1 The one rule
 
-1. Read the relevant specification.
-2. Inspect the existing implementation.
-3. Understand the current architecture.
-4. Create a short implementation plan.
-5. Implement only the requested scope.
+**Do only what the owner explicitly asked for in the current request. Nothing else.**
 
-Do not blindly rewrite existing code. Do not introduce unnecessary dependencies. Prefer simple and
-maintainable solutions.
+Do not add, remove, fix, improve, harden, simplify, refactor, optimize, document, test, clean up,
+standardize, future-proof or "finish" anything merely because it is related to the request, visible
+while inspecting, recommended by a document, required by a phase plan, or likely to be useful.
+
+## 6.2 What counts as authorization
+
+Authorization must be all four of these:
+
+- **Explicit** — the owner names the action. A question, complaint, observation or expression of
+  frustration is not authorization to change code.
+- **Current** — it comes from the current request, not an earlier conversation, a prior approval, a
+  roadmap entry, a commit message, a plan, or another agent's assumption.
+- **Specific** — it identifies the feature, bug, file, behavior or outcome. Broad phrases such as
+  "fix everything", "clean it up", "make it better", "do what you think is best" or "use your
+  judgment" do **not** authorize a particular change; ask for the exact scope.
+- **Scoped** — permission to fix X does not include fixing Y, even when X and Y share a file, a test,
+  a service or a root cause.
+
+If any of these is missing, stop and ask one precise question. Do not choose a reasonable default
+that expands the work.
+
+## 6.3 Never do these without an explicit request
+
+The standing delegation in §6.9 is an explicit owner request for the service and platform operations
+it names. It does not authorize unrelated work.
+
+- Add or remove features, screens, routes, fields, options or user-visible behavior.
+- Refactor, rename, reformat, reorganize, simplify, deduplicate or modernize code.
+- Improve performance, accessibility, reliability, security, error handling or edge-case behavior.
+- Add, modify, weaken, delete or expand tests, fixtures, test runners or coverage.
+- Add or update documentation, comments, README files, guides, changelogs, roadmaps or logs.
+- Add logging, metrics, monitoring, alerts, scripts, CI jobs, configuration, migrations or tooling.
+- Install, upgrade, remove or replace dependencies; edit lockfiles; change build or deployment setup.
+- Change `.env`, secrets, credentials, accounts, GitHub settings, branch protection or service plans.
+- Create, commit, push, merge, rebase, tag, stash, pop, drop, reset, force-push or rewrite history.
+- Deploy, publish, release, OTA-update, run migrations, seed data, or write to production or shared
+  environments.
+- Fix a problem found while inspecting, reviewing, testing or debugging unless the owner explicitly
+  asked for that specific fix.
+- Implement a "follow-up", "next step", "recommendation", "improvement" or "quick win" you identified.
+- Make a "while I am here", "small", "safe", "obvious" or "low-risk" adjacent change.
+
+If a requested action is impossible without one of the above, stop before doing it and ask the owner
+to approve that additional work explicitly.
+
+## 6.4 Read-only requests stay read-only
+
+When the owner asks you to inspect, review, test, verify, audit, diagnose, explain, investigate or
+answer a question, make **no changes**. Report findings, evidence and risks, then stop. Finding a bug
+during a read-only task does not turn it into a repair task.
+
+When asked to fix a specific bug, change only what is necessary to fix that bug. Do not fix nearby
+warnings, add regression tests, update documentation or improve the surrounding module unless the
+owner explicitly includes those actions.
+
+## 6.5 Verification is part of the requested change, not a new project
+
+Run the smallest check that confirms the exact requested change. Do not broaden verification into an
+unrequested audit. Do not create tests or test infrastructure unless the owner explicitly asked for
+them. Report every check not run and why; never describe an untested change as verified.
+
+## 6.6 No self-assigned work
+
+The following are **not** work queues and must never be acted on without a new, explicit owner
+request: phase tables, roadmaps, development logs, TODO/FIXME comments, failing tests, lint warnings,
+security advisories, monitoring signals, dependency updates, open issues, pull requests, code review
+comments, metrics, documentation gaps and "best practice" recommendations. They may be read and
+reported; they may not be executed.
+
+## 6.7 When prior unrequested work is found
+
+Do not silently revert, rewrite, hide or "clean up" it. List the affected files, commits or behavior
+with evidence and ask the owner whether to keep, revert or replace each item. Never touch a stash,
+branch or commit unless the owner explicitly names it.
+
+## 6.8 Required reporting
+
+Every final report must state:
+
+- The exact owner request that authorized the work.
+- Every file changed, and why that file was necessary for that request.
+- The checks actually run and their results.
+- Anything intentionally not changed, and anything found but left for the owner to decide.
+
+If no change was requested, make no change and say so. A question gets an answer, not a modification.
+
+## 6.9 Delegated service and platform authority
+
+The owner delegates routine operation of these service accounts and platforms: GitHub, Firebase,
+MongoDB Atlas, OpenRouter, Render, Brevo, Expo, UptimeRobot and the project's Gmail accounts. Within a
+task the owner has already requested, the agent may act on them without asking again for each
+reversible step:
+
+- Inspect status, logs, metrics, configuration, indexes, deploys, builds, domains, billing state and
+  quota through existing credentials, CLIs and APIs, including read-only production checks.
+- Make routine, reversible configuration changes.
+- Edit project files, and delete only disposable test data the requested task itself created — its
+  own fixtures, temporary files, scratch collections or scratch rows.
+
+Deleting any other file — source, test, documentation, configuration, migration or committed data —
+still needs the owner's explicit request. The delegation is not a general permission to delete
+project files, and it does not authorize unrelated product changes, refactors, monitoring layers or
+key systems.
+
+Two limits are absolute:
+
+- **Credentials and MFA codes are never handled as content.** Do not print, commit, paste into chat or
+  store a credential, API key, TOTP secret or MFA backup code, and never create, copy or move MFA
+  backup codes. Enrollment and recovery-code custody stay with the owner.
+- **Destructive or irreversible actions need a fresh confirmation.** Deleting a database, collection
+  or account, rotating or revoking a credential, changing billing, force-pushing or deploying to
+  production requires the exact target and effect, stated and confirmed immediately beforehand.
+
+## 6.10 Security-change notes
+
+For every security configuration change, write a dated note with a descriptive filename in the
+location the owner keeps such notes: what changed, which account or service was affected, when and how
+it was verified. The note never contains a password, API key, TOTP secret or MFA backup code; record
+only that codes were generated and where the owner stored them.
 
 ---
 
-# 7. Phase Discipline
+# 7. Delivery Workflow — Only After Authorization
 
-The project is built in phases: one phase, one purpose, one verification record.
+This section replaces autonomous phase execution. A phase record, plan or roadmap may describe past
+work, but it does not authorize future work.
 
-## How to work a phase
+1. **Identify the exact request.** Quote it to yourself. If it is ambiguous or broad, stop and ask.
+2. **Inspect only what is needed** to understand that request. Do not survey unrelated code.
+3. **Make the smallest change** that satisfies it. Do not add unrelated files, tests, docs, comments,
+   dependencies, configuration or refactors.
+4. **Verify only that change** with the smallest relevant existing check. Report the exact command and
+   result. Do not run a broad suite or audit unless the owner asked for one.
+5. **Stop.** Do not commit, push, merge, deploy, update the development log or roadmap, or begin a
+   follow-up unless the owner explicitly asked for that separate action.
 
-- Implement that phase only. Do not jump ahead, do not implement future features without explicit
-  approval, and do not silently expand scope.
-- If a future feature is required to implement the current phase, explain the dependency before
-  making major changes.
-- Verify before claiming: the phase's tests, `tsc`, `eslint`, and the behaviour itself. A passing
-  build is not a passing feature.
-- Record the phase in `docs/DEVELOPMENT_ROADMAP.md` with a number in the `27…` series, and cite that
-  number from here. The numbering is guarded: no record may claim a number twice, every `§27…`
-  citation must resolve, and every declared record must be reachable from this file.
-- End every session by updating `docs/DEVELOPMENT_LOG.md`: what was completed and how it was verified,
-  what is still in progress, what is blocked, and the next priority. The roadmap records what shipped;
-  the log records what is true today. Never mark an item complete there because code was written or a
-  commit exists — only because the check was run and its result seen.
-
-## Phase overview
-
-| Phase | Delivered |
-| --- | --- |
-| 00–03 | Planning, project foundation, backend + database, authentication and authorization |
-| 04 | Inventory core: stock in/out/adjust, transactions, no negative stock |
-| 05 | Mobile application |
-| 06 | Read-only AI assistant |
-| 07 | Testing and production hardening (headers, CORS, logging, error hygiene, rate limits) |
-| 08A/08B | Structured request logging + correlation IDs; backend ESLint baseline |
-| 10A/10B | SaaS plan state and centralized entitlement checks |
-| 11A/11B | Inventory health, reorder list and a read-only restock tool |
-| 14A | User management API (OWNER/ADMIN: list, create, role + status) |
-| 16 | Audit trail viewer — read-only, OWNER/ADMIN |
-| 17 | Mobile suppliers and purchase orders |
-| 19 | Stock transfers between locations (two-leg movement + compensation) |
-| 21 | Product archive-only lifecycle, documented and guarded |
-| 22–24 | Authorization contract enforcement, route classification, runtime role × route matrix |
-| 25 | Design-token contrast to WCAG AA, measured |
-| 26A | Server-side sessions named by `jti`: real logout, per-session revocation, sign out everywhere |
-| 26B | Password recovery by emailed reset token (public routes, uniform 202) |
-| 27 | Mobile password-recovery screens |
-| 28 | Reset-mail send detached from the request path (partially mitigated; residual term accepted) |
-| 29 | Residual security-risk decision record |
-| 30A | EAS foundation: profiles, identifiers, `expo-dev-client` |
-| 30B | Native and device acceptance (defined; items closed piecemeal, iOS environment-blocked) |
-| 32B–32E | Firebase Admin boundary, session exchange, native SDK boundary, email/password flow |
-| 32H | Server-side account-linking boundary |
-| 32J / 32K | Registration onboarding; Firebase password authority and timing-equalizer fix |
-| 32L | Firebase unlink — **superseded and removed** (Phase A / F-1) |
-| F1 / F2 / F2.9 | Retire the Firebase JS SDK and browser OAuth; retire browser deps, plugin and second scheme; verify on a device |
-| AUTH-01…AUTH-06 | Revocation checking, short-lived JWT + 14-day cap, renewal, verification codes, two-step recovery |
-| AI-1…AI-25 | Initial assistant delivery: turn deadline, retries, answer rendering, cost line, quota, failover, streaming, one provider |
-| AI-87/AI-88 | Ordinary/research model routing and a controlled research failover drill; deployed and recorded in `docs/DEVELOPMENT_LOG.md` |
-| AI-91/AI-92 | Exact product identity and per-location stock answers — §27HT, merged as `6d95168` and production-verified |
-| AI-99 | Free-first simple inventory route, deterministic stock totals and restock counts, bounded paid fallback, resumable 10k evaluator — merged as `8b6353a`, deployed and OTA-published (§27HU) |
-| AI-99 10k gate | 10,256-product gate: 24/25, one real output-limit failure; free allowance at 0/1000 — §27HV |
-| AI-103 / OPS-3 | Whole-set receipt and transfer totals in history answers; the operator monitoring runbook — §27HW |
-| AI-84 / AI-105 / OPS-4 | Direct language lock, output-limit retry with reserved reasoning, and the external production watch — §27HX |
-| AI-106 / reset-UX OTA | Finalizer detail preservation and the “Correcting the answer…” OTA — merged as `26eb0d4`, live-verified **19** and **19 / 1,633,025** with Render-matched refs — §27HY |
-| AI-110 | Contextual assistant entry from product and stock screens, and the server-computed restock shortfall — §27IC |
-| AI-111–AI-113 | Copy Answer, server-id product links, complete-list screen links with bounded result rows, the highest-stock ranking and the whole-set restock shortfall — §27IE |
-| AI-114 | Deterministic rendering of a complete restock/low-stock list, including recovery from an output-limited turn — §27IF |
-| AI-115 | Member answer ratings, required DOWN reasons and notes, and the OWNER/ADMIN feedback review queue — §27IG |
-| AI-116 | Previous-result follow-up filtering with fresh stock reads, plus per-answer provenance and Inspect — §27IH |
-| AI-117 | Complete reported-answer preview with a bounded surrounding window for OWNER/ADMIN review — §27II |
-| AI Roadmap | Permanent eight-item assistant improvement plan and the 2026-11-16 implementation audit — §27ID |
-| Close-out / OPS-4 | Scheduled-watch diagnosis (no automatic GitHub schedule), standalone `com.inventoryai` APK built/installed, AI-105 staging retry — §27HZ |
-| Reliability / OPS-5 | Post-deploy phone proof, the 2,517-finding read-only triage, and the scheduled baseline/history monitor — §27IA |
-| Reliability / OPS-6 | One-off Task Scheduler proof, the externally resolved SteelSeries finding, and hosted freshness behind UptimeRobot — §27IB |
-| Platform Operations / PLAT-1 | INTERNAL owner/support/developer monitoring plane — separate administrator identity, sessions and capabilities; no tenant Operations surface — §27IJ, §27IK; durable 5xx/feature stores — §27IL |
-| Platform Operations / PLAT-2–PLAT-3 | Dedicated console with HttpOnly cookie, CSRF and strict CSP; mandatory TOTP enrollment with optional WebAuthn; append-only platform audit read by SECURITY/SUPERADMIN; 105-route inventory — §27IM |
-| Platform Operations / PLAT-4 | Fresh security review, CI browser WebAuthn job, production-readiness checklist and prioritized future security recommendations — §27IN |
-| Platform Operations / PLAT-5 | Recovery codes, durable account-scoped MFA lockout, password change, administrator lifecycle and fail-closed origin/cookie hardening — §27IO |
-| Platform Operations / PLAT-6 | **LIVE internal console at `/platform` on `56e8c27`:** support tickets, deployment history, infrastructure/AI/database/mobile/jobs views, health-only status, production smoke and browser MFA sign-in — §27IP |
-| Platform Operations / PLAT-7 | **PLAT-7 deployed at `e218bb0`:** forced recovery-code ceremony, free-plan outer access gate, guarded break-glass reset, production gate/recovery proof and required `webauthn-e2e` branch check — §27IQ, §27IR |
-| Platform Operations / PLAT-8 | **Docs-only planning assessment (2026-11-17):** Cloudflare Access/Tailscale/Render access options, a platform security alert catalogue with owners and thresholds, and an 18-item whole-product ranking — §27IS; no implementation or production change |
-| Planning / PLAT-9 | **Free-first decision package (2026-11-17):** conditional Cloudflare migration plan, alert-owner decision sheet, disposable restore drill and additive follow-up opportunities — §27IT; no implementation, database operation, deployment or paid service |
-| Planning / PLAT-10 | **Security contacts, Firebase recovery drill and multi-criteria ranking (2026-11-17):** verified owner as primary, backup **UNASSIGNED** at that point with alerts inactive; isolated free Firebase recovery plan; seven-criteria IA-19–IA-33 ranking — §27IU; no implementation, database operation, deployment or paid service |
-| Planning / PLAT-11 | **Backup contact, Firebase-plan review and second ranking (2026-11-17):** Cucumber named backup (private contact details, test pending, alerts inactive); 30-day project-restore/key-cache/network-safety corrections; IA-34–IA-37 added — §27IV; no drill, implementation, database operation, deployment or paid service |
-| Planning / PLAT-12 | **Contact wording, joint ranks, notification evidence and third ranking (2026-11-17):** private contact details only in owner record; one 23-row joint-rank table; evidence record pending both deliveries; IA-38–IA-41 added — §27IW; no alert, drill, implementation, database operation, deployment or paid service |
-| Planning / PLAT-13 | **Two-contact test procedure and fourth ranking (2026-11-17):** owner-run, free-channel, no-secret test procedure with both acknowledgements; IA-42–IA-45 added; one 27-row joint-rank table — §27IX; no notification sent, alert activated, implementation, database operation, deployment or paid service |
-| Planning / PLAT-14 | **Printable two-contact test checklist (2026-11-17):** one-page owner form for both receipt timestamps, Cucumber's written acknowledgement, evidence redaction and the final activation gate — §27IY; blank and pending, no notification sent or alert activated |
-| Planning / PLAT-15 | **Verified print layout and tenant security review (2026-11-17):** Chrome-rendered Letter PDF exactly one page; six new tenant-facing recommendations TS-01–TS-06 ranked, with free/cost/domain gates — §27IZ; no implementation, notification, alert, DNS/deployment or paid service |
-| Planning / PLAT-16 | **TS-01 plan, reproducible checklist renderer and next improvement tranche (2026-11-17):** event/recipient/privacy/rate/acceptance plan; free Chrome renderer with mandatory one-page verification; RD-01–RD-06 ranked beyond TS-06 — §27JA; no implementation, notification, alert, production change or paid service |
-| Planning / PLAT-17 | **Checklist restoration, path-safe renderer, RD-01 drill plan and NX-01–NX-07 (2026-11-17):** printing line removed from the checklist; Windows quoted paths with spaces proven; dependency outage matrix and local drill; next ranked tranche — §27JB; no implementation, notification, alert, production fault injection or paid service |
-| Planning / PLAT-18 | **RD-01 fact-check, NX-01 sensitive-data design and NY-01–NY-06 (2026-11-17):** four code-proven corrections to the outage matrix; sensitive-field map, G1–G9 findings, redaction boundary and C1–C14 canary; six new ranked recommendations beyond NX-07 — §27JC; no implementation, notification, alert, production fault injection, database operation or paid service |
-| Planning / PLAT-19 | **NZ-01–NZ-07 roadmap beyond NY-07 (2026-11-17):** CodeQL, dependency review, production deploy rollback drill, workflow security audit, Android manifest privacy, privacy-policy drift and App Check, with free-first controls and optional paid costs — §27JD; no implementation, notification, alert, drill, database operation, deployment or paid service |
-| Platform Operations / PLAT-20 | **Atomic last-SUPERADMIN guard, monitor-only 5xx accounting and heartbeat restoration (2026-11-18):** lease-serialised disable/delete with lock-free enable; stale-lease and concurrent-race proof; `/api/health/integrity` 503 excluded from `serverErrors`; cwd-independent heartbeat writer and PowerShell native-stderr fix — §27JE; no deployment, recovery-code rotation or WebAuthn registration |
-| Platform Operations / PLAT-21 | **Console status assessment and account guide (2026-11-18):** measured production snapshot, feature-by-feature status, AI monitoring accuracy, platform/tenant authentication, and account creation/verification for every platform and tenant role — §27JF; documentation and read-only production reads only, no deployment or account creation |
-| Platform Operations / PLAT-22 | **Additive security roadmap beyond PLAT-21 (2026-11-18):** seven new ranked controls — password-breach screening, audited operator CLI, versioned platform key rotation, session inventory/revocation, outer-gate anti-automation, factor rotation and AI web-egress canary — §27JG; recommendations only, no implementation; PR #336 CI verified 5/5 green |
-| Platform Operations / PLAT-23 | **Owner/CEO account, credential and access guide (2026-11-18):** complete role/section matrices, account lifecycle, credential inventory with storage and rotation rules, authentication and recovery, and owner security checklist — §27JH; documentation only, no deployment, account creation or credential change |
-| Platform Operations / PLAT-24 | **Dedicated console documentation and accuracy corrections (2026-11-18):** numbered `docs/platform-console/` set with index and review cadence; tenant-disable/session, TOTP-vs-WebAuthn and 5xx-scope corrections — §27JI; documentation only; merged and deployed as `e7ce455` |
-| Platform Operations / PLAT-25 | **Outer access-gate failure bounding and sampled audit (2026-11-18):** per-address and global failure windows, 429 with `Retry-After`, valid-key bypass of the budget, and one sampled `platform.access.gate_denied` event without key material — §27JJ; code and tests; merged and deployed as `e7ce455` |
-| Platform Operations / PLAT-26 | **Audited operator CLI creation (2026-11-18):** CLI requires an operator identity and writes exactly one `platform.admin.created` event with source, target and optional grant; duplicate/failed creation writes no success event — §27JK; code and tests; merged and deployed as `e7ce455`; address activation remains unimplemented |
-| Platform Operations / PLAT-27 | **SEC-08 step-up proof for destructive administrator actions (2026-11-18):** password + TOTP issues a five-minute proof bound to the session and lifecycle scope; disable/enable/delete/key-removal enforce it server-side; four audit actions; console prompt — §27JL; code, tests and console docs; PR #336 CI 5/5; merged and deployed as `e7ce455`; production now `ecbdb87` after this dependency merge; address activation remains open |
-| Dependency Security / DEP-01 | **Glob 14.0.2 override and picomatch residual review (2026-11-18):** both manifests override the patched `glob@14.0.2`; CommonJS and `rimraf` smoke tests pass; `picomatch` remains at the latest 4.0.7 with no published fix, confined to build/test tooling and accepted as residual — §27JM; merged as `ecbdb87` and deployed; #25 remains open |
-| Dependency Security / DEP-02 | **Dependency-review pull-request gate (2026-11-19):** `actions/dependency-review-action` pinned to `v5.0.1`'s full SHA `bbc44d1`; fails newly introduced high/critical advisories in runtime, development and unknown scopes; licence checks off and `contents: read` only — §27JN; clean run on PR #342 (run `44286358498`) merged as `5a4e26a`; scratch PR #343 failed on `lodash@4.17.20` (run `44438250810`) and was closed unmerged; now a required check; seven contexts since DEV-03 |
-| Developer Tooling / DEV-01 | **Optional local MongoDB container (2026-11-19):** `compose.yaml` runs `mongo:7` on loopback with CI's healthcheck; Guide 20 covers start, reset and `MONGODB_URI` — §27JO; not executed because Docker is not installed; production, CI and runtime unchanged |
-| Platform Reliability / PLAT-28 | **WebAuthn invalid-attempt reliability (2026-11-19):** late session responses no longer clear the MFA challenge; the harness asserts the challenge and current MFA view — §27JP; six green `webauthn-e2e` jobs (original plus five at `9d0a505`); local proof still blocked by missing Docker/MongoDB |
-| Platform Operations / PLAT-29 | **Console user guide and documentation reconciliation (2026-11-19):** one beginner-friendly `00-user-guide.md` covering access, MFA/recovery, Superadmin/support/developer accounts, daily operations and security; stale production/read-only claims corrected, with supported and unavailable functionality separated — §27JY; documentation only; no production setting, account or permission changed |
-| Platform Operations / guide audit | **Console guide claim audit and follow-up recommendations (2026-11-19):** audited the 16-section guide against the operator CLIs, package scripts, environment names, role capabilities and routes; corrected the TOTP display, `READ_ONLY` deployment claim, developer command, production-guard wording, step-up scope, lost-key order and production commit — §27KA; documentation only; recommendations not implemented |
-| Inventory integrity / audit fixes | **AI ranking, transfer retry, receive replay and catalog integrity (2026-11-19):** server-ranked cheapest/dearest with null-price exclusion and inclusive ceilings; full-upsert transfer retry; durable receipt replay after an applied-then-throw receive; explicit PATCH clearing, archived-category refusal, idempotent catalog creates and best-effort post-commit audit — §27KC; code and DB tests, no deployment or production data change |
-| Mobile / FW-07 | **Copyable request references in mobile error details (2026-11-19):** `ApiError.requestId` from a safely validated `X-Request-ID`; shared `ErrorState`/`ListScreen` and every direct caller show a selectable, copyable reference with a short local confirmation — §27KD; mobile-only, no server change; 112 suites / 1,283 tests pass |
-| Mobile / FW-07 follow-up | **Form references, persisted operation keys and integrity verification (2026-11-19):** Banner/Alert failures now use the shared copyable reference; ambiguous creates and movements resume up to eight SecureStore-scoped keys per kind across restarts with a 24-hour TTL, and 5xx/408/in-progress answers retain the key; receive cross-tenant and apply-then-throw behavior verified, currency-safe ranking re-verified — §27KF; 113 suites / 1,305 mobile tests, server integrity 16/16 and Phase 13 17/17 |
-| Inventory integrity / ledger guard | **Transfer-ledger uniqueness, cross-instance recovery lease and scheduled operations (2026-11-19):** unique partial `(businessId, transferOperationId, locationId)` index with a preflight/quarantine migration; duplicate-key-safe and exact validation in roll-forward; MongoDB lease shared by scheduler and CLI; `ops:integrity` locks, history and per-command GitHub issue alerts with the `0/1/2` contract preserved — §27KG; typecheck, focused integrity/index/TLI 35/35, ops policy 15/15 and full DB results in the log; no production migration, command, data or deployment |
-| Product currency / rate operations | **Process-local exchange-rate availability on `/api/health`, resolver CLI proof and ranked follow-ups (2026-11-20):** `/api/health` publishes aggregate `exchangeRates` counters (requests/cache hits/verified/same-currency/stale/unavailable and last timestamps) without tenant or provider detail; `/ready` and `/live` stay unchanged, and no-fallback conversion is untouched; the resolver is injectable and tested without a database, template mode warns at the 5,000-row cap, dry-run remains the default, production writes keep the confirmation phrase and the 0/1/2 exits; 12 ranked ideas are recommendations only — §27KL; typecheck, focused lint, CLI 13/13, health 24/24, currency unit 13 pass/1 skip and DB 6 pass/3 skip; full suite 3,310/538; no production data, commit or deployment |
-| AI assistant / stock coverage | **Run-out intent guard and bounded live selection evaluation (2026-11-20):** a narrow detector plus one corrective re-ask forces `getProductStockCoverage` before a run-out answer; Q7 scripts the wrong `getProduct` first and proves the correction, while Q8 still returns null cover for no stock-out; `eval:stock-coverage` is a bounded opt-in six-paraphrase live check that records first/all tool choices on the current model and never changes model/CI configuration — §27KM; AI118 unit 5 pass/1 skip and DB 8 pass/1 skip, Phase 06 14/14, full suite 3,311/538; no live run, production data, commit or deployment |
-| Release / monitoring | **Bare health aliases and read-only post-deploy SHA verification (2026-11-20):** `/health` and `/ready` reuse the canonical handlers; the new verifier polls `/api/health` for the merged SHA then requires readiness, liveness and `db: connected`; `.github/workflows/verify-production-deploy.yml` runs it on `server/`-scoped main pushes and manual dispatch; the single startup 5xx is classified as a transient readiness probe, with no Render log path available; focused 5/5, Phase 23 21/21, typecheck and focused lint pass — §27KP; no commit or deployment |
-| Product currency / AI accuracy | **Required ISO 4217 product currency, legacy audit and verified marketplace conversion (2026-11-20):** create requires a tender code and PATCH can neither clear it nor omit it on a legacy row with none; the model and service enforce the same rule, and the catalogue/demo/perf/eval seeders state `PHP`; `audit:product-currency` is read-only and resolution is an explicit verified PATCH; the mobile form uses a searchable ISO picker (code + English name); the product API/UI separates `costPrice` from `sellingPrice` with the recorded `currency`, while assistant rows expose only `sellingPrice`/`currency` and keep cost internal; market listings carry marketplace country, listing currency, match evidence, original price and an optional ECB-dated Frankfurter `convertedPrice`, never a guessed rate — §27KJ; reviewed and ranked follow-ups are in the record; typecheck, focused checks and full suite 3,255/532 in the log; no production data, migration, commit or deployment |
-| Mobile + inventory integrity / idempotency | **Account-scoped operation keys, serialized key-store writes, durable movement receipts and AI streaming request references (2026-11-20):** mobile buckets are per account (`v3` owner digest), v1/v2 global records migrate per account without taking another account's keys, and every bucket mutation is serialized; `stock_movement_operations` uniquely records stock-in/out/adjust by `(businessId, requestKey)` with a request fingerprint, replays or recovers a committed movement after a 5xx/crash, and refuses an unprovable outcome with `MOVEMENT_REQUIRES_ATTENTION`; `triage:integrity` lists those attention receipts; AI streaming failures capture a validated `X-Request-ID` and show the shared copyable reference — §27KI; typecheck, focused and full results in the log; no production data, migration, commit or deployment |
-| Inventory reliability / operations | **Post-commit 5xx proof, movement-receipt recovery and mobile Pending Operations (2026-11-20):** a test-only post-commit 503 proves same-key retry replays one committed movement; the scheduled pass and dry-run-first `recover:movement-receipts` complete only ledger- or exact-snapshot-proven receipts, flag contradictions, prune only `COMPLETED` rows after 30 days and audit recover/prune; `POST /api/inventory/operations/status` is authenticated, tenant-scoped and returns state plus a support reference only; mobile shows, checks and safely retries the signed-in account's stored operations without exposing a key — §27KK; focused and full results in the log; no production data, migration, commit or deployment |
-| Inventory integrity / ops reliability | **Retryable alerts, fail-closed readiness and read-only attention triage (2026-11-19, hardened 2026-11-20):** failed GitHub create/comment/close is persisted as undelivered and retried on the next `--notify` run; stable hidden markers stop a lost-response retry or a second scheduler host from duplicating a comment, an unreadable issue stays pending, and a pending close is not resumed against a replacement issue; `/api/health/ready` requires the exact unique partial transfer-ledger index and answers 503 when it is missing or wrong; `triage:integrity` lists `REQUIRES_ATTENTION` journals, movement receipts and quarantine rows with reasons and evidence, read-only, with DB-backed zero-write coverage — §27KH; focused 45/45 and the complete server suite 3,244/529 are in the log; no production data, migration, commit or deployment |
-| Planning / FW implementation plans | **Five documentation-only plans (2026-11-19):** corrected FW-04 to the actual `DRAFT`/`OPEN`/`RECEIVED`/`CANCELED` statuses and partial-receipt behavior, and made PDF generation plus mail attachments explicit prerequisites; planned FW-07 request references, FW-05 measurement-first database deadlines, linked stock-movement reversal and supplier replenishment terms — §27KB; no code, schema, production data/configuration, email or deployment change |
-| Developer Tooling / DEV-02 | **Compose MongoDB CI job (2026-11-19):** `compose-mongo` boots `compose.yaml`, waits for healthy and pings MongoDB on every PR and push — §27JQ; run `44443515084` passed in 28 s; not a required check; deployed path unchanged |
-| Developer Tooling / DEV-03 | **Compose MongoDB required check (2026-11-19):** `compose-mongo` added to `main`'s required status checks; strict and admin enforcement unchanged; `scripts/audit-access.mjs` expects seven contexts — §27JR; API readback and audit pass |
-| Developer Tooling / DEV-04 | **Pinned MongoDB image and bounded CI jobs (2026-11-19):** `mongo:7.0.48` in `compose.yaml` and both service blocks; weekly `docker-compose` Dependabot entry, majors ignored; `server`/`mobile` 20 min, guards 5, compose 5, WebAuthn 10 — §27JS; PR #349 run `44459482854` six CI jobs green |
-| Developer Tooling / DEV-05 | **Merge queue prerequisites and user-ownership blocker (2026-11-19):** both required workflows accept `merge_group`; attribution guard reads `merge_group.base_sha`; dependency-review gets queued base/head refs — §27JT; queue not active, ruleset API HTTP 422 on a user-owned repository |
-| Developer Tooling / DEV-06 | **Merge queue wiring removed; simple PR flow kept (2026-11-19):** `merge_group` and its refs removed; seven required checks, strict, admin enforcement and zero approvals kept; all Actions SHA-pinned with repository policy enforced — §27JU; PR #351 run `44464908485` seven checks green |
-| Developer Tooling / DEV-07 | **Production-health verification and Mongo CI review (2026-11-19):** manual run `44466873886` succeeded with the pinned checkout; probe is GET-only and wrote no production state; native Mongo service containers kept because Compose would add startup/cleanup steps and duplicate `compose-mongo` — §27JV |
-| Developer Tooling / DEV-08 | **GitHub workflow improvement roadmap (2026-11-19):** ranked invariant check, checkout hygiene, runner pin, security-update grouping, `SECURITY.md` and scheduled WebAuthn repeat — §27JW; recommendations only, nothing implemented |
-| Developer Tooling / DEV-09 | **Workflow invariant guard, checkout hygiene and security policy (2026-11-19):** dependency-free guard for SHA pins, job timeouts, Mongo image parity and Node versions; every checkout has `persist-credentials: false`; concise `SECURITY.md` — §27JX; PR #353 run `44469309631` seven checks green |
-| Developer Tooling / DEV-10 | **Workflow fixture proof, Dependabot security grouping and future roadmap (2026-11-19, completed 2026-11-21):** five temporary-repository fixtures prove each guard rule fails; server, mobile and Actions security updates grouped separately from routine updates; seven new ranked items plus carry-forward in `PLATFORM_NEXT_IMPROVEMENTS_BEYOND_DEV09.md` — §27JZ; CI and configuration only; seven required checks unchanged |
-| Product currency / price comparison | **Explicit currency correction, mixed-currency price comparisons and bounded FX retry (2026-11-20):** ordinary product PATCH keeps the exact recorded code but cannot replace it; `POST /api/products/:id/currency-correction` requires a 3–500-character reason and `priceReconfirmed: true` and records `PRODUCT_CURRENCY_CORRECTED` with both codes; assistant price ceilings/rankings require one recorded currency and refuse mixed/unrecorded groups, while an explicit ISO code scopes the comparison; failed FX lookups coalesce in flight, negative-cache for 30 s with exponential backoff to 5 min and clear on success, with health counters preserved and extended — §27KR |
-| AI Assistant / AI-118 follow-up | **Deterministic stock coverage, exact-name resolution and semantic evaluation (2026-11-20):** a successful `getProductStockCoverage` result now finalizes the stored answer with the estimate (or explicit no-rate outcome) and proxy caveat; the tool accepts an exact recorded name and refuses partial/ambiguous names; the evaluator separates selected/succeeded/used coverage and judges the caveat semantically. Q7/Q8 remain intact; Q7b/Q7c retained, Q7d/Q7e added. The recorded live artifact matches §27KO (0/6 first, 5/6 anywhere, 1 correction, 0 errors, $0.007846); the old exact-phrase caveat count 0 becomes 1/6 semantically. Phase 06 **18/18**, AI-118 DB **9/9**, metrics **4/4**; no model/production change — §27KQ |
-| Inventory / Dashboard / mobile filters | **Row-level attention, four server counts, Dashboard action and per-user filter persistence (2026-11-22):** `c697943` was reviewed and ported onto the current branch; its duplicate Low/attention predicate was replaced with canonical disjoint row statuses (`LOW_STOCK` = 0 < available <= minimum, `OUT_OF_STOCK` = available <= 0) and `needsAttention` as their union. `GET /api/inventory?includeCounts=true` returns All/Needs attention/Low/Out totals from one scoped aggregate, each matching its filtered list. Inventory shows the four chips at 360 dp; the Dashboard keeps the product-level Restock link and adds a row-level action; each account's last location/status is restored from SecureStore behind route parameters, with Reset deleting it. Focused server 2/2 + Phase 04 20/20 + scale shape 7/7 + scale dashboard 3/3, mobile 37/37 — §27KS |
-| Product stock filters / mobile import lifecycle | **Archive-safe stock filters, receipt-first import resume, draft lifecycle and exactly-once import audit (2026-11-22):** canonical `/api/products?stockStatus=...` queries are pinned to ACTIVE in one explicit service branch; legacy low/out and ordinary status filters keep their historical scope. An applied import saves its CSV and operation key account-scoped before the request. A cold start asks the saved receipt immediately and **does not dry-run**: PARTIAL shows counts and Resume, IN_PROGRESS polls, COMPLETED clears, FAILED offers Discard, and 404/status failure keeps the same-key Resume visible. Drafts expire after seven days; mount cleanup removes orphan files, Discard removes the device copy, and account deletion purges the account-scoped draft. The import workbench is keyed by account id. Receipt completion is a single-winner transition; a concurrent same-key service caller replays instead of writing a second `PRODUCTS_IMPORTED` audit row. Product guard 2/2; import draft 5/5, resume 7/7, account deletion 9/9 (21/21); FW-01 13/13 with one mode-skip; full server **3,354/3,354 in 542 suites**, full mobile **120 suites / 1,381 tests**; a 300-row physical-device force-stop restored the same key with no dry run and resumed 300/300 products + 300/300 stock with no duplicates — §27KT / §27KU / §27KV / §27KW |
-| Inventory / Dashboard reference completeness | **Complete active-location pagination and a summary-backed Dashboard fallback (2026-11-22):** `useActiveRef` exposes `complete` separately from `loading`; Inventory reads every active-location page and only clears a saved location after the last page is confirmed. A failed page preserves the saved id and filter instead of looking like an empty active list. The Dashboard keeps the `/inventory?needsAttention=true` action when the optional restock preview fails, using summary low/out counts. Focused 3 suites / 15 tests pass; mobile typecheck and focused ESLint pass — §27KX |
-| Mobile / Draft PO resume | **Import-draft cleanup guard and durable Restock → Draft PO resume (2026-11-22):** import metadata reads distinguish missing/corrupt/expired from a transient SecureStore failure; cleanup aborts on error, all draft operations are serialized, and account deletion removes the account-scoped CSV even when metadata deletion fails while completion/Discard keep expected-key clears. A Restock → Draft PO attempt stores its exact payload/key account-scoped before the request, restores after a cold reopen, blocks a new key when the saved read fails, and resends the same body/key after an ambiguous answer; the server route now requires `Idempotency-Key`. Focused mobile 5 suites / 35 tests, server Draft PO DB 5/5, both typechecks and focused ESLint pass — §27KY |
-| Import integrity / audit / restore | **Terminal import receipts, shared audit deduplication, and a disposable restore drill (2026-11-23):** every `ProductImport` status write is conditional on `status != COMPLETED`; the failure-path `$pull` and the two progress writes are guarded too, and a missing/changed completed receipt fails closed. `AuditLog` gains an optional tenant-scoped `dedupeKey` with a unique partial index; `recordAuditOnce` returns the winner on duplicate key, and product import adopts `product-import:<receiptId>:completed`. The design inventories keyed movements, transfers, PO receive, PO/product/reference mutations and recovery jobs; Product Import now has the durable `audit_outbox` hand-off and repair fence described in §27LC, while the other surfaces remain inventoried. A synthetic 16-document/7-collection backup restored into `inventoryai_test_db` with exact counts, on-hand 11, ledger net 11 and preserved BSON types; **3.032 s restore + 2.087 s verify = 5.119 s RTO**, **4.931 s observed RPO**. Focused FW-01 **17 pass / 1 mode-skip**, index + OPS1 **24/24** — §27KZ |
-| Mobile / references / Dashboard | **Complete reference pagination, a sectioned Dashboard freshness contract and saved-reference repair (2026-11-23):** the named active-reference pickers read all pages — Movement/Transfer products and locations, PO suppliers/locations/products, Product categories, Products/Restock categories and locations, and Restock → Draft PO suppliers/locations. `useActiveRef` preserves pages already read after a later-page failure (`complete` stays false), dedupes ids and discards late superseded answers. The Dashboard uses three independently observable sections (summary, restock preview, open orders) with `loading`/`ok`/`error` state, timestamps, targeted retries and sequence guards; a failed preview keeps the summary-backed row action and a failed order read is explicit. `referenceAvailability` returns `checking` until the active list is proven complete; only `missing` ids are omitted from filters/payloads, with visible repair in Inventory, Products, Restock, Movement, Transfer, ProductForm, PoForm and the saved Draft PO attempt. Mobile typecheck and focused ESLint pass; full mobile **125 suites / 1,419 tests** — §27LA |
-| Mobile import restore / DRAFT key | **Import-restore blocking, crash-safe DRAFT replay and an emulator force-stop proof (2026-11-23):** `readProductImportDraft` returns `ok`/`missing`/`error`; a temporary SecureStore failure blocks the picker until Retry proves the saved attempt absent, with the outer `finally` always clearing `checking`. `PurchaseOrder` stores `requestKey` and a canonical `requestFingerprint` on the DRAFT itself behind a unique partial `(businessId, requestKey)` index; a same-key retry replays before validation, and a changed body returns `422 IDEMPOTENCY_KEY_REUSED`. An Android emulator development build force-stopped after the first submit and resumed with the **same key and body**, creating exactly one `PO-0001` DRAFT. Focused mobile **28/28**, complete mobile **125 suites / 1,422 tests**, focused real-DB DRAFT **6/6**; emulator evidence, not a physical-phone proof — §27LB |
-| Audit recovery / outbox | **Terminal recovery receipts, deterministic audit keys and a durable import outbox (2026-11-23):** movement and transfer completion writes are terminal-aware, recovery audits use stable keys, and Product Import uses a durable `audit_outbox` with repair and replay. Focused `AUDIT-OUTBOX` **6/6**, movement recovery **10/10**, `INTEGRITY-RECOVERY` **21/21**, FW-01 **17 pass / 1 mode-skip**, TLI **5/5**; complete server **3,375 tests / 544 suites** — §27LC |
-| Mobile / Dashboard / History | **Dashboard freshness cleanup, complete History filters and a follow-up ranking (2026-11-23):** only the summary keeps a displayed `updatedAt`; the redundant `summaryRef` and secondary timestamps are removed; each section retry still loads only its own data. The summary shows **Last updated** with an explicit stale/retry banner, History reads every active product/location page, and a saved page-two id stays selected and in the history query. Focused mobile **3 suites / 18 tests**, typecheck and focused ESLint pass — §27LD |
-| Release hardening / Draft PO proof | **Full suite, three-index readiness and an automated same-key restart proof (2026-11-23):** complete server **3,380 tests / 544 suites, 0 fail, 0 skipped, 0 todo**, **1,017,508.3381 ms (16 m 57.5 s)**; the Draft PO request-key and audit-dedupe indexes now join the transfer ledger in a shared-spec, read-only readiness gate that fails `/api/health/ready` and logs at production boot. Android was rebuilt with `com.inventoryai.app` / `1.0.2` (debug versionCode 1; arm64 **5 m 07 s**, x86_64 **1 m 20 s**). The automated emulator journey passed **20/20**: first key `op-mwswjpgd-qxpii9119ib5in6h` force-stopped after receipt, same 251-byte body resumed after cold relaunch, and exactly one DRAFT `PO-0005`; the proxy kills only the first request per key. Import-restore escape hatch and harness fixes are recorded. A bare `adb install` selected the physical phone and cleared its local app; the production APK was restored, but its local session is gone — §27LE |
-| Tenant cleanup / audit outbox / retention | **`product_imports` teardown, PO/movement audit outboxes and bounded DELIVERED retention (2026-11-23):** `TENANT_DATA_COLLECTIONS` now removes FW-01 import receipts, and the DEMO-2 fixture seeds 17 of them with a distinct expected count. Keyed movement completion uses `movement:<receiptId>:completed`; new receipts carry `auditTracked`, completion/replay hands off to the outbox, and `recoverMovementAudits` repairs a completed receipt with no marker. PO receive uses one `receiveId` per request, stamps it on every receipt line and enqueues `po-receive:<poId>:<receiveId>`; replay and `recoverPoReceiveAudits` repair the batch from those receipts. Historical receipts without the new markers are skipped to avoid duplicating pre-dedupe audits. `audit_outbox` adds a 30-day partial TTL on `deliveredAt` for `DELIVERED` rows and a `{status, updatedAt}` triage index; `FAILED` is retained, retried indefinitely with capped backoff and triaged, never TTL-deleted. Focused `AUDIT-OUTBOX` **9/9**, DEMO-2 **8/8**, FW-01 **17 pass / 1 skip**, receiving **17/17**, index integrity **14/14**, and the scheduler/movement-recovery/CLI/transfer-guard regression set **44/44**; no complete-suite run — §27LF |
-| Mobile / Dashboard / History + index rollout | **Dashboard/History cleanup, full mobile suite and required-index rollout (2026-11-23):** the secondary Dashboard sections lose the unrendered `error` state; History resolves a name-only location only from a complete active list, with a delayed-page-two test; full mobile **126 suites / 1,428 tests, 0 failed, 51.733 s**; `migrate:required-indexes` is read-only by default, refuses duplicate key groups before creating anything, and applies only the exact three readiness indexes — §27LG |
-| Audit durability / operations | **Six-index readiness, bounded outbox health and a four-boundary crash harness (2026-11-23):** a partial three-line PO receive that applies two lines is replayed and then recovered eight times concurrently with exactly one audit and one outbox row; producer hand-off is centralized in `enqueueAndDeliverAudit`; readiness and `migrate:required-indexes` cover the TTL and movement/PO repair indexes (non-unique specs skip duplicate preflight); the scheduler logs outbox counts/oldest age by status, unmarked import/movement/PO receipts and cumulative repair totals, alerting at 15 minutes for `FAILED` and 10 minutes for an unmarked receipt; `npm run test:audit-crash` spawns four children that exit **86** at the producer boundaries, then proves one audit after real recovery. Focused `AUDIT-OUTBOX` **10/10**, health **2/2**, harness suite **1/1** and CLI **4/4**, index/readiness/rollout **42/42 in 8 suites**, scheduler/movement/CLI/TLI **44/44 in 10 suites** — §27LI |
-| Mobile / Draft PO / install safety | **Resume-key gates, truthful cleanup and a serial-guarded install helper (2026-11-23):** Draft PO submission is blocked before the request when its resume key cannot be saved; confirmed success retries the expected-key clear once and otherwise keeps a truthful **Resume draft creation** retry instead of silently navigating. Import apply gets the same new-key gate, and completed-import cleanup gets the same retry/truthful state. Device review hardens the proxy against an implicit serial, makes the Draft PO journey require `--serial`, rejects stale journal evidence without a matching force-stop, and verifies the full captured restock fingerprint. `scripts/device/install.mjs` is check-only by default, requires an exact attached serial, and refuses a debuggable APK over the non-debuggable production app; install safety **10/10**, device harness **90/90**, focused server **116/116 in 27 suites**, Draft PO **6/6**, import **12/12**, complete mobile **126 suites / 1,432 tests, 50.657 s** — §27LH |
-| Tenant cleanup / audit triage | **Schema-derived tenant coverage and read-only FAILED outbox triage (2026-11-23):** a model-derived guard requires every `businessId` collection to be a `business` teardown step and every `userId`-only collection a `user` step; it found and classified `stock_movement_operations` and `idempotency_records`, with DEMO-2 counts **20** and **19**. `readAuditOutboxTriage` and `npm run triage:audit-outbox` expose only FAILED rows crossing a 15-minute-or-3-attempt threshold, scoped and bounded, with no metadata/user ids, and never retry or delete. Development: six indexes `READY`, `--apply` `changed=0`, triage **0 FAILED**, exit **0**; coverage **3/3**, triage **6/6**, DEMO-2 **8/8**, perf tenant **23/23**, complete server **3,419 tests / 554 suites, 0 failed, 15 m 19.2 s** — §27LJ |
-
-Most letter-numbered increments are roadmap records; AI-87/AI-88 are log-only and AI-91/AI-92 are in §27HT. AI-99 is in §27HU, its 10k gate is in §27HV, AI-103/OPS-3 is in §27HW, AI-84/AI-105/OPS-4 is in §27HX, and AI-106 with the reset-UX OTA is in §27HY, and the close-out is in §27HZ. The post-deploy proof, triage and scheduled monitor are in §27IA; the scheduler proof and hosted freshness are in §27IB; the contextual assistant entry and restock shortfall are in §27IC; the permanent assistant improvement roadmap and audit are in §27ID; the answer actions, complete-list navigation and deterministic stock ranking are in §27IE; the deterministic complete restock list is in §27IF; member feedback is in §27IG and follow-up context/provenance is in §27IH; the complete feedback conversation preview is in §27II; the internal Platform Operations plane is §27IJ, its architecture and remaining gates are §27IK, and the durable monitoring stores are §27IL; the dedicated console, mandatory MFA and append-only platform audit are §27IM; the fresh review, CI browser proof and production gates are §27IN; recovery codes, MFA lockout, password change and administrator lifecycle are §27IO; the deployed PLAT-6 console, support and deployment surface is §27IP; the PLAT-7 deployment, production proof and required WebAuthn check are §27IR; the PLAT-8 access-layer, security-monitoring and whole-product planning assessment is §27IS; the PLAT-9 free-first Cloudflare, alert-owner, restore-drill and follow-up package is §27IT; the PLAT-10 security-contact record, Firebase recovery drill and multi-criteria ranking is §27IU; the PLAT-11 backup-contact registration, Firebase-plan safety review and IA-34–IA-37 additions are §27IV; the PLAT-12 contact-wording correction, joint-rank reconciliation, notification-evidence record and IA-38–IA-41 additions are §27IW; the PLAT-13 two-contact test procedure and IA-42–IA-45 additions are §27IX; the PLAT-14 printable two-contact test checklist is §27IY; the PLAT-15 one-page PDF verification and tenant security review are §27IZ; the PLAT-16 TS-01 plan, reproducible checklist renderer and RD-01–RD-06 review are §27JA; the PLAT-17 checklist restoration, path-safe renderer, RD-01 drill plan and NX-01–NX-07 review are §27JB; the PLAT-18 RD-01 fact-check, NX-01 design and NY-01–NY-06 tranche are §27JC; the PLAT-19 NZ-01–NZ-07 roadmap beyond NY-07 is §27JD; the PLAT-20 atomic last-SUPERADMIN guard, monitor-only 5xx accounting and heartbeat restoration is §27JE; the PLAT-21 console status assessment and role/account guide is §27JF; the PLAT-22 additive security roadmap is §27JG; the PLAT-23 owner/CEO account, credential and access guide is §27JH; the PLAT-24 dedicated console documentation and accuracy corrections are §27JI; the PLAT-25 outer access-gate failure bounding and sampled audit is §27JJ; the PLAT-26 audited operator CLI creation is §27JK; the PLAT-27 SEC-08 step-up proof is §27JL; the 2026-11-18 dependency remediation is §27JM; the dependency-review gate is §27JN; the optional local MongoDB container is §27JO; the WebAuthn challenge fix is §27JP; the compose MongoDB job is §27JQ; the seven-context protection is §27JR; the pinned database and CI bounds are §27JS; the merge-queue prerequisites and their user-ownership blocker are §27JT, and their removal is §27JU; the production-health/Mongo review and workflow roadmap are §27JV and §27JW, the workflow guard, checkout hygiene and security policy are §27JX, the console user guide and documentation reconciliation are §27JY, the workflow fixture proof, security-update grouping and future roadmap are §27JZ, and the console guide claim audit and follow-up recommendations are §27KA, and the bare health aliases, post-deploy verifier and startup 5xx review are §27KP, the deterministic stock coverage, exact-name resolution and semantic evaluation are §27KQ, the product-currency correction, mixed-currency comparison and bounded FX retry work is §27KR, the Inventory row attention, four server counts, Dashboard action and saved filters are §27KS, and the archive-safe product stock filters, cross-restart import resume and ranked PR #364 follow-ups are §27KT; the import-draft cleanup hardening and durable Restock → Draft PO resume are §27KY; the terminal recovery receipts, deterministic audit keys and import outbox are §27LC, the Dashboard freshness cleanup, complete History filters and follow-up ranking are §27LD, the full-suite/three-index/automated restart proof is §27LE, and the tenant receipt cleanup, PO/movement outboxes and bounded retention are §27LF, the Dashboard/History cleanup and required-index rollout are §27LG, the resume-key gates, truthful cleanup and serial-guarded install are §27LH, the six-index readiness, bounded audit health and four-boundary crash harness are §27LI, and the schema-derived teardown coverage and read-only FAILED outbox triage are §27LJ; the index below is complete.
-
-## Operational traps worth knowing
-
-Each of these cost a real debugging session or a real incident. Here they are one line; the record
-below has the measurement.
-
-- **`eas update` needs `--platform android`** in this project; without it the web export fails.
-- **Every EAS profile has its own channel.** `preview` cannot receive a `production` update — that is
-  the isolation working, not a failure. Verify by the manifest, not by the tagline.
-- **`runtimeVersion` is `{ policy: "appVersion" }`.** The `fingerprint` policy failed a real build
-  because `app.config.js` resolves Firebase file paths that exist only on the builder. Before
-  publishing a store build whose JS-only version changed, run `mobile/scripts/check-ota-publish.mjs`.
-- **A local `server` process must be the one answering port 4000.** A stale listener from an older
-  checkout answers 404 and looks exactly like a network fault; the port-ownership guard exists for
-  this.
-- **A dev build resolves the API base to `http://localhost:4000`.** On a phone, `adb reverse
-  tcp:4000 tcp:4000` must be up, and `adb reverse --list` being empty is the diagnosis.
-- **Pass `-s` to every adb command when an emulator and a phone are attached.** An unqualified
-  install with a dead emulator selected the physical CPH1969, removed its production app and lost
-  its local data; the production APK was restored, but the session was not recoverable.
-- **`TRUST_PROXY` unset behind a proxy** collapses every per-IP rate-limit bucket into one global
-  bucket — 60 failed logins would lock out every member. Production sets it.
-- **Firebase cannot mail a link to a custom scheme** (`auth/unauthorized-domain`). AUTH-06 replaced
-  the browser reset with a six-digit code for that reason; the `GET /auth/reset` page remains only
-  because Firebase's own API and console can still compose that mail, and our page is the only
-  destination at which such a reset revokes sessions.
-- **The Firebase console refuses email-template writes** (`EMAIL_TEMPLATE_UPDATE_NOT_ALLOWED`), so no
-  flow may depend on a template we configure.
-- **A failed `api.me` is not "signed out".** Sign out only when the server *refuses* the session; a
-  network failure must degrade, not discard the token.
-- **`npm run seed` is the one seeding command, and production costs three phrases.** The target is
-  always named (`--database=` must equal what `MONGODB_DB_NAME` resolves); development needs
-  `SEED_CONFIRM` (the plan) plus `SEED_DB_CONFIRM` (the database), and production adds
-  `SEED_PROD_CONFIRM=SEED-PRODUCTION-DATA`. **`npm run cleanup -- --target=database|firebase` is the
-  one destructive command and costs the same two or three phrases** (`CLEANUP_CONFIRM`,
-  `CLEANUP_DB_CONFIRM`, plus `CLEANUP_PROD_CONFIRM=DELETE-PRODUCTION-DATA` for production) — the
-  per-selector `cleanup:*-mongodb` scripts and `cleanup:firebase-accounts` no longer exist. Read the
-  refusal rather than working around it — it names every phrase that is missing and how many the
-  target requires.
-- **A plan is counted in PRODUCTS; a `--total` is DOCUMENTS.** `npm run seed:three` and
-  `npm run seed:accounts --accounts="a@x.com:30000"` size each tenant by its **product** count (the
-  generator prints the derived document figure beside it; `address:400000d` asks in documents instead),
-  while `seed --plan=demo --total` and `seed:perf-tenant --size` stay documents. `npm run check:accounts
-  [--with-production]` is the read-only pre-flight that says which accounts exist and how many documents
-  a seed would reset — **one database per run**: development by default, production *instead* with
-  `--with-production`, so a row missing in the other environment cannot fail the check. It is a fixed
-  choice rather than a `--database=` flag, and needs no phrase because it changes nothing. `cleanup:account` / `cleanup:three` remove that data again and keep every
-  login, business row and Firebase identity. **The Firebase project is pinned, not inherited**: a seed
-  creates its login in the approved project (`inventoryai-d0d20`) or refuses, because a login created
-  in another project could never be joined to the tenant (the app resolves a user by `firebaseUid`).
-- **OTA code signing is plan-gated**, not a config switch: Expo allows it on the Production ($199/mo)
-  or Enterprise plans only. A binary carrying a certificate **rejects** any unsigned publish, so
-  enabling `codeSigningCertificate` before the plan exists would freeze every install on its old
-  bundle while the channel claims a newer one. See Guide 7 §11.
-- **A build id is a pointer, not a copy.** Two production builds were deleted from EAS and their
-  artifacts now answer 400. Record an id only after `eas build:view <id>` resolves, and treat a
-  published AAB that is not downloaded and kept as gone. See §27FN.
-- **A failed SecureStore read is not an empty draft.** The import screen blocks the picker until a
-  retry proves the saved attempt missing; treating a transient read error as “no draft” abandons a
-  resumable import. See §27LB.
-- **A failed reference page is not an empty catalogue.** `useActiveRef` keeps the pages already
-  read and marks the list incomplete; only a complete list may classify a saved id as archived or
-  deleted. Clearing a saved location/category on a failed page would silently widen a filter or
-  discard a draft reference. See §27LA.
-
-## Open items (2026-11-11)
-
-This is a dated snapshot of the project's open work. The **living** version — updated every session,
-with what is in progress, verified or blocked — is [`docs/DEVELOPMENT_LOG.md`](docs/DEVELOPMENT_LOG.md).
-
-- **Three Dependabot alerts remain after the 2026-11-11 lockfile pass** — `glob` on both manifests
-  (medium; the patched release is a major outside every consumer's declared range) and `deepmerge` on
-  mobile (low; 4.3.1 is both the newest release and inside the advisory range). Before that pass there
-  were **8 open**: #20–#23 `node-forge` (three medium, one low) and #24 `fast-xml-parser` (low). Both
-  are fixed by lockfile-only bumps — `node-forge` **1.4.3** under the Expo consumer and
-  `fast-xml-parser` **5.12.0** under `@google-cloud/storage` — and those five alerts close when this
-  change reaches the default branch. `minimatch` (medium) is **closed** by D-13; `zod` (high) is
-  **closed** by `expo@58.0.22`. None of the remaining alerts is reachable from application code and
-  none reaches a shipped bundle; do not "fix" them by forcing versions or running `npm audit fix`.
-  `scripts/check-upgrade-watches.mjs` reports `deepmerge` `DEFERRED`, `zod` and `node-forge` `CLOSED`;
-  the `glob` gate is in [`docs/SECURITY_DEPENDENCY_DECISIONS.md`](docs/SECURITY_DEPENDENCY_DECISIONS.md) §4.
-- **Server monitoring is observable and externally watched (2026-11-11).** [`docs/MONITORING.md`](docs/MONITORING.md)
-  documents the three health endpoints, the OPS-2 response pulse, the AI turn records, the
-  OWNER/ADMIN `GET /api/ai/metrics` aggregate, the alert thresholds and the incident procedure.
-  `.github/workflows/production-health-watch-v2.yml` probes both production health endpoints every five
-  minutes from GitHub, opens one issue after two consecutive failures and closes it on recovery.
-  The INTERNAL Platform Operations API (§27IJ) reads cross-tenant aggregate AI, feedback, usage and
-  durable 5xx/feature data behind a separate platform-administrator login and capability. It is not
-  a tenant feature, not a hosted pager and not a cluster-wide counter. The dedicated console, its
-  HttpOnly cookie/CSRF session, mandatory TOTP enrollment and optional WebAuthn, and the append-only platform audit trail are
-  committed in `d02a549` with the CORS-contract fix and browser WebAuthn E2E (§27IM), the fresh
-  review plus CI browser job are §27IN, and PLAT-5 adds recovery codes, a durable account-scoped MFA
-  lockout, password change and administrator lifecycle operations with fail-closed origin/cookie
-  checks (§27IO). PLAT-7 is deployed at `e218bb0` behind the application outer gate and forced
-  recovery ceremony (§27IQ, §27IR); the `webauthn-e2e` job is a required `main` check. The
-  pre-exposure checklist, the P0–P2 security recommendations and the console-improvement roadmap are
-  `docs/platform-console/04-production-readiness.md`, `docs/platform-console/07-security-recommendations.md` and
-  `docs/platform-console/03-console-improvements.md`. The access-layer decision brief is
-  `docs/platform-console/05-access-layer.md`, the proposed alert ownership/threshold plan is
-  `docs/platform-console/06-security-monitoring.md`, and the whole-product ranking is
-  `docs/INVENTORY_AI_IMPROVEMENT_ASSESSMENT.md`; all three are planning only. The free-first
-  follow-up package is `docs/PLATFORM_CLOUDFLARE_ACCESS_IMPLEMENTATION_PLAN.md`,
-  `docs/PLATFORM_SECURITY_ALERT_DECISION_SHEET.md`,
-  `docs/PLATFORM_DATABASE_RESTORE_DRILL_PLAN.md` and
-  `docs/INVENTORY_AI_FOLLOWUP_ASSESSMENT.md`; no domain, database operation, deployment or paid
-  service is approved. The OPS-2 counters are process-local and the runbook says so.
-- **L-17 is closed as not applicable (2026-11-07)**: the active reset is AUTH-06's Brevo six-digit
-  code, not Firebase's emailed action link. Firebase's Password Reset template remains hosted with
-  no custom action URL; if that link path is reintroduced, L-17 reopens.
-- **AI-91/AI-92 are merged and production-verified** as `6d95168`: exact product identity and
-  per-location stock answers, with the seeding documentation. The production 10k assistant run
-  exercised the deployed behavior; see `docs/DEVELOPMENT_LOG.md` and §27HT.
-- **The Play release has not been made.** The AAB exists and was inspected; nothing has been uploaded,
-  so Play App Signing and the store-installed build are unproven. **Both production build records
-  (`09d77d3d…`, `4b133d62…`) were later deleted from EAS and their artifacts are gone** (§27FN), so the
-  next build, not those, is the authoritative store artifact.
-- **OTA code signing is blocked by plan, not by code** (§27FN). Channels are `Unprotected`; enabling
-  signing needs EAS Production ($199/mo). Do not enable it on the free plan.
-- **iOS is `[EXTERNAL VERIFICATION REQUIRED]`** — no macOS on the development host.
-- **Legacy login cannot be retired yet**: existing admin-created accounts hold a password hash and no
-  `firebaseUid`.
+The phase overview is history, not a work list. Every increment is a numbered record in
+`docs/DEVELOPMENT_ROADMAP.md` (§27…); the identifiers are listed at the end of this file, and
+planned-but-unbuilt work lives in `docs/BACKLOG.md`. Do not infer a task from an incomplete phase, a
+planned item or a numbered record.
 
 ## Documentation index — every plan record
 
-Every record declared in `docs/DEVELOPMENT_ROADMAP.md`, by the title that record gives itself. The
-list is generated from the roadmap's own headings, so it cannot drift from them; find a record by its
-anchor (`§27…`) in that file.
+`docs/DEVELOPMENT_ROADMAP.md` declares the identifiers below, in order. They are listed here so that
+every record is reachable from the instruction file; read a record by searching its identifier in the
+roadmap. Record titles are deliberately not repeated — that index grew to 320 copied rows and drifted
+from the headings it duplicated.
 
-- **§27B** — Phase 26B — Password Recovery (Email Reset)
-- **§27C** — Phase 27 — Mobile Password Recovery
-- **§27D** — Phase 28 — Password Reset Mail Delivery Timing Hardening
-- **§27E** — Phase 29 — Residual Security-Risk Decision Record & Documentation Reconciliation
-- **§27F** — Phase 30A — EAS Development Build & iOS Readiness Foundation
-- **§27G** — Phase 32A — Firebase Authentication Architecture & Console Runbook
-- **§27H** — Phases 32B–32E — Firebase Implementation (server boundary, client boundary, email/password auth)
-- **§27I** — Phase 32F — Firebase Multi-Provider Authentication Architecture (decision record & documentation close-out)
-- **§27J** — Phase 32G — First EAS Development Build / Native Runtime Validation
-- **§27K** — Phase 32H — Server-Side Account Linking Boundary & Authentication Ownership
-- **§27L** — Phase 32J — Mobile Firebase Registration Onboarding (Google → register → exchange → session)
-- **§27M** — Phase 32K — Firebase Password Authority Boundary & Timing-Equalizer Credential Fix
-- **§27N** — Phase F1 — Retire the Firebase JS SDK and the Browser OAuth Path
-- **§27O** — Phase F2 — Retire the Browser Dependencies, the Plugin, the Second Scheme and the Native-Intent Hook
-- **§27P** — Phase F2.9 — EAS Development Build & Android Runtime/Native Verification
-- **§27Q** — Phase 32L — Firebase Identity Unlink (32L-A / 32L-B) and Its Documentation Close-out
-- **§27R** — Registration Form Required-Field Validation (Preview-Validation Finding "F-1")
-- **§27S** — Phase 31 — AI Provider Wire Diagnostics, the AgentRouter → OpenRouter Migration, and the OpenRouter Wire-Suite Test Isolation
-- **§27T** — Deployment-Configuration Reconciliation (Phases 4A–4B)
-- **§27U** — Phase 32N — Firebase-Only Authentication Architecture & the Credential-Change Revocation Bridge (design record only)
-- **§27V** — Phase 32O — Registration & Email-Verification Decisions (documentation only)
-- **§27W** — Phase 32P — N-4 D2 (the recovery-context bridge caller) decision record (documentation only)
-- **§27X** — Phase 32Q — OD-9 LOCKED: the automatic recovery marker (documentation only)
-- **§27Y** — AUTH-04 — the custom 6-digit email-verification code flow (documentation supersession)
-- **§27Z** — Phase C3 — the mobile sign-in vocabulary standard and the widened local-password gate (presentation only)
-- **§27AA** — Phase A / F-1 — removal and re-scope of the Firebase unlink capability (retrospective record)
-- **§27AB** — AUTH-01 — Firebase revocation checking and verification-failure classification
-- **§27AC** — AUTH-02 — short-lived JWT, enforced issuer/audience, and the 14-day absolute session cap
-- **§27AD** — AUTH-03 — inventory session renewal (server boundary and mobile client)
-- **§27AE** — CI quality gate — `.github/workflows/ci.yml` (and the defect its first run caught)
-- **§27AF** — Owner-only access — audited, monitored and pinned (2026-10-09)
-- **§27AG** — Workflow simplification — fewer moving parts, dependency policy, and a leaner instruction file (2026-10-09)
-- **§27AH** — Current status, known issues and the next-step order (2026-10-10, revised 2026-10-14)
-- **§27AI** — Expo SDK 58 upgrade — the approved procedure (2026-10-10)
-- **§27AJ** — ISS-02 — the RNFirebase Auth PII log, remediated (2026-10-10, PR #40)
-- **§27AK** — Dependency advisories — the per-alert disposition (2026-10-10)
-- **§27AL** — Dependabot scope completed — every Expo-pinned package is excluded (2026-10-11)
-- **§27AM** — ISS-13 — the Phase 30A "F-1" PDF-sharing finding, resolved as far as it can be (2026-10-11)
-- **§27AN** — ISS-16's detection gap closed — the Expo pin set is now held in CI (2026-10-11)
-- **§27AO** — The workflow actions re-pinned to v7 — ISS-12 cleared early (2026-10-11)
-- **§27AP** — The server-side queue items taken — and one row's premise was wrong (2026-10-11)
-- **§27AQ** — The deferred queue's remaining rows, measured — and the drift a script caught (2026-10-11)
-- **§27AR** — The secret guard can now fail on purpose — controls for every rule (2026-10-11)
-- **§27AS** — The attribution cleanup — a message-only rewrite, measured three times (2026-10-11)
-- **§27AT** — Real-device Android run — what the phone proved, and what it did not (2026-10-11)
-- **§27AU** — An upgrade watch reported a gate as OPEN that was shut — corrected, with controls (2026-10-11)
-- **§27AV** — The local backend was serving the TEST database — and the "empty database" measurement read a different one (2026-10-11)
-- **§27AW** — Phase 30B defined — Native & Device Acceptance (2026-10-11)
-- **§27AX** — Documentation truth pass, the invalidated citations, and a guard on the route inventory (2026-10-12)
-- **§27AY** — The native pairing nothing was checking, and the four packages the doctor wanted (2026-10-12)
-- **§27AZ** — The Phase 30B build — ISS-06 closed, ISS-02 verified at the artifact level, and the dependency fix proved natively (2026-10-12)
-- **§27BA** — The Phase 30B device run — ISS-02 closed on hardware (2026-10-12)
-- **§27BB** — The test-data reset, and the orphaned-identity finding it exposed (2026-10-12)
-- **§27BC** — The authenticated device walkthrough (2026-10-12)
-- **§27BD** — AI-1 — the AI turn's time budget, and telling the truth about it (2026-10-12)
-- **§27BE** — AI-1 verified on the device (2026-10-12)
-- **§27BF** — AI-2 — the empty-completion retry, a degraded turn made visible, and the read-only invariant made provable (2026-10-13)
-- **§27BG** — AI-3 — the assistant's queries at catalogue scale: a measured fan-out, four pipelines turned around, and an answer-equivalence harness (2026-10-13)
-- **§27BH** — AI-4 — the assistant's answer, rendered: a dependency-free parser for the structures the model already writes, and a word boundary that stops it deleting characters from arithmetic (2026-10-13)
-- **§27BI** — AI-5 — the turn's own cost: one line per turn on every exit, because a healthy turn recorded nothing about itself (2026-10-13)
-- **§27BJ** — Index integrity (IDX-1) — the guards proved the index was DECLARED and nothing anywhere could tell whether it was BUILT (2026-10-14)
-- **§27BK** — The owner's account seeded at 80 000 records, and the Firebase cleanup that was refused (2026-10-14)
-- **§27BL** — AI-6 — the assistant's limit, named (2026-10-14)
-- **§27BM** — One seeding core instead of two, and the three-account comparison setup (2026-10-14)
-- **§27BN** — The sign-in form's silence, and five places the auth copy failed (2026-10-14)
-- **§27BP** — A deploy gate that lied, and a measurement that reported a call it never made (2026-10-14)
-- **§27BQ** — ISS-26 — the assistant's LaTeX maths reached the screen as source (2026-10-13, recorded retrospectively 2026-10-14)
-- **§27BR** — The attribution trailers that came back, and the check that refuses them (2026-10-14)
-- **§27BS** — ISS-26's device half: the decoder was right, and it was still hiding a different number (2026-10-14)
-- **§27BT** — ISS-27 — the narrow table collapsed, and the screen looked empty (2026-10-14)
-- **§27BU** — AI-7 — the conversation list ordered by creation, fixed and device-measured (2026-10-14)
-- **§27BV** — AI-8 — the truncated answer is marked, not served as complete (2026-10-15)
-- **§27BW** — The keyboard stops covering the focused field (2026-10-15)
-- **§27BX** — The dashboard summary at 50 625 products — the catalogue stops crossing the wire (2026-10-15)
-- **§27BY** — The output cap is not the constraint — the deadline is (2026-10-15)
-- **§27BZ** — The assistant's tools at 50 000 products — linear, and still not the bottleneck (2026-10-15)
-- **§27CA** — The dependency review — three tracks, and the one available fix that is not safe to take (2026-10-15)
-- **§27CB** — The guard that was blind to the defect it was written for (2026-10-15)
-- **§27CC** — The server minor-and-patch group taken — five patches, and mobile deliberately held (2026-10-15)
-- **§27CD** — The section numbering gets the guard everything else already had (2026-10-15)
-- **§27CE** — The device path restored, the six-column answer measured, and the label's page box read from the file (2026-10-15)
-- **§27CF** — AI-9 — the turn can be stopped, and a stop is not a failure (2026-10-15)
-- **§27CG** — The instruction file had 29 records it could not find, and nothing said so (2026-10-15)
-- **§27CH** — The deployment that was legal, silent and unusable — what this deployment is, and what it is missing (2026-10-15)
-- **§27CI** — The first request of every session was aborted before the server could answer it — and the app blamed the network for it (2026-10-16)
-- **§27CJ** — The fixed version that is not a fix, and the one the updater said it could not reach (2026-10-16)
-- **§27CK** — AI-10 — The answer the model could not fit, and the harness that hid the fix (2026-10-16)
-- **§27CL** — The advisory that stays open is now watched, and the gate the watch says has opened (2026-10-16)
-- **§27CM** — AI-10 and AI-9 on the phone — and the cost line that called a spent output budget nothing (2026-10-17)
-- **§27CN** — AI-11 — The assistant's own usage report, and what the allowance actually says (2026-10-17)
-- **§27CO** — AI-11, part two — the durable half, and the row the TTL sweep had already deleted (2026-10-17)
-- **§27CP** — AI-12 — The empty completion made diagnosable, and the model the record must name (2026-10-17)
-- **§27CQ** — The 50 000-product phone pass — a real answer on the member's own account, and the first naturally capped turn (2026-10-17)
-- **§27CR** — The restock list that existed only five rows deep (2026-10-17)
-- **§27CS** — The restock page's cost, measured to the mechanism — and the fix that is a design decision (2026-10-17)
-- **§27CT** — The role-boundary fixture — four working logins in one tenant, and the 96-cell matrix that proves them (2026-10-17)
-- **§27CU** — The four-role phone walkthrough — a door with no handle, and a trail that showed its own enums (2026-10-17)
-- **§27CV** — The MANAGER walk — the writes verified against the ledger, and two screens that agree (2026-10-17)
-- **§27CW** — The Stop, measured again — two stale claims corrected, and the stale server that answered instead (2026-10-17)
-- **§27CX** — The purchase-order write chain as MANAGER — create, issue, receive, and the ledger after each step (2026-10-18)
-- **§27CY** — The port proves which process answered — the stale-server trap made impossible instead of documented (2026-10-18)
-- **§27CZ** — Where a new draft lands — and the first test `PoForm` has ever had (2026-10-18)
-- **§27DA** — An escaped pipe made data, and a tilde removed — two parser defects found by probing (2026-10-18)
-- **§27DB** — The whole stored corpus replayed — and the one leak it found (2026-10-18)
-- **§27DC** — The tool result the model reads, capped without breaking it (2026-10-18)
-- **§27DD** — The filtered inventory page, resolved product-first — 15–29 s to 0.5–1.6 s (2026-10-18)
-- **§27DE** — The join itself was the cost — 9× from a `$lookup` shape (2026-10-18)
-- **§27DF** — Five tools broke at 131 000 products — the `$group` payload, not the row count (2026-10-18)
-- **§27DG** — The location page's plan made unambiguous — an index for a defect that cannot be re-measured (2026-10-18)
-- **§27DH** — There was no backup — and the drill found the tier's ceiling (2026-10-18)
-- **§27DI** — The pulse an outside watcher can read (2026-10-18)
-- **§27DJ** — The reference data the assistant could not see — and the ids two tools required (2026-10-19)
-- **§27DK** — The instrument that measured the provider could crash, and the test threw away why (2026-10-19)
-- **§27DL** — The location a member named — one provider call instead of two (2026-10-19)
-- **§27DM** — The assistant on the owner's phone — six questions, five defects, one device run (2026-10-19)
-- **§27DN** — The chip a member can read — and the assistant at 50 000 products (2026-10-19)
-- **§27DO** — One round-trip per set of lookups — the compare-two-locations turn (2026-10-19)
-- **§27DP** — The comparison a single lookup can answer (2026-10-19)
-- **§27DQ** — The question's own clock — and the four copies a blip exposed (2026-10-19)
-- **§27DR** — One provider, on purpose — the direct Claude and Gemini implementations removed (2026-10-19)
-- **§27DS** — The answer a member can finish reading (2026-10-19)
-- **§27DT** — The allowance is read before it is spent (2026-10-19)
-- **§27DU** — A boot that survives a slow cluster (2026-10-20)
-- **§27DV** — The preview build, against the production API (2026-10-20)
-- **§27DW** — The demo tenant a preview build can be checked against (2026-10-20)
-- **§27DX** — The reset email's link comes back into the app (2026-10-20)
-- **§27DY** — Password reset by six-digit code, inside the app (2026-10-20)
-- **§27DZ** — The assistant's model is checked, not assumed (2026-10-21)
-- **§27EA** — A fallback chain that is verified, bounded, and never spends a refusal twice (2026-10-21)
-- **§27EB** — A model that just failed five times is not tried first on the next turn (2026-10-21)
-- **§27EC** — The model that answers becomes the model the deployment uses (2026-10-21)
-- **§27ED** — The model list carries live evidence, not a remembered measurement (2026-10-21)
-- **§27EE** — The comparison is measured, and the measuring instrument is fixed (2026-10-21)
-- **§27EF** — Large tenants and dependency alerts: measured, not assumed (2026-10-21)
-- **§27EG** — A dead model is found by a timer, not by a member's failed question (2026-10-21)
-- **§27EH** — Expo SDK 58 runs on the phone (2026-10-21)
-- **§27EI** — Password recovery, split into two steps (2026-10-22)
-- **§27EJ** — The audit that found three open doors, and closed them (2026-10-23)
-- **§27EK** — The Firebase verification email had no sender left (2026-10-23)
-- **§27EL** — The deployment learns from the provider before it spends a request (2026-10-23)
-- **§27EM** — The answer arrives while it is being written (2026-10-23)
-- **§27EN** — The auth screens stop making people guess (2026-10-23)
-- **§27EO** — The rule is stated while it is typed, and six digits verify themselves (2026-10-23)
-- **§27EP** — The installed app updates itself, and a launch without a network stays signed in (2026-10-24)
-- **§27EQ** — The preview build against production: channel isolation, and every account journey on the installed app (2026-10-24)
-- **§27ER** — The production profile on the phone: build, journeys, OTA and a measured rollback (2026-10-24)
-- **§27ES** — The production AAB: built with store packaging, inspected before any upload (2026-10-24)
-- **§27ET** — The permission review: one unnecessary permission removed, the other eleven attributed (2026-10-24)
-- **§27EU** — The Play submission pack, and the two things that block it (2026-10-24)
-- **§27EV** — The privacy policy, served by the server that creates the obligation (2026-10-24)
-- **§27EW** — Account deletion — in the app and on the web (2026-10-24)
-- **§27EX** — A business whose only member leaves closes with them (2026-10-24)
-- **§27EY** — The Google button, on a real Google account (2026-10-24)
-- **§27EZ** — The store artifact was the wrong commit — a parity gate, and no upload (2026-10-24)
-- **§27FA** — The Terms of Use — and the personal data that outlived the tombstone (2026-10-25)
-- **§27FB** — Invitations — the first way to join a business you did not create (2026-10-25)
-- **§27FC** — The invitation flow, on production and on the phone (2026-10-25)
-- **§27FD** — The invitation, sent by an admin and received in a real inbox (2026-10-25)
-- **§27FE** — Release notes: a card that says what changed, and a version to quote (2026-10-25)
-- **§27FF** — A publish that no commit described, and a dismissal that was not final (2026-10-25)
-- **§27FG** — A large tenant in production, and the assistant measured there (2026-10-25)
-- **§27FH** — Production seeding through the same commands (2026-10-25)
-- **§27FI** — Emptying a tenant without deleting its login, and a repeat at 80,000 (2026-10-25)
-- **§27FJ** — Two advisories that cannot be fixed here, and the watch that says when they can (2026-10-25)
-- **§27FK** — The runtime boundary made mechanical, and the build that could not run (2026-10-25)
-- **§27FL** — The session cap the roadmap had twice recommended and never built (2026-10-25)
-- **§27FM** — The whole V1 surface re-verified, and the front door cut to a page (2026-10-25)
-- **§27FN** — Three EAS questions answered: the vanished production builds, the quota, and the plan gate on signing (2026-10-26)
-- **§27FO** — The documentation set, measured and cut — and four documents that were confidently wrong (2026-10-26)
-- **§27FP** — The advisories re-measured, and no published release can close either (2026-10-26)
-- **§27FQ** — The empty state the harness could not read, and the production walk it was hiding (2026-10-26)
-- **§27FR** — The journeys stopped needing an id, and four false verdicts fell out of it (2026-10-26)
-- **§27FS** — Two phrases that were both required and only one documented, and the cleanup guard that could not see its own trap (2026-10-26)
-- **§27FT** — One seeding command, and a production target that costs a third phrase (2026-10-26)
-- **§27FU** — One cleanup command, and a Firebase check that reads both databases (2026-10-26)
-- **§27FV** — The seeding scripts reviewed — four defects, and a read-back that makes OK a measurement (2026-10-26)
-- **§27FW** — The scoped cleanup that was cheaper than the rule (2026-10-26)
-- **§27FX** — The fixture cleanups take the rule, and the dry run counts (2026-10-27)
-- **§27FY** — The preview and the delete share one plan (2026-10-27)
-- **§27FZ** — Each topic gets one guide, and the data commands move into theirs (2026-10-27)
-- **§27GA** — The command audit — one false pass, one bad message, and four flags that were ignored (2026-10-27)
-- **§27GB** — The three accounts by address — a products-sized plan, a pre-flight check, and a cleanup that keeps every login (2026-10-27)
-- **§27GC** — The three accounts registered, and the whole workflow run against them (2026-10-27)
-- **§27GD** — The preset seeded for real in development — and the 27-minute estimate corrected (2026-10-27)
-- **§27GE** — The 512 MB ceiling was the real constraint, and the index allocation was hiding in it (2026-10-27)
-- **§27GF** — The data guides split by environment — four files where two stood, and the Firebase guide renumbered (2026-10-27)
-- **§27GG** — The guides audited for misfiled content, and the data guides' commands put under a guard (2026-10-27)
-- **§27GH** — The reference documents measured against the tree — three stale sentences, four undocumented variables, and the tables that were already right (2026-10-27)
-- **§27GI** — The production dry run checked nothing, and said the run would go ahead (2026-10-28)
-- **§27GJ** — The production check was judged by the development database, and every command's boundary re-measured (2026-10-28)
-- **§27GK** — Production seed and delete at 10 000 products — and a connection failure that read like a partial write (2026-10-28)
-- **§27GL** — A production hint that named the database but not the environment — and 20 000 products proven in production (2026-10-28)
-- **§27GM** — Each account chooses whether its products carry a SKU and barcode (2026-10-29)
-- **§27GN** — Seeded barcodes are valid, unique EAN-13 — printable and scannable (2026-10-29)
-- **§27GO** — `--include-sku` is replaced by `--codes=`, and refused rather than ignored (2026-10-29)
-- **§27GP** — The seeding documentation measured against the scripts — six stale statements (2026-10-29)
-- **§27GQ** — A typed tenant id is a claim, and it is checked in every environment (2026-10-29)
-- **§27GR** — The seeding commands run against a database — four code modes, 1 000 products, and a corrupted tenant caught (2026-10-29)
-- **§27GS** — One verification command for the accounts workflow — and the expected size made checkable (2026-10-29)
-- **§27GT** — The unrelated-tenant witness for `cleanup:account` (2026-10-29)
-- **§27GU** — The seed's SKU/barcode mode becomes verifiable — from the products, not the plan (2026-10-30)
-- **§27GV** — The empty-tenant CLI verdict becomes an executed test (2026-10-30)
-- **§27GW** — The barcode report checks the value, not just the field (2026-10-30)
-- **§27GX** — The one Dependabot alert that could be closed, and the two that cannot (2026-10-30)
-- **§27GY** — The zod gate is read from the published CLI, not the installed one (2026-10-30)
-- **§27GZ** — One operation, one movement — inventory writes deduplicated (2026-11-01)
-- **§27HA** — The ledger's past duplicates, read and not touched (2026-11-01)
-- **§27HB** — The duplicate ledger audit, exact across the clock hour (2026-11-01)
-- **§27HC** — AI-41 — the assistant answers in the member's local time zone (2026-11-01)
-- **§27HD** — Sprint 1 — a confirmed adjustment and a transfer from the row (2026-11-01)
-- **§27HE** — The stock-in link keeps its location (2026-11-01)
-- **§27HF** — The single-location default, at the timing a phone produces (2026-11-01)
-- **§27HG** — The stock-in link keeps its product (2026-11-02)
-- **§27HH** — A transfer is one event to the assistant (2026-11-02)
-- **§27HI** — The transfer's direction, from the ledger itself (2026-11-02)
-- **§27HJ** — A recommendation may rest only on catalogue facts (2026-11-03)
-- **§27HK** — Recorded brands, and the question they answer (2026-11-03)
-- **§27HL** — A natural product question finishes (2026-11-03)
-- **§27HM** — What the catalogue contains, in one read (2026-11-03)
-- **§27HN** — Research the web, recommend only what the business stocks (2026-11-04)
-- **§27HO** — Recorded specifications, and a seed catalogue worth asking about (2026-11-04)
-- **§27HP** — Market prices from cited pages, and a faster research fan-out (2026-11-04)
-- **§27HQ** — Grounded answers, scoped stock reads, and the member's language (2026-11-06)
-- **§27HR** — AI-48–AI-84 merged and deployed (2026-11-06)
-- **§27HS** — The AI-50–AI-84 increment register (2026-11-06)
-- **§27HT** — AI-91/AI-92 — exact product identity and per-location stock (2026-11-09)
-- **§27HU** — AI-99 — free-first simple inventory, deployed with the 1.0.2 OTA (2026-11-10)
-- **§27HV** — AI-99 10,256-product simple-inventory gate (2026-11-10)
-- **§27HW** — AI-103 / OPS-3 — whole-set history totals and the operator monitoring runbook (2026-11-11)
-- **§27HX** — Dependency lockfile pass, AI-84/AI-105 and the external production watch (2026-11-11)
-- **§27HY** — AI-106 finalizer detail preservation and the reset-UX OTA (2026-11-11)
-- **§27HZ** — Scheduled-watch diagnosis, standalone Android build and AI-105 staging (2026-11-11)
-- **§27IA** — Post-deploy phone proof, orphan triage and scheduled read-only monitoring (2026-11-15)
-- **§27IB** — Scheduler trigger proof and hosted freshness monitoring (2026-11-15)
-- **§27IC** — AI-110 contextual assistant entry and the restock shortfall (2026-11-15)
-- **§27ID** — AI Assistant improvement roadmap and implementation audit (2026-11-16)
-- **§27IE** — AI-111–AI-113 answer actions, complete-list navigation and deterministic stock answers (2026-11-15)
-- **§27IF** — AI-114 — a complete restock list is rendered, not reasoned (2026-11-16)
-- **§27IG** — AI-115 — member feedback and the owner/admin review queue (2026-11-16)
-- **§27IH** — AI-116 — bounded follow-up context and answer freshness (2026-11-16)
-- **§27II** — AI-117 — complete feedback conversation preview (2026-11-16)
-- **§27IJ** — PLAT-1 — internal Platform Operations and the separate administrator plane (2026-11-16)
-- **§27IK** — Platform-admin architecture — implemented interim plane and remaining gates (2026-11-16)
-- **§27IL** — OPS-8 — durable usage and error monitoring (2026-11-16)
-- **§27IM** — PLAT-2/PLAT-3 — console, mandatory MFA and append-only platform audit (2026-11-16)
-- **§27IN** — PLAT-4 — review, CI browser proof and production gates (2026-11-16)
-- **§27IO** — PLAT-5 — administrator recovery, MFA lockout and lifecycle hardening (2026-11-16)
-- **§27IP** — PLAT-6 — the Platform Operations console in production (2026-11-16)
-- **§27IQ** — PLAT-7 — forced recovery, the free-plan outer gate and the break-glass drill (2026-11-16)
-- **§27IR** — PLAT-8 — PLAT-7 deployed, the production gate and recovery proof, and the required WebAuthn check (2026-11-17)
-- **§27IS** — PLAT-8 — planning assessment: access layer, security monitoring and whole-product priorities (2026-11-17)
-- **§27IT** — PLAT-9 — free-first implementation, accountability, restore-drill and follow-up plans (2026-11-17)
-- **§27IU** — PLAT-10 — primary/backup security contacts, Firebase recovery drill and multi-criteria ranking (2026-11-17)
-- **§27IV** — PLAT-11 — backup contact, Firebase-plan safety review and second improvement set (2026-11-17)
-- **§27IW** — PLAT-12 — contact wording, joint ranks, notification evidence and third improvement set (2026-11-17)
-- **§27IX** — PLAT-13 — two-contact test procedure and fourth improvement set (2026-11-17)
-- **§27IY** — PLAT-14 — printable two-contact notification test checklist (2026-11-17)
-- **§27IZ** — PLAT-15 — one-page PDF verification and tenant security review (2026-11-17)
-- **§27JA** — PLAT-16 — TS-01 plan, reproducible PDF renderer and next improvement tranche (2026-11-17)
-- **§27JB** — PLAT-17 — checklist restoration, path-safe renderer, RD-01 drill plan and NX-01–NX-07 (2026-11-17)
-- **§27JC** — PLAT-18 — RD-01 fact-check, NX-01 sensitive-data protection design and NY-01–NY-06 (2026-11-17)
-- **§27JD** — PLAT-19 — NZ-01–NZ-07 roadmap beyond NY-07 (2026-11-17)
-- **§27JE** — PLAT-20 — atomic SUPERADMIN guard, monitoring accounting and heartbeat restoration (2026-11-18)
-- **§27JF** — PLAT-21 — console status assessment and role/account creation guide (2026-11-18)
-- **§27JG** — PLAT-22 — additive security roadmap beyond PLAT-21 (2026-11-18)
-- **§27JH** — PLAT-23 — owner/CEO account, credential and access guide (2026-11-18)
-- **§27JI** — PLAT-24 — dedicated console documentation and accuracy corrections (2026-11-18)
-- **§27JJ** — PLAT-25 — outer access-gate failure bounding and sampled audit (2026-11-18)
-- **§27JK** — PLAT-26 — audited operator CLI creation (2026-11-18)
-- **§27JL** — PLAT-27 — SEC-08 step-up proof for destructive administrator actions (2026-11-18)
-- **§27JM** — DEP-01 — glob 14.0.2 override and picomatch residual review (2026-11-18)
-- **§27JN** — DEP-02 — dependency-review pull-request gate (2026-11-19)
-- **§27JO** — DEV-01 — optional local MongoDB container (2026-11-19)
-- **§27JP** — PLAT-28 — WebAuthn invalid-attempt reliability (2026-11-19)
-- **§27JY** — PLAT-29 — Console user guide and documentation reconciliation (2026-11-19)
-- **§27JZ** — DEV-10 — Workflow fixture proof, security-update grouping and future roadmap (2026-11-19, completed 2026-11-21)
-- **§27JQ** — DEV-02 — Compose MongoDB CI job (2026-11-19)
-- **§27JR** — DEV-03 — compose-mongo required check (2026-11-19)
-- **§27JS** — DEV-04 — pinned MongoDB image and CI job timeouts (2026-11-19)
-- **§27JT** — DEV-05 — merge queue prerequisites and user-ownership blocker (2026-11-19)
-- **§27JU** — DEV-06 — merge queue wiring removed; PR flow kept simple (2026-11-19)
-- **§27JV** — DEV-07 — production-health verification and Mongo CI review (2026-11-19)
-- **§27JW** — DEV-08 — GitHub workflow improvement roadmap (2026-11-19)
-- **§27JX** — DEV-09 — workflow invariant guard, checkout hygiene and security policy (2026-11-19)
-- **§27KA** — Console guide claim audit and follow-up recommendations (2026-11-19)
-- **§27KB** — Five implementation plans — FW-04 correction, FW-07, FW-05, reversal and supplier terms (2026-11-19)
-- **§27KC** — Audit fixes — AI price ranking, transfer retry, receive replay and catalog integrity (2026-11-19)
-- **§27KF** — FW-07 form references, persisted mobile operation keys, and integrity follow-up verification (2026-11-19)
-- **§27KG** — Transfer-ledger guard, recovery lease, and scheduled integrity operations (2026-11-19)
-- **§27KN** — Release gate — AI coverage, currency, durable receipts and Pending Operations (2026-11-20)
-- **§27KO** — Run-out correction regressions and live coverage selection audit (2026-11-20)
-- **§27KP** — Bare health aliases, post-deploy SHA verification and startup 5xx review (2026-11-20)
-- **§27KQ** — Deterministic stock coverage, exact-name resolution and semantic evaluation (2026-11-20)
-- **§27KR** — Explicit product-currency correction, mixed-currency price comparisons and bounded FX retry (2026-11-20)
-- **§27KS** — Inventory row attention, four server counts, Dashboard action and saved filters (2026-11-22)
-- **§27KT** — Archive-safe product stock filters, cross-restart import resume and ranked PR #364 follow-ups (2026-11-22)
-- **§27KU** — Concurrent import receipts, a native partial-resume proof, and OPS7 fixture simplification (2026-11-22)
-- **§27KV** — Status-first import resume, draft lifecycle, and a 300-row native restart proof (2026-11-22)
-- **§27KW** — Full suites, import audit exactly-once, and a whole-project follow-up review (2026-11-22)
-- **§27KX** — Complete location lists, a dashboard fallback, and a revised follow-up ranking (2026-11-22)
-- **§27KY** — Import-draft cleanup hardening and durable Restock → Draft PO resume (2026-11-22)
-- **§27KZ** — Terminal import receipts, shared audit deduplication, and a disposable restore drill (2026-11-23)
-- **§27LA** — Complete reference lists, sectioned Dashboard freshness, and saved-reference repair (2026-11-23)
-- **§27LC** — Terminal recovery receipts, deterministic audit keys and a durable import outbox (2026-11-23)
-- **§27LB** — Import-restore blocking, crash-safe DRAFT keys and a force-stop resume proof (2026-11-23)
-- **§27LD** — Dashboard freshness cleanup, complete History filters and a follow-up ranking (2026-11-23)
-- **§27LE** — Full server suite, three-index readiness and an automated same-key Draft PO restart proof (2026-11-23)
-- **§27LF** — Tenant receipt cleanup, PO/movement audit outboxes and bounded outbox retention (2026-11-23)
-- **§27LG** — Dashboard/History cleanup, full mobile suite and required-index rollout (2026-11-23)
-- **§27LI** — Six-index readiness, bounded audit health and a four-boundary crash harness (2026-11-23)
-- **§27LH** — Resume-key gates, truthful cleanup and a serial-guarded install helper (2026-11-23)
-- **§27LJ** — Schema-derived tenant coverage and read-only FAILED outbox triage (2026-11-23)
-- **§27KM** — Run-out intent guard and bounded live selection evaluation (2026-11-20)
-- **§27KL** — Currency resolution operations, process-local rate metrics and resolver CLI proof (2026-11-20)
-- **§27KK** — Post-commit fault proof, movement-receipt recovery and Pending Operations (2026-11-20)
-- **§27KJ** — Required product currency, legacy audit, and verified marketplace comparison (2026-11-20)
-- **§27KI** — Account-scoped operation keys, serialized key store, durable movement receipts, and AI request references (2026-11-20)
-- **§27KH** — Retryable alerts, fail-closed index readiness, and read-only attention triage (2026-11-19)
-- **§27KE** — Integrity recovery, currency-safe ranking and price quality (2026-11-19)
-- **§27KD** — FW-07 — mobile request reference, and follow-ups beyond the five plans (2026-11-19)
+**§27B**, **§27C**, **§27D**, **§27E**, **§27F**, **§27G**, **§27H**, **§27I**, **§27J**, **§27K**, **§27L**,
+**§27M**, **§27N**, **§27O**, **§27P**, **§27Q**, **§27R**, **§27S**, **§27T**, **§27U**, **§27V**, **§27W**,
+**§27X**, **§27Y**, **§27Z**, **§27AA**, **§27AB**, **§27AC**, **§27AD**, **§27AE**, **§27AF**, **§27AG**,
+**§27AH**, **§27AI**, **§27AJ**, **§27AK**, **§27AL**, **§27AM**, **§27AN**, **§27AO**, **§27AP**, **§27AQ**,
+**§27AR**, **§27AS**, **§27AT**, **§27AU**, **§27AV**, **§27AW**, **§27AX**, **§27AY**, **§27AZ**, **§27BA**,
+**§27BB**, **§27BC**, **§27BD**, **§27BE**, **§27BF**, **§27BG**, **§27BH**, **§27BI**, **§27BJ**, **§27BK**,
+**§27BL**, **§27BM**, **§27BN**, **§27BP**, **§27BQ**, **§27BR**, **§27BS**, **§27BT**, **§27BU**, **§27BV**,
+**§27BW**, **§27BX**, **§27BY**, **§27BZ**, **§27CA**, **§27CB**, **§27CC**, **§27CD**, **§27CE**, **§27CF**,
+**§27CG**, **§27CH**, **§27CI**, **§27CJ**, **§27CK**, **§27CL**, **§27CM**, **§27CN**, **§27CO**, **§27CP**,
+**§27CQ**, **§27CR**, **§27CS**, **§27CT**, **§27CU**, **§27CV**, **§27CW**, **§27CX**, **§27CY**, **§27CZ**,
+**§27DA**, **§27DB**, **§27DC**, **§27DD**, **§27DE**, **§27DF**, **§27DG**, **§27DH**, **§27DI**, **§27DJ**,
+**§27DK**, **§27DL**, **§27DM**, **§27DN**, **§27DO**, **§27DP**, **§27DQ**, **§27DR**, **§27DS**, **§27DT**,
+**§27DU**, **§27DV**, **§27DW**, **§27DX**, **§27DY**, **§27DZ**, **§27EA**, **§27EB**, **§27EC**, **§27ED**,
+**§27EE**, **§27EF**, **§27EG**, **§27EH**, **§27EI**, **§27EJ**, **§27EK**, **§27EL**, **§27EM**, **§27EN**,
+**§27EO**, **§27EP**, **§27EQ**, **§27ER**, **§27ES**, **§27ET**, **§27EU**, **§27EV**, **§27EW**, **§27EX**,
+**§27EY**, **§27EZ**, **§27FA**, **§27FB**, **§27FC**, **§27FD**, **§27FE**, **§27FF**, **§27FG**, **§27FH**,
+**§27FI**, **§27FJ**, **§27FK**, **§27FL**, **§27FM**, **§27FN**, **§27FO**, **§27FP**, **§27FQ**, **§27FR**,
+**§27FS**, **§27FT**, **§27FU**, **§27FV**, **§27FW**, **§27FX**, **§27FY**, **§27FZ**, **§27GA**, **§27GB**,
+**§27GC**, **§27GD**, **§27GE**, **§27GF**, **§27GG**, **§27GH**, **§27GI**, **§27GJ**, **§27GK**, **§27GL**,
+**§27GM**, **§27GN**, **§27GO**, **§27GP**, **§27GQ**, **§27GR**, **§27GS**, **§27GT**, **§27GU**, **§27GV**,
+**§27GW**, **§27GX**, **§27GY**, **§27GZ**, **§27HA**, **§27HB**, **§27HC**, **§27HD**, **§27HE**, **§27HF**,
+**§27HG**, **§27HH**, **§27HI**, **§27HJ**, **§27HK**, **§27HL**, **§27HM**, **§27HN**, **§27HO**, **§27HP**,
+**§27HQ**, **§27HR**, **§27HS**, **§27HT**, **§27HU**, **§27HV**, **§27HW**, **§27HX**, **§27HY**, **§27HZ**,
+**§27IA**, **§27IB**, **§27IC**, **§27ID**, **§27IE**, **§27IF**, **§27IG**, **§27IH**, **§27II**, **§27IJ**,
+**§27IK**, **§27IL**, **§27IM**, **§27IN**, **§27IO**, **§27IP**, **§27IQ**, **§27IR**, **§27IS**, **§27IT**,
+**§27IU**, **§27IV**, **§27IW**, **§27IX**, **§27IY**, **§27IZ**, **§27JA**, **§27JB**, **§27JC**, **§27JD**,
+**§27JE**, **§27JF**, **§27JG**, **§27JH**, **§27JI**, **§27JJ**, **§27JK**, **§27JL**, **§27JM**, **§27JN**,
+**§27JO**, **§27JP**, **§27JQ**, **§27JR**, **§27JS**, **§27JT**, **§27JU**, **§27JV**, **§27JW**, **§27JX**,
+**§27JY**, **§27KA**, **§27KB**, **§27KC**, **§27KD**, **§27KE**, **§27KF**, **§27KG**, **§27KH**, **§27KI**,
+**§27KJ**, **§27KK**, **§27KL**, **§27KM**, **§27KN**, **§27KO**, **§27KP**, **§27KQ**, **§27KR**, **§27JZ**,
+**§27KS**, **§27KT**, **§27KU**, **§27KV**, **§27KW**, **§27KX**, **§27KY**, **§27KZ**, **§27LA**, **§27LB**,
+**§27LC**, **§27LD**, **§27LE**, **§27LF**, **§27LG**, **§27LH**, **§27LI**, **§27LJ**
 
 ---
 

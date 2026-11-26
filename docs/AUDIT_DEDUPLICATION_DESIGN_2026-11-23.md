@@ -8,8 +8,8 @@ repair. `DELIVERED` outbox rows expire after 30 days; `FAILED` rows are retained
 six readiness indexes (including the TTL and repair indexes), the bounded health snapshot and the
 four-boundary child-process crash harness are implemented (§27LI). The remaining
 product/reference/PO transport-only mutations are designed but not yet wired.
-**Related:** §27KZ and §27LI in [`DEVELOPMENT_ROADMAP.md`](DEVELOPMENT_ROADMAP.md), the restore drill in
-[`PLATFORM_DATABASE_RESTORE_DRILL_PLAN.md`](PLATFORM_DATABASE_RESTORE_DRILL_PLAN.md), and the
+**Related:** §27KZ and §27LI in [`DEVELOPMENT_ROADMAP.md`](DEVELOPMENT_ROADMAP.md), the restore-drill item in
+[`BACKLOG.md`](BACKLOG.md) §1, and the
 recovery guarantees in [`INTEGRITY_RECOVERY.md`](INTEGRITY_RECOVERY.md).
 
 ## 1. The two failure windows

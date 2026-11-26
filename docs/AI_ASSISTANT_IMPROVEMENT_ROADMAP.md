@@ -200,7 +200,7 @@ monitoring score. “Needs closer monitoring” remains a human judgement, not a
 excess stock as a configurable rule, not a guess; every output is a recommendation with its
 evidence, and every action remains the member's. The 2026-11-21 stock-coverage candidate ranking
 (evidence gate, days-to-minimum, catalogue-wide run-out and six further items) is in
-[`INVENTORY_AI_FOLLOWUP_ASSESSMENT.md`](INVENTORY_AI_FOLLOWUP_ASSESSMENT.md) §3; none is implemented.
+[`BACKLOG.md`](BACKLOG.md) §5; none is implemented.
 
 **Accepted when.** No insight is generated from a missing field; a run-out estimate states its
 window and does not pretend to be a guarantee; an excess recommendation states its rule; no
