@@ -174,22 +174,36 @@ async function main() {
     }
   }
 
-  /* ---- UptimeRobot (read-only account details) ---- */
+  /* ---- UptimeRobot (getMonitors — the v2 method a read-only key is allowed to call) ---- */
   if (!has('UPTIMEROBOT_API_KEY')) {
     record('UptimeRobot', 'SKIP', 'UPTIMEROBOT_API_KEY is not set — add it to server/.env (read-only monitor key)');
   } else {
     try {
-      const response = await fetch('https://api.uptimerobot.com/v2/getAccountDetails', {
+      // A read-only API key may only call the get* methods. getAccountDetails is NOT one of them: it
+      // answers `not_authorized` for a perfectly valid read-only key, which reads as a rejected
+      // credential if you do not know the rule. getMonitors is the method the key is issued for.
+      const response = await fetch('https://api.uptimerobot.com/v2/getMonitors', {
         method: 'POST',
         headers: { 'content-type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({ api_key: process.env.UPTIMEROBOT_API_KEY, format: 'json' }).toString(),
+        body: new URLSearchParams({
+          api_key: process.env.UPTIMEROBOT_API_KEY,
+          format: 'json',
+          limit: '1',
+        }).toString(),
         signal: AbortSignal.timeout(20_000),
       });
-      const body = await response.json();
-      if (body?.stat !== 'ok') throw new Error('refused');
-      record('UptimeRobot', 'OK', `monitor account read (${body?.account?.monitor_limit ?? '?'} monitor limit)`);
+      const body = await response.json().catch(() => ({}));
+      const failure = body?.error?.type ?? 'no stat field';
+      if (response.ok && body?.stat === 'ok') {
+        const total = body?.pagination?.total ?? (Array.isArray(body?.monitors) ? body.monitors.length : 1);
+        record('UptimeRobot', 'OK', `read ${total} monitor(s) with the read-only key — no changes made`);
+      } else if (failure === 'not_authorized') {
+        record('UptimeRobot', 'FAIL', 'the key is valid but this method is not allowed for it — a read-only key may only call the get* methods');
+      } else {
+        record('UptimeRobot', 'FAIL', `key rejected (${failure}) — regenerate the read-only key`);
+      }
     } catch {
-      record('UptimeRobot', 'FAIL', 'key rejected — use a read-only monitor key');
+      record('UptimeRobot', 'FAIL', 'UptimeRobot could not be reached');
     }
   }
 

@@ -32,7 +32,7 @@ database.
 
 ## 2. The matrix
 
-Status recorded **2026-11-26**: 7 of 9 services answer, 2 are not configured.
+Status recorded **2026-11-26**: 8 of 9 services answer, 1 is not configured.
 
 | Service | Used for | Credential lives in | Verification | Status |
 | --- | --- | --- | --- | --- |
@@ -43,7 +43,7 @@ Status recorded **2026-11-26**: 7 of 9 services answer, 2 are not configured.
 | OpenRouter | AI assistant provider, model catalogue, spend | `OPENROUTER_API_KEY` in `server/.env` | `GET /api/v1/key` | OK — paid credits |
 | Brevo | Transactional mail, deliverability | `BREVO_API_KEY` in `server/.env` | `GET /v3/account` | OK — free plan |
 | Firebase | Sign-in, identities, email verification | `FIREBASE_SERVICE_ACCOUNT_JSON` in `server/.env` | RS256 token exchange; also `npm run verify:firebase` | OK — `inventoryai-d0d20` |
-| UptimeRobot | Uptime monitors and alert contacts | `UPTIMEROBOT_API_KEY` in `server/.env` | `getAccountDetails` | **Not configured** |
+| UptimeRobot | Uptime monitors and alert contacts | `UPTIMEROBOT_API_KEY` in `server/.env` | `getMonitors` (get methods only) | OK — read-only key, 3 monitors |
 | Gmail (monitoring) | Reading alert and audit mailboxes | `GMAIL_*` variables in `server/.env` | presence only — see §4 | **Not configured** |
 
 ## 3. Adding a credential
@@ -60,7 +60,7 @@ treated as compromised and must be rotated.
 | OpenRouter | Already in `server/.env` | A key named for this purpose with a credit limit at `openrouter.ai/keys` |
 | Brevo | Already in `server/.env` | Brevo v3 keys are account-wide, so treat it as full access |
 | Firebase | Already in `server/.env`; see `FIREBASE_CREDENTIAL_RUNBOOK.md` | The existing Admin service account |
-| UptimeRobot | Add `UPTIMEROBOT_API_KEY=<read-only monitor key>` to `server/.env` | A **read-only** API key from the UptimeRobot account's API settings |
+| UptimeRobot | Add `UPTIMEROBOT_API_KEY=<read-only monitor key>` to `server/.env` | A **read-only** API key from the UptimeRobot account's API settings. A read-only key may call only the `get*` methods: `getMonitors` answers `stat: ok`, while `getAccountDetails` answers `not_authorized` for the same valid key. A `not_authorized` reply therefore means the method is wrong, not the credential. |
 | Gmail | Add one pair per mailbox (below) to `server/.env` | An app password, which requires 2-step verification and IMAP enabled |
 
 Gmail variables, one numbered pair per monitoring mailbox:
