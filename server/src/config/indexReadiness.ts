@@ -63,8 +63,37 @@ export const REQUIRED_INDEX_SPECS: readonly RequiredIndexSpec[] = [
   PURCHASE_ORDER_RECEIVE_AUDIT_REPAIR_INDEX,
 ];
 
-/** A readiness probe must not wait indefinitely on a wedged database. */
-export const INDEX_INSPECTION_TIMEOUT_MS = 2_500;
+/**
+ * How long one bounded `listIndexes` may take before the probe gives up.
+ *
+ * 2 500 ms was below the Atlas round trip this deployment actually sees: every
+ * sampled production 503 on 2026-11-23 returned at ~2 500 ms, which is this bound
+ * expiring, not a missing index. The six inspections run in parallel, so the probe
+ * still answers within one bound; 10 s leaves room for a slow Atlas handshake
+ * without holding a load balancer for a database that is genuinely wedged.
+ */
+export const INDEX_INSPECTION_TIMEOUT_MS = 10_000;
+
+/**
+ * How old the last verdict may be before a *background* inspection refreshes it.
+ *
+ * Readiness is polled far more often than the index set changes, so the verdict is
+ * kept current by an inspection that runs behind the response rather than in front
+ * of it. Polls answer from the last verdict; this interval is how stale that verdict
+ * may be while a refresh is being started.
+ */
+export const INDEX_READINESS_REFRESH_INTERVAL_MS = 10_000;
+
+/**
+ * How long a *successful* verdict may answer readiness at all.
+ *
+ * Background refresh alone would let one good inspection answer forever if every
+ * later inspection silently stopped running. Past this age a request waits for the
+ * inspection instead of serving good news of unknown age, so a cached success can
+ * never conceal a later failure indefinitely. A confirmed failure is never served
+ * from the cache as ready at all, whatever its age.
+ */
+export const INDEX_READINESS_MAX_STALE_MS = 60_000;
 
 function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
   return new Promise<T>((resolve, reject) => {
@@ -236,12 +265,13 @@ export function evaluateTransferLedgerIndex(indexes: unknown[]): IndexReadiness 
 /** Inspect one model's live index list. Any inspection failure is not ready. */
 export async function checkRequiredIndex(
   model: IndexModel,
-  spec: RequiredIndexSpec
+  spec: RequiredIndexSpec,
+  inspectionTimeoutMs: number = INDEX_INSPECTION_TIMEOUT_MS
 ): Promise<IndexReadiness> {
   try {
     const indexes = await withTimeout(
       model.collection.indexes(),
-      INDEX_INSPECTION_TIMEOUT_MS
+      inspectionTimeoutMs
     );
     return evaluateRequiredIndex(indexes, spec);
   } catch (err) {
@@ -359,4 +389,105 @@ export async function checkRequiredIndexes({
     (failure): failure is { name: string; reason: string } => failure !== null
   );
   return { ready: failures.length === 0, failures };
+}
+
+type InspectionOptions = {
+  check?: () => Promise<RequiredIndexesReadiness>;
+  now?: () => number;
+};
+
+type Verdict = { at: number; result: RequiredIndexesReadiness };
+
+/**
+ * The newest completed inspection — success *or* failure — and the one running now.
+ *
+ * Holding failures as well as successes is what makes the gate fail closed: a
+ * confirmed missing index becomes the verdict that the next poll is answered from,
+ * so no earlier success can outvote it. Only a *newer successful* inspection
+ * replaces it.
+ */
+let latestVerdict: Verdict | null = null;
+let inflightInspection: Promise<RequiredIndexesReadiness> | null = null;
+
+/** Test seam: forget the newest verdict and any inspection in flight. */
+export function resetRequiredIndexesCache(): void {
+  latestVerdict = null;
+  inflightInspection = null;
+}
+
+/**
+ * Run one inspection, or join the one already running.
+ *
+ * Single-flight is what keeps a burst of probes from multiplying `listIndexes`
+ * load on a database that is already slow, whether the inspections were started by
+ * requests or by the background refresh. The result — including a failure —
+ * becomes the newest verdict, and this never rejects: an inspection that cannot run
+ * is a not-ready verdict, because a gate that cannot see the indexes must not open.
+ */
+function inspectIndexes({
+  check = checkRequiredIndexes,
+  now = Date.now,
+}: InspectionOptions): Promise<RequiredIndexesReadiness> {
+  if (inflightInspection) return inflightInspection;
+
+  const running = (async (): Promise<RequiredIndexesReadiness> => {
+    let result: RequiredIndexesReadiness;
+    try {
+      result = await check();
+    } catch {
+      result = {
+        ready: false,
+        failures: [{ name: 'required-indexes', reason: 'the required index check could not run' }],
+      };
+    }
+    latestVerdict = { at: now(), result };
+    return result;
+  })();
+
+  const tracked = running.finally(() => {
+    if (inflightInspection === tracked) inflightInspection = null;
+  });
+  inflightInspection = tracked;
+  return tracked;
+}
+
+/**
+ * `/api/health/ready`'s inspection: answer from the last verdict, refresh behind it.
+ *
+ * A poll no longer pays for six `listIndexes` round trips. It is answered by the
+ * newest verdict, and an inspection older than `refreshAfterMs` is re-run in the
+ * background, so Atlas latency sits behind the response instead of in front of it.
+ *
+ * Fail-closed survives both shortcuts:
+ *
+ *   * a **confirmed failure** is served immediately and only replaced by a newer
+ *     successful inspection, so a missing index answers 503 from the poll that
+ *     first observed it onward;
+ *   * a **success** older than `maxStaleMs` is not trusted on its own — the request
+ *     waits for an inspection — so an inspection that silently stops running cannot
+ *     keep a gate open on a verdict of unbounded age.
+ *
+ * With no verdict at all (the first poll after a process starts) the request waits
+ * for the inspection: readiness that has never been verified is not ready yet.
+ */
+export async function readRequiredIndexes({
+  check = checkRequiredIndexes,
+  now = Date.now,
+  refreshAfterMs = INDEX_READINESS_REFRESH_INTERVAL_MS,
+  maxStaleMs = INDEX_READINESS_MAX_STALE_MS,
+}: InspectionOptions & {
+  refreshAfterMs?: number;
+  maxStaleMs?: number;
+} = {}): Promise<RequiredIndexesReadiness> {
+  if (latestVerdict) {
+    const age = Math.max(0, now() - latestVerdict.at);
+    const serveVerdict = !latestVerdict.result.ready || age < maxStaleMs;
+    if (serveVerdict) {
+      // Not awaited: the response goes out now, the refresh runs behind it, and a
+      // failure it finds is the verdict the next poll answers from.
+      if (age >= refreshAfterMs) void inspectIndexes({ check, now });
+      return latestVerdict.result;
+    }
+  }
+  return inspectIndexes({ check, now });
 }
