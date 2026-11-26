@@ -11,13 +11,14 @@ import express from 'express';
 
 import {
   INDEX_INSPECTION_TIMEOUT_MS,
-  INDEX_READINESS_CACHE_TTL_MS,
+  INDEX_READINESS_MAX_STALE_MS,
+  INDEX_READINESS_REFRESH_INTERVAL_MS,
   checkRequiredIndex,
   checkRequiredIndexes,
-  checkRequiredIndexesCached,
   checkTransferLedgerIndex,
   evaluateRequiredIndex,
   evaluateTransferLedgerIndex,
+  readRequiredIndexes,
   resetRequiredIndexesCache,
 } from '../src/config/indexReadiness.ts';
 import { AUDIT_DEDUPE_INDEX } from '../src/models/auditLog.model.ts';
@@ -361,16 +362,19 @@ describe('transfer-ledger index readiness — /api/health/ready', () => {
   });
 });
 
-// The 2026-11-23 production 503s were this bound expiring on an Atlas round trip,
-// not a missing index. These cases pin the raised bound, the failure semantics of
-// the cache, and the guarantee that a cached verdict can never turn a missing index
-// into a ready answer.
-describe('required-index readiness — inspection bound and cache', () => {
+// The 2026-11-23 production 503s were the old 2 500 ms bound expiring on an Atlas
+// round trip, not a missing index. Readiness now answers from the newest verdict and
+// refreshes it behind the response. These cases pin that shortcut and, more
+// importantly, that it cannot weaken the gate: a confirmed failure is served at once,
+// and a success of unbounded age is never trusted on its own.
+describe('required-index readiness — inspection bound and background refresh', () => {
   const never = () => new Promise(() => {});
+  const ready = { ready: true, failures: [] };
+  const missing = { ready: false, failures: [{ name: 'transfer', reason: 'index is missing' }] };
 
   it('allows a 10 s inspection bound, above the observed Atlas round trip', () => {
     assert.equal(INDEX_INSPECTION_TIMEOUT_MS, 10_000);
-    assert.ok(INDEX_READINESS_CACHE_TTL_MS > 0);
+    assert.ok(INDEX_READINESS_REFRESH_INTERVAL_MS < INDEX_READINESS_MAX_STALE_MS);
   });
 
   it('fails closed when one inspection exceeds the bound', async () => {
@@ -389,14 +393,7 @@ describe('required-index readiness — inspection bound and cache', () => {
         collection: {
           indexes: async () => {
             await new Promise((resolve) => setTimeout(resolve, 40));
-            return [
-              {
-                name: 'uniq_transfer_operation_location',
-                key: { businessId: 1, transferOperationId: 1, locationId: 1 },
-                unique: true,
-                partialFilterExpression: { transferOperationId: { $type: 'objectId' } },
-              },
-            ];
+            return [exact()];
           },
         },
       },
@@ -406,81 +403,104 @@ describe('required-index readiness — inspection bound and cache', () => {
     assert.equal(result.ready, true);
   });
 
-  it('answers from a verified inspection inside the window and re-inspects after it', async () => {
+  it('waits for the first inspection, then answers without waiting for the next', async () => {
     resetRequiredIndexesCache();
     let inspections = 0;
-    let clock = 1_000;
+    let clock = 0;
+    let release = () => {};
+    let hold = null;
     const check = async () => {
       inspections += 1;
-      return { ready: true, failures: [] };
+      if (hold) await hold;
+      return ready;
     };
+    const options = () => ({
+      check,
+      now: () => clock,
+      refreshAfterMs: 1_000,
+      maxStaleMs: 60_000,
+    });
 
-    const first = await checkRequiredIndexesCached({ check, cacheTtlMs: 1_000, now: () => clock });
-    clock += 999;
-    const second = await checkRequiredIndexesCached({ check, cacheTtlMs: 1_000, now: () => clock });
+    // No verdict yet: the first poll must not answer 'ready' out of nothing.
+    assert.equal((await readRequiredIndexes(options())).ready, true);
     assert.equal(inspections, 1);
-    assert.equal(first, second, 'the cached verdict is what the last inspection returned');
 
-    clock += 1;
-    await checkRequiredIndexesCached({ check, cacheTtlMs: 1_000, now: () => clock });
-    assert.equal(inspections, 2, 'at the boundary the inspection runs again');
+    // The verdict is due for refresh, so a background inspection starts — and hangs.
+    clock += 1_000;
+    hold = new Promise((resolve) => {
+      release = resolve;
+    });
+    const answered = await readRequiredIndexes(options());
+    assert.equal(answered.ready, true, 'the poll is answered from the last verdict');
+    assert.equal(inspections, 2, 'the refresh started behind the response');
+
+    // ... and its result becomes the verdict the next poll is answered from.
+    release();
+    await new Promise((resolve) => setImmediate(resolve));
+    hold = null;
+    assert.equal((await readRequiredIndexes(options())).ready, true);
+    assert.equal(inspections, 2, 'a fresh verdict is not inspected again');
     resetRequiredIndexesCache();
   });
 
-  it('never caches a not-ready verdict, so a missing index is re-reported', async () => {
+  it('does not refresh a verdict inside the refresh interval', async () => {
     resetRequiredIndexesCache();
     let inspections = 0;
+    let clock = 100;
     const check = async () => {
       inspections += 1;
-      return {
-        ready: false,
-        failures: [{ name: 'transfer', reason: 'required unique partial index is missing' }],
-      };
+      return ready;
     };
+    const options = () => ({ check, now: () => clock, refreshAfterMs: 1_000 });
 
-    const first = await checkRequiredIndexesCached({ check, cacheTtlMs: 60_000 });
-    const second = await checkRequiredIndexesCached({ check, cacheTtlMs: 60_000 });
-    assert.equal(first.ready, false);
-    assert.equal(second.ready, false);
-    assert.equal(inspections, 2, 'a failure is inspected again on the next poll');
+    await readRequiredIndexes(options());
+    clock += 999;
+    await readRequiredIndexes(options());
+    assert.equal(inspections, 1, 'polling faster than the interval does not multiply inspections');
     resetRequiredIndexesCache();
   });
 
-  it('drops a cached success as soon as an inspection reports a failure', async () => {
+  it('serves a failure the background refresh found instead of the earlier success', async () => {
     resetRequiredIndexesCache();
     let inspections = 0;
-    let ready = true;
+    let verdict = ready;
     const check = async () => {
       inspections += 1;
-      return ready
-        ? { ready: true, failures: [] }
-        : { ready: false, failures: [{ name: 'transfer', reason: 'index is missing' }] };
+      return verdict;
     };
+    const options = () => ({ check, now: () => 0, refreshAfterMs: 0, maxStaleMs: 60_000 });
 
-    await checkRequiredIndexesCached({ check, cacheTtlMs: 0 });
-    ready = false;
-    const failed = await checkRequiredIndexesCached({ check, cacheTtlMs: 0 });
-    assert.equal(failed.ready, false, 'a later failure is never masked by the earlier success');
-
-    ready = true;
-    await checkRequiredIndexesCached({ check, cacheTtlMs: 0 });
-    assert.equal(inspections, 3, 'the stale success was replaced, not restored');
-    resetRequiredIndexesCache();
-  });
-
-  it('treats an inspection that throws as not ready and does not cache it', async () => {
-    resetRequiredIndexesCache();
-    let inspections = 0;
-    const check = async () => {
-      inspections += 1;
-      throw new Error('inspection crashed');
-    };
-
-    const first = await checkRequiredIndexesCached({ check, cacheTtlMs: 60_000 });
-    assert.equal(first.ready, false);
-    assert.match(first.failures[0].reason, /could not run/);
-    await checkRequiredIndexesCached({ check, cacheTtlMs: 60_000 });
+    assert.equal((await readRequiredIndexes(options())).ready, true);
+    verdict = missing;
+    // The next poll answers from the old verdict but starts the refresh that rejects it.
+    assert.equal((await readRequiredIndexes(options())).ready, true);
+    await new Promise((resolve) => setImmediate(resolve));
     assert.equal(inspections, 2);
+
+    const afterFailure = await readRequiredIndexes(options());
+    assert.equal(afterFailure.ready, false, 'a confirmed failure is never masked by an older success');
+    assert.match(afterFailure.failures[0].reason, /index is missing/);
+    resetRequiredIndexesCache();
+  });
+
+  it('does not trust a success older than the staleness cap, even if refreshes have stalled', async () => {
+    resetRequiredIndexesCache();
+    let inspections = 0;
+    let clock = 0;
+    let verdict = ready;
+    const check = async () => {
+      inspections += 1;
+      return verdict;
+    };
+    const options = () => ({ check, now: () => clock, refreshAfterMs: 1_000, maxStaleMs: 60_000 });
+
+    await readRequiredIndexes(options());
+    // A background refresh that never lands: the clock moves past every cap.
+    clock = INDEX_READINESS_MAX_STALE_MS + 1;
+    verdict = missing;
+    const result = await readRequiredIndexes(options());
+    assert.equal(inspections, 2, 'a verdict past the cap is re-inspected before it is served');
+    assert.equal(result.ready, false, 'good news of unknown age does not keep the gate open');
     resetRequiredIndexesCache();
   });
 
@@ -490,40 +510,60 @@ describe('required-index readiness — inspection bound and cache', () => {
     const check = async () => {
       inspections += 1;
       await new Promise((resolve) => setTimeout(resolve, 20));
-      return { ready: true, failures: [] };
+      return ready;
     };
+    const options = () => ({ check, now: () => 0, refreshAfterMs: 0 });
 
     const results = await Promise.all([
-      checkRequiredIndexesCached({ check, cacheTtlMs: 0 }),
-      checkRequiredIndexesCached({ check, cacheTtlMs: 0 }),
-      checkRequiredIndexesCached({ check, cacheTtlMs: 0 }),
+      readRequiredIndexes(options()),
+      readRequiredIndexes(options()),
+      readRequiredIndexes(options()),
     ]);
-    assert.equal(inspections, 1);
+    assert.equal(inspections, 1, 'a burst of probes costs one inspection, not one each');
     for (const result of results) assert.equal(result.ready, true);
     resetRequiredIndexesCache();
   });
 
-  it('keeps the route answering 200 from a cached success and 503 on a real failure', async () => {
+  it('treats an inspection that throws as not ready, and keeps re-reporting it', async () => {
     resetRequiredIndexesCache();
-    let ready = true;
     let inspections = 0;
+    let clock = 0;
     const check = async () => {
       inspections += 1;
-      return ready ? { ready: true, failures: [] } : { ready: false, failures: [{ name: 'x', reason: 'index is missing' }] };
+      throw new Error('inspection crashed');
     };
-    const checkIndexes = () => checkRequiredIndexesCached({ check, cacheTtlMs: 0 });
+    const options = () => ({ check, now: () => clock, refreshAfterMs: 1_000 });
+
+    const first = await readRequiredIndexes(options());
+    assert.equal(first.ready, false);
+    assert.match(first.failures[0].reason, /could not run/);
+
+    // A failure is served straight away, and the retry runs behind the response.
+    clock += 1_000;
+    assert.equal((await readRequiredIndexes(options())).ready, false);
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.equal(inspections, 2, 'a permanently failing inspection is retried, not cached as done');
+    resetRequiredIndexesCache();
+  });
+
+  it('keeps the route at 200 from the verified verdict and 503 once a real failure is seen', async () => {
+    resetRequiredIndexesCache();
+    let verdict = ready;
+    const checkIndexes = () =>
+      readRequiredIndexes({ check: async () => verdict, now: () => 0, refreshAfterMs: 0 });
 
     await withHealthApp({
       checkIndexes,
       run: async (origin) => {
         assert.equal((await fetch(`${origin}/api/health/ready`)).status, 200);
-        ready = false;
+        verdict = missing;
+        await fetch(`${origin}/api/health/ready`);
         const res = await fetch(`${origin}/api/health/ready`);
-        assert.equal(res.status, 503);
+        assert.equal(res.status, 503, 'the missing index reaches the gate, not just the cache');
         assert.match((await res.json()).reason, /index is missing/);
+        assert.doesNotMatch(JSON.stringify(await (await fetch(`${origin}/api/health/ready`)).json()), /mongodb:|secret/i);
       },
     });
-    assert.equal(inspections, 2);
     resetRequiredIndexesCache();
   });
 });
