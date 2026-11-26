@@ -149,8 +149,8 @@ const PURE_UNIT = [
   'TENANT-TEARDOWN-COVERAGE.test.mjs', // schema-derived teardown coverage: every registered model with businessId must be a business step, every user-scoped model with no businessId must be a user step, and a fake future tenant model proves the guard can fail
   'triage-integrity.test.mjs', // the read-only attention view: REQUIRES_ATTENTION reasons + snapshots + ledger rows, quarantine reasons/keptId, argument bounds, and a source guard against every write
   'PLAT2-platform-console.test.mjs', // PLAT-2: the dedicated console's strict CSP (no inline script/style/eval, exact API origin, frame-ancestors none), no event-handler attributes, origin-only config, traversal refusal, RFC 6238 TOTP vectors, replay refusal and AES-GCM tamper detection — no browser, no database
-];
   'BACKUP-ENCRYPTED-SECURITY.test.mjs', // DB-free encrypted-backup security: protected temp-key generation with stdin passphrase preset, gpg-agent cache clearing, hostile archive member paths/types, and the gpgconf/gpg-connect-agent prerequisite refusals
+];
 const PURE_DB = [
   'PRODUCTS-stock-status-active.test.mjs', // Canonical product stockStatus queries are ACTIVE-only on the server: direct requests without status, and requests that explicitly ask for ARCHIVED, return no archived product; legacy lowStock/outOfStock and ordinary status filters keep their historical scope
   'INVENTORY-needs-attention.test.mjs', // Row-level attention and four chip counts: canonical Low (0 < available <= minimum) and Out (available <= 0) are disjoint, Needs attention is their sum, one scoped aggregate matches each filtered total under search/location/pagination/tenant scope, legacy lowStock stays broad, and a product-first search now honours Out
