@@ -21,8 +21,8 @@ connection string or account email. It is safe to paste its output into an issue
 
 | Exit | Meaning |
 | --- | --- |
-| `0` | every configured service answered |
-| `1` | a configured service failed; the line names it and gives a safe reason |
+| `0` | every configured service answered and the two environments agree on variable names |
+| `1` | a configured service failed, or the local and Render variable **names** differ |
 | `2` | nothing was configured to check |
 
 The script is `scripts/check-agent-access.mjs`. Each check is deliberately the cheapest read the
@@ -32,19 +32,39 @@ database.
 
 ## 2. The matrix
 
-Status recorded **2026-11-26**: 7 of 9 services answer, 2 are not configured.
+Status recorded **2026-11-26**: 8 of 9 services answer, 1 is not configured.
 
 | Service | Used for | Credential lives in | Verification | Status |
 | --- | --- | --- | --- | --- |
 | GitHub | Repository, pull requests, Actions, releases | `gh` CLI session (OS keyring) | `gh auth status` | OK — `nreffejzxc` |
-| Render | Production API, deploy status, logs, environment | `render` CLI session (OS keyring) | `render whoami` | OK |
+| Render | Production API, deploy status, logs, environment | `render` CLI session (OS keyring); `RENDER_API_KEY` for the variable-name comparison | `render whoami` | OK |
+| Render env names | Name drift between `server/.env` and the production service | `RENDER_API_KEY` in `server/.env` (the CLI has no env-var command) | `GET /v1/services/{id}/env-vars`, names only | **Not configured** |
 | Expo / EAS | Android builds, OTA update channels | `eas` CLI session (OS keyring) | `eas whoami` | OK — `jeffernqwe` |
 | MongoDB Atlas | Database reads, index and readiness checks | `MONGODB_URI`, `MONGODB_DB_NAME` in `server/.env` | read-only `ping` | OK |
 | OpenRouter | AI assistant provider, model catalogue, spend | `OPENROUTER_API_KEY` in `server/.env` | `GET /api/v1/key` | OK — paid credits |
 | Brevo | Transactional mail, deliverability | `BREVO_API_KEY` in `server/.env` | `GET /v3/account` | OK — free plan |
 | Firebase | Sign-in, identities, email verification | `FIREBASE_SERVICE_ACCOUNT_JSON` in `server/.env` | RS256 token exchange; also `npm run verify:firebase` | OK — `inventoryai-d0d20` |
-| UptimeRobot | Uptime monitors and alert contacts | `UPTIMEROBOT_API_KEY` in `server/.env` | `getAccountDetails` | **Not configured** |
+| UptimeRobot | Uptime monitors and alert contacts | `UPTIMEROBOT_API_KEY` in `server/.env` | `getMonitors` (get methods only) | OK — read-only key, 3 monitors |
 | Gmail (monitoring) | Reading alert and audit mailboxes | `GMAIL_*` variables in `server/.env` | presence only — see §4 | **Not configured** |
+
+### The Render environment-variable name comparison
+
+The command also compares the **names** configured on the production Render service with the names in
+`server/.env`, because a name set in one place and not the other is how a deployment quietly runs on a
+default. It prints one extra line:
+
+```text
+Render env names    OK    32 names match between server/.env and ai-inventory
+Render env names    DRIFT 34 local / 30 on ai-inventory — local-only: JWT_EXPIRES_IN, ROLE_TEST_PASSWORD; Render-only: NODE_VERSION
+Render env names    SKIP  RENDER_API_KEY is not set — add a Render API key to server/.env to compare variable names
+```
+
+`DRIFT` exits 1, like a failed check, so a script notices. `SKIP` is not a pass: it means the comparison
+did not run. The Render CLI (v2.28) has no environment-variable command, so this uses
+`GET /v1/services/{id}/env-vars` with `RENDER_API_KEY`; the service is `RENDER_SERVICE_ID` when set,
+otherwise the CLI's own list narrowed to this repository. **Values never enter the program**: the names
+are parsed at the `=` locally, and the API response is mapped to `envVar.key` on the line it is read, so
+no later line can print or compare a value. A refused key reports its HTTP status and nothing else.
 
 ## 3. Adding a credential
 
@@ -55,12 +75,13 @@ treated as compromised and must be rotated.
 | --- | --- | --- |
 | GitHub | `gh auth login` (already done) | Scopes `repo`, `workflow`, `read:org` |
 | Render | `render login` (already done) | — |
+| Render env names | Add `RENDER_API_KEY=<read access key>` to `server/.env` | Account Settings → API Keys on Render. The key is read-only in effect here: the check only lists names and never reads a value. `RENDER_SERVICE_ID` optionally pins the service instead of resolving it from the CLI's service list |
 | Expo / EAS | `eas login` (already done) | — |
 | MongoDB Atlas | Already in `server/.env` | Prefer a database user with `read` on the project's databases; the app's own user stays for application writes |
 | OpenRouter | Already in `server/.env` | A key named for this purpose with a credit limit at `openrouter.ai/keys` |
 | Brevo | Already in `server/.env` | Brevo v3 keys are account-wide, so treat it as full access |
 | Firebase | Already in `server/.env`; see `FIREBASE_CREDENTIAL_RUNBOOK.md` | The existing Admin service account |
-| UptimeRobot | Add `UPTIMEROBOT_API_KEY=<read-only monitor key>` to `server/.env` | A **read-only** API key from the UptimeRobot account's API settings |
+| UptimeRobot | Add `UPTIMEROBOT_API_KEY=<read-only monitor key>` to `server/.env` | A **read-only** API key from the UptimeRobot account's API settings. A read-only key may call only the `get*` methods: `getMonitors` answers `stat: ok`, while `getAccountDetails` answers `not_authorized` for the same valid key. A `not_authorized` reply therefore means the method is wrong, not the credential. |
 | Gmail | Add one pair per mailbox (below) to `server/.env` | An app password, which requires 2-step verification and IMAP enabled |
 
 Gmail variables, one numbered pair per monitoring mailbox:
