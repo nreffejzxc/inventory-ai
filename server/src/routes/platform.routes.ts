@@ -18,6 +18,7 @@ import { PLATFORM_CAPABILITIES } from '../constants/platformRoles.ts';
 import {
   createLoginAccountLimiter,
   createLoginIpLimiter,
+  createPlatformConsoleLimiter,
   resetLoginAccountBucketOnSuccess,
 } from '../middlewares/rateLimit.ts';
 
@@ -71,6 +72,13 @@ router.use((_req, res, next) => {
   res.setHeader('Pragma', 'no-cache');
   next();
 });
+
+// One request budget per client address for the whole console. Mounted before the
+// routes so it bounds the read views (which poll) as well as the operations that
+// re-run a backup, reschedule a task or delete a recovery point. It is not a
+// substitute for the session, the capability or the step-up proof — it is the
+// bound those did not previously have.
+router.use(createPlatformConsoleLimiter());
 
 // The tenant login limiters key on the submitted address and the caller's IP,
 // neither of which is tenant-specific, so they are the right budget here rather

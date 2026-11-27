@@ -158,9 +158,6 @@ type RawConfig = Record<string, unknown>;
 
 function readConfig(): { config: RawConfig; warnings: string[] } {
   const file = configPath();
-  if (!existsSync(file)) {
-    return { config: {}, warnings: [`No console configuration at ${file}; defaults are shown.`] };
-  }
   try {
     const parsed = JSON.parse(readFileSync(file, 'utf8')) as unknown;
     if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
@@ -208,9 +205,6 @@ export function configuredTime(
 
 /** Read the last `count` non-empty lines of a file, bounded to `maxBytes`. */
 function tailLines(file: string, count: number, maxBytes: number): { lines: string[]; note: string | null } {
-  if (!existsSync(file)) {
-    return { lines: [], note: `No scheduler log at ${file} yet.` };
-  }
   try {
     const size = statSync(file).size;
     const start = Math.max(0, size - maxBytes);

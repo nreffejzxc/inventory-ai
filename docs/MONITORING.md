@@ -118,6 +118,8 @@ The console groups its read-only and operational views as follows:
 | Backups & restore | `/api/platform/backups` | Encrypted archives, their SHA-256 and off-machine copies, the daily schedule and the last recorded runs — read from the machine running the API, with run history from the durable `backup_runs` collection. Rescheduling and run-now are SUPERADMIN; deleting an archive also needs a step-up proof |
 | System checks | `/api/platform/status` | Real configuration predicates and the list of sources that are unavailable |
 
+**Request budget.** The whole console router answers under one limiter keyed on the client address — 120 requests a minute, `429 PLATFORM_RATE_LIMITED` beyond it. It is mounted before the routes, so the polling views and the operations that re-run a backup, reschedule a task or delete a recovery point share it. It adds to the guards rather than replacing them: a request still needs a valid admin session, the capability, and a step-up proof where the action is destructive.
+
 **Backup failure alerts.** A `FAILED` backup run, and a run still `RUNNING` after two hours
 (`INTERRUPTED`), sends one email to `BACKUP_ALERT_EMAIL` through the mail provider in §4 — the same
 boundary and the same operator-only convention as `AI_HEALTH_ALERT_EMAIL`. The message carries the
