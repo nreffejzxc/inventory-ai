@@ -39,6 +39,15 @@ on:
     # congestion; with the measured 9.5–12 h delay the run lands mid-morning.
     - cron: '40 2 * * *'
   workflow_dispatch:
+    inputs:
+      # The schedule keeps its same-day guard: a second delivery on one day must not
+      # create a second archive. A MANUAL dispatch, though, exists to run a backup now
+      # — a recovery re-run, or a check that the pipeline's heartbeat still works — and
+      # without this it would be skipped whenever today's archive already exists.
+      force:
+        description: 'Run even if an archive for today already exists'
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -130,7 +139,13 @@ jobs:
           RCLONE_DRIVE_CLIENT_SECRET: ${{ secrets.RCLONE_DRIVE_CLIENT_SECRET }}
         run: |
           set -euo pipefail
-          node scripts/backup-daily.mjs --cloud="$BACKUP_CLOUD_REMOTE" --skip-if-today
+          # `inputs.force` is empty for a scheduled run, so the schedule always keeps the
+          # same-day guard; only an explicit dispatch with force=true skips it.
+          args=(--cloud="$BACKUP_CLOUD_REMOTE")
+          if [ "${{ inputs.force }}" != "true" ]; then
+            args+=(--skip-if-today)
+          fi
+          node scripts/backup-daily.mjs "${args[@]}"
 
       - name: Remove the plaintext staging directory
         if: always()
