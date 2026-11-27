@@ -95,10 +95,13 @@ function fakeRclone({ remoteDir, localDir }) {
 async function makeArchive(directory, name, contents = 'encrypted-bytes') {
   await mkdir(directory, { recursive: true });
   const archive = path.join(directory, name);
-  await writeFile(archive, contents);
+  // Owner-only, like the real archive: these live in a `mkdtemp` directory, and
+  // an explicit secure mode keeps that true even where the platform's umask is
+  // permissive.
+  await writeFile(archive, contents, { mode: 0o600 });
   const { createHash } = await import('node:crypto');
   const digest = createHash('sha256').update(contents).digest('hex');
-  await writeFile(`${archive}.sha256`, `${digest}  ${name}\n`);
+  await writeFile(`${archive}.sha256`, `${digest}  ${name}\n`, { mode: 0o600 });
   return { archive, digest };
 }
 

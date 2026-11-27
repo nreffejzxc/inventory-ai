@@ -241,6 +241,10 @@ const PUBLIC_ROUTES = [
     route: 'GET /api/health/integrity',
     why: 'hosted freshness probe for the external uptime monitor: it must answer without a token, and it publishes only the read-only audit timestamp, age, status and aggregate counts — no tenant, product, location, user, inventory or ledger data',
   },
+  {
+    route: 'GET /api/health/backup',
+    why: 'offsite backup freshness probe for the external uptime monitor: it must answer without a token, and it publishes only one fresh/stale/missing/unreadable verdict with the newest verified archive\'s name, digest and age — no tenant, product, location, user, inventory, ledger or run-record detail, and no credential',
+  },
   { route: 'POST /api/auth/login', why: 'how a token is obtained; rate-limited' },
   {
     route: 'POST /api/platform/auth/login',
