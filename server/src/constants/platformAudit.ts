@@ -55,6 +55,17 @@ export const PLATFORM_AUDIT_ACTIONS = Object.freeze({
   SUPPORT_TICKET_NOTE_ADDED: 'platform.support.ticket_note_added',
   SUPPORT_TICKETS_READ: 'platform.support.tickets_read',
   DEPLOYMENTS_READ: 'platform.deployments.read',
+  BACKUPS_READ: 'platform.backups.read',
+  BACKUP_RUN_STARTED: 'platform.backups.run_started',
+  BACKUP_SCHEDULE_UPDATED: 'platform.backups.schedule_updated',
+  BACKUP_DELETED: 'platform.backups.deleted',
+  JOBS_READ: 'platform.jobs.read',
+  JOB_ENABLED: 'platform.jobs.enabled',
+  JOB_DISABLED: 'platform.jobs.disabled',
+  JOB_RESCHEDULED: 'platform.jobs.rescheduled',
+  INTEGRITY_READ: 'platform.integrity.read',
+  READINESS_READ: 'platform.readiness.read',
+  OUTBOX_READ: 'platform.outbox.read',
 });
 
 export const PLATFORM_AUDIT_ACTION_VALUES: readonly string[] = Object.freeze(

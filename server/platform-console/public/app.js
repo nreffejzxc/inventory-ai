@@ -22,6 +22,9 @@
     view: 'overview',
     auditNextBefore: null,
     operations: null,
+    backups: null,
+    jobs: null,
+    integrity: null,
     operationsAt: 0,
     assignees: [],
     selectedTicket: null,
@@ -387,18 +390,38 @@
         subtitle: 'Real configuration predicates and the monitoring sources that are unavailable.'
       }
     };
+    titles.backups = {
+      eyebrow: 'Operations',
+      title: 'Backups & restore',
+      subtitle: 'Encrypted archives on the backup host, the daily schedule and the runs it recorded.'
+    };
+    titles.jobs = {
+      eyebrow: 'Monitoring',
+      title: 'Background jobs',
+      subtitle: 'The Windows Scheduled Tasks that operate Inventory AI, their last result and their logs.'
+    };
+    titles.integrity = {
+      eyebrow: 'Monitoring',
+      title: 'Integrity monitor',
+      subtitle: 'The read-only inventory-integrity audit: heartbeat, latest run and its recent history.'
+    };
+    titles.readiness = {
+      eyebrow: 'Operations',
+      title: 'Readiness & outbox',
+      subtitle: 'The six required indexes behind /ready, and the audit outbox backlog.'
+    };
     var chrome = titles[view] || titles.overview;
     text(byId('view-eyebrow'), chrome.eyebrow);
     text(byId('view-title'), chrome.title);
     text(byId('view-subtitle'), chrome.subtitle);
     var operational = ['overview', 'live', 'infrastructure', 'ai', 'database', 'businesses', 'inventory', 'errors', 'checks'];
     byId('days').closest('.select-label').hidden = operational.indexOf(view) < 0;
-    byId('refresh-button').hidden = operational.indexOf(view) < 0 && ['support', 'team', 'deployments', 'audit'].indexOf(view) < 0;
+    byId('refresh-button').hidden = operational.indexOf(view) < 0 && ['support', 'team', 'deployments', 'audit', 'backups', 'jobs', 'integrity', 'readiness'].indexOf(view) < 0;
   }
 
   function switchView(view) {
     state.view = view;
-    ['overview', 'live', 'infrastructure', 'ai', 'database', 'mobile', 'jobs', 'businesses', 'inventory', 'support', 'errors', 'team', 'deployments', 'checks', 'audit', 'security'].forEach(function (name) {
+    ['overview', 'live', 'infrastructure', 'ai', 'database', 'mobile', 'jobs', 'integrity', 'businesses', 'inventory', 'support', 'errors', 'backups', 'readiness', 'team', 'deployments', 'checks', 'audit', 'security'].forEach(function (name) {
       var section = byId('view-' + name);
       if (name === view) show(section); else hide(section);
     });
@@ -413,6 +436,10 @@
     if (view === 'support') loadSupport();
     if (view === 'team') loadTeam();
     if (view === 'deployments') loadDeployments();
+    if (view === 'backups') loadBackups();
+    if (view === 'jobs') loadJobs();
+    if (view === 'integrity') loadIntegrity();
+    if (view === 'readiness') { loadReadiness(); loadOutbox(); }
     if (view === 'audit') loadAudit();
     if (view === 'security') renderSecurity();
   }
@@ -1084,12 +1111,582 @@
     }
   }
 
+  async function loadBackups() {
+    var status = byId('backup-list-status');
+    text(status, 'Reading backups from this host…');
+    status.className = 'status-line';
+    showError('dashboard-error', '');
+    showError('backup-schedule-error', '');
+    try {
+      var data = await request('/backups');
+      state.backups = data;
+      renderBackups(data);
+    } catch (error) {
+      text(status, '');
+      showError('dashboard-error', errorMessage(error));
+    }
+  }
+
+  function backupDeleteButton(row) {
+    var button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'button ghost small';
+    button.setAttribute('data-backup-delete', row.name);
+    if (state.newestArchive && state.newestArchive === row.name) {
+      button.disabled = true;
+      button.title = 'The newest archive is protected; the API refuses to delete it.';
+      text(button, 'Protected');
+      return button;
+    }
+    text(button, 'Delete');
+    return button;
+  }
+
+  function renderBackups(data) {
+    var host = data.host || {};
+    var schedule = data.schedule || {};
+    var task = schedule.task || {};
+    var archives = data.archives || [];
+    var runs = data.runs || [];
+    var history = data.history || {};
+    var newest = archives.length ? archives[0] : null;
+    var lastRun = runs.length ? runs[0] : null;
+    var canManage = hasCapability('platform.admin.manage');
+    state.newestArchive = newest ? newest.name : null;
+
+    var lastOk = lastRun ? lastRun.outcome === 'SUCCESS' : task.lastResult === 0;
+    var lastLabel = lastRun
+      ? (lastRun.outcome === 'SUCCESS' ? 'OK' : lastRun.outcome)
+      : (task.lastResult === 0 ? 'OK' : (task.lastResult == null ? '—' : 'Failed ' + task.lastResult));
+
+    renderCards(byId('backup-cards'), [
+      { label: 'Archives on disk', value: formatNumber(archives.length), detail: host.available ? 'Encrypted, checksum re-read' : 'Not on this host', tone: host.available ? 'good' : 'warn' },
+      { label: 'Newest archive', value: newest ? formatBytes(newest.sizeBytes) : '—', detail: newest ? formatTime(newest.createdAt) : 'None' },
+      { label: 'Scheduled', value: schedule.time || '—', detail: (schedule.timeZone || '') + (task.nextRunTime ? ' · next ' + formatTime(task.nextRunTime) : '') },
+      { label: 'Last run', value: lastLabel, detail: lastRun ? formatTime(lastRun.startedAt) : (task.lastRunTime ? formatTime(task.lastRunTime) : 'No recorded run'), tone: lastOk ? 'good' : (lastRun || task.lastResult != null ? 'bad' : '') }
+    ]);
+
+    var hostNode = byId('backup-host');
+    clear(hostNode);
+    var lines = [];
+    lines.push(host.available
+      ? 'Archives are readable on this host: ' + host.archiveDir
+      : 'This API host cannot see the archive directory, so no backup history can be reported here.');
+    lines.push('Archive directory: ' + (host.archiveDir || '—'));
+    lines.push('Off-machine copy: ' + (host.copyDir || '—') + (host.copyDirExists ? '' : ' (not present on this host)'));
+    lines.push('Scheduled task: ' + (host.taskName || '—'));
+    lines.push('Scheduler log: ' + (host.schedulerLog || '—'));
+    lines.push('Run history: ' + (history.note || 'unavailable') + (history.source === 'durable' ? '' : ' (source: ' + (history.source || 'unknown') + ')'));
+    if (task.error) lines.push(task.error);
+    (host.warnings || []).forEach(function (warning) { lines.push(warning); });
+    lines.forEach(function (line) {
+      var p = document.createElement('p');
+      text(p, line);
+      hostNode.appendChild(p);
+    });
+
+    byId('backup-time').value = schedule.time || '';
+    byId('backup-archive-dir').value = host.archiveDir || '';
+    byId('backup-copy-dir').value = host.copyDir || '';
+    byId('backup-time').disabled = !canManage;
+    byId('backup-archive-dir').disabled = !canManage;
+    byId('backup-copy-dir').disabled = !canManage;
+    byId('backup-schedule-save').hidden = !canManage;
+    byId('backup-run-now').hidden = !canManage;
+
+    var columns = [
+      { label: 'Archive', value: function (row) { return row.name; }, className: 'mono' },
+      { label: 'Created', value: function (row) { return formatTime(row.createdAt); }, className: 'nowrap' },
+      { label: 'Size', value: function (row) { return formatBytes(row.sizeBytes); }, className: 'num' },
+      { label: 'Checksum', value: function (row) { return row.checksumValid ? 'OK' : (row.sidecarPresent ? 'MISMATCH' : 'NO SIDECAR'); } },
+      { label: 'Off-machine copy', value: function (row) { return row.offsite === 'identical' ? 'verified' : (row.offsite === 'differs' ? 'differs' : 'missing'); } }
+    ];
+    if (canManage) columns.push({ label: '', value: backupDeleteButton });
+
+    renderTable(byId('backup-table'), columns, archives,
+      host.available ? 'No encrypted archive on this host yet.' : 'Unavailable from this host.');
+
+    renderTable(byId('backup-runs'), [
+      { label: 'Started', value: function (row) { return formatTime(row.startedAt); }, className: 'nowrap' },
+      { label: 'Finished', value: function (row) { return row.finishedAt ? formatTime(row.finishedAt) : '—'; }, className: 'nowrap' },
+      { label: 'Outcome', value: function (row) { return row.outcome; } },
+      { label: 'Trigger', value: function (row) { return row.trigger || '—'; } },
+      { label: 'Archive', value: function (row) { return row.archive || '—'; }, className: 'mono' },
+      { label: 'SHA-256', value: function (row) { return row.sha256 ? String(row.sha256).slice(0, 12) + '…' : '—'; }, className: 'mono' },
+      { label: 'Detail', value: function (row) { return row.detail || ''; } }
+    ], runs, history.source === 'durable' ? 'No durable run recorded yet.' : 'No scheduled run recorded on this host.');
+
+    var runsSource = byId('backup-runs-source');
+    if (runsSource) text(runsSource, history.source === 'durable' ? 'Durable run records · survive log rotation' : 'Parsed from the scheduler log on this host');
+
+    var listStatus = byId('backup-list-status');
+    text(listStatus, 'Read at ' + formatTime(data.asOf) + ' · ' + formatNumber(archives.length) + ' archive(s)');
+    listStatus.className = 'status-line';
+  }
+
+  async function saveBackupSchedule(event) {
+    event.preventDefault();
+    var status = byId('backup-schedule-status');
+    var button = byId('backup-schedule-save');
+    showError('backup-schedule-error', '');
+    text(status, '');
+    busy(button, true, 'Saving…');
+    try {
+      var data = await request('/backups/schedule', {
+        method: 'PUT',
+        body: {
+          time: byId('backup-time').value,
+          archiveDir: byId('backup-archive-dir').value.trim(),
+          copyDir: byId('backup-copy-dir').value.trim()
+        }
+      });
+      state.backups = data;
+      renderBackups(data);
+      text(status, 'Schedule saved and the Windows task re-registered.');
+      status.className = 'status-line good';
+      loadBackups();
+    } catch (error) {
+      // The configuration file is written before the task is re-registered, so a
+      // registration failure is a partial result, not a lost one. Reload so the
+      // saved time and directories are visible beside the failure.
+      if (error && error.code === 'PLATFORM_BACKUP_TASK_FAILED') {
+        text(status, errorMessage(error));
+        status.className = 'status-line bad';
+        loadBackups();
+      } else {
+        showError('backup-schedule-error', errorMessage(error));
+      }
+    } finally {
+      busy(button, false);
+    }
+  }
+
+  async function runBackupNow() {
+    var status = byId('backup-schedule-status');
+    var button = byId('backup-run-now');
+    showError('backup-schedule-error', '');
+    text(status, '');
+    busy(button, true, 'Starting…');
+    try {
+      var data = await request('/backups/run', { method: 'POST', body: {} });
+      text(status, data.started
+        ? 'Backup started. It takes about 20 seconds; this view refreshes itself when it finishes.'
+        : 'A backup was started moments ago. Wait for it to finish before starting another.');
+      status.className = 'status-line good';
+      if (data.started) {
+        // Two bounded refreshes, not a permanent poll: the run is a child process
+        // this page cannot observe directly.
+        window.setTimeout(function () { loadBackups(); }, 6000);
+        window.setTimeout(function () { loadBackups(); }, 20000);
+      }
+    } catch (error) {
+      showError('backup-schedule-error', errorMessage(error));
+    } finally {
+      busy(button, false);
+    }
+  }
+
+  async function deleteBackup(name) {
+    if (!window.confirm('Delete ' + name + ' and its checksum from both directories? This cannot be undone.')) return;
+    var status = byId('backup-list-status');
+    text(status, 'Deleting ' + name + '…');
+    showError('dashboard-error', '');
+    try {
+      var result = await requestWithStepUp('/backups/' + encodeURIComponent(name), { method: 'DELETE' });
+      state.newestArchive = null;
+      await loadBackups();
+      if (result && result.offsiteError) {
+        text(status, 'Deleted ' + name + ' locally, but the off-machine copy could not be removed: ' + result.offsiteError);
+        status.className = 'status-line bad';
+      } else {
+        text(status, 'Deleted ' + name + ' and its off-machine copy.');
+        status.className = 'status-line good';
+      }
+    } catch (error) {
+      text(status, '');
+      showError('dashboard-error', errorMessage(error));
+    }
+  }
+
+  function formatAgeSpan(seconds) {
+    if (seconds == null || !isFinite(seconds)) return '—';
+    var total = Math.max(0, Math.round(seconds));
+    var days = Math.floor(total / 86400);
+    var hours = Math.floor((total % 86400) / 3600);
+    var minutes = Math.floor((total % 3600) / 60);
+    if (days) return days + 'd ' + hours + 'h';
+    if (hours) return hours + 'h ' + minutes + 'm';
+    if (minutes) return minutes + 'm';
+    return total + 's';
+  }
+
+  function noteLines(host, lines) {
+    clear(host);
+    lines.forEach(function (line) {
+      var p = document.createElement('p');
+      text(p, line);
+      host.appendChild(p);
+    });
+  }
+
+  async function loadJobs() {
+    var status = byId('jobs-list-status');
+    text(status, 'Reading scheduled tasks from this host…');
+    status.className = 'status-line';
+    showError('dashboard-error', '');
+    showError('jobs-error', '');
+    try {
+      var data = await request('/jobs');
+      state.jobs = data;
+      renderJobs(data);
+    } catch (error) {
+      text(status, '');
+      showError('dashboard-error', errorMessage(error));
+    }
+  }
+
+  function selectedJob() {
+    var data = state.jobs;
+    if (!data || !data.jobs || !data.jobs.length) return null;
+    var id = byId('jobs-task').value;
+    for (var i = 0; i < data.jobs.length; i += 1) {
+      if (data.jobs[i].id === id) return data.jobs[i];
+    }
+    return data.jobs[0];
+  }
+
+  function renderJobLog(job) {
+    var node = byId('jobs-logs');
+    var label = byId('jobs-log-task');
+    if (!job) {
+      text(label, '');
+      text(node, 'No task selected.');
+      return;
+    }
+    text(label, job.taskName + ' · ' + job.log.path);
+    text(node, job.log.lines.length ? job.log.lines.join('\n') : (job.log.note || 'No log entries.'));
+  }
+
+  function syncJobForm() {
+    var job = selectedJob();
+    var canManage = hasCapability('platform.admin.manage');
+    var hostOk = Boolean(state.jobs && state.jobs.host && state.jobs.host.available);
+    byId('jobs-time').value = job && job.schedule.time ? job.schedule.time : '';
+    byId('jobs-time').disabled = !canManage || !job || !job.reschedulable;
+    byId('jobs-schedule-save').hidden = !canManage;
+    byId('jobs-schedule-save').disabled = !canManage || !job || !job.reschedulable;
+    byId('jobs-schedule-save').title = job && job.reschedulable
+      ? 'Write the time to console-config.json and re-register the task.'
+      : 'This task does not run on a daily schedule.';
+    byId('jobs-enable').hidden = !canManage;
+    byId('jobs-disable').hidden = !canManage;
+    byId('jobs-enable').disabled = !canManage || !hostOk || !job || job.state !== 'DISABLED';
+    byId('jobs-disable').disabled = !canManage || !hostOk || !job || (job.state !== 'READY' && job.state !== 'RUNNING');
+    byId('jobs-enable').title = hostOk ? 'Enable the existing task. A task that is not registered is never created here.' : 'Task state cannot be read from this host.';
+    byId('jobs-disable').title = hostOk ? 'Disable the existing task.' : 'Task state cannot be read from this host.';
+    renderJobLog(job);
+  }
+
+  function renderJobs(data) {
+    var jobs = data.jobs || [];
+    var host = data.host || {};
+    var summary = data.summary || {};
+    var disabled = summary.disabled || 0;
+    var missing = summary.missing || 0;
+
+    renderCards(byId('jobs-cards'), [
+      { label: 'Tasks tracked', value: formatNumber(summary.total || jobs.length), detail: host.available ? 'Read from Task Scheduler' : 'Host state unknown', tone: host.available ? '' : 'warn' },
+      { label: 'Ready', value: formatNumber(summary.ready || 0), detail: summary.running ? summary.running + ' currently running' : 'Registered and enabled', tone: 'good' },
+      { label: 'Disabled', value: formatNumber(disabled), detail: disabled ? 'Will not run until enabled' : 'None disabled', tone: disabled ? 'warn' : '' },
+      { label: 'Not registered', value: formatNumber(missing), detail: missing ? 'Deliberate registration only' : 'None missing', tone: missing ? 'warn' : '' }
+    ]);
+
+    text(byId('jobs-source'), host.available
+      ? 'Task Scheduler on this host' + (host.taskPrefix ? ' · prefix ' + host.taskPrefix : '')
+      : 'Not readable from this API host');
+
+    renderTable(byId('jobs-services'), [
+      { label: 'Task', value: function (job) { return job.label + ' — ' + job.taskName; }, className: 'mono' },
+      { label: 'State', value: function (job) { return job.stateLabel; } },
+      { label: 'Schedule', value: function (job) {
+        var description = job.schedule.description;
+        if (job.schedule.time && job.schedule.registeredTime && job.schedule.time !== job.schedule.registeredTime) {
+          description += ' (task fires at ' + job.schedule.registeredTime + ')';
+        }
+        return description;
+      } },
+      { label: 'Next run', value: function (job) { return job.schedule.nextRunTime ? formatTime(job.schedule.nextRunTime) : '—'; }, className: 'nowrap' },
+      { label: 'Last run', value: function (job) { return job.lastRunTime ? formatTime(job.lastRunTime) : 'Never'; }, className: 'nowrap' },
+      { label: 'Result', value: function (job) { return job.lastResultLabel || '—'; } },
+      { label: 'Log', value: function (job) { return job.log.lines.length ? job.log.lines.length + ' line(s)' : '—'; } }
+    ], jobs, host.available
+      ? 'No scheduled task is defined.'
+      : 'Unavailable from this host — this is not a report that the tasks are missing.');
+
+    var select = byId('jobs-task');
+    var previous = select.value;
+    clear(select);
+    jobs.forEach(function (job) {
+      var option = document.createElement('option');
+      option.value = job.id;
+      option.textContent = job.label + ' — ' + job.stateLabel;
+      select.appendChild(option);
+    });
+    if (previous) select.value = previous;
+    syncJobForm();
+
+    var lines = [];
+    if (!host.available) lines.push(host.note || 'Task state cannot be read from this host.');
+    (data.warnings || []).forEach(function (warning) { lines.push(warning); });
+    jobs.forEach(function (job) {
+      if (job.error) lines.push(job.label + ': ' + job.error);
+      else if (job.stateDetail) lines.push(job.label + ': ' + job.stateDetail);
+      (job.notes || []).forEach(function (note) { lines.push(job.label + ': ' + note); });
+      if (job.lastRunOk === false) lines.push(job.label + ': the last run did not succeed (' + (job.lastResultLabel || job.lastResult) + ').');
+      if (job.log.note && host.available) lines.push(job.label + ': ' + job.log.note);
+    });
+    if (!lines.length) lines.push('No warnings: every task and its log were read from this host.');
+    noteLines(byId('jobs-unavailable'), lines);
+
+    var status = byId('jobs-list-status');
+    text(status, 'Read at ' + formatTime(data.asOf) + ' · ' + formatNumber(jobs.length) + ' task(s)');
+    status.className = 'status-line';
+  }
+
+  async function changeJobState(enable) {
+    var job = selectedJob();
+    if (!job) return;
+    var status = byId('jobs-status');
+    showError('jobs-error', '');
+    text(status, '');
+    var button = byId(enable ? 'jobs-enable' : 'jobs-disable');
+    busy(button, true, enable ? 'Enabling…' : 'Disabling…');
+    try {
+      var data = await requestWithStepUp('/jobs/' + encodeURIComponent(job.id) + (enable ? '/enable' : '/disable'), { method: 'POST', body: {} });
+      state.jobs = data;
+      renderJobs(data);
+      var updated = selectedJob();
+      text(status, (enable ? 'Enabled ' : 'Disabled ') + job.taskName + '. Task Scheduler now reports: ' + (updated ? updated.stateLabel : 'changed') + '.');
+      status.className = 'status-line good';
+    } catch (error) {
+      showError('jobs-error', errorMessage(error));
+    } finally {
+      busy(button, false);
+    }
+  }
+
+  async function saveJobSchedule(event) {
+    event.preventDefault();
+    var job = selectedJob();
+    if (!job) return;
+    var status = byId('jobs-status');
+    showError('jobs-error', '');
+    text(status, '');
+    var button = byId('jobs-schedule-save');
+    busy(button, true, 'Saving…');
+    try {
+      var data = await request('/jobs/' + encodeURIComponent(job.id) + '/schedule', { method: 'PUT', body: { time: byId('jobs-time').value } });
+      state.jobs = data;
+      renderJobs(data);
+      text(status, 'Schedule saved and ' + job.taskName + ' re-registered.');
+      status.className = 'status-line good';
+    } catch (error) {
+      // The configuration is written before the task is re-registered, so a
+      // failure here is a partial result; reload so the saved time is visible.
+      if (error && error.code === 'PLATFORM_JOB_TASK_FAILED') {
+        text(status, errorMessage(error));
+        status.className = 'status-line bad';
+        loadJobs();
+      } else {
+        showError('jobs-error', errorMessage(error));
+      }
+    } finally {
+      busy(button, false);
+    }
+  }
+
+  async function loadIntegrity() {
+    showError('dashboard-error', '');
+    try {
+      var data = await request('/integrity');
+      state.integrity = data;
+      renderIntegrity(data);
+    } catch (error) {
+      showError('dashboard-error', errorMessage(error));
+    }
+  }
+
+  function renderIntegrity(data) {
+    var hb = data.heartbeat || {};
+    var view = hb.view || {};
+    var latest = data.latest;
+    var history = data.history || [];
+    var newCount = latest && latest.comparison ? latest.comparison.newCount : null;
+    var statusText = latest && latest.status ? String(latest.status).replace(/_/g, ' ') : 'Not checked';
+
+    renderCards(byId('integrity-cards'), [
+      { label: 'Heartbeat', value: hb.available ? String(view.state || 'unknown').toUpperCase() : 'Unavailable',
+        detail: hb.available
+          ? (view.auditStatus || '—') + (view.ageSeconds != null ? ' · ' + formatAgeSpan(view.ageSeconds) + ' ago' : '')
+          : 'The database record could not be read',
+        tone: !hb.available ? 'bad' : (view.fresh ? 'good' : 'warn') },
+      { label: 'Last run', value: latest && latest.checkedAt ? formatTime(latest.checkedAt) : (view.lastCheckedAt ? formatTime(view.lastCheckedAt) : '—'),
+        detail: latest && latest.ageSeconds != null ? formatAgeSpan(latest.ageSeconds) + ' old' + (latest.stale ? ' · stale' : ' · fresh') : 'No run file on this host',
+        tone: latest && latest.stale ? 'warn' : '' },
+      { label: 'New findings', value: newCount == null ? '—' : formatNumber(newCount),
+        detail: statusText,
+        tone: newCount ? 'bad' : 'good' },
+      { label: 'Open findings', value: latest && latest.totals && latest.totals.total != null ? formatNumber(latest.totals.total) : '—',
+        detail: latest && latest.baseline && latest.baseline.knownCount != null
+          ? formatNumber(latest.baseline.knownCount) + ' in the accepted baseline'
+          : 'No baseline recorded' }
+    ]);
+
+    noteLines(byId('integrity-heartbeat'), [
+      'State: ' + (hb.available ? String(view.state || 'unknown') : 'unavailable') + (hb.available ? (view.fresh ? ' (fresh)' : ' (not fresh)') : ''),
+      'Last heartbeat: ' + (view.lastCheckedAt ? formatTime(view.lastCheckedAt) : '—'),
+      'Maximum age: ' + (view.maxAgeSeconds != null ? formatAgeSpan(view.maxAgeSeconds) : '—'),
+      'Audit status: ' + (view.auditStatus || '—'),
+      'New / resolved at last heartbeat: ' + (view.newCount == null ? '—' : formatNumber(view.newCount)) + ' / ' + (view.resolvedCount == null ? '—' : formatNumber(view.resolvedCount)),
+      'Stock-in rows scanned: ' + (view.scannedStockIns == null ? '—' : formatNumber(view.scannedStockIns)),
+      'Source: ' + (hb.available ? 'integrity_monitor_heartbeats (database) — the same document /api/health/integrity reports' : (hb.error || 'unavailable'))
+    ]);
+
+    if (!latest) {
+      renderTable(byId('integrity-latest'), [{ label: 'Field', value: function () { return ''; } }], [], 'No latest.json on this host; the heartbeat above is the database record.');
+    } else {
+      var latestRows = [
+        { field: 'Checked at', value: latest.checkedAt ? formatTime(latest.checkedAt) : '—' },
+        { field: 'Status', value: statusText },
+        { field: 'Database', value: latest.database || '—' },
+        { field: 'Stock-in rows scanned', value: latest.scannedStockIns == null ? '—' : formatNumber(latest.scannedStockIns) },
+        { field: 'Findings now', value: latest.totals.total == null ? '—' : formatNumber(latest.totals.total) },
+        { field: 'Orphan stock-ins', value: latest.totals.orphanStockIns == null ? '—' : formatNumber(latest.totals.orphanStockIns) },
+        { field: 'Unreceipted PO stock-ins', value: latest.totals.unreceiptedPoStockIns == null ? '—' : formatNumber(latest.totals.unreceiptedPoStockIns) },
+        { field: 'Baseline', value: latest.baseline.knownCount == null ? '—' : formatNumber(latest.baseline.knownCount) + (latest.baseline.acceptedAt ? ' accepted ' + formatTime(latest.baseline.acceptedAt) : '') },
+        { field: 'NEW since baseline', value: latest.comparison.newCount == null ? '—' : formatNumber(latest.comparison.newCount) },
+        { field: 'UNCHANGED / resolved', value: latest.comparison.resolvedCount == null ? '—' : formatNumber(latest.comparison.resolvedCount) + ' resolved' },
+        { field: 'Notification', value: latest.notification || '—' },
+        { field: 'New finding ids', value: latest.comparison.newFindingIds.length ? latest.comparison.newFindingIds.slice(0, 5).join(', ') : 'None' }
+      ];
+      renderTable(byId('integrity-latest'), [
+        { label: 'Field', value: function (row) { return row.field; } },
+        { label: 'Value', value: function (row) { return row.value; } }
+      ], latestRows, 'No latest run.');
+    }
+
+    renderTable(byId('integrity-history'), [
+      { label: 'Checked', value: function (row) { return row.checkedAt ? formatTime(row.checkedAt) : '—'; }, className: 'nowrap' },
+      { label: 'Status', value: function (row) { return row.status ? String(row.status).replace(/_/g, ' ') : '—'; } },
+      { label: 'New', value: function (row) { return row.newCount == null ? '—' : formatNumber(row.newCount); }, className: 'num' },
+      { label: 'Resolved', value: function (row) { return row.resolvedCount == null ? '—' : formatNumber(row.resolvedCount); }, className: 'num' },
+      { label: 'Total', value: function (row) { return row.total == null ? '—' : formatNumber(row.total); }, className: 'num' },
+      { label: 'Database', value: function (row) { return row.database || '—'; }, className: 'mono' }
+    ], history, 'No history.jsonl on this host — that is not evidence that no run happened.');
+
+    var lines = [
+      data.host && data.host.note ? data.host.note : '',
+      'Run directory: ' + ((data.host && data.host.historyDir) || '—'),
+      'latest.json: ' + ((data.host && data.host.latestJson) || 'not present on this host'),
+      'latest.md: ' + ((data.host && data.host.latestMarkdown) || 'not present on this host'),
+      'history.jsonl: ' + ((data.host && data.host.historyFile) || 'not present on this host')
+    ].filter(Boolean);
+    (data.warnings || []).forEach(function (warning) { lines.push(warning); });
+    noteLines(byId('integrity-unavailable'), lines);
+    if (data.markdown) {
+      var heading = document.createElement('p');
+      text(heading, 'latest.md');
+      var pre = document.createElement('pre');
+      pre.className = 'mono small';
+      text(pre, data.markdown);
+      byId('integrity-unavailable').appendChild(heading);
+      byId('integrity-unavailable').appendChild(pre);
+    }
+  }
+
+  async function loadReadiness() {
+    showError('dashboard-error', '');
+    try {
+      var data = await request('/readiness');
+      renderReadiness(data);
+    } catch (error) {
+      showError('dashboard-error', errorMessage(error));
+    }
+  }
+
+  function renderReadiness(data) {
+    var rows = data.rows || [];
+    var failing = rows.filter(function (row) { return !row.ready; }).length;
+    renderCards(byId('readiness-cards'), [
+      { label: 'Readiness verdict', value: data.ready ? 'PASS' : 'FAIL',
+        detail: data.ready ? 'The /ready index gate is satisfied' : '/ready answers 503 on this gate',
+        tone: data.ready ? 'good' : 'bad' },
+      { label: 'Required indexes', value: formatNumber(rows.length), detail: 'REQUIRED_INDEX_SPECS' },
+      { label: 'Passing', value: formatNumber(rows.length - failing), detail: 'Same inspection /ready uses', tone: failing ? '' : 'good' },
+      { label: 'Failing', value: formatNumber(failing), detail: failing ? 'Named in the table' : 'None', tone: failing ? 'bad' : '' }
+    ]);
+
+    function keyLabel(key) {
+      return Object.keys(key || {}).map(function (field) { return field + ':' + key[field]; }).join(', ');
+    }
+
+    renderTable(byId('readiness-indexes'), [
+      { label: 'Index', value: function (row) { return row.name; }, className: 'mono' },
+      { label: 'Key', value: function (row) { return keyLabel(row.key); }, className: 'mono' },
+      { label: 'Unique', value: function (row) { return row.unique ? 'yes' : 'no'; } },
+      { label: 'TTL', value: function (row) { return row.expireAfterSeconds == null ? '—' : formatAgeSpan(row.expireAfterSeconds); } },
+      { label: 'Partial', value: function (row) { return row.partial ? 'yes' : 'no'; } },
+      { label: 'Status', value: function (row) { return row.ready ? 'PASS' : 'FAIL'; } },
+      { label: 'Reason', value: function (row) { return row.reason || ''; } }
+    ], rows, 'No required index specification is defined.');
+
+    text(byId('readiness-verdict'), data.ready ? 'All six required indexes pass' : 'Failing the required-index gate');
+    var lines = [data.note];
+    if (data.error) lines.push('Inspection error: ' + data.error);
+    lines.push('Each index is inspected with a ' + formatAgeSpan((data.inspectionTimeoutMs || 0) / 1000) + ' timeout; a timeout is a failure, not a pass.');
+    lines.push('/ready also fails when the database is not connected or the process is shutting down, so a passing index table alone does not mean /ready returns 200.');
+    lines.push('This panel does not create, repair or migrate an index.');
+    noteLines(byId('readiness-unavailable'), lines.filter(Boolean));
+  }
+
+  async function loadOutbox() {
+    showError('dashboard-error', '');
+    try {
+      var data = await request('/audit-outbox');
+      renderOutbox(data);
+    } catch (error) {
+      showError('dashboard-error', errorMessage(error));
+    }
+  }
+
+  function renderOutbox(data) {
+    var counts = data.counts || {};
+    function value(count) { return count == null ? 'Unavailable' : formatNumber(count); }
+    renderCards(byId('outbox-cards'), [
+      { label: 'PENDING', value: value(counts.pending), detail: 'Waiting for delivery', tone: counts.pending ? 'warn' : (counts.pending === 0 ? 'good' : '') },
+      { label: 'SENDING', value: value(counts.sending), detail: 'Claimed by a delivery worker', tone: counts.sending ? 'warn' : (counts.sending === 0 ? 'good' : '') },
+      { label: 'FAILED', value: value(counts.failed), detail: 'Retries did not converge', tone: counts.failed ? 'bad' : (counts.failed === 0 ? 'good' : '') },
+      { label: 'Oldest pending', value: data.oldestPending ? formatAgeSpan(data.oldestPending.ageSeconds) : (counts.pending === 0 ? 'None' : '—'),
+        detail: data.oldestPending && data.oldestPending.createdAt ? 'Queued ' + formatTime(data.oldestPending.createdAt) : 'No pending record',
+        tone: data.oldestPending && data.oldestPending.ageSeconds > 3600 ? 'warn' : '' }
+    ]);
+    var lines = [data.note];
+    if (data.error) lines.push(data.error);
+    if (counts.delivered != null) lines.push('Delivered rows retained for the TTL: ' + formatNumber(counts.delivered) + '.');
+    lines.push('Read-only: nothing here retries, edits or deletes an audit record.');
+    noteLines(byId('outbox-note'), lines.filter(Boolean));
+  }
+
   function refreshCurrent() {
     if (state.view === 'live' || state.view === 'checks') loadStatus();
     else if (['overview', 'infrastructure', 'ai', 'database', 'businesses', 'inventory', 'errors'].indexOf(state.view) >= 0) loadOperations();
     else if (state.view === 'support') loadSupport();
     else if (state.view === 'team') loadTeam();
     else if (state.view === 'deployments') loadDeployments();
+    else if (state.view === 'backups') loadBackups();
+    else if (state.view === 'jobs') loadJobs();
+    else if (state.view === 'integrity') loadIntegrity();
+    else if (state.view === 'readiness') { loadReadiness(); loadOutbox(); }
     else if (state.view === 'audit') loadAudit();
   }
 
@@ -1887,6 +2484,17 @@
     byId('logout-button').addEventListener('click', logout);
     byId('refresh-button').addEventListener('click', refreshCurrent);
     byId('audit-refresh').addEventListener('click', loadAudit);
+    byId('backup-schedule-form').addEventListener('submit', saveBackupSchedule);
+    byId('backup-run-now').addEventListener('click', runBackupNow);
+    byId('jobs-form').addEventListener('submit', saveJobSchedule);
+    byId('jobs-task').addEventListener('change', syncJobForm);
+    byId('jobs-enable').addEventListener('click', function () { changeJobState(true); });
+    byId('jobs-disable').addEventListener('click', function () { changeJobState(false); });
+    byId('backup-table').addEventListener('click', function (event) {
+      var target = event.target;
+      var name = target && target.getAttribute ? target.getAttribute('data-backup-delete') : null;
+      if (name) deleteBackup(name);
+    });
     byId('days').addEventListener('change', loadOperations);
     byId('audit-outcome').addEventListener('change', loadAudit);
     byId('ticket-form').addEventListener('submit', createTicket);

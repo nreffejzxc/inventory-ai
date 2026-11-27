@@ -8,9 +8,14 @@
 # Run from any directory:
 #   powershell -NoProfile -ExecutionPolicy Bypass -File scripts\register-production-health-scheduler.ps1
 
+param(
+    [string]$TaskName = 'InventoryAI Production Health Watch'
+)
+
 $ErrorActionPreference = 'Stop'
 
-$taskName = 'InventoryAI Production Health Watch'
+if ($TaskName -notmatch '^[A-Za-z0-9 ._-]{1,120}$') { throw "Invalid task name '$TaskName'." }
+$taskName = $TaskName
 $repoRoot = Split-Path -Parent $PSScriptRoot
 $wrapper = Join-Path $repoRoot 'scripts\trigger-production-health-watch.ps1'
 if (-not (Test-Path -LiteralPath $wrapper)) { throw "wrapper not found: $wrapper" }

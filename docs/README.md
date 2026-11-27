@@ -40,6 +40,7 @@ Terms are explained where they appear, and nothing there contradicts the referen
 | [18-ai-assistant-limits.md](guides/18-ai-assistant-limits.md) | Every AI limit, timeout, safeguard, and the verified production values |
 | [19-ai-assistant-error-codes.md](guides/19-ai-assistant-error-codes.md) | Every AI error code and the exact Android sentence shown for it |
 | [20-local-mongodb-with-docker.md](guides/20-local-mongodb-with-docker.md) | Optional local MongoDB 7 container for database tests and the browser E2E |
+| [21-backup-and-restore.md](guides/21-backup-and-restore.md) | The owner's backup guide: what an archive contains, where it lives, how to create, verify, decrypt and restore one, and what to do when production data is lost |
 
 The numbered filenames are stable links. Guides 3 and 14 were consolidated into Guide 2; Guides 9–13
 and Guide 6 own the data commands.

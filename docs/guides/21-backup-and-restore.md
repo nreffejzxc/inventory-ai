@@ -1,0 +1,532 @@
+# 21. Backups — find, create, verify, decrypt and restore
+
+This is the owner's own copy of the backup procedure. It is written so you can work alone, including
+during an incident. Every command here was run against this machine and this database; anything that
+is **not** working is marked as such rather than described as if it were.
+
+Two deeper documents sit behind this one and still win if they disagree:
+[`BACKUP_ENCRYPTED_RUNBOOK.md`](../BACKUP_ENCRYPTED_RUNBOOK.md) (the wrapper's contract) and
+[`BACKUP_AND_RECOVERY_OPTIONS.md`](../BACKUP_AND_RECOVERY_OPTIONS.md) (what the paid Atlas tiers buy).
+The dated record of the work is in [`SECURITY_CHANGE_2026-11-27.md`](../SECURITY_CHANGE_2026-11-27.md) §6–§7.
+
+## What exists right now — status at a glance
+
+| Thing | State |
+| --- | --- |
+| Backup program | **Implemented and working** — `server/scripts/backup-db.mjs` plus the encrypting wrapper `backup-db-encrypted.mjs` |
+| Encryption | **Working** — GPG, one key pair, archive encrypted to the public key |
+| Automatic schedule | **Installed** — Windows task `InventoryAI Daily Encrypted Database Backup`, daily 03:00 `Asia/Manila` (§9) |
+| Off-machine copy | **Automatic** — the same run copies the archive and its sidecar to OneDrive and re-checks the SHA-256 there |
+| Atlas's own backups | **Unavailable on this plan.** M0 has no snapshots and no point-in-time recovery |
+| Restore of production | **Not supported by the shipped tools.** `restore:db` refuses any production target by design |
+| Restore of a disposable database | **Working and drilled** — verified on 2026-11-23 with a 16-document synthetic database |
+
+**The one sentence to remember:** a backup only exists when you run the command, and the copy on this
+laptop is only half a backup until it is in OneDrive as well.
+
+---
+
+## 1. What is inside a backup
+
+`backup:db` reads **the whole database** and writes **one gzipped file per collection**, plus a
+`manifest.json` that records each file's document count and SHA-256. Then the wrapper packs those
+files into one archive and encrypts it.
+
+- **Which database:** whatever `MONGODB_DB_NAME` resolves to. Both archives on disk are
+  **`inventoryai_prod_db`**. Nothing backs up the development database unless you ask for it.
+- **How much:** every document of every collection, with no filter, no sample and no exclusion. Only
+  MongoDB's own `system.*` collections are skipped — the application has none.
+- **Last verified backup (2026-11-27 05:45 UTC):** 36 collections, 47,089 documents, 2.5 MB gzipped,
+  25.2 MB when restored, from MongoDB `8.0.39`.
+
+The 36 collections actually present, with their document counts in that backup:
+
+| Collection | Docs | Collection | Docs | Collection | Docs |
+| --- | --- | --- | --- | --- | --- |
+| `ai_conversations` | 224 | `integrity_monitor_heartbeats` | 1 | `platform_admins` | 1 |
+| `ai_feedback` | 6 | `integrity_recovery_leases` | 0 | `platform_audit_events` | 363 |
+| `ai_messages` | 728 | `inventory` | 20,191 | `platform_deployments` | 27 |
+| `ai_turn_metrics` | 214 | `inventory_transactions` | 13,639 | `platform_support_tickets` | 1 |
+| `audit_alert_deliveries` | 0 | `invitations` | 0 | `product_imports` | 0 |
+| `audit_failures` | 0 | `locations` | 15 | `products` | 10,129 |
+| `audit_logs` | 298 | `ops_error_events` | 0 | `purchase_orders` | 902 |
+| `audit_outbox` | 0 | `ops_feature_usage` | 62 | `sessions` | 34 |
+| `businesses` | 7 | `password_reset_challenges` | 0 | `stock_movement_operations` | 7 |
+| `categories` | 43 | `password_reset_tokens` | 0 | `stock_transfer_operations` | 0 |
+| `email_verification_challenges` | 0 | `platform_admin_guards` | 0 | `suppliers` | 185 |
+| `idempotency_records` | 0 | `platform_admin_sessions` | 0 | `users` | 12 |
+
+So yes: products, stock, transactions, purchase orders, suppliers, users, locations, categories, AI
+conversations, audit history and the platform tables are all in there — everything the application
+writes, in one archive.
+
+**Two things a backup does *not* contain:** index definitions and collection options (validators).
+Restoring puts the documents back but does **not** rebuild the indexes; that is a separate step
+(§7). And a backup is a *snapshot of one moment* — anything written after it is not in it.
+
+> **A backup is a full copy of your credentials.** `users` holds password hashes, `sessions` holds
+> live session rows, `platform_admins` holds the platform operator record. That is exactly why the
+> archive is encrypted and why the passphrase must never sit next to it. Never share an archive,
+> never put one in the repository, and never upload a *decrypted* copy anywhere.
+
+---
+
+## 2. Where the files are
+
+```text
+C:\Users\jeffe\inventory-ai-backups\
+├── archives\                                  ← encrypted backups (the real thing)
+│   ├── inventoryai_prod_db-20261127T064400Z.tar.gz.gpg          2,226,804 bytes
+│   └── inventoryai_prod_db-20261127T064400Z.tar.gz.gpg.sha256          114 bytes
+└── keys\                                      ← now EMPTY (the passphrase was moved out)
+
+C:\Users\jeffe\OneDrive\Inventory-AI-Backups\  ← the off-machine copies (same four files)
+
+C:\Users\jeffe\.backup-secrets\gpg-passphrase.dpapi   ← the passphrase, protected (620 bytes)
+C:\Users\jeffe\.gnupg\                                ← the GPG key pair itself
+```
+
+In Git Bash those are `/c/Users/jeffe/inventory-ai-backups/...` and so on.
+
+**How to identify an archive:** the name is
+`<database>-<YYYYMMDD>T<HHMMSS>Z.tar.gz.gpg`, where the timestamp is **UTC**. `20261127T054513Z` is
+27 November 2026, 05:45:13 UTC — about 13:45 in Manila. **The newest timestamp is the newest backup.**
+Every archive must have its `.sha256` file beside it; a `.gpg` without its sidecar is treated as
+untrustworthy.
+
+To see what you have, newest last:
+
+```bash
+ls -lh /c/Users/jeffe/inventory-ai-backups/archives/
+ls -lh /c/Users/jeffe/OneDrive/Inventory-AI-Backups/
+```
+
+**OneDrive:** every scheduled run copies the new archive and its sidecar there and re-checks the
+SHA-256. What that proves is that the local copy is intact and OneDrive has taken the file; it is
+not an independent read-back from the cloud. **Retention is in force** — 14 daily / 4 weekly /
+3 monthly, applied to both folders (§9).
+
+---
+
+## 3. Create a backup (manual — this is the only way today)
+
+You do **not** need the MongoDB Atlas website. The script connects with the connection string already
+in `server/.env` (`MONGODB_URI`) and reads whatever database the environment names. You need: this
+laptop, internet, and the commands below in **Git Bash**. The read of the production database took about
+7 seconds for 47,089 documents (05:45:14 → 05:45:21 UTC); encryption adds a second or two.
+
+### Production backup (the one you actually want)
+
+```bash
+cd /c/Users/jeffe/inventory-ai/server
+
+CONFIRM=backup-db NODE_ENV=production MONGODB_DB_NAME=inventoryai_prod_db \
+  node scripts/backup-db-encrypted.mjs \
+  --out="C:\Users\jeffe\inventory-ai-backups\archives" \
+  --recipient=24BBDA0C3A6D6273C9A8C3B1DAA4DB67BAC14E26
+```
+
+Why each part is there:
+
+- `CONFIRM=backup-db` — the script refuses to run without the exact phrase. It is a speed bump, not
+  a security control.
+- `NODE_ENV=production` + `MONGODB_DB_NAME=inventoryai_prod_db` — the configuration layer **refuses
+  to open the production database from a non-production process**. Both are required; without them
+  you would silently back up the development database.
+- `--recipient=<40 hex characters>` — the public key fingerprint. Encryption needs **only** this;
+  the private key and the passphrase are not needed to create a backup.
+- `--out=...` — must be outside the repository; the script refuses a path inside it.
+
+### Development backup (rehearsal, or if you ever need it)
+
+```bash
+cd /c/Users/jeffe/inventory-ai/server
+CONFIRM=backup-db node scripts/backup-db-encrypted.mjs \
+  --out="C:\Users\jeffe\inventory-ai-backups\archives" \
+  --recipient=24BBDA0C3A6D6273C9A8C3B1DAA4DB67BAC14E26
+```
+
+### What success looks like
+
+The last lines must be:
+
+```text
+[backup:db:encrypted] checksums: 36 file(s) matched the manifest before encryption
+[backup:db:encrypted] archive  : ...\archives\inventoryai_prod_db-<UTC stamp>.tar.gz.gpg
+[backup:db:encrypted] sha256   : 753b978f...
+[backup:db:encrypted] OK — encrypted backup is ready.
+```
+
+If the run fails, it **deletes its own half-written output** — a surviving archive is a complete one.
+No plaintext `.json`/`.jsonl.gz` should ever be left in `archives\`.
+
+> **Do not interrupt it once encryption starts**, and do not copy the `.gpg` file while it is still
+> being written. Wait for `OK — encrypted backup is ready.`
+
+### Then copy it off the machine (30 seconds, and it is your real protection)
+
+```bash
+cd /c/Users/jeffe/inventory-ai-backups/archives
+cp -p inventoryai_prod_db-<UTC stamp>.tar.gz.gpg \
+      inventoryai_prod_db-<UTC stamp>.tar.gz.gpg.sha256 \
+      /c/Users/jeffe/OneDrive/Inventory-AI-Backups/
+cd /c/Users/jeffe/OneDrive/Inventory-AI-Backups
+sha256sum -c inventoryai_prod_db-<UTC stamp>.tar.gz.gpg.sha256
+```
+
+The last command must print `... OK`. Do not delete the local copy afterwards.
+
+---
+
+## 4. Check that a backup is good — three levels
+
+| Level | Command | What it proves | Needs private key? |
+| --- | --- | --- | --- |
+| 1. File integrity | `sha256sum -c <archive>.sha256` | The file is exactly the file that was written (no corruption in transit or on disk) | No |
+| 2. Contents | `--verify=<archive>` | The archive decrypts, and every file inside matches the SHA-256 recorded in its manifest | **Yes** |
+| 3. Restore rehearsal | `--verify=<archive> --dry-run-restore` | All of the above, plus the restore path accepts the contents without writing anything | **Yes** |
+
+Level 2 is the one that matters, because level 1 cannot tell you the archive is readable:
+
+```bash
+cd /c/Users/jeffe/inventory-ai/server
+```
+
+Run this **in an interactive Git Bash window** so the pinentry dialog can ask for the passphrase. The
+final line must be:
+
+```text
+[backup:db:encrypted] OK — archive, checksum and manifest all verified.
+```
+
+and it prints the manifest totals above it (`36 collection(s), 47089 document(s)`, `36 file(s) inside
+the archive`). That is your proof the archive contains all 36 collections and the expected records.
+
+**A run without a terminal cannot ask for a passphrase.** If you start `--verify` from a script, a
+scheduled job or a pipe, it fails in under a second with `No pinentry` — that is the designed
+behaviour, not a broken backup. For a non-interactive check, read the passphrase out of its protected
+store and feed it to gpg on **stdin** with `gpg --pinentry-mode loopback --passphrase-fd 0`; the
+exact commands are in the runbook’s **Verification on this Windows host** section. The
+`PRESET_PASSPHRASE` route does not work on this host (gpg-agent answers
+`ERR 67108933 Not implemented`).
+
+If a check ever fails — wrong digest, `Backup is corrupt`, `Backup is incomplete`, a missing sidecar —
+**stop**. Do not restore that copy, do not "fix" its hash, and do not overwrite it. Use the previous
+archive and make a fresh backup.
+
+---
+
+## 5. Keys and the passphrase
+
+There is exactly one key pair, made for backups on 2026-11-27:
+
+| | Value / location |
+| --- | --- |
+| Fingerprint | `24BBDA0C3A6D6273C9A8C3B1DAA4DB67BAC14E26` |
+| Identity | `Inventory AI DB Backup <backup@inventory-ai.local>` |
+| Public key | In this machine's keyring (`C:\Users\jeffe\.gnupg`) — **encrypts**. Not needed for anything else |
+| Private key | Same keyring (`C:\Users\jeffe\.gnupg\private-keys-v1.d`) — **decrypts**. Protected by the passphrase |
+| Passphrase | `C:\Users\jeffe\.backup-secrets\gpg-passphrase.dpapi`, 44 characters, readable only by this Windows account |
+
+- **Public key** = the padlock. The backup command uses it. Keep it on any machine that creates
+  backups. It is safe to share.
+- **Private key** = the key to the padlock. Only decryption and restore use it. If it is lost, every
+  archive ever made becomes unreadable. If it leaks *and* the passphrase leaks, someone can read your
+  customer data.
+- **Passphrase** = what unlocks the private key. It is stored encrypted by Windows (DPAPI), bound to
+  your Windows login, in a folder only your account can read. It was moved out of
+  `inventory-ai-backups\keys\` on 2026-11-27 and the plaintext file was deleted.
+
+### Reading the passphrase when a restore needs it
+
+At **this** machine, in PowerShell:
+
+```powershell
+$s = ConvertTo-SecureString ([IO.File]::ReadAllText('C:\Users\jeffe\.backup-secrets\gpg-passphrase.dpapi'))
+$b = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($s)
+[Runtime.InteropServices.Marshal]::PtrToStringBSTR($b)
+```
+
+It prints the passphrase to that window; type it into the pinentry dialog, then clear the window.
+Only your Windows account can do this — copying the file elsewhere yields nothing.
+
+### Using it, rule by rule
+
+- Type it **only** into the pinentry window that gpg opens. Never into a command, an environment
+  variable, a `.env` file, a chat, a screenshot or a document.
+- Creating a backup never needs it. Only `--verify`, `--dry-run-restore` and decryption do.
+- Do **not** create a second, unprotected key to make unattended verification easier. The passphrase
+  is what makes the archive useless to a thief.
+
+### Two gaps you should fix
+
+1. **The passphrase has no second copy.** DPAPI ties it to this Windows profile: reinstall Windows, or
+   lose the profile, and the passphrase — and therefore every archive — is gone. Put it in your
+   password manager. That is a one-minute job and it is the single most important thing on this page.
+2. **The public key is not exported anywhere.** A second backup machine would need
+   `gpg --armor --export 24BBDA0C3A6D6273C9A8C3B1DAA4DB67BAC14E26 > inventory-ai-backup-pubkey.asc`
+   first. That file is safe to store and safe to share.
+
+---
+
+## 6. Decrypt and look inside a backup (by hand)
+
+Only needed if you want to inspect an archive, or if the wrapper's `--verify` is unavailable. Do this
+in a temporary folder **outside** the repository and delete it afterwards.
+
+```bash
+mkdir -p /c/Users/jeffe/AppData/Local/Temp/inv-open
+cd /c/Users/jeffe/AppData/Local/Temp/inv-open
+
+gpg --output backup.tar.gz \
+
+tar -xzf backup.tar.gz -C .
+ls
+```
+
+Enter the passphrase in the pinentry window when it appears. You should get a folder named
+`inventoryai_prod_db-<UTC stamp>` containing:
+
+```text
+manifest.json            ← database name, collection list, document counts, SHA-256 of every file
+products.jsonl.gz        ← one gzipped line-per-document file per collection
+inventory.jsonl.gz
+inventory_transactions.jsonl.gz
+... (36 in total)
+```
+
+`manifest.json` is the authoritative statement of what the archive holds — open it in any editor and
+read `totals.collections`, `totals.documents` and the `collections` list. One record looks like:
+
+```json
+{ "name": "products", "file": "products.jsonl.gz", "count": 10129,
+  "bytes": 1694580, "sha256": "…" }
+```
+
+Each record also carries `uncompressedBytes` — the space that collection will occupy once restored —
+because a restore that does not fit is the failure this repository has actually hit.
+
+To read a collection without any tooling, the file is gzip-compressed text with one Extended JSON
+document per line:
+
+```bash
+gunzip -c products.jsonl.gz | head -3
+```
+
+> **Delete the temporary folder when you are done**, with the plaintext inside it:
+> `rm -rf /c/Users/jeffe/AppData/Local/Temp/inv-open`. A decrypted copy of the database on a desktop
+> is precisely what the encryption existed to prevent.
+
+**Never `tar -x` an archive from someone else.** These archives come from a process you control; the
+wrapper guards its own extraction, but tar itself is not a sandbox for hostile files.
+
+---
+
+## 7. Restore — what is possible, and the hard limit
+
+There are two very different situations.
+
+### A. Rehearsal / inspecting a restore (supported, safe, do this monthly)
+
+`restore:db` will only ever touch **`inventoryai_test_db`** or **`inventoryai_dev_db`**. It refuses
+production *before it even connects*. Every file is verified against the manifest **before** the
+first collection is dropped, and it drops and rewrites **every collection the backup lists**.
+
+⚠️ **Restoring into `inventoryai_dev_db` destroys the development data in those 36 collections.** Do
+rehearsals into `inventoryai_test_db`.
+
+```bash
+cd /c/Users/jeffe/inventory-ai/server
+export MONGODB_DB_NAME=inventoryai_test_db
+
+# 1. Prove it first — verifies every file, writes nothing.
+CONFIRM=restore-db node scripts/restore-db.mjs \
+  --dry-run
+```
+
+Expected last line: `[restore:db] OK — verified N file(s) against the manifest; nothing was written.`
+
+```bash
+# 2. Only after the dry run passes: the real restore into the disposable database.
+CONFIRM=restore-db node scripts/restore-db.mjs \
+```
+
+Success prints a per-collection `inserted` count and ends with `OK — … restored …`. If it says
+`inserted N document(s) but the manifest recorded M`, the restore stopped in an incomplete state —
+restore again from a verified copy.
+
+**Restoring does not rebuild indexes or collection validators.** The documents come back; the indexes
+defined in the models do not. On a disposable database that is harmless for a rehearsal. A database
+you intend to *use* afterwards needs its indexes recreated — `npm run migrate:required-indexes`
+exists for that, but it has **not** been exercised as part of a restore drill, so treat it as
+unverified until someone does.
+
+The easier route for a rehearsal is the wrapper's own dry run, which decrypts, verifies and calls
+`restore:db --dry-run` in one step:
+
+```bash
+cd /c/Users/jeffe/inventory-ai/server
+export MONGODB_DB_NAME=inventoryai_test_db
+node scripts/backup-db-encrypted.mjs \
+  --dry-run-restore
+```
+
+It must print `DRY RUN — nothing will be written`.
+
+### B. Production lost data — the honest answer
+
+**There is no button, script or command that restores production.** The restore tool refuses a
+production target on purpose, so it cannot be misused, and Atlas M0 gives you no snapshots and no
+point-in-time recovery to fall back on. Getting production data back currently means a developer
+writing a one-off import (the files are gzipped Extended JSON, which `mongorestore` cannot read) —
+that is a manual, unverified-until-done operation.
+
+What that means in practice:
+
+- **Recovery point:** the newest backup. If backups are daily, up to 24 hours of work is gone. If the
+  last backup is a week old, up to a week is gone.
+- **Recovery time:** unknown for production size. The only measured drill was 16 documents / 7
+  collections: **16/16 documents in 3.0 s**, 5.1 s end-to-end. That proves the code path and that
+  Decimal128/Date/ObjectId survive — it does not prove a 47,089-document production restore.
+- **The only real fix** is either an automated daily backup you actually keep, or a paid Atlas tier
+  with snapshots (§[`BACKUP_AND_RECOVERY_OPTIONS.md`](../BACKUP_AND_RECOVERY_OPTIONS.md)). Until one
+  of those exists, this is a best-effort copy, not a disaster-recovery plan.
+
+---
+
+## 8. Emergency playbook — production data lost or damaged
+
+Read this **before** you need it.
+
+**First: stop the damage, and do not improvise.**
+
+1. **Stop writes.** Ask a developer to pause the Render service (or take the app out of use). Every
+   extra write makes the gap between the backup and now bigger.
+2. **Do not run `cleanup`, `seed`, `restore:db` or any script with `CONFIRM=` against production.**
+   `restore:db` cannot target production; the cleanup and seeding tools can, and they delete data.
+3. **Do not overwrite or delete the newest archive or its `.sha256`.** It is your only recovery point.
+   Do not re-encrypt, rename or edit it.
+4. **Write down what happened and when** (time, what was run, what disappeared). This is what decides
+   which backup is the right one to use.
+
+**Then, in this order:**
+
+5. **Check what you have.** `ls -lh /c/Users/jeffe/inventory-ai-backups/archives/` — note the newest
+   timestamp, then confirm the OneDrive copy exists too.
+6. **Verify the newest archive** (§4, level 2). If it fails, step back to the previous one. Never
+   restore an archive that failed verification.
+7. **Contact a developer with three facts:** the archive filename (with its UTC timestamp), the result
+   of the verification, and the time window of lost data. Production recovery needs a custom import —
+   this is the step that cannot be done alone today.
+8. **Meanwhile, rehearse the restore** into `inventoryai_test_db` (§7 A) so the outcome is known
+   before anyone touches production, and so the data is proven readable.
+9. **After recovery:** take a fresh backup immediately, then establish why it happened and whether the
+   backup cadence was the limiting factor.
+
+**If the machine itself dies:** you still need (a) the archives — they are in OneDrive, so they
+survive; (b) the **passphrase** — *only* in the DPAPI store on this laptop, which is precisely why it
+must also be in your password manager; (c) the **private key** — only in `C:\Users\jeffe\.gnupg`,
+which is **not** backed up anywhere. Without the private key, the archives cannot be opened even with
+the passphrase. Export it to offline storage (`gpg --armor --export-secret-keys <fingerprint>`,
+protected by the same passphrase) and keep it somewhere other than this laptop.
+
+---
+
+## 9. Schedule and retention — installed
+
+A Windows task named **`InventoryAI Daily Encrypted Database Backup`** runs the whole cycle daily at
+**03:00 Asia/Manila** (this machine is `Singapore Standard Time`, UTC+8). It is registered by
+`scripts/register-db-backup-scheduler.ps1` and runs `scripts/run-db-backup.ps1`, which calls
+`server/scripts/backup-daily.mjs`.
+
+Each run, in order:
+
+1. creates the encrypted archive exactly as §3 describes — public key only, no passphrase;
+2. copies the `.gpg` and its `.sha256` to `C:\Users\jeffe\OneDrive\Inventory-AI-Backups`, checks the
+   copy’s SHA-256, and only then renames the pair into place;
+3. applies retention in both folders.
+
+**Retention — 14 daily, 4 weekly, 3 monthly** keeps the newest archive of:
+
+- each of the 14 most recent UTC days,
+- each of the 4 most recent ISO weeks,
+- each of the 3 most recent calendar months,
+
+and unions those sets with the newest archive and the one the run just created. A `.gpg` is only ever
+deleted together with its `.sha256`, and unrecognised files are never touched. The practical effect is
+**one archive per UTC day**: a second backup on the same day replaces the earlier one at the next
+retention pass. The first retention run on 2026-11-27 did exactly that and removed the two same-day
+archives from 05:17 and 05:45 UTC.
+
+What the schedule does **not** do:
+
+- it does not verify archive *contents* — that needs the private key and the passphrase, so it stays
+  manual (weekly `--verify`, §4 and §5);
+- it does not run while this Windows account is signed out. A missed run happens at the next sign-in
+  (`-StartWhenAvailable`), so a laptop that is off for days has no backups for those days;
+- it is not point-in-time recovery: the newest copy can be up to 24 hours old.
+
+Check it, or run a day by hand:
+
+```bash
+cd /c/Users/jeffe/inventory-ai
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/run-db-backup.ps1
+powershell -NoProfile -Command 'Get-ScheduledTaskInfo -TaskName "InventoryAI Daily Encrypted Database Backup" | Format-List LastRunTime,LastTaskResult,NextRunTime'
+tail -30 "$LOCALAPPDATA/InventoryAI/db-backup-scheduler.log"
+```
+
+`LastTaskResult : 0` plus a final `SUCCESS` line means the day’s copy exists in both places.
+
+At ~2.2 MB per archive, the retained set is a few tens of megabytes — storage is not the constraint,
+recovery options are.
+
+### When a run fails, you get an email
+
+A `FAILED` run — and a run still marked `RUNNING` after two hours, which the console shows as
+`INTERRUPTED` — sends one alert to `BACKUP_ALERT_EMAIL` through the existing mail provider. The
+message names the run id, what triggered it, when it started and finished, which archive (if any) it
+produced, and the runner's own failure text, so the console row and the email describe the same
+execution.
+
+It contains no passphrase, no key and no archive content. It is sent *after* the durable row is
+written, and one alert per run is enforced in the database, so a retried or repeated check cannot
+mail the same failure twice. With `BACKUP_ALERT_EMAIL` empty nothing is sent: the run record and the
+scheduler log are the only record, and the alarm line is written at error level instead.
+
+An `INTERRUPTED` alert is raised by the **next** run — the process that would have reported the
+result is gone — so if this machine stops running backups entirely, nothing here can say so.
+UptimeRobot and the health probes remain the only watcher for that case.
+
+To see the state of the alert for a run, open Backups & Restore in the platform console; the run row
+keeps its claim, its sent time and the last delivery error.
+
+## 10. Troubleshooting
+
+| What you see | What it means | What to do |
+| --- | --- | --- |
+| `Refusing to back up: no output directory was given` | `--out`/`BACKUP_DIR` missing | Pass `--out=` with a path outside the repository |
+| `Refusing to back up: "…" is inside the repository` | Dump path inside the project | Use `C:\Users\jeffe\inventory-ai-backups\archives` |
+| `Refusing to configure the database: … production database … while NODE_ENV=development` | Missing `NODE_ENV=production` for a production backup | Add both `NODE_ENV=production` and `MONGODB_DB_NAME=inventoryai_prod_db` |
+| `confirmation phrase did not match` | `CONFIRM=` missing or wrong | Use the exact phrase (`backup-db` / `restore-db`) |
+| `Refusing to encrypt: the recipient must be a full 40-character GPG fingerprint` | Short key id used | Use `24BBDA0C3A6D6273C9A8C3B1DAA4DB67BAC14E26` |
+| `No pinentry` / `public key decryption failed` | No terminal for the passphrase prompt, or the agent has no cached passphrase | Re-run in an interactive Git Bash window; or read the passphrase per §5 |
+| `ERR 67108933 Not implemented` from `gpg-connect-agent` | The host's agent rejects `PRESET_PASSPHRASE` even with `allow-preset-passphrase` | Use the loopback method in §5; do not fight the agent |
+| `no manifest.json in "…" — this is not a backup directory` | Pointed `--from` at the extracted folder's parent | Pass the folder that contains `manifest.json` |
+| `Backup is corrupt: "<file>" has SHA-256 …` | Archive damaged or tampered with | Do not restore it; use an older verified archive |
+| `Refusing to restore: "inventoryai_prod_db" looks like a production database` | You asked for a production restore | Expected. Production restore is not supported (§7 B) |
+| `MONGODB_URI names the database "…", but this run targets "…"` | Connection string and target disagree | Fix the URI or the target; nothing was written |
+| Restore stops: `over your space quota` | The Atlas free tier is full | Free space or restore into a smaller target; the backup is fine |
+
+---
+
+## 11. Rules that keep this safe
+
+1. **Never** put an archive, a decrypted dump or the passphrase inside the repository.
+2. **Never** create an unprotected GPG key to make automation easier.
+3. **Never** delete the private key while any archive encrypted to it still exists.
+4. **Never** delete the last archive, or a `.gpg` without also deleting its `.sha256` (they travel
+   together).
+5. **Never** restore into `inventoryai_dev_db` or production by hand-editing a guard.
+6. **Always** verify before restoring, and always rehearse before trusting.
+7. Password hashes, session rows and the platform admin record are inside these archives — treat an
+   archive exactly like the production database itself.

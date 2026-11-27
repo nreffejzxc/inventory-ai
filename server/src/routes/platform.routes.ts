@@ -10,6 +10,9 @@ import platformAuditController from '../controllers/platformAudit.controller.ts'
 import platformOperationsController from '../controllers/platformOperations.controller.ts';
 import platformSupportController from '../controllers/platformSupport.controller.ts';
 import platformDeploymentsController from '../controllers/platformDeployments.controller.ts';
+import platformBackupsController from '../controllers/platformBackups.controller.ts';
+import platformJobsController from '../controllers/platformJobs.controller.ts';
+import platformSignalsController from '../controllers/platformSignals.controller.ts';
 import platformAdminController from '../controllers/platformAdmin.controller.ts';
 import { PLATFORM_CAPABILITIES } from '../constants/platformRoles.ts';
 import {
@@ -202,6 +205,88 @@ router.get(
   requirePlatformCapability(PLATFORM_CAPABILITIES.DEPLOYMENTS_READ),
   platformDeploymentsController.list,
 );
+// Backups are read from the machine that runs the API, so this section is only
+// populated where the scheduler and its archives live. Reading needs metrics;
+// running, rescheduling and deleting are administrative, and deleting a recovery
+// point additionally needs a fresh step-up proof.
+router.get(
+  '/backups',
+  requirePlatformAdmin,
+  requirePlatformCapability(PLATFORM_CAPABILITIES.METRICS_READ),
+  platformBackupsController.list,
+);
+router.post(
+  '/backups/run',
+  requirePlatformAdmin,
+  requirePlatformCapability(PLATFORM_CAPABILITIES.ADMIN_MANAGE),
+  platformBackupsController.run,
+);
+router.put(
+  '/backups/schedule',
+  requirePlatformAdmin,
+  requirePlatformCapability(PLATFORM_CAPABILITIES.ADMIN_MANAGE),
+  platformBackupsController.schedule,
+);
+router.delete(
+  '/backups/:name',
+  requirePlatformAdmin,
+  requirePlatformCapability(PLATFORM_CAPABILITIES.ADMIN_MANAGE),
+  requirePlatformStepUp(),
+  platformBackupsController.remove,
+);
+
+// Background jobs are the Windows Scheduled Tasks on the machine that runs them.
+// Reading is operational; enabling, disabling and rescheduling are
+// administrative, and changing whether a task runs unattended needs a fresh
+// step-up proof. No route registers a task.
+router.get(
+  '/jobs',
+  requirePlatformAdmin,
+  requirePlatformCapability(PLATFORM_CAPABILITIES.METRICS_READ),
+  platformJobsController.list,
+);
+router.post(
+  '/jobs/:id/enable',
+  requirePlatformAdmin,
+  requirePlatformCapability(PLATFORM_CAPABILITIES.ADMIN_MANAGE),
+  requirePlatformStepUp(),
+  platformJobsController.enable,
+);
+router.post(
+  '/jobs/:id/disable',
+  requirePlatformAdmin,
+  requirePlatformCapability(PLATFORM_CAPABILITIES.ADMIN_MANAGE),
+  requirePlatformStepUp(),
+  platformJobsController.disable,
+);
+router.put(
+  '/jobs/:id/schedule',
+  requirePlatformAdmin,
+  requirePlatformCapability(PLATFORM_CAPABILITIES.ADMIN_MANAGE),
+  platformJobsController.schedule,
+);
+
+// Read-only signals: the integrity monitor, the required-index verdict and the
+// audit outbox backlog. None of these creates an index or retries a record.
+router.get(
+  '/integrity',
+  requirePlatformAdmin,
+  requirePlatformCapability(PLATFORM_CAPABILITIES.METRICS_READ),
+  platformSignalsController.integrity,
+);
+router.get(
+  '/readiness',
+  requirePlatformAdmin,
+  requirePlatformCapability(PLATFORM_CAPABILITIES.METRICS_READ),
+  platformSignalsController.readiness,
+);
+router.get(
+  '/audit-outbox',
+  requirePlatformAdmin,
+  requirePlatformCapability(PLATFORM_CAPABILITIES.METRICS_READ),
+  platformSignalsController.auditOutbox,
+);
+
 router.get(
   '/tickets',
   requirePlatformAdmin,

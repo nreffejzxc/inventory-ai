@@ -105,14 +105,29 @@ The console groups its read-only and operational views as follows:
 | Infrastructure & API | operations + `/status` | Process uptime/RSS/CPU, MongoDB state and `dbStats`, configured integrations and explicit unavailable sources |
 | AI operations | operations | Model, outcome, token, latency and cost breakdowns from `ai_turn_metrics`; no prompt or answer body |
 | Database & storage | operations | Read-only database size/collection/object counts; no Atlas cluster or backup telemetry |
-| Mobile / Jobs | operations | Honest unavailable panels; the app reports no crash/install telemetry and there is no durable job store |
+| Mobile | operations | Honest unavailable panel; the Android app reports no crash, install or version telemetry |
+| Background jobs | `/api/platform/jobs` | The four Windows Scheduled Tasks: state, trigger, next/last run, last result and the tail of each scheduler log, read from the machine that runs them. A host that is not that machine reports `unknown`, never an empty list. Enable/disable are SUPERADMIN with a step-up proof and never register a missing task; a daily reschedule writes `console-config.json` and re-runs the existing registration script |
+| Integrity monitor | `/api/platform/integrity` | Database heartbeat plus the monitor's `latest.json`, `latest.md` and the last 14 `history.jsonl` runs, with NEW vs UNCHANGED findings and explicit host-file vs database provenance. Read-only |
+| Readiness & outbox | `/api/platform/readiness`, `/api/platform/audit-outbox` | All six required indexes from the same cached verdict `/ready` uses, naming each failure; plus PENDING/SENDING/FAILED counts and oldest PENDING age from `audit_outbox`. Read-only: no index migration and no retry |
 | Businesses / Inventory | operations | Cross-tenant counts and movement aggregates only; no tenant selector, names, emails or product ids |
 | Support center | `/api/platform/tickets` | Internal ticket create, queue, status workflow, assignment and notes; tickets deliberately contain no tenant or member data |
 | Errors & incidents | operations | Durable 5xx totals, codes, bounded route labels and recent events; no request body or raw message |
 | Security & audit | `/api/platform/audit`, lifecycle routes | Sign-in/MFA/refusal/read events; SECURITY and SUPERADMIN only for the trail |
 | Team management | `/api/platform/admins` | SUPERADMIN lifecycle: list, disable/enable, delete, remove WebAuthn key; no self-disable or last-SUPERADMIN removal |
 | Deployments & releases | `/api/platform/deployments` | Boot-observed commit/environment/Node/start history; failed builds that never boot are not observable |
+| Backups & restore | `/api/platform/backups` | Encrypted archives, their SHA-256 and off-machine copies, the daily schedule and the last recorded runs — read from the machine running the API, with run history from the durable `backup_runs` collection. Rescheduling and run-now are SUPERADMIN; deleting an archive also needs a step-up proof |
 | System checks | `/api/platform/status` | Real configuration predicates and the list of sources that are unavailable |
+
+**Backup failure alerts.** A `FAILED` backup run, and a run still `RUNNING` after two hours
+(`INTERRUPTED`), sends one email to `BACKUP_ALERT_EMAIL` through the mail provider in §4 — the same
+boundary and the same operator-only convention as `AI_HEALTH_ALERT_EMAIL`. The message carries the
+`runId`, trigger, start/finish, archive name/size, off-machine result and the runner's failure text;
+never a passphrase, key or archive content. It is sent by the runner (`scripts/backup-daily.mjs` →
+`scripts/backup/alerts.mjs`) after the durable row is written, and every failure in the alert path
+is swallowed: the backup's exit status and the row are unaffected. One alert per run is enforced by
+an atomic claim on `backup_runs.alert.sentAt`. An `INTERRUPTED` alert is raised by the *next* run,
+because the process that would have written the result is gone — so a host that stops running
+backups altogether is still only visible through the external probes below.
 
 **Alerting.** The console is an investigation surface, not a pager. The external UptimeRobot and
 GitHub probes in §2 remain the automatic alert path. Alert on repeated `/api/health/ready` failure,
@@ -123,9 +138,13 @@ owners and response playbooks are in
 only and are not an active pipeline. The process-local counters reset on restart; durable `ops_error_events`
 survive a restart and are what the overview's 5xx counts use for the selected window.
 
-**Limits.** The console cannot show host CPU/memory pressure, Atlas cluster metrics, backup status,
-mobile crash/install telemetry or background-job health because those sources are not available to
-this service. Those panels say so. AI cost is provider-reported only and unknown charges are not
+**Limits.** The console cannot show host CPU/memory pressure, Atlas cluster metrics or Atlas
+backup/PITR status, mobile crash/install telemetry or background-job health because those sources are
+not available to this service. Those panels say so. The Backups view reports the archive files and
+scheduler of the machine running the API; a deployed instance has neither, and it says so instead of
+inventing history. Run history is durable (`backup_runs`), so it survives scheduler-log rotation; a
+run still marked `RUNNING` after two hours is shown as `INTERRUPTED`, not as a success, and a run
+that could not reach the database leaves the log as its only record. AI cost is provider-reported only and unknown charges are not
 estimated. Deployment history begins when the console is enabled; a failed build before process boot
 is absent by design. See [04 — Production readiness](./platform-console/04-production-readiness.md) for
 the edge, credential and residual-risk gates, and
