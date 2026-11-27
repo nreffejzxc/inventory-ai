@@ -1,0 +1,122 @@
+name: backup-daily
+
+# The unattended daily encrypted database backup.
+#
+# WHY GITHUB SCHEDULE AND NOTHING ELSE. This repository's own record decided it:
+# `typescript-7-watch` has carried a `schedule:` since 2026-11-09 and fired on
+# three consecutive Mondays (11-09 16:17Z, 11-16 15:45Z, 11-23 18:06Z for a
+# 06:17Z cron) — so schedules DO fire here, 9.5–12 h late. A per-day backup and a
+# 30-hour freshness alarm tolerate that delay, so no Cloudflare Worker and no
+# Actions-write PAT are required. The Worker design existed only to trigger this
+# workflow; removing it removes a credential and a deployment with it.
+#
+# WHAT MAKES A RUN COUNT. Not this job succeeding. `backup:daily --cloud` writes
+# `offsite: 'verified'` only after the archive has been re-downloaded from Google
+# Drive and its SHA-256 matched the sidecar; a job that exits 0 without that is
+# impossible, and `/api/health/backup` alarms on the record, not on the run.
+#
+# SECRETS THIS JOB USES, AND THE ONE IT MUST NEVER SEE.
+#   MONGODB_URI                 read-only dump (use a least-privilege Atlas user)
+#   BACKUP_GPG_PUBLIC_KEY       the PUBLIC key only, armored
+#   BACKUP_GPG_RECIPIENT        its 40-character fingerprint
+#   RCLONE_DRIVE_TOKEN          OAuth token for the owner's own Drive, `drive.file` scope
+#   MAIL_PROVIDER/BREVO_API_KEY/MAIL_FROM/BACKUP_ALERT_EMAIL   optional failure alert
+# The GPG private key and its passphrase are NOT here and have no secret name in
+# this file: this job only ever encrypts to the public key.
+
+on:
+  schedule:
+    # 02:40 UTC daily. The odd minute avoids the top-of-hour scheduler
+    # congestion; with the measured 9.5–12 h delay the run lands mid-morning.
+    - cron: '40 2 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# One backup at a time. `--skip-if-today` makes the second delivery a clean no-op
+# rather than a second archive, so the queue never has to be cancelled.
+concurrency:
+  group: backup-daily
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: server/package-lock.json
+
+      - name: Install the backup's external tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          # gpg and tar build and encrypt the archive; rclone is the only thing
+          # that talks to Drive. Nothing else is installed.
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq gnupg tar rclone
+          gpg --version | head -1
+          rclone version | head -1
+
+      - name: Install server dependencies
+        working-directory: server
+        run: npm ci
+
+      - name: Import the PUBLIC encryption key
+        shell: bash
+        env:
+          BACKUP_GPG_PUBLIC_KEY: ${{ secrets.BACKUP_GPG_PUBLIC_KEY }}
+          BACKUP_GPG_RECIPIENT: ${{ secrets.BACKUP_GPG_RECIPIENT }}
+        run: |
+          set -euo pipefail
+          if [ -z "${BACKUP_GPG_PUBLIC_KEY:-}" ]; then
+            echo "::error::BACKUP_GPG_PUBLIC_KEY is not set; nothing can be encrypted."
+            exit 1
+          fi
+          if [ -z "${BACKUP_GPG_RECIPIENT:-}" ]; then
+            echo "::error::BACKUP_GPG_RECIPIENT is not set; the archive would have no recipient."
+            exit 1
+          fi
+          printf '%s' "$BACKUP_GPG_PUBLIC_KEY" | gpg --batch --import
+          # Prove the configured fingerprint is in this keyring before the run.
+          gpg --batch --list-keys --with-colons "$BACKUP_GPG_RECIPIENT" > /dev/null
+
+      - name: Run the encrypted backup and verify the offsite copy
+        working-directory: server
+        shell: bash
+        env:
+          NODE_ENV: production
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
+          BACKUP_GPG_RECIPIENT: ${{ secrets.BACKUP_GPG_RECIPIENT }}
+          BACKUP_DIR: ${{ runner.temp }}/inventory-ai-backups
+          BACKUP_TRIGGER: SCHEDULED
+          BACKUP_CLOUD_REMOTE: ${{ vars.BACKUP_CLOUD_REMOTE || 'gdrive:InventoryAI-Backups' }}
+          BACKUP_ALERT_EMAIL: ${{ secrets.BACKUP_ALERT_EMAIL }}
+          MAIL_PROVIDER: ${{ secrets.MAIL_PROVIDER }}
+          MAIL_FROM: ${{ secrets.MAIL_FROM }}
+          BREVO_API_KEY: ${{ secrets.BREVO_API_KEY }}
+          # rclone reads its remote from the environment, so no config file is
+          # written to disk and the token never appears in an argument.
+          RCLONE_CONFIG_GDRIVE_TYPE: drive
+          RCLONE_CONFIG_GDRIVE_SCOPE: drive.file
+          RCLONE_CONFIG_GDRIVE_TOKEN: ${{ secrets.RCLONE_DRIVE_TOKEN }}
+          RCLONE_DRIVE_CLIENT_ID: ${{ secrets.RCLONE_DRIVE_CLIENT_ID }}
+          RCLONE_DRIVE_CLIENT_SECRET: ${{ secrets.RCLONE_DRIVE_CLIENT_SECRET }}
+        run: |
+          set -euo pipefail
+          node scripts/backup-daily.mjs --cloud="$BACKUP_CLOUD_REMOTE" --skip-if-today
+
+      - name: Remove the plaintext staging directory
+        if: always()
+        shell: bash
+        run: rm -rf "$RUNNER_TEMP/inventory-ai-backups"

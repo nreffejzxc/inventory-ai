@@ -7,10 +7,12 @@
 //
 //   1. runs `backup:db:encrypted` exactly as documented, so the encryption, the
 //      manifest-before-encryption check and the `.sha256` sidecar are unchanged;
-//   2. copies the new archive AND its sidecar to the off-machine directory,
-//      verifying the copy's SHA-256 before and after the rename that places it;
-//   3. applies the retention policy (14 daily / 4 weekly / 3 monthly) in both
-//      directories, independently, never touching the archive just created.
+//   2. places the new archive AND its sidecar off the machine, verifying the
+//      SHA-256 — either into a second local directory (`--copy-to`) or onto a
+//      cloud remote (`--cloud`, used by the GitHub Actions schedule, which then
+//      reads the archive back from the remote before claiming `verified`);
+//   3. applies the retention policy (14 daily / 4 weekly / 3 monthly) in every
+//      destination, independently, never touching the archive just created.
 //
 // WHAT IT DOES NOT DO. It never restores, never writes to a database, never
 // needs the private key or the passphrase (encryption uses only the public key),
@@ -20,13 +22,23 @@
 import { spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { existsSync } from 'node:fs';
-import { copyFile, mkdir, readFile, readdir, rename, rm, stat } from 'node:fs/promises';
+import { copyFile, mkdir, readdir, rename, rm, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { BackupSafetyError, assertBackupDir, formatBytes, sha256File } from './backup/lib.mjs';
 import { RETENTION_DEFAULTS, parseArchiveName, planRetention } from './backup/retention.mjs';
+// `cloudSync.mjs` is imported below the local helpers on purpose: the local path
+// is still the one that runs on the owner's laptop, and the cloud path is only
+// reached when a remote is configured.
 import { notifyInterruptedRuns, notifyRunFailure } from './backup/alerts.mjs';
+import {
+  assertRemote,
+  precheckSameDay,
+  rcloneRunner,
+  readSidecarDigest,
+  syncOffsite,
+} from './backup/cloudSync.mjs';
 import { closeRunRecord, closeRunStore, openRunRecord } from './backup/runStore.mjs';
 
 const COMMAND = 'backup:daily';
@@ -58,23 +70,6 @@ async function listArchives(directory) {
     .map((entry) => parseArchiveName(entry.name))
     .filter(Boolean)
     .sort((a, b) => b.at.getTime() - a.at.getTime() || (a.name < b.name ? 1 : -1));
-}
-
-/** The digest recorded in `<archive>.sha256`, or a stop. */
-async function readSidecarDigest(archive) {
-  let raw;
-  try {
-    raw = await readFile(`${archive}.sha256`, 'utf8');
-  } catch {
-    throw new BackupSafetyError(
-      `checksum sidecar "${path.basename(archive)}.sha256" is missing — the archive bytes are not proved.`,
-    );
-  }
-  const digest = raw.trim().split(/\s+/)[0]?.toLowerCase();
-  if (!/^[0-9a-f]{64}$/.test(digest ?? '')) {
-    throw new BackupSafetyError(`"${path.basename(archive)}.sha256" does not contain a SHA-256 digest.`);
-  }
-  return digest;
 }
 
 function runEncryptedBackup({ outDir, recipient }) {
@@ -174,9 +169,30 @@ async function prune(directory, counts, protect) {
 // updates its own row, so the history cannot gain duplicates.
 let activeRunId = null;
 
+/**
+ * Open the run record for this execution.
+ *
+ * Used by two paths — a normal run, and a run whose same-day pre-check could not
+ * reach Drive — because both describe the same execution and the failure path is
+ * the one that must never be skipped. Setting `activeRunId` first is what lets the
+ * outer catch close this row as FAILED and send the one failure alert.
+ */
+async function beginRunRecord({ runId, trigger, outDir, copyDir, cloud }) {
+  activeRunId = runId;
+  await openRunRecord({
+    runId,
+    trigger,
+    archiveDir: outDir || null,
+    copyDir: copyDir || cloud || null,
+    host: process.platform,
+  });
+}
+
 async function main() {
   const outDir = argValue('--out') || process.env.BACKUP_DIR || '';
   const copyDir = argValue('--copy-to') || process.env.BACKUP_COPY_DIR || '';
+  const cloud = argValue('--cloud') || process.env.BACKUP_CLOUD_REMOTE || '';
+  const skipIfToday = process.argv.slice(2).includes('--skip-if-today');
   const recipient = argValue('--recipient') || process.env.BACKUP_GPG_RECIPIENT || '';
   const runId = argValue('--run-id') || randomUUID();
   // No default of SCHEDULED: only the wrapper knows why it was started, and it
@@ -195,36 +211,58 @@ async function main() {
   // the first process that can notice it. Best-effort: never affects this run.
   await notifyInterruptedRuns();
 
+  // SAME-DAY IDEMPOTENCY. GitHub can deliver both its schedule and a manual
+  // dispatch on one day; the second must not create a second archive, a second
+  // run row or a second email. The remote is asked because it is the only place
+  // that knows what already landed, and the day is read from the archive's own
+  // stamped name rather than from a clock that may have rolled over between the
+  // two deliveries.
+  //
+  // A PRECHECK THAT CANNOT RUN IS A FAILED RUN. Asking Drive requires the OAuth
+  // token to be valid and the service to answer; when either is not true this is
+  // an execution that produced no backup, so the record is opened first and the
+  // error is rethrown into the failure path below (FAILED row + one alert). A
+  // successful skip still writes nothing: no archive, no row, no email.
+  if (cloud && skipIfToday) {
+    const precheck = await precheckSameDay({
+      run: rcloneRunner(),
+      remote: cloud,
+      beginRun: () => beginRunRecord({ runId, trigger, outDir, copyDir, cloud }),
+    });
+    if (precheck.skip) {
+      console.log(
+        `[${COMMAND}] skip     : ${precheck.archive} already exists for ${precheck.dayKey} on ${cloud}; ` +
+          'no second backup was made.',
+      );
+      return;
+    }
+  }
+
   // Opened before validation on purpose: a run that fails on a bad directory is
   // still an execution the console should be able to see.
-  activeRunId = runId;
-  await openRunRecord({
-    runId,
-    trigger,
-    archiveDir: outDir || null,
-    copyDir: copyDir || null,
-    host: process.platform,
-  });
+  await beginRunRecord({ runId, trigger, outDir, copyDir, cloud });
 
   if (!outDir) {
     throw new BackupSafetyError('no archive directory. Pass --out=<dir> or set BACKUP_DIR.');
   }
-  if (!copyDir) {
+  if (!copyDir && !cloud) {
     throw new BackupSafetyError(
-      'no off-machine directory. Pass --copy-to=<dir> or set BACKUP_COPY_DIR — a backup on one disk is not a backup.',
+      'no off-machine destination. Pass --copy-to=<dir> or --cloud=<remote:path>, or set ' +
+        'BACKUP_COPY_DIR / BACKUP_CLOUD_REMOTE — a backup on one disk is not a backup.',
     );
   }
+  if (cloud) assertRemote(cloud);
   if (!recipient) {
     throw new BackupSafetyError('no GPG recipient. Pass --recipient=<fingerprint> or set BACKUP_GPG_RECIPIENT.');
   }
 
   const target = assertBackupDir(outDir, { repoRoot });
-  const copyTarget = assertBackupDir(copyDir, { repoRoot });
-  if (target === copyTarget) {
+  const copyTarget = copyDir ? assertBackupDir(copyDir, { repoRoot }) : '';
+  if (copyTarget && target === copyTarget) {
     throw new BackupSafetyError('the archive directory and the off-machine directory are the same path.');
   }
   await mkdir(target, { recursive: true });
-  await mkdir(copyTarget, { recursive: true });
+  if (copyTarget) await mkdir(copyTarget, { recursive: true });
 
   const before = new Set((await listArchives(target)).map((entry) => entry.name));
   console.log(`[${COMMAND}] start    : ${new Date().toISOString()}`);
@@ -246,15 +284,32 @@ async function main() {
     `[${COMMAND}] created  : ${created.name} (${formatBytes(archiveSize)})`,
   );
 
-  const copy = await copyArchive(archive, copyTarget);
-  const digest = copy.digest;
+  // CLOUD FIRST, THEN THE LOCAL COPY. The cloud step is the one that proves the
+  // archive left the machine, so its failure must fail the run — and it must do
+  // so before retention runs anywhere.
+  const cloudResult = cloud
+    ? await syncOffsite({
+        run: rcloneRunner(),
+        remote: cloud,
+        archive,
+        counts,
+        log: (line) => console.log(`[${COMMAND}] ${line}`),
+      })
+    : null;
+  const copy = copyTarget ? await copyArchive(archive, copyTarget) : null;
+  const digest = cloudResult ? cloudResult.digest : copy.digest;
 
   const pruned = [
     ...(await prune(target, counts, [created.name])),
-    ...(await prune(copyTarget, counts, [created.name])),
+    ...(copyTarget ? await prune(copyTarget, counts, [created.name]) : []),
+    ...(cloudResult ? cloudResult.pruned : []),
   ];
 
-  console.log(`[${COMMAND}] OK — ${created.name} created, copied off-machine and verified.`);
+  console.log(
+    `[${COMMAND}] OK — ${created.name} created, ` +
+      (cloudResult ? `uploaded to ${cloud} and read back verified` : 'copied off-machine and verified') +
+      '.',
+  );
   console.log(`[${COMMAND}] finish   : ${new Date().toISOString()}`);
 
   activeRunId = null;
@@ -264,7 +319,7 @@ async function main() {
     archive: created.name,
     sha256: digest,
     sizeBytes: archiveSize,
-    offsite: copy.copied ? 'copied' : 'present',
+    offsite: cloudResult ? 'verified' : copy.copied ? 'copied' : 'present',
     pruned,
     detail: null,
   });
