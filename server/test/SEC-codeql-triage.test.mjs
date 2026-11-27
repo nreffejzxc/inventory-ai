@@ -14,7 +14,7 @@
 // stops being a false positive. That is the difference between triage and a clean dashboard.
 import { it } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -92,13 +92,15 @@ unitSuite('CodeQL triage — response bodies are written only by dev tooling', (
     // the server: `src/` must never import from `scripts/`.
     const offenders = [];
     const walk = (dir) => {
-      for (const entry of readdirSync(dir)) {
-        const full = path.join(dir, entry);
-        if (statSync(full).isDirectory()) {
+      // The entry's own type, from the directory read — not a separate `stat` whose answer could
+      // describe a different file by the time it is used.
+      for (const entry of readdirSync(dir, { withFileTypes: true })) {
+        const full = path.join(dir, entry.name);
+        if (entry.isDirectory()) {
           walk(full);
           continue;
         }
-        if (!entry.endsWith('.ts')) continue;
+        if (!entry.name.endsWith('.ts')) continue;
         const source = readFileSync(full, 'utf8');
         if (/from\s+['"][^'"]*scripts\//.test(source) || /require\(['"][^'"]*scripts\//.test(source)) {
           offenders.push(path.relative(serverRoot, full));
