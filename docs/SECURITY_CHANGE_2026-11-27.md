@@ -388,6 +388,32 @@ dedicated client configured and the shared-client token in place, which is exact
    archive — but note the new folder is the one with the archive in it, so re-running after a revert
    re-uploads to the old folder rather than restoring the file.
 
+## 9.6 Run record — blocked on the backup database user's role (finding; change NOT applied)
+
+- **What the runner needs.** `backup-daily.mjs` opens one `backup_runs` row per execution and closes
+  it at the end; `finishBackupRunRecord` is what writes `offsite: 'verified'`. Both writes are
+  best-effort by design — a database failure must never fail the archive itself.
+- **What the credential holds.** The workflow's `MONGODB_URI` is the least-privilege backup user. The
+  copy of that credential this host holds (`BACKUP_MONGODB_URI`) reads back through
+  `connectionStatus` as exactly **`read@inventoryai_prod_db`**. Probed against `backup_runs` with it:
+  `find` and `listIndexes` succeed; `insert`, `update`, `createIndex` and `remove` are each refused.
+- **The symptom.** A run that uploaded its archive and read it back still logged
+  `[backup:run-record] could not record the run result: user is not allowed to do action [update] on
+  [inventoryai_prod_db.backup_runs]`. The archive, the Drive upload and the digest comparison are
+  unaffected; only the durable row is missing. `/api/health/backup` therefore answers `503 missing` —
+  correctly, because the newest stored row (written by the Windows scheduled task) is
+  `offsite: 'copied'`, which is not an offsite verification.
+- **Proposed, awaiting owner approval — NOT applied.** One custom role in the Atlas project, scoped to
+  the collection only:
+  `{ resource: { db: 'inventoryai_prod_db', collection: 'backup_runs' }, actions: ['insert', 'update'] }`,
+  assigned to that user alongside the existing `read@inventoryai_prod_db`. That is the whole change:
+  no other database, no other collection, no `remove`, no `dropIndex`, no `createIndex` (`runId_1`,
+  `startedAt_-1` and `outcome_1_startedAt_-1` already exist), and reads keep coming from the existing
+  `read` role. Custom roles are available on Free clusters as well as dedicated ones.
+- **How it will be verified once approved.** Re-run the workflow, then read the row it wrote and
+  `GET /api/health/backup`: a SUCCESS row carrying `offsite: 'verified'`, an archive name and a digest
+  is the only thing that turns that endpoint from `503 missing` to `200 fresh`.
+
 ## 10. GPG private key — offline export (procedure; the copy has NOT been made yet)
 
 The private key still exists **only** in `C:\Users\jeffe\.gnupg` (secret key file
