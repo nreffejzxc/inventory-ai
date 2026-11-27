@@ -194,6 +194,27 @@ export class AiQuotaExceeded extends Error {
 }
 
 /**
+ * OPS-3 — this deployment's OWN daily paid-spend ceiling was reached.
+ *
+ * A SUBCLASS on purpose. Every existing `instanceof AiQuotaExceeded` check in the turn loop keeps
+ * treating it as a quota refusal (never retried, never answered by paying twice), while the HTTP
+ * layer can tell the member the specific fact: the assistant's daily AI spending limit, which
+ * clears tomorrow. A provider's own 429 keeps the generic allowance sentence, because "wait for
+ * your plan to reset" and "this deployment stopped spending for today" are different answers.
+ */
+export const AI_SPEND_LIMIT_MESSAGE =
+  'The assistant has reached its daily AI spending limit. Please try again tomorrow.';
+
+export class AiSpendLimitExceeded extends AiQuotaExceeded {
+  // No message parameter: the sentence a member reads belongs to the HTTP mapper, so a throw site
+  // cannot quietly change the client copy — and nothing here could observe the difference.
+  constructor() {
+    super(AI_SPEND_LIMIT_MESSAGE);
+    this.name = 'AiSpendLimitExceeded';
+  }
+}
+
+/**
  * One chat turn exceeded its own wall-clock deadline (AI-1).
  *
  * Deliberately NOT an AiProviderError: "we gave up waiting" and "the provider

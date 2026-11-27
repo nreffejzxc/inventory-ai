@@ -18,11 +18,13 @@ import { invalidId, notFound, throwValidation } from '../utils/errors.ts';
 import ApiError from '../utils/ApiError.ts';
 import { aiConfig } from '../services/ai/aiConfig.ts';
 import {
+  AI_SPEND_LIMIT_MESSAGE,
   AiAbandoned,
   AiNotConfigured,
   AiOutputLimit,
   AiProviderError,
   AiQuotaExceeded,
+  AiSpendLimitExceeded,
   AiTimeout,
 } from '../services/ai/aiErrors.ts';
 import { runAiChat, type ChatTurn } from '../services/ai/ai.service.ts';
@@ -164,7 +166,7 @@ function titleFrom(message: string) {
 }
 
 /** Map AI-layer failures to safe, secret-free client responses. */
-function mapAiFailure(err: unknown) {
+export function mapAiFailure(err: unknown) {
   if (err instanceof AiNotConfigured) {
     return new ApiError(
       503,
@@ -197,6 +199,12 @@ function mapAiFailure(err: unknown) {
   // It is deliberately distinct from the route's own `429 AI_RATE_LIMITED`: that
   // one says *this member* is sending too fast and clears in seconds, while this
   // one says the assistant's allowance is spent and does not.
+  // OPS-3 — checked BEFORE the provider branch: this deployment's own daily ceiling was reached,
+  // so the honest answer is that spending stopped for today. A provider's 429 keeps the generic
+  // allowance sentence below; the status and code are the same so no client has to change.
+  if (err instanceof AiSpendLimitExceeded) {
+    return new ApiError(429, AI_SPEND_LIMIT_MESSAGE, 'AI_QUOTA_EXCEEDED');
+  }
   if (err instanceof AiQuotaExceeded) {
     return new ApiError(
       429,
