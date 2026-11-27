@@ -178,13 +178,18 @@ try {
         "--weekly=$Weekly",
         "--monthly=$Monthly"
     )
-    # The trigger is stated, never guessed: the console sets CONSOLE before it
-    # starts this wrapper, and anything that does not set it is the scheduled task.
+    # The trigger is stated, never guessed. The console sets CONSOLE before it starts
+    # this wrapper; a locally scheduled run is MANUAL, NOT SCHEDULED. `SCHEDULED` names
+    # the GitHub Actions schedule specifically — the only execution the server can
+    # attest (`attestScheduledRun`). A task run cannot be attested, and while it claimed
+    # SCHEDULED it also shadowed the genuine GitHub run in `/api/health/backup`, because
+    # the newest SCHEDULED claim is the one judged. It still backs up the database; it
+    # just no longer makes a claim it cannot prove.
     if ($env:BACKUP_TRIGGER) {
         $nodeArgs += "--trigger=$($env:BACKUP_TRIGGER)"
     }
     else {
-        $nodeArgs += '--trigger=SCHEDULED'
+        $nodeArgs += '--trigger=MANUAL'
     }
     $run = Invoke-Node -NodePath $node -Arguments $nodeArgs
     foreach ($line in $run.Output) { Write-SchedulerLog "$line" }

@@ -46,20 +46,30 @@ async function ensureConnected() {
   }
 }
 
-export async function openRunRecord(input) {  if (!(await ensureConnected())) return;
+// BOTH WRITERS REPORT WHETHER THE ROW LANDED. They still never throw — producing the
+// archive outranks recording it — but the boolean is what lets the runner distinguish
+// "the evidence was written" from "the database was unreachable". The outbound heartbeat
+// depends on that distinction: a signal sent after a lost record would claim evidence that
+// does not exist.
+export async function openRunRecord(input) {
+  if (!(await ensureConnected())) return false;
   try {
     await startBackupRunRecord(input);
+    return true;
   } catch (error) {
     warn(`could not record the run start: ${error instanceof Error ? error.message : String(error)}`);
+    return false;
   }
 }
 
 export async function closeRunRecord(input) {
-  if (!(await ensureConnected())) return;
+  if (!(await ensureConnected())) return false;
   try {
     await finishBackupRunRecord(input);
+    return true;
   } catch (error) {
     warn(`could not record the run result: ${error instanceof Error ? error.message : String(error)}`);
+    return false;
   }
 }
 

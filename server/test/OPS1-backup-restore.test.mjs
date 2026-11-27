@@ -65,6 +65,7 @@ const uriFor = (dbName) => `mongodb://127.0.0.1:27017/${dbName}`;
 /** A database of this suite's own, on the connection `helpers.mjs` already proved. */
 const SCRATCH_DB = 'inventoryai_ops1_scratch_db';
 const A = 'ops1_backup_a';
+const C = 'ops1_backup_c';
 const B = 'ops1_backup_b';
 
 const dbOk = await ensureDb();
@@ -151,6 +152,97 @@ dbSuite('OPS-1 — backup and restore', dbOk, () => {
     }
     assert.equal(restored[1].unit.constructor.name, 'Decimal128', 'Decimal128 survives as Decimal128');
     assert.ok(restored[0].seen instanceof Date, 'a Date survives as a Date');
+  });
+
+  // THE HALF A DOCUMENT-ONLY BACKUP LOST. A checksum proves the bytes; it cannot prove the
+  // rules the bytes were written under. These three properties are the ones whose absence is
+  // silent until it matters: a unique guard (duplicate SKUs after a restore), a TTL (tokens
+  // that never expire), and a validator (documents that no longer match their schema).
+  it('restores index definitions and collection options — unique, TTL and validator', async () => {
+    await scratch.collection(C).drop().catch(() => {});
+    const validator = {
+      $jsonSchema: {
+        bsonType: 'object',
+        required: ['sku'],
+        properties: { sku: { bsonType: 'string' }, expiresAt: { bsonType: 'date' } },
+      },
+    };
+    await scratch.createCollection(C, { validator, validationLevel: 'strict' });
+    await scratch.collection(C).insertMany([
+      { sku: 'SKU-A', expiresAt: new Date('2030-01-01T00:00:00Z') },
+      { sku: 'SKU-B', expiresAt: new Date('2030-01-01T00:00:00Z') },
+    ]);
+    await scratch.collection(C).createIndex({ sku: 1 }, { name: 'sku_unique', unique: true });
+    // An hour of TTL headroom so the documents cannot be reaped while this test runs.
+    await scratch.collection(C).createIndex({ expiresAt: 1 }, { name: 'ttl_expiry', expireAfterSeconds: 3600 });
+
+    const outDir = caseDir('shape');
+    const manifest = await createBackup({ db: scratch, outDir, databaseName: SCRATCH_DB });
+    const entry = manifest.collections.find((item) => item.name === C);
+    assert.ok(entry, 'the shaped collection is in the manifest');
+    assert.ok(entry.options && Object.keys(entry.options).length > 0, 'collection options were captured');
+    assert.ok(Array.isArray(entry.indexes) && entry.indexes.length >= 2, 'index definitions were captured');
+    assert.ok(!entry.indexes.some((spec) => spec.name === '_id_'), '_id_ is never carried');
+    assert.equal(manifest.totals.indexes >= 2, true, 'the totals count the captured indexes');
+
+    await scratch.collection(C).drop();
+    const result = await restoreBackup({ db: scratch, dir: outDir });
+    assert.equal(result.indexesCreated >= 2, true);
+    assert.equal(result.optionsRestored >= 1, true);
+
+    const restoredIndexes = await scratch.collection(C).indexes();
+    const unique = restoredIndexes.find((spec) => spec.name === 'sku_unique');
+    const ttl = restoredIndexes.find((spec) => spec.name === 'ttl_expiry');
+    assert.ok(unique, 'the unique index came back under its own name');
+    assert.equal(unique.unique, true, 'and it is still unique');
+    assert.ok(ttl, 'the TTL index came back');
+    assert.equal(ttl.expireAfterSeconds, 3600, 'with its expiry intact');
+
+    const [info] = await scratch.listCollections({ name: C }, { nameOnly: false }).toArray();
+    assert.ok(info?.options?.validator, 'the validator came back on the collection');
+
+    // The properties are ENFORCED, not merely present: that is the difference this test exists for.
+    await assert.rejects(
+      () => scratch.collection(C).insertOne({ sku: 'SKU-A', expiresAt: new Date() }),
+      'a duplicate of a unique key is refused after the restore'
+    );
+    await assert.rejects(
+      () => scratch.collection(C).insertOne({ notSku: true }),
+      'a document that violates the restored validator is refused'
+    );
+  });
+
+  it('still restores a v1 archive, which never carried structures', async () => {
+    // Start from an EMPTY scratch database so the manifest describes exactly one collection.
+    // The previous case leaves the shaped collection behind, and a whole-database dump would
+    // otherwise carry it too — which is correct behaviour but makes the arithmetic here lie.
+    for (const info of await scratch.listCollections({}, { nameOnly: true }).toArray()) {
+      await scratch.collection(info.name).drop().catch(() => {});
+    }
+    await scratch.collection(A).insertMany(fixtures());
+
+    const outDir = caseDir('legacy');
+    const manifest = await createBackup({ db: scratch, outDir, databaseName: SCRATCH_DB });
+
+    // Rewrite the manifest as the format written before 2026-11-27: no options, no indexes.
+    const legacy = {
+      ...manifest,
+      format: 'inventory-ai-backup/1',
+      collections: manifest.collections.map(({ options, indexes, ...rest }) => rest),
+    };
+    delete legacy.totals.indexes;
+    await writeFile(path.join(outDir, MANIFEST_NAME), JSON.stringify(legacy));
+
+    const read = await readManifest(outDir);
+    assert.equal(read.format, 'inventory-ai-backup/1', 'a v1 manifest is still accepted');
+
+    await scratch.collection(A).drop();
+    const result = await restoreBackup({ db: scratch, dir: outDir });
+    const recorded = read.collections.reduce((sum, entry) => sum + entry.count, 0);
+    assert.equal(result.insertedTotal, recorded, 'every document the v1 manifest records is restored');
+    assert.equal(result.indexesCreated, 0, 'a v1 archive restores documents and claims no structures');
+    assert.equal(result.optionsRestored, 0, 'and no collection options it never carried');
+    assert.equal((await scratch.collection(A).find({}).toArray()).length, 3);
   });
 
   it('the comparison helper can fail — otherwise every comparison above is vacuous', () => {

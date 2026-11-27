@@ -111,6 +111,10 @@ value. The response is `Cache-Control: no-store`.
   "lastOutcome": "SUCCESS",
   "lastOutcomeAt": "2026-11-27T18:24:23.114Z",
   "detail": null,
+  "scheduledAttested": false,
+  "attestationReason": "no provenance was recorded for this run — the SCHEDULED label is unproved",
+  "attestedAt": "2026-11-27T19:00:11.402Z",
+  "scheduledRunId": "c23524d5-010d-44a9-b56d-136d22edbd18",
   "timestamp": "2026-11-27T18:24:43.295Z"
 }
 ```
@@ -125,6 +129,9 @@ value. The response is `Cache-Control: no-store`.
 | `archive`, `sha256` | The qualifying archive's file name and digest, `null` when none qualifies |
 | `lastOutcome`, `lastOutcomeAt` | The newest run of any kind, so a failing backup is visible even when an older archive is still fresh |
 | `detail` | One sentence naming why the verdict is not `fresh` |
+| `scheduledAttested` | Whether the newest run that **claims** `SCHEDULED` can be proved to be this repository's GitHub schedule (`backup-daily.yml` on `refs/heads/main`, `event: schedule`, numeric run id, 40-character SHA, Linux runner). Independent of `fresh`: a manual recovery run satisfies `fresh` but cannot attest the schedule |
+| `attestationReason` | Why the claim is not attested, or `null` when it is. Every row written before provenance was captured reads `no provenance was recorded …` |
+| `attestedAt`, `scheduledRunId` | When that claiming run finished, and its id — so the operator knows which execution was judged |
 
 **HTTP 200** means `state: "fresh"`: the newest qualifying run is inside the threshold. **HTTP 503**
 means the opposite, and the body separates the cases — `stale` (a verified archive exists but is

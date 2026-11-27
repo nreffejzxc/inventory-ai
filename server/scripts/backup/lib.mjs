@@ -46,8 +46,19 @@ import { uriDatabaseMismatch } from '../lib/mongo-uri.mjs';
 /** Canonical Extended JSON — the only serialization that round-trips ObjectId/Date/Decimal128. */
 const { EJSON } = mongoose.mongo.BSON;
 
-/** Stamped into every manifest; a reader refuses a format it does not know. */
-export const BACKUP_FORMAT = 'inventory-ai-backup/1';
+/** Stamped into every manifest. v2 adds collection options and index definitions. */
+export const BACKUP_FORMAT = 'inventory-ai-backup/2';
+
+/**
+ * v1 manifests are still READ. They were written before collection options and index
+ * definitions were captured, and refusing them would strand every archive made before
+ * 2026-11-27. A v1 restore rebuilds documents only — exactly what it always did — and
+ * reports zero indexes rather than pretending it restored structures it never had.
+ */
+export const LEGACY_BACKUP_FORMAT = 'inventory-ai-backup/1';
+
+/** Every manifest format this reader can restore, newest first. */
+export const SUPPORTED_BACKUP_FORMATS = Object.freeze([BACKUP_FORMAT, LEGACY_BACKUP_FORMAT]);
 
 /** Always written inside the backup directory, next to the collection files. */
 export const MANIFEST_NAME = 'manifest.json';
@@ -94,6 +105,101 @@ export function formatBytes(bytes) {
 /** True for MongoDB's own bookkeeping collections, which are never dumped. */
 export function isSystemCollection(name) {
   return String(name ?? '').startsWith('system.');
+}
+
+/**
+ * The collection options that shape a RESTORE, not just a read.
+ *
+ * `listCollections({}, { nameOnly: true })` — what v1 used — returns names only, so all of
+ * this was invisible to every backup before 2026-11-27: a collection came back with default
+ * options whatever it had before. The list is a whitelist on purpose. An option MongoDB adds
+ * later must be a deliberate addition here rather than something copied into a manifest and
+ * then fed back to `createCollection` on restore.
+ */
+export const COLLECTION_OPTION_KEYS = Object.freeze([
+  'validator',
+  'validationLevel',
+  'validationAction',
+  'capped',
+  'size',
+  'max',
+  'collation',
+  'changeStreamPreAndPostImages',
+  'timeseries',
+]);
+
+/** Index build options a restore must reproduce; the key itself is stored separately. */
+export const INDEX_OPTION_KEYS = Object.freeze([
+  'name',
+  'unique',
+  'sparse',
+  'expireAfterSeconds',
+  'partialFilterExpression',
+  'collation',
+  'weights',
+  'default_language',
+  'language_override',
+  'textIndexVersion',
+  '2dsphereIndexVersion',
+  'bits',
+  'min',
+  'max',
+  'wildcardProjection',
+  'hidden',
+]);
+
+/** Only the whitelisted keys. Pure, so the shape rule is testable without a database. */
+export function pickCollectionOptions(options) {
+  const out = {};
+  for (const key of COLLECTION_OPTION_KEYS) {
+    if (options && Object.prototype.hasOwnProperty.call(options, key) && options[key] !== undefined) {
+      out[key] = options[key];
+    }
+  }
+  return out;
+}
+
+/**
+ * One index definition, reduced to what `createIndex` accepts.
+ *
+ * `_id_` is never returned: every collection has it, `createIndex` cannot create it and
+ * MongoDB refuses an attempt to do so, so carrying it would make every restore fail.
+ */
+export function pickIndexSpec(spec) {
+  if (!spec || !spec.key) return null;
+  if (spec.name === '_id_') return null;
+  const out = { key: spec.key };
+  for (const key of INDEX_OPTION_KEYS) {
+    if (spec[key] !== undefined) out[key] = spec[key];
+  }
+  return out;
+}
+
+/**
+ * The structural half of one collection's backup: its options and its index definitions.
+ *
+ * Best-effort in ONE direction only. A collection whose index list cannot be read is
+ * recorded with no indexes and a `shapeError`, because dropping an entire archive over one
+ * failed `listIndexes` would trade a backup for a diagnostic. The error travels in the
+ * manifest, so a restore can SEE the gap instead of assuming there was nothing to rebuild.
+ */
+async function readCollectionShape(db, name) {
+  const shape = { options: {}, indexes: [] };
+  const problems = [];
+  try {
+    const listed = await db.listCollections({ name }, { nameOnly: false }).toArray();
+    shape.options = pickCollectionOptions(listed?.[0]?.options ?? {});
+  } catch (error) {
+    problems.push(`collection options could not be read (${error?.message ?? error})`);
+  }
+  try {
+    const indexes = await db.collection(name).indexes();
+    shape.indexes = indexes.map(pickIndexSpec).filter(Boolean);
+  } catch (error) {
+    problems.push(`index definitions could not be read (${error?.message ?? error})`);
+  }
+  if (problems.length) shape.shapeError = problems.join('; ').slice(0, 500);
+  return shape;
 }
 
 function looksProduction(name) {
@@ -355,6 +461,34 @@ export async function writeManifest(dir, manifest) {
   return target;
 }
 
+/**
+ * A v2 manifest must describe structure for EVERY collection.
+ *
+ * `createBackup` writes `indexes` and `options` unconditionally, so their absence in a v2
+ * file is damage, not an old archive. Without this check the restore would treat the entry
+ * like a v1 one, rebuild the documents and silently create no index — the exact failure a
+ * unique guard exists to prevent. v1 archives are exempt: they never carried either field.
+ */
+function assertStructureRecorded(manifest, dir) {
+  if (manifest.format !== BACKUP_FORMAT) return;
+  const incomplete = manifest.collections
+    .filter(
+      (entry) =>
+        !Array.isArray(entry?.indexes) ||
+        !entry?.options ||
+        typeof entry.options !== 'object' ||
+        Array.isArray(entry.options)
+    )
+    .map((entry) => entry?.name ?? '(unnamed collection)');
+  if (incomplete.length) {
+    throw new BackupSafetyError(
+      `Refusing to continue: ${MANIFEST_NAME} in "${dir}" declares ${BACKUP_FORMAT} but records no ` +
+        `structure for ${incomplete.join(', ')}. A v2 manifest always carries index definitions and ` +
+        'collection options, so this file is damaged or hand-edited. Nothing was restored.'
+    );
+  }
+}
+
 /** Read and shape-check a manifest. A missing or foreign file is refused, never guessed. */
 export async function readManifest(dir) {
   const target = path.join(dir, MANIFEST_NAME);
@@ -372,9 +506,10 @@ export async function readManifest(dir) {
   } catch {
     throw new BackupSafetyError(`Refusing to continue: ${MANIFEST_NAME} in "${dir}" is not valid JSON.`);
   }
-  if (!parsed || parsed.format !== BACKUP_FORMAT) {
+  if (!parsed || !SUPPORTED_BACKUP_FORMATS.includes(parsed.format)) {
     throw new BackupSafetyError(
-      `Refusing to continue: ${MANIFEST_NAME} in "${dir}" is not a ${BACKUP_FORMAT} manifest.`
+      `Refusing to continue: ${MANIFEST_NAME} in "${dir}" is not a recognised backup manifest ` +
+        `(format "${parsed?.format ?? 'missing'}"; expected one of ${SUPPORTED_BACKUP_FORMATS.join(', ')}).`
     );
   }
   if (!Array.isArray(parsed.collections) || parsed.collections.length === 0) {
@@ -383,6 +518,7 @@ export async function readManifest(dir) {
         'not a restore point.'
     );
   }
+  assertStructureRecorded(parsed, dir);
   return parsed;
 }
 
@@ -443,8 +579,12 @@ export async function createBackup({ db, outDir, databaseName, now = new Date(),
   const collections = [];
   for (const name of names) {
     const entry = await dumpCollection(db, name, path.join(outDir, `${name}.jsonl.gz`));
-    collections.push(entry);
-    if (onCollection) onCollection(entry);
+    // Documents, then the structures that make them mean anything. Without this pair a
+    // restore reproduced every row and none of the rules the rows were written under.
+    const shape = await readCollectionShape(db, name);
+    const described = { ...entry, ...shape };
+    collections.push(described);
+    if (onCollection) onCollection(described);
   }
 
   const manifest = {
@@ -458,6 +598,7 @@ export async function createBackup({ db, outDir, databaseName, now = new Date(),
       collections: collections.length,
       documents: collections.reduce((sum, entry) => sum + entry.count, 0),
       bytes: collections.reduce((sum, entry) => sum + entry.bytes, 0),
+      indexes: collections.reduce((sum, entry) => sum + (entry.indexes?.length ?? 0), 0),
       uncompressedBytes: collections.reduce((sum, entry) => sum + entry.uncompressedBytes, 0),
     },
   };
@@ -489,6 +630,15 @@ export async function restoreBackup({ db, dir, dryRun = false, onCollection, onP
   const verified = await verifyBackup(dir, manifest);
 
   let insertedTotal = 0;
+  let indexesCreated = 0;
+  let optionsRestored = 0;
+  // A backup that could not read a collection's shape recorded that gap instead of failing
+  // (see `readCollectionShape`). The restore must say so: otherwise the operator reads
+  // "145 indexes recreated" and never learns that one collection's structure was unknowable
+  // when the archive was written.
+  const shapeWarnings = verified
+    .filter((entry) => entry.shapeError)
+    .map((entry) => `${entry.name}: ${entry.shapeError}`);
   for (const entry of verified) {
     if (dryRun) {
       if (onCollection) onCollection({ ...entry, inserted: 0, dropped: false });
@@ -500,6 +650,23 @@ export async function restoreBackup({ db, dir, dryRun = false, onCollection, onP
       // A collection that does not exist yet is the normal first-restore case; anything
       // else must surface rather than be swallowed into "restored anyway".
       if (error?.codeName !== 'NamespaceNotFound' && error?.code !== 26) throw error;
+    }
+
+    // Collection options BEFORE the documents. Capped/size/max and collation are
+    // creation-time properties, and applying a validator up front means a backup that
+    // violates its own rules fails here instead of restoring a database that contradicts
+    // itself. v1 entries carry no options, so this is skipped for them.
+    const options = entry.options && Object.keys(entry.options).length ? entry.options : null;
+    if (options) {
+      try {
+        await db.createCollection(entry.name, options);
+        optionsRestored += 1;
+      } catch (error) {
+        throw new BackupIntegrityError(
+          `Restore of "${entry.name}" could not recreate its collection options ` +
+            `(${error?.message ?? error}). The database is left incomplete — restore again from a verified copy.`
+        );
+      }
     }
 
     const startedAt = Date.now();
@@ -521,9 +688,27 @@ export async function restoreBackup({ db, dir, dryRun = false, onCollection, onP
     }
     insertedTotal += inserted;
     if (onCollection) onCollection({ ...entry, inserted, dropped: true, elapsedMs });
+
+    // Then the indexes, AFTER the documents: a unique index created over restored data
+    // PROVES the restore, where creating it first and inserting afterwards would let the
+    // guard be bypassed. v1 entries have no `indexes` array, so they restore as they always did.
+    const specs = Array.isArray(entry.indexes) ? entry.indexes.filter((spec) => spec && spec.key) : [];
+    for (const spec of specs) {
+      const { key, ...indexOptions } = spec;
+      try {
+        await db.collection(entry.name).createIndex(key, indexOptions);
+        indexesCreated += 1;
+      } catch (error) {
+        throw new BackupIntegrityError(
+          `Restore of "${entry.name}" restored its documents but could not recreate index ` +
+            `"${spec.name ?? JSON.stringify(key)}" (${error?.message ?? error}). ` +
+            'Duplicate data or an unsupported index option is the usual cause; fix it and restore again.'
+        );
+      }
+    }
   }
 
-  return { manifest, verified, insertedTotal, dryRun };
+  return { manifest, verified, insertedTotal, dryRun, indexesCreated, optionsRestored, shapeWarnings };
 }
 
 /** Remove a partially written backup directory (used when a dump fails mid-way). */
@@ -533,6 +718,12 @@ export async function removePartialBackup(dir) {
 
 export default {
   BACKUP_FORMAT,
+  LEGACY_BACKUP_FORMAT,
+  SUPPORTED_BACKUP_FORMATS,
+  COLLECTION_OPTION_KEYS,
+  INDEX_OPTION_KEYS,
+  pickCollectionOptions,
+  pickIndexSpec,
   MANIFEST_NAME,
   BACKUP_CONFIRM_PHRASE,
   RESTORE_CONFIRM_PHRASE,

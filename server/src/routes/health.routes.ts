@@ -246,6 +246,12 @@ export function createHealthHandlers({
           lastOutcome: null,
           lastOutcomeAt: null,
           detail: 'the backup freshness check could not run',
+          // Same shape as a successful answer, so a monitor never has to parse a reason:
+          // an unreadable history cannot attest anything.
+          scheduledAttested: false,
+          attestationReason: 'the backup freshness check could not run',
+          attestedAt: null,
+          scheduledRunId: null,
           timestamp: timestamp(),
         });
       }

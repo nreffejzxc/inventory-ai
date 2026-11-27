@@ -23,6 +23,7 @@
  * without parsing a reason.
  */
 import { listBackupRunRecords, type BackupRunRecord } from './backupRuns.service.ts';
+import { attestScheduledRun } from './backupProvenance.service.ts';
 
 /** One missed daily run plus slack: the schedule is daily, the alarm is not. */
 export const DEFAULT_BACKUP_MAX_AGE_HOURS = 30;
@@ -38,6 +39,16 @@ export type BackupFreshnessView = {
   lastOutcome: string | null;
   lastOutcomeAt: string | null;
   detail: string | null;
+  /**
+   * Whether the newest run that CLAIMS a scheduled execution can be proved to have come
+   * from the GitHub schedule. Separate from `fresh` on purpose: `fresh` answers "is there a
+   * restorable recent archive", which a legitimate manual recovery run satisfies, while this
+   * answers "did the automated pipeline do it".
+   */
+  scheduledAttested: boolean;
+  attestationReason: string | null;
+  attestedAt: string | null;
+  scheduledRunId: string | null;
 };
 
 function positiveHours(value: unknown, fallback: number): number {
@@ -76,6 +87,10 @@ export async function readBackupFreshness({
     lastOutcome: null,
     lastOutcomeAt: null,
     detail: null,
+    scheduledAttested: false,
+    attestationReason: null,
+    attestedAt: null,
+    scheduledRunId: null,
   };
 
   let runs: BackupRunRecord[];
@@ -98,10 +113,25 @@ export async function readBackupFreshness({
     detail: latest ? latest.detail : null,
   };
 
+  // The scheduled claim is judged on the NEWEST run that makes it, not on the newest run
+  // overall: a manual recovery backup must not silence the question of whether the schedule
+  // is working, and a fresh manual run must not make an unattested claim look proved.
+  const scheduledClaim = runs.find((run) => run.trigger === 'SCHEDULED') ?? null;
+  const attestation = scheduledClaim
+    ? attestScheduledRun(scheduledClaim)
+    : { attested: false, reason: 'no run has claimed a scheduled execution' };
+  const scheduled = {
+    scheduledAttested: attestation.attested,
+    attestationReason: attestation.reason,
+    attestedAt: scheduledClaim ? (scheduledClaim.finishedAt ?? scheduledClaim.startedAt) : null,
+    scheduledRunId: scheduledClaim ? scheduledClaim.runId : null,
+  };
+
   if (!verified) {
     return {
       ...empty,
       ...outcome,
+      ...scheduled,
       state: 'missing',
       fresh: false,
       detail: latest
@@ -128,6 +158,7 @@ export async function readBackupFreshness({
     archive: verified.archive,
     sha256: verified.sha256,
     ...outcome,
+    ...scheduled,
   };
 }
 

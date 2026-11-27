@@ -60,9 +60,28 @@ So yes: products, stock, transactions, purchase orders, suppliers, users, locati
 conversations, audit history and the platform tables are all in there — everything the application
 writes, in one archive.
 
-**Two things a backup does *not* contain:** index definitions and collection options (validators).
-Restoring puts the documents back but does **not** rebuild the indexes; that is a separate step
-(§7). And a backup is a *snapshot of one moment* — anything written after it is not in it.
+**A v2 backup carries the structure as well as the documents.** Since 2026-11-27 the manifest is
+`inventory-ai-backup/2`: each collection entry also records
+
+- its **collection options** — `validator`, `validationLevel`, `validationAction`, `capped`, `size`,
+  `max`, `collation`, `changeStreamPreAndPostImages`, `timeseries` (only these, from a fixed
+  whitelist, so a future MongoDB option cannot be captured by accident); and
+- its **index definitions** — key, name, `unique`, `sparse`, `expireAfterSeconds`
+  (the TTL indexes), `partialFilterExpression`, `collation`, text-index weights/language, geo and
+  wildcard options. `_id_` is excluded: every collection has it and it cannot be created.
+
+A restore then reapplies both: options first (a validator is a creation-time property and applies to
+the inserts that follow), documents next, indexes **last**, so a unique index is built over the
+restored data and therefore proves it rather than being bypassed by it.
+
+**v1 archives are still readable, but they never captured any of this.** An archive written before
+2026-11-27 restores documents only; `restore:db` prints a `WARNING` block saying exactly that, and its
+final `structure:` line reads `NOT restored` instead of a count. Do not read a successful v1 restore
+as proof that indexes or validators came back.
+
+**What a backup still cannot contain:** anything written after it. It is a *snapshot of one moment*.
+A backup whose shape could not be read records the reason in that collection's `shapeError`, and the
+restore prints it as a `WARNING` rather than quietly rebuilding nothing.
 
 > **A backup is a full copy of your credentials.** `users` holds password hashes, `sessions` holds
 > live session rows, `platform_admins` holds the platform operator record. That is exactly why the
@@ -304,7 +323,10 @@ read `totals.collections`, `totals.documents` and the `collections` list. One re
 ```
 
 Each record also carries `uncompressedBytes` — the space that collection will occupy once restored —
-because a restore that does not fit is the failure this repository has actually hit.
+because a restore that does not fit is the failure this repository has actually hit. A v2 record adds
+`options` and `indexes` (the structures described in §1), and `manifest.totals.indexes` is their total
+across the archive. A v1 record has neither field, and that absence is the difference the restore
+warns about.
 
 To read a collection without any tooling, the file is gzip-compressed text with one Extended JSON
 document per line:
@@ -351,15 +373,25 @@ Expected last line: `[restore:db] OK — verified N file(s) against the manifest
 CONFIRM=restore-db node scripts/restore-db.mjs \
 ```
 
-Success prints a per-collection `inserted` count and ends with `OK — … restored …`. If it says
-`inserted N document(s) but the manifest recorded M`, the restore stopped in an incomplete state —
-restore again from a verified copy.
+Success prints a per-collection `inserted` count and ends with `OK — … restored …`, followed by a
+`structure:` line. For a v2 archive that line is
+`structure: N index(es) recreated, M collection option set(s) applied.`; for v1 it is
+`structure: NOT restored — this v1 archive predates structure capture; no index or collection option
+was available to rebuild.` If the run says `inserted N document(s) but the manifest recorded M`, or
+names an index it could not recreate, the restore stopped in an incomplete state — restore again from
+a verified copy.
 
-**Restoring does not rebuild indexes or collection validators.** The documents come back; the indexes
-defined in the models do not. On a disposable database that is harmless for a rehearsal. A database
-you intend to *use* afterwards needs its indexes recreated — `npm run migrate:required-indexes`
-exists for that, but it has **not** been exercised as part of a restore drill, so treat it as
-unverified until someone does.
+**A v2 archive rebuilds its indexes and collection options.** The indexes are created after the
+documents, so a duplicate row or an unsupported option fails the restore loudly instead of being
+skipped; the message names the collection and the index. `_id_` is not recreated (MongoDB owns it).
+
+**A v1 archive cannot.** It predates structure capture, so it restores documents only, and the CLI
+says so before the first drop and again in its final `structure:` line. On a disposable database that
+is harmless for a rehearsal, but it is not a faithful reconstruction. A database you intend to *use*
+afterwards needs its indexes created some other way — `npm run migrate:required-indexes` covers the six
+required guards, but it has **not** been exercised as part of a restore drill, so treat it as
+unverified until someone does. For a collection whose shape the backup could not read, the restore
+prints a `WARNING` naming `shapeError`; that archive has no proof of that collection's structure.
 
 The easier route for a rehearsal is the wrapper's own dry run, which decrypts, verifies and calls
 `restore:db --dry-run` in one step:
@@ -372,6 +404,34 @@ node scripts/backup-db-encrypted.mjs \
 ```
 
 It must print `DRY RUN — nothing will be written`.
+
+### Index names when a backup crosses environments
+
+Index names are **per collection** and a restore **drops each collection before rebuilding it**, so
+a name recorded in a manifest can never collide with whatever the target database held. Manifests
+therefore need no normalisation: the restore is name-faithful, and a cross-environment run restores
+the names the archive recorded. Verified 2026-11-28 by restoring a 35-collection, 144-index archive
+into a second database: the canonical index came back with its `unique` and partial filter intact,
+and re-declaring it produced no error.
+
+One divergence was real, though, and worth knowing about. `purchase_orders` carries the DRAFT-replay
+guard on `(businessId, requestKey)`; development and test had it as `businessId_1_requestKey_1`
+(MongoDB's generated name) while production had `uniq_purchase_order_request_key`. The key, the
+`unique` flag and the partial filter were identical — the difference was **naming only**. The cause
+was a split declaration: `PURCHASE_ORDER_REQUEST_KEY_INDEX` named the index, but `schema.index()` did
+not pass that name on, so a boot created the generated name while `migrate:required-indexes` created
+the explicit one. `evaluateRequiredIndex` matches on keys, so both environments reported *ready*
+while MongoDB refuses to create the second name over the same key (`IndexOptionsConflict`, code 85) —
+which is what a boot or a restore-then-boot would hit.
+
+It is corrected at the source: the model now declares `name`, development and test were rebuilt under
+`uniq_purchase_order_request_key`, and production already had it. `npm run audit:indexes` reports
+**0 declaration/database disagreements** over 144 declared indexes.
+
+⚠️ An archive written **before 2026-11-28** from development or test records the old generated name,
+so restoring it reproduces that name. Rebuild the index afterwards (drop the generated one, create
+`uniq_purchase_order_request_key` with the same key, `unique` and partial filter) before the API
+boots against the restored database; otherwise the boot logs `IndexOptionsConflict` for that index.
 
 ### B. Production lost data — the honest answer
 
@@ -444,7 +504,12 @@ Each run, in order:
 1. creates the encrypted archive exactly as §3 describes — public key only, no passphrase;
 2. copies the `.gpg` and its `.sha256` to `C:\Users\jeffe\OneDrive\Inventory-AI-Backups`, checks the
    copy’s SHA-256, and only then renames the pair into place;
-3. applies retention in both folders.
+3. applies retention in both folders;
+4. records the run as **`MANUAL`**, not `SCHEDULED` (`scripts/run-db-backup.ps1`). `SCHEDULED` means the
+   GitHub Actions schedule, the only execution the server can attest. Until 2026-11-28 this wrapper
+   said `SCHEDULED`, which produced rows the attestation reader could not prove *and* masked the
+   genuine GitHub run, because the newest `SCHEDULED` claim is the one judged. The backup itself is
+   unchanged by the label.
 
 **Retention — 14 daily, 4 weekly, 3 monthly** keeps the newest archive of:
 
@@ -494,11 +559,97 @@ mail the same failure twice. With `BACKUP_ALERT_EMAIL` empty nothing is sent: th
 scheduler log are the only record, and the alarm line is written at error level instead.
 
 An `INTERRUPTED` alert is raised by the **next** run — the process that would have reported the
-result is gone — so if this machine stops running backups entirely, nothing here can say so.
-UptimeRobot and the health probes remain the only watcher for that case.
+result is gone — so if this machine stops running backups entirely, the email cannot say so. The
+offsite schedule below and `GET /api/health/backup` are the watcher for that case.
 
 To see the state of the alert for a run, open Backups & Restore in the platform console; the run row
 keeps its claim, its sent time and the last delivery error.
+
+### The offsite schedule — GitHub Actions, Google Drive, no laptop required
+
+The Windows task above only runs while this account is signed in. The **offsite** schedule is the
+copy that does not depend on this machine: `.github/workflows/backup-daily.yml` runs the same
+`server/scripts/backup-daily.mjs` daily on GitHub's own runners and uploads the encrypted archive to
+Google Drive.
+
+| What | How |
+| --- | --- |
+| When | `schedule: '40 2 * * *'` (02:40 UTC daily), plus `workflow_dispatch` for a manual run |
+| Trigger delay | GitHub fires scheduled workflows late — measured **9.5–12 h** on this repository's own `typescript-7-watch`. A daily backup with a 30-hour freshness alarm tolerates that; a strict 03:00 promise would not |
+| Dump | the existing `backup:db` (driver-based, no `mongodump`), verified against its manifest before encryption |
+| Encryption | `backup:db:encrypted`, public key only, fingerprint `24BBDA0C3A6D6273C9A8C3B1DAA4DB67BAC14E26` |
+| Upload | `rclone` to `gdrive:InventoryAI-Backups`, `drive.file` scope, token supplied through the environment |
+| Proof | the archive is **re-downloaded** from Drive and its SHA-256 compared with the `.sha256` sidecar before the run may report `offsite: 'verified'` |
+| Retention | the same 14/4/3 planner, applied to the remote; the newest archive is always kept |
+| Idempotency | `--skip-if-today` reads the date out of the archive's own name, so a second delivery the same UTC day exits 0 without a second archive, run row or email |
+| Alarm | `GET /api/health/backup` answers **200** only when the newest `SUCCESS` run carries a verified offsite archive no older than `BACKUP_MAX_AGE_HOURS` (default 30); otherwise **503** |
+
+The GPG **private** key and its passphrase are not in Actions, in Drive, or in any secret: the job
+holds only the public key, so it can encrypt but never decrypt. A decryption still happens on this
+machine, with the offline key (§5).
+
+`offsite: 'verified'` therefore means something specific and narrow: *the bytes were read back from
+Drive and matched*. It does not mean the archive was decrypted and restored — that is the manual
+rehearsal in §4 and §7A, and it remains the only proof of a **restorable** backup.
+
+Add one UptimeRobot monitor so a missed run is not silent: keyword monitor on
+`https://ai-inventory-l1mi.onrender.com/api/health/backup`, keyword `"fresh":true`, alert when the
+keyword is **not** found. The free plan covers this (50 monitors, 5-minute checks, keyword type).
+
+### What `/api/health/backup` publishes about the *schedule*
+
+`fresh` answers "is there a restorable recent archive". It does not answer "did the automated pipeline
+make it" — a legitimate manual recovery run satisfies `fresh` too. Two fields answer the second
+question, and they are judged on the newest run that **claims** `SCHEDULED`, not on the newest run
+overall:
+
+| Field | Meaning |
+| --- | --- |
+| `scheduledAttested` | `true` only when that claim is proved: `source: github-actions`, `event: schedule`, a numeric run id, a 40-character SHA, `workflowRef` naming `.github/workflows/backup-daily.yml` on `refs/heads/main`, and `platform: linux` |
+| `attestationReason` | Why it is `false` — no claim yet, no provenance recorded, not from GitHub Actions, the event was `workflow_dispatch`, a malformed run id or SHA, a different workflow file or branch, or a non-Linux platform. `null` when attested |
+| `scheduledRunId`, `attestedAt` | Which run was judged, and when it finished |
+
+Every older row has `attestationReason: "no provenance was recorded for this run …"` and cannot
+become attested retroactively. The laptop task deliberately records `MANUAL` for that reason; `SCHEDULED`
+is reserved for the GitHub schedule, and a local run that claimed it would also shadow the genuine
+GitHub run, because the newest claim is the one judged.
+
+### Healthchecks.io — the dead-man switch
+
+The freshness endpoint is still a proxy: it reads a row the runner writes, so a broken row write, a
+paused monitor or a deleted monitor all look like silence. The heartbeat inverts that — the runner
+pings an outside service **after** the archive exists and its record is written, and the service alerts
+on the *absence* of the ping.
+
+| What | How |
+| --- | --- |
+| Service | healthchecks.io, free plan, account `jeffernmalinaoqwe@gmail.com` |
+| Check | one check named for the backup, period **24 hours**, grace **6 hours**, email notifications enabled |
+| Success signal | `POST` to the check's ping URL, sent only after `closeRunRecord` reports the record was written |
+| Failure signal | `POST <ping-url>/fail` when a run that already knows it failed ends |
+| Where the URL lives | GitHub Actions secret **`BACKUP_HEARTBEAT_URL`**; read from the environment by `server/scripts/backup/heartbeat.mjs`, never logged, never in a run record |
+| If unset | the runner prints `heartbeat: NOT delivered (not-configured)` and carries on — no ping, no failure, and **no monitoring** |
+
+A 24-hour period with 6-hour grace alarms about 30 hours after the last ping, which is the same
+window `BACKUP_MAX_AGE_HOURS` (30) uses, so the two signals do not disagree about what "late" means.
+
+**`BACKUP_HEARTBEAT_URL` is set (2026-11-28).** A real run through `scripts/run-db-backup.ps1` logged `heartbeat: heartbeat delivered (HTTP 200)` and the check read `up`. With the secret absent the pipeline
+still backs up and still records runs; there is simply no out-of-band alarm if it stops. Check it with
+`gh secret list --repo nreffejzxc/inventory-ai`, which prints names and update times only — never a
+value. Set or rotate it from a **file**, so the URL never enters a shell history, a chat or a log:
+
+```bash
+gh secret set BACKUP_HEARTBEAT_URL --repo nreffejzxc/inventory-ai \
+  < C:/Users/jeffe/.backup-secrets/healthchecks-ping-url
+```
+
+The ping URL is a write capability: anyone holding it can report a backup that never happened. Keep it
+in that file, not in the repository, not in `server/.env`. An ordinary laptop run stays silent because
+the workflow supplies the variable from that secret; only a deliberate local export satisfies the monitor.
+
+Secrets the workflow needs are listed at the top of the workflow file. Set them in
+**Settings → Secrets and variables → Actions**; the Drive token comes from `rclone authorize "drive"`
+on a machine with a browser, and it is the only credential in this design that can act on your Drive.
 
 ## 10. Troubleshooting
 

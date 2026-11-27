@@ -322,7 +322,14 @@ export const PURCHASE_ORDER_REQUEST_KEY_INDEX = {
   unique: true,
   partialFilterExpression: { requestKey: { $type: 'string' } },
 } as const;
+// THE NAME IS PART OF THE DECLARATION. Without it Mongoose builds this index under its
+// generated name (`businessId_1_requestKey_1`) while `migrate:required-indexes` builds the
+// same keys as `uniq_purchase_order_request_key` — which is exactly the divergence found
+// between the development and production databases on 2026-11-28. Readiness matches on
+// keys, not names, so both were "ready" while a boot and a restore could disagree about
+// what the index is called. One declaration, one name.
 purchaseOrderSchema.index(PURCHASE_ORDER_REQUEST_KEY_INDEX.key, {
+  name: PURCHASE_ORDER_REQUEST_KEY_INDEX.name,
   unique: PURCHASE_ORDER_REQUEST_KEY_INDEX.unique,
   partialFilterExpression: PURCHASE_ORDER_REQUEST_KEY_INDEX.partialFilterExpression,
 });

@@ -21,11 +21,13 @@ import mongoose from 'mongoose';
 
 import env from '../src/config/env.ts';
 import {
+  BACKUP_FORMAT,
   RESTORE_CONFIRM_PHRASE,
   RESTORE_ALLOWED_DATABASES,
   BackupSafetyError,
   assertConfirm,
   assertRestoreTarget,
+  formatBytes,
   readManifest,
   restoreBackup,
 } from './backup/lib.mjs';
@@ -40,12 +42,6 @@ function argValue(prefix) {
 function fail(message) {
   console.error(`[${COMMAND}] ${message}`);
   process.exit(1);
-}
-
-function formatBytes(bytes) {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 async function main() {
@@ -83,6 +79,24 @@ async function main() {
     `[${COMMAND}] size     : ${manifest.totals?.documents ?? 0} document(s), about ` +
       `${formatBytes(manifest.totals?.uncompressedBytes ?? 0)} to write`
   );
+  // A v1 archive cannot rebuild structure, and the operator has to know that BEFORE the
+  // first drop. The restore still succeeds — documents are what it always restored — but
+  // saying nothing would leave someone believing the indexes and validators came back.
+  const structureRecorded = manifest.format === BACKUP_FORMAT;
+  if (!structureRecorded) {
+    console.log(
+      `[${COMMAND}] WARNING  : this archive is format "${manifest.format}", which predates structure capture.`
+    );
+    console.log(
+      `[${COMMAND}]            It records documents only — no index definitions and no collection options.`
+    );
+    console.log(
+      `[${COMMAND}]            This restore will NOT recreate indexes or collection options (validators);`
+    );
+    console.log(
+      `[${COMMAND}]            the result is a documents-only database until indexes are created separately.`
+    );
+  }
   if (dryRun) console.log(`[${COMMAND}] mode     : DRY RUN — nothing will be written`);
 
   await mongoose.connect(env.mongodbUri, { dbName: target });
@@ -131,6 +145,26 @@ async function main() {
         ? `[${COMMAND}] OK — verified ${result.verified.length} file(s) against the manifest; nothing was written.`
         : `[${COMMAND}] OK — ${result.verified.length} collection(s), ${result.insertedTotal} document(s) restored into ${target}.`
     );
+    // The structures the restore rebuilt, reported separately because they are the half a
+    // v1 archive cannot provide. A zero on a v2 backup is a defect, not a nuance: the
+    // operator needs to see that the unique, TTL and query indexes came back.
+    if (!dryRun) {
+      console.log(
+        structureRecorded
+          ? `[${COMMAND}] structure: ${result.indexesCreated ?? 0} index(es) recreated, ` +
+              `${result.optionsRestored ?? 0} collection option set(s) applied.`
+          : `[${COMMAND}] structure: NOT restored — this v1 archive predates structure capture; ` +
+              'no index or collection option was available to rebuild.'
+      );
+    }
+    // Structure the archive itself could not read. Reported either way, because a dry run is
+    // where the operator can still choose a different archive.
+    for (const warning of result.shapeWarnings ?? []) {
+      console.log(
+        `[${COMMAND}] WARNING  : structure is incomplete in this archive — ${warning}. ` +
+          'That collection’s indexes and options cannot be proven from it.'
+      );
+    }
     await mongoose.disconnect();
   } catch (error) {
     await mongoose.disconnect().catch(() => {});
