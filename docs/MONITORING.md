@@ -17,6 +17,7 @@ prints a secret, a token, a prompt, an answer, a tenant id or a member's identit
 | `GET /api/health` | Which process is answering, in which posture, with what response counters | Always `200` while the process is up | Reported, not required |
 | `GET /api/health/live` | Is the process alive? | Always `200` | Never consulted |
 | `GET /api/health/ready` | Can MongoDB be reached right now? | `200` ready, `503` not ready | Checked |
+| Backup freshness | `GET /api/health/backup` | Was a verified off-machine backup made recently? | `200` fresh, `503` stale/missing/unreadable | Read (`backup_runs`) |
 
 `GET /health` and `GET /ready` are backward-compatible aliases of the two `api` paths. They run
 the **same handlers** and return the same bodies and status codes; they are not a second
@@ -83,6 +84,79 @@ missing or stale. That is a monitoring state, not an API failure: the response i
 MongoDB, which is a real availability failure. Durable `ops_error_events` is written by the error
 handler, so a database-down readiness `503` cannot be stored while the database is unreachable; the
 health endpoint is the signal for that case.
+
+### Offsite backup freshness — `GET /api/health/backup`
+
+`GET /api/health/backup` answers the one question the other probes cannot: **was a restorable,
+off-machine backup actually made?** `/ready` proves the API can reach MongoDB right now and
+`/integrity` proves the laptop audit ran; neither can see last night's encrypted archive. The
+scheduled backup runs on GitHub's runners, so no process on the API host can inspect the file. This
+endpoint reads the durable `backup_runs` collection the runner writes and turns that history into one
+verdict.
+
+It is public for the same reason as the other health probes: an uptime monitor must be able to poll
+it without a token. It publishes the verdict, the newest verified archive's name and digest, its age
+and the threshold in force — never a credential, connection string, passphrase, private key or tenant
+value. The response is `Cache-Control: no-store`.
+
+```json
+{
+  "state": "fresh",
+  "fresh": true,
+  "lastVerifiedAt": "2026-11-27T18:24:23.114Z",
+  "ageHours": 0,
+  "maxAgeHours": 30,
+  "archive": "inventoryai_prod_db-20261127T182351Z.tar.gz.gpg",
+  "sha256": "<64 lowercase hexadecimal characters>",
+  "lastOutcome": "SUCCESS",
+  "lastOutcomeAt": "2026-11-27T18:24:23.114Z",
+  "detail": null,
+  "timestamp": "2026-11-27T18:24:43.295Z"
+}
+```
+
+| Field | Meaning |
+| --- | --- |
+| `state` | `fresh`, `stale`, `missing` or `unreadable` |
+| `fresh` | The boolean verdict a monitor should treat as health; `true` only for `fresh` |
+| `lastVerifiedAt` | `finishedAt` of the newest run that qualifies as a verified backup, `null` otherwise |
+| `ageHours` | Age of that run in hours to one decimal, `null` when it has no parsable time |
+| `maxAgeHours` | The threshold that was applied to this verdict |
+| `archive`, `sha256` | The qualifying archive's file name and digest, `null` when none qualifies |
+| `lastOutcome`, `lastOutcomeAt` | The newest run of any kind, so a failing backup is visible even when an older archive is still fresh |
+| `detail` | One sentence naming why the verdict is not `fresh` |
+
+**HTTP 200** means `state: "fresh"`: the newest qualifying run is inside the threshold. **HTTP 503**
+means the opposite, and the body separates the cases — `stale` (a verified archive exists but is
+older than the threshold), `missing` (no run has ever recorded a verified archive, including a
+history of runs that were `copied` locally, failed, or never written), and `unreadable` (the run
+history could not be read at all). Unlike the integrity probe, a `503` here is **not** excluded from
+`serverErrors`: a deployment with no recoverable backup is an operational failure, not a state
+report.
+
+**The threshold is 30 hours.** `BACKUP_MAX_AGE_HOURS` overrides it; the default
+(`DEFAULT_BACKUP_MAX_AGE_HOURS`) is one daily schedule plus slack, so one late or skipped run alarms
+and a runner that stops altogether alarms as soon as the newest verified archive ages out. A
+non-positive or non-numeric value falls back to `30` rather than disabling the check.
+
+**What counts as a backup.** Not a `SUCCESS` row on its own, and not an uploaded file on its own. A
+run qualifies only when it carries all of: `outcome: "SUCCESS"`, `offsite: "verified"`, a non-empty
+archive file name, a 64-character lowercase hexadecimal SHA-256, and a parsable `finishedAt`. The
+runner sets `offsite: "verified"` only after re-downloading the archive from Google Drive and matching
+its digest to the sidecar, so a run that encrypted and uploaded but could not prove the bytes stays
+`copied` and never satisfies this probe. Runs that finished without a parsable timestamp fail closed.
+The endpoint reads the **20 newest** rows, so a fresh verified run can never be masked by older
+history.
+
+**Why it depends on the database.** `backup_runs` is the only durable evidence of a backup once the
+job's log has rotated. The runner writes a start row and updates it with the result; those writes are
+deliberately best-effort, because an unreachable database must never prevent an archive from being
+made. The consequence is stated rather than hidden: if the backup user lacks `insert` and `update` on
+`backup_runs`, every run still produces a verified archive but leaves no record, and this endpoint
+reports `missing`. That is exactly what it did on 2026-11-27 until the collection-scoped
+`backupRunWriter` role was granted; the `SUCCESS` / `offsite: "copied"` run from 07:46Z that day
+correctly answered **503 `missing`**, and the first verified run at 18:24Z answered **200 `fresh`**
+with `ageHours: 0`.
 
 ## 1b. The Platform Operations console
 
@@ -599,6 +673,8 @@ grep "AI turn" <log> | grep -oE "model=[^ ]+ tier=[^ ]+" | sort | uniq -c
 
 ---
 
+| Backup freshness verdict | `server/src/services/backupFreshness.service.ts` |
+| Backup run history | `server/src/services/backupRuns.service.ts`, `server/src/models/backupRun.model.ts` |
 ## 5. Incident procedure
 
 1. **Name the build.** `GET /api/health` reports `commit`, `environment` and `uptimeSeconds`. If the
