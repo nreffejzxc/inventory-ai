@@ -53,6 +53,8 @@ and Guide 6 own the data commands.
 | [`AUTHENTICATION_AND_USER_VERIFICATION_TARGET_ARCHITECTURE.md`](AUTHENTICATION_AND_USER_VERIFICATION_TARGET_ARCHITECTURE.md) | How identity, sessions, verification and recovery are meant to work |
 | [`AUTH_SECURITY_MASTER_CHECKLIST.md`](AUTH_SECURITY_MASTER_CHECKLIST.md) | The security invariants (the one invariant register), control status, open decisions and gates |
 | [`SECURITY_DEPENDENCY_DECISIONS.md`](SECURITY_DEPENDENCY_DECISIONS.md) | Advisories accepted rather than patched, and when that ends |
+| [`SECURITY_CHANGE_2026-11-27.md`](SECURITY_CHANGE_2026-11-27.md) | The dated note for the Atlas database-role reduction and what was deliberately left alone |
+| [`BACKUP_AND_RECOVERY_OPTIONS.md`](BACKUP_AND_RECOVERY_OPTIONS.md) | Free backup options evaluated, the paid tiers priced, and why M10 is the first tier that actually recovers |
 | [`SOURCE_PROTECTION.md`](SOURCE_PROTECTION.md) | What protects the source, what does not, and the public-window caveat |
 | [`ACCOUNT_MIGRATION_RUNBOOK.md`](ACCOUNT_MIGRATION_RUNBOOK.md) | The current owner and repository, the paused migration decision, provider anchors, read-only checks and approval gates |
 | [`FIREBASE_CREDENTIAL_RUNBOOK.md`](FIREBASE_CREDENTIAL_RUNBOOK.md) | The Firebase Admin credential: where it comes from, how it is stored, verified and rotated |
@@ -95,6 +97,8 @@ Reference documents are consulted rather than read once, so they are reviewed on
 | [`AUTHENTICATION_AND_USER_VERIFICATION_TARGET_ARCHITECTURE.md`](AUTHENTICATION_AND_USER_VERIFICATION_TARGET_ARCHITECTURE.md) | 90 days | 2026-11-07 |
 | [`AUTH_SECURITY_MASTER_CHECKLIST.md`](AUTH_SECURITY_MASTER_CHECKLIST.md) | 90 days | 2026-11-07 |
 | [`SECURITY_DEPENDENCY_DECISIONS.md`](SECURITY_DEPENDENCY_DECISIONS.md) | 30 days | 2026-11-11 |
+| [`SECURITY_CHANGE_2026-11-27.md`](SECURITY_CHANGE_2026-11-27.md) | 90 days | 2026-11-27 |
+| [`BACKUP_AND_RECOVERY_OPTIONS.md`](BACKUP_AND_RECOVERY_OPTIONS.md) | 90 days | 2026-11-27 |
 | [`SOURCE_PROTECTION.md`](SOURCE_PROTECTION.md) | 90 days | 2026-11-07 |
 | [`ACCOUNT_MIGRATION_RUNBOOK.md`](ACCOUNT_MIGRATION_RUNBOOK.md) | 90 days | 2026-11-11 |
 | [`FIREBASE_CREDENTIAL_RUNBOOK.md`](FIREBASE_CREDENTIAL_RUNBOOK.md) | 90 days | 2026-11-07 |

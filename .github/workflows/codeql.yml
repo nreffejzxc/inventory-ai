@@ -1,0 +1,65 @@
+name: codeql
+
+# Code scanning (SARIF) for the JavaScript/TypeScript sources.
+#
+# Why this file exists: the repository is public (roadmap §27AE), so GitHub code
+# scanning is free, but no analysis had ever run — the Security tab reported
+# "no analysis found" while 19 Dependabot alerts were open. Dependabot covers
+# vulnerable dependency versions; it does not read this repository's own code.
+# This workflow adds the missing half: taint sources, unsafe deserialisation,
+# prototype pollution and injection paths in server/ and mobile/.
+#
+# Design constraints, all verified against the repository first:
+#   * No build step is required. The server runs its .ts sources through Node's
+#     native type stripping (tsconfig sets noEmit), so CodeQL's autobuild has
+#     nothing to compile and the `none` build mode is correct rather than lazy.
+#   * ZERO secrets, and no dependency install: the analysis runs on the checkout.
+#   * `javascript-typescript` covers both the backend and the React Native app;
+#     `paths-ignore` keeps generated and vendored trees out of the database so a
+#     finding always points at code a human wrote.
+#   * Pull-request and main only. No schedule: a weekly re-scan of unchanged code
+#     spends minutes to produce the same results.
+#   * Every action is pinned to a full commit SHA, as scripts/check-workflow-
+#     invariants.mjs requires and the other workflows already do.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  security-events: write
+
+concurrency:
+  group: codeql-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analyze:
+    name: analyze (javascript-typescript)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@915412ff23e8b7659517e607487dbeae018f2934 # v4.39.5
+        with:
+          languages: javascript-typescript
+          build-mode: none
+          queries: security-and-quality
+          config: |
+            paths-ignore:
+              - mobile/node_modules
+              - mobile/android
+              - mobile/build
+              - mobile/dist
+              - coverage
+              - docs
+
+      - name: Perform CodeQL analysis
+        uses: github/codeql-action/analyze@915412ff23e8b7659517e607487dbeae018f2934 # v4.39.5
+        with:
+          category: "/language:javascript-typescript"
