@@ -633,7 +633,7 @@ on the *absence* of the ping.
 A 24-hour period with 6-hour grace alarms about 30 hours after the last ping, which is the same
 window `BACKUP_MAX_AGE_HOURS` (30) uses, so the two signals do not disagree about what "late" means.
 
-**`BACKUP_HEARTBEAT_URL` is set (2026-11-28).** A real run through `scripts/run-db-backup.ps1` logged `heartbeat: heartbeat delivered (HTTP 200)` and the check read `up`. With the secret absent the pipeline
+**`BACKUP_HEARTBEAT_URL` is set (2026-11-28) and the pipeline sends it.** A laptop run through `scripts/run-db-backup.ps1` logged `heartbeat: heartbeat delivered (HTTP 200)`, and a `backup-daily` dispatch from `main` logged the same line from the runner: its ping flipped the check `down ➔ up` from the runner's own address, after a deliberate `/fail` ping had turned it `down`. With the secret absent the pipeline
 still backs up and still records runs; there is simply no out-of-band alarm if it stops. Check it with
 `gh secret list --repo nreffejzxc/inventory-ai`, which prints names and update times only — never a
 value. Set or rotate it from a **file**, so the URL never enters a shell history, a chat or a log:
