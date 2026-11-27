@@ -581,7 +581,7 @@ Google Drive.
 | Upload | `rclone` to `gdrive:InventoryAI-Backups`, `drive.file` scope, token supplied through the environment |
 | Proof | the archive is **re-downloaded** from Drive and its SHA-256 compared with the `.sha256` sidecar before the run may report `offsite: 'verified'` |
 | Retention | the same 14/4/3 planner, applied to the remote; the newest archive is always kept |
-| Idempotency | `--skip-if-today` reads the date out of the archive's own name, so a second delivery the same UTC day exits 0 without a second archive, run row or email |
+| Idempotency | `--skip-if-today` reads the date out of the archive's own name, so a second delivery the same UTC day exits 0 without a second archive, run row or email. A manual dispatch can opt out with `force: true`, which is what a recovery re-run or a heartbeat check needs; the schedule never sets it |
 | Alarm | `GET /api/health/backup` answers **200** only when the newest `SUCCESS` run carries a verified offsite archive no older than `BACKUP_MAX_AGE_HOURS` (default 30); otherwise **503** |
 
 The GPG **private** key and its passphrase are not in Actions, in Drive, or in any secret: the job

@@ -456,7 +456,17 @@ describe('workflow and runner guards', () => {
   });
 
   it('runs the cloud mode with the same-day guard, and verifies before recording', () => {
-    assert.match(workflow, /--cloud="\$BACKUP_CLOUD_REMOTE" --skip-if-today/);
+    // The guard is dispatch-conditional: the schedule (where `inputs.force` is empty)
+    // always sets it, and only an explicit `force: true` omits it, so one UTC day still
+    // cannot gain two archives from two scheduled deliveries.
+    assert.match(workflow, /args=\(--cloud="\$BACKUP_CLOUD_REMOTE"\)/);
+    assert.match(workflow, /if \[ "\$\{\{ inputs\.force \}\}" != "true" \]; then\s*\n\s*args\+=\(--skip-if-today\)/);
+    assert.match(workflow, /force:[\s\S]{0,200}?default: false/);
+    assert.doesNotMatch(
+      workflow,
+      /node scripts\/backup-daily\.mjs --cloud="\$BACKUP_CLOUD_REMOTE" --skip-if-today/,
+      'the guard must not be unconditional, or a dispatch could never run a backup',
+    );
     // `offsite: 'verified'` may only appear on the branch that ran syncOffsite.
     const verifiedAt = runner.indexOf("offsite: cloudResult ? 'verified'");
     const syncAt = runner.indexOf('await syncOffsite(');
