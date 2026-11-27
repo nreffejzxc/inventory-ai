@@ -113,6 +113,64 @@ Known limits, checked before spending one of them:
 
 ---
 
+## 2026-11-28 — Local SCHEDULED claims refused, one PO index name, and the pipeline heartbeat proved
+
+**Scope.** Three owner-requested tasks: stop a local run from claiming `SCHEDULED`, reconcile the
+development/production purchase-order index names, and ship the finished backup work to production
+with a verified `/api/health/backup`. No product behaviour outside the backup path changed.
+
+**Local `SCHEDULED` claims are refused.** `deriveTrigger` (`server/scripts/backup/provenance.mjs`)
+returned whatever a local caller asked for, so `--trigger=SCHEDULED` or `BACKUP_TRIGGER=SCHEDULED`
+wrote a claim that `attestScheduledRun` must then reject: no local process can supply the GitHub run
+id, `event: schedule`, the workflow ref on `refs/heads/main` and a Linux runner. It now records
+`MANUAL` for that request, and `backup-daily.mjs` logs the refusal instead of hiding it. A GitHub
+`schedule` event is unchanged and remains the only route to `SCHEDULED`; a `workflow_dispatch` still
+records `MANUAL`.
+
+**One canonical index name.** `PURCHASE_ORDER_REQUEST_KEY_INDEX` declared
+`uniq_purchase_order_request_key`, but `schema.index()` never passed the name, so a boot created
+`businessId_1_requestKey_1` while `migrate:required-indexes` created the explicit name. Development
+and test held the generated name, production the explicit one, with identical key, `unique` and
+partial filter — naming only, invisible to `evaluateRequiredIndex` (it matches keys) and fatal to
+MongoDB (`IndexOptionsConflict`, code 85) once the name was declared. The model now passes `name`;
+development and test were rebuilt under the canonical name; production already had it.
+
+**Pipeline and heartbeat.** `workflow_dispatch` gained `force` (default false) so a manual run is not
+a silent no-op on a day whose archive already exists; the schedule still always passes
+`--skip-if-today`. A forced dispatch from `main` produced run
+`46069089114`: archive `inventoryai_prod_db-20261127T211603Z.tar.gz.gpg`, `offsite: verified` after
+the read-back, and `heartbeat: heartbeat delivered (HTTP 200)`.
+
+**Verified.**
+
+| Check | Result |
+| --- | --- |
+| `node --test test/BACKUP-PROVENANCE.test.mjs` | 12/12 pass; local `--trigger=SCHEDULED` and `BACKUP_TRIGGER=SCHEDULED` both derive `MANUAL` |
+| `TEST_MODE=db … node --test test/OPS1-backup-restore.test.mjs` | 13/13 pass, after the test database was rebuilt under the canonical index name |
+| `BACKUP-CLOUD` / `required-index-rollout` / `transfer-ledger-index-readiness` / `phase20g-list-sort-indexes` | 19/19, 12/12, 26/26, 7/7 |
+| `npm run audit:indexes` | 144 declared indexes, **0** declaration/database disagreements |
+| `npx tsc --noEmit`, `npm run lint`, `node scripts/check-docs.mjs` | exit 0 |
+| Cross-environment restore (35 collections, 144 indexes) | canonical index restored with `unique` + partial filter; re-declaring it raised no conflict |
+| Production `GET /api/health/backup` on `abee6d4` | published `scheduledAttested`, `attestationReason`, `attestedAt`, `scheduledRunId`, consistent with rows `c23524d5` (unattested, `win32`, no provenance) and `7a49128f` (verified) |
+| Decrypt + per-file hash check of the laptop archive | `inventory-ai-backup/2`, 37 collections, 47,137 documents, 145 indexes, **37/37** hashes matched |
+| Healthchecks `/fail` then success | `down` → `up`; runner ping recorded `down ➔ up` from the runner's own address |
+| Gmail `jeffernmalinaoqwe@gmail.com` | `DOWN` 4:16 AM and `UP` 4:17 AM on 2026-11-28, plus `DOWN` 5:05 / `UP` 5:06 from this session's test |
+
+PRs **#388** (`abee6d4`), **#389** (`4541ca3`) and **#390** (`c45d25d`) were merged through the normal
+review flow; all CI contexts passed on each.
+
+**Not completed.** No GitHub *scheduled* run has executed since the merge, so production still reports
+`scheduledAttested: false` against the legacy `c23524d5` claim; the 02:40 UTC cron is the first
+opportunity to attest one. The archive produced by the runner is **not** the one that was decrypted:
+the content check used the laptop's archive, because the Drive copy would have to be downloaded
+first. The
+33 unrelated uncommitted paths in this tree were left untouched.
+
+**Resource use.** Three PRs, each a full CI run; one Render deploy (`abee6d4` → `4541ca3`); one forced
+`backup-daily` run (2.1 MB archive, uploaded and read-back verified); four Healthchecks pings from this
+host and one from the runner. No EAS build, no OTA publication.
+
+
 ## 2026-11-22 — Overview stock filters: review, route tests and PR #364
 
 **Purpose.** Review the committed-but-unmerged Overview stock-count fix across the dashboard, product
