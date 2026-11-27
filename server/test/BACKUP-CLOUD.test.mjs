@@ -522,12 +522,19 @@ describe('GET /api/health/backup', () => {
           [
             'ageHours',
             'archive',
+            // Provenance attestation (2026-11-28): the same exposure class — a verdict and
+            // a short reason. It says whether the newest SCHEDULED claim came from the GitHub
+            // schedule, never which credential or connection produced the archive.
+            'attestationReason',
+            'attestedAt',
             'detail',
             'fresh',
             'lastOutcome',
             'lastOutcomeAt',
             'lastVerifiedAt',
             'maxAgeHours',
+            'scheduledAttested',
+            'scheduledRunId',
             'sha256',
             'state',
             'timestamp',

@@ -21,6 +21,36 @@ const { Schema } = mongoose;
  * archive's name, its published SHA-256 digest and the failure text the runner
  * already prints.
  */
+/**
+ * Who started the run, as the runtime reported it.
+ *
+ * Every field is nullable on purpose: a laptop has no run id, and a fabricated one would
+ * turn "I do not know" into false evidence. The verdict on whether a SCHEDULED claim is
+ * proved is derived at read time (`backupProvenance.service.ts`), not stored, so the rule
+ * can be tightened without rewriting history.
+ */
+const provenanceSchema = new Schema(
+  {
+    source: { type: String, enum: ['github-actions', 'local'], default: null },
+    event: { type: String, default: null },
+    runId: { type: String, default: null },
+    runAttempt: { type: Number, default: null },
+    repository: { type: String, default: null },
+    workflowRef: { type: String, default: null },
+    ref: { type: String, default: null },
+    sha: { type: String, default: null },
+    actor: { type: String, default: null },
+    runner: {
+      name: { type: String, default: null },
+      os: { type: String, default: null },
+      arch: { type: String, default: null },
+    },
+    host: { type: String, default: null },
+    platform: { type: String, default: null },
+  },
+  { _id: false },
+);
+
 const backupRunSchema = new Schema(
   {
     runId: { type: String, required: true, unique: true },
@@ -48,6 +78,7 @@ const backupRunSchema = new Schema(
     archiveDir: { type: String, default: null },
     copyDir: { type: String, default: null },
     host: { type: String, default: null },
+    provenance: { type: provenanceSchema, default: null },
     detail: { type: String, default: null },
     // One failure alert per run. `claimedAt` is set atomically before sending so
     // two deliveries cannot both mail the same failure; `sentAt` is the durable

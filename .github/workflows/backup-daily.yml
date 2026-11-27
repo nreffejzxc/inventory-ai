@@ -108,7 +108,14 @@ jobs:
           MONGODB_URI: ${{ secrets.MONGODB_URI }}
           BACKUP_GPG_RECIPIENT: ${{ secrets.BACKUP_GPG_RECIPIENT }}
           BACKUP_DIR: ${{ runner.temp }}/inventory-ai-backups
-          BACKUP_TRIGGER: SCHEDULED
+          # No BACKUP_TRIGGER here on purpose. The runner derives the trigger from
+          # GITHUB_EVENT_NAME, so a workflow_dispatch can no longer record itself as
+          # SCHEDULED the way this line used to make it do. A local run cannot claim
+          # SCHEDULED at all: only this schedule event can, and only it is attested.
+          #
+          # The dead-man heartbeat. A URL here is a write capability, so it is a secret; when
+          # it is absent the runner stays silent instead of failing the backup.
+          BACKUP_HEARTBEAT_URL: ${{ secrets.BACKUP_HEARTBEAT_URL }}
           BACKUP_CLOUD_REMOTE: ${{ vars.BACKUP_CLOUD_REMOTE || 'gdrive:InventoryAI-Backups' }}
           BACKUP_ALERT_EMAIL: ${{ secrets.BACKUP_ALERT_EMAIL }}
           MAIL_PROVIDER: ${{ secrets.MAIL_PROVIDER }}

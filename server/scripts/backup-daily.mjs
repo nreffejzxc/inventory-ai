@@ -32,6 +32,8 @@ import { RETENTION_DEFAULTS, parseArchiveName, planRetention } from './backup/re
 // is still the one that runs on the owner's laptop, and the cloud path is only
 // reached when a remote is configured.
 import { notifyInterruptedRuns, notifyRunFailure } from './backup/alerts.mjs';
+import { describeHeartbeat, sendHeartbeat } from './backup/heartbeat.mjs';
+import { deriveTrigger, readProvenance } from './backup/provenance.mjs';
 import {
   assertRemote,
   precheckSameDay,
@@ -169,6 +171,10 @@ async function prune(directory, counts, protect) {
 // updates its own row, so the history cannot gain duplicates.
 let activeRunId = null;
 
+// Who this process is, as the runtime reports it. Read once: it cannot change mid-run, and
+// every row this execution writes must carry the same answer.
+const RUN_PROVENANCE = readProvenance();
+
 /**
  * Open the run record for this execution.
  *
@@ -185,6 +191,7 @@ async function beginRunRecord({ runId, trigger, outDir, copyDir, cloud }) {
     archiveDir: outDir || null,
     copyDir: copyDir || cloud || null,
     host: process.platform,
+    provenance: RUN_PROVENANCE,
   });
 }
 
@@ -195,12 +202,21 @@ async function main() {
   const skipIfToday = process.argv.slice(2).includes('--skip-if-today');
   const recipient = argValue('--recipient') || process.env.BACKUP_GPG_RECIPIENT || '';
   const runId = argValue('--run-id') || randomUUID();
-  // No default of SCHEDULED: only the wrapper knows why it was started, and it
-  // always states it. A bare invocation of this script is UNKNOWN, not a claim.
-  const requestedTrigger = (argValue('--trigger') || process.env.BACKUP_TRIGGER || 'UNKNOWN').toUpperCase();
-  const trigger = ['SCHEDULED', 'MANUAL', 'CONSOLE'].includes(requestedTrigger)
-    ? requestedTrigger
-    : 'UNKNOWN';
+  // PROVENANCE FIRST, THEN THE TRIGGER IT JUSTIFIES. Under GitHub Actions the platform's
+  // event is authoritative — a workflow_dispatch is MANUAL however the step's environment
+  // is written, which is how the workflow's unconditional `BACKUP_TRIGGER: SCHEDULED` used
+  // to mislabel dispatches. Everywhere else the wrapper's request is honoured (a local
+  // Scheduled Task really is scheduled) but cannot be attested; the read path says so.
+  const requestedTrigger = argValue('--trigger') || process.env.BACKUP_TRIGGER || 'UNKNOWN';
+  const trigger = deriveTrigger({ provenance: RUN_PROVENANCE, requested: requestedTrigger });
+  // A refused claim is said out loud: the backup still runs, but the record no longer states
+  // something no reader would accept. Only a GitHub `schedule` event can produce SCHEDULED.
+  if (String(requestedTrigger).toUpperCase() === 'SCHEDULED' && trigger !== 'SCHEDULED') {
+    console.log(
+      `[${COMMAND}] trigger  : SCHEDULED refused — only a GitHub schedule event can claim it; ` +
+        `recording ${trigger}.`,
+    );
+  }
   const counts = {
     daily: Number(argValue('--daily') || RETENTION_DEFAULTS.daily),
     weekly: Number(argValue('--weekly') || RETENTION_DEFAULTS.weekly),
@@ -313,7 +329,7 @@ async function main() {
   console.log(`[${COMMAND}] finish   : ${new Date().toISOString()}`);
 
   activeRunId = null;
-  await closeRunRecord({
+  const recorded = await closeRunRecord({
     runId,
     outcome: 'SUCCESS',
     archive: created.name,
@@ -323,6 +339,17 @@ async function main() {
     pruned,
     detail: null,
   });
+
+  // HEARTBEAT LAST, AND ONLY WHEN BOTH HOLES ARE FILLED. The signal means "a verified
+  // archive exists AND its evidence was written", so it goes out after the record write
+  // reports success — never after a bare upload, and never after a lost row. The URL only
+  // exists as a GitHub secret, so a laptop run cannot satisfy the monitor.
+  if (recorded) {
+    const beat = await sendHeartbeat({ url: process.env.BACKUP_HEARTBEAT_URL, outcome: 'success' });
+    console.log(`[${COMMAND}] heartbeat: ${describeHeartbeat(beat, 'success')}`);
+  } else {
+    console.log(`[${COMMAND}] heartbeat: skipped — the run record was not written`);
+  }
 }
 
 main().catch(async (error) => {
@@ -336,6 +363,10 @@ main().catch(async (error) => {
     await closeRunRecord({ runId, outcome: 'FAILED', detail: message });
     // After the record is durable, and never able to change the exit status.
     await notifyRunFailure(runId);
+    // Active failure signal. The dead-man would notice this 30 hours later; a run that
+    // already knows it failed should say so now, so the alert carries the real cause.
+    const beat = await sendHeartbeat({ url: process.env.BACKUP_HEARTBEAT_URL, outcome: 'failure' });
+    console.log(`[${COMMAND}] heartbeat: ${describeHeartbeat(beat, 'failure')}`);
   }
 }).finally(async () => {
   await closeRunStore();

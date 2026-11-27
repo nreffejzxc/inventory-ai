@@ -13,6 +13,7 @@
  */
 
 import BackupRun from '../models/backupRun.model.ts';
+import { normaliseProvenance, type BackupRunProvenance } from './backupProvenance.service.ts';
 
 /** A `RUNNING` row older than this is treated as interrupted, not in progress. */
 export const BACKUP_RUN_INTERRUPTED_AFTER_MS = 2 * 60 * 60 * 1000;
@@ -47,6 +48,8 @@ export type BackupRunRecord = {
   offsite: BackupRunOffsite;
   pruned: string[];
   detail: string | null;
+  /** What the runtime said about who started this run; `null` when it said nothing. */
+  provenance: BackupRunProvenance | null;
   alert: BackupRunAlert;
 };
 
@@ -57,6 +60,7 @@ export type StartRunInput = {
   archiveDir?: string | null;
   copyDir?: string | null;
   host?: string | null;
+  provenance?: BackupRunProvenance | null;
 };
 
 export type FinishRunInput = {
@@ -103,6 +107,7 @@ export async function startBackupRunRecord(input: StartRunInput): Promise<void> 
         archiveDir: clip(input.archiveDir, 500),
         copyDir: clip(input.copyDir, 500),
         host: clip(input.host, 120),
+        provenance: normaliseProvenance(input.provenance),
         detail: null,
       },
     },
@@ -153,6 +158,7 @@ type BackupRunRow = {
   offsite?: unknown;
   pruned?: unknown;
   detail?: unknown;
+  provenance?: unknown;
   alert?: { kind?: unknown; sentAt?: unknown; error?: unknown } | null;
 };
 
@@ -178,6 +184,7 @@ function toRecord(row: BackupRunRow, now: number): BackupRunRecord {
     offsite: (row.offsite as BackupRunOffsite) ?? 'unknown',
     pruned: Array.isArray(row.pruned) ? row.pruned.filter((n): n is string => typeof n === 'string') : [],
     detail: typeof row.detail === 'string' ? row.detail : null,
+    provenance: normaliseProvenance(row.provenance),
     alert: {
       kind: alertKind,
       sentAt: iso(rawAlert.sentAt),

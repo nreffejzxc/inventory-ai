@@ -271,27 +271,36 @@ dbSuite('encrypted backup wrapper', dbOk, () => {
 // The old wrapper passed `--batch` to decryption. That prevents pinentry from
 // handling a protected key, even though the passphrase is never given to the
 // wrapper. The DB case above proves the cached-agent path; this source guard
-// pins the interactive path without requiring a real terminal in CI.
+// pins the terminal contract without requiring a real terminal in CI.
+//
+// The other failure mode is the opposite one: an inherited terminal that is not
+// actually a terminal. gpg does not time out, and this host only ships the GUI
+// pinentry binaries, so a non-interactive run showed a dialog nobody could see
+// and blocked forever (2026-11-26). The guard is that pinentry is suppressed only
+// when there is no tty; a cached passphrase still decrypts in that mode.
 unitSuite('encrypted backup wrapper — pinentry path', () => {
-  it('does not pass --batch or a non-interactive pinentry mode to decryption', async () => {
+  it('keeps pinentry interactive, and suppresses it only when there is no terminal', async () => {
     const source = await readFile(wrapperScript, 'utf8');
     const start = source.indexOf('async function runGpgDecrypt');
     const end = source.indexOf('async function collectQuiet', start);
     assert.ok(start >= 0 && end > start, 'the decrypt helper can be located');
     const decryptHelper = source.slice(start, end);
-    const nonInteractivePinentry = /--pinentry-mode(?:=|\s+)(?:error|loopback)\b/;
     assert.doesNotMatch(decryptHelper, /--batch/);
-    assert.doesNotMatch(decryptHelper, nonInteractivePinentry);
     assert.match(
       decryptHelper,
       /stdio: \['inherit', 'pipe', 'pipe'\]/,
       'stdin stays inherited so pinentry can use the terminal',
     );
+    assert.match(decryptHelper, /process\.stdin\.isTTY/, 'the helper checks for a terminal');
+    assert.match(
+      decryptHelper,
+      /\? args : \['--pinentry-mode', 'error', \.\.\.args\]/,
+      'only a run without a tty suppresses pinentry',
+    );
 
     const decryptCall = source.match(/runGpgDecrypt\(\[([\s\S]*?)\]\)/);
     assert.ok(decryptCall, 'the archive decryption call can be located');
-    assert.doesNotMatch(decryptCall[1], /--batch/);
-    assert.doesNotMatch(decryptCall[1], nonInteractivePinentry);
+    assert.doesNotMatch(decryptCall[1], /--batch|--pinentry-mode/);
 
     // The wrapper must never grow a passphrase interface: the only permitted
     // path is gpg-agent/pinentry, not a command-line flag, env var, or file.

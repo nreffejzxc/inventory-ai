@@ -45,6 +45,7 @@ Status recorded **2026-11-26**: 8 of 9 services answer, 1 is not configured.
 | Brevo | Transactional mail, deliverability | `BREVO_API_KEY` in `server/.env` | `GET /v3/account` | OK — free plan |
 | Firebase | Sign-in, identities, email verification | `FIREBASE_SERVICE_ACCOUNT_JSON` in `server/.env` | RS256 token exchange; also `npm run verify:firebase` | OK — `inventoryai-d0d20` |
 | UptimeRobot | Uptime monitors and alert contacts | `UPTIMEROBOT_API_KEY` in `server/.env` | `getMonitors` (get methods only) | OK — read-only key, 3 monitors |
+| healthchecks.io | Backup dead-man switch — the runner pings it after a verified archive | GitHub Actions secret **`BACKUP_HEARTBEAT_URL`**; no local credential and no API key | `gh secret list` (name and update time only) | Check configured — `Inventory AI — daily encrypted DB backup`, 24 h period, 6 h grace, email to the Gmail account; both notifications reported `Delivered` on 2026-11-28. Secret **set 2026-11-28** from `C:/Users/jeffe/.backup-secrets/healthchecks-ping-url`; a real wrapper run then logged `heartbeat: heartbeat delivered (HTTP 200)` and the check read `up`. Pings from the GitHub schedule begin once the workflow change that passes the secret is on `main` |
 | Gmail (monitoring) | Reading alert and audit mailboxes | `GMAIL_*` variables in `server/.env` | presence only — see §4 | **Not configured** |
 
 ### The Render environment-variable name comparison
