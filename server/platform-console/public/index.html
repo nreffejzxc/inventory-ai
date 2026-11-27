@@ -171,11 +171,14 @@
           <button class="nav-item" type="button" data-view="database" data-capability="platform.metrics.read">Database &amp; storage</button>
           <button class="nav-item" type="button" data-view="mobile" data-capability="platform.metrics.read">Mobile app health</button>
           <button class="nav-item" type="button" data-view="jobs" data-capability="platform.metrics.read">Background jobs</button>
+          <button class="nav-item" type="button" data-view="integrity" data-capability="platform.metrics.read">Integrity monitor</button>
           <p class="nav-group">Operations</p>
           <button class="nav-item" type="button" data-view="businesses" data-capability="platform.metrics.read">Businesses &amp; tenants</button>
           <button class="nav-item" type="button" data-view="inventory" data-capability="platform.metrics.read">Inventory analytics</button>
           <button class="nav-item" type="button" data-view="support" data-capability="platform.support.manage">Support center</button>
           <button class="nav-item" type="button" data-view="errors" data-capability="platform.metrics.read">Errors &amp; incidents</button>
+          <button class="nav-item" type="button" data-view="backups" data-capability="platform.metrics.read">Backups &amp; restore</button>
+          <button class="nav-item" type="button" data-view="readiness" data-capability="platform.metrics.read">Readiness &amp; outbox</button>
           <p class="nav-group">Security &amp; team</p>
           <button class="nav-item" type="button" data-view="security">Security &amp; access</button>
           <button class="nav-item" type="button" data-view="audit" id="nav-audit" data-capability="platform.audit.read" hidden>Audit trail</button>
@@ -323,12 +326,72 @@
         <section id="view-jobs" hidden>
           <div id="jobs-cards" class="metric-grid"></div>
           <section class="panel">
-            <div class="panel-head"><h2>External delivery configuration</h2><span class="muted small">No live probes on this page</span></div>
-            <div id="jobs-services" class="check-list"></div>
+            <div class="panel-head"><h2>Scheduled tasks</h2><span id="jobs-source" class="muted small">Windows Task Scheduler</span></div>
+            <p id="jobs-list-status" class="status-line"></p>
+            <div id="jobs-services" class="table-wrap"></div>
           </section>
           <section class="panel">
-            <div class="panel-head"><h2>Job telemetry limits</h2></div>
+            <div class="panel-head"><h2>Task management</h2><span class="muted small">Explicit actions · existing registration scripts</span></div>
+            <form id="jobs-form" novalidate>
+              <label for="jobs-task">Task</label>
+              <select id="jobs-task"></select>
+              <div class="form-row">
+                <div>
+                  <label for="jobs-time">Daily run time (24h, Asia/Manila)</label>
+                  <input id="jobs-time" type="time">
+                </div>
+              </div>
+              <p class="muted small">A saved time is written to <code>console-config.json</code> and the task is re-registered with its existing <code>scripts/register-…-scheduler.ps1</code> script. Enable and disable change an existing task only; this console never registers a task that is missing.</p>
+              <p id="jobs-error" class="error" role="alert" hidden></p>
+              <p id="jobs-status" class="status-line" aria-live="polite"></p>
+              <button id="jobs-schedule-save" class="button primary" type="submit">Save schedule</button>
+              <button id="jobs-enable" class="button secondary" type="button">Enable task</button>
+              <button id="jobs-disable" class="button secondary" type="button">Disable task</button>
+            </form>
+          </section>
+          <section class="panel">
+            <div class="panel-head"><h2>Recent execution log</h2><span id="jobs-log-task" class="muted small"></span></div>
+            <pre id="jobs-logs" class="mono small"></pre>
+          </section>
+          <section class="panel">
+            <div class="panel-head"><h2>Host availability &amp; warnings</h2></div>
             <div id="jobs-unavailable" class="note-list"></div>
+          </section>
+        </section>
+
+        <section id="view-integrity" hidden>
+          <div id="integrity-cards" class="metric-grid"></div>
+          <div class="panel-grid">
+            <section class="panel">
+              <div class="panel-head"><h2>Heartbeat</h2><span class="muted small">integrity_monitor_heartbeats · /api/health/integrity</span></div>
+              <div id="integrity-heartbeat" class="note-list"></div>
+            </section>
+            <section class="panel">
+              <div class="panel-head"><h2>Latest run</h2><span class="muted small">latest.json on the monitor host</span></div>
+              <div id="integrity-latest" class="table-wrap"></div>
+            </section>
+          </div>
+          <section class="panel">
+            <div class="panel-head"><h2>Last 14 runs</h2><span class="muted small">history.jsonl · newest first</span></div>
+            <div id="integrity-history" class="table-wrap"></div>
+          </section>
+          <section class="panel">
+            <div class="panel-head"><h2>Source availability</h2><span class="muted small">Host-local files vs database record</span></div>
+            <div id="integrity-unavailable" class="note-list"></div>
+          </section>
+        </section>
+
+        <section id="view-readiness" hidden>
+          <div id="readiness-cards" class="metric-grid"></div>
+          <section class="panel">
+            <div class="panel-head"><h2>Required indexes</h2><span id="readiness-verdict" class="muted small">readRequiredIndexes()</span></div>
+            <div id="readiness-indexes" class="table-wrap"></div>
+            <div id="readiness-unavailable" class="note-list"></div>
+          </section>
+          <div id="outbox-cards" class="metric-grid"></div>
+          <section class="panel">
+            <div class="panel-head"><h2>Audit outbox backlog</h2><span class="muted small">audit_outbox · read-only</span></div>
+            <div id="outbox-note" class="note-list"></div>
           </section>
         </section>
 
@@ -426,6 +489,45 @@
           </div>
           <section class="panel"><div class="panel-head"><h2>Recent error events</h2><span class="muted small">No messages, bodies or user ids</span></div><div id="error-recent" class="table-wrap"></div></section>
           <section class="panel"><div class="panel-head"><h2>Incident policy</h2></div><div class="note-list"><p>Every row here is a server-side 5xx. Severity is not inferred from a status code; incidents require operator triage. Critical alerts are delivered by the existing external health watch, not by an invented in-console pager.</p><p>Mobile crashes, background-job failures and tenant authentication failures are not in a durable store and are marked unavailable.</p></div></section>
+        </section>
+
+        <section id="view-backups" hidden>
+          <div id="backup-cards" class="metric-grid"></div>
+          <section class="panel">
+            <div class="panel-head"><h2>Backup host</h2><span class="muted small">The machine that runs this API</span></div>
+            <div id="backup-host" class="note-list"></div>
+          </section>
+          <section class="panel">
+            <div class="panel-head"><h2>Schedule</h2><span class="muted small">Windows Task Scheduler</span></div>
+            <form id="backup-schedule-form" novalidate>
+              <div class="form-row">
+                <div>
+                  <label for="backup-time">Run at (24h, Asia/Manila)</label>
+                  <input id="backup-time" type="time" required>
+                </div>
+                <div>
+                  <label for="backup-archive-dir">Archive directory</label>
+                  <input id="backup-archive-dir" maxlength="400" required>
+                </div>
+              </div>
+              <label for="backup-copy-dir">Off-machine copy directory</label>
+              <input id="backup-copy-dir" maxlength="400" required>
+              <p class="muted small">Retention is fixed by the backup policy: 14 daily, 4 weekly and 3 monthly copies, applied in both directories.</p>
+              <p id="backup-schedule-error" class="error" role="alert" hidden></p>
+              <p id="backup-schedule-status" class="status-line" aria-live="polite"></p>
+              <button id="backup-schedule-save" class="button primary" type="submit">Save schedule</button>
+              <button id="backup-run-now" class="button secondary" type="button">Run a backup now</button>
+            </form>
+          </section>
+          <section class="panel">
+            <div class="panel-head"><h2>Encrypted archives</h2><span class="muted small">Newest first · SHA-256 checked on every load</span></div>
+            <p id="backup-list-status" class="status-line"></p>
+            <div id="backup-table" class="table-wrap"></div>
+          </section>
+          <section class="panel">
+            <div class="panel-head"><h2>Recent runs</h2><span id="backup-runs-source" class="muted small">Durable run records</span></div>
+            <div id="backup-runs" class="table-wrap"></div>
+          </section>
         </section>
 
         <section id="view-team" hidden>

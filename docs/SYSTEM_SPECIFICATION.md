@@ -1290,6 +1290,51 @@ GET  /platform                                (same-origin console shell; no API
 GET  /api/platform/status                     platform.health.read
 GET  /api/platform/operations?days=7           platform.metrics.read
 GET  /api/platform/deployments?limit=50       platform.deployments.read
+GET  /api/platform/backups                    platform.metrics.read
+POST /api/platform/backups/run                platform.admin.manage
+PUT  /api/platform/backups/schedule           platform.admin.manage
+DELETE /api/platform/backups/:name            platform.admin.manage + step-up proof
+GET  /api/platform/jobs                       platform.metrics.read
+POST /api/platform/jobs/:id/enable            platform.admin.manage + step-up proof
+POST /api/platform/jobs/:id/disable           platform.admin.manage + step-up proof
+PUT  /api/platform/jobs/:id/schedule          platform.admin.manage
+GET  /api/platform/integrity                  platform.metrics.read
+GET  /api/platform/readiness                  platform.metrics.read
+GET  /api/platform/audit-outbox               platform.metrics.read
+
+Background jobs are the four Windows Scheduled Tasks that operate the system (encrypted backup,
+inventory integrity audit, integrity operations, production health watch). The view reads task state,
+triggers, last result and the tail of each scheduler log from the machine that runs them, so an API
+host that is not that machine reports every task as **unknown** with a warning rather than an empty
+list. Enabling and disabling change an existing task only and need SUPERADMIN plus a step-up proof; a
+task that is not registered is reported as such and is never created here. A daily reschedule writes
+the same `console-config.json` the runners read and re-runs the repository's existing
+`scripts/register-*-scheduler.ps1` script. When the saved time and the task's own start boundary
+disagree, both are shown and the divergence is stated.
+
+The integrity panel combines the database heartbeat (`integrity_monitor_heartbeats`, the document
+`/api/health/integrity` reports) with the monitor's host-local `latest.json`, `latest.md` and the last
+14 `history.jsonl` runs. The readiness panel renders all six `REQUIRED_INDEX_SPECS` from the same
+cached `readRequiredIndexes()` verdict `/ready` uses, naming each missing or malformed index. The
+audit-outbox panel reports PENDING/SENDING/FAILED counts and the oldest PENDING age using the existing
+`status` index. All three are read-only: no index is created, no outbox row is retried, edited or
+deleted, and no monitor file is written.
+
+Every backup execution writes one durable row to `backup_runs` (unique `runId`, trigger,
+start/finish, outcome, archive name, SHA-256, off-machine result, pruned names and the failure
+text). The console reads that collection first; a `RUNNING` row older than two hours is reported as
+`INTERRUPTED`, and the host's scheduler log is used only when no durable row exists or the database
+is unreachable. The `.sha256` sidecar and the archive's own bytes remain the integrity record — the
+row records what the run produced, not a second copy of it.
+
+A `FAILED` run, and a run still `RUNNING` after the two-hour interruption window, also sends one
+operator email through the existing `sendOperationalAlertEmail` boundary to `BACKUP_ALERT_EMAIL`.
+The record is the source of truth: the alert names the `runId`, trigger, timestamps, archive and the
+runner's failure text, and it is sent by the runner after the result is written. Delivery is
+best-effort — a missing recipient, an unconfigured mail provider, a mail outage or an unreachable
+database logs a line and changes nothing about the run or its exit status. `backup_runs.alert` holds
+the one claim that makes the alert unique per run (`kind`, `claimedAt`, `sentAt`, `error`); a claim
+taken but never completed expires after ten minutes so a genuine retry can still be delivered.
 GET  /api/platform/tickets?limit=50           platform.support.manage
 POST /api/platform/tickets                    platform.support.manage
 GET  /api/platform/tickets/assignees          platform.support.manage

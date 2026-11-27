@@ -21,6 +21,7 @@ technical documents listed at the bottom; if they disagree with a guide, they wi
 | Delete data from the development database | [11. Deleting data — development](11-deleting-development.md) |
 | Delete data from the production database | [12. Deleting data — production](12-deleting-production.md) |
 | Work with Firebase logins | [13. Firebase identities](13-firebase-identities.md) |
+| Back up the database, check a backup, or restore one | [21. Backups — find, create, verify, decrypt and restore](21-backup-and-restore.md) |
 | Look up any other command or script | [6. Scripts and commands](6-scripts-and-commands.md) |
 | Update an installed app without reinstalling it | [7. Updating the app](7-over-the-air-updates.md) |
 | Prepare the Google Play submission | [8. Preparing the Play submission](8-play-store-submission.md) |
@@ -28,8 +29,9 @@ technical documents listed at the bottom; if they disagree with a guide, they wi
 
 Guides 5 and 6 are references — jump to the word or command you need. Guides 9–13 own the data commands
 — one guide for each half in each environment (put it in, take it out), one for the logins — so Guide 6
-does not repeat the rules. The complete invocations and the backup/restore procedure are in those guides
-and Guide 6; there is no separate runbook.
+does not repeat the rules. The complete invocations are in those guides and Guide 6. Guide 21 owns
+backups end to end, because creating, verifying and restoring one is a procedure with its own keys,
+passphrase and warnings.
 
 The numbered filenames are stable links. Guides 3 and 14 were consolidated into Guide 2, Guides 9–13 and
 Guide 6; no rule, command or safety procedure was removed.

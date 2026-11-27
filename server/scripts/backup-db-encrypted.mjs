@@ -145,14 +145,22 @@ async function runQuiet(command, args) {
  * unlocked by gpg-agent, not by a passphrase argument or a passphrase file
  * this wrapper reads. stdin is inherited so pinentry can prompt; stdout and
  * stderr remain captured so the temporary path never becomes noise.
+ *
+ * NO TERMINAL MEANS NOBODY TO ANSWER PINENTRY. gpg does not time out, and this
+ * host only has the GUI pinentry binaries, so a non-interactive caller gets a
+ * dialog it cannot see and gpg waits forever (measured 2026-11-26: still
+ * blocked after 20 s, one orphaned pinentry.exe). With no tty the agent is
+ * told to fail instead; a cached passphrase still decrypts, which is exactly
+ * how the test suites and a live agent cache run.
  */
 async function runGpgDecrypt(args) {
-  const child = spawn('gpg', args, {
+  const decryptArgs = process.stdin.isTTY ? args : ['--pinentry-mode', 'error', ...args];
+  const child = spawn('gpg', decryptArgs, {
     cwd: serverRoot,
     env: process.env,
     stdio: ['inherit', 'pipe', 'pipe'],
   });
-  return collectQuiet(child, 'gpg', args);
+  return collectQuiet(child, 'gpg', decryptArgs);
 }
 
 async function collectQuiet(child, command, args) {

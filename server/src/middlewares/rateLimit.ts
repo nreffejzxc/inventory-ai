@@ -387,6 +387,37 @@ export function createLoginIpLimiter(overrides: Partial<AuthRateConfig> = {}) {
 }
 
 /**
+ * Platform console limiter — per IP, every request counted.
+ *
+ * WHY THIS EXISTS. The console's routes are MFA-gated and capability-checked, and
+ * until now that was their only bound: the rest of the API has no general limiter
+ * either. The platform routes are the ones that can re-run a backup, reschedule a
+ * scheduled task or DELETE a recovery point, so a session driven in a loop (a
+ * stolen session, a stuck console, a retry storm) could start overlapping backup
+ * runs and spend the host's disk on archives nobody asked for. One budget per
+ * client address bounds that without touching any guard: the route still needs a
+ * valid admin session, the capability and — for the destructive ones — a step-up
+ * proof. 120 requests a minute is far above a person clicking through the console
+ * and far below a loop that could hurt the host.
+ *
+ * It is a whole-router limiter on purpose: the console's read views poll, and a
+ * view that polls hard is the same pressure as a view that writes hard.
+ */
+export function createPlatformConsoleLimiter(overrides: { windowMs?: number; limit?: number } = {}) {
+  return rateLimit({
+    windowMs: overrides.windowMs ?? 60_000,
+    limit: overrides.limit ?? 120,
+    keyGenerator(request) {
+      return ipKeyGenerator(clientIp(request));
+    },
+    ...limitResponse(
+      'PLATFORM_RATE_LIMITED',
+      'Too many platform console requests. Please wait a moment and try again.'
+    ),
+  });
+}
+
+/**
  * Registration limiter — per IP, counting every attempt (mass signups). Same
  * explicit request.ip keying rationale as createLoginIpLimiter above.
  */

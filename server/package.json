@@ -76,7 +76,8 @@
     "eval:stock-coverage": "node scripts/eval-stock-coverage.mjs",
     "eval:simple-10k": "node scripts/eval-simple-inventory-scale.mjs",
     "eval:deployed-gate": "node scripts/perf/deployed-gate.mjs",
-    "backup:db:encrypted": "node scripts/backup-db-encrypted.mjs"
+    "backup:db:encrypted": "node scripts/backup-db-encrypted.mjs",
+    "backup:daily": "node scripts/backup-daily.mjs"
   },
   "dependencies": {
     "@simplewebauthn/server": "^13.3.3",

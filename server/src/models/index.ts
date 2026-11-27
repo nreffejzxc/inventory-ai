@@ -32,6 +32,7 @@ import PlatformAdminSession from './platformAdminSession.model.ts';
 import PlatformAuditLog from './platformAuditLog.model.ts';
 import PlatformDeployment from './platformDeployment.model.ts';
 import PlatformTicket from './platformTicket.model.ts';
+import BackupRun from './backupRun.model.ts';
 
 export {
   Business,
@@ -68,6 +69,7 @@ export {
   PlatformAuditLog,
   PlatformDeployment,
   PlatformTicket,
+  BackupRun,
 };
 
 /** Every registered model, for tooling/tests that iterate the schema set. */
@@ -106,6 +108,7 @@ export const models = [
   PlatformAuditLog,
   PlatformDeployment,
   PlatformTicket,
+  BackupRun,
 ];
 
 export default models;
