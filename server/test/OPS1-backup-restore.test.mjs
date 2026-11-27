@@ -228,7 +228,12 @@ dbSuite('OPS-1 — backup and restore', dbOk, () => {
     const legacy = {
       ...manifest,
       format: 'inventory-ai-backup/1',
-      collections: manifest.collections.map(({ options, indexes, ...rest }) => rest),
+      collections: manifest.collections.map((entry) => {
+        const legacyEntry = { ...entry };
+        delete legacyEntry.options;
+        delete legacyEntry.indexes;
+        return legacyEntry;
+      }),
     };
     delete legacy.totals.indexes;
     await writeFile(path.join(outDir, MANIFEST_NAME), JSON.stringify(legacy));
