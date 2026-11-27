@@ -16,10 +16,19 @@ name: backup-daily
 # impossible, and `/api/health/backup` alarms on the record, not on the run.
 #
 # SECRETS THIS JOB USES, AND THE ONE IT MUST NEVER SEE.
-#   MONGODB_URI                 read-only dump (use a least-privilege Atlas user)
-#   BACKUP_GPG_PUBLIC_KEY       the PUBLIC key only, armored
-#   BACKUP_GPG_RECIPIENT        its 40-character fingerprint
-#   RCLONE_DRIVE_TOKEN          OAuth token for the owner's own Drive, `drive.file` scope
+#   MONGODB_URI                    read-only dump (least-privilege Atlas user) and
+#                                  the run record in `backup_runs`
+#   BACKUP_GPG_PUBLIC_KEY          the PUBLIC key only, armored
+#   BACKUP_GPG_RECIPIENT           its 40-character fingerprint
+#   RCLONE_DRIVE_CLIENT_ID         the dedicated OAuth client (`rclone backup`)
+#   RCLONE_DRIVE_CLIENT_SECRET     that client's secret
+#   RCLONE_DRIVE_TOKEN_DEDICATED   the refresh token issued BY that client. A
+#                                  Google refresh token only refreshes with the
+#                                  client that issued it, so the older shared-client
+#                                  `RCLONE_DRIVE_TOKEN` is deliberately NOT used
+#                                  here: with the dedicated client it answers
+#                                  `unauthorized_client`. That secret and the
+#                                  `gdrive` remote are kept unchanged for rollback.
 #   MAIL_PROVIDER/BREVO_API_KEY/MAIL_FROM/BACKUP_ALERT_EMAIL   optional failure alert
 # The GPG private key and its passphrase are NOT here and have no secret name in
 # this file: this job only ever encrypts to the public key.
