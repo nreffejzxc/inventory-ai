@@ -4,6 +4,7 @@ import env from '../config/env.ts';
 import { buildInfo } from '../config/deploymentReadiness.ts';
 import { getDatabaseState, isDatabaseReady } from '../config/db.ts';
 import { operationalCounters } from '../config/operationalCounters.ts';
+import { readBackupFreshness } from '../services/backupFreshness.service.ts';
 import { readIntegrityHeartbeat } from '../services/integrityHeartbeat.service.ts';
 import { readRequiredIndexes } from '../config/indexReadiness.ts';
 import { exchangeRateAvailability } from '../services/ai/exchangeRates.ts';
@@ -108,6 +109,10 @@ function timestamp() {
  * @param {() => ExchangeRateAvailability} [options.exchangeRates]
  *        Process-local exchange-rate availability. Published on the legacy
  *        endpoint as inert operational context; it is never a readiness input.
+ * @param {() => Promise<unknown>} [options.readBackup]
+ *        The offsite backup's freshness. Injectable for the same reason as the
+ *        integrity heartbeat: the 200/503 branches are pinned without waiting for
+ *        a scheduled run or writing a run record.
  */
 export function createHealthHandlers({
   getState = getDatabaseState,
@@ -118,6 +123,7 @@ export function createHealthHandlers({
   readIntegrity = readIntegrityHeartbeat,
   checkIndexes = readRequiredIndexes,
   exchangeRates = exchangeRateAvailability,
+  readBackup = readBackupFreshness,
 } = {}) {
   return {
     // Legacy liveness + db state (kept for compatibility).
@@ -211,6 +217,39 @@ export function createHealthHandlers({
         });
       }
     },
+
+    // Offsite backup freshness: the only signal that says a recoverable copy was
+    // MADE, rather than that the API is up. The scheduled backup runs on GitHub's
+    // runners, so nothing on this host can see the archive; the durable run
+    // record is the evidence, and a SUCCESS row only counts once it carries a
+    // verified offsite archive. A missing, stale or unreadable history is a 503
+    // on purpose — a monitor must treat it as an incident with no parsing.
+    // Publishes freshness, the archive's name and its age: no credential, no
+    // passphrase, no tenant data.
+    async backup(_req: Request, res: Response) {
+      res.setHeader('Cache-Control', 'no-store');
+      try {
+        const freshness = await readBackup();
+        return res.status((freshness as { fresh?: boolean }).fresh ? 200 : 503).json({
+          ...freshness,
+          timestamp: timestamp(),
+        });
+      } catch {
+        return res.status(503).json({
+          state: 'unreadable',
+          fresh: false,
+          lastVerifiedAt: null,
+          ageHours: null,
+          maxAgeHours: null,
+          archive: null,
+          sha256: null,
+          lastOutcome: null,
+          lastOutcomeAt: null,
+          detail: 'the backup freshness check could not run',
+          timestamp: timestamp(),
+        });
+      }
+    },
   };
 }
 
@@ -228,6 +267,7 @@ export function createHealthRouter(
   router.get('/live', handlers.live);
   router.get('/ready', handlers.ready);
   router.get('/integrity', handlers.integrity);
+  router.get('/backup', handlers.backup);
   return router;
 }
 
