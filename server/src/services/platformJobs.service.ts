@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, openSync, readSync, closeSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, openSync, readSync, closeSync, fstatSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
@@ -206,11 +206,14 @@ export function configuredTime(
 /** Read the last `count` non-empty lines of a file, bounded to `maxBytes`. */
 function tailLines(file: string, count: number, maxBytes: number): { lines: string[]; note: string | null } {
   try {
-    const size = statSync(file).size;
+    // The descriptor is opened FIRST and measured with fstat: measuring the path
+    // and then opening it would read whatever replaced the file in between (the
+    // scheduler rewrites this log while the console reads it).
+    const handle = openSync(file, 'r');
+    const size = fstatSync(handle).size;
     const start = Math.max(0, size - maxBytes);
     const length = size - start;
     const buffer = Buffer.alloc(length);
-    const handle = openSync(file, 'r');
     try {
       readSync(handle, buffer, 0, length, start);
     } finally {
