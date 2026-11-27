@@ -388,7 +388,7 @@ dedicated client configured and the shared-client token in place, which is exact
    archive — but note the new folder is the one with the archive in it, so re-running after a revert
    re-uploads to the old folder rather than restoring the file.
 
-## 9.6 Run record — blocked on the backup database user's role (finding; change NOT applied)
+### 9.6 Run record — blocked on the backup database user's role (finding; change NOT applied)
 
 - **What the runner needs.** `backup-daily.mjs` opens one `backup_runs` row per execution and closes
   it at the end; `finishBackupRunRecord` is what writes `offsite: 'verified'`. Both writes are
